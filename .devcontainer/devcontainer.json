@@ -1,0 +1,10 @@
+{
+    "name": "Node.js & pnpm",
+    "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+    "features": {
+        "ghcr.io/devcontainers/features/node:1": {
+            "pnpm": "latest"
+        }
+    },
+    "remoteUser": "node"
+}
