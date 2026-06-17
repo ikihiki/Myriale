@@ -4,5 +4,6 @@
     "features": {
          "ghcr.io/devcontainers-extra/features/pnpm:2": {}
     },
-    "remoteUser": "node"
+    "containerUser": "1000",
+    "remoteUser": "1000"
 }
