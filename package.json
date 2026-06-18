@@ -1,0 +1,28 @@
+{
+  "name": "myriale-wireframe",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "storybook": "storybook dev -p 6006 --host 0.0.0.0 --no-open",
+    "build-storybook": "storybook build",
+    "test": "vitest run --environment jsdom"
+  },
+  "dependencies": {
+    "@storybook/addon-actions": "^8.6.15",
+    "@storybook/addon-docs": "8.6.15",
+    "@storybook/addon-interactions": "^8.6.15",
+    "@storybook/react-vite": "8.6.15",
+    "@storybook/test": "8.6.15",
+    "@testing-library/jest-dom": "latest",
+    "@testing-library/react": "latest",
+    "@vitejs/plugin-react": "5.1.1",
+    "jsdom": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "storybook": "8.6.15",
+    "typescript": "latest",
+    "vite": "6.4.3",
+    "vitest": "latest"
+  }
+}

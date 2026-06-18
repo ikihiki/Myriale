@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Myriale ワイヤーフレーム</title>
+  <style>
+    :root {
+      --bg: #f5f3ef;
+      --paper: #fffdf8;
+      --ink: #24201b;
+      --muted: #746b61;
+      --line: #d8d0c5;
+      --accent: #6b5cff;
+      --accent-soft: #ebe9ff;
+      --success: #2f855a;
+      --danger: #b83232;
+      --shadow: 0 16px 40px rgba(37, 31, 24, 0.10);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.6;
+    }
+
+    button, input, textarea, select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 16px;
+      background: var(--ink);
+      color: #fff;
+    }
+
+    button.secondary {
+      background: #fff;
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+
+    button.ghost {
+      background: transparent;
+      color: var(--muted);
+      padding: 6px 10px;
+    }
+
+    .app-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr) 340px;
+    }
+
+    .sidebar,
+    .comment-panel {
+      background: rgba(255, 253, 248, 0.86);
+      backdrop-filter: blur(12px);
+      border-color: var(--line);
+      border-style: solid;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+    }
+
+    .sidebar {
+      border-width: 0 1px 0 0;
+      padding: 24px 18px;
+    }
+
+    .comment-panel {
+      border-width: 0 0 0 1px;
+      padding: 22px;
+    }
+
+    .logo {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      font-weight: 800;
+      font-size: 22px;
+      margin-bottom: 28px;
+    }
+
+    .logo-mark {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: var(--ink);
+      color: #fff;
+    }
+
+    .nav-group-title,
+    .eyebrow {
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin: 24px 8px 8px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 11px 12px;
+      margin: 4px 0;
+      border-radius: 12px;
+      color: var(--muted);
+    }
+
+    .nav-item.active {
+      color: var(--accent);
+      background: var(--accent-soft);
+      font-weight: 700;
+    }
+
+    .workspace {
+      padding: 28px;
+      overflow: auto;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .topbar h1 {
+      margin: 0;
+      line-height: 1.2;
+      font-size: clamp(24px, 3vw, 36px);
+    }
+
+    .topbar p { margin: 6px 0 0; color: var(--muted); }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      padding: 6px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      width: max-content;
+      margin-bottom: 22px;
+    }
+
+    .tab {
+      background: transparent;
+      color: var(--muted);
+      padding: 8px 14px;
+    }
+
+    .tab.active {
+      background: var(--ink);
+      color: #fff;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .two-col { grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr); }
+    .three-col { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .card h2,
+    .card h3 {
+      margin-top: 0;
+      line-height: 1.3;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+      margin-bottom: 14px;
+    }
+
+    label { font-weight: 700; }
+
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 11px 12px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    textarea { min-height: 110px; resize: vertical; }
+
+    .flow-node {
+      border: 1px dashed #b8afa3;
+      border-radius: 16px;
+      padding: 14px;
+      background: #fff;
+      margin-bottom: 12px;
+    }
+
+    .flow-node-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-weight: 800;
+    }
+
+    .choice-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .choice {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: var(--accent-soft);
+      color: #3d348b;
+      font-weight: 700;
+    }
+
+    .player-preview {
+      background: #191613;
+      color: #fff8ef;
+      border-radius: 24px;
+      padding: 24px;
+      min-height: 520px;
+      display: grid;
+      align-content: end;
+      gap: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .player-preview::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 20% 15%, rgba(107, 92, 255, 0.55), transparent 30%),
+        linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.55));
+    }
+
+    .player-preview > * { position: relative; }
+
+    .story-text {
+      font-size: 20px;
+      line-height: 1.8;
+      background: rgba(0, 0, 0, 0.32);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 18px;
+      padding: 18px;
+    }
+
+    .player-choice {
+      width: 100%;
+      text-align: left;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.24);
+      color: #fff;
+      border-radius: 14px;
+      margin-top: 8px;
+    }
+
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      margin-top: 10px;
+    }
+
+    .success { color: var(--success); }
+    .danger { color: var(--danger); }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 5px 10px;
+      background: #fff;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .comment-target {
+      outline: 2px solid transparent;
+      outline-offset: 3px;
+      transition: outline-color 0.15s ease, transform 0.15s ease;
+    }
+
+    .comment-target:hover {
+      outline-color: rgba(107, 92, 255, 0.38);
+    }
+
+    .comment-target.selected {
+      outline-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .comment-target.has-comment::after {
+      content: attr(data-comment-count);
+      display: inline-grid;
+      place-items: center;
+      min-width: 22px;
+      height: 22px;
+      margin-left: 8px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      vertical-align: middle;
+    }
+
+    .comment-help {
+      padding: 12px;
+      border-radius: 14px;
+      background: var(--accent-soft);
+      color: #3d348b;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+
+    .selected-info {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      margin-bottom: 14px;
+    }
+
+    .comment-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .comment-item {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+    }
+
+    .comment-item small {
+      color: var(--muted);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 1100px) {
+      .app-shell { grid-template-columns: 220px minmax(0, 1fr); }
+      .comment-panel {
+        grid-column: 1 / -1;
+        position: static;
+        height: auto;
+        border-width: 1px 0 0;
+      }
+      .two-col, .three-col { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 760px) {
+      .app-shell { display: block; }
+      .sidebar { position: static; height: auto; border-width: 0 0 1px; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .workspace { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="logo comment-target" data-comment-id="global-logo" data-comment-label="サービスロゴ">
+        <span class="logo-mark">M</span>
+        <span>Myriale</span>
+      </div>
+
+      <div class="nav-group-title">作者向け</div>
+      <div class="nav-item active comment-target" data-comment-id="nav-author-dashboard" data-comment-label="作者ダッシュボード">✍️ 物語を設計</div>
+      <div class="nav-item comment-target" data-comment-id="nav-flow-editor" data-comment-label="分岐エディタ">🔀 分岐エディタ</div>
+      <div class="nav-item comment-target" data-comment-id="nav-publish" data-comment-label="公開設定">🚀 公開設定</div>
+
+      <div class="nav-group-title">読者向け</div>
+      <div class="nav-item comment-target" data-comment-id="nav-reader-home" data-comment-label="読者ホーム">🏠 作品を探す</div>
+      <div class="nav-item comment-target" data-comment-id="nav-play-session" data-comment-label="AI体験画面">🤖 AIと読む</div>
+      <div class="nav-item comment-target" data-comment-id="nav-history" data-comment-label="プレイ履歴">📚 履歴</div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar comment-target" data-comment-id="topbar" data-comment-label="ヘッダー">
+        <div>
+          <p class="eyebrow">Wireframe / Prototype</p>
+          <h1>物語フローを入力し、AIが読者ごとに演出する</h1>
+          <p>作者が世界観・場面・分岐条件を設計し、読者はAIとの対話で物語を体験します。</p>
+        </div>
+        <button class="comment-target" data-comment-id="primary-create-story" data-comment-label="新規物語ボタン">新しい物語を作る</button>
+      </header>
+
+      <nav class="tabs comment-target" data-comment-id="screen-tabs" data-comment-label="画面切り替えタブ" aria-label="画面切り替え">
+        <button class="tab active comment-target" data-screen="author" data-comment-id="tab-author" data-comment-label="タブ: 作者画面">作者画面</button>
+        <button class="tab comment-target" data-screen="reader" data-comment-id="tab-reader" data-comment-label="タブ: 読者画面">読者画面</button>
+        <button class="tab comment-target" data-screen="admin" data-comment-id="tab-admin" data-comment-label="タブ: 運用/分析">運用/分析</button>
+      </nav>
+
+      <section id="screen-author" class="screen grid two-col">
+        <div class="grid">
+          <section class="card comment-target" data-comment-id="story-basics" data-comment-label="物語基本情報フォーム">
+            <h2>1. 物語の基本情報</h2>
+            <div class="field">
+              <label for="title">タイトル</label>
+              <input id="title" value="霧の図書館と忘れられた名前" />
+            </div>
+            <div class="field">
+              <label for="genre">ジャンル</label>
+              <select id="genre">
+                <option>ファンタジー</option>
+                <option>ミステリー</option>
+                <option>恋愛</option>
+                <option>SF</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="world">世界観・AIへの指示</label>
+              <textarea id="world">古い図書館に迷い込んだ読者に、司書AIが穏やかで少し不穏な語り口で応答する。</textarea>
+            </div>
+            <button>保存して次へ</button>
+          </section>
+
+          <section class="card comment-target" data-comment-id="flow-editor" data-comment-label="物語フローエディタ">
+            <h2>2. 物語フロー</h2>
+            <article class="flow-node comment-target" data-comment-id="node-opening" data-comment-label="開始場面ノード">
+              <div class="flow-node-header">
+                <span>開始場面: 入口のホール</span>
+                <span class="pill">公開中</span>
+              </div>
+              <p>読者は霧の中で目を覚まし、巨大な図書館の扉を見つける。</p>
+              <div class="choice-list">
+                <div class="choice comment-target" data-comment-id="choice-enter" data-comment-label="選択肢: 扉を開ける">扉を開ける → 司書との遭遇</div>
+                <div class="choice comment-target" data-comment-id="choice-search" data-comment-label="選択肢: 周囲を調べる">周囲を調べる → 隠し鍵</div>
+              </div>
+            </article>
+            <article class="flow-node comment-target" data-comment-id="node-librarian" data-comment-label="司書との遭遇ノード">
+              <div class="flow-node-header">
+                <span>場面: 司書との遭遇</span>
+                <span class="pill">条件: 鍵なし</span>
+              </div>
+              <p>司書AIが読者の名前を尋ね、答え方によって態度を変える。</p>
+            </article>
+            <button class="secondary">＋ 場面を追加</button>
+          </section>
+        </div>
+
+        <aside class="grid">
+          <section class="card comment-target" data-comment-id="ai-rules" data-comment-label="AI演出ルール">
+            <h3>AI演出ルール</h3>
+            <div class="field">
+              <label for="tone">語り口</label>
+              <input id="tone" value="詩的・少し不穏・読者に問いかける" />
+            </div>
+            <div class="field">
+              <label for="guardrail">禁止事項</label>
+              <textarea id="guardrail">作者が未設定の核心設定は勝手に確定しない。暴力表現は暗示に留める。</textarea>
+            </div>
+          </section>
+
+          <section class="card comment-target" data-comment-id="publish-checklist" data-comment-label="公開前チェックリスト">
+            <h3>公開前チェック</h3>
+            <div class="metric"><span>開始場面</span><strong class="success">設定済み</strong></div>
+            <div class="metric"><span>未接続の分岐</span><strong>2件</strong></div>
+            <div class="metric"><span>AIテストプレイ</span><strong>未実行</strong></div>
+            <button style="width:100%; margin-top:14px;">テストプレイを開始</button>
+          </section>
+        </aside>
+      </section>
+
+      <section id="screen-reader" class="screen grid two-col hidden">
+        <section class="player-preview comment-target" data-comment-id="reader-play-screen" data-comment-label="読者AIプレイ画面">
+          <span class="pill">第1章 / 入口のホール</span>
+          <div class="story-text comment-target" data-comment-id="ai-story-output" data-comment-label="AI生成本文">
+            霧はあなたの肩に薄い本のページのように積もっていた。目の前には、名前を失った者だけが辿り着くという図書館の扉がある。
+          </div>
+          <div class="comment-target" data-comment-id="reader-choice-area" data-comment-label="読者の選択肢エリア">
+            <button class="player-choice">扉に手をかける</button>
+            <button class="player-choice">足元の霧を払って調べる</button>
+            <button class="player-choice">AI司書に声をかける</button>
+          </div>
+          <div class="field comment-target" data-comment-id="reader-free-input" data-comment-label="読者自由入力欄">
+            <label for="reader-input">自由に行動を入力</label>
+            <input id="reader-input" placeholder="例: 扉の模様を詳しく見る" />
+          </div>
+        </section>
+
+        <aside class="grid">
+          <section class="card comment-target" data-comment-id="reader-story-info" data-comment-label="読者向け作品情報">
+            <h3>作品情報</h3>
+            <p><strong>霧の図書館と忘れられた名前</strong></p>
+            <p>読者の選択と自由入力をもとに、AIが作者のフロー内で場面を演出します。</p>
+            <div class="metric"><span>推定プレイ時間</span><strong>25分</strong></div>
+            <div class="metric"><span>エンディング</span><strong>4種類</strong></div>
+          </section>
+          <section class="card comment-target" data-comment-id="memory-state" data-comment-label="AI記憶/状態表示">
+            <h3>AIが保持する状態</h3>
+            <p class="pill">読者名: 未確認</p>
+            <p class="pill">所持品: なし</p>
+            <p class="pill">信頼度: 低</p>
+          </section>
+        </aside>
+      </section>
+
+      <section id="screen-admin" class="screen grid three-col hidden">
+        <section class="card comment-target" data-comment-id="analytics-engagement" data-comment-label="読者エンゲージメント分析">
+          <h3>読者エンゲージメント</h3>
+          <div class="metric"><span>開始数</span><strong>1,284</strong></div>
+          <div class="metric"><span>完走率</span><strong>62%</strong></div>
+          <div class="metric"><span>平均セッション</span><strong>18分</strong></div>
+        </section>
+        <section class="card comment-target" data-comment-id="analytics-branches" data-comment-label="分岐分析">
+          <h3>分岐分析</h3>
+          <p>離脱が多い場面、選ばれにくい選択肢、AI自由入力の傾向を確認します。</p>
+          <button class="secondary">レポートを見る</button>
+        </section>
+        <section class="card comment-target" data-comment-id="moderation-queue" data-comment-label="安全性レビューキュー">
+          <h3>安全性レビュー</h3>
+          <div class="metric"><span>要確認ログ</span><strong>8件</strong></div>
+          <div class="metric"><span>作者確認待ち</span><strong>3件</strong></div>
+        </section>
+      </section>
+    </main>
+
+    <aside class="comment-panel" aria-label="コメントパネル">
+      <h2>コメント</h2>
+      <div class="comment-help">
+        画面上の枠が付く要素をクリックすると、このパネルでコメントできます。コメントはこのブラウザのlocalStorageに保存されます。
+      </div>
+      <div class="selected-info">
+        <small>選択中の要素</small>
+        <strong id="selected-label">未選択</strong>
+        <div id="selected-id" style="color: var(--muted); font-size: 13px;"></div>
+      </div>
+      <div class="field">
+        <label for="comment-input">コメント内容</label>
+        <textarea id="comment-input" placeholder="例: このボタン名は『テストプレイ』の方が分かりやすいかも"></textarea>
+      </div>
+      <button id="add-comment" style="width:100%;">コメントを追加</button>
+      <button id="export-comments" class="secondary" style="width:100%; margin-top:10px;">コメントをJSONで書き出し</button>
+      <div class="comment-list" id="comment-list"></div>
+    </aside>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "myriale-wireframe-comments";
+    const targets = [...document.querySelectorAll(".comment-target[data-comment-id]")];
+    const selectedLabel = document.getElementById("selected-label");
+    const selectedId = document.getElementById("selected-id");
+    const commentInput = document.getElementById("comment-input");
+    const commentList = document.getElementById("comment-list");
+    const addCommentButton = document.getElementById("add-comment");
+    const exportButton = document.getElementById("export-comments");
+    let selectedTarget = null;
+    let comments = loadComments();
+
+    function loadComments() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+      } catch (_error) {
+        return {};
+      }
+    }
+
+    function saveComments() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(comments, null, 2));
+    }
+
+    function selectTarget(target) {
+      selectedTarget?.classList.remove("selected");
+      selectedTarget = target;
+      selectedTarget.classList.add("selected");
+      selectedLabel.textContent = target.dataset.commentLabel;
+      selectedId.textContent = `ID: ${target.dataset.commentId}`;
+      renderCommentList();
+    }
+
+    function renderCommentBadges() {
+      targets.forEach((target) => {
+        const count = comments[target.dataset.commentId]?.length || 0;
+        target.classList.toggle("has-comment", count > 0);
+        target.dataset.commentCount = count ? `💬 ${count}` : "";
+      });
+    }
+
+    function renderCommentList() {
+      if (!selectedTarget) {
+        commentList.innerHTML = "<p style='color: var(--muted);'>コメントしたい要素を選択してください。</p>";
+        return;
+      }
+
+      const id = selectedTarget.dataset.commentId;
+      const items = comments[id] || [];
+      if (items.length === 0) {
+        commentList.innerHTML = "<p style='color: var(--muted);'>この要素へのコメントはまだありません。</p>";
+        return;
+      }
+
+      commentList.innerHTML = items.map((item, index) => `
+        <article class="comment-item">
+          <small>${escapeHtml(item.createdAt)} / ${escapeHtml(selectedTarget.dataset.commentLabel)}</small>
+          <div>${escapeHtml(item.text).replace(/\n/g, "<br>")}</div>
+          <button class="ghost" data-delete-comment="${index}" style="margin-top: 8px;">削除</button>
+        </article>
+      `).join("");
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    targets.forEach((target) => {
+      target.addEventListener("click", (event) => {
+        event.stopPropagation();
+        selectTarget(target);
+      });
+    });
+
+    addCommentButton.addEventListener("click", () => {
+      if (!selectedTarget) {
+        alert("先にコメント対象の要素をクリックしてください。");
+        return;
+      }
+      const text = commentInput.value.trim();
+      if (!text) return;
+
+      const id = selectedTarget.dataset.commentId;
+      comments[id] ||= [];
+      comments[id].push({
+        text,
+        createdAt: new Date().toLocaleString("ja-JP"),
+      });
+      commentInput.value = "";
+      saveComments();
+      renderCommentBadges();
+      renderCommentList();
+    });
+
+    commentList.addEventListener("click", (event) => {
+      const deleteIndex = event.target.dataset.deleteComment;
+      if (deleteIndex === undefined || !selectedTarget) return;
+      const id = selectedTarget.dataset.commentId;
+      comments[id].splice(Number(deleteIndex), 1);
+      if (comments[id].length === 0) delete comments[id];
+      saveComments();
+      renderCommentBadges();
+      renderCommentList();
+    });
+
+    exportButton.addEventListener("click", async () => {
+      const json = JSON.stringify(comments, null, 2);
+      try {
+        await navigator.clipboard.writeText(json);
+        alert("コメントJSONをクリップボードにコピーしました。");
+      } catch (_error) {
+        const blob = new Blob([json], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "myriale-wireframe-comments.json";
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+    });
+
+    document.querySelectorAll(".tab").forEach((tab) => {
+      tab.addEventListener("click", (event) => {
+        event.stopPropagation();
+        document.querySelectorAll(".tab").forEach((item) => item.classList.remove("active"));
+        tab.classList.add("active");
+        document.querySelectorAll(".screen").forEach((screen) => screen.classList.add("hidden"));
+        document.getElementById(`screen-${tab.dataset.screen}`).classList.remove("hidden");
+      });
+    });
+
+    renderCommentBadges();
+    renderCommentList();
+  </script>
+</body>
+</html>
