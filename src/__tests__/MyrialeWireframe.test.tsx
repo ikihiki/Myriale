@@ -1,7 +1,8 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { MyrialeWireframe } from '../MyrialeWireframe';
+import { commentSummary, describeHtmlElement } from '../storybook-comment-addon/dom';
 import '../styles.css';
 
 afterEach(() => cleanup());
@@ -44,18 +45,46 @@ describe('MyrialeWireframe use cases', () => {
     expect(screen.getByTestId('reader-log')).toHaveTextContent('自由入力: 扉の蔦模様に触れる');
   });
 
-  it('レビュー担当者が対象要素にコメントできる', () => {
+  it('Storybookコメントaddonが使う対象マーカーをレンダリングする', () => {
     render(<MyrialeWireframe initialView="author" />);
 
     const flowEditor = document.querySelector('[data-comment-id="flow-editor"]');
-    if (!(flowEditor instanceof HTMLElement)) throw new Error('flow editor was not rendered');
-    fireEvent.click(flowEditor);
-    expect(screen.getByText(/選択中:/).parentElement).toHaveTextContent('物語フローエディタ');
+    expect(flowEditor).toBeInstanceOf(HTMLElement);
+    expect(flowEditor).toHaveAttribute('data-comment-label', '物語フローエディタ');
+  });
+});
 
-    fireEvent.change(screen.getByLabelText('コメント内容'), { target: { value: '分岐数を表示したい' } });
-    fireEvent.click(screen.getByRole('button', { name: 'コメントを追加' }));
+describe('Storybook comment addon helpers', () => {
+  it('クリックされたHTML要素を対象ブロック配下の詳細セレクタに変換する', () => {
+    render(<MyrialeWireframe initialView="author" />);
 
-    expect(within(screen.getByTestId('comment-list')).getByText('分岐数を表示したい')).toBeVisible();
-    expect(flowEditor).toHaveAttribute('data-comment-count', '💬 1');
+    const root = document.querySelector('[data-comment-id="story-basics"]');
+    const titleInput = screen.getByLabelText('タイトル');
+    if (!(root instanceof HTMLElement) || !(titleInput instanceof HTMLElement)) throw new Error('target was not rendered');
+
+    const selection = describeHtmlElement(titleInput, root);
+    expect(selection).toMatchObject({
+      id: 'story-basics',
+      label: '物語基本情報',
+      elementName: 'input',
+      selector: '[data-comment-id="story-basics"] label:nth-of-type(1) > input[aria-label="タイトル"]',
+      elementText: 'タイトル',
+    });
+  });
+
+  it('Codex連携用のコメントまとめを生成する', () => {
+    const summary = commentSummary([
+      {
+        id: 'flow-editor',
+        label: '物語フローエディタ',
+        elementName: 'button',
+        selector: '[data-comment-id="flow-editor"] div.panel-heading > button',
+        elementText: '場面を追加',
+        text: 'この追加ボタンの配置を見直したい',
+      },
+    ]);
+
+    expect(summary).toContain('対象HTML: [data-comment-id="flow-editor"] div.panel-heading > button');
+    expect(summary).toContain('コメント: この追加ボタンの配置を見直したい');
   });
 });

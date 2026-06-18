@@ -18,15 +18,14 @@ button { border: 0; cursor: pointer; }
 .myriale-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 248px minmax(0, 1fr) 320px;
+  grid-template-columns: 248px minmax(0, 1fr);
   background:
     radial-gradient(circle at 19% 8%, rgba(124, 92, 255, 0.34), transparent 28%),
     radial-gradient(circle at 82% 14%, rgba(255, 159, 104, 0.24), transparent 22%),
     linear-gradient(135deg, #191420 0%, #f4ead2 45%, #fffaf0 100%);
 }
 
-.story-rail,
-.comment-dock {
+.story-rail {
   min-height: 100vh;
   padding: 24px;
   color: #fff6e7;
@@ -35,7 +34,6 @@ button { border: 0; cursor: pointer; }
   border-style: solid;
 }
 .story-rail { border-width: 0 1px 0 0; }
-.comment-dock { border-width: 0 0 0 1px; }
 
 .brand-block { display: flex; gap: 12px; align-items: center; margin-bottom: 34px; }
 .brand-sigil {
@@ -109,17 +107,13 @@ textarea { min-height: 126px; resize: vertical; }
 .state-list dt { color:#6d587a; font-weight:800; } .state-list dd { margin: 0 0 10px; }
 .metric-panel strong { display:block; font-family: Georgia, serif; font-size: 56px; line-height: 1; margin: 10px 0; }
 
+/* Storybook comment addon reads these markers and decorates them in preview mode. */
 .comment-target { outline: 2px solid transparent; outline-offset: 4px; transition: outline-color .15s ease, transform .15s ease; }
-.comment-target:hover, .comment-target:focus-visible { outline-color: var(--iris); transform: translateY(-1px); }
-.comment-target.has-comment::after { content: attr(data-comment-count); display:inline-flex; margin-top:12px; padding: 4px 9px; border-radius:999px; background: var(--iris); color: white; font-size: 12px; font-weight: 900; }
-.comment-dock textarea { min-height: 140px; margin: 10px 0; }
-.comment-list { display:grid; gap: 10px; margin-top: 16px; }
-.comment-list article { color: var(--ink); background: var(--paper); border-radius: 18px; padding: 12px; }
-.comment-list small { color:#7054dd; font-weight: 900; }
+.comment-target:hover, .comment-target:focus-visible { outline-color: rgba(124, 92, 255, .48); transform: translateY(-1px); }
 .empty { color: #cfc4db; }
 
 @media (max-width: 1080px) {
   .myriale-shell { grid-template-columns: 1fr; }
-  .story-rail, .comment-dock { min-height: auto; }
+  .story-rail { min-height: auto; }
   .workspace-grid, .reader-grid, .ops-grid { grid-template-columns: 1fr; }
 }

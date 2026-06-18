@@ -1,12 +1,6 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 export type View = 'login' | 'author' | 'reader' | 'ops';
-
-type Comment = {
-  target: string;
-  label: string;
-  text: string;
-};
 
 type Scene = {
   title: string;
@@ -32,34 +26,13 @@ const Target = ({
   label,
   children,
   className = '',
-  onSelect,
-  commentCount,
 }: {
   id: string;
   label: string;
   children: ReactNode;
   className?: string;
-  onSelect: (id: string, label: string) => void;
-  commentCount: number;
 }) => (
-  <div
-    className={`comment-target ${commentCount > 0 ? 'has-comment' : ''} ${className}`}
-    data-comment-id={id}
-    data-comment-label={label}
-    data-comment-count={commentCount > 0 ? `💬 ${commentCount}` : ''}
-    onClick={(event) => {
-      event.stopPropagation();
-      onSelect(id, label);
-    }}
-    role="button"
-    tabIndex={0}
-    onKeyDown={(event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        onSelect(id, label);
-      }
-    }}
-  >
+  <div className={`comment-target ${className}`} data-comment-id={id} data-comment-label={label}>
     {children}
   </div>
 );
@@ -77,19 +50,6 @@ export function MyrialeWireframe({ initialView = 'author' }: { initialView?: Vie
     '霧はあなたの肩に薄い本のページのように積もっていた。目の前には、名前を失った者だけが辿り着くという図書館の扉がある。',
   ]);
   const [freeInput, setFreeInput] = useState('');
-  const [selectedTarget, setSelectedTarget] = useState({ id: 'story-basics', label: '物語基本情報' });
-  const [commentText, setCommentText] = useState('');
-  const [comments, setComments] = useState<Comment[]>([]);
-
-  const commentCounts = useMemo(() => {
-    return comments.reduce<Record<string, number>>((acc, comment) => {
-      acc[comment.target] = (acc[comment.target] || 0) + 1;
-      return acc;
-    }, {});
-  }, [comments]);
-
-  const selectTarget = (id: string, label: string) => setSelectedTarget({ id, label });
-  const count = (id: string) => commentCounts[id] || 0;
 
   const addScene = () => {
     setScenes((current) => [
@@ -125,13 +85,6 @@ export function MyrialeWireframe({ initialView = 'author' }: { initialView?: Vie
     setFreeInput('');
   };
 
-  const addComment = () => {
-    const text = commentText.trim();
-    if (!text) return;
-    setComments((current) => [...current, { ...selectedTarget, target: selectedTarget.id, text }]);
-    setCommentText('');
-  };
-
   const submitLogin = () => {
     if (!email.trim() || !password.trim()) {
       setNotice('メールアドレスとパスワードを入力してください。');
@@ -150,8 +103,6 @@ export function MyrialeWireframe({ initialView = 'author' }: { initialView?: Vie
     setNotice('ログアウトしました。');
   };
 
-  const visibleComments = comments.filter((comment) => comment.target === selectedTarget.id);
-
   return (
     <div className="myriale-shell">
       <aside className="story-rail" aria-label="プロダクトナビゲーション">
@@ -169,7 +120,7 @@ export function MyrialeWireframe({ initialView = 'author' }: { initialView?: Vie
           <button className={view === 'ops' ? 'active' : ''} onClick={() => setView('ops')}>運用の観測室</button>
           {isAuthenticated && <button onClick={logout}>ログアウト</button>}
         </nav>
-        <p className="rail-note">要素をクリックすると右側でコメントできます。Storybookのplayテストで主要ユースケースを再生します。</p>
+        <p className="rail-note">Storybookのコメントaddonで要素を選択し、レビューコメントをCodex向けにまとめられます。</p>
       </aside>
 
       <main className="stage">
@@ -228,7 +179,7 @@ export function MyrialeWireframe({ initialView = 'author' }: { initialView?: Vie
 
         {view === 'author' && (
           <section className="workspace-grid" aria-label="作者画面">
-            <Target id="story-basics" label="物語基本情報" onSelect={selectTarget} commentCount={count('story-basics')} className="panel tall">
+            <Target id="story-basics" label="物語基本情報" className="panel tall">
               <h2>物語基本情報</h2>
               <label>
                 タイトル
@@ -241,7 +192,7 @@ export function MyrialeWireframe({ initialView = 'author' }: { initialView?: Vie
               <button className="primary" onClick={saveStory}>保存してテストプレイへ</button>
             </Target>
 
-            <Target id="flow-editor" label="物語フローエディタ" onSelect={selectTarget} commentCount={count('flow-editor')} className="panel flow-panel">
+            <Target id="flow-editor" label="物語フローエディタ" className="panel flow-panel">
               <div className="panel-heading">
                 <h2>物語フロー</h2>
                 <button onClick={addScene}>場面を追加</button>
@@ -257,7 +208,7 @@ export function MyrialeWireframe({ initialView = 'author' }: { initialView?: Vie
               </div>
             </Target>
 
-            <Target id="ai-rules" label="AI演出ルール" onSelect={selectTarget} commentCount={count('ai-rules')} className="panel compact">
+            <Target id="ai-rules" label="AI演出ルール" className="panel compact">
               <h2>AI演出ルール</h2>
               <ul>
                 <li>作者が未設定の核心設定は確定しない</li>
@@ -270,7 +221,7 @@ export function MyrialeWireframe({ initialView = 'author' }: { initialView?: Vie
 
         {view === 'reader' && (
           <section className="reader-grid" aria-label="読者画面">
-            <Target id="reader-play" label="AIプレイ画面" onSelect={selectTarget} commentCount={count('reader-play')} className="reader-stage">
+            <Target id="reader-play" label="AIプレイ画面" className="reader-stage">
               <div className="chapter-label">第1章 / 入口のホール</div>
               <div className="reader-log" data-testid="reader-log">
                 {readerLog.map((line, index) => <p key={`${line}-${index}`}>{line}</p>)}
@@ -285,7 +236,7 @@ export function MyrialeWireframe({ initialView = 'author' }: { initialView?: Vie
                 <button onClick={sendFreeInput}>行動を送る</button>
               </div>
             </Target>
-            <Target id="memory-state" label="AIが保持する状態" onSelect={selectTarget} commentCount={count('memory-state')} className="panel">
+            <Target id="memory-state" label="AIが保持する状態" className="panel">
               <h2>AIが保持する状態</h2>
               <dl className="state-list">
                 <div><dt>読者名</dt><dd>未確認</dd></div>
@@ -303,7 +254,7 @@ export function MyrialeWireframe({ initialView = 'author' }: { initialView?: Vie
               ['自由入力', '418件', '扉、名前、司書に関する探索が多いです'],
               ['安全性レビュー', '8件', '作者確認が必要なログを抽出しました'],
             ].map(([label, value, description]) => (
-              <Target key={label} id={`ops-${label}`} label={`運用指標: ${label}`} onSelect={selectTarget} commentCount={count(`ops-${label}`)} className="panel metric-panel">
+              <Target key={label} id={`ops-${label}`} label={`運用指標: ${label}`} className="panel metric-panel">
                 <span>{label}</span>
                 <strong>{value}</strong>
                 <p>{description}</p>
@@ -312,21 +263,6 @@ export function MyrialeWireframe({ initialView = 'author' }: { initialView?: Vie
           </section>
         )}
       </main>
-
-      <aside className="comment-dock" aria-label="コメントパネル">
-        <h2>コメント</h2>
-        <p>選択中: <strong>{selectedTarget.label}</strong></p>
-        <textarea aria-label="コメント内容" value={commentText} onChange={(event) => setCommentText(event.target.value)} placeholder="この要素へのコメントを書く" />
-        <button className="primary" onClick={addComment}>コメントを追加</button>
-        <div className="comment-list" data-testid="comment-list">
-          {visibleComments.length === 0 ? <p className="empty">この要素へのコメントはまだありません。</p> : visibleComments.map((comment, index) => (
-            <article key={`${comment.target}-${index}`}>
-              <small>{comment.label}</small>
-              <p>{comment.text}</p>
-            </article>
-          ))}
-        </div>
-      </aside>
     </div>
   );
 }
