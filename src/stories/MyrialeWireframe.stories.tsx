@@ -94,24 +94,23 @@ export const ReaderPlaysWithAi: Story = {
 };
 
 export const ReviewerCommentsOnWireframe: Story = {
-  name: 'レビュー: 要素を選んでコメントする',
+  name: 'レビュー: Storybook addonで要素コメントを集める',
   args: { initialView: 'author' },
+  parameters: {
+    notes: 'コメント機能はStorybook addonとして右下/下部のAddonパネルに切り出しています。Addonの「コメント」タブで選択モードに切り替えると、ボタンなどのHTML要素を実行せずにコメント対象として選べます。',
+  },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
 
-    await step('コメント対象の要素を選択する', async () => {
+    await step('Storybook addonが参照するコメント対象マーカーがある', async () => {
       const flowEditor = canvasElement.querySelector('[data-comment-id="flow-editor"]');
       if (!(flowEditor instanceof HTMLElement)) throw new Error('flow-editor target was not found');
-      await userEvent.click(flowEditor);
-      await expect(canvas.getByText(/選択中:/).parentElement).toHaveTextContent('物語フローエディタ');
+      await expect(flowEditor).toHaveAttribute('data-comment-label', '物語フローエディタ');
     });
 
-    await step('コメントを追加すると対象要素とパネルに反映される', async () => {
-      await userEvent.type(canvas.getByLabelText('コメント内容'), '未接続の分岐数がここで見えるとレビューしやすいです。');
-      await userEvent.click(canvas.getByRole('button', { name: 'コメントを追加' }));
-      await expect(canvas.getByTestId('comment-list')).toHaveTextContent('未接続の分岐数');
-      const flowEditor = canvasElement.querySelector('[data-comment-id="flow-editor"]');
-      await expect(flowEditor).toHaveAttribute('data-comment-count', '💬 1');
+    await step('インタラクティブモードでは通常どおりボタンを操作できる', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: '場面を追加' }));
+      await expect(canvas.getByTestId('scene-stack')).toHaveTextContent('新しい場面 3');
     });
   },
 };

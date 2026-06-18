@@ -1,0 +1,18 @@
+.storybook-comment-canvas[data-comment-mode='select'] { cursor: crosshair; }
+.storybook-comment-canvas[data-comment-mode='select'] [data-comment-id],
+.storybook-comment-canvas[data-comment-mode='select'] [data-comment-id] * { cursor: crosshair; }
+.storybook-comment-canvas[data-comment-mode='select'] [data-comment-id] :is(button, input, textarea, select, a, [role='button'], label, li, dt, dd, h2, h3, p, span):hover {
+  outline: 2px dashed #ff9f68;
+  outline-offset: 3px;
+}
+.storybook-comment-canvas [data-comment-id].storybook-comment-has-comment::after {
+  content: attr(data-comment-count);
+  display: inline-flex;
+  margin-top: 12px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #7c5cff;
+  color: white;
+  font-size: 12px;
+  font-weight: 900;
+}
