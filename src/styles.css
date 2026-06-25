@@ -540,6 +540,63 @@ textarea { min-height: 126px; resize: vertical; }
   -webkit-line-clamp: 3;
 }
 
+
+.start-session-select-screen {
+  grid-template-columns: 168px minmax(560px, 1fr);
+}
+
+.start-session-scenario-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.start-session-card,
+.start-session-narrative {
+  padding: 16px;
+  border: 1px solid rgba(23, 21, 31, .14);
+  border-radius: 18px;
+  background: rgba(255, 254, 249, .72);
+}
+
+.start-session-card span {
+  color: #b84a4a;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.start-session-card h2,
+.start-session-narrative h2 {
+  margin: 6px 0 8px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(22px, 2vw, 34px);
+  line-height: 1;
+  letter-spacing: -.04em;
+}
+
+.start-session-card button,
+.start-session-narrative button,
+.start-session-wireframe .wizard-summary button {
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: #2b2940;
+  color: #fffaf0;
+  font-size: 12px;
+}
+
+.start-session-card .primary,
+.start-session-wireframe .wizard-panel .primary {
+  background: #d9a441;
+  color: #17151f;
+  font-weight: 900;
+}
+
+.start-session-wireframe .contract-spine .text-button {
+  margin-top: 12px;
+  color: #d9a441;
+}
 @media (max-width: 1120px) {
   .scenario-forge-wizard { grid-template-columns: 1fr; }
   .scenario-forge-wizard .contract-spine,
