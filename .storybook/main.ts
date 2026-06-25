@@ -13,6 +13,10 @@ const config: StorybookConfig = {
       allowedHosts: true,
       host: '0.0.0.0',
     };
+    config.resolve = {
+      ...config.resolve,
+      dedupe: [...(config.resolve?.dedupe ?? []), 'react', 'react-dom'],
+    };
     return config;
   },
 };
