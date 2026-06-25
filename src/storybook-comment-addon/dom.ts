@@ -28,8 +28,8 @@ const selectorSegmentFor = (element: HTMLElement) => {
   return `${tagName}${firstClass ? `.${cssEscape(firstClass)}` : ''}${nthOfType}`;
 };
 
-const selectorPathWithinTarget = (element: HTMLElement, targetRoot: HTMLElement, targetId: string) => {
-  const rootSelector = `[data-comment-id="${cssEscape(targetId)}"]`;
+const selectorPathWithinTarget = (element: HTMLElement, targetRoot: HTMLElement) => {
+  const rootSelector = '.storybook-comment-canvas';
   if (element === targetRoot) return rootSelector;
 
   const segments: string[] = [];
@@ -39,24 +39,24 @@ const selectorPathWithinTarget = (element: HTMLElement, targetRoot: HTMLElement,
     current = current.parentElement;
   }
 
-  return `${rootSelector} ${segments.join(' > ')}`;
+  return `${rootSelector} > ${segments.join(' > ')}`;
 };
 
 export const describeHtmlElement = (element: HTMLElement, targetRoot: HTMLElement): SelectedTarget => {
-  const targetId = targetRoot.dataset.commentId || 'unknown-target';
-  const targetLabel = targetRoot.dataset.commentLabel || targetId;
   const tagName = element.tagName.toLowerCase();
   const ariaLabel = element.getAttribute('aria-label');
   const testId = element.getAttribute('data-testid');
   const placeholder = element.getAttribute('placeholder');
+  const heading = element.querySelector('h1, h2, h3')?.textContent || '';
   const elementValue = element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement ? element.value : '';
   const readableText = truncate(ariaLabel || testId || placeholder || elementValue || element.textContent || tagName);
+  const selector = selectorPathWithinTarget(element, targetRoot);
 
   return {
-    id: targetId,
-    label: targetLabel,
+    id: selector,
+    label: truncate(ariaLabel || heading || readableText || 'Story canvas', 40),
     elementName: tagName,
-    selector: selectorPathWithinTarget(element, targetRoot, targetId),
+    selector,
     elementText: readableText,
   };
 };

@@ -22,17 +22,13 @@ const initialScenes: Scene[] = [
 ];
 
 const Target = ({
-  id,
-  label,
   children,
   className = '',
 }: {
-  id: string;
-  label: string;
   children: ReactNode;
   className?: string;
 }) => (
-  <div className={`comment-target ${className}`} data-comment-id={id} data-comment-label={label}>
+  <div className={`comment-target ${className}`}>
     {children}
   </div>
 );
@@ -179,7 +175,7 @@ export function MyrialeWireframe({ initialView = 'author' }: { initialView?: Vie
 
         {view === 'author' && (
           <section className="workspace-grid" aria-label="作者画面">
-            <Target id="story-basics" label="物語基本情報" className="panel tall">
+            <Target className="panel tall">
               <h2>物語基本情報</h2>
               <label>
                 タイトル
@@ -192,7 +188,7 @@ export function MyrialeWireframe({ initialView = 'author' }: { initialView?: Vie
               <button className="primary" onClick={saveStory}>保存してテストプレイへ</button>
             </Target>
 
-            <Target id="flow-editor" label="物語フローエディタ" className="panel flow-panel">
+            <Target className="panel flow-panel">
               <div className="panel-heading">
                 <h2>物語フロー</h2>
                 <button onClick={addScene}>場面を追加</button>
@@ -208,7 +204,7 @@ export function MyrialeWireframe({ initialView = 'author' }: { initialView?: Vie
               </div>
             </Target>
 
-            <Target id="ai-rules" label="AI演出ルール" className="panel compact">
+            <Target className="panel compact">
               <h2>AI演出ルール</h2>
               <ul>
                 <li>作者が未設定の核心設定は確定しない</li>
@@ -221,7 +217,7 @@ export function MyrialeWireframe({ initialView = 'author' }: { initialView?: Vie
 
         {view === 'reader' && (
           <section className="reader-grid" aria-label="読者画面">
-            <Target id="reader-play" label="AIプレイ画面" className="reader-stage">
+            <Target className="reader-stage">
               <div className="chapter-label">第1章 / 入口のホール</div>
               <div className="reader-log" data-testid="reader-log">
                 {readerLog.map((line, index) => <p key={`${line}-${index}`}>{line}</p>)}
@@ -236,7 +232,7 @@ export function MyrialeWireframe({ initialView = 'author' }: { initialView?: Vie
                 <button onClick={sendFreeInput}>行動を送る</button>
               </div>
             </Target>
-            <Target id="memory-state" label="AIが保持する状態" className="panel">
+            <Target className="panel">
               <h2>AIが保持する状態</h2>
               <dl className="state-list">
                 <div><dt>読者名</dt><dd>未確認</dd></div>
@@ -254,7 +250,7 @@ export function MyrialeWireframe({ initialView = 'author' }: { initialView?: Vie
               ['自由入力', '418件', '扉、名前、司書に関する探索が多いです'],
               ['安全性レビュー', '8件', '作者確認が必要なログを抽出しました'],
             ].map(([label, value, description]) => (
-              <Target key={label} id={`ops-${label}`} label={`運用指標: ${label}`} className="panel metric-panel">
+              <Target key={label} className="panel metric-panel">
                 <span>{label}</span>
                 <strong>{value}</strong>
                 <p>{description}</p>
