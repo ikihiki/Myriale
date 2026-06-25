@@ -102,10 +102,10 @@ export const ReviewerCommentsOnWireframe: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
 
-    await step('Storybook addonが参照するコメント対象マーカーがある', async () => {
-      const flowEditor = canvasElement.querySelector('[data-comment-id="flow-editor"]');
-      if (!(flowEditor instanceof HTMLElement)) throw new Error('flow-editor target was not found');
-      await expect(flowEditor).toHaveAttribute('data-comment-label', '物語フローエディタ');
+    await step('Storybook addonはdata属性なしで通常のHTML要素を選択できる', async () => {
+      const addSceneButton = canvas.getByRole('button', { name: '場面を追加' });
+      await expect(addSceneButton).toBeVisible();
+      await expect(addSceneButton.closest('.comment-target')).toBeInstanceOf(HTMLElement);
     });
 
     await step('インタラクティブモードでは通常どおりボタンを操作できる', async () => {

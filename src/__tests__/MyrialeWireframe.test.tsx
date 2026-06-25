@@ -45,12 +45,11 @@ describe('MyrialeWireframe use cases', () => {
     expect(screen.getByTestId('reader-log')).toHaveTextContent('自由入力: 扉の蔦模様に触れる');
   });
 
-  it('Storybookコメントaddonが使う対象マーカーをレンダリングする', () => {
+  it('Storybookコメントaddonは専用data属性なしの通常要素を選択対象にできる', () => {
     render(<MyrialeWireframe initialView="author" />);
 
-    const flowEditor = document.querySelector('[data-comment-id="flow-editor"]');
-    expect(flowEditor).toBeInstanceOf(HTMLElement);
-    expect(flowEditor).toHaveAttribute('data-comment-label', '物語フローエディタ');
+    expect(document.querySelector('[data-' + 'comment' + '-id]')).toBeNull();
+    expect(screen.getByRole('button', { name: '場面を追加' })).toBeVisible();
   });
 });
 
@@ -58,16 +57,22 @@ describe('Storybook comment addon helpers', () => {
   it('クリックされたHTML要素を対象ブロック配下の詳細セレクタに変換する', () => {
     render(<MyrialeWireframe initialView="author" />);
 
-    const root = document.querySelector('[data-comment-id="story-basics"]');
-    const titleInput = screen.getByLabelText('タイトル');
-    if (!(root instanceof HTMLElement) || !(titleInput instanceof HTMLElement)) throw new Error('target was not rendered');
+    const root = document.createElement('div');
+    root.className = 'storybook-comment-canvas';
+    const label = document.createElement('label');
+    label.textContent = 'タイトル';
+    const titleInput = document.createElement('input');
+    titleInput.setAttribute('aria-label', 'タイトル');
+    label.appendChild(titleInput);
+    root.appendChild(label);
+    document.body.appendChild(root);
 
     const selection = describeHtmlElement(titleInput, root);
     expect(selection).toMatchObject({
-      id: 'story-basics',
-      label: '物語基本情報',
+      id: '.storybook-comment-canvas > label > input[aria-label="タイトル"]',
+      label: 'タイトル',
       elementName: 'input',
-      selector: '[data-comment-id="story-basics"] label:nth-of-type(1) > input[aria-label="タイトル"]',
+      selector: '.storybook-comment-canvas > label > input[aria-label="タイトル"]',
       elementText: 'タイトル',
     });
   });
@@ -75,16 +80,16 @@ describe('Storybook comment addon helpers', () => {
   it('Codex連携用のコメントまとめを生成する', () => {
     const summary = commentSummary([
       {
-        id: 'flow-editor',
-        label: '物語フローエディタ',
+        id: '.storybook-comment-canvas > section[aria-label="作者画面"] > div.comment-target:nth-of-type(2) > div.panel-heading > button',
+        label: '場面を追加',
         elementName: 'button',
-        selector: '[data-comment-id="flow-editor"] div.panel-heading > button',
+        selector: '.storybook-comment-canvas > section[aria-label="作者画面"] > div.comment-target:nth-of-type(2) > div.panel-heading > button',
         elementText: '場面を追加',
         text: 'この追加ボタンの配置を見直したい',
       },
     ]);
 
-    expect(summary).toContain('対象HTML: [data-comment-id="flow-editor"] div.panel-heading > button');
+    expect(summary).toContain('対象HTML: .storybook-comment-canvas > section[aria-label="作者画面"]');
     expect(summary).toContain('コメント: この追加ボタンの配置を見直したい');
   });
 });

@@ -8,19 +8,21 @@ import './preview.css';
 const channel = addons.getChannel();
 
 const applyCommentCounts = (root: HTMLElement, comments: StoryComment[]) => {
+  root.querySelectorAll<HTMLElement>('.storybook-comment-has-comment').forEach((target) => {
+    target.classList.remove('storybook-comment-has-comment');
+    delete target.dataset.commentCount;
+  });
+
   const counts = comments.reduce<Record<string, number>>((acc, comment) => {
-    acc[comment.id] = (acc[comment.id] || 0) + 1;
+    acc[comment.selector] = (acc[comment.selector] || 0) + 1;
     return acc;
   }, {});
 
-  root.querySelectorAll<HTMLElement>('[data-comment-id]').forEach((target) => {
-    const count = counts[target.dataset.commentId || ''] || 0;
-    target.classList.toggle('storybook-comment-has-comment', count > 0);
-    if (count > 0) {
-      target.dataset.commentCount = `💬 ${count}`;
-    } else {
-      delete target.dataset.commentCount;
-    }
+  Object.entries(counts).forEach(([selector, count]) => {
+    const target = document.querySelector(selector);
+    if (!(target instanceof HTMLElement) || !root.contains(target)) return;
+    target.classList.add('storybook-comment-has-comment');
+    target.dataset.commentCount = `💬 ${count}`;
   });
 };
 
@@ -55,13 +57,12 @@ const StoryCommentCanvas = ({ children }: { children: ReactElement }) => {
     const selectFromEvent = (event: Event) => {
       const eventTarget = event.target;
       if (!(eventTarget instanceof HTMLElement)) return;
-      const commentTarget = eventTarget.closest<HTMLElement>('[data-comment-id]');
-      if (!commentTarget || !root.contains(commentTarget)) return;
+      if (!root.contains(eventTarget)) return;
 
       event.preventDefault();
       event.stopPropagation();
       if ('stopImmediatePropagation' in event) event.stopImmediatePropagation();
-      channel.emit(EVENTS.TARGET_SELECTED, describeHtmlElement(eventTarget, commentTarget));
+      channel.emit(EVENTS.TARGET_SELECTED, describeHtmlElement(eventTarget, root));
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -79,7 +80,11 @@ const StoryCommentCanvas = ({ children }: { children: ReactElement }) => {
   }, [mode]);
 
   return (
-    <div ref={rootRef} className="storybook-comment-canvas" data-comment-mode={mode}>
+    <div
+      ref={rootRef}
+      className="storybook-comment-canvas"
+      data-comment-mode={mode}
+    >
       {children}
     </div>
   );

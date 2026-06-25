@@ -1,11 +1,10 @@
-.storybook-comment-canvas[data-comment-mode='select'] { cursor: crosshair; }
-.storybook-comment-canvas[data-comment-mode='select'] [data-comment-id],
-.storybook-comment-canvas[data-comment-mode='select'] [data-comment-id] * { cursor: crosshair; }
-.storybook-comment-canvas[data-comment-mode='select'] [data-comment-id] :is(button, input, textarea, select, a, [role='button'], label, li, dt, dd, h2, h3, p, span):hover {
+.storybook-comment-canvas[data-comment-mode='select'],
+.storybook-comment-canvas[data-comment-mode='select'] * { cursor: crosshair; }
+.storybook-comment-canvas[data-comment-mode='select'] :is(button, input, textarea, select, a, [role='button'], label, li, dt, dd, h1, h2, h3, p, span, article, section):hover {
   outline: 2px dashed #ff9f68;
   outline-offset: 3px;
 }
-.storybook-comment-canvas [data-comment-id].storybook-comment-has-comment::after {
+.storybook-comment-canvas .storybook-comment-has-comment::after {
   content: attr(data-comment-count);
   display: inline-flex;
   margin-top: 12px;
