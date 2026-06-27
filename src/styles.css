@@ -602,7 +602,6 @@ textarea { min-height: 126px; resize: vertical; }
 .session-turn-lead.lead-player {
   padding: 12px 14px;
   border-radius: 14px;
-  border-left: 3px solid #7c5cff;
   background: linear-gradient(135deg, rgba(124, 92, 255, .12), rgba(124, 92, 255, .04));
   color: #2c2540;
   font-weight: 700;
