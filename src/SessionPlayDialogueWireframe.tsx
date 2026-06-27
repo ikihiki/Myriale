@@ -321,7 +321,6 @@ export function SessionPlayDialogueWireframe() {
               headingActions={<button onClick={() => requestRewind(turn.id)}>ここまで戻る</button>}
               narrative={turn.narrative}
               narrativeTestId={`turn-${turn.id}-narrative`}
-              leadPosition="after"
               lead={
                 turn.playerInput
                   ? {

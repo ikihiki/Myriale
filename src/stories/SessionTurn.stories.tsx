@@ -6,8 +6,8 @@ import '../styles.css';
 /**
  * SessionTurn は、AI対話プレイ（プレイヤー入力 → AI Narrative）と
  * プログラム主導シーン（確定事実 → AI Narrative）の両方で使う共通の
- * ターン表示コンポーネントです。`lead`（先頭ブロック）の `tone` と
- * `leadPosition` を変えるだけで、同じコンポーネントが両方のモードを表現します。
+ * ターン表示コンポーネントです。どちらのモードでも「ユーザー入力 → その結果」の
+ * 順で統一され、`lead`（先頭の入力/事実ブロック）の `tone` だけが異なります。
  */
 const meta = {
   title: 'Shared/SessionTurn',
@@ -15,7 +15,7 @@ const meta = {
   parameters: {
     layout: 'padded',
     notes:
-      'AI対話プレイとプログラム主導シーンで共有するターン表示コンポーネント。lead.tone（player / program）と leadPosition（before / after）で両モードを切り替えます。',
+      'AI対話プレイとプログラム主導シーンで共有するターン表示コンポーネント。どちらも「ユーザー入力（lead） → その結果（AI Narrative）」の順で統一され、lead.tone（player / program）だけが異なります。',
   },
   decorators: [
     (Story) => (
@@ -31,7 +31,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-// US-P02/P03 相当: AI対話プレイのターン（Narrative が先、プレイヤー入力が後）。
+// US-P02/P03 相当: AI対話プレイのターン（プレイヤー入力 → AI Narrative）。
 export const AiDialogueTurn: Story = {
   name: 'AI対話: プレイヤー入力 → AI Narrative',
   args: {
@@ -40,7 +40,6 @@ export const AiDialogueTurn: Story = {
     narrative:
       '鍵の柄には、星座ではなく空白の円が刻まれていた。指でなぞると、水面にまだ開いていない扉の輪郭が一瞬だけ浮かぶ。',
     narrativeTestId: 'demo-narrative',
-    leadPosition: 'after',
     lead: {
       tone: 'player',
       tag: '⟶',
@@ -57,13 +56,11 @@ export const AiDialogueTurn: Story = {
       await expect(canvas.getByTestId('demo-lead')).toHaveClass('lead-player');
       await expect(canvas.getByTestId('demo-narrative')).toHaveTextContent('空白の円');
     });
-    await step('AI対話では Narrative が先、プレイヤー入力が後に並ぶ', async () => {
-      const article = canvas.getByRole('article');
-      const narrative = canvas.getByTestId('demo-narrative');
+    await step('「ユーザー入力 → その結果」の順で、プレイヤー入力が先・Narrativeが後に並ぶ', async () => {
       const lead = canvas.getByTestId('demo-lead');
-      // DOM順で narrative が lead より前にある（leadPosition="after"）。
-      await expect(article.compareDocumentPosition(lead) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      await expect(narrative.compareDocumentPosition(lead) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      const narrative = canvas.getByTestId('demo-narrative');
+      // DOM順で lead（入力）が narrative（結果）より前にある。
+      await expect(lead.compareDocumentPosition(narrative) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
   },
 };
@@ -74,7 +71,6 @@ export const ProgramDrivenTurn: Story = {
   args: {
     ariaLabel: 'ログ 3',
     variantClassName: 'turn-battle',
-    leadPosition: 'before',
     lead: {
       tone: 'program',
       tag: 'PROGRAM',
@@ -92,10 +88,10 @@ export const ProgramDrivenTurn: Story = {
       await expect(canvas.getByTestId('demo-fact')).toHaveTextContent('与ダメージ12');
       await expect(canvas.getByTestId('demo-narrative')).toHaveTextContent('装甲がきしむ');
     });
-    await step('プログラム主導では確定事実が先、AI Narrative が後に並ぶ', async () => {
+    await step('「ユーザー入力（確定事実） → その結果」の順で、事実が先・Narrativeが後に並ぶ', async () => {
       const fact = canvas.getByTestId('demo-fact');
       const narrative = canvas.getByTestId('demo-narrative');
-      // DOM順で fact が narrative より前にある（leadPosition="before"）。
+      // DOM順で fact（確定した行動）が narrative（結果）より前にある。
       await expect(fact.compareDocumentPosition(narrative) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
     await step('モードに応じたアクセント（turn-battle）が付く', async () => {

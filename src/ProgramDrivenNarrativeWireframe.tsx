@@ -248,7 +248,6 @@ export function ProgramDrivenNarrativeWireframe() {
                 key={entry.id}
                 ariaLabel={`ログ ${entry.id}`}
                 variantClassName={`turn-${entry.mode}`}
-                leadPosition="before"
                 lead={
                   entry.fact
                     ? {

@@ -4,16 +4,14 @@ import type { ReactNode } from 'react';
  * SessionTurn — the shared turn-display component used by every session-play
  * surface (AI dialogue and program-driven scenes).
  *
- * A "turn" is rendered as an optional heading, an optional *lead* block, and the
- * AI Narrative body. The lead block is the part that differs between modes:
+ * Every turn reads the same way: the user's action comes first, then its
+ * result. Concretely a turn is an optional heading, the *lead* block (what the
+ * user/system did), and then the AI Narrative body (what resulted). The lead is
+ * the only part that differs between modes:
  *   - AI dialogue: the lead is the player's free-text input (tone="player").
- *   - Program-driven: the lead is the program-confirmed fact (tone="program").
- * Both share the same Narrative body (tone="ai"), so the two surfaces use one
- * component and one set of styles.
- *
- * `leadPosition` keeps the existing per-surface ordering: AI dialogue shows the
- * Narrative first then the player input ("after"), while program-driven scenes
- * show the fact first then the Narrative ("before").
+ *   - Program-driven: the lead is the program-confirmed action/fact (tone="program").
+ * Both share the same Narrative body, so the two surfaces use one component,
+ * one ordering (input → result), and one set of styles.
  */
 
 export type TurnLeadTone = 'player' | 'program';
@@ -36,17 +34,19 @@ export type SessionTurnProps = {
   title?: ReactNode;
   /** Trailing heading slot (e.g. a "ここまで戻る" button). */
   headingActions?: ReactNode;
-  /** Lead block shown before/after the Narrative (player input or program fact). */
+  /**
+   * Lead block shown *before* the Narrative: the user input (AI dialogue) or the
+   * program-confirmed action/fact (program-driven). The turn always reads
+   * input → result.
+   */
   lead?: TurnLead;
-  /** Where the lead sits relative to the Narrative body. Default: 'after'. */
-  leadPosition?: 'before' | 'after';
-  /** AI Narrative body. */
+  /** AI Narrative body (the result of the lead). */
   narrative: ReactNode;
   /** Tag chip for the Narrative (e.g. "AI"); omitted when not needed. */
   narrativeTag?: string;
   /** Optional testid for the Narrative paragraph. */
   narrativeTestId?: string;
-  /** Extra content under the Narrative/lead (e.g. interpretation toggle). */
+  /** Extra content under the Narrative (e.g. interpretation toggle). */
   footer?: ReactNode;
   selected?: boolean;
   /** Extra class for accent variants (e.g. `turn-battle`). */
@@ -72,7 +72,6 @@ export function SessionTurn({
   title,
   headingActions,
   lead,
-  leadPosition = 'after',
   narrative,
   narrativeTag,
   narrativeTestId,
@@ -106,9 +105,9 @@ export function SessionTurn({
           {headingActions && <div className="session-turn-actions">{headingActions}</div>}
         </div>
       )}
-      {leadPosition === 'before' && leadBlock}
+      {/* Always input → result: lead (user/system action) then the AI Narrative. */}
+      {leadBlock}
       {narrativeBlock}
-      {leadPosition === 'after' && leadBlock}
       {footer && <div className="session-turn-footer">{footer}</div>}
     </article>
   );
