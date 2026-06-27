@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, within } from '@storybook/test';
-import { SessionTurn } from '../shared/SessionTurn';
+import type { ReactNode } from 'react';
+import { SessionTurn, type TurnLeadTone } from '../shared/SessionTurn';
 import '../styles.css';
 
 /**
@@ -8,7 +8,41 @@ import '../styles.css';
  * プログラム主導シーン（確定事実 → AI Narrative）の両方で使う共通の
  * ターン表示コンポーネントです。どちらのモードでも「ユーザー入力 → その結果」の
  * 順で統一され、`lead`（先頭の入力/事実ブロック）の `tone` だけが異なります。
+ *
+ * - Playground: Controls タブから各プロパティをいじって表示を試せます。
+ * - Samples: 代表的な使い方を並べたギャラリーです。
  */
+
+/** ログ風の枠で1つ以上のターンを囲む共通デコレーター。 */
+const inLog = (children: ReactNode) => (
+  <div
+    className="scenario-forge session-play-wireframe"
+    style={{ display: 'block', padding: 16, background: '#efe6d2' }}
+  >
+    <div className="dialogue-log" style={{ maxHeight: 'none', display: 'grid', gap: 10 }}>
+      {children}
+    </div>
+  </div>
+);
+
+/**
+ * Playground 用のフラットな引数。`lead` はネストオブジェクトで Controls が
+ * 効きにくいため、tone / tag / text に分解して操作できるようにする。
+ */
+type PlaygroundArgs = {
+  kicker?: string;
+  title?: string;
+  narrative: string;
+  narrativeTag?: string;
+  selected: boolean;
+  variant: 'none' | 'turn-dialogue' | 'turn-battle' | 'turn-roll' | 'turn-event';
+  showLead: boolean;
+  leadTone: TurnLeadTone;
+  leadTag: string;
+  leadText: string;
+  showHeadingAction: boolean;
+};
+
 const meta = {
   title: 'Shared/SessionTurn',
   component: SessionTurn,
@@ -17,122 +51,133 @@ const meta = {
     notes:
       'AI対話プレイとプログラム主導シーンで共有するターン表示コンポーネント。どちらも「ユーザー入力（lead） → その結果（AI Narrative）」の順で統一され、lead.tone（player / program）だけが異なります。',
   },
-  decorators: [
-    (Story) => (
-      <div className="scenario-forge session-play-wireframe" style={{ display: 'block', padding: 16, background: '#efe6d2' }}>
-        <div className="dialogue-log" style={{ maxHeight: 'none' }}>
-          <Story />
-        </div>
-      </div>
-    ),
-  ],
 } satisfies Meta<typeof SessionTurn>;
 
 export default meta;
-type Story = StoryObj<typeof meta>;
 
-// US-P02/P03 相当: AI対話プレイのターン（プレイヤー入力 → AI Narrative）。
-export const AiDialogueTurn: Story = {
-  name: 'AI対話: プレイヤー入力 → AI Narrative',
+/**
+ * Playground — Controls でプロパティをいじって試すページ。
+ */
+export const Playground: StoryObj<PlaygroundArgs> = {
+  name: 'Playground（Controls）',
+  argTypes: {
+    kicker: { control: 'text', description: '見出しのキッカー（例: Turn 02 / ログ 3）' },
+    title: { control: 'text', description: '見出しタイトル' },
+    narrative: { control: 'text', description: 'AI Narrative（結果の本文）' },
+    narrativeTag: { control: 'text', description: 'Narrative のタグチップ（例: AI）' },
+    selected: { control: 'boolean', description: '選択中の強調表示' },
+    variant: {
+      control: 'select',
+      options: ['none', 'turn-dialogue', 'turn-battle', 'turn-roll', 'turn-event'],
+      description: 'モード別アクセント（variantClassName）',
+    },
+    showLead: { control: 'boolean', description: 'lead（入力/事実）ブロックを表示するか' },
+    leadTone: {
+      control: 'inline-radio',
+      options: ['player', 'program'],
+      description: 'lead の種類（player=プレイヤー入力 / program=確定事実）',
+    },
+    leadTag: { control: 'text', description: 'lead 先頭のタグ（例: ⟶ / PROGRAM）' },
+    leadText: { control: 'text', description: 'lead の本文（入力テキスト/確定事実）' },
+    showHeadingAction: { control: 'boolean', description: '見出しに操作ボタンを置くか' },
+  },
   args: {
     kicker: 'Turn 02',
     title: '銀の鍵を確かめる',
     narrative:
       '鍵の柄には、星座ではなく空白の円が刻まれていた。指でなぞると、水面にまだ開いていない扉の輪郭が一瞬だけ浮かぶ。',
-    narrativeTestId: 'demo-narrative',
-    lead: {
-      tone: 'player',
-      tag: '⟶',
-      srLabel: 'プレイヤーの入力: ',
-      text: '懐の銀の鍵を取り出して刻印を見る',
-      testId: 'demo-lead',
-    },
-    headingActions: <button type="button">ここまで戻る</button>,
+    narrativeTag: '',
+    selected: false,
+    variant: 'none',
+    showLead: true,
+    leadTone: 'player',
+    leadTag: '⟶',
+    leadText: '懐の銀の鍵を取り出して刻印を見る',
+    showHeadingAction: true,
   },
-  play: async ({ canvasElement, step }) => {
-    const canvas = within(canvasElement);
-    await step('プレイヤー入力（lead）とAI Narrativeが同じコンポーネントで表示される', async () => {
-      await expect(canvas.getByTestId('demo-lead')).toHaveTextContent('銀の鍵を取り出して刻印を見る');
-      await expect(canvas.getByTestId('demo-lead')).toHaveClass('lead-player');
-      await expect(canvas.getByTestId('demo-narrative')).toHaveTextContent('空白の円');
-    });
-    await step('「ユーザー入力 → その結果」の順で、プレイヤー入力が先・Narrativeが後に並ぶ', async () => {
-      const lead = canvas.getByTestId('demo-lead');
-      const narrative = canvas.getByTestId('demo-narrative');
-      // DOM順で lead（入力）が narrative（結果）より前にある。
-      await expect(lead.compareDocumentPosition(narrative) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    });
-  },
+  render: (args) =>
+    inLog(
+      <SessionTurn
+        kicker={args.kicker || undefined}
+        title={args.title || undefined}
+        narrative={args.narrative}
+        narrativeTag={args.narrativeTag || undefined}
+        selected={args.selected}
+        variantClassName={args.variant === 'none' ? '' : args.variant}
+        headingActions={args.showHeadingAction ? <button type="button">ここまで戻る</button> : undefined}
+        lead={
+          args.showLead
+            ? {
+                tone: args.leadTone,
+                tag: args.leadTag,
+                srLabel: args.leadTone === 'player' ? 'プレイヤーの入力: ' : undefined,
+                text: args.leadText,
+              }
+            : undefined
+        }
+      />,
+    ),
 };
 
-// US-PG03/PG07 相当: プログラム主導のターン（確定事実が先、AI Narrative が後）。
-export const ProgramDrivenTurn: Story = {
-  name: 'プログラム主導: 確定事実 → AI Narrative',
-  args: {
-    ariaLabel: 'ログ 3',
-    variantClassName: 'turn-battle',
-    lead: {
-      tone: 'program',
-      tag: 'PROGRAM',
-      text: '行動「スキル」確定: 与ダメージ12 / 被ダメージ4 → 敵HP 12 / 自HP 26',
-      testId: 'demo-fact',
-    },
-    narrative: 'あなたのスキルが決まり、書架番の装甲がきしむ。冷たい火花が散った。',
-    narrativeTag: 'AI',
-    narrativeTestId: 'demo-narrative',
-  },
-  play: async ({ canvasElement, step }) => {
-    const canvas = within(canvasElement);
-    await step('確定事実（lead）は PROGRAM タグ付きで、AI Narrative は AI タグ付き', async () => {
-      await expect(canvas.getByTestId('demo-fact')).toHaveClass('lead-program');
-      await expect(canvas.getByTestId('demo-fact')).toHaveTextContent('与ダメージ12');
-      await expect(canvas.getByTestId('demo-narrative')).toHaveTextContent('装甲がきしむ');
-    });
-    await step('「ユーザー入力（確定事実） → その結果」の順で、事実が先・Narrativeが後に並ぶ', async () => {
-      const fact = canvas.getByTestId('demo-fact');
-      const narrative = canvas.getByTestId('demo-narrative');
-      // DOM順で fact（確定した行動）が narrative（結果）より前にある。
-      await expect(fact.compareDocumentPosition(narrative) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    });
-    await step('モードに応じたアクセント（turn-battle）が付く', async () => {
-      await expect(canvas.getByRole('article')).toHaveClass('turn-battle');
-    });
-  },
-};
-
-// lead なし（Narrative のみ）のターン。導入や強制イベントの自動再生など。
-export const NarrativeOnlyTurn: Story = {
-  name: 'Narrativeのみ（入力・事実なし）',
-  args: {
-    kicker: 'Turn 01',
-    title: '水没した閲覧室で目覚める',
-    narrative:
-      'あなたは水没した閲覧室で目を覚ます。膝まで届く黒い水の上を星図灯の光が揺れ、崩れた書架の奥から誰かの咳払いが聞こえる。',
-    narrativeTestId: 'demo-narrative',
-  },
-  play: async ({ canvasElement, step }) => {
-    const canvas = within(canvasElement);
-    await step('lead を渡さなければ Narrative だけが表示される', async () => {
-      await expect(canvas.getByTestId('demo-narrative')).toHaveTextContent('水没した閲覧室');
-      await expect(canvas.getByRole('article').querySelector('.session-turn-lead')).toBeNull();
-    });
-  },
-};
-
-// 選択中（selected）状態。AI見出しジャンプや巻き戻し地点の強調に使う。
-export const SelectedTurn: Story = {
-  name: '選択中（selected）',
-  args: {
-    kicker: 'Turn 08',
-    title: '螺旋階段へ向かう',
-    narrative: '星図灯を掲げると、螺旋階段の先で同じ光がひとつ、応えるように灯った。',
-    narrativeTestId: 'demo-narrative',
-    selected: true,
-  },
-  play: async ({ canvasElement, step }) => {
-    const canvas = within(canvasElement);
-    await step('selected を渡すと selected クラスが付く', async () => {
-      await expect(canvas.getByRole('article')).toHaveClass('session-turn selected');
-    });
-  },
+/**
+ * Samples — 代表的な使い方を並べたギャラリー。
+ */
+export const Samples: StoryObj = {
+  name: 'Samples（ギャラリー）',
+  render: () =>
+    inLog(
+      <>
+        <SessionTurn
+          kicker="Turn 01"
+          title="水没した閲覧室で目覚める"
+          narrative="あなたは水没した閲覧室で目を覚ます。膝まで届く黒い水の上を星図灯の光が揺れ、崩れた書架の奥から誰かの咳払いが聞こえる。"
+        />
+        <SessionTurn
+          kicker="Turn 02"
+          title="銀の鍵を確かめる"
+          headingActions={<button type="button">ここまで戻る</button>}
+          lead={{
+            tone: 'player',
+            tag: '⟶',
+            srLabel: 'プレイヤーの入力: ',
+            text: '懐の銀の鍵を取り出して刻印を見る',
+          }}
+          narrative="鍵の柄には、星座ではなく空白の円が刻まれていた。指でなぞると、水面にまだ開いていない扉の輪郭が一瞬だけ浮かぶ。"
+        />
+        <SessionTurn
+          kicker="Turn 08"
+          title="螺旋階段へ向かう"
+          selected
+          lead={{
+            tone: 'player',
+            tag: '⟶',
+            srLabel: 'プレイヤーの入力: ',
+            text: '星図灯を掲げて螺旋階段をのぼる',
+          }}
+          narrative="星図灯を掲げると、螺旋階段の先で同じ光がひとつ、応えるように灯った。"
+        />
+        <SessionTurn
+          ariaLabel="ログ battle"
+          variantClassName="turn-battle"
+          lead={{
+            tone: 'program',
+            tag: 'PROGRAM',
+            text: '行動「スキル」確定: 与ダメージ12 / 被ダメージ4 → 敵HP 12 / 自HP 26',
+          }}
+          narrative="あなたのスキルが決まり、書架番の装甲がきしむ。冷たい火花が散った。"
+          narrativeTag="AI"
+        />
+        <SessionTurn
+          ariaLabel="ログ roll"
+          variantClassName="turn-roll"
+          lead={{
+            tone: 'program',
+            tag: 'PROGRAM',
+            text: 'ダイス: d6 = 5（成功・しきい値4）',
+          }}
+          narrative="錆を噛んだ閂が砕け、扉が軋みながら開く。先へ進める。"
+          narrativeTag="AI"
+        />
+      </>,
+    ),
 };
