@@ -39,6 +39,7 @@ const sections: Section[] = [
       { label: 'プレイ中の対話', to: 'playSession', hint: 'AIとの対話で物語を進める' },
       { label: 'セッションを再開', to: 'resumeSession', hint: '中断した続きから再開' },
       { label: 'プログラム主導の進行', to: 'programDriven', hint: 'バトル・判定・強制イベント' },
+      { label: 'モード遷移と例外', to: 'modeTransition', hint: '切替・中断・復帰の共通基盤' },
     ],
   },
   {

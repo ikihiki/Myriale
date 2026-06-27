@@ -1194,6 +1194,74 @@ textarea { min-height: 126px; resize: vertical; }
 }
 .wire-dialog .primary { background: #d9a441; color: #17151f; font-weight: 900; }
 
+
+/* Mode transition foundation: visible state, recovery checkpoints, and logs. */
+.mode-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mode-status-grid article {
+  padding: 12px;
+  border: 1px solid rgba(23, 21, 31, .12);
+  border-radius: 14px;
+  background: rgba(255, 254, 249, .72);
+}
+
+.mode-status-grid h2 {
+  margin: 0 0 6px;
+  color: #6d587a;
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.mode-status-grid p {
+  margin: 0;
+  color: #2b2940;
+  font-weight: 800;
+}
+
+
+.active-battle-turn {
+  background: linear-gradient(135deg, rgba(255, 236, 232, .92), rgba(255, 254, 249, .78));
+  box-shadow: inset 0 0 0 2px rgba(184, 74, 74, .22);
+}
+
+.active-battle-turn .session-turn-lead-actions .button-row {
+  margin-top: 4px;
+}
+
+.active-battle-turn .session-turn-lead-actions button {
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: #b84a4a;
+  color: #fffaf0;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.wire-table.compact {
+  margin-top: 0;
+  font-size: 10px;
+}
+
+.wire-table.compact th,
+.wire-table.compact td {
+  padding: 6px;
+}
+
+
+.exception-actions {
+  display: grid;
+  gap: 6px;
+}
+
+.exception-actions button {
+  width: 100%;
+}
+
 @media (max-width: 1120px) {
   .program-driven-wireframe { grid-template-columns: 1fr; }
 }
