@@ -1262,6 +1262,70 @@ textarea { min-height: 126px; resize: vertical; }
   width: 100%;
 }
 
+
+/* Session notes auto-generation: notification inbox + note diff review. */
+.session-notes-auto-wireframe .notes-turn-log {
+  max-height: 260px;
+}
+
+.notes-review-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.notes-notification-list,
+.note-diff-view {
+  padding: 14px;
+  border: 1px solid rgba(23, 21, 31, .14);
+  border-radius: 18px;
+  background: rgba(255, 254, 249, .72);
+}
+
+.notes-notification-list h2,
+.note-diff-view h2 {
+  margin: 0 0 10px;
+  font-family: Georgia, 'Times New Roman', serif;
+  letter-spacing: -.04em;
+}
+
+.note-notification {
+  width: 100%;
+  display: grid;
+  gap: 3px;
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid rgba(23, 21, 31, .12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .55);
+  color: #2b2940;
+  text-align: left;
+}
+
+.note-notification.active {
+  border-color: #d9a441;
+  background: rgba(255, 247, 230, .92);
+  box-shadow: inset 3px 0 0 #d9a441;
+}
+
+.note-notification span {
+  color: #7054dd;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.note-notification small { color: #6d587a; }
+.note-diff-view header span { color: #b84a4a; font-weight: 900; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.note-diff-view header p { margin: 4px 0 0; color: #6d587a; }
+.session-notes-auto-wireframe .wire-table { margin-bottom: 12px; }
+
+@media (max-width: 1120px) {
+  .notes-review-layout { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 1120px) {
   .program-driven-wireframe { grid-template-columns: 1fr; }
 }
