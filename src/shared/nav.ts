@@ -24,6 +24,7 @@ export const STORY_IDS = {
   // Library / authoring
   scenarioRegister: 'scenario-registration-wireframe-from-user-stories--us-01-create-draft-scenario',
   scenarioEdit: 'edit-scenario-wireframe-from-user-stories--use-01-edit-existing-scenario',
+  advancedScenario: 'advanced-scenario-execution-wireframe-from-user-stories--usas-01-define-cast-pool',
   // Sessions
   startSession: 'start-session-wireframe-from-user-stories--uss-01-start-new-session-from-scenario',
   playSession: 'session-play-dialogue-wireframe-from-user-stories--usp-01-current-situation-narrative',
