@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AppChrome } from './shared/AppChrome';
+import { SessionTurn } from './shared/SessionTurn';
 
 type Mode = 'dialogue' | 'battle' | 'roll' | 'event';
 
@@ -243,18 +244,25 @@ export function ProgramDrivenNarrativeWireframe() {
 
           <section className="dialogue-log program-log" aria-label="進行ログ" data-testid="program-log">
             {log.map((entry) => (
-              <article className={`program-turn turn-${entry.mode}`} key={entry.id} aria-label={`ログ ${entry.id}`}>
-                {entry.fact && (
-                  <p className="program-fact" data-testid={`fact-${entry.id}`}>
-                    <span className="program-fact-tag" aria-hidden="true">PROGRAM</span>
-                    {entry.fact}
-                  </p>
-                )}
-                <p className="program-narrative" data-testid={`narrative-${entry.id}`}>
-                  <span className="program-narrative-tag" aria-hidden="true">AI</span>
-                  {entry.narrative}
-                </p>
-              </article>
+              <SessionTurn
+                key={entry.id}
+                ariaLabel={`ログ ${entry.id}`}
+                variantClassName={`turn-${entry.mode}`}
+                leadPosition="before"
+                lead={
+                  entry.fact
+                    ? {
+                        tone: 'program',
+                        tag: 'PROGRAM',
+                        text: entry.fact,
+                        testId: `fact-${entry.id}`,
+                      }
+                    : undefined
+                }
+                narrative={entry.narrative}
+                narrativeTag="AI"
+                narrativeTestId={`narrative-${entry.id}`}
+              />
             ))}
           </section>
 

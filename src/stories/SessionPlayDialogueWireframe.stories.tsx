@@ -158,7 +158,7 @@ export const USP09ReviewLogFromToc: Story = {
     await step('末尾の見出しを選ぶと、最後のTurnへジャンプして選択表示される', async () => {
       await userEvent.click(canvas.getByTestId('heading-link-12'));
       await expect(canvas.getByTestId('active-turn-summary')).toHaveTextContent('12 / 入力待ちの静止点');
-      await expect(canvas.getByRole('article', { name: 'Turn 12' })).toHaveClass('dialogue-turn selected');
+      await expect(canvas.getByRole('article', { name: 'Turn 12' })).toHaveClass('session-turn selected');
     });
   },
 };

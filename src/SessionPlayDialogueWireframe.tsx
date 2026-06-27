@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppChrome, type Crumb } from './shared/AppChrome';
+import { SessionTurn } from './shared/SessionTurn';
 
 type TurnKind = 'action' | 'clarification' | 'rewound';
 
@@ -308,28 +309,32 @@ export function SessionPlayDialogueWireframe() {
 
         <section className="dialogue-log" aria-label="対話ログ" data-testid="dialogue-log">
           {turns.map((turn) => (
-            <article
-              className={`dialogue-turn ${selectedTurnId === turn.id ? 'selected' : ''}`}
+            <SessionTurn
               key={turn.id}
-              ref={(node) => {
+              articleRef={(node) => {
                 turnRefs.current[turn.id] = node;
               }}
-              aria-label={`Turn ${String(turn.id).padStart(2, '0')}`}
-            >
-              <div className="dialogue-turn-heading">
-                <span>Turn {String(turn.id).padStart(2, '0')}</span>
-                <h2>{turn.turnTitle}</h2>
-                <button onClick={() => requestRewind(turn.id)}>ここまで戻る</button>
-              </div>
-              <p className="narrative" data-testid={`turn-${turn.id}-narrative`}>{turn.narrative}</p>
-              {turn.playerInput && (
-                <div className="player-input">
-                  <p className="player-input-line">
-                    <span className="player-input-glyph" aria-hidden="true">⟶</span>
-                    <span className="sr-only">プレイヤーの入力: </span>
-                    <span className="player-input-text">{turn.playerInput}</span>
-                  </p>
-                  {turn.interpretation && (
+              ariaLabel={`Turn ${String(turn.id).padStart(2, '0')}`}
+              selected={selectedTurnId === turn.id}
+              kicker={`Turn ${String(turn.id).padStart(2, '0')}`}
+              title={turn.turnTitle}
+              headingActions={<button onClick={() => requestRewind(turn.id)}>ここまで戻る</button>}
+              narrative={turn.narrative}
+              narrativeTestId={`turn-${turn.id}-narrative`}
+              leadPosition="after"
+              lead={
+                turn.playerInput
+                  ? {
+                      tone: 'player',
+                      tag: '⟶',
+                      srLabel: 'プレイヤーの入力: ',
+                      text: turn.playerInput,
+                    }
+                  : undefined
+              }
+              footer={
+                turn.playerInput && turn.interpretation ? (
+                  <>
                     <button
                       type="button"
                       className="interpretation-toggle"
@@ -339,16 +344,16 @@ export function SessionPlayDialogueWireframe() {
                     >
                       {showInterpretationFor.includes(turn.id) ? '⌄ 解釈を隠す' : '⌃ どう解釈された？'}
                     </button>
-                  )}
-                  {showInterpretationFor.includes(turn.id) && turn.interpretation && (
-                    <p className="interpretation" data-testid={`turn-${turn.id}-interpretation`}>
-                      <span className="interpretation-glyph" aria-hidden="true">⚙</span>
-                      {turn.interpretation}
-                    </p>
-                  )}
-                </div>
-              )}
-            </article>
+                    {showInterpretationFor.includes(turn.id) && (
+                      <p className="interpretation" data-testid={`turn-${turn.id}-interpretation`}>
+                        <span className="interpretation-glyph" aria-hidden="true">⚙</span>
+                        {turn.interpretation}
+                      </p>
+                    )}
+                  </>
+                ) : undefined
+              }
+            />
           ))}
         </section>
 
