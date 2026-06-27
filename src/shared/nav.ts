@@ -23,12 +23,10 @@ export const STORY_IDS = {
   auditLog: 'user-management-wireframe-from-user-stories--um-16-audit-log',
   // Library / authoring
   scenarioRegister: 'scenario-registration-wireframe-from-user-stories--us-01-create-draft-scenario',
-  authorStudio: 'myriale-use-cases--author-creates-story-flow',
   // Sessions
   startSession: 'start-session-wireframe-from-user-stories--uss-01-start-new-session-from-scenario',
   playSession: 'session-play-dialogue-wireframe-from-user-stories--usp-01-current-situation-narrative',
-  // Operations
-  ops: 'myriale-use-cases--ops-reviews-signals',
+  resumeSession: 'session-resume-wireframe-from-user-stories--usr-01-resume-from-last-state',
 } as const;
 
 export type StoryKey = keyof typeof STORY_IDS;

@@ -6,9 +6,9 @@ import { AppChrome } from '../shared/AppChrome';
 afterEach(() => cleanup());
 
 const crumbs = [
-  { label: 'Myriale' as const, to: 'authorStudio' as const },
-  { label: 'ライブラリ' as const, to: 'authorStudio' as const },
-  { label: '作者の設計室' as const },
+  { label: 'Myriale' as const, to: 'scenarioRegister' as const },
+  { label: 'ライブラリ' as const, to: 'scenarioRegister' as const },
+  { label: 'シナリオを登録' as const },
 ];
 
 describe('AppChrome — global app navigation', () => {
@@ -63,7 +63,7 @@ describe('AppChrome — global app navigation', () => {
       </AppChrome>,
     );
     const breadcrumb = screen.getByRole('navigation', { name: '現在地' });
-    expect(within(breadcrumb).getByText('作者の設計室')).toHaveAttribute('aria-current', 'page');
+    expect(within(breadcrumb).getByText('シナリオを登録')).toHaveAttribute('aria-current', 'page');
     // Intermediate crumbs are links.
     expect(within(breadcrumb).getByRole('button', { name: 'Myriale' })).toBeInTheDocument();
   });

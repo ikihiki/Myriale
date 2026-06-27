@@ -81,8 +81,8 @@ export function ScenarioRegistrationWireframe() {
   };
 
   const scenarioCrumbs: Crumb[] = [
-    { label: 'Myriale', to: 'authorStudio' },
-    { label: 'ライブラリ', to: 'authorStudio' },
+    { label: 'Myriale', to: 'scenarioRegister' },
+    { label: 'ライブラリ', to: 'scenarioRegister' },
     { label: 'シナリオを登録' },
   ];
 

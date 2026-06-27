@@ -269,7 +269,7 @@ export function SessionPlayDialogueWireframe() {
     <AppChrome
       section="sessions"
       breadcrumbs={[
-        { label: 'Myriale', to: 'authorStudio' },
+        { label: 'Myriale', to: 'scenarioRegister' },
         { label: 'セッション', to: 'startSession' },
         { label: 'プレイ中の対話' },
       ]}

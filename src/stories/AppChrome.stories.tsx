@@ -36,9 +36,9 @@ export const SignedIn: Story = {
   args: {
     section: 'library',
     breadcrumbs: [
-      { label: 'Myriale', to: 'authorStudio' },
-      { label: 'ライブラリ', to: 'authorStudio' },
-      { label: '作者の設計室' },
+      { label: 'Myriale', to: 'scenarioRegister' },
+      { label: 'ライブラリ', to: 'scenarioRegister' },
+      { label: 'シナリオを登録' },
     ],
     account: { name: '霧野しおり', email: 'author@myriale.example', initials: '霧野', role: '作者' },
     children: demoScreen,
@@ -67,7 +67,7 @@ export const SignedOut: Story = {
   name: 'サインアウト（ログイン/新規登録）',
   args: {
     section: 'account',
-    breadcrumbs: [{ label: 'Myriale', to: 'authorStudio' }, { label: 'アカウント' }, { label: 'ログイン' }],
+    breadcrumbs: [{ label: 'Myriale', to: 'scenarioRegister' }, { label: 'アカウント' }, { label: 'ログイン' }],
     account: null,
     children: demoScreen,
   },
@@ -83,8 +83,8 @@ export const OperationsConsole: Story = {
   args: {
     section: 'operations',
     breadcrumbs: [
-      { label: 'Myriale', to: 'authorStudio' },
-      { label: '運用', to: 'ops' },
+      { label: 'Myriale', to: 'scenarioRegister' },
+      { label: '運用', to: 'adminUsers' },
       { label: 'ユーザー一覧' },
     ],
     account: { name: '運用 司書', email: 'ops@myriale.example', initials: '運', role: '管理者' },

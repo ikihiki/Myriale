@@ -23,9 +23,8 @@ const sections: Section[] = [
   {
     id: 'library',
     label: 'ライブラリ',
-    to: 'authorStudio',
+    to: 'scenarioRegister',
     links: [
-      { label: '作者の設計室', to: 'authorStudio', hint: '物語の基本情報と場面フロー' },
       { label: 'シナリオを登録', to: 'scenarioRegister', hint: 'ウィザードで新規シナリオ' },
     ],
   },
@@ -36,14 +35,14 @@ const sections: Section[] = [
     links: [
       { label: 'セッションを開始', to: 'startSession', hint: 'シナリオを選んで主人公決定' },
       { label: 'プレイ中の対話', to: 'playSession', hint: 'AIとの対話で物語を進める' },
+      { label: 'セッションを再開', to: 'resumeSession', hint: '中断した続きから再開' },
     ],
   },
   {
     id: 'operations',
     label: '運用',
-    to: 'ops',
+    to: 'adminUsers',
     links: [
-      { label: '観測ダッシュボード', to: 'ops', hint: '完走率・安全性レビュー' },
       { label: 'ユーザー管理', to: 'adminUsers', hint: '一覧・停止・サポート' },
       { label: '監査ログ', to: 'auditLog', hint: '重要操作の記録' },
     ],
@@ -116,7 +115,7 @@ export function AppChrome({ section, breadcrumbs, account = null, children }: Ap
             type="button"
             className="app-brand"
             aria-label="Myriale ホームへ"
-            onClick={() => go('authorStudio')}
+            onClick={() => go('scenarioRegister')}
           >
             <span className="app-brand-sigil" aria-hidden="true">霧</span>
             <span className="app-brand-name">Myriale</span>

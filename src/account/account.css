@@ -2,7 +2,7 @@
  * Account Kit — Myriale's patron desk, themed to match the story-side wireframes.
  *
  * This surface deliberately reuses the same design language as
- * MyrialeWireframe / ScenarioForge / StartSession so registration, login,
+ * ScenarioRegistration / StartSession so registration, login,
  * profile, withdrawal and admin read as the same product: the plum→cream page
  * wash, the dark "spine" rail, cream vellum cards, Georgia serif display, the
  * iris/ember accents, and the 霧 brand sigil. The one local signature is the
@@ -72,7 +72,7 @@
   border: 0;
 }
 
-/* ---- Brand (matches MyrialeWireframe .brand-block / .brand-sigil) ---- */
+/* ---- Brand (the shared 霧 sigil + wordmark used across wireframes) ---- */
 .desk-brand {
   display: flex;
   gap: 12px;
