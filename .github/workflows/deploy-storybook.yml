@@ -1,5 +1,10 @@
 name: Deploy Storybook to GitHub Pages
 
+# Production Storybook is published to the root of the `gh-pages` branch.
+# Per-PR previews live under `pr-preview/pr-<N>/` on the same branch (see
+# pr-preview.yml), so this job must NOT wipe them: `clean-exclude: pr-preview/`
+# preserves them and `force: false` rebases instead of force-pushing.
+
 on:
   push:
     branches:
@@ -7,17 +12,15 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
-  group: pages
+  group: deploy-gh-pages-main
   cancel-in-progress: false
 
 jobs:
-  build:
-    name: Build Storybook
+  deploy:
+    name: Build and deploy Storybook
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -35,22 +38,12 @@ jobs:
       - name: Build Storybook
         run: npm run build-storybook
 
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Storybook artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy to gh-pages (root)
+        uses: JamesIves/github-pages-deploy-action@v4 # v4.8.0
         with:
-          path: storybook-static
-
-  deploy:
-    name: Deploy to GitHub Pages
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy Storybook
-        id: deployment
-        uses: actions/deploy-pages@v4
+          branch: gh-pages
+          folder: storybook-static
+          clean: true
+          clean-exclude: |
+            pr-preview/
+          force: false
