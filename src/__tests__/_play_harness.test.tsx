@@ -7,18 +7,23 @@ import * as kitStories from '../stories/AccountKit.stories';
 import * as appChromeStories from '../stories/AppChrome.stories';
 import * as sessionResumeStories from '../stories/SessionResumeWireframe.stories';
 import * as editScenarioStories from '../stories/EditScenarioWireframe.stories';
+import * as programDrivenStories from '../stories/ProgramDrivenNarrativeWireframe.stories';
+import * as sessionTurnStories from '../stories/SessionTurn.stories';
 
 afterEach(() => cleanup());
 
 // Runs every Storybook story's play function against a real render, so the
 // documented user-flow interactions (US-UM01..16 + the shared Account kit +
 // the shared AppChrome navigation + US-R01..08 session resume + US-E01..10
-// edit scenario) are verified in CI, not just type-checked.
+// edit scenario + US-PG01..10 program-driven narrative + the shared SessionTurn
+// component) are verified in CI, not just type-checked.
 const composedWireframe = composeStories(wireframeStories);
 const composedKit = composeStories(kitStories);
 const composedAppChrome = composeStories(appChromeStories);
 const composedSessionResume = composeStories(sessionResumeStories);
 const composedEditScenario = composeStories(editScenarioStories);
+const composedProgramDriven = composeStories(programDrivenStories);
+const composedSessionTurn = composeStories(sessionTurnStories);
 
 describe('play: UserManagementWireframe stories', () => {
   for (const [name, Story] of Object.entries(composedWireframe)) {
@@ -70,6 +75,30 @@ describe('play: SessionResumeWireframe stories', () => {
 
 describe('play: EditScenarioWireframe stories', () => {
   for (const [name, Story] of Object.entries(composedEditScenario)) {
+    it(name, async () => {
+      const { container } = render(<Story />);
+      if (Story.play) {
+        await Story.play({ canvasElement: container });
+      }
+      expect(container).toBeTruthy();
+    });
+  }
+});
+
+describe('play: ProgramDrivenNarrativeWireframe stories', () => {
+  for (const [name, Story] of Object.entries(composedProgramDriven)) {
+    it(name, async () => {
+      const { container } = render(<Story />);
+      if (Story.play) {
+        await Story.play({ canvasElement: container });
+      }
+      expect(container).toBeTruthy();
+    });
+  }
+});
+
+describe('play: SessionTurn stories', () => {
+  for (const [name, Story] of Object.entries(composedSessionTurn)) {
     it(name, async () => {
       const { container } = render(<Story />);
       if (Story.play) {

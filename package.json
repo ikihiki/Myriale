@@ -24,5 +24,8 @@
     "typescript": "latest",
     "vite": "6.4.3",
     "vitest": "latest"
+  },
+  "devDependencies": {
+    "@storybook/addon-controls": "^8.6.15"
   }
 }
