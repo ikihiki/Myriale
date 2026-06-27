@@ -141,7 +141,7 @@ export function StartSessionWireframe() {
   };
 
   const sessionCrumbs: Crumb[] = [
-    { label: 'Myriale', to: 'authorStudio' },
+    { label: 'Myriale', to: 'scenarioRegister' },
     { label: 'セッション', to: 'startSession' },
     { label: selectedScenario ? 'セッション開始ウィザード' : 'シナリオを選ぶ' },
   ];

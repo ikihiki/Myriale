@@ -655,7 +655,7 @@ export function UserManagementWireframe({ initialView = 'register' }: { initialV
     : { name: displayName, email: KNOWN.email, initials: sealInitials, role: 'アカウント所有者' };
 
   if (isAuthView(view)) {
-    const crumbs: Crumb[] = [{ label: 'Myriale', to: 'authorStudio' }, { label: 'アカウント' }, { label: authCrumbLabel[view] ?? 'アカウント' }];
+    const crumbs: Crumb[] = [{ label: 'Myriale', to: 'scenarioRegister' }, { label: 'アカウント' }, { label: authCrumbLabel[view] ?? 'アカウント' }];
     return (
       <AppChrome section="account" breadcrumbs={crumbs} account={null}>
         <div className="account-kit">{renderAuth()}</div>
@@ -666,8 +666,8 @@ export function UserManagementWireframe({ initialView = 'register' }: { initialV
   if (isAdminView(view)) {
     const adminActive = view === 'admin-detail' ? 'admin-list' : view;
     const crumbs: Crumb[] = [
-      { label: 'Myriale', to: 'authorStudio' },
-      { label: '運用', to: 'ops' },
+      { label: 'Myriale', to: 'scenarioRegister' },
+      { label: '運用', to: 'adminUsers' },
       ...(view === 'admin-detail' ? [{ label: 'ユーザー一覧', to: 'adminUsers' as const }] : []),
       { label: adminCrumbLabel[view] ?? '運用' },
     ];
@@ -695,7 +695,7 @@ export function UserManagementWireframe({ initialView = 'register' }: { initialV
 
   const accountActive = view === 'profile-edit' ? 'profile' : view;
   const accountCrumbs: Crumb[] = [
-    { label: 'Myriale', to: 'authorStudio' },
+    { label: 'Myriale', to: 'scenarioRegister' },
     { label: 'アカウント', to: 'profile' },
     ...(view === 'profile-edit' ? [{ label: 'プロフィール', to: 'profile' as const }] : []),
     { label: accountCrumbLabel[view] ?? 'アカウント' },
