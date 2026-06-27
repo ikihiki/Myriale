@@ -1326,6 +1326,105 @@ textarea { min-height: 126px; resize: vertical; }
   .notes-review-layout { grid-template-columns: 1fr; }
 }
 
+
+/* Session Lorebook: structured notes, referenced chips, and context stack. */
+.session-lorebook-wireframe .lorebook-reference-turn {
+  display: grid;
+  gap: 8px;
+}
+
+.referenced-notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px dashed rgba(112, 84, 221, .36);
+  border-radius: 14px;
+  background: rgba(245, 243, 255, .62);
+}
+
+.referenced-notes::before {
+  content: '参照ノート';
+  color: #7054dd;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.referenced-notes button {
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #2b2940;
+  color: #fffaf0;
+  font-size: 12px;
+}
+
+.lorebook-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.lorebook-list,
+.lorebook-editor {
+  padding: 14px;
+  border: 1px solid rgba(23, 21, 31, .14);
+  border-radius: 18px;
+  background: rgba(255, 254, 249, .72);
+}
+
+.lorebook-list label {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+  color: #4f5767;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.lorebook-editor header span {
+  color: #b84a4a;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.lorebook-editor h2 {
+  margin: 2px 0 4px;
+  font-family: Georgia, 'Times New Roman', serif;
+  letter-spacing: -.04em;
+}
+
+.lorebook-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.lorebook-fields label {
+  display: grid;
+  gap: 5px;
+  color: #4f5767;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.lorebook-fields textarea { min-height: 96px; }
+.context-stack {
+  white-space: pre-wrap;
+  color: #2b2940;
+  font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@media (max-width: 1120px) {
+  .lorebook-layout,
+  .lorebook-fields { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 1120px) {
   .program-driven-wireframe { grid-template-columns: 1fr; }
 }
