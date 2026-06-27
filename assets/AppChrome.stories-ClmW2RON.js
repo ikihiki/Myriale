@@ -1,4 +1,4 @@
-import{j as m}from"./jsx-runtime-Cf8x2fCZ.js";import{w as t,e,u as p}from"./index-C3Z0PGzo.js";import{A as h}from"./AppChrome-BYYLhV_J.js";import"./index-yBjzXJbu.js";import"./index-BlmOqGMO.js";const A={title:"App shell/Global navigation",component:h,parameters:{layout:"fullscreen",notes:"全ワイヤー共通のアプリ・ナビゲーション。上部バー（ブランド / セクション / アカウントメニュー）とパンくずで、実アプリと同じ移動ができます。各セクションやアカウントメニューから対応ワイヤーのストーリーへ遷移します。",docs:{description:{component:`AppChrome — the global application navigation shared by every wireframe.
+import{j as m}from"./jsx-runtime-Cf8x2fCZ.js";import{w as t,e,u as p}from"./index-C3Z0PGzo.js";import{A as h}from"./AppChrome-DEx1aaG4.js";import"./index-yBjzXJbu.js";import"./index-BlmOqGMO.js";const A={title:"App shell/Global navigation",component:h,parameters:{layout:"fullscreen",notes:"全ワイヤー共通のアプリ・ナビゲーション。上部バー（ブランド / セクション / アカウントメニュー）とパンくずで、実アプリと同じ移動ができます。各セクションやアカウントメニューから対応ワイヤーのストーリーへ遷移します。",docs:{description:{component:`AppChrome — the global application navigation shared by every wireframe.
 
 This is the real product chrome (top app bar with brand + sections + account
 menu, plus a breadcrumb row) that wraps each screen, replacing the earlier
