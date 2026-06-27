@@ -1105,6 +1105,95 @@ textarea { min-height: 126px; resize: vertical; }
 .program-test-harness label { display: grid; gap: 4px; font-size: 12px; font-weight: 800; }
 .program-test-harness small { color: #bfc8d5; font-size: 11px; }
 
+
+/* Advanced scenario execution: multi-item tables with modal-style dialogs. */
+.advanced-scenario-wireframe {
+  position: relative;
+}
+
+.wire-table {
+  width: 100%;
+  margin-top: 14px;
+  border-collapse: collapse;
+  overflow: hidden;
+  border: 1px solid rgba(23, 21, 31, .14);
+  border-radius: 16px;
+  background: rgba(255, 254, 249, .8);
+  font-size: 13px;
+}
+
+.wire-table th,
+.wire-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(23, 21, 31, .1);
+  text-align: left;
+  vertical-align: top;
+}
+
+.wire-table th {
+  background: rgba(43, 41, 64, .08);
+  color: #2b2940;
+  font-size: 11px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.wire-table tr:last-child td { border-bottom: 0; }
+
+.wire-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(18, 16, 25, .48);
+}
+
+.wire-dialog {
+  width: min(760px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid rgba(220, 231, 242, .6);
+  border-radius: 22px;
+  background: #fffaf0;
+  box-shadow: 0 28px 90px rgba(18, 16, 25, .38);
+}
+
+.wire-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.wire-dialog h2 {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  letter-spacing: -.04em;
+}
+
+.wire-dialog label {
+  display: grid;
+  gap: 6px;
+  color: #4f5767;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.wire-dialog textarea { min-height: 110px; }
+.wire-dialog .button-row { justify-content: flex-end; }
+.wire-dialog button {
+  border-radius: 999px;
+  padding: 9px 13px;
+  background: #2b2940;
+  color: #fffaf0;
+}
+.wire-dialog .primary { background: #d9a441; color: #17151f; font-weight: 900; }
+
 @media (max-width: 1120px) {
   .program-driven-wireframe { grid-template-columns: 1fr; }
 }
