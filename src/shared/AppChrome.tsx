@@ -26,6 +26,7 @@ const sections: Section[] = [
     to: 'scenarioRegister',
     links: [
       { label: 'シナリオを登録', to: 'scenarioRegister', hint: 'ウィザードで新規シナリオ' },
+      { label: 'シナリオを編集', to: 'scenarioEdit', hint: '既存シナリオを改善・公開' },
     ],
   },
   {

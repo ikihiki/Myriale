@@ -859,3 +859,94 @@ textarea { min-height: 126px; resize: vertical; }
 @media (max-width: 1120px) {
   .session-resume-wireframe { grid-template-columns: 1fr; }
 }
+
+/* Edit scenario wireframe: list of editable scenarios, section editor, and an
+   improve→check→publish review panel with edit history in the summary rail. */
+.edit-scenario-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.edit-scenario-card {
+  padding: 16px;
+  border: 1px solid rgba(23, 21, 31, .14);
+  border-radius: 18px;
+  background: rgba(255, 254, 249, .72);
+}
+
+.edit-scenario-card > span {
+  color: #7054dd;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.edit-scenario-card h2 {
+  margin: 6px 0 8px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(20px, 1.8vw, 30px);
+  line-height: 1.05;
+  letter-spacing: -.04em;
+}
+
+.edit-scenario-card p { max-width: none; color: #4f4658; }
+.edit-scenario-card .edit-scenario-meta { color: #6d587a; font-weight: 800; font-size: 13px; }
+
+.edit-scenario-card .primary {
+  background: #d9a441;
+  color: #17151f;
+  font-weight: 900;
+}
+
+.edit-review-panel {
+  border: 1px dashed rgba(112, 84, 221, .4);
+  background: rgba(245, 243, 255, .6);
+}
+
+.edit-review-panel h2 {
+  margin-top: 0;
+  font-family: Georgia, serif;
+  letter-spacing: -.02em;
+}
+
+.edit-visibility {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+  max-width: 240px;
+  font-weight: 800;
+}
+
+.edit-history-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+}
+
+.edit-history-list li {
+  display: grid;
+  gap: 2px;
+}
+
+.edit-history-list small {
+  color: #6d587a;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+
+.edit-scenario-wireframe .edit-scenario-card button,
+.edit-scenario-wireframe .wizard-summary button {
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: #2b2940;
+  color: #fffaf0;
+  font-size: 12px;
+}
+
+@media (max-width: 1120px) {
+  .edit-scenario-wireframe { grid-template-columns: 1fr; }
+}

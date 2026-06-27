@@ -23,6 +23,7 @@ export const STORY_IDS = {
   auditLog: 'user-management-wireframe-from-user-stories--um-16-audit-log',
   // Library / authoring
   scenarioRegister: 'scenario-registration-wireframe-from-user-stories--us-01-create-draft-scenario',
+  scenarioEdit: 'edit-scenario-wireframe-from-user-stories--use-01-edit-existing-scenario',
   // Sessions
   startSession: 'start-session-wireframe-from-user-stories--uss-01-start-new-session-from-scenario',
   playSession: 'session-play-dialogue-wireframe-from-user-stories--usp-01-current-situation-narrative',
