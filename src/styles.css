@@ -950,3 +950,157 @@ textarea { min-height: 126px; resize: vertical; }
 @media (max-width: 1120px) {
   .edit-scenario-wireframe { grid-template-columns: 1fr; }
 }
+
+/* Program-driven narrative wireframe: explicit mode banner, program-fact vs
+   AI-narrative log entries, and forced-mode controls (battle / roll / event). */
+.program-driven-main { display: grid; align-content: start; gap: 14px; }
+
+.mode-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(23, 21, 31, .16);
+  background: rgba(255, 254, 249, .8);
+}
+
+.mode-banner.mode-battle { border-color: #b84a4a; background: rgba(255, 236, 232, .9); }
+.mode-banner.mode-roll { border-color: #7054dd; background: rgba(238, 235, 255, .9); }
+.mode-banner.mode-event { border-color: #c77d16; background: rgba(255, 244, 224, .92); }
+.mode-banner.mode-dialogue { border-color: #4a845c; background: rgba(232, 245, 233, .9); }
+
+.mode-badge {
+  flex: 0 0 auto;
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: #17151f;
+  color: #fffaf0;
+  font-weight: 900;
+  font-size: 13px;
+  letter-spacing: .04em;
+}
+
+.mode-banner.mode-battle .mode-badge { background: #b84a4a; }
+.mode-banner.mode-roll .mode-badge { background: #7054dd; }
+.mode-banner.mode-event .mode-badge { background: #c77d16; }
+.mode-banner.mode-dialogue .mode-badge { background: #4a845c; }
+
+.mode-reason { color: #4f4658; font-size: 13px; }
+
+.program-log { max-height: 320px; overflow-y: auto; }
+
+.program-turn {
+  border-radius: 16px;
+  padding: 12px 14px;
+  border: 1px solid rgba(23, 21, 31, .12);
+  background: rgba(255, 254, 249, .7);
+  display: grid;
+  gap: 8px;
+}
+
+.program-fact {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(23, 21, 31, .06);
+  color: #2b2940;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.program-fact-tag,
+.program-narrative-tag {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .1em;
+  vertical-align: middle;
+}
+
+.program-fact-tag { background: #2b2940; color: #fffaf0; }
+.program-narrative-tag { background: #d9a441; color: #17151f; }
+
+.program-narrative { margin: 0; color: #3c3447; line-height: 1.7; }
+
+.program-controls {
+  border-radius: 16px;
+  padding: 14px;
+  border: 1px solid rgba(23, 21, 31, .14);
+  background: rgba(250, 249, 255, .7);
+  display: grid;
+  gap: 10px;
+}
+
+.battle-hp {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-weight: 800;
+  color: #2b2940;
+}
+
+.program-controls .button-row button {
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: #2b2940;
+  color: #fffaf0;
+  font-weight: 800;
+}
+
+.program-controls .primary { background: #d9a441; color: #17151f; font-weight: 900; }
+
+.roll-result {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.roll-result.success { color: #2f7d4f; }
+.roll-result.fail { color: #b84a4a; }
+
+.event-lock {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(199, 125, 22, .14);
+  color: #8a5410;
+  font-weight: 900;
+}
+
+.program-hint { margin: 0; color: #6d587a; font-size: 12px; }
+
+.dialogue-controls .free-input-row input:disabled {
+  background: rgba(23, 21, 31, .06);
+  color: #9a90a8;
+  cursor: not-allowed;
+}
+
+.dialogue-controls .free-input-row button:disabled { opacity: .42; cursor: not-allowed; }
+
+.input-disabled-reason { color: #b84a4a; font-weight: 700; }
+
+.program-test-harness {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255, 250, 240, .3);
+  background: rgba(220, 231, 242, .08);
+  color: #e8eef6;
+  display: grid;
+  gap: 6px;
+}
+
+.program-test-harness h3 { margin: 0; font-size: 13px; letter-spacing: .04em; }
+.program-test-harness label { display: grid; gap: 4px; font-size: 12px; font-weight: 800; }
+.program-test-harness small { color: #bfc8d5; font-size: 11px; }
+
+@media (max-width: 1120px) {
+  .program-driven-wireframe { grid-template-columns: 1fr; }
+}

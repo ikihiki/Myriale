@@ -37,6 +37,7 @@ const sections: Section[] = [
       { label: 'セッションを開始', to: 'startSession', hint: 'シナリオを選んで主人公決定' },
       { label: 'プレイ中の対話', to: 'playSession', hint: 'AIとの対話で物語を進める' },
       { label: 'セッションを再開', to: 'resumeSession', hint: '中断した続きから再開' },
+      { label: 'プログラム主導の進行', to: 'programDriven', hint: 'バトル・判定・強制イベント' },
     ],
   },
   {
