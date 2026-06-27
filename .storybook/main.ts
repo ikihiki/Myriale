@@ -2,7 +2,7 @@ import type { StorybookConfig } from '@storybook/react-vite';
 
 const config: StorybookConfig = {
   stories: ['../src/**/*.stories.@(ts|tsx|mdx)'],
-  addons: ['@storybook/addon-actions', '@storybook/addon-interactions'],
+  addons: ['@storybook/addon-actions', '@storybook/addon-controls', '@storybook/addon-interactions'],
   framework: {
     name: '@storybook/react-vite',
     options: {},
