@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AppChrome, type Crumb } from './shared/AppChrome';
 
 type TurnKind = 'action' | 'clarification' | 'rewound';
 
@@ -265,7 +266,16 @@ export function SessionPlayDialogueWireframe() {
   };
 
   return (
-    <div className="scenario-forge scenario-forge-wizard session-play-wireframe">
+    <AppChrome
+      section="sessions"
+      breadcrumbs={[
+        { label: 'Myriale', to: 'authorStudio' },
+        { label: 'セッション', to: 'startSession' },
+        { label: 'プレイ中の対話' },
+      ]}
+      account={{ name: '霧野しおり', email: 'reader@myriale.example', initials: '霧野', role: 'プレイヤー' }}
+    >
+      <div className="scenario-forge scenario-forge-wizard session-play-wireframe">
       <aside className="contract-spine" aria-label="AI見出しリンクTOC">
         <strong>AI Headings</strong>
         <p className="toc-help">各Turnではなく、AIがログの区切りに付けた見出しです。選択すると、その場面が始まるTurnへジャンプします。</p>
@@ -389,5 +399,6 @@ export function SessionPlayDialogueWireframe() {
         </article>
       </aside>
     </div>
+    </AppChrome>
   );
 }
