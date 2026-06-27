@@ -581,8 +581,16 @@ textarea { min-height: 126px; resize: vertical; }
   line-height: 1.65;
 }
 
-/* Lead block — the part that differs by mode. */
+/* Lead block — the part that differs by mode. Vertical stack: input/fact line,
+   then optional actions (e.g. an interpretation toggle) and detail. */
 .session-turn-lead {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  max-width: none;
+}
+
+.session-turn-lead-line {
   display: flex;
   gap: 10px;
   align-items: baseline;
@@ -638,7 +646,7 @@ textarea { min-height: 126px; resize: vertical; }
 
 .session-turn-lead-text { flex: 1 1 auto; }
 
-.session-turn-footer { display: grid; gap: 8px; }
+.session-turn-lead-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
 
 .interpretation-toggle {

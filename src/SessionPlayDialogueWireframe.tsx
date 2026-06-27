@@ -326,29 +326,26 @@ export function SessionPlayDialogueWireframe() {
                       tag: '⟶',
                       srLabel: 'プレイヤーの入力: ',
                       text: turn.playerInput,
+                      actions: turn.interpretation ? (
+                        <button
+                          type="button"
+                          className="interpretation-toggle"
+                          aria-pressed={showInterpretationFor.includes(turn.id)}
+                          aria-label={`Turn ${String(turn.id).padStart(2, '0')}の入力解釈を${showInterpretationFor.includes(turn.id) ? '隠す' : '見る'}`}
+                          onClick={() => toggleInterpretation(turn)}
+                        >
+                          {showInterpretationFor.includes(turn.id) ? '⌄ 解釈を隠す' : '⌃ どう解釈された？'}
+                        </button>
+                      ) : undefined,
+                      detail:
+                        turn.interpretation && showInterpretationFor.includes(turn.id) ? (
+                          <p className="interpretation" data-testid={`turn-${turn.id}-interpretation`}>
+                            <span className="interpretation-glyph" aria-hidden="true">⚙</span>
+                            {turn.interpretation}
+                          </p>
+                        ) : undefined,
                     }
                   : undefined
-              }
-              footer={
-                turn.playerInput && turn.interpretation ? (
-                  <>
-                    <button
-                      type="button"
-                      className="interpretation-toggle"
-                      aria-pressed={showInterpretationFor.includes(turn.id)}
-                      aria-label={`Turn ${String(turn.id).padStart(2, '0')}の入力解釈を${showInterpretationFor.includes(turn.id) ? '隠す' : '見る'}`}
-                      onClick={() => toggleInterpretation(turn)}
-                    >
-                      {showInterpretationFor.includes(turn.id) ? '⌄ 解釈を隠す' : '⌃ どう解釈された？'}
-                    </button>
-                    {showInterpretationFor.includes(turn.id) && (
-                      <p className="interpretation" data-testid={`turn-${turn.id}-interpretation`}>
-                        <span className="interpretation-glyph" aria-hidden="true">⚙</span>
-                        {turn.interpretation}
-                      </p>
-                    )}
-                  </>
-                ) : undefined
               }
             />
           ))}

@@ -39,6 +39,8 @@ type PlaygroundArgs = {
   leadTag: string;
   leadText: string;
   showHeadingAction: boolean;
+  showInterpretation: boolean;
+  interpretationText: string;
 };
 
 const meta = {
@@ -76,6 +78,11 @@ export const Playground: StoryObj<PlaygroundArgs> = {
     leadTag: { control: 'text', description: 'lead 先頭のタグ（例: ⟶ / PROGRAM）' },
     leadText: { control: 'text', description: 'lead の本文（入力テキスト/確定事実）' },
     showHeadingAction: { control: 'boolean', description: '見出しに操作ボタンを置くか' },
+    showInterpretation: {
+      control: 'boolean',
+      description: 'プレイヤー入力(lead)の中に解釈トグルと解釈パネルを表示するか',
+    },
+    interpretationText: { control: 'text', description: 'lead 内に表示する解釈の本文' },
   },
   args: {
     narrative:
@@ -88,6 +95,8 @@ export const Playground: StoryObj<PlaygroundArgs> = {
     leadTag: '⟶',
     leadText: '懐の銀の鍵を取り出して刻印を見る',
     showHeadingAction: true,
+    showInterpretation: true,
+    interpretationText: '所持品確認として解釈しました。目的は銀の鍵の由来と使い道を知ることです。',
   },
   render: (args) =>
     inLog(
@@ -104,6 +113,19 @@ export const Playground: StoryObj<PlaygroundArgs> = {
                 tag: args.leadTag,
                 srLabel: args.leadTone === 'player' ? 'プレイヤーの入力: ' : undefined,
                 text: args.leadText,
+                actions:
+                  args.leadTone === 'player' && args.showInterpretation ? (
+                    <button type="button" className="interpretation-toggle" aria-pressed>
+                      ⌄ 解釈を隠す
+                    </button>
+                  ) : undefined,
+                detail:
+                  args.leadTone === 'player' && args.showInterpretation ? (
+                    <p className="interpretation">
+                      <span className="interpretation-glyph" aria-hidden="true">⚙</span>
+                      {args.interpretationText}
+                    </p>
+                  ) : undefined,
               }
             : undefined
         }
@@ -129,6 +151,17 @@ export const Samples: StoryObj = {
             tag: '⟶',
             srLabel: 'プレイヤーの入力: ',
             text: '懐の銀の鍵を取り出して刻印を見る',
+            actions: (
+              <button type="button" className="interpretation-toggle" aria-pressed>
+                ⌄ 解釈を隠す
+              </button>
+            ),
+            detail: (
+              <p className="interpretation">
+                <span className="interpretation-glyph" aria-hidden="true">⚙</span>
+                所持品確認として解釈しました。目的は銀の鍵の由来と使い道を知ることです。
+              </p>
+            ),
           }}
           narrative="鍵の柄には、星座ではなく空白の円が刻まれていた。指でなぞると、水面にまだ開いていない扉の輪郭が一瞬だけ浮かぶ。"
         />

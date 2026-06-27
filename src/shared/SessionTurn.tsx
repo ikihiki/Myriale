@@ -24,8 +24,18 @@ export type TurnLead = {
   /** Screen-reader label for the lead text (e.g. "プレイヤーの入力: "). */
   srLabel?: string;
   text: ReactNode;
-  /** Optional testid for the lead paragraph. */
+  /** Optional testid for the lead block. */
   testId?: string;
+  /**
+   * Controls shown inside the lead, directly under the input/fact line
+   * (e.g. an interpretation toggle for a player input).
+   */
+  actions?: ReactNode;
+  /**
+   * Expandable detail rendered inside the lead, under the actions
+   * (e.g. how the player input was interpreted).
+   */
+  detail?: ReactNode;
 };
 
 export type SessionTurnProps = {
@@ -43,8 +53,6 @@ export type SessionTurnProps = {
   narrativeTag?: string;
   /** Optional testid for the Narrative paragraph. */
   narrativeTestId?: string;
-  /** Extra content under the Narrative (e.g. interpretation toggle). */
-  footer?: ReactNode;
   selected?: boolean;
   /** Extra class for accent variants (e.g. `turn-battle`). */
   variantClassName?: string;
@@ -56,11 +64,15 @@ export type SessionTurnProps = {
 
 function TurnLeadBlock({ lead }: { lead: TurnLead }) {
   return (
-    <p className={`session-turn-lead lead-${lead.tone}`} data-testid={lead.testId}>
-      <span className={`session-turn-lead-tag tag-${lead.tone}`} aria-hidden="true">{lead.tag}</span>
-      {lead.srLabel && <span className="sr-only">{lead.srLabel}</span>}
-      <span className="session-turn-lead-text">{lead.text}</span>
-    </p>
+    <div className={`session-turn-lead lead-${lead.tone}`} data-testid={lead.testId}>
+      <p className="session-turn-lead-line">
+        <span className={`session-turn-lead-tag tag-${lead.tone}`} aria-hidden="true">{lead.tag}</span>
+        {lead.srLabel && <span className="sr-only">{lead.srLabel}</span>}
+        <span className="session-turn-lead-text">{lead.text}</span>
+      </p>
+      {lead.actions && <div className="session-turn-lead-actions">{lead.actions}</div>}
+      {lead.detail}
+    </div>
   );
 }
 
@@ -70,7 +82,6 @@ export function SessionTurn({
   narrative,
   narrativeTag,
   narrativeTestId,
-  footer,
   selected = false,
   variantClassName = '',
   ariaLabel,
@@ -101,7 +112,6 @@ export function SessionTurn({
       {/* Always input → result: lead (user/system action) then the AI Narrative. */}
       {leadBlock}
       {narrativeBlock}
-      {footer && <div className="session-turn-footer">{footer}</div>}
     </article>
   );
 }
