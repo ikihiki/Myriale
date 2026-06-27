@@ -32,6 +32,7 @@ export const STORY_IDS = {
   programDriven: 'program-driven-narrative-wireframe-from-user-stories--uspg-01-forced-mode-disables-input',
   modeTransition: 'mode-transition-and-exception-wireframe-from-user-stories--usm-01-explicit-mode-switch',
   sessionNotesAuto: 'session-notes-auto-generation-wireframe-from-user-stories--usan-01-create-pending-note',
+  sessionNotesLorebook: 'session-notes-lorebook-wireframe-from-user-stories--usl-01-create-person-note',
 } as const;
 
 export type StoryKey = keyof typeof STORY_IDS;

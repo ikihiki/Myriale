@@ -41,6 +41,7 @@ const sections: Section[] = [
       { label: 'プログラム主導の進行', to: 'programDriven', hint: 'バトル・判定・強制イベント' },
       { label: 'モード遷移と例外', to: 'modeTransition', hint: '切替・中断・復帰の共通基盤' },
       { label: 'ノート自動生成', to: 'sessionNotesAuto', hint: 'Lorebook更新通知と差分レビュー' },
+      { label: 'Lorebook管理', to: 'sessionNotesLorebook', hint: '人物・場所・Canon辞書と要約' },
     ],
   },
   {
