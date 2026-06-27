@@ -30,6 +30,7 @@ export const STORY_IDS = {
   playSession: 'session-play-dialogue-wireframe-from-user-stories--usp-01-current-situation-narrative',
   resumeSession: 'session-resume-wireframe-from-user-stories--usr-01-resume-from-last-state',
   programDriven: 'program-driven-narrative-wireframe-from-user-stories--uspg-01-forced-mode-disables-input',
+  modeTransition: 'mode-transition-and-exception-wireframe-from-user-stories--usm-01-explicit-mode-switch',
 } as const;
 
 export type StoryKey = keyof typeof STORY_IDS;
