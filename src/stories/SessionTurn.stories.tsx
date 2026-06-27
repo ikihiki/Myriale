@@ -30,8 +30,6 @@ const inLog = (children: ReactNode) => (
  * 効きにくいため、tone / tag / text に分解して操作できるようにする。
  */
 type PlaygroundArgs = {
-  kicker?: string;
-  title?: string;
   narrative: string;
   narrativeTag?: string;
   selected: boolean;
@@ -61,8 +59,6 @@ export default meta;
 export const Playground: StoryObj<PlaygroundArgs> = {
   name: 'Playground（Controls）',
   argTypes: {
-    kicker: { control: 'text', description: '見出しのキッカー（例: Turn 02 / ログ 3）' },
-    title: { control: 'text', description: '見出しタイトル' },
     narrative: { control: 'text', description: 'AI Narrative（結果の本文）' },
     narrativeTag: { control: 'text', description: 'Narrative のタグチップ（例: AI）' },
     selected: { control: 'boolean', description: '選択中の強調表示' },
@@ -82,8 +78,6 @@ export const Playground: StoryObj<PlaygroundArgs> = {
     showHeadingAction: { control: 'boolean', description: '見出しに操作ボタンを置くか' },
   },
   args: {
-    kicker: 'Turn 02',
-    title: '銀の鍵を確かめる',
     narrative:
       '鍵の柄には、星座ではなく空白の円が刻まれていた。指でなぞると、水面にまだ開いていない扉の輪郭が一瞬だけ浮かぶ。',
     narrativeTag: '',
@@ -98,8 +92,6 @@ export const Playground: StoryObj<PlaygroundArgs> = {
   render: (args) =>
     inLog(
       <SessionTurn
-        kicker={args.kicker || undefined}
-        title={args.title || undefined}
         narrative={args.narrative}
         narrativeTag={args.narrativeTag || undefined}
         selected={args.selected}
@@ -128,13 +120,9 @@ export const Samples: StoryObj = {
     inLog(
       <>
         <SessionTurn
-          kicker="Turn 01"
-          title="水没した閲覧室で目覚める"
           narrative="あなたは水没した閲覧室で目を覚ます。膝まで届く黒い水の上を星図灯の光が揺れ、崩れた書架の奥から誰かの咳払いが聞こえる。"
         />
         <SessionTurn
-          kicker="Turn 02"
-          title="銀の鍵を確かめる"
           headingActions={<button type="button">ここまで戻る</button>}
           lead={{
             tone: 'player',
@@ -145,8 +133,6 @@ export const Samples: StoryObj = {
           narrative="鍵の柄には、星座ではなく空白の円が刻まれていた。指でなぞると、水面にまだ開いていない扉の輪郭が一瞬だけ浮かぶ。"
         />
         <SessionTurn
-          kicker="Turn 08"
-          title="螺旋階段へ向かう"
           selected
           lead={{
             tone: 'player',

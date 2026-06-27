@@ -5,9 +5,10 @@ import type { ReactNode } from 'react';
  * surface (AI dialogue and program-driven scenes).
  *
  * Every turn reads the same way: the user's action comes first, then its
- * result. Concretely a turn is an optional heading, the *lead* block (what the
- * user/system did), and then the AI Narrative body (what resulted). The lead is
- * the only part that differs between modes:
+ * result. Concretely a turn is an optional action slot (e.g. a "ここまで戻る"
+ * button), the *lead* block (what the user/system did), and then the AI
+ * Narrative body (what resulted). The lead is the only part that differs
+ * between modes:
  *   - AI dialogue: the lead is the player's free-text input (tone="player").
  *   - Program-driven: the lead is the program-confirmed action/fact (tone="program").
  * Both share the same Narrative body, so the two surfaces use one component,
@@ -28,10 +29,6 @@ export type TurnLead = {
 };
 
 export type SessionTurnProps = {
-  /** Kicker label in the heading (e.g. "Turn 01", "ログ 1"). */
-  kicker?: ReactNode;
-  /** Heading title. */
-  title?: ReactNode;
   /** Trailing heading slot (e.g. a "ここまで戻る" button). */
   headingActions?: ReactNode;
   /**
@@ -68,8 +65,6 @@ function TurnLeadBlock({ lead }: { lead: TurnLead }) {
 }
 
 export function SessionTurn({
-  kicker,
-  title,
   headingActions,
   lead,
   narrative,
@@ -98,11 +93,9 @@ export function SessionTurn({
       data-testid={testId}
       ref={articleRef}
     >
-      {(kicker || title || headingActions) && (
+      {headingActions && (
         <div className="session-turn-heading">
-          {kicker != null && <span className="session-turn-kicker">{kicker}</span>}
-          {title != null && <h2 className="session-turn-title">{title}</h2>}
-          {headingActions && <div className="session-turn-actions">{headingActions}</div>}
+          <div className="session-turn-actions">{headingActions}</div>
         </div>
       )}
       {/* Always input → result: lead (user/system action) then the AI Narrative. */}
