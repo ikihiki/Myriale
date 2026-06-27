@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AppChrome, type Crumb } from './shared/AppChrome';
 
 type SuggestionKind = '概要' | '世界観' | '挿絵テイスト' | '挿絵プロンプト';
 type WizardStep = 'cover' | 'lore' | 'ai' | 'hero' | 'opening' | 'illustration';
@@ -79,8 +80,19 @@ export function ScenarioRegistrationWireframe() {
     if (next) setActiveStep(next.id);
   };
 
+  const scenarioCrumbs: Crumb[] = [
+    { label: 'Myriale', to: 'authorStudio' },
+    { label: 'ライブラリ', to: 'authorStudio' },
+    { label: 'シナリオを登録' },
+  ];
+
   return (
-    <div className="scenario-forge scenario-forge-wizard">
+    <AppChrome
+      section="library"
+      breadcrumbs={scenarioCrumbs}
+      account={{ name: '霧野しおり', email: 'author@myriale.example', initials: '霧野', role: '作者' }}
+    >
+      <div className="scenario-forge scenario-forge-wizard">
       <aside className="contract-spine" aria-label="契約の背表紙">
         <strong>契約の背表紙</strong>
         <div className="wizard-step-list" role="list" aria-label="登録ウィザードのステップ">
@@ -177,5 +189,6 @@ export function ScenarioRegistrationWireframe() {
         <article data-testid="illustration-preview"><h3>挿絵プレビュー</h3><p>{preview}</p></article>
       </aside>
     </div>
+    </AppChrome>
   );
 }

@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { AppChrome, type Crumb } from './shared/AppChrome';
+import { STORY_IDS, navigateToStory } from './shared/nav';
 
 type SessionStep = 'intro' | 'hero' | 'review' | 'active';
 type HeroMode = 'fixed' | 'select' | 'create' | 'ai';
@@ -75,7 +77,8 @@ export function StartSessionWireframe() {
   const heroForSummary = heroMode === 'create' ? `${createdName} / ${createdProfile}` : selectedHero;
 
   const openRegistration = () => {
-    setNotice('シナリオ登録へ移動します。Storybookでは「Scenario registration / Wireframe from user stories」を開いてください。');
+    setNotice('シナリオ登録ワイヤーフレームへ移動します。');
+    navigateToStory(STORY_IDS.scenarioRegister);
   };
 
   const startPreparing = (scenario: ScenarioSummary) => {
@@ -137,9 +140,17 @@ export function StartSessionWireframe() {
     setNotice('最終確認から主人公確定へ戻りました。開始前なら前工程に戻れます。');
   };
 
+  const sessionCrumbs: Crumb[] = [
+    { label: 'Myriale', to: 'authorStudio' },
+    { label: 'セッション', to: 'startSession' },
+    { label: selectedScenario ? 'セッション開始ウィザード' : 'シナリオを選ぶ' },
+  ];
+  const playerAccount = { name: '霧野しおり', email: 'reader@myriale.example', initials: '霧野', role: 'プレイヤー' };
+
   if (!selectedScenario) {
     return (
-      <div className="scenario-forge scenario-forge-wizard start-session-wireframe start-session-select-screen">
+      <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={playerAccount}>
+        <div className="scenario-forge scenario-forge-wizard start-session-wireframe start-session-select-screen">
         <aside className="contract-spine" aria-label="セッション開始前の導線">
           <strong>Scenario Library</strong>
           <div className="wizard-step-list" role="list" aria-label="開始前の導線">
@@ -181,11 +192,13 @@ export function StartSessionWireframe() {
         </main>
 
       </div>
+      </AppChrome>
     );
   }
 
   return (
-    <div className="scenario-forge scenario-forge-wizard start-session-wireframe">
+    <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={playerAccount}>
+      <div className="scenario-forge scenario-forge-wizard start-session-wireframe">
       <aside className="contract-spine" aria-label="セッション開始ステップ">
         <strong>Session Flow</strong>
         <div className="wizard-step-list" role="list" aria-label="セッション開始ウィザードのステップ">
@@ -299,5 +312,6 @@ export function StartSessionWireframe() {
         <article><h3>Narrative</h3><p>イントロ: 表示済みにしてから主人公確定</p><p>{firstNarrative}</p></article>
       </aside>
     </div>
+    </AppChrome>
   );
 }

@@ -1,4 +1,6 @@
 import { useState, type ReactNode } from 'react';
+import { AppChrome, type Crumb, type SectionId } from './shared/AppChrome';
+import { STORY_IDS, navigateToStory } from './shared/nav';
 
 export type View = 'login' | 'author' | 'reader' | 'ops';
 
@@ -100,7 +102,8 @@ export function MyrialeWireframe({ initialView = 'author' }: { initialView?: Vie
   };
 
   return (
-    <div className="myriale-shell">
+    <AppChrome section={myrialeSection(view)} breadcrumbs={myrialeCrumbs(view)} account={isAuthenticated ? authorAccount : null}>
+      <div className="myriale-shell">
       <aside className="story-rail" aria-label="プロダクトナビゲーション">
         <div className="brand-block" aria-label="Myriale">
           <span className="brand-sigil">霧</span>
@@ -160,7 +163,7 @@ export function MyrialeWireframe({ initialView = 'author' }: { initialView?: Vie
                 />
               </label>
               <button className="primary" onClick={submitLogin}>ログインして設計を続ける</button>
-              <button className="text-button" onClick={() => setNotice('パスワード再設定メールを送る画面に遷移します。')}>パスワードを忘れた場合</button>
+              <button className="text-button" onClick={() => { setNotice('パスワード再設定（アカウント管理）へ移動します。'); navigateToStory(STORY_IDS.resetPassword); }}>パスワードを忘れた場合</button>
             </div>
             <aside className="login-context">
               <h3>ログイン後にできること</h3>
@@ -260,5 +263,24 @@ export function MyrialeWireframe({ initialView = 'author' }: { initialView?: Vie
         )}
       </main>
     </div>
+    </AppChrome>
   );
 }
+
+const authorAccount = { name: '霧野しおり', email: 'author@myriale.example', initials: '霧野', role: '作者' };
+
+function myrialeSection(view: View): SectionId {
+  if (view === 'login') return 'account';
+  if (view === 'reader') return 'sessions';
+  if (view === 'ops') return 'operations';
+  return 'library';
+}
+
+function myrialeCrumbs(view: View): Crumb[] {
+  const root: Crumb = { label: 'Myriale', to: 'authorStudio' };
+  if (view === 'login') return [root, { label: 'アカウント' }, { label: 'ログイン' }];
+  if (view === 'author') return [root, { label: 'ライブラリ', to: 'authorStudio' }, { label: '作者の設計室' }];
+  if (view === 'reader') return [root, { label: 'セッション', to: 'startSession' }, { label: '読者の体験室' }];
+  return [root, { label: '運用', to: 'ops' }, { label: '観測ダッシュボード' }];
+}
+
