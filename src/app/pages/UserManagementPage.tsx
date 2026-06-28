@@ -20,13 +20,13 @@ import {
   type AdminUser,
   type NavItem,
   type OAuthProvider,
-} from './account/AccountKit';
-import { MyrialeCheckbox, MyrialeRadioGroup } from './ui/MyrialeRadix';
-import './account/account.css';
-import { AppChrome, type Crumb } from './shared/AppChrome';
+} from '../../account/AccountKit';
+import { MyrialeCheckbox, MyrialeRadioGroup } from '../../ui/MyrialeRadix';
+import '../../account/account.css';
+import { AppChrome, type Crumb } from '../../shared/AppChrome';
 
 /**
- * UserManagementWireframe — one screen per user story in
+ * UserManagementPage — one screen per user story in
  * docs/user-stories/user-management-user-stories.md (US-UM01..16).
  *
  * Every screen is assembled from the shared AccountKit components so the common
@@ -85,7 +85,7 @@ const seededAudit: AuditEntry[] = [
 const isAuthView = (view: UMView) => ['register', 'verify', 'login', 'reset', 'oauth'].includes(view);
 const isAdminView = (view: UMView) => ['admin-list', 'admin-detail', 'audit'].includes(view);
 
-export function UserManagementWireframe({ initialView = 'register' }: { initialView?: UMView }) {
+export function UserManagementPage({ initialView = 'register' }: { initialView?: UMView }) {
   const [view, setView] = useState<UMView>(initialView);
   const [noticeText, setNoticeText] = useState('はじめにメールアドレスとパスワードでアカウントを作成します。');
   const [noticeTone, setNoticeTone] = useState<Tone>('info');

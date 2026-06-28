@@ -2,9 +2,9 @@ import { addons } from '@storybook/preview-api';
 import { createContext, createElement, useContext, type ReactNode } from 'react';
 
 /**
- * Central cross-wireframe navigation map.
+ * Central cross-page navigation map.
  *
- * Every wireframe is one section/page of the same Myriale app. These are the
+ * Every page is one section/page of the same Myriale app. These are the
  * canonical Storybook story ids that the global app navigation (AppChrome)
  * links to, so "go to my account", "open the library", etc. resolve to the same
  * destinations everywhere. Navigation uses Storybook's `selectStory` channel
@@ -13,7 +13,7 @@ import { createContext, createElement, useContext, type ReactNode } from 'react'
  */
 export const STORY_IDS = {
   home: 'アプリ-myriale-app--home-dashboard',
-  // Account / auth (User management wireframe)
+  // Account / auth (User management page)
   login: 'ユーザーストーリー-user-management--um-03-login-with-email',
   register: 'ユーザーストーリー-user-management--um-01-register-with-email',
   resetPassword: 'ユーザーストーリー-user-management--um-05-reset-password',
@@ -51,7 +51,7 @@ export function useAppNavigation() {
   return useContext(AppNavigationContext);
 }
 
-/** Navigate to another wireframe's story (no-op outside a Storybook preview). */
+/** Navigate to another page's story (no-op outside a Storybook preview). */
 export function navigateToStory(storyId: string) {
   try {
     addons.getChannel().emit('selectStory', { storyId });

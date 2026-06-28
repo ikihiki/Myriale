@@ -8,7 +8,7 @@ const meta = {
   title: 'アプリ/Myriale app',
   component: MyrialeApp,
   parameters: {
-    notes: '既存ワイヤーフレームを統合アプリとして操作するStoryです。initialUrlで直接画面を開き、Redux風デモDBをseedします。',
+    notes: '統合アプリとして操作するStoryです。initialUrlで直接画面を開き、Redux風デモDBをseedします。',
   },
 } satisfies Meta<typeof MyrialeApp>;
 
@@ -52,7 +52,7 @@ export const FullAppHappyPath: Story = {
     await step('アプリ内ナビゲーションでプレイ画面へ移動し、統合版はイントロのみを表示する', async () => {
       await userEvent.click(canvas.getAllByRole('button', { name: 'セッション' })[0]);
       await userEvent.click(screen.getByRole('menuitem', { name: /プレイ中の対話/ }));
-      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098/play');
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098');
       await expect(canvas.getByTestId('dialogue-log')).toHaveTextContent('水没した閲覧室');
       await expect(canvas.queryByRole('article', { name: 'Turn 02' })).not.toBeInTheDocument();
     });
@@ -61,11 +61,11 @@ export const FullAppHappyPath: Story = {
 
 export const DirectOpenPlaySession: Story = {
   name: 'URL直開き: プレイ中セッション',
-  args: { initialUrl: '/sessions/SES-PREP-1098/play', initialDb: createDemoDb('activeSession') },
+  args: { initialUrl: '/sessions/SES-PREP-1098', initialDb: createDemoDb('activeSession') },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await step('URLとDB seedで目的画面を再現する', async () => {
-      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098/play');
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098');
       await expect(canvas.getByTestId('app-db-summary')).toHaveTextContent('route playSession');
       await expect(canvas.queryByRole('article', { name: 'Turn 02' })).not.toBeInTheDocument();
     });
@@ -74,11 +74,11 @@ export const DirectOpenPlaySession: Story = {
 
 export const DirectOpenLorebook: Story = {
   name: 'URL直開き: セッション中のLorebook管理',
-  args: { initialUrl: '/sessions/SES-PREP-1098/play', initialDb: createDemoDb('lorebook') },
+  args: { initialUrl: '/sessions/SES-PREP-1098', initialDb: createDemoDb('lorebook') },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await step('ノート用DBをseedしてセッション画面内のLorebookを開く', async () => {
-      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098/play');
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098');
       await expect(canvas.getByTestId('app-db-summary')).toHaveTextContent('route playSession');
       await expect(canvas.getByTestId('app-db-summary')).toHaveTextContent('notes full');
       await expect(canvas.getByTestId('session-notes-full')).toHaveTextContent('月読ミナト');

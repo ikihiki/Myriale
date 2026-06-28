@@ -18,7 +18,7 @@ export function MyrialeDialogContent({
   title: ReactNode;
   description?: ReactNode;
   footer?: ReactNode;
-  /** Keep content inline for embedded wireframes/tests; default portals to body. */
+  /** Keep content inline for embedded pages/tests; default portals to body. */
   portal?: boolean;
 }) {
   const content = (

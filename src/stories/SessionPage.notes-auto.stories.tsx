@@ -7,7 +7,7 @@ import '../styles.css';
 const meta = {
   title: 'ユーザーストーリー/Session notes auto generation',
   component: MyrialeApp,
-  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098/play" initialDb={createDemoDb('notesReview')} />,
+  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098" initialDb={createDemoDb('notesReview')} />,
   parameters: {
     notes: 'ノート系ユーザーストーリーは独立画面ではなく、セッション中のサイド/全画面ノートワークスペースとして表示します。',
   },
@@ -76,7 +76,7 @@ export const USAN05TuneNotificationSettings: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await step('DBのUI状態で全画面からサイド表示へ戻せる', async () => {
-      await userEvent.click(canvas.getByRole('button', { name: 'サイド表示に戻す' }));
+      await userEvent.click(canvas.getByRole('button', { name: 'ターン画面に戻る' }));
       await expect(canvas.getByTestId('app-db-summary')).toHaveTextContent('notes side');
       await expect(canvas.getByTestId('session-notes-side')).toHaveTextContent('月読ミナト');
     });

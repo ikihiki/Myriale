@@ -1,5 +1,5 @@
 /*
- * Account Kit — Myriale's patron desk, themed to match the story-side wireframes.
+ * Account Kit — Myriale's patron desk, themed to match the story-side pages.
  *
  * This surface deliberately reuses the same design language as
  * ScenarioRegistration / StartSession so registration, login,
@@ -72,7 +72,7 @@
   border: 0;
 }
 
-/* ---- Brand (the shared 霧 sigil + wordmark used across wireframes) ---- */
+/* ---- Brand (the shared 霧 sigil + wordmark used across pages) ---- */
 .desk-brand {
   display: flex;
   gap: 12px;

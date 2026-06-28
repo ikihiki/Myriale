@@ -7,19 +7,32 @@ import '../styles.css';
 const meta = {
   title: 'ユーザーストーリー/Program-driven narrative',
   component: MyrialeApp,
-  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098/program" initialDb={createDemoDb('activeSession')} />,
+  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098" initialDb={createDemoDb('programDrivenSession')} />,
   parameters: {
-    notes: 'docs/user-stories/program-driven-narrative-user-stories.md の各ユーザーストーリー（US-PG01〜PG10）を、Storybook Interactions の step と expect で操作説明できるワイヤーフレームにしたものです。',
+    notes: 'docs/user-stories/program-driven-narrative-user-stories.md の各ユーザーストーリー（US-PG01〜PG10）を、Storybook Interactions の step と expect で操作説明できるアプリ画面にしたものです。',
   },
 } satisfies Meta<typeof MyrialeApp>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+type CanvasQueries = ReturnType<typeof within>;
+
+const openDebugPanel = async (canvas: CanvasQueries) => {
+  const toggle = canvas.queryByRole('button', { name: 'デバッグパネルを表示' });
+  if (toggle) await userEvent.click(toggle);
+};
+
+const closeDebugPanel = async (canvas: CanvasQueries) => {
+  const toggle = canvas.queryByRole('button', { name: 'デバッグパネルを非表示' });
+  if (toggle) await userEvent.click(toggle);
+};
+
 export const USPG01ForcedModeDisablesInput: Story = {
   name: 'US-PG01: 自由入力を禁止しモードを切り替えたい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    await openDebugPanel(canvas);
     await step('初期はAI対話モードで、自由入力が有効', async () => {
       await expect(canvas.getByTestId('mode-badge')).toHaveTextContent('対話中');
       await expect(canvas.getByLabelText('自由に行動や会話を入力')).toBeEnabled();
@@ -30,6 +43,7 @@ export const USPG01ForcedModeDisablesInput: Story = {
       await expect(canvas.getByLabelText('自由に行動や会話を入力')).toBeDisabled();
       await expect(canvas.getByTestId('input-disabled-reason')).toHaveTextContent('自由入力は無効');
     });
+    await closeDebugPanel(canvas);
   },
 };
 
@@ -37,6 +51,7 @@ export const USPG02BattleByButtons: Story = {
   name: 'US-PG02: バトルをボタン操作で進行したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    await openDebugPanel(canvas);
     await userEvent.click(canvas.getByRole('button', { name: 'バトルを開始' }));
     await step('攻撃/防御/スキル/逃走の行動ボタンが表示される', async () => {
       const group = canvas.getByRole('group', { name: 'バトル行動' });
@@ -49,6 +64,7 @@ export const USPG02BattleByButtons: Story = {
       await expect(canvas.getByTestId('program-log')).toHaveTextContent('行動「スキル」確定');
       await expect(canvas.getByLabelText('自由に行動や会話を入力')).toBeDisabled();
     });
+    await closeDebugPanel(canvas);
   },
 };
 
@@ -56,12 +72,14 @@ export const USPG03ProgramResolvesBattle: Story = {
   name: 'US-PG03: バトル結果をプログラムで判定してほしい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    await openDebugPanel(canvas);
     await userEvent.click(canvas.getByRole('button', { name: 'バトルを開始' }));
     await step('命中・ダメージ・状態変化がプログラムで確定し、Session Stateに反映される', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '攻撃' }));
       await expect(canvas.getByTestId('program-log')).toHaveTextContent('与ダメージ8');
       await expect(canvas.getByTestId('summary-battle')).toHaveTextContent('敵HP 16');
     });
+    await closeDebugPanel(canvas);
   },
 };
 
@@ -69,6 +87,7 @@ export const USPG04RollDice: Story = {
   name: 'US-PG04: 判定（ダイスロール）を明示的に実行したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    await openDebugPanel(canvas);
     const screen = within(canvasElement.ownerDocument.body);
     await step('テストハーネスでダイスを6に固定し、判定モードに入る', async () => {
       await userEvent.click(canvas.getByRole('combobox', { name: 'ダイス固定値' }));
@@ -81,6 +100,7 @@ export const USPG04RollDice: Story = {
       await expect(canvas.getByTestId('roll-result')).toHaveTextContent('d6 = 6 → 成功');
       await expect(canvas.getByTestId('summary-roll')).toHaveTextContent('d6=6（成功）');
     });
+    await closeDebugPanel(canvas);
   },
 };
 
@@ -88,6 +108,7 @@ export const USPG05AutoBranchOnRoll: Story = {
   name: 'US-PG05: ダイス結果に基づき強制的に進めたい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    await openDebugPanel(canvas);
     const screen = within(canvasElement.ownerDocument.body);
     await step('失敗が出る値（2）に固定して判定する', async () => {
       await userEvent.click(canvas.getByRole('combobox', { name: 'ダイス固定値' }));
@@ -100,6 +121,7 @@ export const USPG05AutoBranchOnRoll: Story = {
       await expect(canvas.getByTestId('program-log')).toHaveTextContent('プレイヤー操作なし');
       await expect(canvas.getByTestId('program-notice')).toHaveTextContent('失敗ルートへ自動で進めました');
     });
+    await closeDebugPanel(canvas);
   },
 };
 
@@ -107,12 +129,14 @@ export const USPG06ForcedEvent: Story = {
   name: 'US-PG06: 強制イベントを中断不可で実行したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    await openDebugPanel(canvas);
     await userEvent.click(canvas.getByRole('button', { name: '強制イベントを発生' }));
     await step('自由入力も分岐選択も無効化され、制御不能であることが明示される', async () => {
       await expect(canvas.getByTestId('mode-badge')).toHaveTextContent('イベント進行中');
       await expect(canvas.getByTestId('event-lock')).toHaveTextContent('中断・分岐はできません');
       await expect(canvas.getByLabelText('自由に行動や会話を入力')).toBeDisabled();
     });
+    await closeDebugPanel(canvas);
   },
 };
 
@@ -120,12 +144,14 @@ export const USPG07AiNarratesDuringEvent: Story = {
   name: 'US-PG07: 強制イベント中もナラティブはAIに語らせたい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    await openDebugPanel(canvas);
     await userEvent.click(canvas.getByRole('button', { name: '強制イベントを発生' }));
     await step('プログラムが事実を確定し、描写・心情・演出はAIが生成する', async () => {
       await userEvent.click(canvas.getByTestId('event-advance'));
       await expect(canvas.getByTestId('program-log')).toHaveTextContent('イベント確定: 落下ダメージ5');
       await expect(canvas.getByTestId('program-notice')).toHaveTextContent('AIが描写・心情・演出を生成');
     });
+    await closeDebugPanel(canvas);
   },
 };
 
@@ -133,6 +159,7 @@ export const USPG08ReturnToDialogue: Story = {
   name: 'US-PG08: シーン終了後にAI対話へ戻りたい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    await openDebugPanel(canvas);
     await userEvent.click(canvas.getByRole('button', { name: 'バトルを開始' }));
     await step('シーン終了でForced Modeが解除され、自由入力欄が再表示される', async () => {
       await userEvent.click(canvas.getByRole('button', { name: 'AI対話へ戻る' }));
@@ -145,6 +172,7 @@ export const USPG08ReturnToDialogue: Story = {
       await userEvent.click(canvas.getByTestId('send-free-input'));
       await expect(canvas.getByTestId('program-log')).toHaveTextContent('星図灯を掲げて先へ進む');
     });
+    await closeDebugPanel(canvas);
   },
 };
 
@@ -152,6 +180,7 @@ export const USPG09ShowCurrentMode: Story = {
   name: 'US-PG09: 現在の進行モードを分かるようにしたい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    await openDebugPanel(canvas);
     await step('対話 → バトル → 判定 → イベントで、モードバッジが切り替わる', async () => {
       await expect(canvas.getByTestId('mode-badge')).toHaveTextContent('対話中');
       await userEvent.click(canvas.getByRole('button', { name: 'バトルを開始' }));
@@ -162,6 +191,7 @@ export const USPG09ShowCurrentMode: Story = {
       await expect(canvas.getByTestId('mode-badge')).toHaveTextContent('イベント進行中');
       await expect(canvas.getByTestId('summary-mode')).toHaveTextContent('Forced Mode');
     });
+    await closeDebugPanel(canvas);
   },
 };
 
@@ -169,6 +199,7 @@ export const USPG10TestHarness: Story = {
   name: 'US-PG10: プログラム主導シーンをテストしやすくしたい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    await openDebugPanel(canvas);
     const screen = within(canvasElement.ownerDocument.body);
     await step('作者は判定値を固定して、同じ結果を再現できる', async () => {
       await userEvent.click(canvas.getByRole('combobox', { name: 'ダイス固定値' }));
@@ -182,5 +213,6 @@ export const USPG10TestHarness: Story = {
       await expect(canvas.getByTestId('mode-badge')).toHaveTextContent('バトル中');
       await expect(canvas.getByRole('group', { name: 'バトル行動' })).toBeVisible();
     });
+    await closeDebugPanel(canvas);
   },
 };

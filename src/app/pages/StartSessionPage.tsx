@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { AppChrome, type Crumb } from './shared/AppChrome';
-import { WizardNavigation } from './shared/WizardNavigation';
-import { MyrialeSelect } from './ui/MyrialeRadix';
-import { SessionTurn } from './shared/SessionTurn';
-import { STORY_IDS, navigateToStory, useAppNavigation } from './shared/nav';
+import { AppChrome, type Crumb } from '../../shared/AppChrome';
+import { WizardNavigation } from '../../shared/WizardNavigation';
+import { MyrialeSelect } from '../../ui/MyrialeRadix';
+import { SessionTurn } from '../../shared/SessionTurn';
+import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
 
 type SessionStep = 'intro' | 'hero' | 'review' | 'active';
 type HeroMode = 'fixed' | 'select' | 'create' | 'ai';
@@ -62,7 +62,7 @@ const scenarios: ScenarioSummary[] = [
   },
 ];
 
-export function StartSessionWireframe() {
+export function StartSessionPage() {
   const appNavigate = useAppNavigation();
   const [selectedScenario, setSelectedScenario] = useState<ScenarioSummary | null>(null);
   const [activeStep, setActiveStep] = useState<SessionStep>('intro');
@@ -81,7 +81,7 @@ export function StartSessionWireframe() {
   const heroForSummary = heroMode === 'create' ? `${createdName} / ${createdProfile}` : selectedHero;
 
   const openRegistration = () => {
-    setNotice('シナリオ登録ワイヤーフレームへ移動します。');
+    setNotice('シナリオ登録アプリ画面へ移動します。');
     if (appNavigate) {
       appNavigate('scenarioRegister');
       return;
@@ -162,13 +162,13 @@ export function StartSessionWireframe() {
   if (!selectedScenario) {
     return (
       <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={playerAccount}>
-        <div className="scenario-forge scenario-forge-wizard start-session-wireframe start-session-select-screen">
+        <div className="scenario-forge scenario-forge-wizard start-session-page start-session-select-screen">
         <WizardNavigation
           title="Scenario Library"
           ariaLabel="開始前の導線"
           items={[
-            { id: 'library', label: '01 / シナリオ一覧', meta: '選択してから開始', ariaLabel: 'シナリオ一覧へ' },
-            { id: 'registration', label: '02 / 登録導線', meta: '未登録なら作成', ariaLabel: 'シナリオ登録へ' },
+            { id: 'library', label: 'シナリオ一覧', meta: '選択してから開始', ariaLabel: 'シナリオ一覧へ' },
+            { id: 'registration', label: '登録導線', meta: '未登録なら作成', ariaLabel: 'シナリオ登録へ' },
           ]}
           activeId="library"
           onSelect={(id) => {
@@ -181,11 +181,6 @@ export function StartSessionWireframe() {
         <main className="forge-paper wizard-paper" aria-label="セッション開始前のシナリオ一覧">
           <p className="kicker">Session Start / Scenario library</p>
           <div className="notice" role="status" data-testid="session-notice">{notice}</div>
-          <div className="wizard-progress" aria-label="一覧進捗">
-            <span>00</span>
-            <strong>シナリオを選択</strong>
-            <small>ここではまだSessionウィザードを開始しません</small>
-          </div>
           <section className="wizard-panel" aria-label="シナリオ一覧">
             <p><strong>利用可能なScenarioを選択します。</strong>Session開始ウィザードは、Scenarioを選んでSession用スナップショットを作成してから始まります。</p>
             <div className="button-row"><button onClick={openRegistration}>新しいシナリオを登録</button></div>
@@ -210,7 +205,7 @@ export function StartSessionWireframe() {
 
   return (
     <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={playerAccount}>
-      <div className="scenario-forge scenario-forge-wizard start-session-wireframe">
+      <div className="scenario-forge scenario-forge-wizard start-session-page">
       <WizardNavigation
         title="Session Flow"
         ariaLabel="セッション開始ウィザードのステップ"
@@ -227,7 +222,7 @@ export function StartSessionWireframe() {
         action={<button className="text-button" onClick={backToScenarioList}>シナリオ一覧へ戻る</button>}
       />
 
-      <main className="forge-paper wizard-paper" aria-label="セッション開始ワイヤーフレーム">
+      <main className="forge-paper wizard-paper" aria-label="セッション開始アプリ画面">
         <p className="kicker">Session Start / Scenario to play</p>
         <div className="notice" role="status" data-testid="session-notice">{notice}</div>
 

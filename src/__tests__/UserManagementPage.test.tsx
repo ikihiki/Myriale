@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { UserManagementWireframe } from '../UserManagementWireframe';
+import { UserManagementPage } from '../app/pages/UserManagementPage';
 import {
   defaultPasswordRequirements,
   passwordStrength,
@@ -26,9 +26,9 @@ describe('AccountKit password helpers', () => {
   });
 });
 
-describe('UserManagementWireframe — shared UI across pages', () => {
+describe('UserManagementPage — shared UI across pages', () => {
   it('US-UM01: 要件を満たすパスワードで登録するとUserIdを発行する', () => {
-    render(<UserManagementWireframe initialView="register" />);
+    render(<UserManagementPage initialView="register" />);
 
     fireEvent.change(screen.getByLabelText('メールアドレス'), { target: { value: 'new@example.com' } });
     fireEvent.change(screen.getByTestId('register-password'), { target: { value: 'short' } });
@@ -42,7 +42,7 @@ describe('UserManagementWireframe — shared UI across pages', () => {
   });
 
   it('US-UM03/04: ログイン後にプロフィールへ入り、ログアウトでログイン画面へ戻る', () => {
-    render(<UserManagementWireframe initialView="login" />);
+    render(<UserManagementPage initialView="login" />);
 
     fireEvent.change(screen.getByLabelText('メールアドレス'), { target: { value: 'reader@myriale.example' } });
     fireEvent.change(screen.getByTestId('login-password'), { target: { value: 'mist-library-2026' } });
@@ -55,7 +55,7 @@ describe('UserManagementWireframe — shared UI across pages', () => {
   });
 
   it('US-UM13/14: 管理者がユーザーを検索し、停止に変更できる', () => {
-    render(<UserManagementWireframe initialView="admin-list" />);
+    render(<UserManagementPage initialView="admin-list" />);
 
     fireEvent.change(screen.getByLabelText('ユーザーを検索'), { target: { value: '霧野' } });
     expect(screen.queryByTestId('user-row-USR-1042')).not.toBeInTheDocument();
@@ -70,7 +70,7 @@ describe('UserManagementWireframe — shared UI across pages', () => {
   });
 
   it('US-UM11: 同意と再認証がそろうまで退会できない', () => {
-    render(<UserManagementWireframe initialView="withdraw" />);
+    render(<UserManagementPage initialView="withdraw" />);
 
     const deleteButton = screen.getByRole('button', { name: 'アカウントを削除する' });
     expect(deleteButton).toBeDisabled();

@@ -2,7 +2,7 @@
  * AppChrome — global application navigation (top app bar + breadcrumb).
  *
  * Uses the shared Myriale palette so the bar reads as the same product across
- * every wireframe. Sticky at the top; each screen's existing contextual rail
+ * every page. Sticky at the top; each screen's existing contextual rail
  * lives below, inside .app-canvas.
  */
 .app-chrome {

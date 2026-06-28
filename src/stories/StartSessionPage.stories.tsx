@@ -9,7 +9,7 @@ const meta = {
   component: MyrialeApp,
   render: () => <MyrialeApp initialUrl="/sessions/start" initialDb={createDemoDb('activeSession')} />,
   parameters: {
-    notes: 'docs/user-stories/start-session.md の各ユーザーストーリーを、Storybook Interactions の step と expect で操作説明できるワイヤーフレームにしたものです。',
+    notes: 'docs/user-stories/start-session.md の各ユーザーストーリーを、Storybook Interactions の step と expect で操作説明できるアプリ画面にしたものです。',
   },
 } satisfies Meta<typeof MyrialeApp>;
 
@@ -127,7 +127,7 @@ export const USS05BeginActiveSession: Story = {
     await userEvent.click(canvas.getByRole('button', { name: '主人公を確定' }));
     await step('「物語を始める」でSessionをActiveにし、US-P01のプレイ画面へ合流する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '物語を始める' }));
-      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098/play');
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098');
       await expect(canvas.getByTestId('session-state')).toHaveTextContent('Active');
       await expect(canvas.getByTestId('turn-1-narrative')).toHaveTextContent('水没した閲覧室');
       await expect(canvas.getByTestId('turn-1-narrative')).toHaveTextContent('銀の鍵');

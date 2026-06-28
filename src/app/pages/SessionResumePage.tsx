@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { WizardNavigation } from './shared/WizardNavigation';
-import { AppChrome, type Crumb } from './shared/AppChrome';
-import { STORY_IDS, navigateToStory, useAppNavigation } from './shared/nav';
+import { WizardNavigation } from '../../shared/WizardNavigation';
+import { AppChrome, type Crumb } from '../../shared/AppChrome';
+import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
 
 type ResumeView = 'list' | 'confirm' | 'readonly';
 
@@ -150,7 +150,7 @@ const suspendedSessions: SuspendedSession[] = [
 
 const playerAccount = { name: '霧野しおり', email: 'reader@myriale.example', initials: '霧野', role: 'プレイヤー' };
 
-export function SessionResumeWireframe() {
+export function SessionResumePage() {
   const appNavigate = useAppNavigation();
   const [view, setView] = useState<ResumeView>('list');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -206,7 +206,7 @@ export function SessionResumeWireframe() {
 
   return (
     <AppChrome section="sessions" breadcrumbs={resumeCrumbs} account={playerAccount}>
-      <div className="scenario-forge scenario-forge-wizard session-resume-wireframe">
+      <div className="scenario-forge scenario-forge-wizard session-resume-page">
         <WizardNavigation
           title="Suspended Sessions"
           ariaLabel="中断中セッション"
@@ -218,7 +218,7 @@ export function SessionResumeWireframe() {
             ariaLabel: `${session.scenarioTitle} を選択`,
             testId: `suspended-${session.id}`,
           }))}
-          activeId={selectedId}
+          activeId={selectedId ?? undefined}
           onSelect={(id) => {
             const session = suspendedSessions.find((item) => item.id === id);
             if (session) selectSession(session);
@@ -227,7 +227,7 @@ export function SessionResumeWireframe() {
           markerValue={<span data-testid="session-state">{sessionState}</span>}
         />
 
-        <main className="forge-paper wizard-paper" aria-label="セッション再開ワイヤーフレーム">
+        <main className="forge-paper wizard-paper" aria-label="セッション再開アプリ画面">
           <p className="kicker">Session resume / Continue your story</p>
           <div className="notice" role="status" data-testid="resume-notice">
             {notice}

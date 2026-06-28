@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { ScenarioProgressControls } from './ScenarioProgressControls';
-import { AppChrome, type Crumb } from './shared/AppChrome';
-import { WizardNavigation } from './shared/WizardNavigation';
-import { MyrialeSelect } from './ui/MyrialeRadix';
+import { ScenarioProgressControls } from '../../ScenarioProgressControls';
+import { AppChrome, type Crumb } from '../../shared/AppChrome';
+import { WizardNavigation } from '../../shared/WizardNavigation';
+import { MyrialeSelect } from '../../ui/MyrialeRadix';
 
 type SuggestionKind = '概要' | '世界観' | '挿絵テイスト' | '挿絵プロンプト';
 type WizardStep =
@@ -47,7 +47,7 @@ function RegistrationAdvancedStep({ panel, help }: { panel: AdvancedPanelId; hel
   );
 }
 
-export function ScenarioRegistrationWireframe() {
+export function ScenarioRegistrationPage() {
   const [activeStep, setActiveStep] = useState<WizardStep>('cover');
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');

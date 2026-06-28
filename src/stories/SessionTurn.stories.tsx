@@ -17,7 +17,7 @@ import '../styles.css';
 /** ログ風の枠で1つ以上のターンを囲む共通デコレーター。 */
 const inLog = (children: ReactNode) => (
   <div
-    className="scenario-forge session-play-wireframe"
+    className="scenario-forge session-play-page"
     style={{ display: 'block', padding: 16, background: '#efe6d2' }}
   >
     <div className="dialogue-log" style={{ maxHeight: 'none', display: 'grid', gap: 10 }}>
