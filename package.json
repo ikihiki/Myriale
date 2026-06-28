@@ -6,7 +6,8 @@
   "scripts": {
     "storybook": "storybook dev -p 6006 --host 0.0.0.0 --no-open",
     "build-storybook": "storybook build",
-    "test": "vitest run --environment jsdom"
+    "test": "vitest run --environment jsdom",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.5",
@@ -36,6 +37,7 @@
     "vitest": "latest"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@storybook/addon-controls": "^8.6.18"
   }
 }

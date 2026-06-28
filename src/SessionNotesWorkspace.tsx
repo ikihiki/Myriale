@@ -61,7 +61,6 @@ const initialNotes: SessionNote[] = [
 export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
   const appStore = useOptionalAppStore();
   const [notes, setNotes] = useState(initialNotes);
-  const [selectedId, setSelectedId] = useState(initialNotes[0].id);
   const [localOpenNoteId, setLocalOpenNoteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [notice, setNotice] = useState('セッション中いつでもノートを参照・編集できます。編集はダイアログで開き、サイド確認でも全画面でも同じDB状態を使います。');
@@ -69,13 +68,11 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
   const [issue, setIssue] = useState('矛盾候補はありません。必要に応じて整合性チェックできます。');
 
   const openNoteId = appStore?.db.ui.openNoteId ?? localOpenNoteId;
-  const selected = notes.find((note) => note.id === selectedId) ?? notes[0];
   const editingNote = notes.find((note) => note.id === openNoteId) ?? null;
   const filteredNotes = notes.filter((note) => `${note.name} ${note.aliases}`.includes(search));
   const canonNotes = notes.filter((note) => note.certainty === 'Canon');
 
   const openNote = (noteId: string) => {
-    setSelectedId(noteId);
     if (appStore) {
       appStore.dispatch({ type: 'NOTE_DIALOG_OPENED', noteId });
     } else {
@@ -125,7 +122,6 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
           certainty: '未確定',
         };
     setNotes((current) => [...current, note]);
-    setSelectedId(note.id);
     openNote(note.id);
     setNotice(`${kind === 'person' ? '人物' : '場所'}ノートを作成し、編集ダイアログで開きました。`);
   };
@@ -147,14 +143,8 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
 
   return (
     <section className={`session-notes-workspace ${mode === 'side' ? 'side' : 'full'}`} aria-label={mode === 'side' ? 'セッション中ノートサイドパネル' : 'セッション中ノート全画面'} data-testid={`session-notes-${mode}`}>
-      <header className="notes-workspace-header">
-        <div>
-          <span className="kicker">Session notes / unified workspace</span>
-          <h2>ノート</h2>
-          <p role="status" data-testid="session-notes-notice">{notice}</p>
-          <p data-testid="open-note-state">開いているノート: {openNoteId ?? 'なし'}</p>
-        </div>
-      </header>
+      <p className="visually-hidden" role="status" data-testid="session-notes-notice">{notice}</p>
+      <p className="visually-hidden" data-testid="open-note-state">開いているノート: {openNoteId ?? 'なし'}</p>
 
       <div className="session-notes-grid">
         <div className="lorebook-list compact-note-list" aria-label="ノート一覧">
@@ -172,7 +162,7 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
             <span>種別</span><span>名前</span><span>別名・初出</span><span>要点</span><span>操作</span>
           </div>
           {filteredNotes.map((note) => (
-            <article key={note.id} className={`note-notification note-list-row ${selected.id === note.id ? 'active' : ''}`} aria-label={`${note.name}のノート概要`}>
+            <article key={note.id} className="note-notification note-list-row" aria-label={`${note.name}のノート概要`}>
               <span>{note.kind === 'person' ? '人物' : '場所'} / {note.certainty}</span>
               <strong>{note.name}</strong>
               <small>{note.aliases} · {note.firstTurn}</small>
@@ -182,7 +172,6 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
           ))}
 
           <section className="notes-context-panel" aria-label="ノートContext">
-            <div className="notes-context-line"><strong>選択中</strong><span>{selected.name} / {selected.aliases}</span><button className="primary" onClick={() => openNote(selected.id)}>選択中ノートを編集</button></div>
             <div className="notes-context-line"><strong>Canon Notes</strong><span data-testid="canon-count">{canonNotes.length}件</span></div>
             <div className="notes-context-line"><strong>Context</strong><span data-testid="context-stack">{contextSummary}</span></div>
             <div className="notes-consistency-line"><strong>整合性</strong><span data-testid="consistency-issue">{issue}</span><div className="button-row"><button onClick={() => setNotice('ノート更新として確定しました。')}>ノートを更新</button><button onClick={() => setNotice('AI出力側を修正し、Canonは変更しません。')}>AI出力を修正</button><button onClick={() => setNotice('噂として保持しました。AIには断定させません。')}>噂として保持</button></div></div>

@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
 import { MyrialeApp } from '../app/MyrialeApp';
 import { createDemoDb } from '../app/demoData';
-import type { UMView } from '../UserManagementWireframe';
+import type { UMView } from '../app/pages/UserManagementPage';
 import '../account/account.css';
 
 /**
@@ -41,7 +41,7 @@ const meta = {
   parameters: {
     layout: 'fullscreen',
     notes:
-      'docs/user-stories/user-management-user-stories.md の各ユーザーストーリーを、共通UI（Account kit）で組んだワイヤーフレームにし、play関数で操作手順と期待結果を説明します。',
+      'docs/user-stories/user-management-user-stories.md の各ユーザーストーリーを、共通UI（Account kit）で組んだアプリ画面にし、play関数で操作手順と期待結果を説明します。',
   },
 } satisfies Meta<UserManagementStoryArgs>;
 

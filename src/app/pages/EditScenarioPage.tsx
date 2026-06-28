@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { ScenarioProgressControls } from './ScenarioProgressControls';
-import { AppChrome, type Crumb } from './shared/AppChrome';
-import { STORY_IDS, navigateToStory, useAppNavigation } from './shared/nav';
-import { WizardNavigation } from './shared/WizardNavigation';
-import { MyrialeSelect } from './ui/MyrialeRadix';
+import { ScenarioProgressControls } from '../../ScenarioProgressControls';
+import { AppChrome, type Crumb } from '../../shared/AppChrome';
+import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
+import { WizardNavigation } from '../../shared/WizardNavigation';
+import { MyrialeSelect } from '../../ui/MyrialeRadix';
 
 type EditView = 'list' | 'edit';
 type EditSection =
@@ -117,7 +117,7 @@ function EditAdvancedSection({ panel, help }: { panel: AdvancedPanelId; title: s
   );
 }
 
-export function EditScenarioWireframe() {
+export function EditScenarioPage() {
   const appNavigate = useAppNavigation();
   const [view, setView] = useState<EditView>('list');
   const [activeSection, setActiveSection] = useState<EditSection>('basics');
@@ -181,7 +181,7 @@ export function EditScenarioWireframe() {
   };
 
   const openTestPlay = () => {
-    setNotice('テストプレイ用のセッション開始ワイヤーフレームへ移動します（本番には影響しません）。');
+    setNotice('テストプレイ用のセッション開始アプリ画面へ移動します（本番には影響しません）。');
     if (appNavigate) {
       appNavigate('startSession');
       return;
@@ -199,7 +199,7 @@ export function EditScenarioWireframe() {
 
   return (
     <AppChrome section="library" breadcrumbs={editCrumbs} account={playerAccount}>
-      <div className="scenario-forge scenario-forge-wizard edit-scenario-wireframe">
+      <div className="scenario-forge scenario-forge-wizard edit-scenario-page">
         <WizardNavigation
           title="Scenario Editor"
           ariaLabel={view === 'list' ? '編集できるシナリオ' : '編集セクション'}
@@ -214,13 +214,13 @@ export function EditScenarioWireframe() {
                 ariaLabel: `${scenario.title} を編集対象に選ぶ`,
                 testId: `spine-${scenario.id}`,
               }))
-            : editSections.map((section, index) => ({
+            : editSections.map((section) => ({
                 id: section.id,
-                label: `${String(index + 1).padStart(2, '0')} / ${section.label}`,
+                label: section.label,
                 meta: section.help,
                 ariaLabel: `${section.label}へ`,
               }))}
-          activeId={view === 'list' ? editingId : activeSection}
+          activeId={(view === 'list' ? editingId : activeSection) ?? undefined}
           onSelect={(id) => {
             if (view === 'list') {
               const scenario = scenarioLibrary.find((item) => item.id === id);
@@ -234,7 +234,7 @@ export function EditScenarioWireframe() {
           action={view === 'edit' ? <button className="text-button" onClick={backToList}>シナリオ一覧へ戻る</button> : undefined}
         />
 
-        <main className="forge-paper wizard-paper" aria-label="シナリオ編集ワイヤーフレーム">
+        <main className="forge-paper wizard-paper" aria-label="シナリオ編集アプリ画面">
           <p className="kicker">Scenario edit / Improve and publish</p>
           <div className="notice" role="status" data-testid="edit-notice">{notice}</div>
 

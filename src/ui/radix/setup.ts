@@ -1,9 +1,10 @@
 if (typeof window !== 'undefined' && !('ResizeObserver' in window)) {
-  window.ResizeObserver = class ResizeObserver {
+  const resizeObserverWindow = window as Window & typeof globalThis & { ResizeObserver?: typeof ResizeObserver };
+  resizeObserverWindow.ResizeObserver = class ResizeObserver {
     observe() {}
     unobserve() {}
     disconnect() {}
-  };
+  } as typeof ResizeObserver;
 }
 
 if (typeof window !== 'undefined' && window.HTMLElement) {

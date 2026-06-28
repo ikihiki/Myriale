@@ -3,11 +3,11 @@ import { expect, userEvent, within } from '@storybook/test';
 import { AppChrome } from '../shared/AppChrome';
 
 /**
- * AppChrome — the global application navigation shared by every wireframe.
+ * AppChrome — the global application navigation shared by every page.
  *
  * This is the real product chrome (top app bar with brand + sections + account
  * menu, plus a breadcrumb row) that wraps each screen, replacing the earlier
- * wireframe-style flow strip. Rendered here on its own so the navigation model
+ * page-level flow strip. Rendered here on its own so the navigation model
  * and its menus can be reviewed in isolation.
  */
 const meta = {
@@ -26,7 +26,7 @@ type Story = StoryObj<typeof meta>;
 const demoScreen = (
   <div style={{ padding: 28, font: '14px/1.6 Inter, sans-serif', color: '#241b2f' }}>
     <p style={{ margin: 0, color: '#5f506c' }}>
-      ここに各ワイヤーフレームの画面が入ります。上のバーとパンくずがアプリ全体の現在地と移動先を示します。
+      ここに各アプリ画面の画面が入ります。上のバーとパンくずがアプリ全体の現在地と移動先を示します。
     </p>
   </div>
 );

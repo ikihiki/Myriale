@@ -7,9 +7,9 @@ import '../styles.css';
 const meta = {
   title: 'ユーザーストーリー/Mode transition and exception',
   component: MyrialeApp,
-  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098/mode-exception" initialDb={createDemoDb('activeSession')} />,
+  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098" initialDb={createDemoDb('modeTransitionSession')} />,
   parameters: {
-    notes: 'docs/user-stories/mode-transition-and-exception-user-stories.md の各ユーザーストーリー（US-M01〜M08）を、Storybook Interactions の step と expect で操作説明できるワイヤーフレームにしたものです。',
+    notes: 'docs/user-stories/mode-transition-and-exception-user-stories.md の各ユーザーストーリー（US-M01〜M08）を、Storybook Interactions の step と expect で操作説明できるアプリ画面にしたものです。',
   },
 } satisfies Meta<typeof MyrialeApp>;
 

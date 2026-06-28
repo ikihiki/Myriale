@@ -1,6 +1,6 @@
-import { AppChrome, type Crumb } from './shared/AppChrome';
-import { useAppNavigation, type StoryKey } from './shared/nav';
-import { useOptionalAppStore, type PlaySessionRecord, type ScenarioRecord } from './app/store';
+import { AppChrome, type Crumb } from '../../shared/AppChrome';
+import { useAppNavigation, type StoryKey } from '../../shared/nav';
+import { useOptionalAppStore, type PlaySessionRecord, type ScenarioRecord } from '../store';
 
 const account = { name: '霧野しおり', email: 'reader@myriale.example', initials: '霧野', role: 'プレイヤー' };
 
@@ -20,7 +20,7 @@ const fallbackSessions: PlaySessionRecord[] = [
   },
 ];
 
-export function HomeWireframe() {
+export function HomePage() {
   const store = useOptionalAppStore();
   const navigate = useAppNavigation();
   const scenarios = Object.values(store?.db.scenarios ?? Object.fromEntries(fallbackScenarios.map((scenario) => [scenario.id, scenario])));

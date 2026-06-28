@@ -7,10 +7,6 @@ export type AppScreen =
   | 'startSession'
   | 'playSession'
   | 'resumeSession'
-  | 'programDriven'
-  | 'modeTransition'
-  | 'sessionNotesAuto'
-  | 'sessionNotesLorebook'
   | 'login'
   | 'register'
   | 'resetPassword'
@@ -38,12 +34,8 @@ const screenUrls: Record<AppScreen, string> = {
   scenarioRegister: '/scenarios/new',
   scenarioEdit: '/scenarios/SCN-STAR-LIBRARY/edit',
   startSession: '/sessions/start',
-  playSession: '/sessions/SES-PREP-1098/play',
+  playSession: '/sessions/SES-PREP-1098',
   resumeSession: '/sessions/SES-PREP-1098/resume',
-  programDriven: '/sessions/SES-PREP-1098/program',
-  modeTransition: '/sessions/SES-PREP-1098/mode-exception',
-  sessionNotesAuto: '/sessions/SES-PREP-1098/notes/auto',
-  sessionNotesLorebook: '/sessions/SES-PREP-1098/notes/lorebook',
   login: '/account/login',
   register: '/account/register',
   resetPassword: '/account/reset-password',
@@ -60,6 +52,9 @@ const screenUrls: Record<AppScreen, string> = {
 
 export function appUrlForStoryKey(key: StoryKey): string {
   if (key === 'advancedScenario') return screenUrls.scenarioEdit;
+  if (key === 'programDriven' || key === 'modeTransition' || key === 'sessionNotesAuto' || key === 'sessionNotesLorebook') {
+    return screenUrls.playSession;
+  }
   return screenUrls[key as AppScreen] ?? DEFAULT_APP_URL;
 }
 
@@ -92,12 +87,10 @@ export function parseAppUrl(input: string | undefined | null): AppRoute {
   if (path === '/sessions/start') return buildRoute('startSession', path, {}, query);
   if (segments[0] === 'sessions' && segments[1]) {
     const sessionId = decodeURIComponent(segments[1]);
-    if (segments[2] === 'play') return buildRoute('playSession', path, { sessionId }, query);
+    if (!segments[2] || segments[2] === 'play' || segments[2] === 'program' || segments[2] === 'mode-exception' || segments[2] === 'notes') {
+      return buildRoute('playSession', `/sessions/${encodeURIComponent(sessionId)}`, { sessionId }, query);
+    }
     if (segments[2] === 'resume') return buildRoute('resumeSession', path, { sessionId }, query);
-    if (segments[2] === 'program') return buildRoute('programDriven', path, { sessionId }, query);
-    if (segments[2] === 'mode-exception') return buildRoute('modeTransition', path, { sessionId }, query);
-    if (segments[2] === 'notes' && segments[3] === 'auto') return buildRoute('sessionNotesAuto', path, { sessionId }, query);
-    if (segments[2] === 'notes' && segments[3] === 'lorebook') return buildRoute('sessionNotesLorebook', path, { sessionId }, query);
   }
   if (segments[0] === 'account') {
     if (segments[1] === 'register') return buildRoute('register', path, {}, query);

@@ -11,11 +11,11 @@ import './appChrome.css';
 /**
  * AppChrome — the real product's global navigation.
  *
- * Instead of a wireframe-style "flow" strip, every screen is wrapped in the same
+ * Instead of a page-level "flow" strip, every screen is wrapped in the same
  * application chrome a shipped app would have:
  *   - a top app bar with the brand, the primary sections, and an account menu;
  *   - a breadcrumb row showing where this screen sits in the hierarchy.
- * Each wireframe keeps its own contextual left-rail for in-page navigation; this
+ * Each page keeps its own contextual left-rail for in-page navigation; this
  * is the global layer above it. Links jump to the canonical story for each
  * destination via Storybook's selectStory event (see ./nav).
  */

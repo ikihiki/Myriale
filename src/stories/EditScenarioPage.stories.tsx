@@ -10,7 +10,7 @@ const meta = {
   component: MyrialeApp,
   render: () => <MyrialeApp initialUrl="/scenarios/SCN-STAR-LIBRARY/edit" initialDb={createDemoDb('editableScenario')} />,
   parameters: {
-    notes: 'docs/user-stories/edit-scenario.md の各ユーザーストーリー（US-E01〜E10）を、Storybook Interactions の step と expect で操作説明できるワイヤーフレームにしたものです。',
+    notes: 'docs/user-stories/edit-scenario.md の各ユーザーストーリー（US-E01〜E10）を、Storybook Interactions の step と expect で操作説明できるアプリ画面にしたものです。',
   },
 } satisfies Meta<typeof MyrialeApp>;
 
@@ -268,7 +268,7 @@ export const USE07PreviewEdit: Story = {
       await expect(canvas.getByTestId('preview-result')).toHaveTextContent('イントロと序盤Narrativeを生成');
       await expect(canvas.getByTestId('edit-notice')).toHaveTextContent('本番セッションには影響しません');
     });
-    await step('本番相当のテストプレイは、Session開始ワイヤーフレームへの導線として用意される', async () => {
+    await step('本番相当のテストプレイは、Session開始アプリ画面への導線として用意される', async () => {
       await expect(canvas.getByRole('button', { name: '本番相当のテストプレイへ' })).toBeVisible();
       await expect(STORY_IDS.startSession).toContain('start-session');
     });

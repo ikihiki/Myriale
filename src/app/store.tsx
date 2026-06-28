@@ -7,6 +7,8 @@ export type DemoDbKind =
   | 'editableScenario'
   | 'activeSession'
   | 'resumableSession'
+  | 'programDrivenSession'
+  | 'modeTransitionSession'
   | 'notesReview'
   | 'lorebook'
   | 'adminUsers';
@@ -19,6 +21,13 @@ export type ScenarioRecord = {
   updatedAt: string;
 };
 
+export type TurnDisplayFlags = {
+  allowRewind: boolean;
+  showInterpretation: boolean;
+  leadTone?: 'player' | 'program';
+  leadTag?: string;
+};
+
 export type PlaySessionRecord = {
   id: string;
   scenarioId: string;
@@ -26,6 +35,7 @@ export type PlaySessionRecord = {
   hero: string;
   turn: number;
   summary: string;
+  turnDisplay?: Record<number, TurnDisplayFlags>;
 };
 
 export type AppDb = {
@@ -45,6 +55,7 @@ export type AppDb = {
     selectedScenarioId?: string;
     selectedSessionId?: string;
     notesPanelMode?: 'side' | 'full';
+    sessionView?: 'dialogue' | 'program' | 'modeTransition';
     openNoteId?: string | null;
   };
 };
@@ -203,6 +214,9 @@ export function createDemoDb(kind: DemoDbKind = 'activeSession', overrides: Part
       hero: 'ミラ / 星図を読む巡礼者',
       turn: kind === 'resumableSession' ? 7 : 1,
       summary: '水没した閲覧室で星図灯が点き、禁書庫への扉が半分だけ開いている。',
+      turnDisplay: Object.fromEntries(
+        Array.from({ length: 12 }, (_, index) => [index + 1, { allowRewind: true, showInterpretation: true, leadTone: 'player', leadTag: '⟶' }]),
+      ),
     },
   };
   const base: AppDb = {
@@ -224,9 +238,10 @@ export function createDemoDb(kind: DemoDbKind = 'activeSession', overrides: Part
       ],
     },
     ui: {
-      route: parseAppUrl('/sessions/SES-PREP-1098/play'),
+      route: parseAppUrl('/sessions/SES-PREP-1098'),
       notices: ['Redux風ストアでStorybookデモ用DBを初期化しました。'],
       notesPanelMode: kind === 'lorebook' || kind === 'notesReview' ? 'full' : 'side',
+      sessionView: kind === 'programDrivenSession' ? 'program' : kind === 'modeTransitionSession' ? 'modeTransition' : 'dialogue',
       openNoteId: null,
       selectedScenarioId: 'SCN-STAR-LIBRARY',
       selectedSessionId: 'SES-PREP-1098',

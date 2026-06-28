@@ -10,7 +10,7 @@ const meta = {
   component: MyrialeApp,
   render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098/resume" initialDb={createDemoDb('resumableSession')} />,
   parameters: {
-    notes: 'docs/user-stories/session-resume.md の各ユーザーストーリー（US-R01〜R08）を、Storybook Interactions の step と expect で操作説明できるワイヤーフレームにしたものです。',
+    notes: 'docs/user-stories/session-resume.md の各ユーザーストーリー（US-R01〜R08）を、Storybook Interactions の step と expect で操作説明できるアプリ画面にしたものです。',
   },
 } satisfies Meta<typeof MyrialeApp>;
 

@@ -23,19 +23,19 @@ import {
 import '../account/account.css';
 
 /**
- * Shared component gallery for the user-management wireframes.
+ * Shared component gallery for the user-management pages.
  *
  * The screens in docs/user-stories/user-management-user-stories.md reuse the
  * same building blocks. Each story here renders one component on its own so the
  * common UI can be reviewed, themed, and tested in isolation, then it is
- * deployed across the page wireframes in UserManagementWireframe.stories.tsx.
+ * deployed across the page pages in UserManagementPage.stories.tsx.
  */
 const meta: Meta = {
   title: 'コンポーネント/AccountKit',
   parameters: {
     layout: 'centered',
     notes:
-      '全ページで共通して使うUIコンポーネント集です。ここで単体確認し、UserManagementWireframe の各ページに展開しています。',
+      '全ページで共通して使うUIコンポーネント集です。ここで単体確認し、UserManagementPage の各ページに展開しています。',
   },
   decorators: [
     (Story) => (
