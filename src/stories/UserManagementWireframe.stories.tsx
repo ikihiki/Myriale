@@ -33,7 +33,7 @@ const viewUrl: Record<UMView, string> = {
 type UserManagementStoryArgs = { initialView?: UMView };
 
 const meta = {
-  title: 'User management/Wireframe from user stories',
+  title: 'ユーザーストーリー/User management',
   component: MyrialeApp,
   render: (args: UserManagementStoryArgs) => (
     <MyrialeApp initialUrl={viewUrl[args.initialView ?? 'register']} initialDb={createDemoDb('adminUsers')} />
@@ -244,8 +244,10 @@ export const UM12ExportData: Story = {
   args: { initialView: 'export' },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
     await step('対象とフォーマットを選んでエクスポートする', async () => {
-      await userEvent.selectOptions(canvas.getByLabelText('形式'), 'json');
+      await userEvent.click(canvas.getByRole('combobox', { name: '形式' }));
+      await userEvent.click(await screen.findByRole('option', { name: 'JSON' }));
       await userEvent.click(canvas.getByRole('button', { name: 'エクスポートを作成' }));
       await expect(canvas.getByTestId('export-result')).toHaveTextContent('JSON 形式で書き出しました');
       await expect(canvas.getByTestId('export-result')).toHaveTextContent('シナリオ');

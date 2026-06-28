@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { WizardNavigation } from './shared/WizardNavigation';
 import { AppChrome } from './shared/AppChrome';
 import { SessionTurn } from './shared/SessionTurn';
 
@@ -158,18 +159,27 @@ export function SessionNotesLorebookWireframe() {
       account={account}
     >
       <div className="scenario-forge scenario-forge-wizard session-lorebook-wireframe">
-        <aside className="contract-spine" aria-label="Lorebook操作">
-          <strong>Lorebook</strong>
-          <p className="toc-help">人物・場所をCanon辞書として整備し、長編の参照と圧縮Contextに使います。</p>
-          <div className="wizard-step-list" role="list" aria-label="Lorebookアクション">
-            <button className="spine-row spine-step" onClick={createPerson} aria-label="人物ノートを新規作成"><span>人物を作成</span><small>プロフィール構造化</small></button>
-            <button className="spine-row spine-step" onClick={createLocation} aria-label="場所ノートを新規作成"><span>場所を作成</span><small>地理と雰囲気</small></button>
-            <button className="spine-row spine-step" onClick={proposeNote} aria-label="AIに追加候補を提案させる"><span>AI候補提案</span><small>採用前の候補</small></button>
-            <button className="spine-row spine-step" onClick={generateContext} aria-label="次ターンContextを再構築"><span>Context再構築</span><small>Canon + Summary</small></button>
-            <button className="spine-row spine-step" onClick={checkConsistency} aria-label="整合性チェック"><span>整合性チェック</span><small>矛盾候補を提示</small></button>
-          </div>
-          <div className="scenario-id"><span>Canon Notes</span><b data-testid="canon-count">{canonNotes.length}件</b></div>
-        </aside>
+        <WizardNavigation
+          title="Lorebook"
+          ariaLabel="Lorebookアクション"
+          help="人物・場所をCanon辞書として整備し、長編の参照と圧縮Contextに使います。"
+          items={[
+            { id: 'person', label: '人物を作成', meta: 'プロフィール構造化', ariaLabel: '人物ノートを新規作成' },
+            { id: 'location', label: '場所を作成', meta: '地理と雰囲気', ariaLabel: '場所ノートを新規作成' },
+            { id: 'proposal', label: 'AI候補提案', meta: '採用前の候補', ariaLabel: 'AIに追加候補を提案させる' },
+            { id: 'context', label: 'Context再構築', meta: 'Canon + Summary', ariaLabel: '次ターンContextを再構築' },
+            { id: 'consistency', label: '整合性チェック', meta: '矛盾候補を提示', ariaLabel: '整合性チェック' },
+          ]}
+          onSelect={(id) => {
+            if (id === 'person') createPerson();
+            if (id === 'location') createLocation();
+            if (id === 'proposal') proposeNote();
+            if (id === 'context') generateContext();
+            if (id === 'consistency') checkConsistency();
+          }}
+          markerLabel="Canon Notes"
+          markerValue={<span data-testid="canon-count">{canonNotes.length}件</span>}
+        />
 
         <main className="forge-paper wizard-paper program-driven-main" aria-label="Lorebookノート管理">
           <p className="kicker">Session notes / Structured Lorebook</p>

@@ -1,3 +1,4 @@
+import * as Toggle from '@radix-ui/react-toggle';
 import React, { useEffect, useMemo, useState } from 'react';
 import { AddonPanel } from '@storybook/components';
 import { addons, types, useChannel } from '@storybook/manager-api';
@@ -92,12 +93,12 @@ const CommentPanel = () => {
       </div>
 
       <div style={buttonRowStyle} role="group" aria-label="コメント操作モード">
-        <button style={buttonStyle(mode === 'interactive')} onClick={() => setMode('interactive')} aria-pressed={mode === 'interactive'}>
+        <Toggle.Root style={buttonStyle(mode === 'interactive')} pressed={mode === 'interactive'} onPressedChange={() => setMode('interactive')}>
           インタラクティブ
-        </button>
-        <button style={buttonStyle(mode === 'select')} onClick={() => setMode('select')} aria-pressed={mode === 'select'}>
+        </Toggle.Root>
+        <Toggle.Root style={buttonStyle(mode === 'select')} pressed={mode === 'select'} onPressedChange={() => setMode('select')}>
           選択
-        </button>
+        </Toggle.Root>
       </div>
       <p style={{ margin: 0, color: '#6d587a' }}>
         {mode === 'select'

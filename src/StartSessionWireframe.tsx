@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { AppChrome, type Crumb } from './shared/AppChrome';
+import { WizardNavigation } from './shared/WizardNavigation';
+import { MyrialeSelect } from './ui/MyrialeRadix';
 import { SessionTurn } from './shared/SessionTurn';
 import { STORY_IDS, navigateToStory, useAppNavigation } from './shared/nav';
 
@@ -161,20 +163,20 @@ export function StartSessionWireframe() {
     return (
       <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={playerAccount}>
         <div className="scenario-forge scenario-forge-wizard start-session-wireframe start-session-select-screen">
-        <aside className="contract-spine" aria-label="セッション開始前の導線">
-          <strong>Scenario Library</strong>
-          <div className="wizard-step-list" role="list" aria-label="開始前の導線">
-            <button className="spine-row spine-step active" aria-current="step" aria-label="シナリオ一覧へ">
-              <span>01 / シナリオ一覧</span>
-              <small>選択してから開始</small>
-            </button>
-            <button className="spine-row spine-step" onClick={openRegistration} aria-label="シナリオ登録へ">
-              <span>02 / 登録導線</span>
-              <small>未登録なら作成</small>
-            </button>
-          </div>
-          <div className="scenario-id"><span>SessionId</span><b>{sessionId}</b></div>
-        </aside>
+        <WizardNavigation
+          title="Scenario Library"
+          ariaLabel="開始前の導線"
+          items={[
+            { id: 'library', label: '01 / シナリオ一覧', meta: '選択してから開始', ariaLabel: 'シナリオ一覧へ' },
+            { id: 'registration', label: '02 / 登録導線', meta: '未登録なら作成', ariaLabel: 'シナリオ登録へ' },
+          ]}
+          activeId="library"
+          onSelect={(id) => {
+            if (id === 'registration') openRegistration();
+          }}
+          markerLabel="SessionId"
+          markerValue={sessionId}
+        />
 
         <main className="forge-paper wizard-paper" aria-label="セッション開始前のシナリオ一覧">
           <p className="kicker">Session Start / Scenario library</p>
@@ -209,25 +211,21 @@ export function StartSessionWireframe() {
   return (
     <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={playerAccount}>
       <div className="scenario-forge scenario-forge-wizard start-session-wireframe">
-      <aside className="contract-spine" aria-label="セッション開始ステップ">
-        <strong>Session Flow</strong>
-        <div className="wizard-step-list" role="list" aria-label="セッション開始ウィザードのステップ">
-          {sessionSteps.map((step, index) => (
-            <button
-              className={`spine-row spine-step ${activeStep === step.id ? 'active' : ''}`}
-              key={step.id}
-              onClick={() => setActiveStep(step.id)}
-              aria-label={`${step.label}へ`}
-              aria-current={activeStep === step.id ? 'step' : undefined}
-            >
-              <span>{String(index + 1).padStart(2, '0')} / {step.label}</span>
-              <small>{step.state}</small>
-            </button>
-          ))}
-        </div>
-        <div className="scenario-id"><span>SessionId</span><b>{sessionId}</b></div>
-        <button className="text-button" onClick={backToScenarioList}>シナリオ一覧へ戻る</button>
-      </aside>
+      <WizardNavigation
+        title="Session Flow"
+        ariaLabel="セッション開始ウィザードのステップ"
+        items={sessionSteps.map((step, index) => ({
+          id: step.id,
+          label: `${String(index + 1).padStart(2, '0')} / ${step.label}`,
+          meta: step.state,
+          ariaLabel: `${step.label}へ`,
+        }))}
+        activeId={activeStep}
+        onSelect={(id) => setActiveStep(id as SessionStep)}
+        markerLabel="SessionId"
+        markerValue={sessionId}
+        action={<button className="text-button" onClick={backToScenarioList}>シナリオ一覧へ戻る</button>}
+      />
 
       <main className="forge-paper wizard-paper" aria-label="セッション開始ワイヤーフレーム">
         <p className="kicker">Session Start / Scenario to play</p>
@@ -253,22 +251,28 @@ export function StartSessionWireframe() {
         {activeStep === 'hero' && (
           <section className="wizard-panel" aria-label="主人公確定">
             <p><strong>イントロ後に主人公を確定します。</strong>AIは候補を出せますが、プレイヤーの確認なしに自動確定しません。</p>
-            <label>主人公の扱い
-              <select aria-label="主人公の扱い" value={heroMode} onChange={(event) => updateHeroMode(event.target.value as HeroMode)}>
-                <option value="fixed">キャラクター固定</option>
-                <option value="select">キャラクター選択式</option>
-                <option value="create">キャラクタークリエイト</option>
-                <option value="ai">AIによる自動生成案</option>
-              </select>
-            </label>
+            <MyrialeSelect
+              label="主人公の扱い"
+              value={heroMode}
+              onValueChange={(value) => updateHeroMode(value as HeroMode)}
+              options={[
+                { value: 'fixed', label: 'キャラクター固定' },
+                { value: 'select', label: 'キャラクター選択式' },
+                { value: 'create', label: 'キャラクタークリエイト' },
+                { value: 'ai', label: 'AIによる自動生成案' },
+              ]}
+            />
             {heroMode === 'select' && (
-              <label>候補キャラクター
-                <select aria-label="候補キャラクター" value={selectedHero} onChange={(event) => setSelectedHero(event.target.value)}>
-                  <option>{heroNames.select}</option>
-                  <option>セオ / 星図を燃やす護衛</option>
-                  <option>エル / 記憶を失った写字生</option>
-                </select>
-              </label>
+              <MyrialeSelect
+                label="候補キャラクター"
+                value={selectedHero}
+                onValueChange={setSelectedHero}
+                options={[
+                  { value: heroNames.select, label: heroNames.select },
+                  { value: 'セオ / 星図を燃やす護衛', label: 'セオ / 星図を燃やす護衛' },
+                  { value: 'エル / 記憶を失った写字生', label: 'エル / 記憶を失った写字生' },
+                ]}
+              />
             )}
             {heroMode === 'create' && (
               <>

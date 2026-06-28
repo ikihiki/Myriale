@@ -11,7 +11,7 @@ import { AppChrome } from '../shared/AppChrome';
  * and its menus can be reviewed in isolation.
  */
 const meta = {
-  title: 'App shell/Global navigation',
+  title: 'コンポーネント/AppChrome',
   component: AppChrome,
   parameters: {
     layout: 'fullscreen',
@@ -45,6 +45,7 @@ export const SignedIn: Story = {
   },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
     const sections = canvas.getByRole('navigation', { name: '主要セクション' });
     await step('主要セクションがアプリバーに並ぶ', async () => {
       await expect(sections).toBeVisible();
@@ -52,13 +53,13 @@ export const SignedIn: Story = {
     });
     await step('セクションを開くとページ一覧（メニュー）が出る', async () => {
       await userEvent.click(within(sections).getByRole('button', { name: /セッション/ }));
-      await expect(canvas.getByRole('menu', { name: 'セッションメニュー' })).toBeVisible();
-      await expect(canvas.getByRole('menuitem', { name: /セッションを開始/ })).toBeVisible();
+      await expect(screen.getByRole('menu')).toBeVisible();
+      await expect(screen.getByRole('menuitem', { name: /セッションを開始/ })).toBeVisible();
     });
     await step('アカウントメニューを開ける', async () => {
       await userEvent.click(canvas.getByRole('button', { name: /アカウントメニュー: 霧野しおり/ }));
-      await expect(canvas.getByRole('menuitem', { name: 'プロフィール' })).toBeVisible();
-      await expect(canvas.getByRole('menuitem', { name: 'ログアウト' })).toBeVisible();
+      await expect(screen.getByRole('menuitem', { name: 'プロフィール' })).toBeVisible();
+      await expect(screen.getByRole('menuitem', { name: 'ログアウト' })).toBeVisible();
     });
   },
 };

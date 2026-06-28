@@ -5,7 +5,7 @@ import { createDemoDb } from '../app/demoData';
 import '../styles.css';
 
 const meta = {
-  title: 'Session notes Lorebook/Wireframe from user stories',
+  title: 'ユーザーストーリー/Session notes Lorebook',
   component: MyrialeApp,
   render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098/play" initialDb={createDemoDb('lorebook')} />,
   parameters: {
@@ -25,7 +25,7 @@ export const USL01CreatePersonNote: Story = {
     await step('人物ノートを作成し、編集ダイアログで構造化項目を確認する', async () => {
       await userEvent.click(notes(canvas).getByRole('button', { name: '人物追加' }));
       await expect(canvas.getByRole('dialog', { name: 'ノート編集' })).toHaveTextContent('灯守アキラ');
-      await expect(canvas.getByLabelText('外見・種別・詳細')).toHaveValue(expect.stringContaining('星図レンズ'));
+      expect((canvas.getByLabelText('外見・種別・詳細') as HTMLTextAreaElement).value).toContain('星図レンズ');
     });
   },
 };
@@ -37,7 +37,7 @@ export const USL02CreateLocationNote: Story = {
     await step('場所ノートを作成し、編集ダイアログで位置関係・雰囲気・禁則を保存する', async () => {
       await userEvent.click(notes(canvas).getByRole('button', { name: '場所追加' }));
       await expect(canvas.getByRole('dialog', { name: 'ノート編集' })).toHaveTextContent('地下天文台');
-      await expect(canvas.getByLabelText('現在状態または禁則')).toHaveValue(expect.stringContaining('封印扉'));
+      expect((canvas.getByLabelText('現在状態または禁則') as HTMLTextAreaElement).value).toContain('封印扉');
     });
   },
 };

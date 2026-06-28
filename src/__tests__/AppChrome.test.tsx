@@ -31,8 +31,8 @@ describe('AppChrome — global app navigation', () => {
       </AppChrome>,
     );
     const sections = screen.getByRole('navigation', { name: '主要セクション' });
-    fireEvent.click(within(sections).getByRole('button', { name: /運用/ }));
-    const menu = screen.getByRole('menu', { name: '運用メニュー' });
+    fireEvent.pointerDown(within(sections).getByRole('button', { name: /運用/ }));
+    const menu = screen.getByRole('menu');
     expect(within(menu).getByRole('menuitem', { name: /ユーザー管理/ })).toBeInTheDocument();
     expect(within(menu).getByRole('menuitem', { name: /監査ログ/ })).toBeInTheDocument();
   });
@@ -43,7 +43,7 @@ describe('AppChrome — global app navigation', () => {
         <div>screen</div>
       </AppChrome>,
     );
-    fireEvent.click(screen.getByRole('button', { name: /アカウントメニュー: 霧野しおり/ }));
+    fireEvent.pointerDown(screen.getByRole('button', { name: /アカウントメニュー: 霧野しおり/ }));
     expect(screen.getByRole('menuitem', { name: 'プロフィール' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'ログアウト' })).toBeInTheDocument();
 

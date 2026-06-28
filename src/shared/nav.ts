@@ -12,28 +12,29 @@ import { createContext, createElement, useContext, type ReactNode } from 'react'
  * dependency is needed.
  */
 export const STORY_IDS = {
+  home: 'アプリ-myriale-app--home-dashboard',
   // Account / auth (User management wireframe)
-  login: 'user-management-wireframe-from-user-stories--um-03-login-with-email',
-  register: 'user-management-wireframe-from-user-stories--um-01-register-with-email',
-  resetPassword: 'user-management-wireframe-from-user-stories--um-05-reset-password',
-  profile: 'user-management-wireframe-from-user-stories--um-08-view-profile',
-  security: 'user-management-wireframe-from-user-stories--um-10-manage-security',
-  exportData: 'user-management-wireframe-from-user-stories--um-12-export-data',
-  withdraw: 'user-management-wireframe-from-user-stories--um-11-delete-account',
-  adminUsers: 'user-management-wireframe-from-user-stories--um-13-admin-user-list',
-  auditLog: 'user-management-wireframe-from-user-stories--um-16-audit-log',
+  login: 'ユーザーストーリー-user-management--um-03-login-with-email',
+  register: 'ユーザーストーリー-user-management--um-01-register-with-email',
+  resetPassword: 'ユーザーストーリー-user-management--um-05-reset-password',
+  profile: 'ユーザーストーリー-user-management--um-08-view-profile',
+  security: 'ユーザーストーリー-user-management--um-10-manage-security',
+  exportData: 'ユーザーストーリー-user-management--um-12-export-data',
+  withdraw: 'ユーザーストーリー-user-management--um-11-delete-account',
+  adminUsers: 'ユーザーストーリー-user-management--um-13-admin-user-list',
+  auditLog: 'ユーザーストーリー-user-management--um-16-audit-log',
   // Library / authoring
-  scenarioRegister: 'scenario-registration-wireframe-from-user-stories--us-01-create-draft-scenario',
-  scenarioEdit: 'edit-scenario-wireframe-from-user-stories--use-01-edit-existing-scenario',
-  advancedScenario: 'scenario-registration-wireframe-from-user-stories--us-04-as-use-advanced-controls-during-registration',
+  scenarioRegister: 'ユーザーストーリー-scenario-registration--us-01-create-draft-scenario',
+  scenarioEdit: 'ユーザーストーリー-edit-scenario--use-01-edit-existing-scenario',
+  advancedScenario: 'ユーザーストーリー-scenario-registration--us-04-as-use-advanced-controls-during-registration',
   // Sessions
-  startSession: 'start-session-wireframe-from-user-stories--uss-01-start-new-session-from-scenario',
-  playSession: 'session-play-dialogue-wireframe-from-user-stories--usp-01-current-situation-narrative',
-  resumeSession: 'session-resume-wireframe-from-user-stories--usr-01-resume-from-last-state',
-  programDriven: 'program-driven-narrative-wireframe-from-user-stories--uspg-01-forced-mode-disables-input',
-  modeTransition: 'mode-transition-and-exception-wireframe-from-user-stories--usm-01-explicit-mode-switch',
-  sessionNotesAuto: 'session-notes-auto-generation-wireframe-from-user-stories--usan-01-create-pending-note',
-  sessionNotesLorebook: 'session-notes-lorebook-wireframe-from-user-stories--usl-01-create-person-note',
+  startSession: 'ユーザーストーリー-start-session--uss-01-start-new-session-from-scenario',
+  playSession: 'ユーザーストーリー-session-play-dialogue--usp-01-current-situation-narrative',
+  resumeSession: 'ユーザーストーリー-session-resume--usr-01-resume-from-last-state',
+  programDriven: 'ユーザーストーリー-program-driven-narrative--uspg-01-forced-mode-disables-input',
+  modeTransition: 'ユーザーストーリー-mode-transition-and-exception--usm-01-explicit-mode-switch',
+  sessionNotesAuto: 'ユーザーストーリー-session-notes-auto-generation--usan-01-create-pending-note',
+  sessionNotesLorebook: 'ユーザーストーリー-session-notes-lorebook--usl-01-create-person-note',
 } as const;
 
 export type StoryKey = keyof typeof STORY_IDS;

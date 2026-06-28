@@ -5,7 +5,7 @@ import { createDemoDb } from '../app/demoData';
 import '../styles.css';
 
 const meta = {
-  title: 'Start session/Wireframe from user stories',
+  title: 'ユーザーストーリー/Start session',
   component: MyrialeApp,
   render: () => <MyrialeApp initialUrl="/sessions/start" initialDb={createDemoDb('activeSession')} />,
   parameters: {
@@ -44,6 +44,7 @@ export const USS02ReadIntroBeforeHero: Story = {
   name: 'US-S02: セッション開始時にシナリオのイントロを見たい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
     await startPreparing(canvas);
     await step('Preparing状態で、主人公未確定のイントロNarrativeを読む', async () => {
       await expect(canvas.getByRole('region', { name: 'イントロNarrative' })).toBeVisible();
@@ -60,10 +61,12 @@ export const USS03ConfirmHeroAfterIntro: Story = {
   name: 'US-S03: イントロ後に主人公を確定したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
     await startPreparing(canvas);
     await userEvent.click(canvas.getByRole('button', { name: 'イントロを読んだので主人公へ' }));
     await step('キャラクター選択式で候補を選び、Session固有データとして確定する', async () => {
-      await userEvent.selectOptions(canvas.getByLabelText('候補キャラクター'), 'エル / 記憶を失った写字生');
+      await userEvent.click(canvas.getByRole('combobox', { name: '候補キャラクター' }));
+      await userEvent.click(await screen.findByRole('option', { name: 'エル / 記憶を失った写字生' }));
       await userEvent.click(canvas.getByRole('button', { name: '主人公を確定' }));
       await expect(canvas.getByTestId('session-notice')).toHaveTextContent('Session固有データとして確定');
       await expect(canvas.getByTestId('start-summary')).toHaveTextContent('エル / 記憶を失った写字生');
@@ -75,16 +78,19 @@ export const USS03CreateHeroWithAiAssistance: Story = {
   name: 'US-S03C/D: 主人公を作成し、AI案は確認してから確定する',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
     await startPreparing(canvas);
     await userEvent.click(canvas.getByRole('button', { name: 'イントロを読んだので主人公へ' }));
     await step('キャラクタークリエイトで名前とプロフィールを編集する', async () => {
-      await userEvent.selectOptions(canvas.getByLabelText('主人公の扱い'), 'create');
+      await userEvent.click(canvas.getByRole('combobox', { name: '主人公の扱い' }));
+      await userEvent.click(await screen.findByRole('option', { name: 'キャラクタークリエイト' }));
       await userEvent.clear(canvas.getByLabelText('主人公の名前'));
       await userEvent.type(canvas.getByLabelText('主人公の名前'), 'ユイ');
       await expect(canvas.getByTestId('hero-summary')).toHaveTextContent('ユイ');
     });
     await step('AIに任せても自動確定せず、確認・修正を促す', async () => {
-      await userEvent.selectOptions(canvas.getByLabelText('主人公の扱い'), 'ai');
+      await userEvent.click(canvas.getByRole('combobox', { name: '主人公の扱い' }));
+      await userEvent.click(await screen.findByRole('option', { name: 'AIによる自動生成案' }));
       await userEvent.click(canvas.getByRole('button', { name: 'AIに任せる' }));
       await expect(canvas.getByTestId('ai-hero-suggestion')).toHaveTextContent('確認・修正してから確定');
       await expect(canvas.getByTestId('session-notice')).toHaveTextContent('自動確定はしません');

@@ -10,8 +10,9 @@ describe('app URL routing', () => {
     expect(formatAppUrl(route)).toBe('/sessions/SES-PREP-1098/play?turn=3');
   });
 
-  it('falls back safely for unknown URLs', () => {
-    expect(parseAppUrl('/unknown/place').screen).toBe('scenarioRegister');
+  it('opens the home dashboard and falls back safely for unknown URLs', () => {
+    expect(parseAppUrl('/').screen).toBe('home');
+    expect(parseAppUrl('/unknown/place').screen).toBe('home');
   });
 
   it('maps legacy story keys to app URLs', () => {

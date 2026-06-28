@@ -3,6 +3,8 @@ import { AppChrome, type Crumb } from './shared/AppChrome';
 import { useOptionalAppStore } from './app/store';
 import { SessionTurn } from './shared/SessionTurn';
 import { SessionNotesWorkspace } from './SessionNotesWorkspace';
+import { WizardNavigation } from './shared/WizardNavigation';
+import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeToggle } from './ui/MyrialeRadix';
 
 type TurnKind = 'action' | 'clarification' | 'rewound';
 
@@ -298,26 +300,25 @@ export function SessionPlayDialogueWireframe() {
       account={{ name: '霧野しおり', email: 'reader@myriale.example', initials: '霧野', role: 'プレイヤー' }}
     >
       <div className="scenario-forge scenario-forge-wizard session-play-wireframe">
-      <aside className="contract-spine" aria-label="AI見出しリンクTOC">
-        <strong>AI Headings</strong>
-        <p className="toc-help">各Turnではなく、AIがログの区切りに付けた見出しです。選択すると、その場面が始まるTurnへジャンプします。</p>
-        <div className="wizard-step-list" role="list" aria-label="AI生成見出しリンク">
-          {tocHeadingLinks.map((heading) => (
-            <button
-              className={`spine-row spine-step ${activeHeading?.title === heading.title ? 'active' : ''}`}
-              key={heading.title}
-              onClick={() => jumpToHeading(heading)}
-              aria-label={`見出し「${heading.title}」へ（Turn ${String(heading.startTurnId).padStart(2, '0')}から）`}
-              aria-current={activeHeading?.title === heading.title ? 'step' : undefined}
-              data-testid={`heading-link-${heading.startTurnId}`}
-            >
-              <span>{heading.title}</span>
-              <small>Turn {String(heading.startTurnId).padStart(2, '0')}から / {heading.summary}</small>
-            </button>
-          ))}
-        </div>
-        <div className="scenario-id"><span>Session state</span><b data-testid="session-state">{dbSession?.state ?? 'Active'}</b></div>
-      </aside>
+      <WizardNavigation
+        title="AI Headings"
+        ariaLabel="AI生成見出しリンク"
+        help="各Turnではなく、AIがログの区切りに付けた見出しです。選択すると、その場面が始まるTurnへジャンプします。"
+        items={tocHeadingLinks.map((heading) => ({
+          id: heading.title,
+          label: heading.title,
+          meta: `Turn ${String(heading.startTurnId).padStart(2, '0')}から / ${heading.summary}`,
+          ariaLabel: `見出し「${heading.title}」へ（Turn ${String(heading.startTurnId).padStart(2, '0')}から）`,
+          testId: `heading-link-${heading.startTurnId}`,
+        }))}
+        activeId={activeHeading?.title}
+        onSelect={(id) => {
+          const heading = tocHeadingLinks.find((item) => item.title === id);
+          if (heading) jumpToHeading(heading);
+        }}
+        markerLabel="Session state"
+        markerValue={<span data-testid="session-state">{dbSession?.state ?? 'Active'}</span>}
+      />
 
       <main className="forge-paper wizard-paper" aria-label="AI対話モード">
         <p className="kicker">Session play / AI dialogue mode</p>
@@ -348,15 +349,14 @@ export function SessionPlayDialogueWireframe() {
                       srLabel: 'プレイヤーの入力: ',
                       text: turn.playerInput,
                       actions: turn.interpretation ? (
-                        <button
-                          type="button"
+                        <MyrialeToggle
                           className="interpretation-toggle"
-                          aria-pressed={showInterpretationFor.includes(turn.id)}
+                          pressed={showInterpretationFor.includes(turn.id)}
                           aria-label={`Turn ${String(turn.id).padStart(2, '0')}の入力解釈を${showInterpretationFor.includes(turn.id) ? '隠す' : '見る'}`}
-                          onClick={() => toggleInterpretation(turn)}
+                          onPressedChange={() => toggleInterpretation(turn)}
                         >
                           {showInterpretationFor.includes(turn.id) ? '⌄ 解釈を隠す' : '⌃ どう解釈された？'}
-                        </button>
+                        </MyrialeToggle>
                       ) : undefined,
                       detail:
                         turn.interpretation && showInterpretationFor.includes(turn.id) ? (
@@ -373,14 +373,16 @@ export function SessionPlayDialogueWireframe() {
         </section>
 
         {pendingRewindId != null && (
-          <section className="rewind-dialog" role="dialog" aria-label="巻き戻し確認" data-testid="rewind-dialog">
-            <strong>Turn {String(pendingRewindId).padStart(2, '0')}まで戻りますか？</strong>
-            <p>指定ターン以降のログ、挿絵生成などの非同期処理を無効化またはキャンセルします。</p>
-            <div className="button-row">
-              <button className="primary" onClick={confirmRewind}>巻き戻しを確定</button>
-              <button onClick={() => setPendingRewindId(null)}>キャンセル</button>
-            </div>
-          </section>
+          <MyrialeDialogRoot open onOpenChange={(open) => { if (!open) setPendingRewindId(null); }}>
+            <MyrialeDialogContent title="巻き戻し確認" className="rewind-dialog" portal={false} data-testid="rewind-dialog">
+              <strong>Turn {String(pendingRewindId).padStart(2, '0')}まで戻りますか？</strong>
+              <p>指定ターン以降のログ、挿絵生成などの非同期処理を無効化またはキャンセルします。</p>
+              <div className="button-row">
+                <button className="primary" onClick={confirmRewind}>巻き戻しを確定</button>
+                <button onClick={() => setPendingRewindId(null)}>キャンセル</button>
+              </div>
+            </MyrialeDialogContent>
+          </MyrialeDialogRoot>
         )}
 
         <section className="dialogue-composer" aria-label="自然言語入力">

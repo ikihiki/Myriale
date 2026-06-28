@@ -5,7 +5,7 @@ import { createDemoDb } from '../app/demoData';
 import '../styles.css';
 
 const meta = {
-  title: 'Session notes auto generation/Wireframe from user stories',
+  title: 'ユーザーストーリー/Session notes auto generation',
   component: MyrialeApp,
   render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098/play" initialDb={createDemoDb('notesReview')} />,
   parameters: {

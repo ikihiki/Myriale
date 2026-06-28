@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { EditScenarioWireframe } from '../EditScenarioWireframe';
+import { HomeWireframe } from '../HomeWireframe';
 import { ModeTransitionExceptionWireframe } from '../ModeTransitionExceptionWireframe';
 import { ProgramDrivenNarrativeWireframe } from '../ProgramDrivenNarrativeWireframe';
 import { ScenarioRegistrationWireframe } from '../ScenarioRegistrationWireframe';
@@ -10,7 +11,7 @@ import { SessionResumeWireframe } from '../SessionResumeWireframe';
 import { StartSessionWireframe } from '../StartSessionWireframe';
 import { UserManagementWireframe, type UMView } from '../UserManagementWireframe';
 import { AppNavigationProvider, type StoryKey } from '../shared/nav';
-import { appUrlForStoryKey, formatAppUrl, parseAppUrl, type AppRoute } from './routes';
+import { DEFAULT_APP_URL, appUrlForStoryKey, formatAppUrl, parseAppUrl, type AppRoute } from './routes';
 import { AppStoreProvider, type AppDb, useAppStore } from './store';
 import './myrialeApp.css';
 
@@ -20,7 +21,7 @@ export type MyrialeAppProps = {
   showDebugPanel?: boolean;
 };
 
-export function MyrialeApp({ initialUrl = '/scenarios/new', initialDb, showDebugPanel = true }: MyrialeAppProps) {
+export function MyrialeApp({ initialUrl = DEFAULT_APP_URL, initialDb, showDebugPanel = true }: MyrialeAppProps) {
   return (
     <AppStoreProvider initialUrl={initialUrl} initialDb={initialDb}>
       <MyrialeAppRuntime showDebugPanel={showDebugPanel} />
@@ -62,6 +63,8 @@ function renderScreen(route: AppRoute) {
   const screen = route.screen;
   const accountView = route.query.view as UMView | undefined;
   switch (screen) {
+    case 'home':
+      return <HomeWireframe />;
     case 'scenarioRegister':
       return <ScenarioRegistrationWireframe />;
     case 'scenarioEdit':

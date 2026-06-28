@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import type { ReactNode } from 'react';
 import { SessionTurn, type TurnLeadTone } from '../shared/SessionTurn';
+import { MyrialeToggle } from '../ui/MyrialeRadix';
 import '../styles.css';
 
 /**
@@ -44,7 +45,7 @@ type PlaygroundArgs = {
 };
 
 const meta = {
-  title: 'Shared/SessionTurn',
+  title: 'コンポーネント/SessionTurn',
   component: SessionTurn,
   parameters: {
     layout: 'padded',
@@ -115,9 +116,9 @@ export const Playground: StoryObj<PlaygroundArgs> = {
                 text: args.leadText,
                 actions:
                   args.leadTone === 'player' && args.showInterpretation ? (
-                    <button type="button" className="interpretation-toggle" aria-pressed>
+                    <MyrialeToggle className="interpretation-toggle" pressed>
                       ⌄ 解釈を隠す
-                    </button>
+                    </MyrialeToggle>
                   ) : undefined,
                 detail:
                   args.leadTone === 'player' && args.showInterpretation ? (
@@ -152,9 +153,9 @@ export const Samples: StoryObj = {
             srLabel: 'プレイヤーの入力: ',
             text: '懐の銀の鍵を取り出して刻印を見る',
             actions: (
-              <button type="button" className="interpretation-toggle" aria-pressed>
+              <MyrialeToggle className="interpretation-toggle" pressed>
                 ⌄ 解釈を隠す
-              </button>
+              </MyrialeToggle>
             ),
             detail: (
               <p className="interpretation">

@@ -1,4 +1,10 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
+import {
+  MyrialeMenuContent,
+  MyrialeMenuItem,
+  MyrialeMenuRoot,
+  MyrialeMenuTrigger,
+} from '../ui/MyrialeRadix';
 import { STORY_IDS, navigateToStory, useAppNavigation, type StoryKey } from './nav';
 import './appChrome.css';
 
@@ -14,12 +20,22 @@ import './appChrome.css';
  * destination via Storybook's selectStory event (see ./nav).
  */
 
-export type SectionId = 'library' | 'sessions' | 'operations' | 'account';
+export type SectionId = 'home' | 'library' | 'sessions' | 'operations' | 'account';
 
 type NavLink = { label: string; to: StoryKey; hint?: string };
 type Section = { id: SectionId; label: string; to: StoryKey; links: NavLink[] };
 
 const sections: Section[] = [
+  {
+    id: 'home',
+    label: 'ホーム',
+    to: 'home',
+    links: [
+      { label: 'トップページ', to: 'home', hint: '中断SessionとおすすめScenario' },
+      { label: 'シナリオを検索', to: 'startSession', hint: '遊べるScenarioを探して開始' },
+      { label: 'シナリオを新規作成', to: 'scenarioRegister', hint: '新しい契約書を書く' },
+    ],
+  },
   {
     id: 'library',
     label: 'ライブラリ',
@@ -82,38 +98,9 @@ export type AppChromeProps = {
 };
 
 export function AppChrome({ section, breadcrumbs, account = null, onNavigate, children }: AppChromeProps) {
-  const [openSection, setOpenSection] = useState<SectionId | null>(null);
-  const [accountOpen, setAccountOpen] = useState(false);
-  const barRef = useRef<HTMLDivElement>(null);
-  const menuId = useId();
-
   const appNavigate = useAppNavigation();
 
-  // Close any open menu on outside click or Escape.
-  useEffect(() => {
-    const onDown = (event: MouseEvent) => {
-      if (barRef.current && !barRef.current.contains(event.target as Node)) {
-        setOpenSection(null);
-        setAccountOpen(false);
-      }
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setOpenSection(null);
-        setAccountOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, []);
-
   const go = (to: StoryKey) => {
-    setOpenSection(null);
-    setAccountOpen(false);
     if (onNavigate) {
       onNavigate(to);
       return;
@@ -127,102 +114,77 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, ch
 
   return (
     <div className="app-chrome">
-      <div className="app-bar" ref={barRef}>
+      <div className="app-bar">
         <div className="app-bar-inner">
           <button
             type="button"
             className="app-brand"
             aria-label="Myriale ホームへ"
-            onClick={() => go('scenarioRegister')}
+            onClick={() => go('home')}
           >
             <span className="app-brand-sigil" aria-hidden="true">霧</span>
             <span className="app-brand-name">Myriale</span>
           </button>
 
           <nav className="app-sections" aria-label="主要セクション">
-            {sections.map((item) => {
-              const expanded = openSection === item.id;
-              return (
-                <div className="app-section" key={item.id}>
-                  <button
-                    type="button"
-                    className={`app-section-button ${section === item.id ? 'active' : ''}`.trim()}
-                    aria-haspopup="true"
-                    aria-expanded={expanded}
-                    aria-current={section === item.id ? 'page' : undefined}
-                    onClick={() => setOpenSection(expanded ? null : item.id)}
-                  >
-                    {item.label}
-                    <span className="caret" aria-hidden="true">⌄</span>
-                  </button>
-                  {expanded && (
-                    <div className="app-menu" role="menu" aria-label={`${item.label}メニュー`}>
-                      {item.links.map((link) => (
-                        <button
-                          key={link.to}
-                          type="button"
-                          role="menuitem"
-                          className="app-menu-item"
-                          onClick={() => go(link.to)}
-                        >
-                          <span className="app-menu-label">{link.label}</span>
-                          {link.hint && <small className="app-menu-hint">{link.hint}</small>}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+            {sections.map((item) => (
+              <MyrialeMenuRoot key={item.id} modal={false}>
+                <div className="app-section">
+                  <MyrialeMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className={`app-section-button ${section === item.id ? 'active' : ''}`.trim()}
+                      aria-current={section === item.id ? 'page' : undefined}
+                    >
+                      {item.label}
+                      <span className="caret" aria-hidden="true">⌄</span>
+                    </button>
+                  </MyrialeMenuTrigger>
+                  <MyrialeMenuContent className="app-chrome-menu" align="start" aria-label={`${item.label}メニュー`}>
+                    {item.links.map((link) => (
+                      <MyrialeMenuItem key={link.to} className="app-menu-item" onSelect={() => go(link.to)}>
+                        <span className="app-menu-label">{link.label}</span>
+                        {link.hint && <small className="app-menu-hint">{link.hint}</small>}
+                      </MyrialeMenuItem>
+                    ))}
+                  </MyrialeMenuContent>
                 </div>
-              );
-            })}
+              </MyrialeMenuRoot>
+            ))}
           </nav>
 
           <div className="app-account">
             {account ? (
-              <>
-                <button
-                  type="button"
-                  className={`account-trigger ${section === 'account' ? 'active' : ''}`.trim()}
-                  aria-haspopup="true"
-                  aria-expanded={accountOpen}
-                  aria-controls={menuId}
-                  aria-label={`アカウントメニュー: ${account.name}`}
-                  onClick={() => setAccountOpen((current) => !current)}
-                >
-                  <span className="account-avatar" aria-hidden="true">{account.initials}</span>
-                  <span className="account-meta">
-                    <strong>{account.name}</strong>
-                    <small>{account.role ?? account.email}</small>
-                  </span>
-                  <span className="caret" aria-hidden="true">⌄</span>
-                </button>
-                {accountOpen && (
-                  <div className="app-menu account-menu" id={menuId} role="menu" aria-label="アカウントメニュー">
-                    <div className="account-menu-head">
+              <MyrialeMenuRoot modal={false}>
+                <MyrialeMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={`account-trigger ${section === 'account' ? 'active' : ''}`.trim()}
+                    aria-label={`アカウントメニュー: ${account.name}`}
+                  >
+                    <span className="account-avatar" aria-hidden="true">{account.initials}</span>
+                    <span className="account-meta">
                       <strong>{account.name}</strong>
-                      <small>{account.email}</small>
-                    </div>
-                    {accountLinks.map((link) => (
-                      <button
-                        key={link.to}
-                        type="button"
-                        role="menuitem"
-                        className="app-menu-item"
-                        onClick={() => go(link.to)}
-                      >
-                        <span className="app-menu-label">{link.label}</span>
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="app-menu-item logout"
-                      onClick={() => go('login')}
-                    >
-                      <span className="app-menu-label">ログアウト</span>
-                    </button>
+                      <small>{account.role ?? account.email}</small>
+                    </span>
+                    <span className="caret" aria-hidden="true">⌄</span>
+                  </button>
+                </MyrialeMenuTrigger>
+                <MyrialeMenuContent className="app-chrome-menu account-menu" aria-label="アカウントメニュー">
+                  <div className="account-menu-head">
+                    <strong>{account.name}</strong>
+                    <small>{account.email}</small>
                   </div>
-                )}
-              </>
+                  {accountLinks.map((link) => (
+                    <MyrialeMenuItem key={link.to} className="app-menu-item" onSelect={() => go(link.to)}>
+                      <span className="app-menu-label">{link.label}</span>
+                    </MyrialeMenuItem>
+                  ))}
+                  <MyrialeMenuItem className="app-menu-item logout" onSelect={() => go('login')}>
+                    <span className="app-menu-label">ログアウト</span>
+                  </MyrialeMenuItem>
+                </MyrialeMenuContent>
+              </MyrialeMenuRoot>
             ) : (
               <div className="account-signed-out">
                 <button type="button" className="signin-link" onClick={() => go('login')}>
