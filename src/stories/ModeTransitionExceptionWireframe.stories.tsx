@@ -1,15 +1,17 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
-import { ModeTransitionExceptionWireframe } from '../ModeTransitionExceptionWireframe';
+import { MyrialeApp } from '../app/MyrialeApp';
+import { createDemoDb } from '../app/demoData';
 import '../styles.css';
 
 const meta = {
   title: 'Mode transition and exception/Wireframe from user stories',
-  component: ModeTransitionExceptionWireframe,
+  component: MyrialeApp,
+  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098/mode-exception" initialDb={createDemoDb('activeSession')} />,
   parameters: {
     notes: 'docs/user-stories/mode-transition-and-exception-user-stories.md の各ユーザーストーリー（US-M01〜M08）を、Storybook Interactions の step と expect で操作説明できるワイヤーフレームにしたものです。',
   },
-} satisfies Meta<typeof ModeTransitionExceptionWireframe>;
+} satisfies Meta<typeof MyrialeApp>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;

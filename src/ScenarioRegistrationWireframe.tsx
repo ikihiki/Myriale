@@ -1,17 +1,49 @@
 import { useState } from 'react';
+import { ScenarioProgressControls } from './ScenarioProgressControls';
 import { AppChrome, type Crumb } from './shared/AppChrome';
 
 type SuggestionKind = '概要' | '世界観' | '挿絵テイスト' | '挿絵プロンプト';
-type WizardStep = 'cover' | 'lore' | 'ai' | 'hero' | 'opening' | 'illustration';
+type WizardStep =
+  | 'cover'
+  | 'lore'
+  | 'ai'
+  | 'asCast'
+  | 'asLocations'
+  | 'asBeats'
+  | 'asSecrets'
+  | 'asEvents'
+  | 'asDebug'
+  | 'asTest'
+  | 'hero'
+  | 'opening'
+  | 'illustration';
 
 const wizardSteps: Array<{ id: WizardStep; label: string; help: string }> = [
   { id: 'cover', label: '表紙', help: 'Draft保存のための最小入力' },
   { id: 'lore', label: '世界の掟', help: 'ジャンル、雰囲気、Lore' },
   { id: 'ai', label: 'AI裁量', help: 'AIが広げてよい範囲' },
+  { id: 'asCast', label: 'Cast候補', help: 'US-AS01: AIが使ってよい人物候補' },
+  { id: 'asLocations', label: 'Location候補', help: 'US-AS02: 場所候補とアクセス条件' },
+  { id: 'asBeats', label: 'Chapter / Beat', help: 'US-AS03/04: 章・ビート・条件・禁止事項' },
+  { id: 'asSecrets', label: 'HiddenBrief', help: 'US-AS05/06: 非公開情報と公開条件' },
+  { id: 'asEvents', label: '強制イベント', help: 'US-AS10: 条件付きイベント' },
+  { id: 'asDebug', label: '進行デバッグ', help: 'US-AS07/08/09/12: 補正と参照情報' },
+  { id: 'asTest', label: 'テスト実行', help: 'US-AS11: 任意ビートから検証' },
   { id: 'hero', label: '主人公', help: '初期キャラクター条件' },
   { id: 'opening', label: '第一場面', help: '最初のNarrativeの固定' },
   { id: 'illustration', label: '挿絵', help: '画風、NG、プレビュー' },
 ];
+
+
+type AdvancedPanelId = 'cast' | 'locations' | 'beats' | 'secrets' | 'events' | 'debug' | 'test';
+
+function RegistrationAdvancedStep({ panel, help }: { panel: AdvancedPanelId; help: string }) {
+  return (
+    <section className="wizard-panel" aria-label={help}>
+      <ScenarioProgressControls initialPanel={panel} />
+    </section>
+  );
+}
 
 export function ScenarioRegistrationWireframe() {
   const [activeStep, setActiveStep] = useState<WizardStep>('cover');
@@ -70,6 +102,7 @@ export function ScenarioRegistrationWireframe() {
     if (step === 'cover') return title ? '保存候補' : '未入力';
     if (step === 'lore') return lore ? '入力済み' : '未入力';
     if (step === 'ai') return aiFreedom;
+    if (step.startsWith('as')) return 'US-AS';
     if (step === 'hero') return hero ? '入力済み' : '未入力';
     if (step === 'opening') return opening ? '固定' : 'AI生成';
     return illustrationStyle ? '入力済み' : '未入力';
@@ -147,6 +180,14 @@ export function ScenarioRegistrationWireframe() {
           </section>
         )}
 
+        {activeStep === 'asCast' && <RegistrationAdvancedStep panel="cast" help={currentStep.help} />}
+        {activeStep === 'asLocations' && <RegistrationAdvancedStep panel="locations" help={currentStep.help} />}
+        {activeStep === 'asBeats' && <RegistrationAdvancedStep panel="beats" help={currentStep.help} />}
+        {activeStep === 'asSecrets' && <RegistrationAdvancedStep panel="secrets" help={currentStep.help} />}
+        {activeStep === 'asEvents' && <RegistrationAdvancedStep panel="events" help={currentStep.help} />}
+        {activeStep === 'asDebug' && <RegistrationAdvancedStep panel="debug" help={currentStep.help} />}
+        {activeStep === 'asTest' && <RegistrationAdvancedStep panel="test" help={currentStep.help} />}
+
         {activeStep === 'hero' && (
           <section className="wizard-panel" aria-label="主人公">
             <p><strong>{currentStep.help}。</strong>導入で毎回説明しなくてよい条件を置きます。セッション側で上書きできる余地も残します。</p>
@@ -183,6 +224,9 @@ export function ScenarioRegistrationWireframe() {
         <label>相談先<select aria-label="相談先AI" value={aiTarget} onChange={(event) => setAiTarget(event.target.value)}><option>文章AI</option><option>挿絵AI</option><option>ルール確認AI</option></select></label>
         <article><h3>表紙</h3><p>{title || 'タイトル未入力'}</p><p>{summary || '概要は空でも保存できます'}</p></article>
         <article><h3>この登録でAIが読む契約</h3><p>Genre: {genre}</p><p>Tone: {tone}</p><p>Lore: {lore.split('\n').filter(Boolean).length}項目</p><p>AI裁量: {aiFreedom}</p></article>
+        {activeStep.startsWith('as') && (
+          <article data-testid="advanced-summary"><h3>進行制御</h3><p>{currentStep.label}</p><p>{currentStep.help}</p></article>
+        )}
         <article><h3>主人公と第一場面</h3><p>{hero}</p><p>{opening}</p></article>
         <article><h3>挿絵</h3><p>{illustrationStyle}</p><p>NG: {negative}</p></article>
         <article data-testid="ai-suggestion"><h3>提案候補</h3><p>{suggestion}</p></article>

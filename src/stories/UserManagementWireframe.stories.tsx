@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
-import { UserManagementWireframe } from '../UserManagementWireframe';
+import { MyrialeApp } from '../app/MyrialeApp';
+import { createDemoDb } from '../app/demoData';
+import type { UMView } from '../UserManagementWireframe';
 import '../account/account.css';
 
 /**
@@ -12,15 +14,36 @@ import '../account/account.css';
  * exercised across all pages. Each play function narrates the user flow with
  * @storybook/test steps: interactions plus the expected result.
  */
+const viewUrl: Record<UMView, string> = {
+  register: '/account/register',
+  verify: '/account/register?view=verify',
+  login: '/account/login',
+  reset: '/account/reset-password',
+  oauth: '/account/oauth',
+  profile: '/account/profile',
+  'profile-edit': '/account/profile/edit',
+  security: '/account/security',
+  export: '/account/export',
+  withdraw: '/account/withdraw',
+  'admin-list': '/account/admin/users',
+  'admin-detail': '/account/admin/users/USR-1088',
+  audit: '/account/admin/audit-log',
+};
+
+type UserManagementStoryArgs = { initialView?: UMView };
+
 const meta = {
   title: 'User management/Wireframe from user stories',
-  component: UserManagementWireframe,
+  component: MyrialeApp,
+  render: (args: UserManagementStoryArgs) => (
+    <MyrialeApp initialUrl={viewUrl[args.initialView ?? 'register']} initialDb={createDemoDb('adminUsers')} />
+  ),
   parameters: {
     layout: 'fullscreen',
     notes:
       'docs/user-stories/user-management-user-stories.md の各ユーザーストーリーを、共通UI（Account kit）で組んだワイヤーフレームにし、play関数で操作手順と期待結果を説明します。',
   },
-} satisfies Meta<typeof UserManagementWireframe>;
+} satisfies Meta<UserManagementStoryArgs>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;

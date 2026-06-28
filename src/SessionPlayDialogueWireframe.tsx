@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppChrome, type Crumb } from './shared/AppChrome';
+import { useOptionalAppStore } from './app/store';
 import { SessionTurn } from './shared/SessionTurn';
+import { SessionNotesWorkspace } from './SessionNotesWorkspace';
 
 type TurnKind = 'action' | 'clarification' | 'rewound';
 
@@ -153,11 +155,30 @@ const resultForInput = (input: string, nextId: number): DialogueTurn => {
   };
 };
 
+const clampInitialTurnCount = (count: number | undefined) => {
+  if (!Number.isFinite(count)) return initialTurns.length;
+  return Math.min(Math.max(Math.trunc(count ?? initialTurns.length), 1), initialTurns.length);
+};
+
 export function SessionPlayDialogueWireframe() {
-  const [turns, setTurns] = useState<DialogueTurn[]>(initialTurns);
+  const appStore = useOptionalAppStore();
+  const routeSessionId = appStore?.db.ui.route.params.sessionId;
+  const sessionId = routeSessionId ?? appStore?.db.ui.selectedSessionId ?? 'SES-PREP-1098';
+  const dbSession = appStore?.db.playSessions[sessionId];
+  const initialTurnCount = clampInitialTurnCount(dbSession?.turn);
+  const initialVisibleTurns = initialTurns.slice(0, initialTurnCount);
+  const [turns, setTurns] = useState<DialogueTurn[]>(initialVisibleTurns);
   const [input, setInput] = useState('');
   const [selectedTurnId, setSelectedTurnId] = useState(1);
-  const [notice, setNotice] = useState('Session状態はActiveです。AIが現在地、周囲、直近の出来事をNarrativeとして提示しました。');
+  const [notice, setNotice] = useState(
+    initialTurnCount === 1
+      ? 'Session状態はActiveです。統合アプリのDB設定により、イントロのみを第一ターンとして表示しています。AIが現在地、周囲、直近の出来事をNarrativeとして提示しました。'
+      : `Session状態はActiveです。DB設定により、複数ターン経過後（Turn ${String(initialTurnCount).padStart(2, '0')}まで）のログを表示しています。AIが現在地、周囲、直近の出来事をNarrativeとして提示しました。`,
+  );
+  const notesMode = appStore?.db.ui.notesPanelMode ?? 'side';
+  const setNotesMode = (mode: 'side' | 'full') => {
+    appStore?.dispatch({ type: 'NOTES_PANEL_MODE_CHANGED', mode });
+  };
   const [showInterpretationFor, setShowInterpretationFor] = useState<number[]>([]);
   const [pendingRewindId, setPendingRewindId] = useState<number | null>(null);
 
@@ -295,7 +316,7 @@ export function SessionPlayDialogueWireframe() {
             </button>
           ))}
         </div>
-        <div className="scenario-id"><span>Session state</span><b data-testid="session-state">Active</b></div>
+        <div className="scenario-id"><span>Session state</span><b data-testid="session-state">{dbSession?.state ?? 'Active'}</b></div>
       </aside>
 
       <main className="forge-paper wizard-paper" aria-label="AI対話モード">
@@ -380,6 +401,15 @@ export function SessionPlayDialogueWireframe() {
         </section>
       </main>
 
+      {notesMode === 'full' && (
+        <section className="session-notes-focus" aria-label="ノート集中表示" data-testid="session-notes-focus">
+          <div className="button-row notes-focus-actions">
+            <button className="primary" onClick={() => setNotesMode('side')}>サイド表示に戻す</button>
+          </div>
+          <SessionNotesWorkspace mode="full" />
+        </section>
+      )}
+
       <aside className="ai-bookmark wizard-summary" aria-label="セッション状態サマリー">
         <h2>Play contract</h2>
         <article data-testid="active-turn-summary">
@@ -392,6 +422,15 @@ export function SessionPlayDialogueWireframe() {
           <p>{activeHeading ? `${activeHeading.title}（Turn ${String(activeHeading.startTurnId).padStart(2, '0')}から）` : '見出し未生成'}</p>
           <p>見出しリンクはTurn一覧ではなく、AIが場面の切り替わりに付けた索引です。</p>
         </article>
+        <article data-testid="session-notes-quick-access">
+          <h3>ノート</h3>
+          <p>セッション中いつでも参照・編集できます。サイドで素早く確認し、必要なら全画面で集中できます。</p>
+          <div className="button-row">
+            <button onClick={() => setNotesMode('side')}>サイドでノート確認</button>
+            <button className="primary" onClick={() => setNotesMode('full')}>全画面でノート編集</button>
+          </div>
+        </article>
+        {notesMode === 'side' && <SessionNotesWorkspace mode="side" />}
         <article>
           <h3>制約</h3>
           <p>ReadOnlyの見出しリンク、直前削除、任意ターン巻き戻し、入力待ちを見える化します。</p>

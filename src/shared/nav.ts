@@ -1,4 +1,5 @@
 import { addons } from '@storybook/preview-api';
+import { createContext, createElement, useContext, type ReactNode } from 'react';
 
 /**
  * Central cross-wireframe navigation map.
@@ -24,7 +25,7 @@ export const STORY_IDS = {
   // Library / authoring
   scenarioRegister: 'scenario-registration-wireframe-from-user-stories--us-01-create-draft-scenario',
   scenarioEdit: 'edit-scenario-wireframe-from-user-stories--use-01-edit-existing-scenario',
-  advancedScenario: 'advanced-scenario-execution-wireframe-from-user-stories--usas-01-define-cast-pool',
+  advancedScenario: 'scenario-registration-wireframe-from-user-stories--us-04-as-use-advanced-controls-during-registration',
   // Sessions
   startSession: 'start-session-wireframe-from-user-stories--uss-01-start-new-session-from-scenario',
   playSession: 'session-play-dialogue-wireframe-from-user-stories--usp-01-current-situation-narrative',
@@ -36,6 +37,18 @@ export const STORY_IDS = {
 } as const;
 
 export type StoryKey = keyof typeof STORY_IDS;
+
+type AppNavigate = (to: StoryKey) => void;
+
+const AppNavigationContext = createContext<AppNavigate | null>(null);
+
+export function AppNavigationProvider({ navigate, children }: { navigate: AppNavigate; children: ReactNode }) {
+  return createElement(AppNavigationContext.Provider, { value: navigate }, children);
+}
+
+export function useAppNavigation() {
+  return useContext(AppNavigationContext);
+}
 
 /** Navigate to another wireframe's story (no-op outside a Storybook preview). */
 export function navigateToStory(storyId: string) {

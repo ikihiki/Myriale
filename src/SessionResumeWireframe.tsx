@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AppChrome, type Crumb } from './shared/AppChrome';
-import { STORY_IDS, navigateToStory } from './shared/nav';
+import { STORY_IDS, navigateToStory, useAppNavigation } from './shared/nav';
 
 type ResumeView = 'list' | 'confirm' | 'readonly';
 
@@ -150,6 +150,7 @@ const suspendedSessions: SuspendedSession[] = [
 const playerAccount = { name: '霧野しおり', email: 'reader@myriale.example', initials: '霧野', role: 'プレイヤー' };
 
 export function SessionResumeWireframe() {
+  const appNavigate = useAppNavigation();
   const [view, setView] = useState<ResumeView>('list');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [notice, setNotice] = useState(
@@ -180,6 +181,10 @@ export function SessionResumeWireframe() {
     );
     // US-R06: 再開を確定したら、Activeなプレイ画面（Session play dialogue）へ遷移する。
     // 復元された全Turnログと続きの入力は、そのプレイ画面が担う。
+    if (appNavigate) {
+      appNavigate('playSession');
+      return;
+    }
     navigateToStory(STORY_IDS.playSession);
   };
 

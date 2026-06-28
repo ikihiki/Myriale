@@ -1,15 +1,17 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
-import { StartSessionWireframe } from '../StartSessionWireframe';
+import { MyrialeApp } from '../app/MyrialeApp';
+import { createDemoDb } from '../app/demoData';
 import '../styles.css';
 
 const meta = {
   title: 'Start session/Wireframe from user stories',
-  component: StartSessionWireframe,
+  component: MyrialeApp,
+  render: () => <MyrialeApp initialUrl="/sessions/start" initialDb={createDemoDb('activeSession')} />,
   parameters: {
     notes: 'docs/user-stories/start-session.md の各ユーザーストーリーを、Storybook Interactions の step と expect で操作説明できるワイヤーフレームにしたものです。',
   },
-} satisfies Meta<typeof StartSessionWireframe>;
+} satisfies Meta<typeof MyrialeApp>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -117,11 +119,14 @@ export const USS05BeginActiveSession: Story = {
     await startPreparing(canvas);
     await userEvent.click(canvas.getByRole('button', { name: 'イントロを読んだので主人公へ' }));
     await userEvent.click(canvas.getByRole('button', { name: '主人公を確定' }));
-    await step('「物語を始める」でSessionをActiveにし、本編最初のNarrativeを生成する', async () => {
+    await step('「物語を始める」でSessionをActiveにし、US-P01のプレイ画面へ合流する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '物語を始める' }));
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098/play');
       await expect(canvas.getByTestId('session-state')).toHaveTextContent('Active');
-      await expect(canvas.getByTestId('first-narrative')).toHaveTextContent('最初の選択肢が生成されました');
-      await expect(canvas.getByTestId('session-notice')).toHaveTextContent('本編最初のNarrativeを生成');
+      await expect(canvas.getByTestId('turn-1-narrative')).toHaveTextContent('水没した閲覧室');
+      await expect(canvas.getByTestId('turn-1-narrative')).toHaveTextContent('銀の鍵');
+      await expect(canvas.getByRole('status')).toHaveTextContent('イントロのみ');
+      await expect(canvas.queryByRole('article', { name: 'Turn 02' })).not.toBeInTheDocument();
     });
   },
 };

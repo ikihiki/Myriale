@@ -1,15 +1,32 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
-import { SessionPlayDialogueWireframe } from '../SessionPlayDialogueWireframe';
+import { MyrialeApp } from '../app/MyrialeApp';
+import { createDemoDb } from '../app/demoData';
 import '../styles.css';
+
+const createProgressedPlayDb = () => {
+  const db = createDemoDb('activeSession');
+  return {
+    ...db,
+    playSessions: {
+      ...db.playSessions,
+      'SES-PREP-1098': {
+        ...db.playSessions['SES-PREP-1098'],
+        turn: 12,
+        summary: '複数ターン経過後のワイヤーフレーム確認用ログ。',
+      },
+    },
+  };
+};
 
 const meta = {
   title: 'Session play dialogue/Wireframe from user stories',
-  component: SessionPlayDialogueWireframe,
+  component: MyrialeApp,
+  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098/play" initialDb={createProgressedPlayDb()} />,
   parameters: {
     notes: 'docs/user-stories/session-play-dialogue-user-stories.md の各ユーザーストーリーを、Storybook Interactions の step と expect で操作説明できるワイヤーフレームにしたものです。',
   },
-} satisfies Meta<typeof SessionPlayDialogueWireframe>;
+} satisfies Meta<typeof MyrialeApp>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -159,6 +176,35 @@ export const USP09ReviewLogFromToc: Story = {
       await userEvent.click(canvas.getByTestId('heading-link-12'));
       await expect(canvas.getByTestId('active-turn-summary')).toHaveTextContent('12 / 入力待ちの静止点');
       await expect(canvas.getByRole('article', { name: 'Turn 12' })).toHaveClass('session-turn selected');
+    });
+  },
+};
+
+export const USP10NotesAlwaysAvailableSideAndFull: Story = {
+  name: 'US-P10/Notes: セッション中いつでもノートを参照・編集したい',
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await step('プレイ画面のサイドでノートを素早く確認・編集できる', async () => {
+      await expect(canvas.getByTestId('session-notes-quick-access')).toHaveTextContent('セッション中いつでも参照・編集');
+      await expect(canvas.getByTestId('session-notes-side')).toHaveTextContent('月読ミナト');
+      await userEvent.click(within(canvas.getByTestId('session-notes-side')).getByRole('button', { name: '月読ミナトを編集' }));
+      await expect(canvas.getByRole('dialog', { name: 'ノート編集' })).toBeVisible();
+      await expect(canvas.getByTestId('app-db-summary')).toHaveTextContent('open person-minato');
+      await userEvent.clear(canvas.getByLabelText('別名'));
+      await userEvent.type(canvas.getByLabelText('別名'), '水際の案内人');
+      await userEvent.click(canvas.getByRole('button', { name: 'ノート編集を閉じる' }));
+      await expect(canvas.queryByRole('dialog', { name: 'ノート編集' })).not.toBeInTheDocument();
+    });
+    await step('全画面で集中編集に切り替えても、一覧・編集・Context・整合性を1画面で操作できる', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: '全画面でノート編集' }));
+      await expect(canvas.getByTestId('session-notes-focus')).toBeVisible();
+      await expect(canvas.getByTestId('session-notes-full')).toHaveTextContent('月読ミナト');
+      await expect(canvas.getByTestId('app-db-summary')).toHaveTextContent('notes full');
+      await userEvent.click(within(canvas.getByTestId('session-notes-full')).getByRole('button', { name: '場所追加' }));
+      await expect(canvas.getByRole('dialog', { name: 'ノート編集' })).toHaveTextContent('地下天文台');
+      await userEvent.click(canvas.getByRole('button', { name: '閉じる' }));
+      await userEvent.click(within(canvas.getByTestId('session-notes-full')).getByRole('button', { name: 'Context再構築' }));
+      await expect(within(canvas.getByTestId('session-notes-full')).getByTestId('context-stack')).toHaveTextContent('次ターンContext');
     });
   },
 };

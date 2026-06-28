@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AppChrome, type Crumb } from './shared/AppChrome';
-import { STORY_IDS, navigateToStory } from './shared/nav';
+import { SessionTurn } from './shared/SessionTurn';
+import { STORY_IDS, navigateToStory, useAppNavigation } from './shared/nav';
 
 type SessionStep = 'intro' | 'hero' | 'review' | 'active';
 type HeroMode = 'fixed' | 'select' | 'create' | 'ai';
@@ -60,6 +61,7 @@ const scenarios: ScenarioSummary[] = [
 ];
 
 export function StartSessionWireframe() {
+  const appNavigate = useAppNavigation();
   const [selectedScenario, setSelectedScenario] = useState<ScenarioSummary | null>(null);
   const [activeStep, setActiveStep] = useState<SessionStep>('intro');
   const [sessionId, setSessionId] = useState('未作成');
@@ -78,6 +80,10 @@ export function StartSessionWireframe() {
 
   const openRegistration = () => {
     setNotice('シナリオ登録ワイヤーフレームへ移動します。');
+    if (appNavigate) {
+      appNavigate('scenarioRegister');
+      return;
+    }
     navigateToStory(STORY_IDS.scenarioRegister);
   };
 
@@ -130,9 +136,13 @@ export function StartSessionWireframe() {
 
   const beginStory = () => {
     setSessionState('Active');
+    setFirstNarrative(`${selectedScenario?.opening ?? 'あなたは物語の入口で目を覚ます。'} 頭上では星座が紙魚のようにページを食み、遠くで誰かが名もなき旅人を呼んでいる。`);
+    if (appNavigate) {
+      appNavigate('playSession');
+      return;
+    }
     setActiveStep('active');
-    setFirstNarrative('星図灯が灯ると、あなたの名をまだ知らない地下図書館がゆっくり扉を開く。最初の選択肢が生成されました。');
-    setNotice('Session状態をActiveに変更し、本編最初のNarrativeを生成しました。');
+    setNotice('Session状態をActiveに変更し、第一ターンとしてイントロを表示しました。');
   };
 
   const backToHero = () => {
@@ -293,13 +303,25 @@ export function StartSessionWireframe() {
         )}
 
         {activeStep === 'active' && (
-          <section className="wizard-panel" aria-label="本編最初のNarrative">
-            <p><strong>SessionはActiveです。</strong>確定した主人公情報を反映して、本編最初のNarrativeと選択肢が生成されます。</p>
-            <article className="start-session-narrative" data-testid="first-narrative">
-              <h2>本編</h2>
-              <p>{firstNarrative}</p>
-              <div className="choice-row"><button>星図灯を掲げる</button><button>呼び声の主を探す</button></div>
-            </article>
+          <section className="wizard-panel" aria-label="本編ターンログ">
+            <p><strong>SessionはActiveです。</strong>開始直後は選択肢ではなく、第一ターンとしてイントロNarrativeをターン表示します。</p>
+            <div className="session-turn-list" aria-label="セッションターン">
+              <SessionTurn
+                selected
+                testId="first-turn"
+                ariaLabel="Turn 1 イントロ"
+                narrativeTag="AI"
+                narrativeTestId="first-narrative"
+                lead={{
+                  tone: 'program',
+                  tag: 'TURN 1',
+                  srLabel: 'ターン: ',
+                  text: 'イントロ',
+                  testId: 'first-turn-lead',
+                }}
+                narrative={firstNarrative}
+              />
+            </div>
           </section>
         )}
       </main>

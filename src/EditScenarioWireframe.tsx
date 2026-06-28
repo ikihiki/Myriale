@@ -1,9 +1,21 @@
 import { useState } from 'react';
+import { ScenarioProgressControls } from './ScenarioProgressControls';
 import { AppChrome, type Crumb } from './shared/AppChrome';
-import { STORY_IDS, navigateToStory } from './shared/nav';
+import { STORY_IDS, navigateToStory, useAppNavigation } from './shared/nav';
 
 type EditView = 'list' | 'edit';
-type EditSection = 'basics' | 'world' | 'ai' | 'illustration';
+type EditSection =
+  | 'basics'
+  | 'world'
+  | 'ai'
+  | 'asCast'
+  | 'asLocations'
+  | 'asBeats'
+  | 'asSecrets'
+  | 'asEvents'
+  | 'asDebug'
+  | 'asTest'
+  | 'illustration';
 type Visibility = '公開中' | '非公開';
 
 type CheckResult = {
@@ -82,10 +94,29 @@ const editSections: Array<{ id: EditSection; label: string; help: string }> = [
   { id: 'basics', label: '基本情報', help: 'タイトルと概要（あらすじ）' },
   { id: 'world', label: '世界観', help: 'ジャンル・雰囲気・Lore' },
   { id: 'ai', label: 'AI設定', help: 'AI裁量とNarrative生成方針' },
+  { id: 'asCast', label: 'Cast候補', help: 'US-AS01: AIが使ってよい人物候補' },
+  { id: 'asLocations', label: 'Location候補', help: 'US-AS02: 場所候補とアクセス条件' },
+  { id: 'asBeats', label: 'Chapter / Beat', help: 'US-AS03/04: 章・ビート・条件・禁止事項' },
+  { id: 'asSecrets', label: 'HiddenBrief', help: 'US-AS05/06: 非公開情報と公開条件' },
+  { id: 'asEvents', label: '強制イベント', help: 'US-AS10: 条件付きイベント' },
+  { id: 'asDebug', label: '進行デバッグ', help: 'US-AS07/08/09/12: 補正と参照情報' },
+  { id: 'asTest', label: 'テスト実行', help: 'US-AS11: 任意ビートから検証' },
   { id: 'illustration', label: '挿絵', help: '画風・ムード・NG要素' },
 ];
 
+
+type AdvancedPanelId = 'cast' | 'locations' | 'beats' | 'secrets' | 'events' | 'debug' | 'test';
+
+function EditAdvancedSection({ panel, help }: { panel: AdvancedPanelId; title: string; help: string }) {
+  return (
+    <section className="wizard-panel" aria-label={`${help}の編集`}>
+      <ScenarioProgressControls initialPanel={panel} />
+    </section>
+  );
+}
+
 export function EditScenarioWireframe() {
+  const appNavigate = useAppNavigation();
   const [view, setView] = useState<EditView>('list');
   const [activeSection, setActiveSection] = useState<EditSection>('basics');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -149,6 +180,10 @@ export function EditScenarioWireframe() {
 
   const openTestPlay = () => {
     setNotice('テストプレイ用のセッション開始ワイヤーフレームへ移動します（本番には影響しません）。');
+    if (appNavigate) {
+      appNavigate('startSession');
+      return;
+    }
     navigateToStory(STORY_IDS.startSession);
   };
 
@@ -281,6 +316,14 @@ export function EditScenarioWireframe() {
                 </section>
               )}
 
+              {activeSection === 'asCast' && <EditAdvancedSection panel="cast" title={draft.title} help="US-AS01: AIが使ってよい人物候補" />}
+              {activeSection === 'asLocations' && <EditAdvancedSection panel="locations" title={draft.title} help="US-AS02: 場所候補とアクセス条件" />}
+              {activeSection === 'asBeats' && <EditAdvancedSection panel="beats" title={draft.title} help="US-AS03/04: 章・ビート・条件・禁止事項" />}
+              {activeSection === 'asSecrets' && <EditAdvancedSection panel="secrets" title={draft.title} help="US-AS05/06: 非公開情報と公開条件" />}
+              {activeSection === 'asEvents' && <EditAdvancedSection panel="events" title={draft.title} help="US-AS10: 条件付きイベント" />}
+              {activeSection === 'asDebug' && <EditAdvancedSection panel="debug" title={draft.title} help="US-AS07/08/09/12: 補正と参照情報" />}
+              {activeSection === 'asTest' && <EditAdvancedSection panel="test" title={draft.title} help="US-AS11: 任意ビートから検証" />}
+
               {activeSection === 'illustration' && (
                 <section className="wizard-panel" aria-label="挿絵設定の編集">
                   <p><strong>挿絵のテイストや雰囲気を変更します。</strong>画風・ムード・NG要素を編集し、保存されないプレビューで確認できます。</p>
@@ -327,6 +370,9 @@ export function EditScenarioWireframe() {
             <p data-testid="summary-visibility">公開状態: {visibility}</p>
             <p data-testid="summary-dirty">{view === 'edit' ? (dirty ? '未保存の変更があります' : '保存済み（変更なし）') : '—'}</p>
           </article>
+          {view === 'edit' && activeSection.startsWith('as') && (
+            <article data-testid="advanced-summary"><h3>進行制御</h3><p>{editSections.find((section) => section.id === activeSection)?.label}</p><p>{editSections.find((section) => section.id === activeSection)?.help}</p></article>
+          )}
           <article data-testid="ai-check">
             <h3>AIチェック結果</h3>
             {check ? (

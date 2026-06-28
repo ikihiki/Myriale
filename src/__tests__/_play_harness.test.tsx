@@ -6,9 +6,11 @@ import * as wireframeStories from '../stories/UserManagementWireframe.stories';
 import * as kitStories from '../stories/AccountKit.stories';
 import * as appChromeStories from '../stories/AppChrome.stories';
 import * as sessionResumeStories from '../stories/SessionResumeWireframe.stories';
+import * as scenarioRegistrationStories from '../stories/ScenarioRegistrationWireframe.stories';
 import * as editScenarioStories from '../stories/EditScenarioWireframe.stories';
 import * as programDrivenStories from '../stories/ProgramDrivenNarrativeWireframe.stories';
 import * as sessionTurnStories from '../stories/SessionTurn.stories';
+import * as myrialeAppStories from '../stories/MyrialeApp.stories';
 
 afterEach(() => cleanup());
 
@@ -21,9 +23,24 @@ const composedWireframe = composeStories(wireframeStories);
 const composedKit = composeStories(kitStories);
 const composedAppChrome = composeStories(appChromeStories);
 const composedSessionResume = composeStories(sessionResumeStories);
+const composedScenarioRegistration = composeStories(scenarioRegistrationStories);
 const composedEditScenario = composeStories(editScenarioStories);
 const composedProgramDriven = composeStories(programDrivenStories);
 const composedSessionTurn = composeStories(sessionTurnStories);
+
+const composedMyrialeApp = composeStories(myrialeAppStories);
+
+describe('play: MyrialeApp integrated stories', () => {
+  for (const [name, Story] of Object.entries(composedMyrialeApp)) {
+    it(name, async () => {
+      const { container } = render(<Story />);
+      if (Story.play) {
+        await Story.play({ canvasElement: container });
+      }
+      expect(container).toBeTruthy();
+    });
+  }
+});
 
 describe('play: UserManagementWireframe stories', () => {
   for (const [name, Story] of Object.entries(composedWireframe)) {
@@ -63,6 +80,18 @@ describe('play: AppChrome stories', () => {
 
 describe('play: SessionResumeWireframe stories', () => {
   for (const [name, Story] of Object.entries(composedSessionResume)) {
+    it(name, async () => {
+      const { container } = render(<Story />);
+      if (Story.play) {
+        await Story.play({ canvasElement: container });
+      }
+      expect(container).toBeTruthy();
+    });
+  }
+});
+
+describe('play: ScenarioRegistrationWireframe stories', () => {
+  for (const [name, Story] of Object.entries(composedScenarioRegistration)) {
     it(name, async () => {
       const { container } = render(<Story />);
       if (Story.play) {
