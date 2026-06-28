@@ -2,8 +2,11 @@
     "name": "Node.js & pnpm",
     "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
     "features": {
-         "ghcr.io/devcontainers-extra/features/pnpm:2": {},
-         "ghcr.io/devcontainers/features/github-cli:1": {}
+        "ghcr.io/devcontainers-extra/features/pnpm:2": {},
+        "ghcr.io/devcontainers/features/github-cli:1": {},
+        "ghcr.io/devcontainers/features/dotnet:2": {
+            "version": "10.0"
+        }
     },
     "containerUser": "1000",
     "remoteUser": "1000"
