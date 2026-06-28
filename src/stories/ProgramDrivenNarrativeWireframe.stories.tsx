@@ -1,15 +1,17 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
-import { ProgramDrivenNarrativeWireframe } from '../ProgramDrivenNarrativeWireframe';
+import { MyrialeApp } from '../app/MyrialeApp';
+import { createDemoDb } from '../app/demoData';
 import '../styles.css';
 
 const meta = {
   title: 'Program-driven narrative/Wireframe from user stories',
-  component: ProgramDrivenNarrativeWireframe,
+  component: MyrialeApp,
+  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098/program" initialDb={createDemoDb('activeSession')} />,
   parameters: {
     notes: 'docs/user-stories/program-driven-narrative-user-stories.md の各ユーザーストーリー（US-PG01〜PG10）を、Storybook Interactions の step と expect で操作説明できるワイヤーフレームにしたものです。',
   },
-} satisfies Meta<typeof ProgramDrivenNarrativeWireframe>;
+} satisfies Meta<typeof MyrialeApp>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;

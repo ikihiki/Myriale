@@ -1,16 +1,18 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
-import { SessionResumeWireframe } from '../SessionResumeWireframe';
+import { MyrialeApp } from '../app/MyrialeApp';
+import { createDemoDb } from '../app/demoData';
 import { STORY_IDS } from '../shared/nav';
 import '../styles.css';
 
 const meta = {
   title: 'Session resume/Wireframe from user stories',
-  component: SessionResumeWireframe,
+  component: MyrialeApp,
+  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098/resume" initialDb={createDemoDb('resumableSession')} />,
   parameters: {
     notes: 'docs/user-stories/session-resume.md の各ユーザーストーリー（US-R01〜R08）を、Storybook Interactions の step と expect で操作説明できるワイヤーフレームにしたものです。',
   },
-} satisfies Meta<typeof SessionResumeWireframe>;
+} satisfies Meta<typeof MyrialeApp>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;

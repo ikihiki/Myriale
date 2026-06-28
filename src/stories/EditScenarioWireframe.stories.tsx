@@ -1,16 +1,18 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
-import { EditScenarioWireframe } from '../EditScenarioWireframe';
+import { MyrialeApp } from '../app/MyrialeApp';
+import { createDemoDb } from '../app/demoData';
 import { STORY_IDS } from '../shared/nav';
 import '../styles.css';
 
 const meta = {
   title: 'Edit scenario/Wireframe from user stories',
-  component: EditScenarioWireframe,
+  component: MyrialeApp,
+  render: () => <MyrialeApp initialUrl="/scenarios/SCN-STAR-LIBRARY/edit" initialDb={createDemoDb('editableScenario')} />,
   parameters: {
     notes: 'docs/user-stories/edit-scenario.md の各ユーザーストーリー（US-E01〜E10）を、Storybook Interactions の step と expect で操作説明できるワイヤーフレームにしたものです。',
   },
-} satisfies Meta<typeof EditScenarioWireframe>;
+} satisfies Meta<typeof MyrialeApp>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -98,6 +100,123 @@ export const USE04EditAiSettings: Story = {
       await userEvent.clear(policy);
       await userEvent.type(policy, 'テンポ重視で簡潔に。');
       await expect(policy).toHaveValue('テンポ重視で簡潔に。');
+    });
+  },
+};
+
+export const USE04ASUseAdvancedControlsDuringEdit: Story = {
+  name: 'US-E04/AS: 編集中に高度な進行制御を編集したい',
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await openEditor(canvas, STAR_LIBRARY);
+    await goToSection(canvas, 'Chapter / Beat');
+    await step('編集ウィザード内の独立セクションとしてUS-ASのBeat設計項目を開ける', async () => {
+      await expect(canvas.getByRole('region', { name: 'US-AS03/04: 章・ビート・条件・禁止事項の編集' })).toBeVisible();
+      await expect(canvas.getByTestId('advanced-summary')).toHaveTextContent('Chapter / Beat');
+      await expect(canvas.queryByText('Advanced scenario execution / Controlled AI')).not.toBeInTheDocument();
+      await expect(canvas.queryByText('US-AS03/04: 章・ビート・Entry/Exit条件・禁止事項を複数行で管理し、重要展開のスキップや早すぎる真相開示を防ぎます。')).not.toBeInTheDocument();
+      await expect(canvas.getByRole('table', { name: 'Beatテーブル' })).toHaveTextContent('Chapter 2');
+    });
+    await step('編集中でもUS-AS03のようにBeatを追加できる', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: '新規Beat' }));
+      await userEvent.clear(canvas.getByLabelText('Chapter'));
+      await userEvent.type(canvas.getByLabelText('Chapter'), 'Chapter 9: 編集中の終章');
+      await userEvent.click(canvas.getByRole('button', { name: 'Beatを固定' }));
+      await expect(canvas.getByRole('table', { name: 'Beatテーブル' })).toHaveTextContent('Chapter 9');
+      await expect(canvas.getByTestId('advanced-notice')).toHaveTextContent('次のビートへ進みません');
+    });
+  },
+};
+
+export const USAS07AutoRerouteDriftDuringEdit: Story = {
+  name: 'US-AS07: 編集中にAI逸脱時の軌道修正を設定したい',
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await openEditor(canvas, STAR_LIBRARY);
+    await goToSection(canvas, '進行デバッグ');
+    await step('編集画面の進行デバッグで、誘導イベントを生成する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: '誘導イベントを生成' }));
+      await expect(canvas.getByTestId('advanced-notice')).toHaveTextContent('鐘楼へ戻します');
+      await expect(canvas.getByTestId('correction-state')).toHaveTextContent('reroute');
+    });
+  },
+};
+
+export const USAS08GenerateMissingClueDuringEdit: Story = {
+  name: 'US-AS08: 編集中に不足手がかりの補完を設定したい',
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await openEditor(canvas, STAR_LIBRARY);
+    await goToSection(canvas, '進行デバッグ');
+    await step('手がかり不足を補完し、既存Castテーブルを優先使用する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: '補完イベントを生成' }));
+      await expect(canvas.getByTestId('advanced-notice')).toHaveTextContent('既存Castを優先使用');
+      await expect(canvas.getByTestId('correction-state')).toHaveTextContent('clue');
+    });
+  },
+};
+
+export const USAS09ViewProgressStateDuringEdit: Story = {
+  name: 'US-AS09: 編集中に実行時の進行状態を確認したい',
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await openEditor(canvas, STAR_LIBRARY);
+    await goToSection(canvas, '進行デバッグ');
+    await step('現在参照しているCanon / HiddenBrief / Beat禁止事項を作者向けに可視化する', async () => {
+      await expect(canvas.getByTestId('debug-refs')).toHaveTextContent('Canon');
+      await expect(canvas.getByTestId('debug-refs')).toHaveTextContent('HiddenBrief');
+    });
+  },
+};
+
+export const USAS10TriggerForcedEventDuringEdit: Story = {
+  name: 'US-AS10: 編集中に条件付き強制イベントを定義したい',
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await openEditor(canvas, STAR_LIBRARY);
+    await goToSection(canvas, '強制イベント');
+    await step('強制イベントをテーブルへ追加する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: '新規強制イベント' }));
+      await userEvent.clear(canvas.getByLabelText('イベント名'));
+      await userEvent.type(canvas.getByLabelText('イベント名'), '地下天文台の崩落');
+      await userEvent.click(canvas.getByRole('button', { name: '強制イベントを登録' }));
+      await expect(canvas.getByRole('table', { name: '強制イベントテーブル' })).toHaveTextContent('地下天文台の崩落');
+    });
+    await step('進行デバッグから条件付き強制イベントを発火対象にできる', async () => {
+      await goToSection(canvas, '進行デバッグ');
+      await userEvent.click(canvas.getByRole('button', { name: '条件付き強制イベントを発火' }));
+      await expect(canvas.getByTestId('advanced-notice')).toHaveTextContent('必ず発火');
+    });
+  },
+};
+
+export const USAS11StartTestFromBeatDuringEdit: Story = {
+  name: 'US-AS11: 編集中に途中のビートからテスト実行したい',
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await openEditor(canvas, STAR_LIBRARY);
+    await goToSection(canvas, 'テスト実行');
+    await step('登録済みBeatを指定して条件を満たした扱いで開始する', async () => {
+      await userEvent.clear(canvas.getByLabelText('テスト開始地点'));
+      await userEvent.type(canvas.getByLabelText('テスト開始地点'), 'Chapter 4 / Beat 4-1');
+      await userEvent.click(canvas.getByRole('button', { name: 'この地点からテスト開始' }));
+      await expect(canvas.getByLabelText('テスト開始地点')).toHaveValue('Chapter 4 / Beat 4-1');
+      await expect(canvas.getByTestId('advanced-notice')).toHaveTextContent('テストセッション');
+    });
+  },
+};
+
+export const USAS12InspectAiReferencesDuringEdit: Story = {
+  name: 'US-AS12: 編集中にAIが参照している非公開情報を把握したい',
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await openEditor(canvas, STAR_LIBRARY);
+    await goToSection(canvas, '進行デバッグ');
+    await step('HiddenBrief / Canon / 現在Beatの参照状況を更新して確認する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: '参照情報を更新' }));
+      await expect(canvas.getByTestId('debug-refs')).toHaveTextContent('AI参照状況');
+      await expect(canvas.getByTestId('debug-refs')).toHaveTextContent('HiddenBrief 1件');
+      await expect(canvas.getByTestId('advanced-notice')).toHaveTextContent('プレイヤー向けUIでは表示されません');
     });
   },
 };

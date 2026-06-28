@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { STORY_IDS, navigateToStory, type StoryKey } from './nav';
+import { STORY_IDS, navigateToStory, useAppNavigation, type StoryKey } from './nav';
 import './appChrome.css';
 
 /**
@@ -75,15 +75,19 @@ export type AppChromeProps = {
    * actions instead of an avatar menu.
    */
   account?: { name: string; email: string; initials: string; role?: string } | null;
+  /** App-level navigation override. Defaults to Storybook story navigation. */
+  onNavigate?: (to: StoryKey) => void;
   /** The screen content this chrome wraps. */
   children: ReactNode;
 };
 
-export function AppChrome({ section, breadcrumbs, account = null, children }: AppChromeProps) {
+export function AppChrome({ section, breadcrumbs, account = null, onNavigate, children }: AppChromeProps) {
   const [openSection, setOpenSection] = useState<SectionId | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
+
+  const appNavigate = useAppNavigation();
 
   // Close any open menu on outside click or Escape.
   useEffect(() => {
@@ -110,6 +114,14 @@ export function AppChrome({ section, breadcrumbs, account = null, children }: Ap
   const go = (to: StoryKey) => {
     setOpenSection(null);
     setAccountOpen(false);
+    if (onNavigate) {
+      onNavigate(to);
+      return;
+    }
+    if (appNavigate) {
+      appNavigate(to);
+      return;
+    }
     navigateToStory(STORY_IDS[to]);
   };
 
