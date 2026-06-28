@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { ScenarioProgressControls } from './ScenarioProgressControls';
 import { AppChrome, type Crumb } from './shared/AppChrome';
 import { STORY_IDS, navigateToStory, useAppNavigation } from './shared/nav';
+import { WizardNavigation } from './shared/WizardNavigation';
+import { MyrialeSelect } from './ui/MyrialeRadix';
 
 type EditView = 'list' | 'edit';
 type EditSection =
@@ -198,48 +200,39 @@ export function EditScenarioWireframe() {
   return (
     <AppChrome section="library" breadcrumbs={editCrumbs} account={playerAccount}>
       <div className="scenario-forge scenario-forge-wizard edit-scenario-wireframe">
-        <aside className="contract-spine" aria-label={view === 'list' ? '編集対象の選択' : '編集セクション'}>
-          <strong>Scenario Editor</strong>
-          {view === 'list' ? (
-            <>
-              <p className="toc-help">自分のシナリオ一覧です。選ぶと編集画面に現在の内容を読み込みます。</p>
-              <div className="wizard-step-list" role="list" aria-label="編集できるシナリオ">
-                {scenarioLibrary.map((scenario) => (
-                  <button
-                    key={scenario.id}
-                    className={`spine-row spine-step ${editingId === scenario.id ? 'active' : ''}`}
-                    onClick={() => startEditing(scenario)}
-                    aria-label={`${scenario.title} を編集対象に選ぶ`}
-                    data-testid={`spine-${scenario.id}`}
-                  >
-                    <span>{scenario.title}</span>
-                    <small>{scenario.visibility} / {scenario.id}</small>
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="toc-help">編集する項目を選びます。どの項目も下書き保存でき、公開まで公開版は変わりません。</p>
-              <div className="wizard-step-list" role="list" aria-label="編集セクション">
-                {editSections.map((section, index) => (
-                  <button
-                    key={section.id}
-                    className={`spine-row spine-step ${activeSection === section.id ? 'active' : ''}`}
-                    onClick={() => setActiveSection(section.id)}
-                    aria-label={`${section.label}へ`}
-                    aria-current={activeSection === section.id ? 'step' : undefined}
-                  >
-                    <span>{String(index + 1).padStart(2, '0')} / {section.label}</span>
-                    <small>{section.help}</small>
-                  </button>
-                ))}
-              </div>
-              <button className="text-button" onClick={backToList}>シナリオ一覧へ戻る</button>
-            </>
-          )}
-          <div className="scenario-id"><span>ScenarioId</span><b>{draft ? draft.id : '未選択'}</b></div>
-        </aside>
+        <WizardNavigation
+          title="Scenario Editor"
+          ariaLabel={view === 'list' ? '編集できるシナリオ' : '編集セクション'}
+          help={view === 'list'
+            ? '自分のシナリオ一覧です。選ぶと編集画面に現在の内容を読み込みます。'
+            : '編集する項目を選びます。どの項目も下書き保存でき、公開まで公開版は変わりません。'}
+          items={view === 'list'
+            ? scenarioLibrary.map((scenario) => ({
+                id: scenario.id,
+                label: scenario.title,
+                meta: `${scenario.visibility} / ${scenario.id}`,
+                ariaLabel: `${scenario.title} を編集対象に選ぶ`,
+                testId: `spine-${scenario.id}`,
+              }))
+            : editSections.map((section, index) => ({
+                id: section.id,
+                label: `${String(index + 1).padStart(2, '0')} / ${section.label}`,
+                meta: section.help,
+                ariaLabel: `${section.label}へ`,
+              }))}
+          activeId={view === 'list' ? editingId : activeSection}
+          onSelect={(id) => {
+            if (view === 'list') {
+              const scenario = scenarioLibrary.find((item) => item.id === id);
+              if (scenario) startEditing(scenario);
+              return;
+            }
+            setActiveSection(id as EditSection);
+          }}
+          markerLabel="ScenarioId"
+          markerValue={draft ? draft.id : '未選択'}
+          action={view === 'edit' ? <button className="text-button" onClick={backToList}>シナリオ一覧へ戻る</button> : undefined}
+        />
 
         <main className="forge-paper wizard-paper" aria-label="シナリオ編集ワイヤーフレーム">
           <p className="kicker">Scenario edit / Improve and publish</p>
@@ -303,13 +296,16 @@ export function EditScenarioWireframe() {
               {activeSection === 'ai' && (
                 <section className="wizard-panel" aria-label="AI設定の編集">
                   <p><strong>AIの振る舞いを調整します。</strong>AI裁量レベルとNarrative生成方針は、セッション開始前の設定として保存されます。</p>
-                  <label>AI裁量
-                    <select aria-label="AI裁量" value={draft.aiFreedom} onChange={(event) => update('aiFreedom', event.target.value)}>
-                      <option>低: 厳密に守る</option>
-                      <option>中: 設定を守りつつ提案する</option>
-                      <option>高: 展開を広げる</option>
-                    </select>
-                  </label>
+                  <MyrialeSelect
+                    label="AI裁量"
+                    value={draft.aiFreedom}
+                    onValueChange={(value) => update('aiFreedom', value)}
+                    options={[
+                      { value: '低: 厳密に守る', label: '低: 厳密に守る' },
+                      { value: '中: 設定を守りつつ提案する', label: '中: 設定を守りつつ提案する' },
+                      { value: '高: 展開を広げる', label: '高: 展開を広げる' },
+                    ]}
+                  />
                   <label>Narrative生成方針
                     <textarea aria-label="Narrative生成方針" value={draft.narrativePolicy} onChange={(event) => update('narrativePolicy', event.target.value)} />
                   </label>
@@ -339,31 +335,38 @@ export function EditScenarioWireframe() {
                 </section>
               )}
 
-              <section className="wizard-panel edit-review-panel" aria-label="確認と反映">
-                <h2>確認 → 反映</h2>
-                <p>AIチェックとテストプレイで品質を確認してから、下書き保存・公開できます。AIは補助に限定され、確定は常に作者が行います。</p>
-                <div className="button-row">
-                  <button onClick={runAiCheck} data-testid="ai-check-button">AIにチェック</button>
-                  <button onClick={runPreview} data-testid="preview-button">プレビュー（テストプレイ）</button>
-                  <button onClick={openTestPlay}>本番相当のテストプレイへ</button>
-                </div>
-                <div className="button-row">
-                  <button onClick={saveDraft} data-testid="save-button">下書き保存</button>
-                  <button className="primary" onClick={publish} data-testid="publish-button">公開して反映</button>
-                </div>
-                <label className="edit-visibility">公開状態
-                  <select aria-label="公開状態" value={draft.visibility} onChange={(event) => update('visibility', event.target.value as Visibility)}>
-                    <option>公開中</option>
-                    <option>非公開</option>
-                  </select>
-                </label>
-              </section>
             </>
           )}
         </main>
 
         <aside className="ai-bookmark wizard-summary" aria-label="編集サマリー">
           <h2>編集状態</h2>
+          {view === 'edit' && draft && (
+            <article className="edit-review-panel" aria-label="確認と反映">
+              <h3>確認 → 反映</h3>
+              <p>AIチェックとテストプレイで品質を確認してから、下書き保存・公開できます。AIは補助に限定され、確定は常に作者が行います。</p>
+              <div className="button-row">
+                <button onClick={runAiCheck} data-testid="ai-check-button">AIにチェック</button>
+                <button onClick={runPreview} data-testid="preview-button">プレビュー（テストプレイ）</button>
+                <button onClick={openTestPlay}>本番相当のテストプレイへ</button>
+              </div>
+              <div className="button-row">
+                <button onClick={saveDraft} data-testid="save-button">下書き保存</button>
+                <button className="primary" onClick={publish} data-testid="publish-button">公開して反映</button>
+              </div>
+              <div className="edit-visibility">
+                <MyrialeSelect
+                  label="公開状態"
+                  value={draft.visibility}
+                  onValueChange={(value) => update('visibility', value as Visibility)}
+                  options={[
+                    { value: '公開中', label: '公開中' },
+                    { value: '非公開', label: '非公開' },
+                  ]}
+                />
+              </div>
+            </article>
+          )}
           <article>
             <h3>対象シナリオ</h3>
             <p data-testid="summary-title">{draft ? draft.title : '一覧から選択してください'}</p>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { WizardNavigation } from './shared/WizardNavigation';
 import { AppChrome } from './shared/AppChrome';
 import { SessionTurn } from './shared/SessionTurn';
 
@@ -215,25 +216,25 @@ export function ModeTransitionExceptionWireframe() {
       account={account}
     >
       <div className="scenario-forge scenario-forge-wizard program-driven-wireframe mode-transition-wireframe">
-        <aside className="contract-spine" aria-label="モード遷移トリガー">
-          <strong>Mode Control</strong>
-          <p className="toc-help">暗黙の切替ではなく、Session Stateのmodeとして保存し、例外時も確定地点から復帰します。</p>
-          <div className="wizard-step-list" role="list" aria-label="モード切替">
-            <button className="spine-row spine-step" onClick={() => switchMode('battle', 'バトル開始')} aria-label="バトル開始">
-              <span>バトル開始</span><small>自由入力を無効化</small>
-            </button>
-            <button className="spine-row spine-step" onClick={() => switchMode('roll', 'ダイス判定開始')} aria-label="判定開始">
-              <span>判定開始</span><small>ダイスUIを表示</small>
-            </button>
-            <button className="spine-row spine-step" onClick={() => switchMode('event', '強制イベント開始')} aria-label="強制イベント開始">
-              <span>強制イベント開始</span><small>自動進行を表示</small>
-            </button>
-            <button className="spine-row spine-step" onClick={completeProgramMode} disabled={!forced || mode === 'recovering'} aria-label="正常終了してAI対話へ戻る">
-              <span>正常終了</span><small>AI対話へ復帰</small>
-            </button>
-          </div>
-          <div className="scenario-id"><span>Session mode</span><b data-testid="session-mode-state">{sessionMode}</b></div>
-        </aside>
+        <WizardNavigation
+          title="Mode Control"
+          ariaLabel="モード切替"
+          help="暗黙の切替ではなく、Session Stateのmodeとして保存し、例外時も確定地点から復帰します。"
+          items={[
+            { id: 'battle', label: 'バトル開始', meta: '自由入力を無効化', ariaLabel: 'バトル開始' },
+            { id: 'roll', label: '判定開始', meta: 'ダイスUIを表示', ariaLabel: '判定開始' },
+            { id: 'event', label: '強制イベント開始', meta: '自動進行を表示', ariaLabel: '強制イベント開始' },
+            { id: 'complete', label: '正常終了', meta: 'AI対話へ復帰', ariaLabel: '正常終了してAI対話へ戻る', disabled: !forced || mode === 'recovering' },
+          ]}
+          onSelect={(id) => {
+            if (id === 'battle') switchMode('battle', 'バトル開始');
+            if (id === 'roll') switchMode('roll', 'ダイス判定開始');
+            if (id === 'event') switchMode('event', '強制イベント開始');
+            if (id === 'complete') completeProgramMode();
+          }}
+          markerLabel="Session mode"
+          markerValue={<span data-testid="session-mode-state">{sessionMode}</span>}
+        />
 
         <main className="forge-paper wizard-paper program-driven-main" aria-label="モード遷移と例外処理">
           <p className="kicker">Session foundation / Mode transitions and exceptions</p>

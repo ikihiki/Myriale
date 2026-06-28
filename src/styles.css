@@ -166,6 +166,285 @@ textarea { min-height: 126px; resize: vertical; }
   .contract-spine, .ai-bookmark { position: static; min-height: auto; }
 }
 
+.wizard-navigation details {
+  display: grid;
+  gap: 12px;
+}
+
+.wizard-navigation summary {
+  list-style: none;
+}
+
+.wizard-navigation summary::-webkit-details-marker {
+  display: none;
+}
+
+.wizard-navigation-summary {
+  display: grid;
+  gap: 8px;
+  cursor: default;
+}
+
+.wizard-navigation-title {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.wizard-navigation-current {
+  display: none;
+}
+
+.wizard-navigation-body {
+  display: grid;
+  gap: 10px;
+}
+
+@media (max-width: 1120px) {
+  .wizard-navigation.contract-spine {
+    position: sticky;
+    top: 8px;
+    z-index: 30;
+    min-height: auto;
+    max-height: min(62vh, 420px);
+    overflow: auto;
+    border-radius: 18px;
+  }
+
+  .wizard-navigation-summary {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    margin: -12px -12px 8px;
+    padding: 12px;
+    border-radius: 16px 16px 10px 10px;
+    background: linear-gradient(180deg, #201b2d, #17151f);
+    box-shadow: 0 10px 18px rgba(23, 21, 31, .28);
+    cursor: pointer;
+  }
+
+  .wizard-navigation-summary::after {
+    content: '開く';
+    border: 1px solid rgba(255, 250, 240, .28);
+    border-radius: 999px;
+    padding: 5px 9px;
+    color: #d9a441;
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  .wizard-navigation details[open] .wizard-navigation-summary::after {
+    content: '閉じる';
+  }
+
+  .wizard-navigation-current {
+    display: grid;
+    min-width: 0;
+    color: #f4eedf;
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .wizard-navigation-current > span,
+  .wizard-navigation-current small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wizard-navigation-current small {
+    color: rgba(244, 238, 223, .72);
+    font-size: 10px;
+  }
+
+  .wizard-navigation:not(:has(details[open])) {
+    overflow: visible;
+  }
+
+  .wizard-navigation details:not([open]) .wizard-navigation-body {
+    display: none;
+  }
+}
+
+/* Home dashboard: a landing desk for continuing sessions and discovering scenarios. */
+.home-dashboard {
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+  color: #17151f;
+}
+
+.home-hero,
+.home-panel {
+  border: 1px solid rgba(220, 231, 242, 0.52);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(124, 92, 255, .16), transparent 26%),
+    linear-gradient(135deg, rgba(255, 250, 240, .96), rgba(239, 227, 198, .92));
+  box-shadow: 0 24px 80px rgba(23, 21, 31, .18);
+}
+
+.home-hero {
+  min-height: 260px;
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  padding: clamp(28px, 5vw, 56px);
+  overflow: hidden;
+  position: relative;
+}
+
+.home-hero::after {
+  content: '霧';
+  position: absolute;
+  right: clamp(24px, 8vw, 96px);
+  bottom: -28px;
+  color: rgba(23, 21, 31, .06);
+  font-family: 'Shippori Mincho', Georgia, serif;
+  font-size: clamp(120px, 22vw, 240px);
+  font-weight: 900;
+  line-height: 1;
+}
+
+.home-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.home-hero h1 {
+  max-width: 760px;
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(42px, 8vw, 86px);
+  line-height: .9;
+  letter-spacing: -.06em;
+}
+
+.home-hero p {
+  max-width: 720px;
+  margin: 0;
+  color: #566072;
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+.home-actions,
+.home-card-actions,
+.home-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.home-actions { margin-top: 10px; }
+
+.home-actions button,
+.home-card-actions button,
+.home-section-head button,
+.home-card button {
+  border-radius: 999px;
+  padding: 11px 15px;
+  background: #2b2940;
+  color: #fffaf0;
+}
+
+.home-actions .primary,
+.home-card-actions .primary {
+  background: #d9a441;
+  color: #17151f;
+  font-weight: 900;
+}
+
+.home-panel {
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+}
+
+.home-section-head {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.home-section-head h2 {
+  flex: 1 1 260px;
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(28px, 4vw, 44px);
+  letter-spacing: -.05em;
+}
+
+.home-section-head .kicker {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.home-section-head .text-button {
+  background: transparent;
+  color: #7054dd;
+  font-weight: 900;
+}
+
+.home-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.home-card {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  min-height: 210px;
+  padding: 18px;
+  border: 1px solid rgba(23, 21, 31, .12);
+  border-radius: 22px;
+  background: rgba(255, 254, 249, .78);
+}
+
+.home-card span {
+  color: #7054dd;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.home-card h3 {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: -.04em;
+}
+
+.home-card p {
+  margin: 0;
+  color: #566072;
+  line-height: 1.55;
+}
+
+.home-card small {
+  color: #6d587a;
+  line-height: 1.45;
+}
+
+.home-card-actions {
+  align-self: end;
+  margin-top: 6px;
+}
+
+@media (max-width: 720px) {
+  .home-dashboard { padding: 10px; }
+  .home-hero,
+  .home-panel { border-radius: 20px; padding: 18px; }
+  .home-actions button,
+  .home-card-actions button { width: 100%; }
+}
+
 /* Scenario registration wizard variant: inputs are a single-step flow, not section cards. */
 .scenario-forge-wizard {
   grid-template-columns: 230px minmax(420px, 1fr) minmax(300px, 360px);
@@ -511,6 +790,20 @@ textarea { min-height: 126px; resize: vertical; }
   .scenario-forge-wizard { grid-template-columns: 1fr; }
   .scenario-forge-wizard .contract-spine,
   .scenario-forge-wizard .wizard-summary { max-height: none; }
+}
+
+@media (max-width: 1120px) {
+  .scenario-forge-wizard .wizard-navigation.contract-spine {
+    align-self: start;
+    min-height: 0;
+    height: fit-content;
+    max-height: min(62vh, 420px);
+  }
+
+  .scenario-forge-wizard .wizard-navigation.contract-spine:not(:has(details[open])) {
+    max-height: none;
+    overflow: visible;
+  }
 }
 
 .session-play-wireframe {
@@ -1278,16 +1571,6 @@ textarea { min-height: 126px; resize: vertical; }
 }
 
 .wire-table tr:last-child td { border-bottom: 0; }
-
-.wire-dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(18, 16, 25, .48);
-}
 
 .wire-dialog {
   width: min(760px, calc(100vw - 48px));

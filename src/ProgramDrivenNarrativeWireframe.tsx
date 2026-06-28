@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { AppChrome } from './shared/AppChrome';
 import { SessionTurn } from './shared/SessionTurn';
+import { WizardNavigation } from './shared/WizardNavigation';
+import { MyrialeSelect } from './ui/MyrialeRadix';
 
 type Mode = 'dialogue' | 'battle' | 'roll' | 'event';
 
@@ -195,41 +197,38 @@ export function ProgramDrivenNarrativeWireframe() {
       account={account}
     >
       <div className="scenario-forge scenario-forge-wizard program-driven-wireframe">
-        <aside className="contract-spine" aria-label="進行モードのトリガー">
-          <strong>Program-driven Scenes</strong>
-          <p className="toc-help">AIの自由対話では処理しない場面（バトル・判定・強制イベント）を、プログラム主導で安全に実行します。</p>
-          <div className="wizard-step-list" role="list" aria-label="モード遷移トリガー">
-            <button className="spine-row spine-step" onClick={startBattle} aria-label="バトルを開始">
-              <span>バトル開始</span><small>行動ボタンで戦う</small>
-            </button>
-            <button className="spine-row spine-step" onClick={startRoll} aria-label="判定を開始">
-              <span>判定開始</span><small>ダイスロール</small>
-            </button>
-            <button className="spine-row spine-step" onClick={startEvent} aria-label="強制イベントを発生">
-              <span>強制イベント</span><small>中断不可の自動進行</small>
-            </button>
-            <button className="spine-row spine-step" onClick={returnToDialogue} aria-label="AI対話へ戻る">
-              <span>AI対話へ戻る</span><small>Forced Mode解除</small>
-            </button>
-          </div>
+        <WizardNavigation
+          title="Program-driven Scenes"
+          ariaLabel="モード遷移トリガー"
+          help="AIの自由対話では処理しない場面（バトル・判定・強制イベント）を、プログラム主導で安全に実行します。"
+          items={[
+            { id: 'battle', label: 'バトル開始', meta: '行動ボタンで戦う', ariaLabel: 'バトルを開始' },
+            { id: 'roll', label: '判定開始', meta: 'ダイスロール', ariaLabel: '判定を開始' },
+            { id: 'event', label: '強制イベント', meta: '中断不可の自動進行', ariaLabel: '強制イベントを発生' },
+            { id: 'dialogue', label: 'AI対話へ戻る', meta: 'Forced Mode解除', ariaLabel: 'AI対話へ戻る' },
+          ]}
+          activeId={mode}
+          onSelect={(id) => {
+            if (id === 'battle') startBattle();
+            if (id === 'roll') startRoll();
+            if (id === 'event') startEvent();
+            if (id === 'dialogue') returnToDialogue();
+          }}
+          markerLabel="Current mode"
+          markerValue={<span data-testid="mode-state">{meta.label}</span>}
+        >
           {/* US-PG10: 作者向けテストハーネス。 */}
           <div className="program-test-harness" aria-label="作者向けテストハーネス">
             <h3>テストハーネス</h3>
-            <label>ダイス固定値（再現用）
-              <select aria-label="ダイス固定値" value={fixedRoll} onChange={(event) => setFixedRoll(event.target.value)}>
-                <option>ランダム</option>
-                <option>1</option>
-                <option>2</option>
-                <option>3</option>
-                <option>4</option>
-                <option>5</option>
-                <option>6</option>
-              </select>
-            </label>
+            <MyrialeSelect
+              label="ダイス固定値"
+              value={fixedRoll}
+              onValueChange={setFixedRoll}
+              options={['ランダム', '1', '2', '3', '4', '5', '6'].map((value) => ({ value, label: value }))}
+            />
             <small>特定イベントやバトルから単体で実行し、判定値を固定・再現できます。</small>
           </div>
-          <div className="scenario-id"><span>Current mode</span><b data-testid="mode-state">{meta.label}</b></div>
-        </aside>
+        </WizardNavigation>
 
         <main className="forge-paper wizard-paper program-driven-main" aria-label="プログラム主導ナラティブ">
           <p className="kicker">Session play / Program-driven mode</p>

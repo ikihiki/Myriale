@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useOptionalAppStore } from './app/store';
+import { MyrialeDialogContent, MyrialeDialogRoot } from './ui/MyrialeRadix';
 
 type NoteKind = 'person' | 'location';
 type Certainty = 'Canon' | '未確定' | '噂';
@@ -190,11 +191,10 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
       </div>
 
       {editingNote && (
-        <div className="wire-dialog-backdrop" role="presentation">
-          <section className="wire-dialog note-edit-dialog" role="dialog" aria-modal="true" aria-label="ノート編集" data-testid="note-edit-dialog">
-            <header className="wire-dialog-head">
+        <MyrialeDialogRoot open onOpenChange={(open) => { if (!open) closeNote(); }}>
+          <MyrialeDialogContent title="ノート編集" className="wire-dialog note-edit-dialog" portal={false} data-testid="note-edit-dialog">
+            <header className="wire-dialog-head note-edit-head">
               <div><span>{editingNote.kind === 'person' ? '人物ノート' : '場所ノート'}</span><h2>{editingNote.name}</h2><p>{editingNote.firstTurn} 初出 / 確定度: <b>{editingNote.certainty}</b></p></div>
-              <button type="button" aria-label="ノート編集を閉じる" onClick={closeNote}>×</button>
             </header>
             <div className="lorebook-fields">
               <label>表示名<input aria-label="表示名" value={editingNote.name} onChange={(event) => updateNote(editingNote.id, { name: event.target.value })} /></label>
@@ -205,8 +205,8 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
               <label>現在状態または禁則<textarea aria-label="現在状態または禁則" value={editingNote.stateOrRules} onChange={(event) => updateNote(editingNote.id, { stateOrRules: event.target.value })} /></label>
             </div>
             <div className="button-row"><button className="primary" onClick={() => markCertainty(editingNote.id, 'Canon')}>Canonにする</button><button onClick={() => markCertainty(editingNote.id, '未確定')}>未確定にする</button><button onClick={() => markCertainty(editingNote.id, '噂')}>噂にする</button><button onClick={closeNote}>閉じる</button></div>
-          </section>
-        </div>
+          </MyrialeDialogContent>
+        </MyrialeDialogRoot>
       )}
     </section>
   );

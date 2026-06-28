@@ -6,7 +6,7 @@ import { STORY_IDS } from '../shared/nav';
 import '../styles.css';
 
 const meta = {
-  title: 'Edit scenario/Wireframe from user stories',
+  title: 'ユーザーストーリー/Edit scenario',
   component: MyrialeApp,
   render: () => <MyrialeApp initialUrl="/scenarios/SCN-STAR-LIBRARY/edit" initialDb={createDemoDb('editableScenario')} />,
   parameters: {
@@ -91,11 +91,13 @@ export const USE04EditAiSettings: Story = {
   name: 'US-E04: AI関連設定を編集したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
     await openEditor(canvas, STAR_LIBRARY);
     await goToSection(canvas, 'AI設定');
     await step('AI裁量レベルとNarrative生成方針を変更できる', async () => {
-      await userEvent.selectOptions(canvas.getByLabelText('AI裁量'), '高: 展開を広げる');
-      await expect(canvas.getByLabelText('AI裁量')).toHaveValue('高: 展開を広げる');
+      await userEvent.click(canvas.getByRole('combobox', { name: 'AI裁量' }));
+      await userEvent.click(await screen.findByRole('option', { name: '高: 展開を広げる' }));
+      await expect(canvas.getByRole('combobox', { name: 'AI裁量' })).toHaveTextContent('高: 展開を広げる');
       const policy = canvas.getByLabelText('Narrative生成方針');
       await userEvent.clear(policy);
       await userEvent.type(policy, 'テンポ重視で簡潔に。');
@@ -268,7 +270,7 @@ export const USE07PreviewEdit: Story = {
     });
     await step('本番相当のテストプレイは、Session開始ワイヤーフレームへの導線として用意される', async () => {
       await expect(canvas.getByRole('button', { name: '本番相当のテストプレイへ' })).toBeVisible();
-      await expect(STORY_IDS.startSession).toMatch(/^start-session-/);
+      await expect(STORY_IDS.startSession).toContain('start-session');
     });
   },
 };

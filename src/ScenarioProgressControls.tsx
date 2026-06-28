@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MyrialeDialogContent, MyrialeDialogRoot } from './ui/MyrialeRadix';
 
 type Panel = 'cast' | 'locations' | 'beats' | 'secrets' | 'events' | 'debug' | 'test';
 type DialogKind = 'cast' | 'location' | 'beat' | 'secret' | 'event' | null;
@@ -22,15 +23,11 @@ function FieldDialog({
   onClose: () => void;
 }) {
   return (
-    <div className="wire-dialog-backdrop" role="presentation">
-      <section className="wire-dialog" role="dialog" aria-modal="true" aria-label={title}>
-        <header className="wire-dialog-head">
-          <h2>{title}</h2>
-          <button type="button" aria-label="ダイアログを閉じる" onClick={onClose}>×</button>
-        </header>
+    <MyrialeDialogRoot open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <MyrialeDialogContent title={title} className="wire-dialog" portal={false}>
         {children}
-      </section>
-    </div>
+      </MyrialeDialogContent>
+    </MyrialeDialogRoot>
   );
 }
 

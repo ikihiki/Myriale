@@ -5,7 +5,7 @@ import { createDemoDb } from '../app/demoData';
 import '../styles.css';
 
 const meta = {
-  title: 'Program-driven narrative/Wireframe from user stories',
+  title: 'ユーザーストーリー/Program-driven narrative',
   component: MyrialeApp,
   render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098/program" initialDb={createDemoDb('activeSession')} />,
   parameters: {
@@ -69,8 +69,10 @@ export const USPG04RollDice: Story = {
   name: 'US-PG04: 判定（ダイスロール）を明示的に実行したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
     await step('テストハーネスでダイスを6に固定し、判定モードに入る', async () => {
-      await userEvent.selectOptions(canvas.getByLabelText('ダイス固定値'), '6');
+      await userEvent.click(canvas.getByRole('combobox', { name: 'ダイス固定値' }));
+      await userEvent.click(await screen.findByRole('option', { name: '6' }));
       await userEvent.click(canvas.getByRole('button', { name: '判定を開始' }));
       await expect(canvas.getByTestId('mode-badge')).toHaveTextContent('判定中');
     });
@@ -86,8 +88,10 @@ export const USPG05AutoBranchOnRoll: Story = {
   name: 'US-PG05: ダイス結果に基づき強制的に進めたい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
     await step('失敗が出る値（2）に固定して判定する', async () => {
-      await userEvent.selectOptions(canvas.getByLabelText('ダイス固定値'), '2');
+      await userEvent.click(canvas.getByRole('combobox', { name: 'ダイス固定値' }));
+      await userEvent.click(await screen.findByRole('option', { name: '2' }));
       await userEvent.click(canvas.getByRole('button', { name: '判定を開始' }));
       await userEvent.click(canvas.getByTestId('roll-button'));
     });
@@ -165,8 +169,10 @@ export const USPG10TestHarness: Story = {
   name: 'US-PG10: プログラム主導シーンをテストしやすくしたい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
     await step('作者は判定値を固定して、同じ結果を再現できる', async () => {
-      await userEvent.selectOptions(canvas.getByLabelText('ダイス固定値'), '5');
+      await userEvent.click(canvas.getByRole('combobox', { name: 'ダイス固定値' }));
+      await userEvent.click(await screen.findByRole('option', { name: '5' }));
       await userEvent.click(canvas.getByRole('button', { name: '判定を開始' }));
       await userEvent.click(canvas.getByTestId('roll-button'));
       await expect(canvas.getByTestId('roll-result')).toHaveTextContent('d6 = 5 → 成功');

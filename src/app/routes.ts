@@ -1,6 +1,7 @@
 import type { StoryKey } from '../shared/nav';
 
 export type AppScreen =
+  | 'home'
   | 'scenarioRegister'
   | 'scenarioEdit'
   | 'startSession'
@@ -30,9 +31,10 @@ export type AppRoute = {
   query: Record<string, string>;
 };
 
-export const DEFAULT_APP_URL = '/scenarios/new';
+export const DEFAULT_APP_URL = '/';
 
 const screenUrls: Record<AppScreen, string> = {
+  home: '/',
   scenarioRegister: '/scenarios/new',
   scenarioEdit: '/scenarios/SCN-STAR-LIBRARY/edit',
   startSession: '/sessions/start',
@@ -77,8 +79,9 @@ export function parseAppUrl(input: string | undefined | null): AppRoute {
   const path = normalizePath(url.pathname);
   const query = Object.fromEntries(url.searchParams.entries());
   const segments = path.split('/').filter(Boolean);
-  const fallback = () => buildRoute('scenarioRegister', '/scenarios/new', {}, query);
+  const fallback = () => buildRoute('home', '/', {}, query);
 
+  if (path === '/') return buildRoute('home', path, {}, query);
   if (path === '/scenarios/new') return buildRoute('scenarioRegister', path, {}, query);
   if (segments[0] === 'scenarios' && segments[1] && segments[2] === 'edit') {
     return buildRoute('scenarioEdit', path, { scenarioId: decodeURIComponent(segments[1]) }, query);

@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { WizardNavigation } from './shared/WizardNavigation';
 import { AppChrome } from './shared/AppChrome';
 import { SessionTurn } from './shared/SessionTurn';
+import { MyrialeSelect } from './ui/MyrialeRadix';
 
 type ProposalKind = 'new' | 'update' | 'conflict' | 'summary';
 type ProposalStatus = 'pending' | 'applied' | 'rejected' | 'snoozed';
@@ -136,17 +138,22 @@ export function SessionNotesAutoGenerationWireframe() {
       account={account}
     >
       <div className="scenario-forge scenario-forge-wizard session-notes-auto-wireframe">
-        <aside className="contract-spine" aria-label="ノート更新通知">
-          <strong>Note Updates</strong>
-          <p className="toc-help">AIの抽出結果はCanonへ自動確定せず、Pending通知としてレビューします。</p>
-          <button className="spine-row spine-step active" onClick={extractFromTurn} aria-label="Turnからノート候補を抽出">
-            <span>Turn確定後に抽出</span><small>ExtractEntitiesFromTurn</small>
-          </button>
-          <button className="spine-row spine-step" onClick={updateSummary} aria-label="要約を更新">
-            <span>要約を更新</span><small>Context圧縮</small>
-          </button>
-          <div className="scenario-id"><span>通知バッジ</span><b data-testid="notification-badge">{pending.length}件</b></div>
-        </aside>
+        <WizardNavigation
+          title="Note Updates"
+          ariaLabel="ノート更新通知"
+          help="AIの抽出結果はCanonへ自動確定せず、Pending通知としてレビューします。"
+          items={[
+            { id: 'extract', label: 'Turn確定後に抽出', meta: 'ExtractEntitiesFromTurn', ariaLabel: 'Turnからノート候補を抽出' },
+            { id: 'summary', label: '要約を更新', meta: 'Context圧縮', ariaLabel: '要約を更新' },
+          ]}
+          activeId="extract"
+          onSelect={(id) => {
+            if (id === 'extract') extractFromTurn();
+            if (id === 'summary') updateSummary();
+          }}
+          markerLabel="通知バッジ"
+          markerValue={<span data-testid="notification-badge">{pending.length}件</span>}
+        />
 
         <main className="forge-paper wizard-paper program-driven-main" aria-label="セッションとノート差分レビュー">
           <p className="kicker">Session notes / AI semi-automatic generation</p>
@@ -204,7 +211,27 @@ export function SessionNotesAutoGenerationWireframe() {
 
         <aside className="ai-bookmark wizard-summary" aria-label="ノート自動生成設定">
           <h2>Lorebook Inbox</h2>
-          <article><h3>通知設定</h3><label>通知タイミング<select aria-label="通知タイミング" value={timing} onChange={(event) => setTiming(event.target.value)}><option>毎ターン</option><option>一定ターンごと</option><option>章の終わり</option><option>手動でまとめて確認</option></select></label><label>通知対象<select aria-label="通知対象" value={target} onChange={(event) => setTarget(event.target.value)}><option>人物のみ</option><option>場所のみ</option><option>重要度高のみ</option><option>すべて</option></select></label><label>自動採用ポリシー<select aria-label="自動採用ポリシー" value={autoPolicy} onChange={(event) => setAutoPolicy(event.target.value)}><option>rumorのみ自動追加</option><option>Canonは必ず確認</option><option>自動採用しない</option></select></label></article>
+          <article>
+            <h3>通知設定</h3>
+            <MyrialeSelect
+              label="通知タイミング"
+              value={timing}
+              onValueChange={setTiming}
+              options={['毎ターン', '一定ターンごと', '章の終わり', '手動でまとめて確認'].map((value) => ({ value, label: value }))}
+            />
+            <MyrialeSelect
+              label="通知対象"
+              value={target}
+              onValueChange={setTarget}
+              options={['人物のみ', '場所のみ', '重要度高のみ', 'すべて'].map((value) => ({ value, label: value }))}
+            />
+            <MyrialeSelect
+              label="自動採用ポリシー"
+              value={autoPolicy}
+              onValueChange={setAutoPolicy}
+              options={['rumorのみ自動追加', 'Canonは必ず確認', '自動採用しない'].map((value) => ({ value, label: value }))}
+            />
+          </article>
           <article><h3>Pending / Canon</h3><p data-testid="pending-count">Pending {pending.length}件</p><p>Canon上書き: 必ず確認</p></article>
           <article><h3>ChapterSummary</h3><p data-testid="chapter-summary">{chapterSummary}</p></article>
           <article><h3>State Summary</h3><p data-testid="state-summary">{stateSummary}</p></article>

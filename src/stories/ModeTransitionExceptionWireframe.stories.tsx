@@ -5,7 +5,7 @@ import { createDemoDb } from '../app/demoData';
 import '../styles.css';
 
 const meta = {
-  title: 'Mode transition and exception/Wireframe from user stories',
+  title: 'ユーザーストーリー/Mode transition and exception',
   component: MyrialeApp,
   render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098/mode-exception" initialDb={createDemoDb('activeSession')} />,
   parameters: {

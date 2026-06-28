@@ -20,7 +20,7 @@ const createProgressedPlayDb = () => {
 };
 
 const meta = {
-  title: 'Session play dialogue/Wireframe from user stories',
+  title: 'ユーザーストーリー/Session play dialogue',
   component: MyrialeApp,
   render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098/play" initialDb={createProgressedPlayDb()} />,
   parameters: {

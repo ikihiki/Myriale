@@ -21,6 +21,7 @@ import {
   type NavItem,
   type OAuthProvider,
 } from './account/AccountKit';
+import { MyrialeCheckbox, MyrialeRadioGroup } from './ui/MyrialeRadix';
 import './account/account.css';
 import { AppChrome, type Crumb } from './shared/AppChrome';
 
@@ -479,10 +480,13 @@ export function UserManagementWireframe({ initialView = 'register' }: { initialV
           <TextField label="表示名" value={draftName} onChange={setDraftName} required testId="edit-display-name" />
           <TextAreaField label="自己紹介" value={draftBio} onChange={setDraftBio} />
           <SelectField label="言語/表示" value={draftLang} onChange={setDraftLang} options={[{ value: 'ja', label: '日本語' }, { value: 'en', label: 'English' }, { value: 'ko', label: '한국어' }]} />
-          <label className="checkbox-row">
-            <input type="checkbox" aria-label="ノート更新を通知する" checked={draftNotify} onChange={(event) => setDraftNotify(event.target.checked)} />
-            <span>ノート更新を通知する</span>
-          </label>
+          <MyrialeCheckbox
+            className="checkbox-row"
+            label="ノート更新を通知する"
+            aria-label="ノート更新を通知する"
+            checked={draftNotify}
+            onCheckedChange={setDraftNotify}
+          />
           <div className="button-row">
             <Button variant="primary" onClick={saveProfile}>変更を保存</Button>
             <Button variant="ghost" onClick={() => { setView('profile'); flash('編集をキャンセルしました。', 'info'); }}>キャンセル</Button>
@@ -525,9 +529,9 @@ export function UserManagementWireframe({ initialView = 'register' }: { initialV
       return (
         <section className="reg-card" aria-label="データ書き出し">
           <SectionHead kicker="US-UM12 / Export" title="データを書き出す" lead="退会前に、自分のデータを手元に残せます。形式はMarkdown / JSONから選べます。" />
-          <label className="checkbox-row"><input type="checkbox" aria-label="シナリオを含める" checked={exportScenarios} onChange={(event) => setExportScenarios(event.target.checked)} /><span>シナリオ</span></label>
-          <label className="checkbox-row"><input type="checkbox" aria-label="セッションログを含める" checked={exportSessions} onChange={(event) => setExportSessions(event.target.checked)} /><span>セッションログ</span></label>
-          <label className="checkbox-row"><input type="checkbox" aria-label="ノートを含める" checked={exportNotes} onChange={(event) => setExportNotes(event.target.checked)} /><span>ノート</span></label>
+          <MyrialeCheckbox className="checkbox-row" label="シナリオ" aria-label="シナリオを含める" checked={exportScenarios} onCheckedChange={setExportScenarios} />
+          <MyrialeCheckbox className="checkbox-row" label="セッションログ" aria-label="セッションログを含める" checked={exportSessions} onCheckedChange={setExportSessions} />
+          <MyrialeCheckbox className="checkbox-row" label="ノート" aria-label="ノートを含める" checked={exportNotes} onCheckedChange={setExportNotes} />
           <SelectField label="形式" value={exportFormat} onChange={setExportFormat} options={[{ value: 'markdown', label: 'Markdown' }, { value: 'json', label: 'JSON' }]} />
           <div className="button-row"><Button variant="primary" onClick={runExport}>エクスポートを作成</Button></div>
           {exportResult && <NoticeBanner tone="success" testId="export-result">{exportResult}</NoticeBanner>}
@@ -549,12 +553,23 @@ export function UserManagementWireframe({ initialView = 'register' }: { initialV
         ) : (
           <>
             <p className="muted">削除すると、このアカウントではログインできなくなります。下記の方針を選択してください。</p>
-            <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
-              <legend className="field-help" style={{ marginBottom: 8 }}>データの取り扱い方針</legend>
-              <label className="checkbox-row"><input type="radio" name="delete-policy" aria-label="シナリオ/セッション/ノートを完全削除する" checked={deletePolicy === 'erase'} onChange={() => setDeletePolicy('erase')} /><span>シナリオ/セッション/ノートを完全削除する</span></label>
-              <label className="checkbox-row"><input type="radio" name="delete-policy" aria-label="公開物は匿名化して保持する" checked={deletePolicy === 'anonymize'} onChange={() => setDeletePolicy('anonymize')} /><span>公開物は匿名化して保持する</span></label>
-            </fieldset>
-            <label className="checkbox-row"><input type="checkbox" aria-label="退会の注意事項を理解しました" checked={ackUnderstood} onChange={(event) => setAckUnderstood(event.target.checked)} /><span>退会すると元に戻せないことを理解しました</span></label>
+            <MyrialeRadioGroup
+              className="delete-policy-group"
+              label="データの取り扱い方針"
+              value={deletePolicy}
+              onValueChange={(value) => setDeletePolicy(value as typeof deletePolicy)}
+              options={[
+                { value: 'erase', label: 'シナリオ/セッション/ノートを完全削除する' },
+                { value: 'anonymize', label: '公開物は匿名化して保持する' },
+              ]}
+            />
+            <MyrialeCheckbox
+              className="checkbox-row"
+              label="退会すると元に戻せないことを理解しました"
+              aria-label="退会の注意事項を理解しました"
+              checked={ackUnderstood}
+              onCheckedChange={setAckUnderstood}
+            />
             <PasswordField label="本人確認のためのパスワード" value={withdrawPassword} onChange={setWithdrawPassword} autoComplete="current-password" testId="withdraw-password" />
             <div className="button-row">
               <Button variant="danger" onClick={confirmWithdraw} disabled={!ackUnderstood || !withdrawPassword.trim()}>アカウントを削除する</Button>

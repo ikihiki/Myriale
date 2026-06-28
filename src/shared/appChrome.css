@@ -177,6 +177,16 @@
 .app-menu-item.logout { color: #b8453f; border-top: 1px solid rgba(36, 27, 47, 0.12); border-radius: 0 0 10px 10px; margin-top: 4px; }
 .app-menu-item.logout:hover { background: rgba(184, 69, 63, 0.1); }
 
+.app-chrome-menu {
+  min-width: 230px;
+}
+.app-chrome-menu .app-menu-item {
+  width: 100%;
+}
+.app-chrome-menu.account-menu {
+  min-width: 250px;
+}
+
 /* Breadcrumb */
 .app-breadcrumb {
   border-top: 1px solid rgba(255, 246, 231, 0.1);

@@ -5,7 +5,7 @@ import { createDemoDb } from '../app/demoData';
 import '../styles.css';
 
 const meta = {
-  title: 'Scenario registration/Wireframe from user stories',
+  title: 'ユーザーストーリー/Scenario registration',
   component: MyrialeApp,
   render: () => <MyrialeApp initialUrl="/scenarios/new" initialDb={createDemoDb('registrationDraft')} />,
   parameters: {
@@ -71,10 +71,13 @@ export const US04TuneAiFreedom: Story = {
   name: 'US-04: AIの裁量レベルを調整したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
     await goToStep(canvas, 'AI裁量');
     await step('AI裁量を高へ変更し、生成時の挙動差を明示する', async () => {
-      await userEvent.selectOptions(canvas.getByLabelText('AI裁量'), '高: 展開を広げる');
-      await expect(canvas.getByLabelText('AI裁量')).toHaveValue('高: 展開を広げる');
+      const aiFreedomField = canvas.getAllByRole('combobox', { name: 'AI裁量' })[0];
+      await userEvent.click(aiFreedomField);
+      await userEvent.click(await screen.findByRole('option', { name: '高: 展開を広げる' }));
+      await expect(aiFreedomField).toHaveTextContent('高: 展開を広げる');
       await expect(canvas.getByRole('complementary', { name: '契約の背表紙' })).toHaveTextContent('高: 展開を広げる');
     });
   },
@@ -157,8 +160,9 @@ export const USAS05DefineHiddenBriefDuringRegistration: Story = {
     await goToStep(canvas, 'HiddenBrief');
     await step('HiddenBriefステップで、非公開の真相を項目登録する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '新規HiddenBrief' }));
-      await userEvent.clear(canvas.getByLabelText('HiddenBrief'));
-      await userEvent.type(canvas.getByLabelText('HiddenBrief'), '鐘楼の主は主人公の未来の姿。');
+      const hiddenBriefField = canvas.getAllByLabelText('HiddenBrief')[0];
+      await userEvent.clear(hiddenBriefField);
+      await userEvent.type(hiddenBriefField, '鐘楼の主は主人公の未来の姿。');
       await userEvent.click(canvas.getByRole('button', { name: '非公開情報を保存' }));
       await expect(canvas.getByRole('table', { name: 'HiddenBriefテーブル' })).toHaveTextContent('未来の姿');
       await expect(canvas.getByTestId('advanced-notice')).toHaveTextContent('HiddenBrief');
@@ -190,7 +194,7 @@ export const US05SetInitialCharacter: Story = {
     await step('主人公の立場と名前の扱いを入力する', async () => {
       await userEvent.clear(canvas.getByLabelText('主人公の前提'));
       await userEvent.type(canvas.getByLabelText('主人公の前提'), '主人公は失踪した師匠を追う新人地図師。名前と年齢はセッション側で上書き可能。');
-      await expect(canvas.getByLabelText('主人公の前提')).toHaveValue(expect.stringContaining('新人地図師'));
+      expect((canvas.getByLabelText('主人公の前提') as HTMLTextAreaElement).value).toContain('新人地図師');
       await expect(canvas.getByRole('complementary', { name: '契約の背表紙' })).toHaveTextContent('主人公');
     });
   },
@@ -204,7 +208,7 @@ export const US06DefineOpeningScene: Story = {
     await step('開始シーンを固定し、初回Narrativeの材料にする', async () => {
       await userEvent.clear(canvas.getByLabelText('開始シーン'));
       await userEvent.type(canvas.getByLabelText('開始シーン'), 'あなたは灰の降る駅で、宛名のない切符を握っている。');
-      await expect(canvas.getByLabelText('開始シーン')).toHaveValue(expect.stringContaining('灰の降る駅'));
+      expect((canvas.getByLabelText('開始シーン') as HTMLTextAreaElement).value).toContain('灰の降る駅');
       await expect(canvas.getByRole('complementary', { name: '契約の背表紙' })).toHaveTextContent('固定');
     });
   },
@@ -214,11 +218,12 @@ export const US11SpecifyIllustrationStyle: Story = {
   name: 'US-11: 挿絵のテイストを指定したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
     await goToStep(canvas, '挿絵');
     await step('文章と視覚表現を揃える画風を指定する', async () => {
       await userEvent.clear(canvas.getByLabelText('挿絵の画風'));
       await userEvent.type(canvas.getByLabelText('挿絵の画風'), '古い天文図の銅版画、インクの滲み、低彩度');
-      await expect(canvas.getByLabelText('挿絵の画風')).toHaveValue(expect.stringContaining('銅版画'));
+      expect((canvas.getByLabelText('挿絵の画風') as HTMLInputElement).value).toContain('銅版画');
     });
   },
 };
@@ -227,11 +232,12 @@ export const US12SpecifyIllustrationMood: Story = {
   name: 'US-12: 挿絵の雰囲気を指定したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
     await goToStep(canvas, '挿絵');
     await step('挿絵生成に使う感情的トーンを複数指定する', async () => {
       await userEvent.clear(canvas.getByLabelText('挿絵のムード'));
       await userEvent.type(canvas.getByLabelText('挿絵のムード'), '孤独、湿度、薄明、遠い鐘の音');
-      await expect(canvas.getByLabelText('挿絵のムード')).toHaveValue(expect.stringContaining('薄明'));
+      expect((canvas.getByLabelText('挿絵のムード') as HTMLInputElement).value).toContain('薄明');
     });
   },
 };
@@ -240,11 +246,12 @@ export const US13SpecifyNegativeElements: Story = {
   name: 'US-13: 挿絵の禁止要素を指定したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
     await goToStep(canvas, '挿絵');
     await step('年齢制限や世界観を守るNG要素を入力する', async () => {
       await userEvent.clear(canvas.getByLabelText('挿絵の禁止要素'));
       await userEvent.type(canvas.getByLabelText('挿絵の禁止要素'), '現代兵器、スマートフォン、過度な流血');
-      await expect(canvas.getByLabelText('挿絵の禁止要素')).toHaveValue(expect.stringContaining('スマートフォン'));
+      expect((canvas.getByLabelText('挿絵の禁止要素') as HTMLInputElement).value).toContain('スマートフォン');
     });
   },
 };
@@ -253,6 +260,7 @@ export const US14PreviewIllustration: Story = {
   name: 'US-14: 挿絵を事前にプレビューしたい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
     await goToStep(canvas, '挿絵');
     await step('サンプルシーンを入力し、本番相当の挿絵を保存せず生成する', async () => {
       await userEvent.clear(canvas.getByLabelText('サンプルシーン'));
@@ -273,7 +281,7 @@ export const US15IterateIllustrationSettings: Story = {
       await userEvent.clear(canvas.getByLabelText('挿絵の画風'));
       await userEvent.type(canvas.getByLabelText('挿絵の画風'), '影絵、余白多め、灯火だけ金色');
       await userEvent.click(canvas.getByRole('button', { name: 'サンプルシーンで生成' }));
-      await expect(canvas.getByLabelText('挿絵の画風')).toHaveValue(expect.stringContaining('影絵'));
+      expect((canvas.getByLabelText('挿絵の画風') as HTMLInputElement).value).toContain('影絵');
       await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('設定はまだ確定していません');
     });
   },
@@ -295,11 +303,13 @@ export const US18SelectAiByPurpose: Story = {
   name: 'US-18: どのAIに聞くかを選択したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
     await goToStep(canvas, '挿絵');
     await step('用途に合わせて相談先AIを選び、選択したAIで提案を生成する', async () => {
-      await userEvent.selectOptions(canvas.getByLabelText('相談先AI'), '挿絵AI');
+      await userEvent.click(canvas.getByRole('combobox', { name: '相談先AI' }));
+      await userEvent.click(await screen.findByRole('option', { name: '挿絵AI' }));
       await userEvent.click(canvas.getByRole('button', { name: '画風を相談' }));
-      await expect(canvas.getByLabelText('相談先AI')).toHaveValue('挿絵AI');
+      await expect(canvas.getByRole('combobox', { name: '相談先AI' })).toHaveTextContent('挿絵AI');
       await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('挿絵AIに挿絵テイストを相談しました');
     });
   },
@@ -312,7 +322,7 @@ export const US19AiCompletesSummary: Story = {
     await step('概要候補を見て、採用してから編集可能な本文に入れる', async () => {
       await userEvent.click(canvas.getByRole('button', { name: 'AIに概要案を出してもらう' }));
       await userEvent.click(canvas.getByRole('button', { name: '採用して編集' }));
-      await expect(canvas.getByLabelText('概要')).toHaveValue(expect.stringContaining('地下に沈んだ王都'));
+      expect((canvas.getByLabelText('概要') as HTMLTextAreaElement).value).toContain('地下に沈んだ王都');
       await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('採用しました');
     });
   },

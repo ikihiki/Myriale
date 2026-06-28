@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { WizardNavigation } from './shared/WizardNavigation';
 import { AppChrome, type Crumb } from './shared/AppChrome';
 import { STORY_IDS, navigateToStory, useAppNavigation } from './shared/nav';
 
@@ -206,31 +207,25 @@ export function SessionResumeWireframe() {
   return (
     <AppChrome section="sessions" breadcrumbs={resumeCrumbs} account={playerAccount}>
       <div className="scenario-forge scenario-forge-wizard session-resume-wireframe">
-        <aside className="contract-spine" aria-label="中断中のセッション一覧">
-          <strong>Suspended Sessions</strong>
-          <p className="toc-help">途中で中断したSessionの一覧です。選ぶと再開前の確認画面に進みます。</p>
-          <div className="wizard-step-list" role="list" aria-label="中断中セッション">
-            {suspendedSessions.map((session) => (
-              <button
-                key={session.id}
-                className={`spine-row spine-step ${selectedId === session.id ? 'active' : ''}`}
-                onClick={() => selectSession(session)}
-                aria-label={`${session.scenarioTitle} を選択`}
-                aria-current={selectedId === session.id ? 'step' : undefined}
-                data-testid={`suspended-${session.id}`}
-              >
-                <span>{session.scenarioTitle}</span>
-                <small>
-                  Turn {turnCountOf(session)} / {session.lastPlayed}
-                </small>
-              </button>
-            ))}
-          </div>
-          <div className="scenario-id">
-            <span>Session state</span>
-            <b data-testid="session-state">{sessionState}</b>
-          </div>
-        </aside>
+        <WizardNavigation
+          title="Suspended Sessions"
+          ariaLabel="中断中セッション"
+          help="途中で中断したSessionの一覧です。選ぶと再開前の確認画面に進みます。"
+          items={suspendedSessions.map((session) => ({
+            id: session.id,
+            label: session.scenarioTitle,
+            meta: `Turn ${turnCountOf(session)} / ${session.lastPlayed}`,
+            ariaLabel: `${session.scenarioTitle} を選択`,
+            testId: `suspended-${session.id}`,
+          }))}
+          activeId={selectedId}
+          onSelect={(id) => {
+            const session = suspendedSessions.find((item) => item.id === id);
+            if (session) selectSession(session);
+          }}
+          markerLabel="Session state"
+          markerValue={<span data-testid="session-state">{sessionState}</span>}
+        />
 
         <main className="forge-paper wizard-paper" aria-label="セッション再開ワイヤーフレーム">
           <p className="kicker">Session resume / Continue your story</p>

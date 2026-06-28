@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { ScenarioProgressControls } from './ScenarioProgressControls';
 import { AppChrome, type Crumb } from './shared/AppChrome';
+import { WizardNavigation } from './shared/WizardNavigation';
+import { MyrialeSelect } from './ui/MyrialeRadix';
 
 type SuggestionKind = '概要' | '世界観' | '挿絵テイスト' | '挿絵プロンプト';
 type WizardStep =
@@ -126,24 +128,20 @@ export function ScenarioRegistrationWireframe() {
       account={{ name: '霧野しおり', email: 'author@myriale.example', initials: '霧野', role: '作者' }}
     >
       <div className="scenario-forge scenario-forge-wizard">
-      <aside className="contract-spine" aria-label="契約の背表紙">
-        <strong>契約の背表紙</strong>
-        <div className="wizard-step-list" role="list" aria-label="登録ウィザードのステップ">
-          {wizardSteps.map((step, index) => (
-            <button
-              className={`spine-row spine-step ${activeStep === step.id ? 'active' : ''}`}
-              key={step.id}
-              onClick={() => setActiveStep(step.id)}
-              aria-label={`${step.label}へ`}
-              aria-current={activeStep === step.id ? 'step' : undefined}
-            >
-              <span>{String(index + 1).padStart(2, '0')} / {step.label}</span>
-              <small>{statusFor(step.id)}</small>
-            </button>
-          ))}
-        </div>
-        <div className="scenario-id"><span>ScenarioId</span><b>{scenarioId}</b></div>
-      </aside>
+      <WizardNavigation
+        title="契約の背表紙"
+        ariaLabel="登録ウィザードのステップ"
+        items={wizardSteps.map((step, index) => ({
+          id: step.id,
+          label: `${String(index + 1).padStart(2, '0')} / ${step.label}`,
+          meta: statusFor(step.id),
+          ariaLabel: `${step.label}へ`,
+        }))}
+        activeId={activeStep}
+        onSelect={(id) => setActiveStep(id as WizardStep)}
+        markerLabel="ScenarioId"
+        markerValue={scenarioId}
+      />
 
       <main className="forge-paper wizard-paper" aria-label="シナリオ登録ウィザード">
         <p className="kicker">Scenario Forge / Wizard registration</p>
@@ -176,7 +174,16 @@ export function ScenarioRegistrationWireframe() {
         {activeStep === 'ai' && (
           <section className="wizard-panel" aria-label="AI裁量">
             <p><strong>{currentStep.help}。</strong>物語が暴走しない範囲と、AIに展開を広げてもらう範囲を明示します。</p>
-            <label>AI裁量<select aria-label="AI裁量" value={aiFreedom} onChange={(event) => setAiFreedom(event.target.value)}><option>低: 厳密に守る</option><option>中: 設定を守りつつ提案する</option><option>高: 展開を広げる</option></select></label>
+            <MyrialeSelect
+              label="AI裁量"
+              value={aiFreedom}
+              onValueChange={setAiFreedom}
+              options={[
+                { value: '低: 厳密に守る', label: '低: 厳密に守る' },
+                { value: '中: 設定を守りつつ提案する', label: '中: 設定を守りつつ提案する' },
+                { value: '高: 展開を広げる', label: '高: 展開を広げる' },
+              ]}
+            />
           </section>
         )}
 
@@ -221,7 +228,16 @@ export function ScenarioRegistrationWireframe() {
 
       <aside className="ai-bookmark wizard-summary" aria-label="入力サマリー">
         <h2>サマリー</h2>
-        <label>相談先<select aria-label="相談先AI" value={aiTarget} onChange={(event) => setAiTarget(event.target.value)}><option>文章AI</option><option>挿絵AI</option><option>ルール確認AI</option></select></label>
+        <MyrialeSelect
+          label="相談先AI"
+          value={aiTarget}
+          onValueChange={setAiTarget}
+          options={[
+            { value: '文章AI', label: '文章AI' },
+            { value: '挿絵AI', label: '挿絵AI' },
+            { value: 'ルール確認AI', label: 'ルール確認AI' },
+          ]}
+        />
         <article><h3>表紙</h3><p>{title || 'タイトル未入力'}</p><p>{summary || '概要は空でも保存できます'}</p></article>
         <article><h3>この登録でAIが読む契約</h3><p>Genre: {genre}</p><p>Tone: {tone}</p><p>Lore: {lore.split('\n').filter(Boolean).length}項目</p><p>AI裁量: {aiFreedom}</p></article>
         {activeStep.startsWith('as') && (

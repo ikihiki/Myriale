@@ -6,7 +6,7 @@ import { STORY_IDS } from '../shared/nav';
 import '../styles.css';
 
 const meta = {
-  title: 'Session resume/Wireframe from user stories',
+  title: 'ユーザーストーリー/Session resume',
   component: MyrialeApp,
   render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098/resume" initialDb={createDemoDb('resumableSession')} />,
   parameters: {
@@ -109,7 +109,7 @@ export const USR06ConfirmAndResume: Story = {
       const resumeButton = canvas.getByRole('button', { name: '確認したので再開する（プレイ画面へ）' });
       await expect(resumeButton).toBeVisible();
       // 遷移先が Session play dialogue（playSession）であることを確認する。
-      await expect(STORY_IDS.playSession).toMatch(/^session-play-dialogue-/);
+      await expect(STORY_IDS.playSession).toContain('session-play-dialogue');
     });
   },
 };
@@ -127,7 +127,7 @@ export const USR07ReviewLastNarrativeAfterResume: Story = {
       // 再開ボタンはプレイ画面への遷移導線。クリックは遷移を起こすため行わず、
       // 導線の存在と遷移先の妥当性だけを確認する。
       await expect(canvas.getByRole('button', { name: '確認したので再開する（プレイ画面へ）' })).toBeVisible();
-      await expect(STORY_IDS.playSession).toMatch(/^session-play-dialogue-/);
+      await expect(STORY_IDS.playSession).toContain('session-play-dialogue');
     });
   },
 };
@@ -151,7 +151,7 @@ export const USR08ReadOnlyReview: Story = {
     await step('ReadOnlyからでも、あらためてプレイ画面へ再開できる', async () => {
       // この再開ボタンも Session play dialogue への遷移導線。存在のみ確認する。
       await expect(canvas.getByRole('button', { name: '読み返したので再開する（プレイ画面へ）' })).toBeVisible();
-      await expect(STORY_IDS.playSession).toMatch(/^session-play-dialogue-/);
+      await expect(STORY_IDS.playSession).toContain('session-play-dialogue');
     });
   },
 };
