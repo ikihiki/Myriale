@@ -1,0 +1,11 @@
+@Myriale.Api_HostAddress = http://localhost:5080
+
+GET {{Myriale.Api_HostAddress}}/health
+Accept: application/json
+
+###
+
+GET {{Myriale.Api_HostAddress}}/api/home/dashboard
+Accept: application/json
+
+###

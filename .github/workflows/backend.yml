@@ -1,0 +1,26 @@
+name: Backend CI
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'global.json'
+      - '.github/workflows/backend.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'global.json'
+      - '.github/workflows/backend.yml'
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet restore backend/Myriale.slnx
+      - run: dotnet build backend/Myriale.slnx --configuration Release --no-restore
+      - run: dotnet test backend/Myriale.slnx --configuration Release --no-build
