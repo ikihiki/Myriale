@@ -20,9 +20,11 @@ export const HomeDashboard: Story = {
   args: { initialUrl: '/', initialDb: createDemoDb('resumableSession') },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await step('トップページで中断SessionとおすすめScenarioを確認する', async () => {
+    await step('トップページで今日の導線・中断Session・おすすめScenarioを確認する', async () => {
       await expect(canvas.getByTestId('app-url')).toHaveTextContent('/');
       await expect(canvas.getByRole('main', { name: 'Myrialeトップページ' })).toBeVisible();
+      await expect(canvas.getByRole('heading', { name: '物語の机を、今日の続きに整える。' })).toBeVisible();
+      await expect(canvas.getByRole('complementary', { name: '現在の活動概要' })).toHaveTextContent('再開できるセッション');
       await expect(canvas.getByRole('region', { name: '中断しているセッション' })).toHaveTextContent('星喰いの地下図書館');
       await expect(canvas.getByRole('region', { name: 'おすすめのシナリオ' })).toHaveTextContent('灰の駅と宛名のない切符');
     });
