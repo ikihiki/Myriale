@@ -66,6 +66,7 @@ const sections: Section[] = [
     to: 'adminUsers',
     links: [
       { label: 'ユーザー管理', to: 'adminUsers', hint: '一覧・停止・サポート' },
+      { label: 'AIキー管理', to: 'adminAiKeys', hint: '文章AI/挿絵AIの接続設定' },
       { label: '監査ログ', to: 'auditLog', hint: '重要操作の記録' },
     ],
   },
@@ -76,6 +77,7 @@ const accountLinks: NavLink[] = [
   { label: 'セキュリティ', to: 'security' },
   { label: 'データ書き出し', to: 'exportData' },
   { label: '運用コンソール', to: 'adminUsers' },
+  { label: 'AIキー管理', to: 'adminAiKeys' },
   { label: '退会', to: 'withdraw' },
 ];
 
@@ -93,11 +95,13 @@ export type AppChromeProps = {
   account?: { name: string; email: string; initials: string; role?: string } | null;
   /** App-level navigation override. Defaults to Storybook story navigation. */
   onNavigate?: (to: StoryKey) => void;
+  /** Optional logout handler; defaults to navigating to the login screen. */
+  onLogout?: () => void | Promise<void>;
   /** The screen content this chrome wraps. */
   children: ReactNode;
 };
 
-export function AppChrome({ section, breadcrumbs, account = null, onNavigate, children }: AppChromeProps) {
+export function AppChrome({ section, breadcrumbs, account = null, onNavigate, onLogout, children }: AppChromeProps) {
   const appNavigate = useAppNavigation();
 
   const go = (to: StoryKey) => {
@@ -180,7 +184,7 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, ch
                       <span className="app-menu-label">{link.label}</span>
                     </MyrialeMenuItem>
                   ))}
-                  <MyrialeMenuItem className="app-menu-item logout" onSelect={() => go('login')}>
+                  <MyrialeMenuItem className="app-menu-item logout" onSelect={() => { void (onLogout ? onLogout() : go('login')); }}>
                     <span className="app-menu-label">ログアウト</span>
                   </MyrialeMenuItem>
                 </MyrialeMenuContent>

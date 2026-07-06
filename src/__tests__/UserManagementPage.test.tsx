@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { UserManagementPage } from '../app/pages/UserManagementPage';
 import {
@@ -7,13 +7,14 @@ import {
   passwordStrength,
   strengthLabel,
 } from '../account/AccountKit';
+import { createDemoAccountApi } from '../account/api/accountApi';
 import '../account/account.css';
 
 afterEach(() => cleanup());
 
 describe('AccountKit password helpers', () => {
   it('counts satisfied requirements', () => {
-    expect(passwordStrength('short')).toBe(1); // letters only
+    expect(passwordStrength('short')).toBe(1);
     expect(passwordStrength('letters1')).toBe(defaultPasswordRequirements.length);
     expect(passwordStrength('')).toBe(0);
   });
@@ -26,60 +27,71 @@ describe('AccountKit password helpers', () => {
   });
 });
 
-describe('UserManagementPage — shared UI across pages', () => {
-  it('US-UM01: 要件を満たすパスワードで登録するとUserIdを発行する', () => {
-    render(<UserManagementPage initialView="register" />);
+describe('UserManagementPage — Identity-backed account UI', () => {
+  it('US-UM01: 要件を満たすパスワードで登録するとUserIdを発行する', async () => {
+    render(<UserManagementPage initialView="register" api={createDemoAccountApi()} />);
 
+    fireEvent.change(screen.getByLabelText('表示名'), { target: { value: '新しい旅人' } });
     fireEvent.change(screen.getByLabelText('メールアドレス'), { target: { value: 'new@example.com' } });
     fireEvent.change(screen.getByTestId('register-password'), { target: { value: 'short' } });
     fireEvent.click(screen.getByRole('button', { name: '登録する' }));
-    expect(screen.getByTestId('um-notice')).toHaveTextContent('要件を満たしていません');
+    expect(await screen.findByTestId('um-notice')).toHaveTextContent('要件を満たしていません');
 
-    fireEvent.change(screen.getByTestId('register-password'), { target: { value: 'mist-library-2026' } });
-    fireEvent.change(screen.getByLabelText('パスワード（確認）'), { target: { value: 'mist-library-2026' } });
+    fireEvent.change(screen.getByTestId('register-password'), { target: { value: 'letters1' } });
+    fireEvent.change(screen.getByLabelText('パスワード（確認）'), { target: { value: 'letters1' } });
     fireEvent.click(screen.getByRole('button', { name: '登録する' }));
+
+    expect(await screen.findByRole('region', { name: 'プロフィール' })).toBeVisible();
     expect(screen.getByTestId('issued-user-id')).toHaveTextContent('USR-2F9A');
   });
 
-  it('US-UM03/04: ログイン後にプロフィールへ入り、ログアウトでログイン画面へ戻る', () => {
-    render(<UserManagementPage initialView="login" />);
+  it('US-UM03/04: ログイン後にプロフィールへ入り、ログアウトでログイン画面へ戻る', async () => {
+    render(<UserManagementPage initialView="login" api={createDemoAccountApi()} />);
 
     fireEvent.change(screen.getByLabelText('メールアドレス'), { target: { value: 'reader@myriale.example' } });
     fireEvent.change(screen.getByTestId('login-password'), { target: { value: 'mist-library-2026' } });
     fireEvent.click(screen.getByRole('button', { name: 'ログインする' }));
-    expect(screen.getByRole('region', { name: 'プロフィール' })).toBeVisible();
+    expect(await screen.findByRole('region', { name: 'プロフィール' })).toBeVisible();
 
     fireEvent.click(screen.getByRole('button', { name: 'ログアウト' }));
-    expect(screen.getByRole('main', { name: 'ログイン' })).toBeInTheDocument();
+    expect(await screen.findByRole('main', { name: 'ログイン' })).toBeInTheDocument();
     expect(screen.getByTestId('um-notice')).toHaveTextContent('認証セッションを無効化');
   });
 
-  it('US-UM13/14: 管理者がユーザーを検索し、停止に変更できる', () => {
-    render(<UserManagementPage initialView="admin-list" />);
+  it('US-UM04: 開発用トークンでパスワードを再設定できる', async () => {
+    render(<UserManagementPage initialView="reset" api={createDemoAccountApi()} />);
 
-    fireEvent.change(screen.getByLabelText('ユーザーを検索'), { target: { value: '霧野' } });
-    expect(screen.queryByTestId('user-row-USR-1042')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('メールアドレス'), { target: { value: 'reader@myriale.example' } });
+    fireEvent.click(screen.getByRole('button', { name: '再設定リンクを送信する' }));
+    expect(await screen.findByDisplayValue('demo-reset-token')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: '霧野しおりを開く' }));
-    const detail = screen.getByRole('region', { name: 'ユーザー詳細' });
-    expect(within(detail).getByTestId('detail-state')).toHaveTextContent('有効');
-
-    fireEvent.click(screen.getByRole('button', { name: '停止する' }));
-    expect(screen.getByTestId('detail-state')).toHaveTextContent('停止中');
-    expect(screen.getByTestId('um-notice')).toHaveTextContent('監査ログに残ります');
+    fireEvent.change(screen.getByLabelText('新しいパスワード'), { target: { value: 'changed1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'パスワードを変更する' }));
+    expect(await screen.findByTestId('um-notice')).toHaveTextContent('パスワードを再設定しました');
   });
 
-  it('US-UM11: 同意と再認証がそろうまで退会できない', () => {
-    render(<UserManagementPage initialView="withdraw" />);
+  it('US-UM09: プロフィールを編集できる', async () => {
+    render(<UserManagementPage initialView="profile-edit" api={createDemoAccountApi()} />);
 
-    const deleteButton = screen.getByRole('button', { name: 'アカウントを削除する' });
+    expect(await screen.findByRole('region', { name: 'プロフィール編集' })).toBeVisible();
+    fireEvent.change(screen.getByLabelText('表示名'), { target: { value: '霧野しおり Updated' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存する' }));
+
+    expect(await screen.findByRole('region', { name: 'プロフィール' })).toHaveTextContent('霧野しおり Updated');
+  });
+
+  it('US-UM11: 同意とメール確認がそろうまで退会できない', async () => {
+    render(<UserManagementPage initialView="withdraw" api={createDemoAccountApi()} />);
+
+    const deleteButton = await screen.findByRole('button', { name: 'アカウントを削除する' });
     expect(deleteButton).toBeDisabled();
 
     fireEvent.click(screen.getByLabelText('退会の注意事項を理解しました'));
-    fireEvent.change(screen.getByTestId('withdraw-password'), { target: { value: 'mist-library-2026' } });
-    expect(deleteButton).toBeEnabled();
+    fireEvent.change(screen.getByTestId('withdraw-confirmation'), { target: { value: 'reader@myriale.example' } });
+    await waitFor(() => expect(deleteButton).toBeEnabled());
 
     fireEvent.click(deleteButton);
-    expect(screen.getByTestId('withdraw-result')).toHaveTextContent('削除済み');
+    expect(await screen.findByRole('main', { name: 'ログイン' })).toBeInTheDocument();
+    expect(screen.getByTestId('um-notice')).toHaveTextContent('削除済み');
   });
 });

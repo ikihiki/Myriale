@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Myriale.Api\Myriale.Api.csproj" />
+    <ProjectReference Include="..\Myriale.MockAi\Myriale.MockAi.csproj" />
   </ItemGroup>
 
   <ItemGroup>

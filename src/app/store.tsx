@@ -19,6 +19,16 @@ export type ScenarioRecord = {
   status: 'draft' | 'published' | 'private';
   genre: string;
   updatedAt: string;
+  summary?: string;
+  tone?: string;
+  lore?: string;
+  aiFreedom?: string;
+  hero?: string;
+  opening?: string;
+  illustrationStyle?: string;
+  illustrationMood?: string;
+  illustrationNegative?: string;
+  sampleScene?: string;
 };
 
 export type TurnDisplayFlags = {
@@ -41,6 +51,10 @@ export type PlaySessionRecord = {
 export type AppDb = {
   auth: {
     currentUserId: string | null;
+    currentUser: { id: string; name: string; email: string; role?: string; state: 'active' | 'suspended' | 'deleted' } | null;
+    status: 'unknown' | 'anonymous' | 'authenticated';
+    lastLoadedAt: string | null;
+    error: string | null;
     users: Array<{ id: string; name: string; email: string; role: string; state: 'active' | 'suspended' }>;
   };
   scenarios: Record<string, ScenarioRecord>;
@@ -74,6 +88,10 @@ export type AppAction =
   | { type: 'NOTE_DIALOG_OPENED'; noteId: string }
   | { type: 'NOTE_DIALOG_CLOSED' }
   | { type: 'USER_AUTHENTICATED'; userId: string }
+  | { type: 'ACCOUNT_SESSION_LOADED'; user: AppDb['auth']['currentUser'] }
+  | { type: 'ACCOUNT_LOGGED_OUT' }
+  | { type: 'ACCOUNT_PROFILE_UPDATED'; user: NonNullable<AppDb['auth']['currentUser']> }
+  | { type: 'ACCOUNT_AUTH_FAILED'; message: string }
   | { type: 'USER_ADMIN_CHANGED'; userId: string; state: 'active' | 'suspended' };
 
 export function appReducer(db: AppDb, action: AppAction): AppDb {
@@ -154,6 +172,36 @@ export function appReducer(db: AppDb, action: AppAction): AppDb {
       return { ...db, ui: { ...db.ui, openNoteId: null } };
     case 'USER_AUTHENTICATED':
       return { ...db, auth: { ...db.auth, currentUserId: action.userId } };
+    case 'ACCOUNT_SESSION_LOADED':
+      return {
+        ...db,
+        auth: {
+          ...db.auth,
+          currentUser: action.user,
+          currentUserId: action.user?.id ?? null,
+          status: action.user ? 'authenticated' : 'anonymous',
+          lastLoadedAt: new Date().toISOString(),
+          error: null,
+        },
+      };
+    case 'ACCOUNT_LOGGED_OUT':
+      return {
+        ...db,
+        auth: { ...db.auth, currentUser: null, currentUserId: null, status: 'anonymous', error: null },
+      };
+    case 'ACCOUNT_PROFILE_UPDATED':
+      return {
+        ...db,
+        auth: {
+          ...db.auth,
+          currentUser: action.user,
+          currentUserId: action.user.id,
+          status: 'authenticated',
+          error: null,
+        },
+      };
+    case 'ACCOUNT_AUTH_FAILED':
+      return { ...db, auth: { ...db.auth, status: 'anonymous', error: action.message } };
     case 'USER_ADMIN_CHANGED':
       return {
         ...db,
@@ -222,6 +270,10 @@ export function createDemoDb(kind: DemoDbKind = 'activeSession', overrides: Part
   const base: AppDb = {
     auth: {
       currentUserId: 'USR-1031',
+      currentUser: { id: 'USR-1031', name: '霧野しおり', email: 'reader@myriale.example', role: 'プレイヤー', state: 'active' },
+      status: 'authenticated',
+      lastLoadedAt: null,
+      error: null,
       users: [
         { id: 'USR-1031', name: '霧野しおり', email: 'reader@myriale.example', role: 'プレイヤー', state: 'active' },
         { id: 'USR-1088', name: '天城レン', email: 'ren@example.com', role: '管理者', state: 'active' },

@@ -18,4 +18,9 @@ describe('app URL routing', () => {
   it('maps legacy story keys to app URLs', () => {
     expect(appUrlForStoryKey('sessionNotesLorebook')).toBe('/sessions/SES-PREP-1098');
   });
+
+  it('opens AI key management from an admin URL and story key', () => {
+    expect(parseAppUrl('/account/admin/ai-keys').screen).toBe('adminAiKeys');
+    expect(appUrlForStoryKey('adminAiKeys')).toBe('/account/admin/ai-keys');
+  });
 });
