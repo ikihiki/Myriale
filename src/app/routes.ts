@@ -18,6 +18,7 @@ export type AppScreen =
   | 'withdraw'
   | 'adminUsers'
   | 'adminUserDetail'
+  | 'adminAiKeys'
   | 'auditLog';
 
 export type AppRoute = {
@@ -47,6 +48,7 @@ const screenUrls: Record<AppScreen, string> = {
   withdraw: '/account/withdraw',
   adminUsers: '/account/admin/users',
   adminUserDetail: '/account/admin/users/USR-1088',
+  adminAiKeys: '/account/admin/ai-keys',
   auditLog: '/account/admin/audit-log',
 };
 
@@ -106,6 +108,7 @@ export function parseAppUrl(input: string | undefined | null): AppRoute {
       return buildRoute('adminUserDetail', path, { userId: decodeURIComponent(segments[3]) }, query);
     }
     if (segments[1] === 'admin' && segments[2] === 'users') return buildRoute('adminUsers', path, {}, query);
+    if (segments[1] === 'admin' && segments[2] === 'ai-keys') return buildRoute('adminAiKeys', path, {}, query);
     if (segments[1] === 'admin' && segments[2] === 'audit-log') return buildRoute('auditLog', path, {}, query);
   }
   return fallback();

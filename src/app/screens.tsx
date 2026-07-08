@@ -26,8 +26,9 @@ const accountViews = {
   withdraw: 'withdraw',
   adminUsers: 'admin-list',
   adminUserDetail: 'admin-detail',
+  adminAiKeys: 'admin-ai-keys',
   auditLog: 'audit',
-} satisfies Record<Extract<AppScreen, 'login' | 'register' | 'resetPassword' | 'oauth' | 'profile' | 'profileEdit' | 'security' | 'exportData' | 'withdraw' | 'adminUsers' | 'adminUserDetail' | 'auditLog'>, UMView>;
+} satisfies Record<Extract<AppScreen, 'login' | 'register' | 'resetPassword' | 'oauth' | 'profile' | 'profileEdit' | 'security' | 'exportData' | 'withdraw' | 'adminUsers' | 'adminUserDetail' | 'adminAiKeys' | 'auditLog'>, UMView>;
 
 function AccountScreen({ route }: AppScreenProps) {
   const defaultView = route.screen in accountViews ? accountViews[route.screen as keyof typeof accountViews] : 'register';
@@ -53,6 +54,7 @@ export const appScreens: Record<AppScreen, AppScreenComponent> = {
   withdraw: AccountScreen,
   adminUsers: AccountScreen,
   adminUserDetail: AccountScreen,
+  adminAiKeys: AccountScreen,
   auditLog: AccountScreen,
 };
 

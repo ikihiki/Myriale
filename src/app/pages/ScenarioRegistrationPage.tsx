@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ScenarioProgressControls } from '../../ScenarioProgressControls';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { WizardNavigation } from '../../shared/WizardNavigation';
 import { MyrialeSelect } from '../../ui/MyrialeRadix';
+import { createFetchScenarioApi, firstScenarioFieldError, type ScenarioAiAssistResponse, type ScenarioAiKind, type ScenarioApi, type ScenarioApiError } from '../scenarioApi';
+import { useOptionalAppStore } from '../store';
 
 type SuggestionKind = '概要' | '世界観' | '挿絵テイスト' | '挿絵プロンプト';
 type WizardStep =
@@ -47,7 +49,9 @@ function RegistrationAdvancedStep({ panel, help }: { panel: AdvancedPanelId; hel
   );
 }
 
-export function ScenarioRegistrationPage() {
+export function ScenarioRegistrationPage({ api }: { api?: ScenarioApi } = {}) {
+  const store = useOptionalAppStore();
+  const scenarioApi = useMemo(() => api ?? createFetchScenarioApi(), [api]);
   const [activeStep, setActiveStep] = useState<WizardStep>('cover');
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
@@ -63,43 +67,132 @@ export function ScenarioRegistrationPage() {
   const [sampleScene, setSampleScene] = useState('水没した閲覧室で、星図を抱えた司書が振り向く。');
   const [scenarioId, setScenarioId] = useState('未発行');
   const [notice, setNotice] = useState('タイトルだけで下書き保存できます。');
+  const [saveError, setSaveError] = useState<ScenarioApiError | null>(null);
+  const [saving, setSaving] = useState(false);
   const [aiTarget, setAiTarget] = useState('文章AI');
   const [suggestion, setSuggestion] = useState('AIの提案は、採用するまで本文に反映されません。');
+  const [lastAiResponse, setLastAiResponse] = useState<ScenarioAiAssistResponse | null>(null);
+  const [aiWorking, setAiWorking] = useState(false);
   const [preview, setPreview] = useState('プレビュー未生成');
 
   const currentIndex = wizardSteps.findIndex((step) => step.id === activeStep);
   const currentStep = wizardSteps[currentIndex];
 
-  const saveDraft = () => {
+  const saveDraft = async () => {
+    setSaveError(null);
     if (!title.trim()) {
       setNotice('タイトルを入力すると下書き保存できます。');
       return;
     }
-    setScenarioId('SCN-DRAFT-0427');
-    setNotice(`「${title}」をDraftとして保存しました。ScenarioIdを発行しました。`);
+
+    setSaving(true);
+    try {
+      const draft = await scenarioApi.createScenario({
+        title,
+        summary,
+        genre,
+        tone,
+        lore,
+        aiFreedom,
+        hero,
+        opening,
+        illustrationStyle,
+        illustrationMood: mood,
+        illustrationNegative: negative,
+        sampleScene,
+      });
+      setScenarioId(draft.id);
+      store?.dispatch({
+        type: 'SCENARIO_SAVED',
+        scenario: {
+          id: draft.id,
+          title: draft.title,
+          status: 'draft',
+          genre: draft.genre,
+          updatedAt: draft.updatedAt,
+          summary: draft.summary,
+          tone: draft.tone,
+          lore: draft.lore,
+          aiFreedom: draft.aiFreedom,
+          hero: draft.hero,
+          opening: draft.opening,
+          illustrationStyle: draft.illustrationStyle,
+          illustrationMood: draft.illustrationMood,
+          illustrationNegative: draft.illustrationNegative,
+          sampleScene: draft.sampleScene,
+        },
+      });
+      setNotice(`「${draft.title}」をDraftとして保存しました。ScenarioIdを発行しました。`);
+    } catch (caught) {
+      const error = caught as ScenarioApiError;
+      setSaveError(error);
+      setNotice(error.errors?.title?.[0] ?? error.message ?? 'シナリオを保存できませんでした。');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const consultAi = (kind: SuggestionKind) => {
-    const messages: Record<SuggestionKind, string> = {
-      概要: '概要案を3つ提示しました。採用、編集、破棄を選べます。',
-      世界観: '世界観の矛盾候補を2件見つけました。理由を確認してから反映できます。',
-      挿絵テイスト: 'シナリオに合う画風候補を提示しました: 銅版画風、影絵、水彩写本。',
-      挿絵プロンプト: '画像生成用プロンプトとネガティブプロンプトを分離して生成しました。',
-    };
-    setSuggestion(messages[kind]);
-    setNotice(`${aiTarget}に${kind}を相談しました。自動確定はしません。`);
+  const aiContext = (kind: ScenarioAiKind) => ({
+    kind,
+    target: aiTarget,
+    title,
+    summary,
+    genre,
+    tone,
+    lore,
+    aiFreedom,
+    hero,
+    opening,
+    illustrationStyle,
+    illustrationMood: mood,
+    illustrationNegative: negative,
+    sampleScene,
+  });
+
+  const kindFor = (kind: SuggestionKind): ScenarioAiKind => {
+    if (kind === '概要') return 'summary';
+    if (kind === '世界観') return 'lore-check';
+    if (kind === '挿絵テイスト') return 'illustration-style';
+    return 'illustration-prompt';
+  };
+
+  const consultAi = async (kind: SuggestionKind) => {
+    setAiWorking(true);
+    try {
+      const response = await scenarioApi.assistScenario(aiContext(kindFor(kind)));
+      setLastAiResponse(response);
+      const first = response.suggestions[0]?.body;
+      setSuggestion(first ? `${response.message}\n${first}` : response.message);
+      if (response.prompt) setSampleScene(response.prompt);
+      setNotice(`${aiTarget}に${kind}を相談しました。モックAIの提案は自動確定はしません。`);
+    } catch (caught) {
+      const error = caught as ScenarioApiError;
+      setNotice(error.message ?? 'AI補助を実行できませんでした。');
+    } finally {
+      setAiWorking(false);
+    }
   };
 
   const adoptSummary = () => {
-    setSummary('地下に沈んだ王都で、禁書を読むたびに星座が書き換わる探索譚。');
+    const nextSummary = lastAiResponse?.suggestions[0]?.body ?? '地下に沈んだ王都で、禁書を読むたびに星座が書き換わる探索譚。';
+    setSummary(nextSummary);
     setNotice('AIの概要案を本文へ採用しました。編集してから保存できます。');
   };
 
-  const generatePreview = () => {
-    setPreview('本番相当の挿絵プレビューを生成しました（保存対象外）。');
-    setNotice('サンプルシーンで挿絵をプレビューしました。設定はまだ確定していません。');
+  const generatePreview = async () => {
+    setAiWorking(true);
+    try {
+      const response = await scenarioApi.assistScenario(aiContext('illustration-preview'));
+      setLastAiResponse(response);
+      setPreview(response.previewText ?? 'モックAIがプレビューを生成しました（保存対象外）。');
+      setNotice('サンプルシーンで挿絵をプレビューしました。設定はまだ確定していません。');
+    } catch (caught) {
+      const error = caught as ScenarioApiError;
+      setNotice(error.message ?? 'プレビューを生成できませんでした。');
+    } finally {
+      setAiWorking(false);
+    }
   };
-
   const statusFor = (step: WizardStep) => {
     if (step === 'cover') return title ? '保存候補' : '未入力';
     if (step === 'lore') return lore ? '入力済み' : '未入力';
@@ -155,9 +248,9 @@ export function ScenarioRegistrationPage() {
         {activeStep === 'cover' && (
           <section className="wizard-panel" aria-label="表紙">
             <p><strong>{currentStep.help}。</strong>シナリオは未完成で保存できます。最初はタイトルだけでDraftを作り、あとから設定を足します。</p>
-            <label>シナリオタイトル *<input aria-label="シナリオタイトル" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="星喰いの地下図書館" /></label>
-            <label>概要（空でも保存できます）<textarea aria-label="概要" value={summary} onChange={(event) => setSummary(event.target.value)} /></label>
-            <div className="button-row"><button className="primary" onClick={saveDraft}>下書き保存</button><button onClick={() => consultAi('概要')}>AIに概要案を出してもらう</button><button onClick={adoptSummary}>採用して編集</button></div>
+            <label>シナリオタイトル *<input aria-label="シナリオタイトル" aria-invalid={firstScenarioFieldError(saveError, 'title') ? true : undefined} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="星喰いの地下図書館" /></label>
+            <label>概要（空でも保存できます）<textarea aria-label="概要" aria-invalid={firstScenarioFieldError(saveError, 'summary') ? true : undefined} value={summary} onChange={(event) => setSummary(event.target.value)} /></label>
+            <div className="button-row"><button className="primary" onClick={saveDraft} disabled={saving}>{saving ? '保存中…' : '下書き保存'}</button><button onClick={() => void consultAi('概要')} disabled={aiWorking}>AIに概要案を出してもらう</button><button onClick={adoptSummary}>採用して編集</button></div>
           </section>
         )}
 
@@ -167,7 +260,7 @@ export function ScenarioRegistrationPage() {
             <label>ジャンル<input aria-label="ジャンル" value={genre} onChange={(event) => setGenre(event.target.value)} /></label>
             <label>雰囲気<input aria-label="雰囲気" value={tone} onChange={(event) => setTone(event.target.value)} /></label>
             <label>Lore<textarea aria-label="世界観やルール" value={lore} onChange={(event) => setLore(event.target.value)} /></label>
-            <button onClick={() => consultAi('世界観')}>矛盾をチェック</button>
+            <button onClick={() => void consultAi('世界観')} disabled={aiWorking}>矛盾をチェック</button>
           </section>
         )}
 
@@ -216,7 +309,7 @@ export function ScenarioRegistrationPage() {
             <label>ムード<input aria-label="挿絵のムード" value={mood} onChange={(event) => setMood(event.target.value)} /></label>
             <label>NG要素<textarea aria-label="挿絵の禁止要素" value={negative} onChange={(event) => setNegative(event.target.value)} /></label>
             <label>サンプルシーン<textarea aria-label="サンプルシーン" value={sampleScene} onChange={(event) => setSampleScene(event.target.value)} /></label>
-            <div className="button-row"><button onClick={() => consultAi('挿絵テイスト')}>画風を相談</button><button onClick={() => consultAi('挿絵プロンプト')}>プロンプトを生成</button><button className="primary" onClick={generatePreview}>サンプルシーンで生成</button></div>
+            <div className="button-row"><button onClick={() => void consultAi('挿絵テイスト')} disabled={aiWorking}>画風を相談</button><button onClick={() => void consultAi('挿絵プロンプト')} disabled={aiWorking}>プロンプトを生成</button><button className="primary" onClick={() => void generatePreview()} disabled={aiWorking}>サンプルシーンで生成</button></div>
           </section>
         )}
 

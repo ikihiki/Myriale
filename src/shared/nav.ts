@@ -23,6 +23,7 @@ export const STORY_IDS = {
   withdraw: 'ユーザーストーリー-user-management--um-11-delete-account',
   adminUsers: 'ユーザーストーリー-user-management--um-13-admin-user-list',
   auditLog: 'ユーザーストーリー-user-management--um-16-audit-log',
+  adminAiKeys: 'ユーザーストーリー-user-management--um-17-admin-ai-keys',
   // Library / authoring
   scenarioRegister: 'ユーザーストーリー-scenario-registration--us-01-create-draft-scenario',
   scenarioEdit: 'ユーザーストーリー-edit-scenario--use-01-edit-existing-scenario',

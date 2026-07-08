@@ -3,6 +3,7 @@
     <Project Path="src/Myriale.Api/Myriale.Api.csproj" />
     <Project Path="src/Myriale.AppHost/Myriale.AppHost.csproj" />
     <Project Path="src/Myriale.ServiceDefaults/Myriale.ServiceDefaults.csproj" />
+    <Project Path="src/Myriale.MockAi/Myriale.MockAi.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Myriale.Api.Tests/Myriale.Api.Tests.csproj" />

@@ -1,6 +1,11 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
+var mockAi = builder.AddProject<Projects.Myriale_MockAi>("myriale-mock-ai")
+    .WithExternalHttpEndpoints();
+
 var api = builder.AddProject<Projects.Myriale_Api>("myriale-api")
+    .WithReference(mockAi)
+    .WaitFor(mockAi)
     .WithExternalHttpEndpoints();
 
 builder.AddNpmApp("myriale-frontend", "../../../", "dev")
