@@ -132,10 +132,29 @@ jobs:
         env:
           Parameters__registry_endpoint: ghcr.io
           Parameters__registry_repository: ${{ env.FORGE_IMAGE_REPOSITORY }}
-        run: >-
-          aspire do push
-          --apphost '${{ inputs.apphost-project }}'
-          --non-interactive
+        run: |
+          set -euo pipefail
+          aspire do push \
+            --apphost '${{ inputs.apphost-project }}' \
+            --non-interactive
+
+          image_prefix="ghcr.io/${FORGE_IMAGE_REPOSITORY}/"
+          mapfile -t pushed_images < <(
+            docker image ls --format '{{.Repository}}:{{.Tag}}' |
+              grep -E "^${image_prefix}[^:]+:aspire-deploy-" |
+              sort -u
+          )
+
+          if (( ${#pushed_images[@]} == 0 )); then
+            echo "Aspire did not leave any pushed application images under ${image_prefix}." >&2
+            exit 1
+          fi
+
+          for image in "${pushed_images[@]}"; do
+            immutable_image="${image%:*}:${FORGE_SOURCE_SHA}"
+            docker tag "$image" "$immutable_image"
+            docker push "$immutable_image"
+          done
 
       - name: Generate Kubernetes Helm chart
         shell: bash
@@ -173,6 +192,57 @@ jobs:
           fi
 
           echo "path=$selected" >> "$GITHUB_OUTPUT"
+
+      - name: Pin application images and configure GHCR pull credentials
+        shell: bash
+        env:
+          CHART_PATH: ${{ steps.chart.outputs.path }}
+        run: |
+          set -euo pipefail
+          values_file="${CHART_PATH}/values.yaml"
+
+          sed -E -i \
+            "s#\"([[:alnum:]][[:alnum:]._-]*):latest\"#\"ghcr.io/${FORGE_IMAGE_REPOSITORY}/\1:${FORGE_SOURCE_SHA}\"#g" \
+            "$values_file"
+
+          if grep -Eq '^[[:space:]]+[^:]+_image:[[:space:]]+"?[^/\"]+:latest"?' "$values_file"; then
+            echo "One or more generated application images still use a local latest reference." >&2
+            grep -E '^[[:space:]]+[^:]+_image:' "$values_file" >&2
+            exit 1
+          fi
+
+          cat > "${CHART_PATH}/templates/forge-ghcr.yaml" <<'EOF'
+          apiVersion: external-secrets.io/v1
+          kind: ExternalSecret
+          metadata:
+            name: forge-ghcr
+          spec:
+            refreshInterval: 1h
+            secretStoreRef:
+              kind: ClusterSecretStore
+              name: secret-store
+            target:
+              name: forge-ghcr
+              creationPolicy: Owner
+              template:
+                engineVersion: v2
+                type: kubernetes.io/dockerconfigjson
+                data:
+                  .dockerconfigjson: >-
+                    {{ `{{ printf "{\"auths\":{\"ghcr.io\":{\"username\":\"%s\",\"password\":\"%s\",\"auth\":\"%s\"}}}" .username .password (printf "%s:%s" .username .password | b64enc) }}` }}
+            dataFrom:
+              - extract:
+                  key: forge/platform/ghcr
+          ---
+          apiVersion: v1
+          kind: ServiceAccount
+          metadata:
+            name: default
+          imagePullSecrets:
+            - name: forge-ghcr
+          EOF
+
+          helm lint "$CHART_PATH"
 
       - name: Package and push Helm chart
         shell: bash
