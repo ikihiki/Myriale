@@ -159,7 +159,7 @@ jobs:
           selected=""
 
           for chart in "${charts[@]}"; do
-            name=$(awk '$1 == "name:" { print $2; exit }' "$chart")
+            name=$(awk '$1 == "name:" { value=$2; gsub(/^["\047]|["\047]$/, "", value); print value; exit }' "$chart")
             if [[ "$name" == "$APP_NAME" ]]; then
               selected=$(dirname "$chart")
               break
