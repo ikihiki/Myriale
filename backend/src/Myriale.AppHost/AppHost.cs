@@ -12,7 +12,7 @@ var sourceSha = configuration["FORGE_SOURCE_SHA"] ?? "local";
 var chartVersion = configuration["FORGE_CHART_VERSION"] ?? "0.1.0";
 var registryEndpoint = configuration["Parameters:registry_endpoint"] ?? "localhost:5000";
 var registryRepository = configuration["Parameters:registry_repository"] ?? "myriale";
-var forgeIngressClass = configuration["forge:ingressClass"] ?? "forge-vcluster";
+var forgeIngressClass = configuration["forge:ingressClass"] ?? "traefik";
 
 var registryEndpointParameter = builder.AddParameter(
     "registry-endpoint",
