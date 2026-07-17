@@ -1,0 +1,6 @@
+{
+  "servers": {
+    "aspire": "bash -lc 'export PATH=\"$HOME/.local/bin:$HOME/.dotnet/tools:$PATH\"; exec aspire agent mcp'",
+    "chrome-devtools": "bash -lc 'export PATH=\"$HOME/.local/bin:$HOME/.dotnet/tools:$PATH\"; exec npx -y chrome-devtools-mcp@latest --headless'"
+  }
+}

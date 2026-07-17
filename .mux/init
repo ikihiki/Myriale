@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+command -v git >/dev/null 2>&1 || {
+  printf '[mux/init] error: required command not found: git\n' >&2
+  exit 1
+}
+
+repo_root="$(git -C "$script_dir" rev-parse --show-toplevel 2>/dev/null)" || {
+  printf '[mux/init] error: could not locate the Git repository root from %s\n' "$script_dir" >&2
+  exit 1
+}
+
+exec bash "$repo_root/scripts/initialize-dev.sh"
