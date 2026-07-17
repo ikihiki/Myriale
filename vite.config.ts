@@ -8,7 +8,10 @@ const apiProxyTarget = aspireApiUrl ?? configuredApiUrl ?? 'http://localhost:508
 export default defineConfig({
   plugins: [react()],
   server: {
-    allowedHosts: ['5173--main--green-mackerel-33--ibuki-90.coder.dev.sakuraya.cloud'],
+    allowedHosts: [
+      '5173--main--green-mackerel-33--ibuki-90.coder.dev.sakuraya.cloud',
+      '.forge.internal.sakuraya.cloud',
+    ],
     proxy: {
       '/api': {
         target: apiProxyTarget,
