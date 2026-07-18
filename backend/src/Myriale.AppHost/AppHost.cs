@@ -74,7 +74,7 @@ if (isPublishMode)
             $"{imagePrefix}/myriale-frontend",
             sourceSha)
         .WithDockerfile("../../../", ".forge/frontend.Dockerfile")
-        .WithEnvironment("VITE_MYRIAL_API_BASE_URL", api.GetEndpoint("http"))
+        .WithEnvironment("MYRIALE_API_PROXY_TARGET", api.GetEndpoint("http"))
         .WaitFor(api)
         .WithEnvironment("VITE_MYRIAL_API_MODE", "proxy")
         .WithHttpEndpoint(targetPort: 5173, name: "vite", isProxied: false)

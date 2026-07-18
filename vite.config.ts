@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 
 const aspireApiUrl = process.env['services__myriale-api__http__0'];
 const configuredApiUrl = process.env.VITE_MYRIAL_API_BASE_URL;
-const apiProxyTarget = aspireApiUrl ?? configuredApiUrl ?? 'http://localhost:5080';
+const apiProxyTarget = process.env.MYRIALE_API_PROXY_TARGET ?? aspireApiUrl ?? configuredApiUrl ?? 'http://localhost:5080';
 
 export default defineConfig({
   plugins: [react()],
