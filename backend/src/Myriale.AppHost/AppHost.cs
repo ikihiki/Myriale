@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Aspire.Hosting.Kubernetes;
 using Aspire.Hosting.Kubernetes.Resources;
+using Myriale.ServiceDefaults;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
@@ -67,6 +68,28 @@ if (isPublishMode)
     if (postgres is not null)
     {
         api.WithReference(postgres);
+    }
+    else
+    {
+        api.PublishAsKubernetesService(kubernetesResource =>
+        {
+            var apiContainer = kubernetesResource.Workload?.PodTemplate.Spec.Containers
+                .Single(container => container.Name == "myriale-api")
+                ?? throw new InvalidOperationException("The Myriale API container was not generated.");
+            apiContainer.Env.Add(new EnvVarV1
+            {
+                Name = "POSTGRES_URL",
+                ValueFrom = new EnvVarSourceV1
+                {
+                    SecretKeyRef = new SecretKeySelectorV1
+                    {
+                        Name = "myriale-postgres-app",
+                        Key = "uri"
+                    }
+                }
+            });
+            kubernetesResource.AdditionalResources.Add(new CloudNativePgCluster());
+        });
     }
 
     var frontend = builder.AddContainer(
@@ -137,85 +160,57 @@ static IResourceBuilder<IResourceWithConnectionString>? CreatePostgresResource(
     return builder.AddConnectionString("MyrialeAccounts", "ConnectionStrings__MyrialeAccounts");
 }
 
-internal static class ExternalPostgresConnectionString
+internal sealed class CloudNativePgCluster : BaseKubernetesResource
 {
-    public static string? Resolve(IConfiguration configuration)
+    public CloudNativePgCluster()
+        : base("postgresql.cnpg.io/v1", "Cluster")
     {
-        var direct = FirstValue(configuration,
-            "ConnectionStrings:MyrialeAccounts",
-            "POSTGRES_CONNECTION_STRING",
-            "POSTGRES_URL",
-            "DATABASE_URL",
-            "PGURL");
-
-        if (!string.IsNullOrWhiteSpace(direct))
+        Metadata.Name = "myriale-postgres";
+        Spec = new CloudNativePgClusterSpec
         {
-            return NormalizeDirectConnectionString(direct);
-        }
-
-        var host = FirstValue(configuration, "POSTGRES_HOST", "PGHOST", "CNPG_HOST");
-        var database = FirstValue(configuration, "POSTGRES_DB", "PGDATABASE", "CNPG_DATABASE");
-        var username = FirstValue(configuration, "POSTGRES_USER", "PGUSER", "CNPG_USER", "CNPG_USERNAME");
-        var password = FirstValue(configuration, "POSTGRES_PASSWORD", "PGPASSWORD", "CNPG_PASSWORD");
-
-        if (string.IsNullOrWhiteSpace(host)
-            || string.IsNullOrWhiteSpace(database)
-            || string.IsNullOrWhiteSpace(username)
-            || string.IsNullOrWhiteSpace(password))
-        {
-            return null;
-        }
-
-        var port = FirstValue(configuration, "POSTGRES_PORT", "PGPORT", "CNPG_PORT") ?? "5432";
-        var sslMode = FirstValue(configuration, "POSTGRES_SSLMODE", "PGSSLMODE", "CNPG_SSLMODE");
-        var connectionString = $"Host={Quote(host)};Port={Quote(port)};Database={Quote(database)};Username={Quote(username)};Password={Quote(password)}";
-
-        return string.IsNullOrWhiteSpace(sslMode)
-            ? connectionString
-            : $"{connectionString};SSL Mode={Quote(sslMode)}";
-    }
-
-    private static string NormalizeDirectConnectionString(string connectionString)
-    {
-        if (!Uri.TryCreate(connectionString, UriKind.Absolute, out var uri)
-            || (uri.Scheme != "postgres" && uri.Scheme != "postgresql"))
-        {
-            return connectionString;
-        }
-
-        var userInfo = uri.UserInfo.Split(':', 2);
-        var database = uri.AbsolutePath.Trim('/');
-        var normalized = $"Host={Quote(uri.Host)};Port={(uri.Port > 0 ? uri.Port : 5432)};Database={Quote(Uri.UnescapeDataString(database))};Username={Quote(Uri.UnescapeDataString(userInfo[0]))}";
-        if (userInfo.Length == 2)
-        {
-            normalized += $";Password={Quote(Uri.UnescapeDataString(userInfo[1]))}";
-        }
-
-        var sslMode = uri.Query.TrimStart('?')
-            .Split('&', StringSplitOptions.RemoveEmptyEntries)
-            .Select(pair => pair.Split('=', 2))
-            .FirstOrDefault(pair => pair.Length == 2 && pair[0].Equals("sslmode", StringComparison.OrdinalIgnoreCase))?
-            .ElementAtOrDefault(1);
-        return string.IsNullOrWhiteSpace(sslMode)
-            ? normalized
-            : $"{normalized};SSL Mode={Quote(Uri.UnescapeDataString(sslMode))}";
-    }
-
-    private static string? FirstValue(IConfiguration configuration, params string[] keys)
-    {
-        foreach (var key in keys)
-        {
-            var value = configuration[key] ?? Environment.GetEnvironmentVariable(key);
-            if (!string.IsNullOrWhiteSpace(value))
+            Instances = 1,
+            Bootstrap = new CloudNativePgBootstrap
             {
-                return value;
+                Initdb = new CloudNativePgInitdb
+                {
+                    Database = "myriale",
+                    Owner = "app"
+                }
+            },
+            Storage = new CloudNativePgStorage
+            {
+                Size = new HelmTemplateValue("{{ if eq (default `stable` (get (default (dict) .Values.forge) `environment`)) `preview` }}1Gi{{ else }}8Gi{{ end }}")
             }
-        }
-
-        return null;
+        };
     }
 
-    private static string Quote(string value) => $"\"{value.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"";
+    public CloudNativePgClusterSpec Spec { get; }
+}
+
+internal sealed class CloudNativePgClusterSpec
+{
+    public int Instances { get; init; }
+
+    public CloudNativePgBootstrap Bootstrap { get; init; } = new();
+
+    public CloudNativePgStorage Storage { get; init; } = new();
+}
+
+internal sealed class CloudNativePgBootstrap
+{
+    public CloudNativePgInitdb Initdb { get; init; } = new();
+}
+
+internal sealed class CloudNativePgInitdb
+{
+    public string Database { get; init; } = string.Empty;
+
+    public string Owner { get; init; } = string.Empty;
+}
+
+internal sealed class CloudNativePgStorage
+{
+    public HelmTemplateValue Size { get; init; } = new("1Gi");
 }
 
 internal sealed class HelmTemplateValue : IYamlConvertible

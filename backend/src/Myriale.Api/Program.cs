@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Data;
 using Myriale.Api.Endpoints;
 using Myriale.Api.Services;
+using Myriale.ServiceDefaults;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +17,7 @@ builder.Services.AddHttpClient("MockAi", client =>
 });
 
 var accountConnectionString = builder.Configuration.GetConnectionString("MyrialeAccounts")
+    ?? ExternalPostgresConnectionString.Resolve(builder.Configuration)
     ?? "Data Source=myriale-accounts.db";
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
@@ -77,12 +79,17 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-if (app.Environment.IsDevelopment())
+using (var scope = app.Services.CreateScope())
 {
-    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.Database.EnsureCreated();
-    db.Database.ExecuteSqlRaw("""
+    if (db.Database.IsNpgsql())
+    {
+        db.Database.Migrate();
+    }
+    else if (app.Environment.IsDevelopment())
+    {
+        db.Database.EnsureCreated();
+        db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS "Scenarios" (
             "Id" TEXT NOT NULL CONSTRAINT "PK_Scenarios" PRIMARY KEY,
             "Title" TEXT NOT NULL,
@@ -103,7 +110,7 @@ if (app.Environment.IsDevelopment())
             "UpdatedAt" TEXT NOT NULL
         );
         """);
-    db.Database.ExecuteSqlRaw("""
+        db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS "AiProviderKeys" (
             "Provider" TEXT NOT NULL CONSTRAINT "PK_AiProviderKeys" PRIMARY KEY,
             "DisplayName" TEXT NOT NULL,
@@ -113,6 +120,7 @@ if (app.Environment.IsDevelopment())
             "LastValidatedAt" TEXT NULL
         );
         """);
+    }
 }
 
 app.UseCors("MyrialeFrontend");
