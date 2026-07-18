@@ -17,7 +17,17 @@ builder.Services.AddHttpClient("MockAi", client =>
 
 var accountConnectionString = builder.Configuration.GetConnectionString("MyrialeAccounts")
     ?? "Data Source=myriale-accounts.db";
-builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(accountConnectionString));
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+{
+    if (IsPostgresConnectionString(accountConnectionString))
+    {
+        options.UseNpgsql(accountConnectionString);
+    }
+    else
+    {
+        options.UseSqlite(accountConnectionString);
+    }
+});
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddIdentityCookies();
 builder.Services.AddAuthorization();
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
@@ -128,5 +138,11 @@ app.MapGet("/api/home/dashboard", async (
     .RequireCors("MyrialeFrontend");
 
 app.Run();
+
+static bool IsPostgresConnectionString(string connectionString) =>
+    connectionString.StartsWith("Host=", StringComparison.OrdinalIgnoreCase)
+    || connectionString.StartsWith("Server=", StringComparison.OrdinalIgnoreCase)
+    || connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
+    || connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase);
 
 public partial class Program;

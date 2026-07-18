@@ -124,6 +124,28 @@ AppHost は以下の resource をまとめて起動します。
 
 Aspire ダッシュボード上の `myriale-api` が `GET /api/home/dashboard` を提供します。`myriale-frontend` と `myriale-storybook` は `WithReference(api)` で API resource を参照し、`VITE_MYRIAL_API_MODE=proxy` のとき Vite proxy 経由で `/api/*` を `myriale-api` に転送します。
 
+### 外部 PostgreSQL の接続
+
+外部 PostgreSQL を使う場合は、Aspire AppHost の起動前に接続情報を環境変数で渡します。接続文字列は次のいずれかを指定できます。
+
+- `POSTGRES_CONNECTION_STRING`（または `DATABASE_URL` / `POSTGRES_URL`）
+- `POSTGRES_HOST`、`POSTGRES_PORT`、`POSTGRES_DB`、`POSTGRES_USER`、`POSTGRES_PASSWORD`（任意で `POSTGRES_SSLMODE`）
+
+`PGHOST`、`PGPORT`、`PGDATABASE`、`PGUSER`、`PGPASSWORD`、`PGSSLMODE` も利用できます。CloudNativePG 形式の `CNPG_HOST`、`CNPG_PORT`、`CNPG_DATABASE`、`CNPG_USERNAME`、`CNPG_PASSWORD`、`CNPG_SSLMODE` にも対応しています。AppHost はこれらから `MyrialeAccounts` という Aspire の接続文字列 resource を作成し、API の `ConnectionStrings:MyrialeAccounts` として注入します。接続情報がない場合は従来どおりローカル SQLite を使用します。
+
+```bash
+export POSTGRES_HOST=db.example.com
+export POSTGRES_PORT=5432
+export POSTGRES_DB=myriale
+export POSTGRES_USER=myriale
+export POSTGRES_PASSWORD='change-me'
+export POSTGRES_SSLMODE=require
+
+dotnet run --project backend/src/Myriale.AppHost/Myriale.AppHost.csproj
+```
+
+API は `MyrialeAccounts` が PostgreSQL 接続文字列の場合に Npgsql を選択し、接続文字列がないテスト・ローカル実行では SQLite を選択します。
+
 ### バックエンド検証
 
 ```bash
