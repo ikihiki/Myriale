@@ -12,7 +12,11 @@ var sourceSha = configuration["FORGE_SOURCE_SHA"] ?? "local";
 var chartVersion = configuration["FORGE_CHART_VERSION"] ?? "0.1.0";
 var registryEndpoint = configuration["Parameters:registry_endpoint"] ?? "localhost:5000";
 var registryRepository = configuration["Parameters:registry_repository"] ?? "myriale";
-var forgeIngressClass = configuration["forge:ingressClass"] ?? "forge-vcluster";
+var forgeIngressClass = configuration["forge:ingressClass"] ?? "traefik";
+var forgeIngressValues = "(default (dict) (get (default (dict) .Values.forge) `ingress`))";
+var forgeClusterIssuer = $"{{{{ default `letsencrypt-prod` (get {forgeIngressValues} `clusterIssuer`) }}}}";
+var forgeMiddleware = $"{{{{ default `kube-system-internal-only@kubernetescrd` (get {forgeIngressValues} `middleware`) }}}}";
+var forgeTlsSecretName = $"{{{{ default (printf `%s-tls` .Release.Name) (get {forgeIngressValues} `tlsSecretName`) }}}}";
 
 var registryEndpointParameter = builder.AddParameter(
     "registry-endpoint",
@@ -73,7 +77,10 @@ if (isPublishMode)
         kubernetesResource.AdditionalResources.Add(
             new ForgeIngress(
                 "{{ default \"myriale.forge.internal.sakuraya.cloud\" (get (default (dict) .Values.forge) \"hostname\") }}",
-                forgeIngressClass));
+                forgeIngressClass,
+                forgeClusterIssuer,
+                forgeMiddleware,
+                forgeTlsSecretName));
     });
 }
 else
@@ -122,10 +129,19 @@ internal sealed class HelmTemplateValue : IYamlConvertible
 
 internal sealed class ForgeIngress : BaseKubernetesResource
 {
-    public ForgeIngress(string hostnameTemplate, string ingressClass)
+    public ForgeIngress(
+        string hostnameTemplate,
+        string ingressClass,
+        string clusterIssuerTemplate,
+        string middlewareTemplate,
+        string tlsSecretNameTemplate)
         : base("networking.k8s.io/v1", "Ingress")
     {
         Metadata.Name = "myriale-ingress";
+        Metadata.Annotations.Add("cert-manager.io/cluster-issuer", clusterIssuerTemplate);
+        Metadata.Annotations.Add(
+            "traefik.ingress.kubernetes.io/router.middlewares",
+            middlewareTemplate);
         Spec = new ForgeIngressSpec
         {
             IngressClassName = ingressClass,
@@ -154,6 +170,14 @@ internal sealed class ForgeIngress : BaseKubernetesResource
                         ]
                     }
                 }
+            ],
+            Tls =
+            [
+                new ForgeIngressTls
+                {
+                    Hosts = [new HelmTemplateValue(hostnameTemplate)],
+                    SecretName = new HelmTemplateValue(tlsSecretNameTemplate)
+                }
             ]
         };
     }
@@ -169,6 +193,18 @@ internal sealed class ForgeIngressSpec
 
     [YamlMember(Alias = "rules")]
     public List<ForgeIngressRule> Rules { get; init; } = [];
+
+    [YamlMember(Alias = "tls")]
+    public List<ForgeIngressTls> Tls { get; init; } = [];
+}
+
+internal sealed class ForgeIngressTls
+{
+    [YamlMember(Alias = "hosts")]
+    public List<HelmTemplateValue> Hosts { get; init; } = [];
+
+    [YamlMember(Alias = "secretName")]
+    public HelmTemplateValue SecretName { get; init; } = new("");
 }
 
 internal sealed class ForgeIngressRule

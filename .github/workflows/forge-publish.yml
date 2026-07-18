@@ -1,0 +1,259 @@
+name: Forge Publish
+
+on:
+  workflow_call:
+    inputs:
+      app-name:
+        description: Lower-case Helm chart and GHCR package name.
+        required: true
+        type: string
+      apphost-project:
+        description: Path to the Aspire AppHost project.
+        required: true
+        type: string
+      solution-path:
+        description: Path passed to dotnet restore and dotnet test.
+        required: false
+        default: .
+        type: string
+      dotnet-version:
+        description: .NET SDK version used by the application.
+        required: false
+        default: 10.0.x
+        type: string
+      aspire-version:
+        description: Aspire CLI version. Keep this aligned with the AppHost packages.
+        required: false
+        default: 13.3.5
+        type: string
+    outputs:
+      chart-version:
+        description: Immutable OCI Helm chart version published by this run.
+        value: ${{ jobs.publish.outputs.chart-version }}
+      chart-reference:
+        description: OCI Helm chart reference without a tag.
+        value: ${{ jobs.publish.outputs.chart-reference }}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    if: github.event_name != 'pull_request' || github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    outputs:
+      chart-version: ${{ steps.metadata.outputs.version }}
+      chart-reference: ${{ steps.metadata.outputs.reference }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ inputs.dotnet-version }}
+
+      - name: Install Aspire CLI
+        shell: bash
+        run: dotnet tool install --global Aspire.Cli --version '${{ inputs.aspire-version }}'
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v4.2.2
+
+      - name: Compute immutable artifact version
+        id: metadata
+        shell: bash
+        env:
+          APP_NAME: ${{ inputs.app-name }}
+          CALLER_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          COMMIT_SHA: ${{ github.sha }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+
+          repository="${CALLER_REPOSITORY,,}"
+          repository_name="${repository##*/}"
+          expected_app_name="${repository_name//_/-}"
+          chart_registry_base="ghcr.io/${repository}/charts"
+
+          if [[ "$APP_NAME" != "$expected_app_name" ]]; then
+            echo "app-name must match the normalized repository name '$expected_app_name'." >&2
+            exit 1
+          fi
+
+          if [[ -n "${PR_NUMBER:-}" ]]; then
+            source_sha="$PR_HEAD_SHA"
+            version="0.0.0-pr.${PR_NUMBER}.g.${source_sha}"
+            chart_registry="${chart_registry_base}/preview"
+          else
+            source_sha="$COMMIT_SHA"
+            version="0.0.${RUN_NUMBER}"
+            chart_registry="${chart_registry_base}/stable"
+          fi
+
+          echo "source-sha=$source_sha" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "reference=oci://${chart_registry}/${APP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "FORGE_SOURCE_SHA=$source_sha" >> "$GITHUB_ENV"
+          echo "FORGE_CHART_VERSION=$version" >> "$GITHUB_ENV"
+          echo "FORGE_APP_NAME=$APP_NAME" >> "$GITHUB_ENV"
+          echo "FORGE_CHART_REGISTRY=$chart_registry" >> "$GITHUB_ENV"
+          echo "FORGE_IMAGE_REPOSITORY=${repository}/images" >> "$GITHUB_ENV"
+
+      - name: Restore and test
+        shell: bash
+        env:
+          SOLUTION_PATH: ${{ inputs.solution-path }}
+        run: |
+          dotnet restore "$SOLUTION_PATH"
+          dotnet test "$SOLUTION_PATH" --configuration Release --no-restore
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login Helm to GHCR
+        shell: bash
+        run: |
+          echo '${{ secrets.GITHUB_TOKEN }}' | helm registry login ghcr.io \
+            --username '${{ github.actor }}' \
+            --password-stdin
+
+      - name: Build and push application images
+        shell: bash
+        env:
+          Parameters__registry_endpoint: ghcr.io
+          Parameters__registry_repository: ${{ env.FORGE_IMAGE_REPOSITORY }}
+        run: |
+          set -euo pipefail
+          aspire do push \
+            --apphost '${{ inputs.apphost-project }}' \
+            --non-interactive
+
+          image_prefix="ghcr.io/${FORGE_IMAGE_REPOSITORY}/"
+          mapfile -t pushed_images < <(
+            docker image ls --format '{{.Repository}}:{{.Tag}}' |
+              grep -E "^${image_prefix}[^:]+:aspire-deploy-" |
+              sort -u
+          )
+
+          if (( ${#pushed_images[@]} == 0 )); then
+            echo "Aspire did not leave any pushed application images under ${image_prefix}." >&2
+            exit 1
+          fi
+
+          for image in "${pushed_images[@]}"; do
+            immutable_image="${image%:*}:${FORGE_SOURCE_SHA}"
+            docker tag "$image" "$immutable_image"
+            docker push "$immutable_image"
+          done
+
+      - name: Generate Kubernetes Helm chart
+        shell: bash
+        env:
+          Parameters__registry_endpoint: ghcr.io
+          Parameters__registry_repository: ${{ env.FORGE_IMAGE_REPOSITORY }}
+        run: >-
+          aspire publish
+          --apphost '${{ inputs.apphost-project }}'
+          --output-path artifacts/forge
+          --non-interactive
+
+      - name: Locate and verify generated chart
+        id: chart
+        shell: bash
+        env:
+          APP_NAME: ${{ inputs.app-name }}
+        run: |
+          set -euo pipefail
+          mapfile -t charts < <(find artifacts/forge -type f -name Chart.yaml -print)
+          selected=""
+
+          for chart in "${charts[@]}"; do
+            name=$(awk '$1 == "name:" { value=$2; gsub(/^["\047]|["\047]$/, "", value); print value; exit }' "$chart")
+            if [[ "$name" == "$APP_NAME" ]]; then
+              selected=$(dirname "$chart")
+              break
+            fi
+          done
+
+          if [[ -z "$selected" ]]; then
+            echo "Generated chart '$APP_NAME' was not found under artifacts/forge." >&2
+            printf 'Found: %s\n' "${charts[@]:-none}" >&2
+            exit 1
+          fi
+
+          echo "path=$selected" >> "$GITHUB_OUTPUT"
+
+      - name: Pin application images and configure GHCR pull credentials
+        shell: bash
+        env:
+          CHART_PATH: ${{ steps.chart.outputs.path }}
+        run: |
+          set -euo pipefail
+          values_file="${CHART_PATH}/values.yaml"
+
+          sed -E -i \
+            "s#\"([[:alnum:]][[:alnum:]._-]*):latest\"#\"ghcr.io/${FORGE_IMAGE_REPOSITORY}/\1:${FORGE_SOURCE_SHA}\"#g" \
+            "$values_file"
+
+          if grep -Eq '^[[:space:]]+[^:]+_image:[[:space:]]+"?[^/\"]+:latest"?' "$values_file"; then
+            echo "One or more generated application images still use a local latest reference." >&2
+            grep -E '^[[:space:]]+[^:]+_image:' "$values_file" >&2
+            exit 1
+          fi
+
+          cat > "${CHART_PATH}/templates/forge-ghcr.yaml" <<'EOF'
+          apiVersion: external-secrets.io/v1
+          kind: ExternalSecret
+          metadata:
+            name: forge-ghcr
+          spec:
+            refreshInterval: 1h
+            secretStoreRef:
+              kind: ClusterSecretStore
+              name: secret-store
+            target:
+              name: forge-ghcr
+              creationPolicy: Owner
+              template:
+                engineVersion: v2
+                type: kubernetes.io/dockerconfigjson
+                data:
+                  .dockerconfigjson: >-
+                    {{ `{{ printf "{\"auths\":{\"ghcr.io\":{\"username\":\"%s\",\"password\":\"%s\",\"auth\":\"%s\"}}}" .username .password (printf "%s:%s" .username .password | b64enc) }}` }}
+            dataFrom:
+              - extract:
+                  key: forge/platform/ghcr
+          ---
+          apiVersion: v1
+          kind: ServiceAccount
+          metadata:
+            name: default
+          imagePullSecrets:
+            - name: forge-ghcr
+          EOF
+
+          helm lint "$CHART_PATH"
+
+      - name: Package and push Helm chart
+        shell: bash
+        env:
+          CHART_PATH: ${{ steps.chart.outputs.path }}
+          CHART_REGISTRY: ${{ env.FORGE_CHART_REGISTRY }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/packages
+          helm package "$CHART_PATH" \
+            --version "$FORGE_CHART_VERSION" \
+            --app-version "$FORGE_SOURCE_SHA" \
+            --destination artifacts/packages
+          helm push artifacts/packages/*.tgz "oci://${CHART_REGISTRY}"

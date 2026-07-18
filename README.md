@@ -70,6 +70,8 @@ aspire publish --apphost backend/src/Myriale.AppHost/Myriale.AppHost.csproj \
 
 StorybookはForge通常環境には含めず、既存のGitHub PagesとPR previewで公開します。通常のフロントエンドだけがIngressから外部公開され、APIとMock AIはクラスタ内部のServiceとして動作します。
 
+ForgeのPR環境は、PR番号を含むホスト名で生成され、通常環境とは分離して確認できます。
+
 ## バックエンド API
 
 C# / ASP.NET Core のバックエンドは `backend/` 配下に配置しています。最初の API として、ホーム画面で使うダッシュボードデータを返すエンドポイントを用意しています。

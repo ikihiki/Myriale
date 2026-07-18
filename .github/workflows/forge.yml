@@ -21,7 +21,7 @@ jobs:
     if: >-
       (github.event_name != 'pull_request' || github.event.action != 'closed') &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-    uses: sakuraya-cloud/clusters/.github/workflows/forge-publish.yml@main
+    uses: ./.github/workflows/forge-publish.yml
     with:
       app-name: myriale
       apphost-project: backend/src/Myriale.AppHost/Myriale.AppHost.csproj
