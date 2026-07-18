@@ -84,7 +84,11 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     if (db.Database.IsNpgsql())
     {
-        db.Database.Migrate();
+        db.Database.ExecuteSqlRaw("""
+            DROP SCHEMA IF EXISTS public CASCADE;
+            CREATE SCHEMA public AUTHORIZATION CURRENT_USER;
+            """);
+        db.Database.EnsureCreated();
     }
     else if (app.Environment.IsDevelopment())
     {
