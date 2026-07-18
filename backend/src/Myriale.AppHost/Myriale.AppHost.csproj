@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Myriale.Api\Myriale.Api.csproj" />
     <ProjectReference Include="..\Myriale.MockAi\Myriale.MockAi.csproj" />
+    <ProjectReference Include="..\Myriale.ServiceDefaults\Myriale.ServiceDefaults.csproj" IsAspireProjectResource="false" />
   </ItemGroup>
 
   <ItemGroup>

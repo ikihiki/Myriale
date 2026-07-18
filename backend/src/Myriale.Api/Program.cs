@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Data;
 using Myriale.Api.Endpoints;
 using Myriale.Api.Services;
+using Myriale.ServiceDefaults;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,8 +17,19 @@ builder.Services.AddHttpClient("MockAi", client =>
 });
 
 var accountConnectionString = builder.Configuration.GetConnectionString("MyrialeAccounts")
+    ?? ExternalPostgresConnectionString.Resolve(builder.Configuration)
     ?? "Data Source=myriale-accounts.db";
-builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(accountConnectionString));
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+{
+    if (IsPostgresConnectionString(accountConnectionString))
+    {
+        options.UseNpgsql(accountConnectionString);
+    }
+    else
+    {
+        options.UseSqlite(accountConnectionString);
+    }
+});
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddIdentityCookies();
 builder.Services.AddAuthorization();
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
@@ -67,12 +79,21 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-if (app.Environment.IsDevelopment())
+using (var scope = app.Services.CreateScope())
 {
-    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.Database.EnsureCreated();
-    db.Database.ExecuteSqlRaw("""
+    if (db.Database.IsNpgsql())
+    {
+        db.Database.ExecuteSqlRaw("""
+            DROP SCHEMA IF EXISTS public CASCADE;
+            CREATE SCHEMA public AUTHORIZATION CURRENT_USER;
+            """);
+        db.Database.EnsureCreated();
+    }
+    else if (app.Environment.IsDevelopment())
+    {
+        db.Database.EnsureCreated();
+        db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS "Scenarios" (
             "Id" TEXT NOT NULL CONSTRAINT "PK_Scenarios" PRIMARY KEY,
             "Title" TEXT NOT NULL,
@@ -93,7 +114,7 @@ if (app.Environment.IsDevelopment())
             "UpdatedAt" TEXT NOT NULL
         );
         """);
-    db.Database.ExecuteSqlRaw("""
+        db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS "AiProviderKeys" (
             "Provider" TEXT NOT NULL CONSTRAINT "PK_AiProviderKeys" PRIMARY KEY,
             "DisplayName" TEXT NOT NULL,
@@ -103,6 +124,7 @@ if (app.Environment.IsDevelopment())
             "LastValidatedAt" TEXT NULL
         );
         """);
+    }
 }
 
 app.UseCors("MyrialeFrontend");
@@ -128,5 +150,11 @@ app.MapGet("/api/home/dashboard", async (
     .RequireCors("MyrialeFrontend");
 
 app.Run();
+
+static bool IsPostgresConnectionString(string connectionString) =>
+    connectionString.StartsWith("Host=", StringComparison.OrdinalIgnoreCase)
+    || connectionString.StartsWith("Server=", StringComparison.OrdinalIgnoreCase)
+    || connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
+    || connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase);
 
 public partial class Program;

@@ -1,5 +1,7 @@
+using Microsoft.Extensions.Configuration;
 using Aspire.Hosting.Kubernetes;
 using Aspire.Hosting.Kubernetes.Resources;
+using Myriale.ServiceDefaults;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
@@ -7,6 +9,9 @@ using YamlDotNet.Serialization;
 var builder = DistributedApplication.CreateBuilder(args);
 var isPublishMode = builder.ExecutionContext.IsPublishMode;
 var configuration = builder.Configuration;
+
+var postgresConnectionString = ExternalPostgresConnectionString.Resolve(configuration);
+var postgres = CreatePostgresResource(builder, postgresConnectionString);
 
 var sourceSha = configuration["FORGE_SOURCE_SHA"] ?? "local";
 var chartVersion = configuration["FORGE_CHART_VERSION"] ?? "0.1.0";
@@ -60,12 +65,39 @@ if (isPublishMode)
         .WithContainerRegistry(registry)
         .WithHttpEndpoint(targetPort: 8080, name: "http");
 
+    if (postgres is not null)
+    {
+        api.WithReference(postgres);
+    }
+    else
+    {
+        api.PublishAsKubernetesService(kubernetesResource =>
+        {
+            var apiContainer = kubernetesResource.Workload?.PodTemplate.Spec.Containers
+                .Single(container => container.Name == "myriale-api")
+                ?? throw new InvalidOperationException("The Myriale API container was not generated.");
+            apiContainer.Env.Add(new EnvVarV1
+            {
+                Name = "POSTGRES_URL",
+                ValueFrom = new EnvVarSourceV1
+                {
+                    SecretKeyRef = new SecretKeySelectorV1
+                    {
+                        Name = "myriale-postgres-app",
+                        Key = "uri"
+                    }
+                }
+            });
+            kubernetesResource.AdditionalResources.Add(new CloudNativePgCluster());
+        });
+    }
+
     var frontend = builder.AddContainer(
             "myriale-frontend",
             $"{imagePrefix}/myriale-frontend",
             sourceSha)
         .WithDockerfile("../../../", ".forge/frontend.Dockerfile")
-        .WithEnvironment("services__myriale-api__http__0", api.GetEndpoint("http"))
+        .WithEnvironment("MYRIALE_API_PROXY_TARGET", api.GetEndpoint("http"))
         .WaitFor(api)
         .WithEnvironment("VITE_MYRIAL_API_MODE", "proxy")
         .WithHttpEndpoint(targetPort: 5173, name: "vite", isProxied: false)
@@ -93,6 +125,11 @@ else
         .WaitFor(mockAi)
         .WithExternalHttpEndpoints();
 
+    if (postgres is not null)
+    {
+        api.WithReference(postgres);
+    }
+
     builder.AddNpmApp("myriale-frontend", "../../../", "dev")
         .WithReference(api)
         .WaitFor(api)
@@ -109,6 +146,72 @@ else
 }
 
 builder.Build().Run();
+
+static IResourceBuilder<IResourceWithConnectionString>? CreatePostgresResource(
+    IDistributedApplicationBuilder builder,
+    string? connectionString)
+{
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        return null;
+    }
+
+    builder.Configuration["ConnectionStrings:MyrialeAccounts"] = connectionString;
+    return builder.AddConnectionString("MyrialeAccounts", "ConnectionStrings__MyrialeAccounts");
+}
+
+internal sealed class CloudNativePgCluster : BaseKubernetesResource
+{
+    public CloudNativePgCluster()
+        : base("postgresql.cnpg.io/v1", "Cluster")
+    {
+        Metadata.Name = "myriale-postgres";
+        Spec = new CloudNativePgClusterSpec
+        {
+            Instances = 1,
+            Bootstrap = new CloudNativePgBootstrap
+            {
+                Initdb = new CloudNativePgInitdb
+                {
+                    Database = "myriale",
+                    Owner = "app"
+                }
+            },
+            Storage = new CloudNativePgStorage
+            {
+                Size = new HelmTemplateValue("{{ if eq (default `stable` (get (default (dict) .Values.forge) `environment`)) `preview` }}1Gi{{ else }}8Gi{{ end }}")
+            }
+        };
+    }
+
+    public CloudNativePgClusterSpec Spec { get; }
+}
+
+internal sealed class CloudNativePgClusterSpec
+{
+    public int Instances { get; init; }
+
+    public CloudNativePgBootstrap Bootstrap { get; init; } = new();
+
+    public CloudNativePgStorage Storage { get; init; } = new();
+}
+
+internal sealed class CloudNativePgBootstrap
+{
+    public CloudNativePgInitdb Initdb { get; init; } = new();
+}
+
+internal sealed class CloudNativePgInitdb
+{
+    public string Database { get; init; } = string.Empty;
+
+    public string Owner { get; init; } = string.Empty;
+}
+
+internal sealed class CloudNativePgStorage
+{
+    public HelmTemplateValue Size { get; init; } = new("1Gi");
+}
 
 internal sealed class HelmTemplateValue : IYamlConvertible
 {
