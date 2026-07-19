@@ -82,49 +82,20 @@ if (app.Environment.IsDevelopment())
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
     if (db.Database.IsNpgsql())
     {
         db.Database.ExecuteSqlRaw("""
             DROP SCHEMA IF EXISTS public CASCADE;
             CREATE SCHEMA public AUTHORIZATION CURRENT_USER;
             """);
-        db.Database.EnsureCreated();
     }
-    else if (app.Environment.IsDevelopment())
+    else
     {
-        db.Database.EnsureCreated();
-        db.Database.ExecuteSqlRaw("""
-        CREATE TABLE IF NOT EXISTS "Scenarios" (
-            "Id" TEXT NOT NULL CONSTRAINT "PK_Scenarios" PRIMARY KEY,
-            "Title" TEXT NOT NULL,
-            "Summary" TEXT NOT NULL,
-            "Genre" TEXT NOT NULL,
-            "Tone" TEXT NOT NULL,
-            "Lore" TEXT NOT NULL,
-            "AiFreedom" TEXT NOT NULL,
-            "Hero" TEXT NOT NULL,
-            "Opening" TEXT NOT NULL,
-            "IllustrationStyle" TEXT NOT NULL,
-            "IllustrationMood" TEXT NOT NULL,
-            "IllustrationNegative" TEXT NOT NULL,
-            "SampleScene" TEXT NOT NULL,
-            "Status" TEXT NOT NULL,
-            "AuthorId" TEXT NOT NULL,
-            "CreatedAt" TEXT NOT NULL,
-            "UpdatedAt" TEXT NOT NULL
-        );
-        """);
-        db.Database.ExecuteSqlRaw("""
-        CREATE TABLE IF NOT EXISTS "AiProviderKeys" (
-            "Provider" TEXT NOT NULL CONSTRAINT "PK_AiProviderKeys" PRIMARY KEY,
-            "DisplayName" TEXT NOT NULL,
-            "Secret" TEXT NOT NULL,
-            "Status" TEXT NOT NULL,
-            "UpdatedAt" TEXT NOT NULL,
-            "LastValidatedAt" TEXT NULL
-        );
-        """);
+        db.Database.EnsureDeleted();
     }
+
+    db.Database.EnsureCreated();
 }
 
 app.UseCors("MyrialeFrontend");
