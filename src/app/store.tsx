@@ -291,6 +291,17 @@ export function createDemoDb(kind: DemoDbKind = 'activeSession', overrides: Part
         Array.from({ length: 12 }, (_, index) => [index + 1, { allowRewind: true, showInterpretation: true, leadTone: 'player', leadTag: '⟶' }]),
       ),
     },
+    'SES-ACT-2042': {
+      id: 'SES-ACT-2042',
+      scenarioId: 'SCN-MOONLIT-GARDEN',
+      state: 'Active',
+      hero: 'イリス / 月虹を集める若い庭師',
+      turn: 12,
+      summary: '十三回目の鐘が鳴り、見覚えのない月虹の花が時計塔の足元に咲いている。',
+      turnDisplay: Object.fromEntries(
+        Array.from({ length: 12 }, (_, index) => [index + 1, { allowRewind: true, showInterpretation: true, leadTone: 'program', leadTag: '✦' }]),
+      ),
+    },
   };
   const base: AppDb = {
     auth: {

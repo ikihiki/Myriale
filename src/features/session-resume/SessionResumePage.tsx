@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { WizardNavigation } from '../../shared/WizardNavigation';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
+import { useOptionalAppStore } from '../../app/store';
 import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
 
 type ResumeView = 'list' | 'confirm' | 'readonly';
@@ -152,16 +153,37 @@ const playerAccount = { name: '霧野しおり', email: 'reader@myriale.example'
 
 export function SessionResumePage() {
   const appNavigate = useAppNavigation();
+  const appStore = useOptionalAppStore();
   const [view, setView] = useState<ResumeView>('list');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [notice, setNotice] = useState(
-    '中断中のSession一覧です。再開したいSessionを選ぶと、最終状態から再開できます。',
+    '保存済みSessionの一覧です。進行中のSessionはプレイ画面へ戻り、中断したSessionは再開前に状態を確認できます。',
   );
 
   const selected = useMemo(
     () => suspendedSessions.find((session) => session.id === selectedId) ?? null,
     [selectedId],
   );
+
+  const activeSessions = useMemo(
+    () =>
+      Object.values(appStore?.db.playSessions ?? {})
+        .filter((session) => session.state === 'Active')
+        .map((session) => ({
+          ...session,
+          scenarioTitle: appStore?.db.scenarios[session.scenarioId]?.title ?? session.scenarioId,
+          genre: appStore?.db.scenarios[session.scenarioId]?.genre ?? 'Session',
+        })),
+    [appStore?.db.playSessions, appStore?.db.scenarios],
+  );
+
+  const openActiveSession = () => {
+    if (appNavigate) {
+      appNavigate('playSession');
+      return;
+    }
+    navigateToStory(STORY_IDS.playSession);
+  };
 
   const selectSession = (session: SuspendedSession) => {
     setSelectedId(session.id);
@@ -236,10 +258,29 @@ export function SessionResumePage() {
           {view === 'list' && (
             <section className="wizard-panel" aria-label="中断中のセッション">
               <p>
-                <strong>中断したSessionを最終状態から再開できます。</strong>
-                再開したいSessionを選ぶと、あらすじ・進行度・注意点を確認してから続きを始められます。
+                <strong>保存済みSessionの状態を確認できます。</strong>
+                中断したSessionはあらすじを確認して再開でき、進行中のSessionはそのままプレイ画面へ戻れます。
               </p>
               <div className="resume-card-list" data-testid="session-list">
+                {activeSessions.map((session) => (
+                  <article
+                    className="resume-card"
+                    key={session.id}
+                    data-testid={`session-card-${session.id}`}
+                  >
+                    <span>Active / {session.id}</span>
+                    <h2>{session.scenarioTitle}</h2>
+                    <p>
+                      {session.genre} / 主人公: {session.hero}
+                    </p>
+                    <p className="resume-progress">
+                      進行度: Turn {session.turn} ・ 現在プレイ中
+                    </p>
+                    <button className="primary" onClick={openActiveSession}>
+                      {session.scenarioTitle}のプレイ画面へ
+                    </button>
+                  </article>
+                ))}
                 {suspendedSessions.map((session) => (
                   <article
                     className="resume-card"
