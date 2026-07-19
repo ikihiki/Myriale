@@ -14,12 +14,26 @@ public static class ScenarioEndpoints
             .WithTags("Scenarios")
             .RequireCors("MyrialeFrontend");
 
+        group.MapGet("/{scenarioId}", GetScenarioAsync)
+            .WithName("GetScenario")
+            .WithSummary("Returns a scenario used to prepare a new play session.");
+
         group.MapPost("/", CreateScenarioAsync)
             .RequireAuthorization()
             .WithName("CreateScenario")
             .WithSummary("Creates a draft scenario owned by the authenticated author.");
 
         return group;
+    }
+
+    private static async Task<Results<Ok<ScenarioDraftResponse>, NotFound>> GetScenarioAsync(
+        string scenarioId,
+        ApplicationDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var scenario = await db.Scenarios.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.Id == scenarioId, cancellationToken);
+        return scenario is null ? TypedResults.NotFound() : TypedResults.Ok(ToResponse(scenario));
     }
 
     private static async Task<Results<Created<ScenarioDraftResponse>, BadRequest<ScenarioErrorResponse>, UnauthorizedHttpResult>> CreateScenarioAsync(

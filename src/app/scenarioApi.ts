@@ -44,6 +44,7 @@ export type ScenarioAiAssistResponse = {
 };
 
 export type ScenarioApi = {
+  getScenario: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioDraftDto>;
   createScenario: (payload: CreateScenarioPayload) => Promise<ScenarioDraftDto>;
   assistScenario: (payload: ScenarioAiAssistPayload) => Promise<ScenarioAiAssistResponse>;
 };
@@ -60,6 +61,15 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
   if (!baseUrl) return createDemoScenarioApi();
 
   return {
+    async getScenario(scenarioId, signal) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}`, {
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+        signal,
+      });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<ScenarioDraftDto>;
+    },
     async createScenario(payload) {
       const response = await fetch(`${baseUrl}/`, {
         method: 'POST',
@@ -83,8 +93,73 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
   };
 }
 
+const demoScenarios: Record<string, ScenarioDraftDto> = {
+  'SCN-STAR-LIBRARY': {
+    id: 'SCN-STAR-LIBRARY',
+    title: '星喰いの地下図書館',
+    summary: '地下に沈んだ王都で、禁書を読むたびに星座が書き換わる探索譚。',
+    genre: 'ダークファンタジー探索譚',
+    tone: '静かで不穏、淡い希望',
+    lore: '星座は魔法体系の鍵。死者の名前を読むと記憶を失う。',
+    aiFreedom: '中: 設定を守りつつ提案する',
+    heroMode: 'select',
+    heroFreeGenerationAllowed: false,
+    hero: 'ミラ / 星図を読む巡礼者\nセオ / 星図を燃やす護衛\nエル / 記憶を失った写字生',
+    opening: 'あなたは水没した閲覧室で目を覚ます。',
+    illustrationStyle: '銅版画風 / 低彩度 / 細密',
+    illustrationMood: '孤独、湿った静けさ、薄い金色の灯り',
+    illustrationNegative: '現代車両、銃器、過度な流血',
+    sampleScene: '水没した閲覧室で、星図を抱えた司書が振り向く。',
+    status: 'published',
+    updatedAt: '2026-07-19',
+  },
+  'SCN-ASH-STATION': {
+    id: 'SCN-ASH-STATION',
+    title: '灰の駅と宛名のない切符',
+    summary: '朝が来ない荒野を、宛名のない切符だけを頼りに渡るロードムービー。',
+    genre: '終末ロードムービー',
+    tone: '乾いた祈り、遠い汽笛',
+    lore: '朝が来ない荒野では、切符だけが次の町を覚えている。',
+    aiFreedom: '高: 展開を広げる',
+    heroMode: 'free',
+    heroFreeGenerationAllowed: false,
+    hero: '灰の駅で目覚めた旅人。名前と過去はプレイヤーが自由に決められる。',
+    opening: 'あなたは灰の降る駅で、宛名のない切符を握っている。',
+    illustrationStyle: '水彩 / くすんだ暖色 / 粒状感',
+    illustrationMood: '郷愁、灰、遠い光',
+    illustrationNegative: '鮮やかな原色、近未来都市',
+    sampleScene: '灰の降る無人駅で、宛名のない切符が淡く光る。',
+    status: 'published',
+    updatedAt: '2026-07-19',
+  },
+  'SCN-GLASS-FOREST': {
+    id: 'SCN-GLASS-FOREST',
+    title: '硝子の森と夜明けの司書',
+    summary: '嘘を映す硝子の森で、夜明けを失った書架の秘密を追う幻想ミステリ。',
+    genre: '幻想ミステリ',
+    tone: '透明で緊張感のある静けさ',
+    lore: '森の硝子片は、嘘をついた者の声だけを反射する。',
+    aiFreedom: '低: 厳密に守る',
+    heroMode: 'fixed',
+    heroFreeGenerationAllowed: false,
+    hero: 'リュシエン / 夜明け前の森を巡る司書',
+    opening: '夜明け前の森で、割れた書架が小さく鳴る。',
+    illustrationStyle: '硝子版画 / 青白い光 / 緻密',
+    illustrationMood: '透明、静寂、夜明け前',
+    illustrationNegative: '現代建築、原色、コミカルな表現',
+    sampleScene: '硝子の木々の間で、司書が割れた本を拾い上げる。',
+    status: 'published',
+    updatedAt: '2026-07-19',
+  },
+};
+
 export function createDemoScenarioApi(): ScenarioApi {
   return {
+    async getScenario(scenarioId) {
+      const scenario = demoScenarios[scenarioId];
+      if (!scenario) throw demoError('シナリオが見つかりません。', 404);
+      return { ...scenario };
+    },
     async createScenario(payload) {
       if (!payload.title.trim()) throw demoError('タイトルを入力すると下書き保存できます。', 400, { title: ['シナリオタイトルを入力してください。'] });
       return {
@@ -124,7 +199,10 @@ async function toApiError(response: Response): Promise<ScenarioApiError> {
   } catch {
     body = null;
   }
-  const error = new Error(body?.message ?? `Scenario API returned ${response.status}.`) as ScenarioApiError;
+  const fallbackMessage = response.status === 404
+    ? 'シナリオが見つかりません。'
+    : `シナリオAPIへの接続に失敗しました（${response.status}）。`;
+  const error = new Error(body?.message ?? fallbackMessage) as ScenarioApiError;
   error.status = response.status;
   error.errors = body?.errors;
   return error;

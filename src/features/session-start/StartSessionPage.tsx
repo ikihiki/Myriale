@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { useAppStore } from '../../app/store';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { createFetchScenarioApi, type ScenarioApi } from '../../app/scenarioApi';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeSelect } from '../../ui/MyrialeRadix';
 import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
-import { toScenarioSummary } from './scenarioPresentation';
+import { toScenarioSummary, type ScenarioSummary } from './scenarioPresentation';
 
 function protagonistDetails(value: string) {
   const [name, ...profileParts] = value.split('/').map((part) => part.trim());
@@ -46,18 +47,34 @@ export type StartSessionSearch = {
   scenarioId?: string;
 };
 
-export function StartSessionPage({ search }: { search?: StartSessionSearch } = {}) {
+export function StartSessionPage({ search, api }: { search?: StartSessionSearch; api?: ScenarioApi } = {}) {
   const appNavigate = useAppNavigation();
-  const { db } = useAppStore();
-  const scenarioRecord = search?.scenarioId ? db.scenarios[search.scenarioId] : undefined;
-  const selectedScenario = scenarioRecord ? toScenarioSummary(scenarioRecord) : null;
+  const scenarioApi = useMemo(() => api ?? createFetchScenarioApi(), [api]);
+  const scenarioId = search?.scenarioId;
+  const scenarioQuery = useQuery({
+    queryKey: ['scenarios', 'detail', scenarioId],
+    queryFn: ({ signal }) => scenarioApi.getScenario(scenarioId!, signal),
+    enabled: Boolean(scenarioId),
+    staleTime: 30_000,
+  });
+  const selectedScenario = useMemo<ScenarioSummary | null>(
+    () => scenarioQuery.data ? toScenarioSummary(scenarioQuery.data) : null,
+    [scenarioQuery.data],
+  );
   const heroCandidates = selectedScenario?.hero.split('\n').map((candidate) => candidate.trim()).filter(Boolean) ?? [];
-  const [selectedHero, setSelectedHero] = useState(heroCandidates[0] ?? '');
-  const [heroInputMode, setHeroInputMode] = useState<'select' | 'free'>(selectedScenario?.heroMode === 'free' ? 'free' : 'select');
+  const [selectedHero, setSelectedHero] = useState('');
+  const [heroInputMode, setHeroInputMode] = useState<'select' | 'free'>('select');
   const [createdName, setCreatedName] = useState('アオイ');
   const [createdProfile, setCreatedProfile] = useState('この世界の掟にまだ不慣れな旅人。');
   const [aiSuggestion, setAiSuggestion] = useState('');
   const [reviewOpen, setReviewOpen] = useState(false);
+
+  useEffect(() => {
+    if (!selectedScenario) return;
+    const candidates = selectedScenario.hero.split('\n').map((candidate) => candidate.trim()).filter(Boolean);
+    setSelectedHero(candidates[0] ?? '');
+    setHeroInputMode(selectedScenario.heroMode === 'free' ? 'free' : 'select');
+  }, [selectedScenario]);
 
   const heroForSummary = selectedScenario?.heroMode === 'fixed'
     ? selectedScenario.hero
@@ -97,13 +114,29 @@ export function StartSessionPage({ search }: { search?: StartSessionSearch } = {
   ];
   const playerAccount = { name: '霧野しおり', email: 'reader@myriale.example', initials: '霧野', role: 'プレイヤー' };
 
-  if (!selectedScenario) {
+  if (scenarioId && scenarioQuery.isPending) {
+    return (
+      <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={playerAccount}>
+        <main className="grid min-h-[calc(100vh-118px)] place-items-center bg-[image:var(--myr-screen-background)] p-6 text-myr-ink">
+          <p className="rounded-full bg-myr-paper px-5 py-3 font-black shadow-myr-card" role="status">シナリオを読み込んでいます。</p>
+        </main>
+      </AppChrome>
+    );
+  }
+
+  if (!scenarioId || scenarioQuery.isError || !selectedScenario) {
     return (
       <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={playerAccount}>
         <main className="grid min-h-[calc(100vh-118px)] place-items-center bg-[image:var(--myr-screen-background)] p-6 text-myr-ink">
           <section className="max-w-xl rounded-myr-panel bg-myr-paper p-8 text-center shadow-myr-panel" aria-label="シナリオ読み込みエラー">
             <h1 className="font-myr-display text-4xl">シナリオを読み込めませんでした</h1>
-            <p className="my-4 text-myr-slate">指定されたシナリオが見つかりません。シナリオ一覧から選び直してください。</p>
+            <p className="my-4 text-myr-slate">
+              {!scenarioId
+                ? '開始するシナリオが指定されていません。'
+                : scenarioQuery.error instanceof Error
+                  ? scenarioQuery.error.message
+                  : '指定されたシナリオが見つかりません。シナリオ一覧から選び直してください。'}
+            </p>
             <button className="!rounded-full !bg-myr-ink !px-5 !py-3 !font-black !text-myr-paper" onClick={backToScenarioList}>
               シナリオ一覧へ
             </button>

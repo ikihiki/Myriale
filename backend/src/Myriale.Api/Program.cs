@@ -96,6 +96,7 @@ using (var scope = app.Services.CreateScope())
     }
 
     db.Database.EnsureCreated();
+    await ScenarioSeedData.SeedAsync(db);
 }
 
 app.UseCors("MyrialeFrontend");

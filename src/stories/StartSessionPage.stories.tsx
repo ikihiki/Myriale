@@ -21,6 +21,7 @@ const startPreparing = async (
   scenarioTitle = '星喰いの地下図書館',
 ) => {
   await userEvent.click(canvas.getByRole('button', { name: `${scenarioTitle}で開始` }));
+  await canvas.findByTestId('selected-scenario-title');
 };
 
 export const USS01StartNewSessionFromScenario: Story = {

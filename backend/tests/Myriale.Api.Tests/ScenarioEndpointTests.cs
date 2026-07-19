@@ -18,6 +18,31 @@ public sealed class ScenarioEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task GetScenario_ReturnsSeededScenario()
+    {
+        var client = _factory.CreateClient();
+
+        using var response = await client.GetAsync("/api/scenarios/SCN-STAR-LIBRARY");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("星喰いの地下図書館", json.GetProperty("title").GetString());
+        Assert.Equal("select", json.GetProperty("heroMode").GetString());
+        Assert.Contains("ミラ", json.GetProperty("hero").GetString());
+        Assert.Equal("あなたは水没した閲覧室で目を覚ます。", json.GetProperty("opening").GetString());
+    }
+
+    [Fact]
+    public async Task GetScenario_ReturnsNotFoundForUnknownId()
+    {
+        var client = _factory.CreateClient();
+
+        using var response = await client.GetAsync("/api/scenarios/SCN-UNKNOWN");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
     public async Task CreateScenario_RequiresAuthentication()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
