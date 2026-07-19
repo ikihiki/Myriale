@@ -4,8 +4,10 @@
     <Project Path="src/Myriale.AppHost/Myriale.AppHost.csproj" />
     <Project Path="src/Myriale.ServiceDefaults/Myriale.ServiceDefaults.csproj" />
     <Project Path="src/Myriale.MockAi/Myriale.MockAi.csproj" />
+    <Project Path="src/Myriale.ModuleSdk/Myriale.ModuleSdk.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Myriale.Api.Tests/Myriale.Api.Tests.csproj" />
+    <Project Path="tests/Myriale.ModuleSdk.Tests/Myriale.ModuleSdk.Tests.csproj" />
   </Folder>
 </Solution>
