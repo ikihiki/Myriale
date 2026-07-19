@@ -52,9 +52,8 @@ export const USS02ReadIntroBeforeHero: Story = {
       await expect(canvas.getByTestId('intro-narrative')).toHaveTextContent('あなたは水没した閲覧室');
       await expect(canvas.getByTestId('intro-narrative')).toHaveTextContent('名もなき旅人');
     });
-    await step('同じページで主人公選択ができ、初回イントロはスキップできないことを示す', async () => {
+    await step('同じページで主人公選択ができる', async () => {
       await expect(canvas.getByRole('region', { name: '主人公確定' })).toBeVisible();
-      await expect(canvas.getByText('初回はスキップ不可')).toBeVisible();
     });
   },
 };

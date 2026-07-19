@@ -175,16 +175,12 @@ export function StartSessionPage({ route }: { route?: AppRoute } = {}) {
 
           <div className="start-session-setup" aria-label="イントロと主人公選択">
             <section className="wizard-panel start-session-intro-panel" aria-label="イントロNarrative">
-              <p><strong>初回セッションではスキップ不可のイントロです。</strong>Lore、ジャンル、トーン、開始シーンを反映し、主人公未確定のため「あなた」として語ります。</p>
               <article className="start-session-narrative" data-testid="intro-narrative">
-                <h2>導入</h2>
                 <p>{selectedScenario.opening} 頭上では星座が紙魚のようにページを食み、遠くで誰かが名もなき旅人を呼んでいる。</p>
               </article>
-              <span className="start-session-required-note">初回はスキップ不可</span>
             </section>
 
             <section className="wizard-panel start-session-hero-panel" aria-label="主人公確定">
-              <p><strong>イントロを読みながら主人公を決めます。</strong>AIは候補を出せますが、プレイヤーの確認なしに自動確定しません。</p>
               <MyrialeSelect
                 label="主人公の扱い"
                 value={heroMode}

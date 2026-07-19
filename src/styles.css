@@ -1008,22 +1008,6 @@ textarea { min-height: 126px; resize: vertical; }
   position: static;
 }
 
-.start-session-required-note {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin-top: 12px;
-  color: #74412f;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.start-session-required-note::before {
-  content: '●';
-  color: #b84a4a;
-  font-size: 8px;
-}
-
 .start-session-review-dialog {
   width: min(620px, calc(100vw - 32px));
 }
