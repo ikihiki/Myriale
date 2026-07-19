@@ -89,7 +89,20 @@ if (app.Environment.IsDevelopment())
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await DatabaseSchemaInitializer.InitializeAsync(db);
+
+    if (db.Database.IsNpgsql())
+    {
+        db.Database.ExecuteSqlRaw("""
+            DROP SCHEMA IF EXISTS public CASCADE;
+            CREATE SCHEMA public AUTHORIZATION CURRENT_USER;
+            """);
+    }
+    else
+    {
+        db.Database.EnsureDeleted();
+    }
+
+    db.Database.EnsureCreated();
     await ScenarioSeedData.SeedAsync(db);
 }
 

@@ -22,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Myriale.Api\Myriale.Api.csproj" />
     <ProjectReference Include="..\Myriale.TestModule\Myriale.TestModule.csproj" />
+    <ProjectReference Include="..\Myriale.HeadlessTestModule\Myriale.HeadlessTestModule.csproj" />
   </ItemGroup>
 
 </Project>

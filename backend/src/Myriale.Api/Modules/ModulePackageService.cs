@@ -22,27 +22,24 @@ public sealed partial class ModulePackageService(
         ? options.Value.StoragePath
         : Path.Combine(environment.ContentRootPath, options.Value.StoragePath));
 
-    public async Task<IReadOnlyList<ModulePackage>> ListAsync(CancellationToken cancellationToken)
-    {
-        return await db.ModulePackages
-            .AsNoTracking()
+    public async Task<IReadOnlyList<ModulePackage>> ListAsync(CancellationToken cancellationToken) =>
+        await db.ModulePackages.AsNoTracking()
             .OrderBy(package => package.ModuleId)
             .ThenBy(package => package.Version)
             .ToArrayAsync(cancellationToken);
-    }
 
-    public async Task<ModulePackageInstallResult> InstallAsync(Stream archive, CancellationToken cancellationToken)
+    public async Task<ModulePackageInstallResult> InstallAsync(Stream input, CancellationToken cancellationToken)
     {
         await Gate.WaitAsync(cancellationToken);
         try
         {
             EnsureDirectories();
-            var tempArchive = Path.Combine(TempPath, $"{Guid.NewGuid():N}.myriale-module");
+            var temporaryInput = Path.Combine(TempPath, $"{Guid.NewGuid():N}.input");
             var stagingPath = Path.Combine(TempPath, $"expanded-{Guid.NewGuid():N}");
             try
             {
-                var digest = await CopyArchiveAndHashAsync(archive, tempArchive, cancellationToken);
-                var inspected = await InspectAsync(tempArchive, cancellationToken);
+                var digest = await CopyInputAndHashAsync(input, temporaryInput, cancellationToken);
+                var inspected = await InspectAsync(temporaryInput, cancellationToken);
                 var existing = await db.ModulePackages.FindAsync([digest], cancellationToken);
                 var conflicting = await db.ModulePackages.AnyAsync(
                     package => package.ModuleId == inspected.Manifest.Id
@@ -52,22 +49,21 @@ public sealed partial class ModulePackageService(
                 if (conflicting)
                     throw new ModulePackageValidationException("同じモジュールIDとバージョンの異なるパッケージは登録できません。");
 
-                var packageRelativePath = Path.Combine("packages", $"{digest}.myriale-module");
+                var extension = inspected.Format == ModuleInputFormat.Archive ? ".myriale-module" : ".dll";
+                var packageRelativePath = Path.Combine("packages", $"{digest}{extension}");
                 var expandedRelativePath = Path.Combine("expanded", digest);
                 var packagePath = GetAbsolutePath(packageRelativePath);
                 var expandedPath = GetAbsolutePath(expandedRelativePath);
 
-                await ExtractAsync(tempArchive, stagingPath, inspected.AllowedFiles, cancellationToken);
+                if (inspected.Format == ModuleInputFormat.Archive)
+                    await ExtractArchiveAsync(temporaryInput, stagingPath, inspected.AllowedFiles, cancellationToken);
+                else
+                    await ExtractDllAsync(temporaryInput, stagingPath, cancellationToken);
                 ReplaceDirectory(stagingPath, expandedPath);
-                File.Move(tempArchive, packagePath, overwrite: true);
+                File.Move(temporaryInput, packagePath, overwrite: true);
 
                 var now = DateTimeOffset.UtcNow;
-                var row = existing ?? new ModulePackage
-                {
-                    Digest = digest,
-                    IsEnabled = false,
-                    InstalledAt = now
-                };
+                var row = existing ?? new ModulePackage { Digest = digest, IsEnabled = false, InstalledAt = now };
                 row.ModuleId = inspected.Manifest.Id;
                 row.Version = inspected.Manifest.Version;
                 row.ContractVersion = inspected.Manifest.ContractVersion;
@@ -93,7 +89,7 @@ public sealed partial class ModulePackageService(
             }
             finally
             {
-                if (File.Exists(tempArchive)) File.Delete(tempArchive);
+                if (File.Exists(temporaryInput)) File.Delete(temporaryInput);
                 if (Directory.Exists(stagingPath)) Directory.Delete(stagingPath, true);
             }
         }
@@ -111,15 +107,12 @@ public sealed partial class ModulePackageService(
         var missing = 0;
         var issues = new List<ModulePackageScanIssue>();
 
-        foreach (var path in Directory.EnumerateFiles(InboxPath, "*.myriale-module", SearchOption.TopDirectoryOnly))
+        foreach (var path in EnumerateModuleInputs(InboxPath))
         {
             try
             {
                 ModulePackageInstallResult result;
-                await using (var stream = File.OpenRead(path))
-                {
-                    result = await InstallAsync(stream, cancellationToken);
-                }
+                await using (var stream = File.OpenRead(path)) result = await InstallAsync(stream, cancellationToken);
                 if (result.Created) installed++; else unchanged++;
                 File.Delete(path);
             }
@@ -130,17 +123,21 @@ public sealed partial class ModulePackageService(
         }
 
         var known = await db.ModulePackages.AsNoTracking().ToDictionaryAsync(package => package.Digest, cancellationToken);
-        foreach (var path in Directory.EnumerateFiles(PackagesPath, "*.myriale-module", SearchOption.TopDirectoryOnly))
+        foreach (var path in EnumerateModuleInputs(PackagesPath))
         {
             var digest = Path.GetFileNameWithoutExtension(path).ToLowerInvariant();
             if (known.TryGetValue(digest, out var package) && await IsPackageUsableAsync(package, cancellationToken)) continue;
             try
             {
                 if (new FileInfo(path).Length > _options.MaxArchiveBytes)
-                    throw new ModulePackageValidationException("パッケージの圧縮サイズが上限を超えています。");
-                var bytes = await File.ReadAllBytesAsync(path, cancellationToken);
-                await using var stream = new MemoryStream(bytes, writable: false);
-                var result = await InstallAsync(stream, cancellationToken);
+                    throw new ModulePackageValidationException("モジュールファイルのサイズが上限を超えています。");
+                await using var bufferedInput = new MemoryStream();
+                await using (var stream = File.OpenRead(path))
+                {
+                    await CopyBoundedAsync(stream, bufferedInput, _options.MaxArchiveBytes, cancellationToken);
+                }
+                bufferedInput.Position = 0;
+                var result = await InstallAsync(bufferedInput, cancellationToken);
                 if (result.Created) installed++; else unchanged++;
                 var canonicalPath = GetAbsolutePath(result.Package.PackageRelativePath);
                 if (!string.Equals(path, canonicalPath, StringComparison.Ordinal) && File.Exists(path)) File.Delete(path);
@@ -155,12 +152,10 @@ public sealed partial class ModulePackageService(
         foreach (var package in packages)
         {
             if (await IsPackageUsableAsync(package, cancellationToken)) continue;
-            var archiveExists = File.Exists(GetAbsolutePath(package.PackageRelativePath));
-            package.Status = archiveExists ? "invalid" : "missing";
+            var inputExists = File.Exists(GetAbsolutePath(package.PackageRelativePath));
+            package.Status = inputExists ? "invalid" : "missing";
             package.IsEnabled = false;
-            package.LastError = archiveExists
-                ? "パッケージの整合性を確認できません。"
-                : "パッケージファイルが見つかりません。";
+            package.LastError = inputExists ? "モジュールの整合性を確認できません。" : "モジュールファイルが見つかりません。";
             package.LastScannedAt = DateTimeOffset.UtcNow;
             missing++;
         }
@@ -177,9 +172,7 @@ public sealed partial class ModulePackageService(
         if (enabled)
         {
             if (package.Status != "installed" || !await IsPackageUsableAsync(package, cancellationToken))
-            {
-                throw new ModulePackageValidationException("パッケージまたは展開済みリソースの整合性を確認できません。");
-            }
+                throw new ModulePackageValidationException("モジュールまたは展開済みリソースの整合性を確認できません。");
 
             var others = await db.ModulePackages
                 .Where(candidate => candidate.ModuleId == package.ModuleId
@@ -195,7 +188,7 @@ public sealed partial class ModulePackageService(
         return package;
     }
 
-    private async Task<string> CopyArchiveAndHashAsync(Stream source, string destination, CancellationToken cancellationToken)
+    private async Task<string> CopyInputAndHashAsync(Stream source, string destination, CancellationToken cancellationToken)
     {
         await using var target = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, FileOptions.Asynchronous);
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
@@ -206,17 +199,29 @@ public sealed partial class ModulePackageService(
             var read = await source.ReadAsync(buffer, cancellationToken);
             if (read == 0) break;
             total += read;
-            if (total > _options.MaxArchiveBytes) throw new ModulePackageValidationException("パッケージの圧縮サイズが上限を超えています。");
+            if (total > _options.MaxArchiveBytes) throw new ModulePackageValidationException("モジュールファイルのサイズが上限を超えています。");
             hash.AppendData(buffer, 0, read);
             await target.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
         }
-        if (total == 0) throw new ModulePackageValidationException("空のパッケージは登録できません。");
+        if (total == 0) throw new ModulePackageValidationException("空のモジュールファイルは登録できません。");
         return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
     }
 
-    private async Task<InspectedPackage> InspectAsync(string archivePath, CancellationToken cancellationToken)
+    private async Task<InspectedPackage> InspectAsync(string inputPath, CancellationToken cancellationToken)
     {
-        using var archive = ZipFile.OpenRead(archivePath);
+        var format = await DetectFormatAsync(inputPath, cancellationToken);
+        if (format == ModuleInputFormat.Dll)
+        {
+            await using var stream = File.OpenRead(inputPath);
+            var manifest = await InspectAssemblyAsync(stream, cancellationToken);
+            if (manifest.UserInterfaces.Runtime is not null
+                || manifest.UserInterfaces.Authoring is not null
+                || manifest.UserInterfaces.ResultSummary is not null)
+                throw new ModulePackageValidationException("UIリソースを宣言するモジュールはZIPパッケージとして登録してください。");
+            return new InspectedPackage(manifest, ["module.dll"], format);
+        }
+
+        using var archive = ZipFile.OpenRead(inputPath);
         if (archive.Entries.Count == 0 || archive.Entries.Count > _options.MaxEntries)
             throw new ModulePackageValidationException("パッケージ内のファイル数が不正です。");
 
@@ -239,10 +244,23 @@ public sealed partial class ModulePackageService(
             throw new ModulePackageValidationException("モジュール固有DLLはmodule.dllの1つだけにしてください。");
 
         await using var moduleStream = moduleEntry.Open();
-        await using var memory = new MemoryStream();
-        await CopyBoundedAsync(moduleStream, memory, _options.MaxEntryBytes, cancellationToken);
-        memory.Position = 0;
+        var archiveManifest = await InspectAssemblyAsync(moduleStream, cancellationToken);
+        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "module.dll" };
+        AddUiResources(archiveManifest.UserInterfaces.Runtime, allowed);
+        AddUiResources(archiveManifest.UserInterfaces.Authoring, allowed);
+        AddUiResources(archiveManifest.UserInterfaces.ResultSummary, allowed);
+        var extra = files.Keys.FirstOrDefault(path => !allowed.Contains(path));
+        if (extra is not null) throw new ModulePackageValidationException($"マニフェストに宣言されていないファイルがあります: {extra}");
+        var absent = allowed.FirstOrDefault(path => !files.ContainsKey(path));
+        if (absent is not null) throw new ModulePackageValidationException($"宣言されたリソースがありません: {absent}");
+        return new InspectedPackage(archiveManifest, allowed, format);
+    }
 
+    private async Task<ModuleManifest> InspectAssemblyAsync(Stream assemblyStream, CancellationToken cancellationToken)
+    {
+        await using var memory = new MemoryStream();
+        await CopyBoundedAsync(assemblyStream, memory, _options.MaxEntryBytes, cancellationToken);
+        memory.Position = 0;
         var loadContext = new ModuleAssemblyLoadContext();
         try
         {
@@ -259,16 +277,7 @@ public sealed partial class ModulePackageService(
                 ?? throw new ModulePackageValidationException("モジュールを生成できませんでした。");
             var manifest = module.GetManifest();
             ValidateManifest(manifest);
-
-            var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "module.dll" };
-            AddUiResources(manifest.UserInterfaces.Runtime, allowed);
-            AddUiResources(manifest.UserInterfaces.Authoring, allowed);
-            AddUiResources(manifest.UserInterfaces.ResultSummary, allowed);
-            var extra = files.Keys.FirstOrDefault(path => !allowed.Contains(path));
-            if (extra is not null) throw new ModulePackageValidationException($"マニフェストに宣言されていないファイルがあります: {extra}");
-            var absent = allowed.FirstOrDefault(path => !files.ContainsKey(path));
-            if (absent is not null) throw new ModulePackageValidationException($"宣言されたリソースがありません: {absent}");
-            return new InspectedPackage(manifest, allowed);
+            return manifest;
         }
         catch (ModulePackageValidationException)
         {
@@ -276,7 +285,7 @@ public sealed partial class ModulePackageService(
         }
         catch (Exception exception)
         {
-            logger.LogWarning(exception, "Module package inspection failed for {ArchivePath}", archivePath);
+            logger.LogWarning(exception, "Module assembly inspection failed");
             throw new ModulePackageValidationException("module.dllを検査できませんでした。");
         }
         finally
@@ -285,7 +294,18 @@ public sealed partial class ModulePackageService(
         }
     }
 
-    private async Task ExtractAsync(string archivePath, string destination, HashSet<string> allowedFiles, CancellationToken cancellationToken)
+    private static async Task<ModuleInputFormat> DetectFormatAsync(string path, CancellationToken cancellationToken)
+    {
+        var signature = new byte[4];
+        await using var stream = File.OpenRead(path);
+        var read = await stream.ReadAsync(signature, cancellationToken);
+        if (read >= 2 && signature[0] == (byte)'M' && signature[1] == (byte)'Z') return ModuleInputFormat.Dll;
+        if (read == 4 && signature[0] == (byte)'P' && signature[1] == (byte)'K'
+            && signature[2] is 3 or 5 or 7 && signature[3] is 4 or 6 or 8) return ModuleInputFormat.Archive;
+        throw new ModulePackageValidationException("有効な.NET DLLまたはZIPパッケージではありません。");
+    }
+
+    private async Task ExtractArchiveAsync(string archivePath, string destination, HashSet<string> allowedFiles, CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(destination);
         try
@@ -306,6 +326,22 @@ public sealed partial class ModulePackageService(
                 totalCopied += await CopyBoundedAsync(input, output, _options.MaxEntryBytes, cancellationToken);
                 if (totalCopied > _options.MaxExpandedBytes) throw new ModulePackageValidationException("展開後サイズが上限を超えています。");
             }
+        }
+        catch
+        {
+            if (Directory.Exists(destination)) Directory.Delete(destination, true);
+            throw;
+        }
+    }
+
+    private async Task ExtractDllAsync(string dllPath, string destination, CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(destination);
+        try
+        {
+            await using var input = File.OpenRead(dllPath);
+            await using var output = new FileStream(Path.Combine(destination, "module.dll"), FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, FileOptions.Asynchronous);
+            await CopyBoundedAsync(input, output, Math.Min(_options.MaxEntryBytes, _options.MaxExpandedBytes), cancellationToken);
         }
         catch
         {
@@ -352,23 +388,19 @@ public sealed partial class ModulePackageService(
         return string.Join('/', segments);
     }
 
-    private static bool IsSymbolicLink(ZipArchiveEntry entry)
-    {
-        var unixMode = (entry.ExternalAttributes >> 16) & 0xF000;
-        return unixMode == 0xA000;
-    }
+    private static bool IsSymbolicLink(ZipArchiveEntry entry) => ((entry.ExternalAttributes >> 16) & 0xF000) == 0xA000;
 
     private async Task<bool> IsPackageUsableAsync(ModulePackage package, CancellationToken cancellationToken)
     {
-        var archivePath = GetAbsolutePath(package.PackageRelativePath);
+        var inputPath = GetAbsolutePath(package.PackageRelativePath);
         var expandedPath = GetAbsolutePath(package.ExpandedRelativePath);
-        if (!File.Exists(archivePath) || !Directory.Exists(expandedPath)) return false;
+        if (!File.Exists(inputPath) || !Directory.Exists(expandedPath)) return false;
         try
         {
-            await using (var archiveStream = File.OpenRead(archivePath))
+            await using (var inputStream = File.OpenRead(inputPath))
             {
-                if (archiveStream.Length > _options.MaxArchiveBytes) return false;
-                var actualDigest = Convert.ToHexString(await SHA256.HashDataAsync(archiveStream, cancellationToken)).ToLowerInvariant();
+                if (inputStream.Length > _options.MaxArchiveBytes) return false;
+                var actualDigest = Convert.ToHexString(await SHA256.HashDataAsync(inputStream, cancellationToken)).ToLowerInvariant();
                 if (!string.Equals(actualDigest, package.Digest, StringComparison.Ordinal)) return false;
             }
 
@@ -379,9 +411,14 @@ public sealed partial class ModulePackageService(
             AddUiResources(manifest.UserInterfaces.Authoring, allowed);
             AddUiResources(manifest.UserInterfaces.ResultSummary, allowed);
 
-            using var archive = ZipFile.OpenRead(archivePath);
-            var entries = archive.Entries
-                .Where(entry => !string.IsNullOrEmpty(entry.Name))
+            if (Path.GetExtension(inputPath).Equals(".dll", StringComparison.OrdinalIgnoreCase))
+            {
+                if (allowed.Count != 1) return false;
+                return await FilesHaveSameHashAsync(inputPath, Path.Combine(expandedPath, "module.dll"), cancellationToken);
+            }
+
+            using var archive = ZipFile.OpenRead(inputPath);
+            var entries = archive.Entries.Where(entry => !string.IsNullOrEmpty(entry.Name))
                 .ToDictionary(entry => NormalizeEntryPath(entry.FullName), StringComparer.OrdinalIgnoreCase);
             foreach (var relativePath in allowed)
             {
@@ -399,16 +436,22 @@ public sealed partial class ModulePackageService(
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or JsonException or ModulePackageValidationException)
         {
-            logger.LogWarning(exception, "Module package integrity check failed for {Digest}", package.Digest);
+            logger.LogWarning(exception, "Module integrity check failed for {Digest}", package.Digest);
             return false;
         }
     }
 
-    private static async Task<long> CopyBoundedAsync(
-        Stream input,
-        Stream output,
-        long maximumBytes,
-        CancellationToken cancellationToken)
+    private static async Task<bool> FilesHaveSameHashAsync(string firstPath, string secondPath, CancellationToken cancellationToken)
+    {
+        if (!File.Exists(secondPath)) return false;
+        await using var first = File.OpenRead(firstPath);
+        await using var second = File.OpenRead(secondPath);
+        var firstHash = await SHA256.HashDataAsync(first, cancellationToken);
+        var secondHash = await SHA256.HashDataAsync(second, cancellationToken);
+        return firstHash.AsSpan().SequenceEqual(secondHash);
+    }
+
+    private static async Task<long> CopyBoundedAsync(Stream input, Stream output, long maximumBytes, CancellationToken cancellationToken)
     {
         var buffer = new byte[81920];
         long total = 0;
@@ -438,6 +481,11 @@ public sealed partial class ModulePackageService(
         }
     }
 
+    private static IEnumerable<string> EnumerateModuleInputs(string directory) =>
+        Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly)
+            .Where(path => Path.GetExtension(path).Equals(".dll", StringComparison.OrdinalIgnoreCase)
+                || Path.GetExtension(path).Equals(".myriale-module", StringComparison.OrdinalIgnoreCase));
+
     private void EnsureDirectories()
     {
         Directory.CreateDirectory(PackagesPath);
@@ -452,7 +500,8 @@ public sealed partial class ModulePackageService(
     private string InboxPath => Path.Combine(_storageRoot, "inbox");
     private string TempPath => Path.Combine(_storageRoot, "temp");
 
-    private sealed record InspectedPackage(ModuleManifest Manifest, HashSet<string> AllowedFiles);
+    private sealed record InspectedPackage(ModuleManifest Manifest, HashSet<string> AllowedFiles, ModuleInputFormat Format);
+    private enum ModuleInputFormat { Archive, Dll }
 
     [GeneratedRegex("^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$")]
     private static partial Regex ModuleIdPattern();

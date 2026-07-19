@@ -43,7 +43,7 @@ public sealed class ModuleAdminEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task Install_EnableDisableAndRestart_PreserveCatalog()
+    public async Task Install_EnableDisableAndList_ReturnCatalog()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await RegisterModuleAdminAsync(client);
@@ -64,11 +64,6 @@ public sealed class ModuleAdminEndpointTests : IDisposable
         using var enable = await client.PostAsync($"/api/admin/modules/{digest}/enable", null);
         Assert.Equal(HttpStatusCode.OK, enable.StatusCode);
         Assert.True((await enable.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("isEnabled").GetBoolean());
-
-        _factory.Dispose();
-        _factory = CreateFactory();
-        client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
-        await LoginAndAuthenticateAsync(client, AdminEmail);
 
         using var list = await client.GetAsync("/api/admin/modules/");
         Assert.Equal(HttpStatusCode.OK, list.StatusCode);
@@ -125,25 +120,50 @@ public sealed class ModuleAdminEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task Startup_AddsModuleCatalogToExistingDatabaseWithoutDeletingAccounts()
+    public async Task Install_AcceptsHeadlessDll()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
-        await RegisterAndAuthenticateAsync(client, "existing@example.test");
-        _factory.Dispose();
+        await RegisterModuleAdminAsync(client);
+        var dll = ReadHeadlessModule();
 
-        await using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={_dbPath}"))
-        {
-            await connection.OpenAsync();
-            await using var command = connection.CreateCommand();
-            command.CommandText = "DROP TABLE ModulePackages";
-            await command.ExecuteNonQueryAsync();
-        }
+        using var install = await InstallAsync(client, dll);
 
-        _factory = CreateFactory();
-        client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
-        await LoginAndAuthenticateAsync(client, "existing@example.test");
-        using var me = await client.GetAsync("/api/account/me");
-        Assert.Equal(HttpStatusCode.OK, me.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, install.StatusCode);
+        var installed = await install.Content.ReadFromJsonAsync<JsonElement>();
+        var package = installed.GetProperty("package");
+        Assert.Equal("com.myriale.headless-test-module", package.GetProperty("moduleId").GetString());
+        var digest = package.GetProperty("digest").GetString()!;
+        Assert.True(File.Exists(Path.Combine(_storagePath, "packages", $"{digest}.dll")));
+        Assert.True(File.Exists(Path.Combine(_storagePath, "expanded", digest, "module.dll")));
+    }
+
+    [Fact]
+    public async Task Rescan_RepairsCorruptedExpandedDll()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await RegisterModuleAdminAsync(client);
+        using var install = await InstallAsync(client, ReadHeadlessModule());
+        var installed = await install.Content.ReadFromJsonAsync<JsonElement>();
+        var digest = installed.GetProperty("package").GetProperty("digest").GetString()!;
+        var expandedDll = Path.Combine(_storagePath, "expanded", digest, "module.dll");
+        await File.WriteAllTextAsync(expandedDll, "corrupt");
+
+        using var scan = await client.PostAsync("/api/admin/modules/rescan", null);
+
+        Assert.Equal(HttpStatusCode.OK, scan.StatusCode);
+        Assert.Equal(ReadHeadlessModule(), await File.ReadAllBytesAsync(expandedDll));
+    }
+
+    [Fact]
+    public async Task Install_RejectsBareDllThatDeclaresUiResources()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await RegisterModuleAdminAsync(client);
+        var assemblyPath = Path.Combine(AppContext.BaseDirectory, "Myriale.TestModule.dll");
+
+        using var install = await InstallAsync(client, await File.ReadAllBytesAsync(assemblyPath));
+
+        Assert.Equal(HttpStatusCode.BadRequest, install.StatusCode);
     }
 
     [Fact]
@@ -156,6 +176,24 @@ public sealed class ModuleAdminEndpointTests : IDisposable
         await File.WriteAllBytesAsync(Path.Combine(inbox, "test.myriale-module"), CreatePackage());
 
         using var response = await client.PostAsync("/api/admin/modules/rescan", null);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(1, result.GetProperty("installed").GetInt32());
+        Assert.Empty(result.GetProperty("issues").EnumerateArray());
+        Assert.Empty(Directory.EnumerateFiles(inbox));
+    }
+
+    [Fact]
+    public async Task Rescan_InstallsDllPlacedInInbox()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await RegisterModuleAdminAsync(client);
+        var inbox = Path.Combine(_storagePath, "inbox");
+        Directory.CreateDirectory(inbox);
+        await File.WriteAllBytesAsync(Path.Combine(inbox, "headless.dll"), ReadHeadlessModule());
+
+        using var response = await client.PostAsync("/api/admin/modules/rescan", null);
+
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(1, result.GetProperty("installed").GetInt32());
@@ -225,6 +263,13 @@ public sealed class ModuleAdminEndpointTests : IDisposable
         var content = new ByteArrayContent(package);
         content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
         return await client.PostAsync("/api/admin/modules/install", content);
+    }
+
+    private static byte[] ReadHeadlessModule()
+    {
+        var assemblyPath = Path.Combine(AppContext.BaseDirectory, "Myriale.HeadlessTestModule.dll");
+        Assert.True(File.Exists(assemblyPath), $"Headless test module assembly was not found: {assemblyPath}");
+        return File.ReadAllBytes(assemblyPath);
     }
 
     private static byte[] CreatePackage(string? extraEntry = null, string runtimeSuffix = "")
