@@ -53,8 +53,8 @@ export const USS02ReadIntroBeforeHero: Story = {
     await startPreparing(canvas);
     await step('Preparing状態で、主人公未確定のイントロNarrativeを読む', async () => {
       await expect(canvas.getByRole('region', { name: 'イントロNarrative' })).toBeVisible();
-      await expect(canvas.getByTestId('intro-narrative')).toHaveTextContent('あなたは水没した閲覧室');
-      await expect(canvas.getByTestId('intro-narrative')).toHaveTextContent('名もなき旅人');
+      await expect(canvas.getByTestId('intro-narrative')).toHaveTextContent('あなたは水没した閲覧室で目を覚ます。');
+      await expect(canvas.getByTestId('intro-narrative')).not.toHaveTextContent('名もなき旅人');
     });
     await step('同じページで主人公選択ができる', async () => {
       await expect(canvas.getByRole('region', { name: '主人公確定' })).toBeVisible();

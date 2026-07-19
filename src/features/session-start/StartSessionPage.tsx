@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useForm, useStore } from '@tanstack/react-form';
 import { useQuery } from '@tanstack/react-query';
 import { createFetchScenarioApi, type ScenarioApi } from '../../app/scenarioApi';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
@@ -49,6 +50,174 @@ export type StartSessionSearch = {
   scenarioId?: string;
 };
 
+function ProtagonistForm({ scenario, onBeginStory }: { scenario: ScenarioSummary; onBeginStory: () => void }) {
+  const heroCandidates = scenario.hero.split('\n').map((candidate) => candidate.trim()).filter(Boolean);
+  const [aiSuggestion, setAiSuggestion] = useState('');
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const form = useForm({
+    defaultValues: {
+      heroSelection: scenario.heroMode === 'free' ? FREE_GENERATION_OPTION : heroCandidates[0] ?? '',
+      createdName: 'アオイ',
+      createdProfile: 'この世界の掟にまだ不慣れな旅人。',
+    },
+    onSubmit: () => {
+      setReviewOpen(true);
+    },
+  });
+  const formValues = useStore(form.store, (state) => state.values);
+  const heroInputMode = scenario.heroMode === 'free' || formValues.heroSelection === FREE_GENERATION_OPTION
+    ? 'free'
+    : 'select';
+  const heroForSummary = scenario.heroMode === 'fixed'
+    ? scenario.hero
+    : heroInputMode === 'free'
+      ? `${formValues.createdName} / ${formValues.createdProfile}`
+      : formValues.heroSelection;
+
+  const generateAiHero = () => {
+    form.setFieldValue('createdName', 'ノクト');
+    form.setFieldValue('createdProfile', '失われた索引を探す見習い司書。イントロと世界観を踏まえたAI案です。');
+    setAiSuggestion('AI案を入力しました。内容を確認・修正してから確定してください。');
+  };
+
+  const beginStory = () => {
+    setReviewOpen(false);
+    onBeginStory();
+  };
+
+  return (
+    <>
+      <section className="border-t border-myr-ink/20 py-7 md:py-9" aria-label="主人公確定">
+        <div className="mb-6">
+          <p className="mb-2 font-myr-mono text-[0.6875rem] font-black tracking-[0.14em] text-myr-ruby uppercase">
+            Protagonist
+          </p>
+        </div>
+
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            void form.handleSubmit();
+          }}
+        >
+          {scenario.heroMode === 'select' && (
+            <>
+              <form.Field name="heroSelection">
+                {(field) => (
+                  <MyrialeSelect
+                    label="候補キャラクター"
+                    value={field.state.value}
+                    onValueChange={field.handleChange}
+                    options={[
+                      ...heroCandidates.map((candidate) => ({ value: candidate, label: candidate })),
+                      ...(scenario.heroFreeGenerationAllowed
+                        ? [{ value: FREE_GENERATION_OPTION, label: '自由生成' }]
+                        : []),
+                    ]}
+                  />
+                )}
+              </form.Field>
+              {heroInputMode === 'select' && (
+                <ReadOnlyProtagonistFields value={formValues.heroSelection} testId="readonly-hero" />
+              )}
+            </>
+          )}
+
+          {scenario.heroMode === 'fixed' && (
+            <ReadOnlyProtagonistFields value={scenario.hero} testId="fixed-hero" />
+          )}
+
+          {heroInputMode === 'free' && (
+            <div className="grid gap-4">
+              <form.Field name="createdName">
+                {(field) => (
+                  <label className="grid gap-2 text-xs font-black tracking-[0.04em] text-myr-slate">
+                    名前
+                    <input
+                      className="!rounded-none !border-x-0 !border-t-0 !border-b-2 !border-myr-ink/20 !bg-white/45 !px-3 !py-2.5 !text-base !text-myr-ink focus:!border-myr-iris focus:!outline-none"
+                      aria-label="主人公の名前"
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(event) => field.handleChange(event.target.value)}
+                    />
+                  </label>
+                )}
+              </form.Field>
+              <form.Field name="createdProfile">
+                {(field) => (
+                  <label className="grid gap-2 text-xs font-black tracking-[0.04em] text-myr-slate">
+                    プロフィール
+                    <textarea
+                      className="!min-h-36 !rounded-myr-card !border !border-myr-ink/20 !bg-white/55 !px-3 !py-3 !text-base !leading-7 !text-myr-ink focus:!border-myr-iris focus:!outline-none"
+                      aria-label="主人公プロフィール"
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(event) => field.handleChange(event.target.value)}
+                    />
+                  </label>
+                )}
+              </form.Field>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  className="!rounded-full !bg-myr-vellum !px-4 !py-2.5 !text-xs !font-black !text-myr-ink hover:!bg-myr-mist focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
+                  onClick={generateAiHero}
+                >
+                  AIに主人公を生成してもらう
+                </button>
+                {aiSuggestion && <p className="m-0 text-xs font-bold text-myr-iris" role="status">{aiSuggestion}</p>}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-7 flex justify-end border-t border-myr-ink/15 pt-5">
+            <button
+              type="submit"
+              className="!rounded-full !bg-myr-gold !px-5 !py-3 !text-sm !font-black !text-myr-void shadow-myr-card transition hover:!-translate-y-0.5 hover:!bg-myr-ink hover:!text-myr-paper focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
+            >
+              開始内容を確認
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <MyrialeDialogRoot open={reviewOpen} onOpenChange={setReviewOpen}>
+        <MyrialeDialogContent
+          title="開始前の最終確認"
+          description="Scenarioと主人公を確認してから物語を開始します。"
+          className="!w-[min(620px,calc(100vw-32px))] !border-myr-ink/20 !bg-myr-paper !text-myr-ink"
+          portal={false}
+          data-testid="start-review-dialog"
+          footer={(
+            <>
+              <button
+                className="!rounded-full !bg-myr-vellum !px-4 !py-2.5 !font-extrabold !text-myr-ink hover:!bg-myr-mist"
+                onClick={() => setReviewOpen(false)}
+              >
+                主人公選択を修正
+              </button>
+              <button
+                className="!rounded-full !bg-myr-ink !px-4 !py-2.5 !font-extrabold !text-myr-paper hover:!bg-myr-iris"
+                onClick={beginStory}
+              >
+                物語を始める
+              </button>
+            </>
+          )}
+        >
+          <article className="rounded-myr-card border border-myr-ink/15 bg-white/65 p-4 shadow-myr-card" data-testid="start-summary">
+            <span className="font-myr-mono text-[0.6875rem] font-black tracking-[0.08em] text-myr-ruby uppercase">Session snapshot</span>
+            <h2 className="my-2 font-myr-display text-3xl leading-none tracking-[-0.04em]">{scenario.title}</h2>
+            <p className="my-2 text-sm text-myr-slate">Scenario: {scenario.title}</p>
+            <p className="my-2 text-sm text-myr-slate">主人公: {heroForSummary}</p>
+          </article>
+        </MyrialeDialogContent>
+      </MyrialeDialogRoot>
+    </>
+  );
+}
+
 export function StartSessionPage({ search, api }: { search?: StartSessionSearch; api?: ScenarioApi } = {}) {
   const appNavigate = useAppNavigation();
   const scenarioApi = useMemo(() => api ?? createFetchScenarioApi(), [api]);
@@ -63,27 +232,6 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
     () => scenarioQuery.data ? toScenarioSummary(scenarioQuery.data) : null,
     [scenarioQuery.data],
   );
-  const heroCandidates = selectedScenario?.hero.split('\n').map((candidate) => candidate.trim()).filter(Boolean) ?? [];
-  const [selectedHero, setSelectedHero] = useState('');
-  const [heroInputMode, setHeroInputMode] = useState<'select' | 'free'>('select');
-  const [createdName, setCreatedName] = useState('アオイ');
-  const [createdProfile, setCreatedProfile] = useState('この世界の掟にまだ不慣れな旅人。');
-  const [aiSuggestion, setAiSuggestion] = useState('');
-  const [reviewOpen, setReviewOpen] = useState(false);
-
-  useEffect(() => {
-    if (!selectedScenario) return;
-    const candidates = selectedScenario.hero.split('\n').map((candidate) => candidate.trim()).filter(Boolean);
-    setSelectedHero(candidates[0] ?? '');
-    setHeroInputMode(selectedScenario.heroMode === 'free' ? 'free' : 'select');
-  }, [selectedScenario]);
-
-  const heroForSummary = selectedScenario?.heroMode === 'fixed'
-    ? selectedScenario.hero
-    : selectedScenario?.heroMode === 'free' || heroInputMode === 'free'
-      ? `${createdName} / ${createdProfile}`
-      : selectedHero;
-
   const backToScenarioList = () => {
     if (appNavigate) {
       appNavigate('scenarioList');
@@ -92,16 +240,7 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
     navigateToStory(STORY_IDS.scenarioList);
   };
 
-  const generateAiHero = () => {
-    setCreatedName('ノクト');
-    setCreatedProfile('失われた索引を探す見習い司書。イントロと世界観を踏まえたAI案です。');
-    setAiSuggestion('AI案を入力しました。内容を確認・修正してから確定してください。');
-  };
-
-  const openFinalReview = () => setReviewOpen(true);
-
   const beginStory = () => {
-    setReviewOpen(false);
     if (appNavigate) {
       appNavigate('playSession');
       return;
@@ -188,124 +327,13 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
               </p>
               <article className="relative pr-4 before:pointer-events-none before:absolute before:-top-8 before:right-0 before:font-myr-display before:text-8xl before:text-myr-iris/10 before:content-['✦']" data-testid="intro-narrative">
                 <p className="relative z-10 m-0 max-w-[800px] font-myr-display text-[clamp(1.25rem,2.5vw,1.75rem)] leading-[1.65] tracking-[-0.025em]">
-                  {selectedScenario.opening} 頭上では星座が紙魚のようにページを食み、遠くで誰かが名もなき旅人を呼んでいる。
+                  {selectedScenario.opening}
                 </p>
               </article>
             </section>
 
-            <section className="border-t border-myr-ink/20 py-7 md:py-9" aria-label="主人公確定">
-              <div className="mb-6">
-                <p className="mb-2 font-myr-mono text-[0.6875rem] font-black tracking-[0.14em] text-myr-ruby uppercase">
-                  Protagonist
-                </p>
-
-              </div>
-
-              {selectedScenario.heroMode === 'select' && (
-                <>
-                  <MyrialeSelect
-                    label="候補キャラクター"
-                    value={heroInputMode === 'free' ? FREE_GENERATION_OPTION : selectedHero}
-                    onValueChange={(value) => {
-                      if (value === FREE_GENERATION_OPTION) {
-                        setHeroInputMode('free');
-                        return;
-                      }
-                      setSelectedHero(value);
-                      setHeroInputMode('select');
-                    }}
-                    options={[
-                      ...heroCandidates.map((candidate) => ({ value: candidate, label: candidate })),
-                      ...(selectedScenario.heroFreeGenerationAllowed
-                        ? [{ value: FREE_GENERATION_OPTION, label: '自由生成' }]
-                        : []),
-                    ]}
-                  />
-                  {heroInputMode === 'select' && (
-                    <ReadOnlyProtagonistFields value={selectedHero} testId="readonly-hero" />
-                  )}
-                </>
-              )}
-
-              {selectedScenario.heroMode === 'fixed' && (
-                <ReadOnlyProtagonistFields value={selectedScenario.hero} testId="fixed-hero" />
-              )}
-
-              {(selectedScenario.heroMode === 'free' || (selectedScenario.heroMode === 'select' && heroInputMode === 'free')) && (
-                <div className="grid gap-4">
-                  <label className="grid gap-2 text-xs font-black tracking-[0.04em] text-myr-slate">
-                    名前
-                    <input
-                      className="!rounded-none !border-x-0 !border-t-0 !border-b-2 !border-myr-ink/20 !bg-white/45 !px-3 !py-2.5 !text-base !text-myr-ink focus:!border-myr-iris focus:!outline-none"
-                      aria-label="主人公の名前"
-                      value={createdName}
-                      onChange={(event) => setCreatedName(event.target.value)}
-                    />
-                  </label>
-                  <label className="grid gap-2 text-xs font-black tracking-[0.04em] text-myr-slate">
-                    プロフィール
-                    <textarea
-                      className="!min-h-36 !rounded-myr-card !border !border-myr-ink/20 !bg-white/55 !px-3 !py-3 !text-base !leading-7 !text-myr-ink focus:!border-myr-iris focus:!outline-none"
-                      aria-label="主人公プロフィール"
-                      value={createdProfile}
-                      onChange={(event) => setCreatedProfile(event.target.value)}
-                    />
-                  </label>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <button
-                      className="!rounded-full !bg-myr-vellum !px-4 !py-2.5 !text-xs !font-black !text-myr-ink hover:!bg-myr-mist focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
-                      onClick={generateAiHero}
-                    >
-                      AIに主人公を生成してもらう
-                    </button>
-                    {aiSuggestion && <p className="m-0 text-xs font-bold text-myr-iris" role="status">{aiSuggestion}</p>}
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-7 flex justify-end border-t border-myr-ink/15 pt-5">
-                <button
-                  className="!rounded-full !bg-myr-gold !px-5 !py-3 !text-sm !font-black !text-myr-void shadow-myr-card transition hover:!-translate-y-0.5 hover:!bg-myr-ink hover:!text-myr-paper focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
-                  onClick={openFinalReview}
-                >
-                  開始内容を確認
-                </button>
-              </div>
-            </section>
+            <ProtagonistForm scenario={selectedScenario} onBeginStory={beginStory} />
           </section>
-
-          <MyrialeDialogRoot open={reviewOpen} onOpenChange={setReviewOpen}>
-            <MyrialeDialogContent
-              title="開始前の最終確認"
-              description="Scenarioと主人公を確認してから物語を開始します。"
-              className="!w-[min(620px,calc(100vw-32px))] !border-myr-ink/20 !bg-myr-paper !text-myr-ink"
-              portal={false}
-              data-testid="start-review-dialog"
-              footer={(
-                <>
-                  <button
-                    className="!rounded-full !bg-myr-vellum !px-4 !py-2.5 !font-extrabold !text-myr-ink hover:!bg-myr-mist"
-                    onClick={() => setReviewOpen(false)}
-                  >
-                    主人公選択を修正
-                  </button>
-                  <button
-                    className="!rounded-full !bg-myr-ink !px-4 !py-2.5 !font-extrabold !text-myr-paper hover:!bg-myr-iris"
-                    onClick={beginStory}
-                  >
-                    物語を始める
-                  </button>
-                </>
-              )}
-            >
-              <article className="rounded-myr-card border border-myr-ink/15 bg-white/65 p-4 shadow-myr-card" data-testid="start-summary">
-                <span className="font-myr-mono text-[0.6875rem] font-black tracking-[0.08em] text-myr-ruby uppercase">Session snapshot</span>
-                <h2 className="my-2 font-myr-display text-3xl leading-none tracking-[-0.04em]">{selectedScenario.title}</h2>
-                <p className="my-2 text-sm text-myr-slate">Scenario: {selectedScenario.title}</p>
-                <p className="my-2 text-sm text-myr-slate">主人公: {heroForSummary}</p>
-              </article>
-            </MyrialeDialogContent>
-          </MyrialeDialogRoot>
         </main>
       </div>
     </AppChrome>
