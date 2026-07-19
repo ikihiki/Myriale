@@ -974,6 +974,70 @@ textarea { min-height: 126px; resize: vertical; }
   margin-top: 12px;
   color: #d9a441;
 }
+.start-session-setup {
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.start-session-setup .wizard-panel {
+  min-width: 0;
+  margin: 0;
+}
+
+.start-session-intro-panel {
+  position: sticky;
+  top: 18px;
+}
+
+.start-session-required-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+  color: #74412f;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.start-session-required-note::before {
+  content: '●';
+  color: #b84a4a;
+  font-size: 8px;
+}
+
+.start-session-review-dialog {
+  width: min(620px, calc(100vw - 32px));
+}
+
+.start-session-review-dialog .start-session-card {
+  background: rgba(255, 254, 249, .9);
+}
+
+.start-session-review-dialog button {
+  border-radius: 999px;
+  padding: 10px 15px;
+  background: #e7dcc5;
+  color: #241b2f;
+  font-weight: 800;
+}
+
+.start-session-review-dialog button.primary {
+  background: #241b2f;
+  color: #fffaf0;
+}
+
+@media (max-width: 760px) {
+  .start-session-setup {
+    grid-template-columns: 1fr;
+  }
+
+  .start-session-intro-panel {
+    position: static;
+  }
+}
+
 @media (max-width: 1120px) {
   .scenario-forge-wizard { grid-template-columns: 1fr; }
   .scenario-forge-wizard .contract-spine,

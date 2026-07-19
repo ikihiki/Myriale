@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { WizardNavigation } from '../../shared/WizardNavigation';
-import { MyrialeSelect } from '../../ui/MyrialeRadix';
+import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeSelect } from '../../ui/MyrialeRadix';
 import { SessionTurn } from '../../shared/SessionTurn';
 import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
 import type { AppRoute } from '../routes';
 
-type SessionStep = 'intro' | 'hero' | 'review' | 'active';
+type SessionStep = 'setup' | 'active';
 type HeroMode = 'fixed' | 'select' | 'create' | 'ai';
 
 type ScenarioSummary = {
@@ -20,10 +20,8 @@ type ScenarioSummary = {
 };
 
 const sessionSteps: Array<{ id: SessionStep; label: string; state: string; help: string }> = [
-  { id: 'intro', label: 'イントロ', state: 'Preparing', help: '主人公未確定のまま導入を読む' },
-  { id: 'hero', label: '主人公確定', state: 'Preparing', help: '固定、選択、作成、AI案から決める' },
-  { id: 'review', label: '最終確認', state: 'Preparing', help: '開始前にスナップショットと主人公を確認' },
-  { id: 'active', label: '本編開始', state: 'Active', help: '最初のNarrativeを生成してプレイへ' },
+  { id: 'setup', label: '導入と主人公', state: 'Preparing', help: 'イントロを読みながら主人公を決める' },
+  { id: 'active', label: '本編開始', state: 'Active', help: '確認後、最初のNarrativeを生成してプレイへ' },
 ];
 
 const heroNames: Record<HeroMode, string> = {
@@ -88,7 +86,7 @@ export function StartSessionPage({ route }: { route?: AppRoute } = {}) {
   const appNavigate = useAppNavigation();
   const routeScenario = scenarioFromRoute(route);
   const [selectedScenario, setSelectedScenario] = useState<ScenarioSummary | null>(routeScenario);
-  const [activeStep, setActiveStep] = useState<SessionStep>('intro');
+  const [activeStep, setActiveStep] = useState<SessionStep>('setup');
   const [sessionId, setSessionId] = useState(routeScenario ? 'SES-PREP-1098' : '未作成');
   const [sessionState, setSessionState] = useState(routeScenario ? 'Preparing' : 'NotStarted');
   const [notice, setNotice] = useState(routeScenario
@@ -100,6 +98,7 @@ export function StartSessionPage({ route }: { route?: AppRoute } = {}) {
   const [createdProfile, setCreatedProfile] = useState('灰の駅で目覚めた旅人。星図を読む力はまだ不安定。');
   const [aiSuggestion, setAiSuggestion] = useState('AI案は未生成です。生成後もプレイヤー確認まで確定しません。');
   const [firstNarrative, setFirstNarrative] = useState('本編Narrativeはまだ生成されていません。');
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   const currentIndex = sessionSteps.findIndex((step) => step.id === activeStep);
   const currentStep = sessionSteps[currentIndex];
@@ -118,7 +117,8 @@ export function StartSessionPage({ route }: { route?: AppRoute } = {}) {
     setSelectedScenario(scenario);
     setSessionId('SES-PREP-1098');
     setSessionState('Preparing');
-    setActiveStep('intro');
+    setActiveStep('setup');
+    setReviewOpen(false);
     setFirstNarrative('本編Narrativeはまだ生成されていません。');
     setNotice(`「${scenario.title}」から新しいSessionを作成し、Scenario設定をSession用にスナップショットしました。`);
   };
@@ -127,13 +127,9 @@ export function StartSessionPage({ route }: { route?: AppRoute } = {}) {
     setSelectedScenario(null);
     setSessionId('未作成');
     setSessionState('NotStarted');
-    setActiveStep('intro');
+    setActiveStep('setup');
+    setReviewOpen(false);
     setNotice('Scenario一覧へ戻りました。別のScenarioを選択してからウィザードを開始します。');
-  };
-
-  const confirmIntro = () => {
-    setActiveStep('hero');
-    setNotice('イントロを読み終えました。主人公を確定してください。');
   };
 
   const updateHeroMode = (mode: HeroMode) => {
@@ -156,12 +152,13 @@ export function StartSessionPage({ route }: { route?: AppRoute } = {}) {
     setNotice('AI主人公案を提示しました。自動確定はしません。');
   };
 
-  const confirmHero = () => {
-    setActiveStep('review');
-    setNotice('主人公情報をSession固有データとして確定しました。');
+  const openFinalReview = () => {
+    setReviewOpen(true);
+    setNotice('主人公情報をSession固有データとして確定しました。開始内容を確認してください。');
   };
 
   const beginStory = () => {
+    setReviewOpen(false);
     setSessionState('Active');
     setFirstNarrative(`${selectedScenario?.opening ?? 'あなたは物語の入口で目を覚ます。'} 頭上では星座が紙魚のようにページを食み、遠くで誰かが名もなき旅人を呼んでいる。`);
     if (appNavigate) {
@@ -170,11 +167,6 @@ export function StartSessionPage({ route }: { route?: AppRoute } = {}) {
     }
     setActiveStep('active');
     setNotice('Session状態をActiveに変更し、第一ターンとしてイントロを表示しました。');
-  };
-
-  const backToHero = () => {
-    setActiveStep('hero');
-    setNotice('最終確認から主人公確定へ戻りました。開始前なら前工程に戻れます。');
   };
 
   const sessionCrumbs: Crumb[] = [
@@ -257,74 +249,85 @@ export function StartSessionPage({ route }: { route?: AppRoute } = {}) {
           <small>{currentStep.help}</small>
         </div>
 
-        {activeStep === 'intro' && (
-          <section className="wizard-panel" aria-label="イントロNarrative">
-            <p><strong>初回セッションではスキップ不可のイントロです。</strong>Lore、ジャンル、トーン、開始シーンを反映し、主人公未確定のため「あなた」として語ります。</p>
-            <article className="start-session-narrative" data-testid="intro-narrative">
-              <h2>導入</h2>
-              <p>{selectedScenario.opening} 頭上では星座が紙魚のようにページを食み、遠くで誰かが名もなき旅人を呼んでいる。</p>
-            </article>
-            <div className="button-row"><button className="primary" onClick={confirmIntro}>イントロを読んだので主人公へ</button><button disabled>初回はスキップ不可</button></div>
-          </section>
-        )}
+        {activeStep === 'setup' && (
+          <div className="start-session-setup" aria-label="イントロと主人公選択">
+            <section className="wizard-panel start-session-intro-panel" aria-label="イントロNarrative">
+              <p><strong>初回セッションではスキップ不可のイントロです。</strong>Lore、ジャンル、トーン、開始シーンを反映し、主人公未確定のため「あなた」として語ります。</p>
+              <article className="start-session-narrative" data-testid="intro-narrative">
+                <h2>導入</h2>
+                <p>{selectedScenario.opening} 頭上では星座が紙魚のようにページを食み、遠くで誰かが名もなき旅人を呼んでいる。</p>
+              </article>
+              <span className="start-session-required-note">初回はスキップ不可</span>
+            </section>
 
-        {activeStep === 'hero' && (
-          <section className="wizard-panel" aria-label="主人公確定">
-            <p><strong>イントロ後に主人公を確定します。</strong>AIは候補を出せますが、プレイヤーの確認なしに自動確定しません。</p>
-            <MyrialeSelect
-              label="主人公の扱い"
-              value={heroMode}
-              onValueChange={(value) => updateHeroMode(value as HeroMode)}
-              options={[
-                { value: 'fixed', label: 'キャラクター固定' },
-                { value: 'select', label: 'キャラクター選択式' },
-                { value: 'create', label: 'キャラクタークリエイト' },
-                { value: 'ai', label: 'AIによる自動生成案' },
-              ]}
-            />
-            {heroMode === 'select' && (
+            <section className="wizard-panel start-session-hero-panel" aria-label="主人公確定">
+              <p><strong>イントロを読みながら主人公を決めます。</strong>AIは候補を出せますが、プレイヤーの確認なしに自動確定しません。</p>
               <MyrialeSelect
-                label="候補キャラクター"
-                value={selectedHero}
-                onValueChange={setSelectedHero}
+                label="主人公の扱い"
+                value={heroMode}
+                onValueChange={(value) => updateHeroMode(value as HeroMode)}
                 options={[
-                  { value: heroNames.select, label: heroNames.select },
-                  { value: 'セオ / 星図を燃やす護衛', label: 'セオ / 星図を燃やす護衛' },
-                  { value: 'エル / 記憶を失った写字生', label: 'エル / 記憶を失った写字生' },
+                  { value: 'fixed', label: 'キャラクター固定' },
+                  { value: 'select', label: 'キャラクター選択式' },
+                  { value: 'create', label: 'キャラクタークリエイト' },
+                  { value: 'ai', label: 'AIによる自動生成案' },
                 ]}
               />
-            )}
-            {heroMode === 'create' && (
-              <>
-                <label>名前<input aria-label="主人公の名前" value={createdName} onChange={(event) => setCreatedName(event.target.value)} /></label>
-                <label>プロフィール<textarea aria-label="主人公プロフィール" value={createdProfile} onChange={(event) => setCreatedProfile(event.target.value)} /></label>
-                <button onClick={() => setNotice('AIがプロフィール入力を補助しました。採用前に編集できます。')}>AIに入力補助してもらう</button>
-              </>
-            )}
-            {heroMode === 'ai' && (
-              <article className="start-session-card" data-testid="ai-hero-suggestion">
-                <h2>AI主人公案</h2>
-                <p>{aiSuggestion}</p>
-                <button onClick={generateAiHero}>AIに任せる</button>
-              </article>
-            )}
-            {heroMode === 'fixed' && <p data-testid="fixed-hero">{heroNames.fixed}</p>}
-            <div className="button-row"><button className="primary" onClick={confirmHero}>主人公を確定</button></div>
-          </section>
+              {heroMode === 'select' && (
+                <MyrialeSelect
+                  label="候補キャラクター"
+                  value={selectedHero}
+                  onValueChange={setSelectedHero}
+                  options={[
+                    { value: heroNames.select, label: heroNames.select },
+                    { value: 'セオ / 星図を燃やす護衛', label: 'セオ / 星図を燃やす護衛' },
+                    { value: 'エル / 記憶を失った写字生', label: 'エル / 記憶を失った写字生' },
+                  ]}
+                />
+              )}
+              {heroMode === 'create' && (
+                <>
+                  <label>名前<input aria-label="主人公の名前" value={createdName} onChange={(event) => setCreatedName(event.target.value)} /></label>
+                  <label>プロフィール<textarea aria-label="主人公プロフィール" value={createdProfile} onChange={(event) => setCreatedProfile(event.target.value)} /></label>
+                  <button onClick={() => setNotice('AIがプロフィール入力を補助しました。採用前に編集できます。')}>AIに入力補助してもらう</button>
+                </>
+              )}
+              {heroMode === 'ai' && (
+                <article className="start-session-card" data-testid="ai-hero-suggestion">
+                  <h2>AI主人公案</h2>
+                  <p>{aiSuggestion}</p>
+                  <button onClick={generateAiHero}>AIに任せる</button>
+                </article>
+              )}
+              {heroMode === 'fixed' && <p data-testid="fixed-hero">{heroNames.fixed}</p>}
+              <div className="button-row"><button className="primary" onClick={openFinalReview}>開始内容を確認</button></div>
+            </section>
+          </div>
         )}
 
-        {activeStep === 'review' && (
-          <section className="wizard-panel" aria-label="開始前の最終確認">
-            <p><strong>意図しない条件で物語が始まるのを防ぎます。</strong>Scenario概要、主人公、設定スナップショットを確認し、必要なら前工程へ戻れます。</p>
+        <MyrialeDialogRoot open={reviewOpen} onOpenChange={setReviewOpen}>
+          <MyrialeDialogContent
+            title="開始前の最終確認"
+            description="Scenarioと主人公を確認してから物語を開始します。"
+            className="start-session-review-dialog"
+            portal={false}
+            data-testid="start-review-dialog"
+            footer={(
+              <>
+                <button onClick={() => setReviewOpen(false)}>主人公選択を修正</button>
+                <button className="primary" onClick={beginStory}>物語を始める</button>
+              </>
+            )}
+          >
             <article className="start-session-card" data-testid="start-summary">
-              <h2>開始サマリー</h2>
+              <span>Session snapshot</span>
+              <h2>{selectedScenario.title}</h2>
               <p>Scenario: {selectedScenario.title}</p>
               <p>主人公: {heroForSummary}</p>
               <p>Session状態: {sessionState}</p>
             </article>
-            <div className="button-row"><button onClick={backToHero}>主人公確定へ戻る</button><button className="primary" onClick={beginStory}>物語を始める</button></div>
-          </section>
-        )}
+          </MyrialeDialogContent>
+        </MyrialeDialogRoot>
 
         {activeStep === 'active' && (
           <section className="wizard-panel" aria-label="本編ターンログ">

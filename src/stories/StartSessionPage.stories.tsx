@@ -51,8 +51,9 @@ export const USS02ReadIntroBeforeHero: Story = {
       await expect(canvas.getByTestId('intro-narrative')).toHaveTextContent('あなたは水没した閲覧室');
       await expect(canvas.getByTestId('intro-narrative')).toHaveTextContent('名もなき旅人');
     });
-    await step('初回セッションではイントロをスキップできないことを示す', async () => {
-      await expect(canvas.getByRole('button', { name: '初回はスキップ不可' })).toBeDisabled();
+    await step('同じページで主人公選択ができ、初回イントロはスキップできないことを示す', async () => {
+      await expect(canvas.getByRole('region', { name: '主人公確定' })).toBeVisible();
+      await expect(canvas.getByText('初回はスキップ不可')).toBeVisible();
     });
   },
 };
@@ -63,12 +64,12 @@ export const USS03ConfirmHeroAfterIntro: Story = {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
     await startPreparing(canvas);
-    await userEvent.click(canvas.getByRole('button', { name: 'イントロを読んだので主人公へ' }));
-    await step('キャラクター選択式で候補を選び、Session固有データとして確定する', async () => {
+    await step('イントロと同じページで候補を選び、Session固有データとして確定する', async () => {
       await userEvent.click(canvas.getByRole('combobox', { name: '候補キャラクター' }));
       await userEvent.click(await screen.findByRole('option', { name: 'エル / 記憶を失った写字生' }));
-      await userEvent.click(canvas.getByRole('button', { name: '主人公を確定' }));
+      await userEvent.click(canvas.getByRole('button', { name: '開始内容を確認' }));
       await expect(canvas.getByTestId('session-notice')).toHaveTextContent('Session固有データとして確定');
+      await expect(canvas.getByRole('dialog', { name: '開始前の最終確認' })).toBeVisible();
       await expect(canvas.getByTestId('start-summary')).toHaveTextContent('エル / 記憶を失った写字生');
     });
   },
@@ -80,8 +81,7 @@ export const USS03CreateHeroWithAiAssistance: Story = {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
     await startPreparing(canvas);
-    await userEvent.click(canvas.getByRole('button', { name: 'イントロを読んだので主人公へ' }));
-    await step('キャラクタークリエイトで名前とプロフィールを編集する', async () => {
+    await step('イントロと同じページでキャラクターの名前とプロフィールを編集する', async () => {
       await userEvent.click(canvas.getByRole('combobox', { name: '主人公の扱い' }));
       await userEvent.click(await screen.findByRole('option', { name: 'キャラクタークリエイト' }));
       await userEvent.clear(canvas.getByLabelText('主人公の名前'));
@@ -103,17 +103,17 @@ export const USS04ReviewBeforeStarting: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await startPreparing(canvas);
-    await userEvent.click(canvas.getByRole('button', { name: 'イントロを読んだので主人公へ' }));
-    await userEvent.click(canvas.getByRole('button', { name: '主人公を確定' }));
-    await step('開始サマリーでScenario概要、主人公、設定を確認する', async () => {
-      await expect(canvas.getByRole('region', { name: '開始前の最終確認' })).toBeVisible();
+    await userEvent.click(canvas.getByRole('button', { name: '開始内容を確認' }));
+    await step('ダイアログの開始サマリーでScenario概要と主人公を確認する', async () => {
+      await expect(canvas.getByRole('dialog', { name: '開始前の最終確認' })).toBeVisible();
       await expect(canvas.getByTestId('start-summary')).toHaveTextContent('Scenario: 星喰いの地下図書館');
       await expect(canvas.getByTestId('start-summary')).toHaveTextContent('主人公: ミラ');
     });
-    await step('必要に応じて前工程へ戻れる', async () => {
-      await userEvent.click(canvas.getByRole('button', { name: '主人公確定へ戻る' }));
+    await step('修正を選ぶとダイアログを閉じて主人公選択へ戻れる', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: '主人公選択を修正' }));
+      await expect(canvas.queryByRole('dialog', { name: '開始前の最終確認' })).not.toBeInTheDocument();
       await expect(canvas.getByRole('region', { name: '主人公確定' })).toBeVisible();
-      await expect(canvas.getByTestId('session-notice')).toHaveTextContent('前工程に戻れます');
+      await expect(canvas.getByRole('region', { name: 'イントロNarrative' })).toBeVisible();
     });
   },
 };
@@ -123,9 +123,8 @@ export const USS05BeginActiveSession: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await startPreparing(canvas);
-    await userEvent.click(canvas.getByRole('button', { name: 'イントロを読んだので主人公へ' }));
-    await userEvent.click(canvas.getByRole('button', { name: '主人公を確定' }));
-    await step('「物語を始める」でSessionをActiveにし、US-P01のプレイ画面へ合流する', async () => {
+    await userEvent.click(canvas.getByRole('button', { name: '開始内容を確認' }));
+    await step('確認ダイアログの「物語を始める」でSessionをActiveにし、US-P01のプレイ画面へ合流する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '物語を始める' }));
       await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098');
       await expect(canvas.getByTestId('session-state')).toHaveTextContent('Active');
