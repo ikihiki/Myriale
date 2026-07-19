@@ -6,4 +6,7 @@ public sealed record ScenarioSummaryDto(
     string Genre,
     string Status,
     DateOnly UpdatedAt,
-    string Summary);
+    string Summary,
+    string HeroMode,
+    bool HeroFreeGenerationAllowed,
+    string Hero);

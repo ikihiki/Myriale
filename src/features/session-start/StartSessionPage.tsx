@@ -5,15 +5,6 @@ import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeSelect } from '../../ui
 import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
 import { toScenarioSummary } from './scenarioPresentation';
 
-type HeroMode = 'fixed' | 'select' | 'create' | 'ai';
-
-const heroNames: Record<HeroMode, string> = {
-  fixed: 'リュシエン / 地下図書館の禁書司書',
-  select: 'ミラ / 星図を読む巡礼者',
-  create: 'アオイ / 灰の駅で目覚めた旅人',
-  ai: 'ノクト / 失われた索引を探す見習い司書',
-};
-
 export type StartSessionSearch = {
   scenarioId?: string;
 };
@@ -23,14 +14,19 @@ export function StartSessionPage({ search }: { search?: StartSessionSearch } = {
   const { db } = useAppStore();
   const scenarioRecord = search?.scenarioId ? db.scenarios[search.scenarioId] : undefined;
   const selectedScenario = scenarioRecord ? toScenarioSummary(scenarioRecord) : null;
-  const [heroMode, setHeroMode] = useState<HeroMode>('select');
-  const [selectedHero, setSelectedHero] = useState(heroNames.select);
+  const heroCandidates = selectedScenario?.hero.split('\n').map((candidate) => candidate.trim()).filter(Boolean) ?? [];
+  const [selectedHero, setSelectedHero] = useState(heroCandidates[0] ?? '');
+  const [heroInputMode, setHeroInputMode] = useState<'select' | 'free'>(selectedScenario?.heroMode === 'free' ? 'free' : 'select');
   const [createdName, setCreatedName] = useState('アオイ');
-  const [createdProfile, setCreatedProfile] = useState('灰の駅で目覚めた旅人。星図を読む力はまだ不安定。');
-  const [aiSuggestion, setAiSuggestion] = useState('AI案は未生成です。生成後もプレイヤー確認まで確定しません。');
+  const [createdProfile, setCreatedProfile] = useState('この世界の掟にまだ不慣れな旅人。');
+  const [aiSuggestion, setAiSuggestion] = useState('');
   const [reviewOpen, setReviewOpen] = useState(false);
 
-  const heroForSummary = heroMode === 'create' ? `${createdName} / ${createdProfile}` : selectedHero;
+  const heroForSummary = selectedScenario?.heroMode === 'fixed'
+    ? selectedScenario.hero
+    : selectedScenario?.heroMode === 'free' || heroInputMode === 'free'
+      ? `${createdName} / ${createdProfile}`
+      : selectedHero;
 
   const backToScenarioList = () => {
     if (appNavigate) {
@@ -40,14 +36,10 @@ export function StartSessionPage({ search }: { search?: StartSessionSearch } = {
     navigateToStory(STORY_IDS.scenarioList);
   };
 
-  const updateHeroMode = (mode: HeroMode) => {
-    setHeroMode(mode);
-    setSelectedHero(heroNames[mode]);
-  };
-
   const generateAiHero = () => {
-    setAiSuggestion('AIがイントロとLoreを踏まえた主人公案を生成しました: ノクト / 失われた索引を探す見習い司書。確認・修正してから確定します。');
-    setSelectedHero(heroNames.ai);
+    setCreatedName('ノクト');
+    setCreatedProfile('失われた索引を探す見習い司書。イントロと世界観を踏まえたAI案です。');
+    setAiSuggestion('AI案を入力しました。内容を確認・修正してから確定してください。');
   };
 
   const openFinalReview = () => setReviewOpen(true);
@@ -114,57 +106,80 @@ export function StartSessionPage({ search }: { search?: StartSessionSearch } = {
             </button>
           </header>
 
-          <div className="grid gap-5" aria-label="イントロと主人公選択">
-            <section aria-label="イントロNarrative">
-              <p className="mb-2 font-myr-mono text-[0.6875rem] font-black tracking-[0.14em] text-myr-ruby uppercase">
+          <section
+            className="overflow-hidden rounded-myr-card bg-white/45 px-5 shadow-myr-card md:px-8 [&_.myr-ui-field]:mb-5 [&_.myr-ui-field>label]:!text-xs [&_.myr-ui-field>label]:!font-black [&_.myr-ui-field>label]:!tracking-[0.04em] [&_.myr-ui-field>label]:!text-myr-slate [&_.myr-ui-select-trigger]:!rounded-none [&_.myr-ui-select-trigger]:!border-x-0 [&_.myr-ui-select-trigger]:!border-t-0 [&_.myr-ui-select-trigger]:!border-b-2 [&_.myr-ui-select-trigger]:!border-myr-ink/20 [&_.myr-ui-select-trigger]:!bg-white/45"
+            aria-label="イントロと主人公選択"
+          >
+            <section className="relative py-7 md:py-9" aria-label="イントロNarrative">
+              <p className="mb-3 font-myr-mono text-[0.6875rem] font-black tracking-[0.14em] text-myr-ruby uppercase">
                 Opening narrative
               </p>
-              <article
-                className="relative overflow-hidden rounded-myr-card border border-myr-ink/15 border-l-4 border-l-myr-gold bg-myr-paper/80 p-5 shadow-myr-card before:pointer-events-none before:absolute before:-top-8 before:right-3 before:font-myr-display before:text-8xl before:text-myr-iris/10 before:content-['✦'] md:p-7"
-                data-testid="intro-narrative"
-              >
-                <p className="relative z-10 m-0 max-w-[760px] font-myr-display text-[clamp(1.25rem,2.5vw,1.75rem)] leading-[1.65] tracking-[-0.025em]">
+              <article className="relative pr-4 before:pointer-events-none before:absolute before:-top-8 before:right-0 before:font-myr-display before:text-8xl before:text-myr-iris/10 before:content-['✦']" data-testid="intro-narrative">
+                <p className="relative z-10 m-0 max-w-[800px] font-myr-display text-[clamp(1.25rem,2.5vw,1.75rem)] leading-[1.65] tracking-[-0.025em]">
                   {selectedScenario.opening} 頭上では星座が紙魚のようにページを食み、遠くで誰かが名もなき旅人を呼んでいる。
                 </p>
               </article>
             </section>
 
-            <section
-              className="rounded-myr-card border border-myr-ink/15 bg-white/55 p-5 shadow-myr-card md:p-7 [&_.myr-ui-field]:mb-5 [&_.myr-ui-field>label]:!text-xs [&_.myr-ui-field>label]:!font-black [&_.myr-ui-field>label]:!tracking-[0.04em] [&_.myr-ui-field>label]:!text-myr-slate [&_.myr-ui-select-trigger]:!rounded-none [&_.myr-ui-select-trigger]:!border-x-0 [&_.myr-ui-select-trigger]:!border-t-0 [&_.myr-ui-select-trigger]:!border-b-2 [&_.myr-ui-select-trigger]:!border-myr-ink/20 [&_.myr-ui-select-trigger]:!bg-white/45"
-              aria-label="主人公確定"
-            >
-              <div className="mb-5 border-b border-myr-ink/15 pb-4">
+            <section className="border-t border-myr-ink/20 py-7 md:py-9" aria-label="主人公確定">
+              <div className="mb-6">
                 <p className="mb-2 font-myr-mono text-[0.6875rem] font-black tracking-[0.14em] text-myr-ruby uppercase">
                   Protagonist
                 </p>
                 <h2 className="m-0 font-myr-display text-[clamp(1.75rem,3vw,2.75rem)] leading-none tracking-[-0.045em]">
-                  この物語を歩く人を決める
+                  {selectedScenario.heroMode === 'free' || heroInputMode === 'free' ? 'この物語を歩く人をつくる' : 'この物語を歩く人'}
                 </h2>
+                <p className="mt-3 text-sm leading-6 text-myr-slate">
+                  {selectedScenario.heroMode === 'fixed' && 'このシナリオでは主人公が固定されています。内容を確認して開始してください。'}
+                  {selectedScenario.heroMode === 'select' && (selectedScenario.heroFreeGenerationAllowed
+                    ? '登録された候補を必ず選べます。作者が許可しているため、自由生成へ切り替えることもできます。'
+                    : 'シナリオに登録された候補から主人公を選びます。自由生成は許可されていません。')}
+                  {selectedScenario.heroMode === 'free' && selectedScenario.hero}
+                </p>
               </div>
-              <MyrialeSelect
-                label="主人公の扱い"
-                value={heroMode}
-                onValueChange={(value) => updateHeroMode(value as HeroMode)}
-                options={[
-                  { value: 'fixed', label: 'キャラクター固定' },
-                  { value: 'select', label: 'キャラクター選択式' },
-                  { value: 'create', label: 'キャラクタークリエイト' },
-                  { value: 'ai', label: 'AIによる自動生成案' },
-                ]}
-              />
-              {heroMode === 'select' && (
-                <MyrialeSelect
-                  label="候補キャラクター"
-                  value={selectedHero}
-                  onValueChange={setSelectedHero}
-                  options={[
-                    { value: heroNames.select, label: heroNames.select },
-                    { value: 'セオ / 星図を燃やす護衛', label: 'セオ / 星図を燃やす護衛' },
-                    { value: 'エル / 記憶を失った写字生', label: 'エル / 記憶を失った写字生' },
-                  ]}
-                />
+
+              {selectedScenario.heroMode === 'select' && selectedScenario.heroFreeGenerationAllowed && (
+                <div className="mb-6 flex flex-wrap gap-2" aria-label="主人公の決め方">
+                  <button
+                    className={`!rounded-full !px-4 !py-2.5 !text-xs !font-black ${heroInputMode === 'select' ? '!bg-myr-ink !text-myr-paper' : '!bg-myr-vellum !text-myr-ink'}`}
+                    aria-pressed={heroInputMode === 'select'}
+                    onClick={() => setHeroInputMode('select')}
+                  >
+                    候補から選ぶ
+                  </button>
+                  <button
+                    className={`!rounded-full !px-4 !py-2.5 !text-xs !font-black ${heroInputMode === 'free' ? '!bg-myr-ink !text-myr-paper' : '!bg-myr-vellum !text-myr-ink'}`}
+                    aria-pressed={heroInputMode === 'free'}
+                    onClick={() => setHeroInputMode('free')}
+                  >
+                    自由生成する
+                  </button>
+                </div>
               )}
-              {heroMode === 'create' && (
+
+              {selectedScenario.heroMode === 'select' && heroInputMode === 'select' && (
+                <>
+                  <MyrialeSelect
+                    label="候補キャラクター"
+                    value={selectedHero}
+                    onValueChange={setSelectedHero}
+                    options={heroCandidates.map((candidate) => ({ value: candidate, label: candidate }))}
+                  />
+                  <div className="grid gap-2 border-l-4 border-myr-gold bg-myr-paper/55 px-4 py-3" data-testid="readonly-hero">
+                    <span className="text-xs font-black tracking-[0.08em] text-myr-slate uppercase">選択中の主人公</span>
+                    <strong className="font-myr-display text-2xl tracking-[-0.03em]">{selectedHero}</strong>
+                  </div>
+                </>
+              )}
+
+              {selectedScenario.heroMode === 'fixed' && (
+                <div className="grid gap-2 border-l-4 border-myr-gold bg-myr-paper/55 px-4 py-3" data-testid="fixed-hero">
+                  <span className="text-xs font-black tracking-[0.08em] text-myr-slate uppercase">固定主人公</span>
+                  <strong className="font-myr-display text-2xl tracking-[-0.03em]">{selectedScenario.hero}</strong>
+                </div>
+              )}
+
+              {(selectedScenario.heroMode === 'free' || (selectedScenario.heroMode === 'select' && heroInputMode === 'free')) && (
                 <div className="grid gap-4">
                   <label className="grid gap-2 text-xs font-black tracking-[0.04em] text-myr-slate">
                     名前
@@ -184,32 +199,19 @@ export function StartSessionPage({ search }: { search?: StartSessionSearch } = {
                       onChange={(event) => setCreatedProfile(event.target.value)}
                     />
                   </label>
-                  <button
-                    className="justify-self-start !rounded-full !bg-myr-vellum !px-4 !py-2.5 !text-xs !font-black !text-myr-ink hover:!bg-myr-mist focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
-                    onClick={() => setCreatedProfile((profile) => `${profile} 失われた記憶の手がかりを追っている。`)}
-                  >
-                    AIに入力補助してもらう
-                  </button>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      className="!rounded-full !bg-myr-vellum !px-4 !py-2.5 !text-xs !font-black !text-myr-ink hover:!bg-myr-mist focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
+                      onClick={generateAiHero}
+                    >
+                      AIに主人公を生成してもらう
+                    </button>
+                    {aiSuggestion && <p className="m-0 text-xs font-bold text-myr-iris" role="status">{aiSuggestion}</p>}
+                  </div>
                 </div>
               )}
-              {heroMode === 'ai' && (
-                <article className="rounded-myr-card border border-myr-iris/25 bg-myr-iris/5 p-4" data-testid="ai-hero-suggestion">
-                  <h2 className="m-0 font-myr-display text-2xl tracking-[-0.04em]">AI主人公案</h2>
-                  <p className="my-3 text-sm leading-6 text-myr-slate">{aiSuggestion}</p>
-                  <button
-                    className="!rounded-full !bg-myr-ink !px-4 !py-2.5 !text-xs !font-black !text-myr-paper hover:!bg-myr-iris focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
-                    onClick={generateAiHero}
-                  >
-                    AIに任せる
-                  </button>
-                </article>
-              )}
-              {heroMode === 'fixed' && (
-                <p className="rounded-myr-card border border-myr-gold/35 bg-myr-gold/10 p-4 font-bold" data-testid="fixed-hero">
-                  {heroNames.fixed}
-                </p>
-              )}
-              <div className="mt-6 flex justify-end border-t border-myr-ink/15 pt-5">
+
+              <div className="mt-7 flex justify-end border-t border-myr-ink/15 pt-5">
                 <button
                   className="!rounded-full !bg-myr-gold !px-5 !py-3 !text-sm !font-black !text-myr-void shadow-myr-card transition hover:!-translate-y-0.5 hover:!bg-myr-ink hover:!text-myr-paper focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
                   onClick={openFinalReview}
@@ -218,7 +220,7 @@ export function StartSessionPage({ search }: { search?: StartSessionSearch } = {
                 </button>
               </div>
             </section>
-          </div>
+          </section>
 
           <MyrialeDialogRoot open={reviewOpen} onOpenChange={setReviewOpen}>
             <MyrialeDialogContent

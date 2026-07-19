@@ -22,6 +22,8 @@ export type ScenarioRecord = {
   tone?: string;
   lore?: string;
   aiFreedom?: string;
+  heroMode?: 'fixed' | 'select' | 'free';
+  heroFreeGenerationAllowed?: boolean;
   hero?: string;
   opening?: string;
   illustrationStyle?: string;
@@ -231,6 +233,9 @@ export function createDemoDb(kind: DemoDbKind = 'activeSession', overrides: Part
       updatedAt: '2026-06-20 19:30',
       tone: '静かで不穏、淡い希望',
       lore: '星座は魔法体系の鍵。死者の名前を読むと記憶を失う。',
+      heroMode: 'select',
+      heroFreeGenerationAllowed: false,
+      hero: 'ミラ / 星図を読む巡礼者\nセオ / 星図を燃やす護衛\nエル / 記憶を失った写字生',
       opening: 'あなたは水没した閲覧室で目を覚ます。',
     },
     'SCN-ASH-STATION': {
@@ -241,7 +246,23 @@ export function createDemoDb(kind: DemoDbKind = 'activeSession', overrides: Part
       updatedAt: '2026-06-18 22:15',
       tone: '乾いた祈り、遠い汽笛',
       lore: '朝が来ない荒野では、切符だけが次の町を覚えている。',
+      heroMode: 'free',
+      heroFreeGenerationAllowed: false,
+      hero: '灰の駅で目覚めた旅人。名前と過去はプレイヤーが自由に決められる。',
       opening: 'あなたは灰の降る駅で、宛名のない切符を握っている。',
+    },
+    'SCN-GLASS-FOREST': {
+      id: 'SCN-GLASS-FOREST',
+      title: '硝子の森と夜明けの司書',
+      status: 'published',
+      genre: '幻想ミステリ',
+      updatedAt: '2026-06-16 08:40',
+      tone: '透明で緊張感のある静けさ',
+      lore: '森の硝子片は、嘘をついた者の声だけを反射する。',
+      heroMode: 'fixed',
+      heroFreeGenerationAllowed: false,
+      hero: 'リュシエン / 夜明け前の森を巡る司書',
+      opening: '夜明け前の森で、割れた書架が小さく鳴る。',
     },
   };
   const playSessions: AppDb['playSessions'] = {

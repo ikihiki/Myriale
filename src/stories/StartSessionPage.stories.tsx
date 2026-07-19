@@ -16,8 +16,11 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-const startPreparing = async (canvas: ReturnType<typeof within>) => {
-  await userEvent.click(canvas.getByRole('button', { name: '星喰いの地下図書館で開始' }));
+const startPreparing = async (
+  canvas: ReturnType<typeof within>,
+  scenarioTitle = '星喰いの地下図書館',
+) => {
+  await userEvent.click(canvas.getByRole('button', { name: `${scenarioTitle}で開始` }));
 };
 
 export const USS01StartNewSessionFromScenario: Story = {
@@ -65,6 +68,7 @@ export const USS03ConfirmHeroAfterIntro: Story = {
     const screen = within(canvasElement.ownerDocument.body);
     await startPreparing(canvas);
     await step('イントロと同じページで候補を選び、Session固有データとして確定する', async () => {
+      await expect(canvas.queryByRole('button', { name: '自由生成する' })).not.toBeInTheDocument();
       await userEvent.click(canvas.getByRole('combobox', { name: '候補キャラクター' }));
       await userEvent.click(await screen.findByRole('option', { name: 'エル / 記憶を失った写字生' }));
       await userEvent.click(canvas.getByRole('button', { name: '開始内容を確認' }));
@@ -78,20 +82,61 @@ export const USS03CreateHeroWithAiAssistance: Story = {
   name: 'US-S03C/D: 主人公を作成し、AI案は確認してから確定する',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    const screen = within(canvasElement.ownerDocument.body);
-    await startPreparing(canvas);
-    await step('イントロと同じページでキャラクターの名前とプロフィールを編集する', async () => {
-      await userEvent.click(canvas.getByRole('combobox', { name: '主人公の扱い' }));
-      await userEvent.click(await screen.findByRole('option', { name: 'キャラクタークリエイト' }));
+    await startPreparing(canvas, '灰の駅と宛名のない切符');
+    await step('自由生成が許可されたシナリオでは、名前とプロフィールを最初から編集できる', async () => {
+      await expect(canvas.queryByRole('combobox', { name: '主人公の扱い' })).not.toBeInTheDocument();
       await userEvent.clear(canvas.getByLabelText('主人公の名前'));
       await userEvent.type(canvas.getByLabelText('主人公の名前'), 'ユイ');
       await expect(canvas.getByLabelText('主人公の名前')).toHaveValue('ユイ');
     });
-    await step('AIに任せても自動確定せず、確認・修正を促す', async () => {
-      await userEvent.click(canvas.getByRole('combobox', { name: '主人公の扱い' }));
-      await userEvent.click(await screen.findByRole('option', { name: 'AIによる自動生成案' }));
-      await userEvent.click(canvas.getByRole('button', { name: 'AIに任せる' }));
-      await expect(canvas.getByTestId('ai-hero-suggestion')).toHaveTextContent('確認・修正してから確定');
+    await step('AI生成ボタンはフォームを補助するだけで、自動確定しない', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: 'AIに主人公を生成してもらう' }));
+      await expect(canvas.getByLabelText('主人公の名前')).toHaveValue('ノクト');
+      await expect(canvas.getByRole('status')).toHaveTextContent('確認・修正してから確定');
+      await expect(canvas.getByRole('button', { name: '開始内容を確認' })).toBeVisible();
+    });
+  },
+};
+
+export const USS03SelectHeroWithOptionalFreeGeneration: Story = {
+  name: 'US-S03B: 選択式で許可された場合だけ自由生成へ切り替える',
+  render: () => (
+    <MyrialeApp
+      initialUrl="/scenarios"
+      initialDb={createDemoDb('activeSession', {
+        scenarios: {
+          'SCN-STAR-LIBRARY': {
+            ...createDemoDb('activeSession').scenarios['SCN-STAR-LIBRARY'],
+            heroFreeGenerationAllowed: true,
+          },
+        },
+      })}
+    />
+  ),
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await startPreparing(canvas);
+    await step('候補選択を維持したまま、許可された自由生成へ切り替えられる', async () => {
+      await expect(canvas.getByRole('combobox', { name: '候補キャラクター' })).toBeVisible();
+      await userEvent.click(canvas.getByRole('button', { name: '自由生成する' }));
+      await waitFor(() => expect(canvas.getByLabelText('主人公の名前')).toBeVisible());
+      await expect(canvas.queryByRole('combobox', { name: '候補キャラクター' })).not.toBeInTheDocument();
+      await userEvent.click(canvas.getByRole('button', { name: '候補から選ぶ' }));
+      await waitFor(() => expect(canvas.getByRole('combobox', { name: '候補キャラクター' })).toBeVisible());
+    });
+  },
+};
+
+export const USS03FixedHeroIsReadOnly: Story = {
+  name: 'US-S03A: 固定主人公は読み取り専用で表示する',
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await startPreparing(canvas, '硝子の森と夜明けの司書');
+    await step('固定主人公だけを表示し、選択や自由生成を許可しない', async () => {
+      await expect(canvas.getByTestId('fixed-hero')).toHaveTextContent('リュシエン');
+      await expect(canvas.queryByRole('combobox', { name: '候補キャラクター' })).not.toBeInTheDocument();
+      await expect(canvas.queryByRole('button', { name: '自由生成する' })).not.toBeInTheDocument();
+      await expect(canvas.queryByLabelText('主人公の名前')).not.toBeInTheDocument();
     });
   },
 };

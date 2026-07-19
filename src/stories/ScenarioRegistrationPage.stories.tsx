@@ -191,11 +191,12 @@ export const US05SetInitialCharacter: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await goToStep(canvas, '主人公');
-    await step('主人公の立場と名前の扱いを入力する', async () => {
-      await userEvent.clear(canvas.getByLabelText('主人公の前提'));
-      await userEvent.type(canvas.getByLabelText('主人公の前提'), '主人公は失踪した師匠を追う新人地図師。名前と年齢はセッション側で上書き可能。');
-      expect((canvas.getByLabelText('主人公の前提') as HTMLTextAreaElement).value).toContain('新人地図師');
-      await expect(canvas.getByRole('complementary', { name: '契約の背表紙' })).toHaveTextContent('主人公');
+    await step('主人公の扱いと自由生成時の前提を入力する', async () => {
+      await expect(canvas.getByRole('combobox', { name: '主人公の扱い' })).toHaveTextContent('自由生成のみ');
+      await userEvent.clear(canvas.getByLabelText('主人公の設定'));
+      await userEvent.type(canvas.getByLabelText('主人公の設定'), '主人公は失踪した師匠を追う新人地図師。名前と年齢はセッション側で自由に決められる。');
+      expect((canvas.getByLabelText('主人公の設定') as HTMLTextAreaElement).value).toContain('新人地図師');
+      await expect(canvas.getByRole('complementary', { name: '契約の背表紙' })).toHaveTextContent('自由生成');
     });
   },
 };

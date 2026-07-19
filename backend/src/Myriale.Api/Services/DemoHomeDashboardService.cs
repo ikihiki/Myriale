@@ -43,21 +43,30 @@ public sealed class DemoHomeDashboardService : IHomeDashboardService
                     Genre: "Mystery",
                     Status: "published",
                     UpdatedAt: new DateOnly(2026, 6, 10),
-                    Summary: "古い魔導図書館で失われた索引を探す短編シナリオ。"),
+                    Summary: "古い魔導図書館で失われた索引を探す短編シナリオ。",
+                    HeroMode: "select",
+                    HeroFreeGenerationAllowed: false,
+                    Hero: "リュカ / 若い司書\nノア / 旅の星読み"),
                 new ScenarioSummaryDto(
                     Id: "SCN-002",
                     Title: "霧の港町",
                     Genre: "Fantasy",
                     Status: "published",
                     UpdatedAt: new DateOnly(2026, 6, 12),
-                    Summary: "濃霧に包まれた港町で、消えた船員の行方を追います。"),
+                    Summary: "濃霧に包まれた港町で、消えた船員の行方を追います。",
+                    HeroMode: "free",
+                    HeroFreeGenerationAllowed: false,
+                    Hero: "港町の秘密を追う人物を自由に作成できます。"),
                 new ScenarioSummaryDto(
                     Id: "SCN-003",
                     Title: "星屑のキャラバン",
                     Genre: "Adventure",
                     Status: "published",
                     UpdatedAt: new DateOnly(2026, 6, 18),
-                    Summary: "砂漠を渡る隊商とともに星読みの遺跡を目指します。")
+                    Summary: "砂漠を渡る隊商とともに星読みの遺跡を目指します。",
+                    HeroMode: "fixed",
+                    HeroFreeGenerationAllowed: false,
+                    Hero: "サフィア / 星屑のキャラバンを導く星読み")
             ]);
 
         return Task.FromResult(response);

@@ -5,6 +5,8 @@ export type CreateScenarioPayload = {
   tone?: string;
   lore?: string;
   aiFreedom?: string;
+  heroMode?: 'fixed' | 'select' | 'free';
+  heroFreeGenerationAllowed?: boolean;
   hero?: string;
   opening?: string;
   illustrationStyle?: string;
@@ -93,6 +95,8 @@ export function createDemoScenarioApi(): ScenarioApi {
         tone: payload.tone?.trim() ?? '',
         lore: payload.lore?.trim() ?? '',
         aiFreedom: payload.aiFreedom?.trim() ?? '',
+        heroMode: payload.heroMode ?? 'free',
+        heroFreeGenerationAllowed: payload.heroMode === 'select' && (payload.heroFreeGenerationAllowed ?? false),
         hero: payload.hero?.trim() ?? '',
         opening: payload.opening?.trim() ?? '',
         illustrationStyle: payload.illustrationStyle?.trim() ?? '',
@@ -136,6 +140,8 @@ function toAssistTransport(payload: ScenarioAiAssistPayload) {
     tone: payload.tone ?? '',
     lore: payload.lore ?? '',
     aiFreedom: payload.aiFreedom ?? '',
+    heroMode: payload.heroMode ?? 'free',
+    heroFreeGenerationAllowed: payload.heroMode === 'select' && (payload.heroFreeGenerationAllowed ?? false),
     hero: payload.hero ?? '',
     opening: payload.opening ?? '',
     illustrationStyle: payload.illustrationStyle ?? '',

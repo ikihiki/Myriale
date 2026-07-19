@@ -52,6 +52,8 @@ public sealed class ScenarioEndpointTests : IDisposable
             tone = "静かで不穏",
             lore = "星座は魔法体系の鍵。",
             aiFreedom = "中: 設定を守りつつ提案する",
+            heroMode = "select",
+            heroFreeGenerationAllowed = true,
             hero = "禁書司書の見習い。",
             opening = "あなたは水没した閲覧室で目を覚ます。",
             illustrationStyle = "銅版画風",
@@ -65,6 +67,8 @@ public sealed class ScenarioEndpointTests : IDisposable
         Assert.StartsWith("SCN-", json.GetProperty("id").GetString());
         Assert.Equal("draft", json.GetProperty("status").GetString());
         Assert.Equal("星喰いの地下図書館", json.GetProperty("title").GetString());
+        Assert.Equal("select", json.GetProperty("heroMode").GetString());
+        Assert.True(json.GetProperty("heroFreeGenerationAllowed").GetBoolean());
         Assert.Equal("銅版画風", json.GetProperty("illustrationStyle").GetString());
     }
 

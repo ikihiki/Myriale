@@ -47,6 +47,8 @@ public static class ScenarioEndpoints
             Tone = Clean(request.Tone),
             Lore = Clean(request.Lore),
             AiFreedom = Clean(request.AiFreedom),
+            HeroMode = NormalizeHeroMode(request.HeroMode),
+            HeroFreeGenerationAllowed = request.HeroMode == "select" && request.HeroFreeGenerationAllowed == true,
             Hero = Clean(request.Hero),
             Opening = Clean(request.Opening),
             IllustrationStyle = Clean(request.IllustrationStyle),
@@ -72,10 +74,14 @@ public static class ScenarioEndpoints
         if (string.IsNullOrWhiteSpace(request.Title)) errors["title"] = ["シナリオタイトルを入力してください。"];
         if (request.Title?.Trim().Length > 160) errors["title"] = ["シナリオタイトルは160文字以内で入力してください。"];
         if (request.Summary?.Length > 2000) errors["summary"] = ["概要は2000文字以内で入力してください。"];
+        if (request.HeroMode is not null && request.HeroMode is not ("fixed" or "select" or "free")) errors["heroMode"] = ["主人公の扱いを選択してください。"];
+        if (request.HeroMode is "fixed" or "select" && string.IsNullOrWhiteSpace(request.Hero)) errors["hero"] = ["固定または選択式では主人公データを入力してください。"];
         return errors;
     }
 
     private static string Clean(string? value, string fallback = "") => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+
+    private static string NormalizeHeroMode(string? value) => value is "fixed" or "select" or "free" ? value : "free";
 
     private static async Task<string> NewScenarioIdAsync(ApplicationDbContext db, CancellationToken cancellationToken)
     {
@@ -96,6 +102,8 @@ public static class ScenarioEndpoints
         scenario.Tone,
         scenario.Lore,
         scenario.AiFreedom,
+        scenario.HeroMode,
+        scenario.HeroFreeGenerationAllowed,
         scenario.Hero,
         scenario.Opening,
         scenario.IllustrationStyle,

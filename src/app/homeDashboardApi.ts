@@ -24,6 +24,9 @@ export type HomeDashboardDto = {
     status: 'draft' | 'published' | 'private' | string;
     updatedAt: string;
     summary: string;
+    heroMode?: 'fixed' | 'select' | 'free';
+    heroFreeGenerationAllowed?: boolean;
+    hero?: string;
   }>;
 };
 

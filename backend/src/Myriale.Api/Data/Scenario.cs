@@ -25,6 +25,11 @@ public sealed class Scenario
     [MaxLength(120)]
     public string AiFreedom { get; set; } = string.Empty;
 
+    [MaxLength(20)]
+    public string HeroMode { get; set; } = "free";
+
+    public bool HeroFreeGenerationAllowed { get; set; }
+
     public string Hero { get; set; } = string.Empty;
 
     public string Opening { get; set; } = string.Empty;

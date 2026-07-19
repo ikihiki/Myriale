@@ -69,6 +69,9 @@ export function HomePage() {
               genre: scenario.genre,
               updatedAt: scenario.updatedAt,
               summary: scenario.summary,
+              heroMode: scenario.heroMode,
+              heroFreeGenerationAllowed: scenario.heroFreeGenerationAllowed,
+              hero: scenario.hero,
             },
           });
         });
