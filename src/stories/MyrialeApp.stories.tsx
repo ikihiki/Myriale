@@ -39,7 +39,7 @@ export const HomeDashboard: Story = {
     });
     await step('主要導線から検索・新規作成・再開へ遷移できる', async () => {
       await userEvent.click(canvas.getByTestId('home-search-scenarios'));
-      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/start');
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/scenarios');
       await userEvent.click(canvas.getByRole('button', { name: 'Myriale ホームへ' }));
       await userEvent.click(canvas.getByTestId('home-create-scenario'));
       await expect(canvas.getByTestId('app-url')).toHaveTextContent('/scenarios/new');
@@ -52,12 +52,12 @@ export const HomeDashboard: Story = {
 
 export const FullAppHappyPath: Story = {
   name: '統合アプリ: シナリオ選択からプレイ画面へ遷移する',
-  args: { initialUrl: '/sessions/start', initialDb: createDemoDb('activeSession') },
+  args: { initialUrl: '/scenarios', initialDb: createDemoDb('activeSession') },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
     await step('URL風の状態からセッション開始画面を直接開く', async () => {
-      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/start');
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/scenarios');
       await expect(canvas.getByRole('region', { name: 'シナリオ一覧' })).toBeVisible();
     });
     await step('アプリ内ナビゲーションでプレイ画面へ移動し、統合版はイントロのみを表示する', async () => {

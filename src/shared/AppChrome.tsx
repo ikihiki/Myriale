@@ -32,7 +32,7 @@ const sections: Section[] = [
     to: 'home',
     links: [
       { label: 'トップページ', to: 'home', hint: '中断SessionとおすすめScenario' },
-      { label: 'シナリオを検索', to: 'startSession', hint: '遊べるScenarioを探して開始' },
+      { label: 'シナリオを検索', to: 'scenarioList', hint: '遊べるScenarioを探して開始' },
       { label: 'シナリオを新規作成', to: 'scenarioRegister', hint: '新しい契約書を書く' },
     ],
   },
@@ -49,9 +49,9 @@ const sections: Section[] = [
   {
     id: 'sessions',
     label: 'セッション',
-    to: 'startSession',
+    to: 'scenarioList',
     links: [
-      { label: 'セッションを開始', to: 'startSession', hint: 'シナリオを選んで主人公決定' },
+      { label: 'セッションを開始', to: 'scenarioList', hint: 'シナリオを選んで主人公決定' },
       { label: 'プレイ中の対話', to: 'playSession', hint: 'AIとの対話で物語を進める' },
       { label: 'セッションを再開', to: 'resumeSession', hint: '中断した続きから再開' },
       { label: 'プログラム主導の進行', to: 'programDriven', hint: 'バトル・判定・強制イベント' },

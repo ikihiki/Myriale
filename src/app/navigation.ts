@@ -5,6 +5,7 @@ const navigationPaths: Record<StoryKey, string> = {
   scenarioRegister: '/scenarios/new',
   scenarioEdit: '/scenarios/SCN-STAR-LIBRARY/edit',
   advancedScenario: '/scenarios/SCN-STAR-LIBRARY/edit',
+  scenarioList: '/scenarios',
   startSession: '/sessions/start',
   playSession: '/sessions/SES-PREP-1098',
   resumeSession: '/sessions/SES-PREP-1098/resume',

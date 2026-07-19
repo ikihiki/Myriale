@@ -7,7 +7,7 @@ import '../styles.css';
 const meta = {
   title: 'ユーザーストーリー/Start session',
   component: MyrialeApp,
-  render: () => <MyrialeApp initialUrl="/sessions/start" initialDb={createDemoDb('activeSession')} />,
+  render: () => <MyrialeApp initialUrl="/scenarios" initialDb={createDemoDb('activeSession')} />,
   parameters: {
     notes: 'docs/user-stories/start-session.md の各ユーザーストーリーを、Storybook Interactions の step と expect で操作説明できるアプリ画面にしたものです。',
   },

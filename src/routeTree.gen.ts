@@ -22,6 +22,7 @@ import { Route as AccountRegisterRouteImport } from './routes/account/register'
 import { Route as AccountResetPasswordRouteImport } from './routes/account/reset-password'
 import { Route as AccountSecurityRouteImport } from './routes/account/security'
 import { Route as AccountWithdrawRouteImport } from './routes/account/withdraw'
+import { Route as ScenariosIndexRouteImport } from './routes/scenarios/index'
 import { Route as ScenariosNewRouteImport } from './routes/scenarios/new'
 import { Route as SessionsSessionIdRouteRouteImport } from './routes/sessions/$sessionId/route'
 import { Route as SessionsStartRouteImport } from './routes/sessions/start'
@@ -105,6 +106,11 @@ const AccountWithdrawRoute = AccountWithdrawRouteImport.update({
   id: '/withdraw',
   path: '/withdraw',
   getParentRoute: () => AccountRouteRoute,
+} as any)
+const ScenariosIndexRoute = ScenariosIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ScenariosRouteRoute,
 } as any)
 const ScenariosNewRoute = ScenariosNewRouteImport.update({
   id: '/new',
@@ -217,6 +223,7 @@ export interface FileRoutesByFullPath {
   '/account/withdraw': typeof AccountWithdrawRoute
   '/scenarios/new': typeof ScenariosNewRoute
   '/sessions/start': typeof SessionsStartRoute
+  '/scenarios/': typeof ScenariosIndexRoute
   '/account/admin/users': typeof AccountAdminUsersRouteRouteWithChildren
   '/account/admin/ai-keys': typeof AccountAdminAiKeysRoute
   '/account/admin/audit-log': typeof AccountAdminAuditLogRoute
@@ -236,7 +243,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRouteRouteWithChildren
-  '/scenarios': typeof ScenariosRouteRouteWithChildren
   '/sessions': typeof SessionsRouteRouteWithChildren
   '/account/admin': typeof AccountAdminRouteRouteWithChildren
   '/account/export': typeof AccountExportRoute
@@ -248,6 +254,7 @@ export interface FileRoutesByTo {
   '/account/withdraw': typeof AccountWithdrawRoute
   '/scenarios/new': typeof ScenariosNewRoute
   '/sessions/start': typeof SessionsStartRoute
+  '/scenarios': typeof ScenariosIndexRoute
   '/account/admin/ai-keys': typeof AccountAdminAiKeysRoute
   '/account/admin/audit-log': typeof AccountAdminAuditLogRoute
   '/account/profile/edit': typeof AccountProfileEditRoute
@@ -281,6 +288,7 @@ export interface FileRoutesById {
   '/account/withdraw': typeof AccountWithdrawRoute
   '/scenarios/new': typeof ScenariosNewRoute
   '/sessions/start': typeof SessionsStartRoute
+  '/scenarios/': typeof ScenariosIndexRoute
   '/account/admin/users': typeof AccountAdminUsersRouteRouteWithChildren
   '/account/admin/ai-keys': typeof AccountAdminAiKeysRoute
   '/account/admin/audit-log': typeof AccountAdminAuditLogRoute
@@ -316,6 +324,7 @@ export interface FileRouteTypes {
     | '/account/withdraw'
     | '/scenarios/new'
     | '/sessions/start'
+    | '/scenarios/'
     | '/account/admin/users'
     | '/account/admin/ai-keys'
     | '/account/admin/audit-log'
@@ -335,7 +344,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/account'
-    | '/scenarios'
     | '/sessions'
     | '/account/admin'
     | '/account/export'
@@ -347,6 +355,7 @@ export interface FileRouteTypes {
     | '/account/withdraw'
     | '/scenarios/new'
     | '/sessions/start'
+    | '/scenarios'
     | '/account/admin/ai-keys'
     | '/account/admin/audit-log'
     | '/account/profile/edit'
@@ -379,6 +388,7 @@ export interface FileRouteTypes {
     | '/account/withdraw'
     | '/scenarios/new'
     | '/sessions/start'
+    | '/scenarios/'
     | '/account/admin/users'
     | '/account/admin/ai-keys'
     | '/account/admin/audit-log'
@@ -495,6 +505,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/account/withdraw'
       preLoaderRoute: typeof AccountWithdrawRouteImport
       parentRoute: typeof AccountRouteRoute
+    }
+    '/scenarios/': {
+      id: '/scenarios/'
+      path: '/'
+      fullPath: '/scenarios/'
+      preLoaderRoute: typeof ScenariosIndexRouteImport
+      parentRoute: typeof ScenariosRouteRoute
     }
     '/scenarios/new': {
       id: '/scenarios/new'
@@ -699,12 +716,14 @@ const AccountRouteRouteWithChildren = AccountRouteRoute._addFileChildren(
 
 interface ScenariosRouteRouteChildren {
   ScenariosNewRoute: typeof ScenariosNewRoute
+  ScenariosIndexRoute: typeof ScenariosIndexRoute
   ScenariosScenarioIdEditRoute: typeof ScenariosScenarioIdEditRoute
   ScenariosScenarioIdRunSettingsRoute: typeof ScenariosScenarioIdRunSettingsRoute
 }
 
 const ScenariosRouteRouteChildren: ScenariosRouteRouteChildren = {
   ScenariosNewRoute: ScenariosNewRoute,
+  ScenariosIndexRoute: ScenariosIndexRoute,
   ScenariosScenarioIdEditRoute: ScenariosScenarioIdEditRoute,
   ScenariosScenarioIdRunSettingsRoute: ScenariosScenarioIdRunSettingsRoute,
 }

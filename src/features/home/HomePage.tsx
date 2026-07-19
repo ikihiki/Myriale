@@ -59,6 +59,19 @@ export function HomePage() {
     setLoadState({ status: 'loading', source: 'api' });
     fetchHomeDashboard(controller.signal)
       .then((dashboard) => {
+        dashboard.recommendedScenarios.forEach((scenario) => {
+          store?.dispatch({
+            type: 'SCENARIO_SAVED',
+            scenario: {
+              id: scenario.id,
+              title: scenario.title,
+              status: normalizeScenarioStatus(scenario.status),
+              genre: scenario.genre,
+              updatedAt: scenario.updatedAt,
+              summary: scenario.summary,
+            },
+          });
+        });
         setApiDashboard(dashboard);
         setLoadState({ status: 'loaded', source: 'api' });
       })
@@ -104,7 +117,7 @@ export function HomePage() {
               </p>
             )}
             <div className="home-actions" aria-label="トップページの主要導線">
-              <button className="primary" onClick={() => go('startSession')} data-testid="home-search-scenarios">
+              <button className="primary" onClick={() => go('scenarioList')} data-testid="home-search-scenarios">
                 シナリオを検索して開始
               </button>
               <button onClick={() => go('scenarioRegister')} data-testid="home-create-scenario">

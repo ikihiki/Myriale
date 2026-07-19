@@ -12,6 +12,13 @@ describe('TanStack app routing', () => {
     expect(router.state.matches[router.state.matches.length - 1]?.params).toMatchObject({ sessionId: 'SES-PREP-1098' });
   });
 
+  it('redirects a session start without scenarioId to the scenario list', async () => {
+    const router = createAppRouter({ initialUrl: '/sessions/start' });
+    await router.load();
+
+    expect(router.state.location.pathname).toBe('/scenarios');
+  });
+
   it('matches the home route and renders the root not-found fallback for unknown URLs', async () => {
     const homeRouter = createAppRouter({ initialUrl: '/' });
     await homeRouter.load();
