@@ -40,7 +40,11 @@ export const STORY_IDS = {
 
 export type StoryKey = keyof typeof STORY_IDS;
 
-type AppNavigate = (to: StoryKey) => void;
+export type AppNavigateOptions = {
+  query?: Record<string, string>;
+};
+
+type AppNavigate = (to: StoryKey, options?: AppNavigateOptions) => void;
 
 const AppNavigationContext = createContext<AppNavigate | null>(null);
 

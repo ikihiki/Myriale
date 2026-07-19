@@ -4,6 +4,7 @@ import { WizardNavigation } from '../../shared/WizardNavigation';
 import { MyrialeSelect } from '../../ui/MyrialeRadix';
 import { SessionTurn } from '../../shared/SessionTurn';
 import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
+import type { AppRoute } from '../routes';
 
 type SessionStep = 'intro' | 'hero' | 'review' | 'active';
 type HeroMode = 'fixed' | 'select' | 'create' | 'ai';
@@ -62,13 +63,37 @@ const scenarios: ScenarioSummary[] = [
   },
 ];
 
-export function StartSessionPage() {
+function scenarioFromRoute(route?: AppRoute): ScenarioSummary | null {
+  const scenarioId = route?.query.scenarioId;
+  if (!scenarioId) return null;
+
+  const knownScenario = scenarios.find((scenario) => scenario.id === scenarioId);
+  if (knownScenario) return knownScenario;
+
+  const title = route.query.title;
+  if (!title) return null;
+
+  return {
+    id: scenarioId,
+    title,
+    status: route.query.status === 'private' ? '自分用' : '公開中',
+    genre: route.query.genre ?? 'ジャンル未設定',
+    tone: 'シナリオ設定に基づくトーン',
+    lore: '選択したシナリオの設定をSession用に読み込みます。',
+    opening: route.query.opening ?? `${title}の物語が始まる。`,
+  };
+}
+
+export function StartSessionPage({ route }: { route?: AppRoute } = {}) {
   const appNavigate = useAppNavigation();
-  const [selectedScenario, setSelectedScenario] = useState<ScenarioSummary | null>(null);
+  const routeScenario = scenarioFromRoute(route);
+  const [selectedScenario, setSelectedScenario] = useState<ScenarioSummary | null>(routeScenario);
   const [activeStep, setActiveStep] = useState<SessionStep>('intro');
-  const [sessionId, setSessionId] = useState('未作成');
-  const [sessionState, setSessionState] = useState('NotStarted');
-  const [notice, setNotice] = useState('まずScenario一覧から開始するシナリオを選択します。');
+  const [sessionId, setSessionId] = useState(routeScenario ? 'SES-PREP-1098' : '未作成');
+  const [sessionState, setSessionState] = useState(routeScenario ? 'Preparing' : 'NotStarted');
+  const [notice, setNotice] = useState(routeScenario
+    ? `「${routeScenario.title}」から新しいSessionを作成し、イントロを表示しました。`
+    : 'まずScenario一覧から開始するシナリオを選択します。');
   const [heroMode, setHeroMode] = useState<HeroMode>('select');
   const [selectedHero, setSelectedHero] = useState(heroNames.select);
   const [createdName, setCreatedName] = useState('アオイ');

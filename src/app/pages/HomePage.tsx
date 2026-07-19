@@ -81,6 +81,15 @@ export function HomePage() {
   );
 
   const go = (to: StoryKey) => navigate?.(to);
+  const startRecommendedScenario = (scenario: HomeScenario) => navigate?.('startSession', {
+    query: {
+      scenarioId: scenario.id,
+      title: scenario.title,
+      genre: scenario.genre,
+      status: scenario.status,
+      opening: scenario.opening ?? scenario.summary ?? `${scenario.title}の物語が始まる。`,
+    },
+  });
 
   return (
     <AppChrome section="home" breadcrumbs={crumbs} account={vm.account}>
@@ -184,7 +193,7 @@ export function HomePage() {
                 <p>{scenario.summary ?? scenario.genre}</p>
                 <small>{scenario.updatedLabel}</small>
                 <div className="home-card-actions">
-                  <button className="primary" onClick={() => go('startSession')}>このシナリオで開始</button>
+                  <button className="primary" onClick={() => startRecommendedScenario(scenario)}>このシナリオで開始</button>
                   <button onClick={() => go('scenarioEdit')}>詳細を編集</button>
                 </div>
               </article>

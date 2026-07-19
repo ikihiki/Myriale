@@ -28,6 +28,15 @@ export const HomeDashboard: Story = {
       await expect(canvas.getByRole('region', { name: '中断しているセッション' })).toHaveTextContent('星喰いの地下図書館');
       await expect(canvas.getByRole('region', { name: 'おすすめのシナリオ' })).toHaveTextContent('灰の駅と宛名のない切符');
     });
+    await step('おすすめシナリオから開始すると一覧を挟まずイントロへ遷移する', async () => {
+      const recommended = within(canvas.getByTestId('home-scenario-SCN-STAR-LIBRARY'));
+      await userEvent.click(recommended.getByRole('button', { name: 'このシナリオで開始' }));
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/start?');
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('scenarioId=SCN-STAR-LIBRARY');
+      await expect(canvas.getByRole('region', { name: 'イントロNarrative' })).toBeVisible();
+      await expect(canvas.getByTestId('selected-scenario-title')).toHaveTextContent('星喰いの地下図書館');
+      await userEvent.click(canvas.getByRole('button', { name: 'Myriale ホームへ' }));
+    });
     await step('主要導線から検索・新規作成・再開へ遷移できる', async () => {
       await userEvent.click(canvas.getByTestId('home-search-scenarios'));
       await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/start');

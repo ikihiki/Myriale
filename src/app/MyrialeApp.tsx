@@ -1,4 +1,4 @@
-import { AppNavigationProvider, type StoryKey } from '../shared/nav';
+import { AppNavigationProvider, type AppNavigateOptions, type StoryKey } from '../shared/nav';
 import { DEFAULT_APP_URL, appUrlForStoryKey, formatAppUrl, parseAppUrl } from './routes';
 import { AppScreenHost } from './screens';
 import { AppStoreProvider, type AppDb, useAppStore } from './store';
@@ -21,7 +21,10 @@ export function MyrialeApp({ initialUrl = DEFAULT_APP_URL, initialDb, showDebugP
 function MyrialeAppRuntime({ showDebugPanel }: { showDebugPanel: boolean }) {
   const { db, dispatch } = useAppStore();
   const currentUrl = formatAppUrl(db.ui.route);
-  const navigate = (key: StoryKey) => dispatch({ type: 'NAVIGATE', route: parseAppUrl(appUrlForStoryKey(key)) });
+  const navigate = (key: StoryKey, options?: AppNavigateOptions) => {
+    const route = parseAppUrl(appUrlForStoryKey(key));
+    dispatch({ type: 'NAVIGATE', route: { ...route, query: options?.query ?? route.query } });
+  };
 
   return (
     <AppNavigationProvider navigate={navigate}>

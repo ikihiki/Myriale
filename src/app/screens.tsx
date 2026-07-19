@@ -40,7 +40,7 @@ export const appScreens: Record<AppScreen, AppScreenComponent> = {
   home: () => <HomePage />,
   scenarioRegister: () => <ScenarioRegistrationPage />,
   scenarioEdit: () => <EditScenarioPage />,
-  startSession: () => <StartSessionPage />,
+  startSession: ({ route }) => <StartSessionPage route={route} />,
   playSession: () => <SessionPage />,
   resumeSession: () => <SessionResumePage />,
   login: AccountScreen,
