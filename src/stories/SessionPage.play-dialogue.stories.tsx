@@ -144,8 +144,7 @@ export const USP08AndP10ContinuousLoopWaitsForInput: Story = {
       await sendAction(canvas, '反応した書架へ近づく');
       await expect(canvas.getByTestId('dialogue-log')).toHaveTextContent('プレイヤーの入力: 反応した書架へ近づく');
     });
-    await step('AIは重要な進行を勝手に進めず、次のPlayer Inputを待っていることを表示する', async () => {
-      await expect(canvas.getByTestId('input-waiting')).toHaveTextContent('必ずPlayer Inputを待ちます');
+    await step('AIは重要な進行を勝手に進めず、次のPlayer Inputを待つ', async () => {
       await expect(canvas.getByRole('status')).toHaveTextContent('次の重要な進行は入力待ち');
     });
   },

@@ -178,7 +178,7 @@ function SessionDialogueSection({ sessionId }: { sessionId: string }) {
   const [selectedTurnId, setSelectedTurnId] = useState(1);
   const [notice, setNotice] = useState(
     initialTurnCount === 1
-      ? 'Session状態はActiveです。統合アプリのDB設定により、イントロのみを第一ターンとして表示しています。AIが現在地、周囲、直近の出来事をNarrativeとして提示しました。'
+      ? ''
       : `Session状態はActiveです。DB設定により、複数ターン経過後（Turn ${String(initialTurnCount).padStart(2, '0')}まで）のログを表示しています。AIが現在地、周囲、直近の出来事をNarrativeとして提示しました。`,
   );
   const notesMode = appStore?.db.ui.notesPanelMode ?? 'side';
@@ -531,10 +531,7 @@ function SessionDialogueSection({ sessionId }: { sessionId: string }) {
             </>
           )}
         </div>
-        <div className="notice" role="status" data-testid="dialogue-notice">{notice}</div>
-        <p className="session-loop-note" data-testid="input-waiting">
-          AIは重要な進行の前に必ずPlayer Inputを待ちます。
-        </p>
+        {notice && <div className="notice" role="status" data-testid="dialogue-notice">{notice}</div>}
 
         <section className="dialogue-log" aria-label="対話ログ" data-testid="dialogue-log">
           {turns.map((turn) => {
