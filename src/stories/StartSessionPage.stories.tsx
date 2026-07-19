@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, userEvent, within } from '@storybook/test';
+import { expect, userEvent, waitFor, within } from '@storybook/test';
 import { MyrialeApp } from '../app/MyrialeApp';
 import { createDemoDb } from '../app/demoData';
 import '../styles.css';
@@ -68,7 +68,7 @@ export const USS03ConfirmHeroAfterIntro: Story = {
       await userEvent.click(canvas.getByRole('combobox', { name: '候補キャラクター' }));
       await userEvent.click(await screen.findByRole('option', { name: 'エル / 記憶を失った写字生' }));
       await userEvent.click(canvas.getByRole('button', { name: '開始内容を確認' }));
-      await expect(canvas.getByRole('dialog', { name: '開始前の最終確認' })).toBeVisible();
+      await waitFor(() => expect(canvas.getByRole('dialog', { name: '開始前の最終確認' })).toBeVisible());
       await expect(canvas.getByTestId('start-summary')).toHaveTextContent('エル / 記憶を失った写字生');
     });
   },
@@ -103,7 +103,7 @@ export const USS04ReviewBeforeStarting: Story = {
     await startPreparing(canvas);
     await userEvent.click(canvas.getByRole('button', { name: '開始内容を確認' }));
     await step('ダイアログの開始サマリーでScenario概要と主人公を確認する', async () => {
-      await expect(canvas.getByRole('dialog', { name: '開始前の最終確認' })).toBeVisible();
+      await waitFor(() => expect(canvas.getByRole('dialog', { name: '開始前の最終確認' })).toBeVisible());
       await expect(canvas.getByTestId('start-summary')).toHaveTextContent('Scenario: 星喰いの地下図書館');
       await expect(canvas.getByTestId('start-summary')).toHaveTextContent('主人公: ミラ');
     });

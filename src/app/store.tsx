@@ -229,6 +229,9 @@ export function createDemoDb(kind: DemoDbKind = 'activeSession', overrides: Part
       status: 'published',
       genre: 'ダークファンタジー探索譚',
       updatedAt: '2026-06-20 19:30',
+      tone: '静かで不穏、淡い希望',
+      lore: '星座は魔法体系の鍵。死者の名前を読むと記憶を失う。',
+      opening: 'あなたは水没した閲覧室で目を覚ます。',
     },
     'SCN-ASH-STATION': {
       id: 'SCN-ASH-STATION',
@@ -236,6 +239,9 @@ export function createDemoDb(kind: DemoDbKind = 'activeSession', overrides: Part
       status: kind === 'registrationDraft' ? 'draft' : 'private',
       genre: '終末ロードムービー',
       updatedAt: '2026-06-18 22:15',
+      tone: '乾いた祈り、遠い汽笛',
+      lore: '朝が来ない荒野では、切符だけが次の町を覚えている。',
+      opening: 'あなたは灰の降る駅で、宛名のない切符を握っている。',
     },
   };
   const playSessions: AppDb['playSessions'] = {

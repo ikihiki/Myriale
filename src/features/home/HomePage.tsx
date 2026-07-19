@@ -82,13 +82,7 @@ export function HomePage() {
 
   const go = (to: StoryKey) => navigate?.(to);
   const startRecommendedScenario = (scenario: HomeScenario) => navigate?.('startSession', {
-    query: {
-      scenarioId: scenario.id,
-      title: scenario.title,
-      genre: scenario.genre,
-      status: scenario.status,
-      opening: scenario.opening ?? scenario.summary ?? `${scenario.title}の物語が始まる。`,
-    },
+    query: { scenarioId: scenario.id },
   });
 
   return (

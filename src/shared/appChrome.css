@@ -6,12 +6,12 @@
  * lives below, inside .app-canvas.
  */
 .app-chrome {
-  --ac-void: #121019;
-  --ac-ink: #241b2f;
-  --ac-paper: #fffaf0;
-  --ac-iris: #7c5cff;
-  --ac-ember: #ff9f68;
-  --ac-mist: #d6e7e0;
+  --ac-void: var(--myr-color-void, #121019);
+  --ac-ink: var(--myr-color-ink, #241b2f);
+  --ac-paper: var(--myr-color-paper, #fffaf0);
+  --ac-iris: var(--myr-color-iris, #7c5cff);
+  --ac-ember: var(--myr-color-ember, #ff9f68);
+  --ac-mist: var(--myr-color-mist, #d6e7e0);
   min-height: 100vh;
 }
 

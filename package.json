@@ -42,8 +42,10 @@
   "devDependencies": {
     "@playwright/test": "^1.61.1",
     "@storybook/addon-controls": "^8.6.18",
+    "@tailwindcss/vite": "^4.3.3",
     "@tanstack/router-plugin": "^1.168.22",
     "@types/react": "^18.3.31",
-    "@types/react-dom": "^18.3.7"
+    "@types/react-dom": "^18.3.7",
+    "tailwindcss": "^4.3.3"
   }
 }

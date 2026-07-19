@@ -31,8 +31,8 @@ export const HomeDashboard: Story = {
     await step('おすすめシナリオから開始すると一覧を挟まずイントロへ遷移する', async () => {
       const recommended = within(canvas.getByTestId('home-scenario-SCN-STAR-LIBRARY'));
       await userEvent.click(recommended.getByRole('button', { name: 'このシナリオで開始' }));
-      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/start?');
-      await expect(canvas.getByTestId('app-url')).toHaveTextContent('scenarioId=SCN-STAR-LIBRARY');
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/start?scenarioId=SCN-STAR-LIBRARY');
+      await expect(canvas.getByTestId('app-url')).not.toHaveTextContent('title=');
       await expect(await canvas.findByRole('region', { name: 'イントロNarrative' })).toBeVisible();
       await expect(canvas.getByTestId('selected-scenario-title')).toHaveTextContent('星喰いの地下図書館');
       await userEvent.click(canvas.getByRole('button', { name: 'Myriale ホームへ' }));
