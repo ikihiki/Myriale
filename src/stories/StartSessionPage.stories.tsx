@@ -71,6 +71,10 @@ export const USS03ConfirmHeroAfterIntro: Story = {
       await expect(canvas.queryByRole('button', { name: '自由生成する' })).not.toBeInTheDocument();
       await userEvent.click(canvas.getByRole('combobox', { name: '候補キャラクター' }));
       await userEvent.click(await screen.findByRole('option', { name: 'エル / 記憶を失った写字生' }));
+      await expect(canvas.getByLabelText('主人公の名前')).toHaveValue('エル');
+      await expect(canvas.getByLabelText('主人公の名前')).toHaveAttribute('readonly');
+      await expect(canvas.getByLabelText('主人公プロフィール')).toHaveValue('記憶を失った写字生');
+      await expect(canvas.getByLabelText('主人公プロフィール')).toHaveAttribute('readonly');
       await userEvent.click(canvas.getByRole('button', { name: '開始内容を確認' }));
       await waitFor(() => expect(canvas.getByRole('dialog', { name: '開始前の最終確認' })).toBeVisible());
       await expect(canvas.getByTestId('start-summary')).toHaveTextContent('エル / 記憶を失った写字生');
@@ -133,10 +137,13 @@ export const USS03FixedHeroIsReadOnly: Story = {
     const canvas = within(canvasElement);
     await startPreparing(canvas, '硝子の森と夜明けの司書');
     await step('固定主人公だけを表示し、選択や自由生成を許可しない', async () => {
-      await expect(canvas.getByTestId('fixed-hero')).toHaveTextContent('リュシエン');
+      await expect(canvas.getByTestId('fixed-hero')).toBeVisible();
+      await expect(canvas.getByLabelText('主人公の名前')).toHaveValue('リュシエン');
+      await expect(canvas.getByLabelText('主人公の名前')).toHaveAttribute('readonly');
+      await expect(canvas.getByLabelText('主人公プロフィール')).toHaveValue('夜明け前の森を巡る司書');
+      await expect(canvas.getByLabelText('主人公プロフィール')).toHaveAttribute('readonly');
       await expect(canvas.queryByRole('combobox', { name: '候補キャラクター' })).not.toBeInTheDocument();
       await expect(canvas.queryByRole('button', { name: '自由生成する' })).not.toBeInTheDocument();
-      await expect(canvas.queryByLabelText('主人公の名前')).not.toBeInTheDocument();
     });
   },
 };

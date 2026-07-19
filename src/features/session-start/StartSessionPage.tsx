@@ -5,6 +5,43 @@ import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeSelect } from '../../ui
 import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
 import { toScenarioSummary } from './scenarioPresentation';
 
+function protagonistDetails(value: string) {
+  const [name, ...profileParts] = value.split('/').map((part) => part.trim());
+  return {
+    name: name || '名前未設定',
+    profile: profileParts.join(' / ') || 'プロフィールは設定されていません。',
+  };
+}
+
+function ReadOnlyProtagonistFields({ value, testId }: { value: string; testId: string }) {
+  const protagonist = protagonistDetails(value);
+
+  return (
+    <div className="grid gap-4" data-testid={testId}>
+      <label className="grid gap-2 text-xs font-black tracking-[0.04em] text-myr-slate">
+        名前
+        <input
+          className="!cursor-not-allowed !rounded-none !border-x-0 !border-t-0 !border-b-2 !border-myr-ink/15 !bg-myr-vellum/35 !px-3 !py-2.5 !text-base !text-myr-slate !shadow-none"
+          aria-label="主人公の名前"
+          aria-readonly="true"
+          readOnly
+          value={protagonist.name}
+        />
+      </label>
+      <label className="grid gap-2 text-xs font-black tracking-[0.04em] text-myr-slate">
+        プロフィール
+        <textarea
+          className="!min-h-28 !cursor-not-allowed !rounded-myr-card !border !border-myr-ink/15 !bg-myr-vellum/35 !px-3 !py-3 !text-base !leading-7 !text-myr-slate !shadow-none"
+          aria-label="主人公プロフィール"
+          aria-readonly="true"
+          readOnly
+          value={protagonist.profile}
+        />
+      </label>
+    </div>
+  );
+}
+
 export type StartSessionSearch = {
   scenarioId?: string;
 };
@@ -126,16 +163,7 @@ export function StartSessionPage({ search }: { search?: StartSessionSearch } = {
                 <p className="mb-2 font-myr-mono text-[0.6875rem] font-black tracking-[0.14em] text-myr-ruby uppercase">
                   Protagonist
                 </p>
-                <h2 className="m-0 font-myr-display text-[clamp(1.75rem,3vw,2.75rem)] leading-none tracking-[-0.045em]">
-                  {selectedScenario.heroMode === 'free' || heroInputMode === 'free' ? 'この物語を歩く人をつくる' : 'この物語を歩く人'}
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-myr-slate">
-                  {selectedScenario.heroMode === 'fixed' && 'このシナリオでは主人公が固定されています。内容を確認して開始してください。'}
-                  {selectedScenario.heroMode === 'select' && (selectedScenario.heroFreeGenerationAllowed
-                    ? '登録された候補を必ず選べます。作者が許可しているため、自由生成へ切り替えることもできます。'
-                    : 'シナリオに登録された候補から主人公を選びます。自由生成は許可されていません。')}
-                  {selectedScenario.heroMode === 'free' && selectedScenario.hero}
-                </p>
+
               </div>
 
               {selectedScenario.heroMode === 'select' && selectedScenario.heroFreeGenerationAllowed && (
@@ -165,18 +193,12 @@ export function StartSessionPage({ search }: { search?: StartSessionSearch } = {
                     onValueChange={setSelectedHero}
                     options={heroCandidates.map((candidate) => ({ value: candidate, label: candidate }))}
                   />
-                  <div className="grid gap-2 border-l-4 border-myr-gold bg-myr-paper/55 px-4 py-3" data-testid="readonly-hero">
-                    <span className="text-xs font-black tracking-[0.08em] text-myr-slate uppercase">選択中の主人公</span>
-                    <strong className="font-myr-display text-2xl tracking-[-0.03em]">{selectedHero}</strong>
-                  </div>
+                  <ReadOnlyProtagonistFields value={selectedHero} testId="readonly-hero" />
                 </>
               )}
 
               {selectedScenario.heroMode === 'fixed' && (
-                <div className="grid gap-2 border-l-4 border-myr-gold bg-myr-paper/55 px-4 py-3" data-testid="fixed-hero">
-                  <span className="text-xs font-black tracking-[0.08em] text-myr-slate uppercase">固定主人公</span>
-                  <strong className="font-myr-display text-2xl tracking-[-0.03em]">{selectedScenario.hero}</strong>
-                </div>
+                <ReadOnlyProtagonistFields value={selectedScenario.hero} testId="fixed-hero" />
               )}
 
               {(selectedScenario.heroMode === 'free' || (selectedScenario.heroMode === 'select' && heroInputMode === 'free')) && (
