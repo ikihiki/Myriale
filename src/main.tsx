@@ -11,6 +11,6 @@ if (!root) {
 
 createRoot(root).render(
   <React.StrictMode>
-    <MyrialeApp initialUrl={window.location.pathname + window.location.search} showDebugPanel={false} />
+    <MyrialeApp historyMode="browser" showDebugPanel={false} />
   </React.StrictMode>,
 );

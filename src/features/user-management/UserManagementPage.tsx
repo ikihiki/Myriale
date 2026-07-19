@@ -1,4 +1,4 @@
-import { AccountPage, type AccountView } from '../../account/pages/AccountPage';
+import { AccountPage, type AccountView } from '../account/AccountPage';
 import type { AccountApi } from '../../account/api/accountApi';
 
 export type UMView = AccountView;

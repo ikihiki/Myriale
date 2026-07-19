@@ -3,8 +3,8 @@ import { ScenarioProgressControls } from '../../ScenarioProgressControls';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { WizardNavigation } from '../../shared/WizardNavigation';
 import { MyrialeSelect } from '../../ui/MyrialeRadix';
-import { createFetchScenarioApi, firstScenarioFieldError, type ScenarioAiAssistResponse, type ScenarioAiKind, type ScenarioApi, type ScenarioApiError } from '../scenarioApi';
-import { useOptionalAppStore } from '../store';
+import { createFetchScenarioApi, firstScenarioFieldError, type ScenarioAiAssistResponse, type ScenarioAiKind, type ScenarioApi, type ScenarioApiError } from '../../app/scenarioApi';
+import { useOptionalAppStore } from '../../app/store';
 
 type SuggestionKind = '概要' | '世界観' | '挿絵テイスト' | '挿絵プロンプト';
 type WizardStep =

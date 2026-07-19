@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
-import { useOptionalAppStore, type TurnDisplayFlags } from '../store';
+import { useOptionalAppStore, type TurnDisplayFlags } from '../../app/store';
 import { SessionTurn } from '../../shared/SessionTurn';
 import { SessionNotesWorkspace } from '../../SessionNotesWorkspace';
 import { WizardNavigation } from '../../shared/WizardNavigation';
@@ -163,15 +163,13 @@ const clampInitialTurnCount = (count: number | undefined) => {
   return Math.min(Math.max(Math.trunc(count ?? initialTurns.length), 1), initialTurns.length);
 };
 
-export function SessionPage() {
-  return <SessionDialogueSection />;
+export function SessionPage({ sessionId = 'SES-PREP-1098' }: { sessionId?: string } = {}) {
+  return <SessionDialogueSection sessionId={sessionId} />;
 }
 
 
-function SessionDialogueSection() {
+function SessionDialogueSection({ sessionId }: { sessionId: string }) {
   const appStore = useOptionalAppStore();
-  const routeSessionId = appStore?.db.ui.route.params.sessionId;
-  const sessionId = routeSessionId ?? appStore?.db.ui.selectedSessionId ?? 'SES-PREP-1098';
   const dbSession = appStore?.db.playSessions[sessionId];
   const initialTurnCount = clampInitialTurnCount(dbSession?.turn);
   const initialVisibleTurns = initialTurns.slice(0, initialTurnCount);

@@ -6,8 +6,8 @@ import {
   isHomeDashboardApiEnabled,
   type HomeDashboardDto,
   type HomeDashboardLoadState,
-} from '../homeDashboardApi';
-import { createDemoDb, useOptionalAppStore, type AppDb, type PlaySessionRecord, type ScenarioRecord } from '../store';
+} from '../../app/homeDashboardApi';
+import { createDemoDb, useOptionalAppStore, type AppDb, type PlaySessionRecord, type ScenarioRecord } from '../../app/store';
 
 type HomeAccount = {
   name: string;

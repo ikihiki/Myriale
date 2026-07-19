@@ -11,6 +11,17 @@ npm test                 # 各 play ストーリーを vitest で検証
 npm run build-storybook  # 静的ビルド → storybook-static/
 ```
 
+## フロントエンドのルーティング構成
+
+フロントエンドは TanStack Router の file-based routing を使用します。
+
+- ルート定義: `src/routes/`
+- 自動生成されるルートツリー: `src/routeTree.gen.ts`
+- ルーター生成と browser / memory history の切り替え: `src/router.tsx`
+- ページ本体: `src/features/<feature>/`
+
+`src/routes/` のファイルはURL、パラメーター、検索条件を扱う薄いエントリーポイントとし、画面本体は `src/features/` に配置します。ViteとStorybookの両方でTanStack Router pluginを実行するため、ルートファイルを追加・変更するとルートツリーが更新されます。Storybookでは各Storyごとにmemory historyを生成し、`initialUrl`とデモDBを分離して再現します。
+
 ## Storybook の確認
 
 - **本番（main）**: https://ikihiki.github.io/Myriale/ — `main` への push で自動デプロイされます。

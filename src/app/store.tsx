@@ -1,5 +1,4 @@
 import { createContext, useContext, useMemo, useReducer, type Dispatch, type ReactNode } from 'react';
-import { parseAppUrl, type AppRoute } from './routes';
 
 export type DemoDbKind =
   | 'empty'
@@ -64,7 +63,6 @@ export type AppDb = {
     lorebook: Array<{ id: string; kind: 'person' | 'place' | 'canon'; title: string; body: string }>;
   };
   ui: {
-    route: AppRoute;
     notices: string[];
     selectedScenarioId?: string;
     selectedSessionId?: string;
@@ -75,7 +73,6 @@ export type AppDb = {
 };
 
 export type AppAction =
-  | { type: 'NAVIGATE'; route: AppRoute }
   | { type: 'SCENARIO_DRAFT_UPDATED'; scenarioId: string; patch: Partial<ScenarioRecord> }
   | { type: 'SCENARIO_SAVED'; scenario: ScenarioRecord }
   | { type: 'SESSION_STARTED'; session: PlaySessionRecord }
@@ -96,16 +93,6 @@ export type AppAction =
 
 export function appReducer(db: AppDb, action: AppAction): AppDb {
   switch (action.type) {
-    case 'NAVIGATE':
-      return {
-        ...db,
-        ui: {
-          ...db.ui,
-          route: action.route,
-          selectedScenarioId: action.route.params.scenarioId ?? db.ui.selectedScenarioId,
-          selectedSessionId: action.route.params.sessionId ?? db.ui.selectedSessionId,
-        },
-      };
     case 'SCENARIO_DRAFT_UPDATED': {
       const current = db.scenarios[action.scenarioId];
       if (!current) return db;
@@ -217,11 +204,8 @@ export function appReducer(db: AppDb, action: AppAction): AppDb {
 
 const AppStoreContext = createContext<{ db: AppDb; dispatch: Dispatch<AppAction> } | null>(null);
 
-export function AppStoreProvider({ initialDb, initialUrl, children }: { initialDb?: AppDb; initialUrl?: string; children: ReactNode }) {
-  const startDb = useMemo(() => {
-    const db = initialDb ?? createDemoDb('activeSession');
-    return { ...db, ui: { ...db.ui, route: parseAppUrl(initialUrl ?? db.ui.route.path) } };
-  }, [initialDb, initialUrl]);
+export function AppStoreProvider({ initialDb, children }: { initialDb?: AppDb; children: ReactNode }) {
+  const startDb = useMemo(() => initialDb ?? createDemoDb('activeSession'), [initialDb]);
   const [db, dispatch] = useReducer(appReducer, startDb);
   const value = useMemo(() => ({ db, dispatch }), [db]);
   return <AppStoreContext.Provider value={value}>{children}</AppStoreContext.Provider>;
@@ -290,7 +274,6 @@ export function createDemoDb(kind: DemoDbKind = 'activeSession', overrides: Part
       ],
     },
     ui: {
-      route: parseAppUrl('/sessions/SES-PREP-1098'),
       notices: ['Redux風ストアでStorybookデモ用DBを初期化しました。'],
       notesPanelMode: kind === 'lorebook' || kind === 'notesReview' ? 'full' : 'side',
       sessionView: kind === 'programDrivenSession' ? 'program' : kind === 'modeTransitionSession' ? 'modeTransition' : 'dialogue',

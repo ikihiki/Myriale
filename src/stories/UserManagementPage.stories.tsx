@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
 import { MyrialeApp } from '../app/MyrialeApp';
 import { createDemoDb } from '../app/demoData';
-import type { UMView } from '../app/pages/UserManagementPage';
+import type { UMView } from '../features/user-management/UserManagementPage';
 import '../account/account.css';
 
 /**

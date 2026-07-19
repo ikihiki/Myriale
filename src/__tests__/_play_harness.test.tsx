@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { composeStories } from '@storybook/react';
 import * as pageStories from '../stories/UserManagementPage.stories';
@@ -34,6 +34,7 @@ describe('play: MyrialeApp integrated stories', () => {
   for (const [name, Story] of Object.entries(composedMyrialeApp)) {
     it(name, async () => {
       const { container } = render(<Story />);
+      await waitFor(() => expect(container.firstElementChild).not.toBeNull());
       if (Story.play) {
         await Story.play({ canvasElement: container });
       }
@@ -46,6 +47,7 @@ describe('play: UserManagementPage stories', () => {
   for (const [name, Story] of Object.entries(composedPageStories)) {
     it(name, async () => {
       const { container } = render(<Story />);
+      await waitFor(() => expect(container.firstElementChild).not.toBeNull());
       if (Story.play) {
         await Story.play({ canvasElement: container });
       }
@@ -58,6 +60,7 @@ describe('play: AccountKit stories', () => {
   for (const [name, Story] of Object.entries(composedKit)) {
     it(name, async () => {
       const { container } = render(<Story />);
+      await waitFor(() => expect(container.firstElementChild).not.toBeNull());
       if (Story.play) {
         await Story.play({ canvasElement: container });
       }
@@ -70,6 +73,7 @@ describe('play: AppChrome stories', () => {
   for (const [name, Story] of Object.entries(composedAppChrome)) {
     it(name, async () => {
       const { container } = render(<Story />);
+      await waitFor(() => expect(container.firstElementChild).not.toBeNull());
       if (Story.play) {
         await Story.play({ canvasElement: container });
       }
@@ -82,6 +86,7 @@ describe('play: SessionResumePage stories', () => {
   for (const [name, Story] of Object.entries(composedSessionResume)) {
     it(name, async () => {
       const { container } = render(<Story />);
+      await waitFor(() => expect(container.firstElementChild).not.toBeNull());
       if (Story.play) {
         await Story.play({ canvasElement: container });
       }
@@ -94,6 +99,7 @@ describe('play: ScenarioRegistrationPage stories', () => {
   for (const [name, Story] of Object.entries(composedScenarioRegistration)) {
     it(name, async () => {
       const { container } = render(<Story />);
+      await waitFor(() => expect(container.firstElementChild).not.toBeNull());
       if (Story.play) {
         await Story.play({ canvasElement: container });
       }
@@ -106,6 +112,7 @@ describe('play: EditScenarioPage stories', () => {
   for (const [name, Story] of Object.entries(composedEditScenario)) {
     it(name, async () => {
       const { container } = render(<Story />);
+      await waitFor(() => expect(container.firstElementChild).not.toBeNull());
       if (Story.play) {
         await Story.play({ canvasElement: container });
       }
@@ -118,6 +125,7 @@ describe('play: SessionPage program-driven stories', () => {
   for (const [name, Story] of Object.entries(composedProgramDriven)) {
     it(name, async () => {
       const { container } = render(<Story />);
+      await waitFor(() => expect(container.firstElementChild).not.toBeNull());
       if (Story.play) {
         await Story.play({ canvasElement: container });
       }
@@ -130,6 +138,7 @@ describe('play: SessionTurn stories', () => {
   for (const [name, Story] of Object.entries(composedSessionTurn)) {
     it(name, async () => {
       const { container } = render(<Story />);
+      await waitFor(() => expect(container.firstElementChild).not.toBeNull());
       if (Story.play) {
         await Story.play({ canvasElement: container });
       }

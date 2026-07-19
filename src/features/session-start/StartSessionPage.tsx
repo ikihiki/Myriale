@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeSelect } from '../../ui/MyrialeRadix';
 import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
-import type { AppRoute } from '../routes';
 
 type HeroMode = 'fixed' | 'select' | 'create' | 'ai';
 
@@ -53,30 +52,38 @@ const scenarios: ScenarioSummary[] = [
   },
 ];
 
-function scenarioFromRoute(route?: AppRoute): ScenarioSummary | null {
-  const scenarioId = route?.query.scenarioId;
+export type StartSessionSearch = {
+  scenarioId?: string;
+  title?: string;
+  genre?: string;
+  status?: string;
+  opening?: string;
+};
+
+function scenarioFromSearch(search?: StartSessionSearch): ScenarioSummary | null {
+  const scenarioId = search?.scenarioId;
   if (!scenarioId) return null;
 
   const knownScenario = scenarios.find((scenario) => scenario.id === scenarioId);
   if (knownScenario) return knownScenario;
 
-  const title = route.query.title;
+  const title = search.title;
   if (!title) return null;
 
   return {
     id: scenarioId,
     title,
-    status: route.query.status === 'private' ? '自分用' : '公開中',
-    genre: route.query.genre ?? 'ジャンル未設定',
+    status: search.status === 'private' ? '自分用' : '公開中',
+    genre: search.genre ?? 'ジャンル未設定',
     tone: 'シナリオ設定に基づくトーン',
     lore: '選択したシナリオの設定をSession用に読み込みます。',
-    opening: route.query.opening ?? `${title}の物語が始まる。`,
+    opening: search.opening ?? `${title}の物語が始まる。`,
   };
 }
 
-export function StartSessionPage({ route }: { route?: AppRoute } = {}) {
+export function StartSessionPage({ search }: { search?: StartSessionSearch } = {}) {
   const appNavigate = useAppNavigation();
-  const routeScenario = scenarioFromRoute(route);
+  const routeScenario = scenarioFromSearch(search);
   const [selectedScenario, setSelectedScenario] = useState<ScenarioSummary | null>(routeScenario);
   const [heroMode, setHeroMode] = useState<HeroMode>('select');
   const [selectedHero, setSelectedHero] = useState(heroNames.select);
