@@ -7,4 +7,13 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 {
     public DbSet<Scenario> Scenarios => Set<Scenario>();
     public DbSet<AiProviderKey> AiProviderKeys => Set<AiProviderKey>();
+    public DbSet<ModulePackage> ModulePackages => Set<ModulePackage>();
+
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        base.OnModelCreating(builder);
+        builder.Entity<ModulePackage>()
+            .HasIndex(package => new { package.ModuleId, package.Version })
+            .IsUnique();
+    }
 }
