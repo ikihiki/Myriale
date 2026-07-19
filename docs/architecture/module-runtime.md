@@ -37,6 +37,16 @@ The host enforces configuration, state, action, context, effect-count, and total
 
 Calls are bounded by a host-wide concurrency gate, including package integrity checks, assembly loading, invocation, response validation, and serialization. Caller cancellation is forwarded to modules, but the in-process runtime does not advertise a hard timeout: trusted code can ignore cancellation or block in constructors and static initializers. Untrusted modules therefore require a future worker process or container boundary.
 
+## Detached execution persistence
+
+Before Session and SessionTurn aggregates are introduced, the API exposes an authenticated detached Module Execution seam. Each execution is owner-scoped and pins module ID, semantic version, package digest, contract version, configuration/state schema versions, configuration, and context. State, view state, available actions, revision, and a completed outcome are persisted after every accepted lifecycle step.
+
+Initialization and dispatch request IDs are recorded as durable receipts. Receipts store semantic request fingerprints, host-generated random values, actions, and exact responses. Matching retries replay a completed response; a retry of a pending request reinvokes the pure module operation with the same snapshots and random values. Revision concurrency ensures that at most one competing action becomes the accepted state transition.
+
+A module-declared failed dispatch does not mutate the execution snapshot or revision. Its transient error and `uiEvents` are retained in the request receipt for replay. A failed initialization is terminal. Ordinary API responses expose view state and available actions but not private module state, configuration, context, or recorded randomness.
+
+The current application startup still recreates the database. These records are database-backed within the running application environment but restart durability is intentionally not claimed until database lifecycle management is changed separately.
+
 ## Deferred work
 
-Worker-process isolation, execution persistence, random-number recording, package-cache invalidation across API processes, and recovery behavior remain deferred.
+Session/SessionTurn ownership, effect application, narrative handoff, worker-process isolation, package-cache invalidation across API processes, and retained database lifecycle management remain deferred.

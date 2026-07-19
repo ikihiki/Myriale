@@ -28,14 +28,25 @@ public sealed class HeadlessTestModule : IMyrialeModule
             : []));
     }
 
-    public ValueTask<ModuleInitializationResult> InitializeAsync(ModuleInitializationRequest request, CancellationToken cancellationToken)
+    public async ValueTask<ModuleInitializationResult> InitializeAsync(ModuleInitializationRequest request, CancellationToken cancellationToken)
     {
         _invocations++;
-        return ValueTask.FromResult(new ModuleInitializationResult(
+        if (request.Configuration.TryGetProperty("initializationDelayMilliseconds", out var delay))
+            await Task.Delay(delay.GetInt32(), cancellationToken);
+        if (request.Configuration.TryGetProperty("completeOnInitialize", out var complete) && complete.GetBoolean())
+        {
+            return new ModuleInitializationResult(
+                ModuleExecutionStatuses.Completed,
+                Json(new { initialized = true }),
+                Json(new { completed = true }),
+                [],
+                CompletedOutcome());
+        }
+        return new ModuleInitializationResult(
             ModuleExecutionStatuses.Active,
             Json(new { initialized = true, instanceInvocations = _invocations }),
             Json(new { screen = "runtime" }),
-            [new ModuleAvailableAction("continue", "Continue", true)]));
+            [new ModuleAvailableAction("continue", "Continue", true)]);
     }
 
     public async ValueTask<ModuleTransitionResult> DispatchAsync(ModuleDispatchRequest request, CancellationToken cancellationToken)
@@ -91,6 +102,17 @@ public sealed class HeadlessTestModule : IMyrialeModule
                     [],
                     []));
         }
+        if (mode == "failed")
+        {
+            return new ModuleTransitionResult(
+                ModuleExecutionStatuses.Failed,
+                request.ExpectedRevision,
+                request.State,
+                Json(new { rejected = true }),
+                [],
+                [new ModuleEvent("rejected", Json(new { reason = "test" }))],
+                Error: new ModuleError("action_rejected", "The action was rejected."));
+        }
         if (mode == "complete")
         {
             return new ModuleTransitionResult(
@@ -100,7 +122,7 @@ public sealed class HeadlessTestModule : IMyrialeModule
                 Json(new { completed = true }),
                 [],
                 [],
-                new ModuleOutcome("test", "complete", "Complete", "Completed.", [], [], [], [], []));
+                CompletedOutcome());
         }
         return Active(request, request.ExpectedRevision + 1);
     }
@@ -112,6 +134,17 @@ public sealed class HeadlessTestModule : IMyrialeModule
         Json(new { screen = "runtime" }),
         [new ModuleAvailableAction("continue", "Continue", true)],
         [new ModuleEvent("updated", Json(new { }))]);
+
+    private static ModuleOutcome CompletedOutcome() => new(
+        "test",
+        "complete",
+        "Complete",
+        "Completed.",
+        [new ModuleFact("result", "The module completed.")],
+        [new ModuleEffect("first", Json(new { order = 1 })), new ModuleEffect("second", Json(new { order = 2 }))],
+        [new ModuleEvent("completed", Json(new { durable = true }))],
+        ["Describe the confirmed result."],
+        ["Do not invent another outcome."]);
 
     private static JsonElement Json<T>(T value) => JsonSerializer.SerializeToElement(value);
 }

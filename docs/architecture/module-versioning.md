@@ -10,7 +10,7 @@ All boundary DTOs must remain JSON-compatible. C# types are an authoring conveni
 
 Modules use semantic versions. Package content is immutable and additionally identified by SHA-256. Published scenario versions store module ID, module version, package digest, configuration schema version, and a configuration snapshot.
 
-Active executions also store the exact package digest and configuration snapshot. Installing a newer module does not alter an active or completed execution.
+Detached and session-owned executions store the exact package identity, contract and schema versions, configuration snapshot, and context snapshot. Installing a newer module does not alter an active or completed execution. The current runtime still requires the pinned package to remain installed and enabled for subsequent dispatches.
 
 ## Schema migration
 
