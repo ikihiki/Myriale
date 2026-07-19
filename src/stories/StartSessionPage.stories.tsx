@@ -69,8 +69,8 @@ export const USS03ConfirmHeroAfterIntro: Story = {
     const screen = within(canvasElement.ownerDocument.body);
     await startPreparing(canvas);
     await step('イントロと同じページで候補を選び、Session固有データとして確定する', async () => {
-      await expect(canvas.queryByRole('button', { name: '自由生成する' })).not.toBeInTheDocument();
       await userEvent.click(canvas.getByRole('combobox', { name: '候補キャラクター' }));
+      await expect(screen.queryByRole('option', { name: '自由生成' })).not.toBeInTheDocument();
       await userEvent.click(await screen.findByRole('option', { name: 'エル / 記憶を失った写字生' }));
       await expect(canvas.getByLabelText('主人公の名前')).toHaveValue('エル');
       await expect(canvas.getByLabelText('主人公の名前')).toHaveAttribute('readonly');
@@ -109,13 +109,18 @@ export const USS03SelectHeroWithOptionalFreeGeneration: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await startPreparing(canvas, '月虹の庭と眠らない時計');
-    await step('候補選択を維持したまま、許可された自由生成へ切り替えられる', async () => {
-      await expect(canvas.getByRole('combobox', { name: '候補キャラクター' })).toBeVisible();
-      await userEvent.click(canvas.getByRole('button', { name: '自由生成する' }));
+    await step('候補キャラクターの選択肢から、許可された自由生成へ切り替えられる', async () => {
+      const screen = within(canvasElement.ownerDocument.body);
+      const protagonistSelect = canvas.getByRole('combobox', { name: '候補キャラクター' });
+      await userEvent.click(protagonistSelect);
+      await userEvent.click(await screen.findByRole('option', { name: '自由生成' }));
+      await expect(protagonistSelect).toHaveTextContent('自由生成');
       await waitFor(() => expect(canvas.getByLabelText('主人公の名前')).toBeVisible());
-      await expect(canvas.queryByRole('combobox', { name: '候補キャラクター' })).not.toBeInTheDocument();
-      await userEvent.click(canvas.getByRole('button', { name: '候補から選ぶ' }));
-      await waitFor(() => expect(canvas.getByRole('combobox', { name: '候補キャラクター' })).toBeVisible());
+
+      await userEvent.click(protagonistSelect);
+      await userEvent.click(await screen.findByRole('option', { name: 'カイ / 時計塔を修理する旅の技師' }));
+      await expect(canvas.getByLabelText('主人公の名前')).toHaveValue('カイ');
+      await expect(canvas.getByLabelText('主人公の名前')).toHaveAttribute('readonly');
     });
   },
 };
@@ -132,7 +137,6 @@ export const USS03FixedHeroIsReadOnly: Story = {
       await expect(canvas.getByLabelText('主人公プロフィール')).toHaveValue('夜明け前の森を巡る司書');
       await expect(canvas.getByLabelText('主人公プロフィール')).toHaveAttribute('readonly');
       await expect(canvas.queryByRole('combobox', { name: '候補キャラクター' })).not.toBeInTheDocument();
-      await expect(canvas.queryByRole('button', { name: '自由生成する' })).not.toBeInTheDocument();
     });
   },
 };

@@ -43,6 +43,8 @@ function ReadOnlyProtagonistFields({ value, testId }: { value: string; testId: s
   );
 }
 
+const FREE_GENERATION_OPTION = '__free-generation__';
+
 export type StartSessionSearch = {
   scenarioId?: string;
 };
@@ -199,34 +201,29 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
 
               </div>
 
-              {selectedScenario.heroMode === 'select' && selectedScenario.heroFreeGenerationAllowed && (
-                <div className="mb-6 flex flex-wrap gap-2" aria-label="主人公の決め方">
-                  <button
-                    className={`!rounded-full !px-4 !py-2.5 !text-xs !font-black ${heroInputMode === 'select' ? '!bg-myr-ink !text-myr-paper' : '!bg-myr-vellum !text-myr-ink'}`}
-                    aria-pressed={heroInputMode === 'select'}
-                    onClick={() => setHeroInputMode('select')}
-                  >
-                    候補から選ぶ
-                  </button>
-                  <button
-                    className={`!rounded-full !px-4 !py-2.5 !text-xs !font-black ${heroInputMode === 'free' ? '!bg-myr-ink !text-myr-paper' : '!bg-myr-vellum !text-myr-ink'}`}
-                    aria-pressed={heroInputMode === 'free'}
-                    onClick={() => setHeroInputMode('free')}
-                  >
-                    自由生成する
-                  </button>
-                </div>
-              )}
-
-              {selectedScenario.heroMode === 'select' && heroInputMode === 'select' && (
+              {selectedScenario.heroMode === 'select' && (
                 <>
                   <MyrialeSelect
                     label="候補キャラクター"
-                    value={selectedHero}
-                    onValueChange={setSelectedHero}
-                    options={heroCandidates.map((candidate) => ({ value: candidate, label: candidate }))}
+                    value={heroInputMode === 'free' ? FREE_GENERATION_OPTION : selectedHero}
+                    onValueChange={(value) => {
+                      if (value === FREE_GENERATION_OPTION) {
+                        setHeroInputMode('free');
+                        return;
+                      }
+                      setSelectedHero(value);
+                      setHeroInputMode('select');
+                    }}
+                    options={[
+                      ...heroCandidates.map((candidate) => ({ value: candidate, label: candidate })),
+                      ...(selectedScenario.heroFreeGenerationAllowed
+                        ? [{ value: FREE_GENERATION_OPTION, label: '自由生成' }]
+                        : []),
+                    ]}
                   />
-                  <ReadOnlyProtagonistFields value={selectedHero} testId="readonly-hero" />
+                  {heroInputMode === 'select' && (
+                    <ReadOnlyProtagonistFields value={selectedHero} testId="readonly-hero" />
+                  )}
                 </>
               )}
 
