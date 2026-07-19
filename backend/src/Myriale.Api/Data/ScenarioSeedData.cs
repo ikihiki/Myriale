@@ -52,6 +52,28 @@ public static class ScenarioSeedData
         },
         new Scenario
         {
+            Id = "SCN-MOONLIT-GARDEN",
+            Title = "月虹の庭と眠らない時計",
+            Summary = "月虹が咲く庭園で、止まらない時計塔と消えた庭師の秘密を追う幻想譚。",
+            Genre = "幻想庭園ミステリ",
+            Tone = "華やかで切ない、夜明け前の期待",
+            Lore = "庭園の花は訪問者の記憶から色を得る。時計塔が十三回鳴ると、選ばなかった未来が姿を現す。",
+            AiFreedom = "中: 庭園の法則を守りつつ提案する",
+            HeroMode = "select",
+            HeroFreeGenerationAllowed = true,
+            Hero = "イリス / 月虹を集める若い庭師\nカイ / 時計塔を修理する旅の技師\nマレ / 忘れられた未来を記録する画家",
+            Opening = "十三回目の鐘が鳴り、あなたの足元に見覚えのない月虹の花が咲く。",
+            IllustrationStyle = "幻想植物画 / 月光色 / 装飾的",
+            IllustrationMood = "月虹、夜露、静かな祝祭",
+            IllustrationNegative = "現代的な電子機器、昼の青空、過度な恐怖表現",
+            SampleScene = "月虹の花が揺れる庭園で、止まらない時計塔を三人の旅人が見上げる。",
+            Status = "published",
+            AuthorId = "SEED-AUTHOR",
+            CreatedAt = new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero),
+            UpdatedAt = new DateTimeOffset(2026, 7, 19, 0, 0, 0, TimeSpan.Zero),
+        },
+        new Scenario
+        {
             Id = "SCN-GLASS-FOREST",
             Title = "硝子の森と夜明けの司書",
             Summary = "嘘を映す硝子の森で、夜明けを失った書架の秘密を追う幻想ミステリ。",

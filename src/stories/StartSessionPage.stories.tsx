@@ -105,22 +105,10 @@ export const USS03CreateHeroWithAiAssistance: Story = {
 
 export const USS03SelectHeroWithOptionalFreeGeneration: Story = {
   name: 'US-S03B: 選択式で許可された場合だけ自由生成へ切り替える',
-  render: () => (
-    <MyrialeApp
-      initialUrl="/scenarios"
-      initialDb={createDemoDb('activeSession', {
-        scenarios: {
-          'SCN-STAR-LIBRARY': {
-            ...createDemoDb('activeSession').scenarios['SCN-STAR-LIBRARY'],
-            heroFreeGenerationAllowed: true,
-          },
-        },
-      })}
-    />
-  ),
+  render: () => <MyrialeApp initialUrl="/scenarios" initialDb={createDemoDb('activeSession')} />,
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await startPreparing(canvas);
+    await startPreparing(canvas, '月虹の庭と眠らない時計');
     await step('候補選択を維持したまま、許可された自由生成へ切り替えられる', async () => {
       await expect(canvas.getByRole('combobox', { name: '候補キャラクター' })).toBeVisible();
       await userEvent.click(canvas.getByRole('button', { name: '自由生成する' }));

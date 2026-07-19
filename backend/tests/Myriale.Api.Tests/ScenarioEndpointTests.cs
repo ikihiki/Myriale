@@ -33,6 +33,21 @@ public sealed class ScenarioEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task GetScenario_ReturnsSelectableScenarioWithFreeGenerationEnabled()
+    {
+        var client = _factory.CreateClient();
+
+        using var response = await client.GetAsync("/api/scenarios/SCN-MOONLIT-GARDEN");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("月虹の庭と眠らない時計", json.GetProperty("title").GetString());
+        Assert.Equal("select", json.GetProperty("heroMode").GetString());
+        Assert.True(json.GetProperty("heroFreeGenerationAllowed").GetBoolean());
+        Assert.Contains("イリス", json.GetProperty("hero").GetString());
+    }
+
+    [Fact]
     public async Task GetScenario_ReturnsNotFoundForUnknownId()
     {
         var client = _factory.CreateClient();
