@@ -23,7 +23,7 @@ export const USAN01CreatePendingNote: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await step('セッション画面内の全画面ノートで新規ノートを作成し、編集ダイアログを開く', async () => {
-      await expect(canvas.getByTestId('app-db-summary')).toHaveTextContent('route playSession');
+      await expect(canvas.getByTestId('app-db-summary')).toHaveTextContent('route /sessions/SES-PREP-1098');
       await expect(canvas.getByTestId('app-db-summary')).toHaveTextContent('notes full');
       await userEvent.click(notes(canvas).getByRole('button', { name: '場所追加' }));
       await expect(canvas.getByRole('dialog', { name: 'ノート編集' })).toHaveTextContent('地下天文台');

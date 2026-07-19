@@ -29,7 +29,8 @@ export const STORY_IDS = {
   scenarioEdit: 'ユーザーストーリー-edit-scenario--use-01-edit-existing-scenario',
   advancedScenario: 'ユーザーストーリー-scenario-registration--us-04-as-use-advanced-controls-during-registration',
   // Sessions
-  startSession: 'ユーザーストーリー-start-session--uss-01-start-new-session-from-scenario',
+  scenarioList: 'ユーザーストーリー-start-session--uss-01-start-new-session-from-scenario',
+  startSession: 'ユーザーストーリー-start-session--uss-02-read-intro-before-hero',
   playSession: 'ユーザーストーリー-session-play-dialogue--usp-01-current-situation-narrative',
   resumeSession: 'ユーザーストーリー-session-resume--usr-01-resume-from-last-state',
   programDriven: 'ユーザーストーリー-program-driven-narrative--uspg-01-forced-mode-disables-input',
@@ -40,7 +41,11 @@ export const STORY_IDS = {
 
 export type StoryKey = keyof typeof STORY_IDS;
 
-type AppNavigate = (to: StoryKey) => void;
+export type AppNavigateOptions = {
+  query?: Record<string, string>;
+};
+
+type AppNavigate = (to: StoryKey, options?: AppNavigateOptions) => void;
 
 const AppNavigationContext = createContext<AppNavigate | null>(null);
 

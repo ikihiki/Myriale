@@ -3,8 +3,8 @@ import { ScenarioProgressControls } from '../../ScenarioProgressControls';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { WizardNavigation } from '../../shared/WizardNavigation';
 import { MyrialeSelect } from '../../ui/MyrialeRadix';
-import { createFetchScenarioApi, firstScenarioFieldError, type ScenarioAiAssistResponse, type ScenarioAiKind, type ScenarioApi, type ScenarioApiError } from '../scenarioApi';
-import { useOptionalAppStore } from '../store';
+import { createFetchScenarioApi, firstScenarioFieldError, type ScenarioAiAssistResponse, type ScenarioAiKind, type ScenarioApi, type ScenarioApiError } from '../../app/scenarioApi';
+import { useOptionalAppStore } from '../../app/store';
 
 type SuggestionKind = '概要' | '世界観' | '挿絵テイスト' | '挿絵プロンプト';
 type WizardStep =
@@ -59,7 +59,9 @@ export function ScenarioRegistrationPage({ api }: { api?: ScenarioApi } = {}) {
   const [tone, setTone] = useState('静かで不穏');
   const [lore, setLore] = useState('星座は魔法体系の鍵。\n死者の名前を読むと記憶を失う。');
   const [aiFreedom, setAiFreedom] = useState('中: 設定を守りつつ提案する');
-  const [hero, setHero] = useState('禁書司書の見習い。名前はセッション開始時に入力。');
+  const [heroMode, setHeroMode] = useState<'fixed' | 'select' | 'free'>('free');
+  const [heroFreeGenerationAllowed, setHeroFreeGenerationAllowed] = useState(false);
+  const [hero, setHero] = useState('禁書司書の見習い。名前やプロフィールはセッション開始時に入力。');
   const [opening, setOpening] = useState('あなたは水没した閲覧室で目を覚ます。');
   const [illustrationStyle, setIllustrationStyle] = useState('銅版画風 / 低彩度 / 細密');
   const [mood, setMood] = useState('孤独、湿った静けさ、薄い金色の灯り');
@@ -94,6 +96,8 @@ export function ScenarioRegistrationPage({ api }: { api?: ScenarioApi } = {}) {
         tone,
         lore,
         aiFreedom,
+        heroMode,
+        heroFreeGenerationAllowed,
         hero,
         opening,
         illustrationStyle,
@@ -114,6 +118,8 @@ export function ScenarioRegistrationPage({ api }: { api?: ScenarioApi } = {}) {
           tone: draft.tone,
           lore: draft.lore,
           aiFreedom: draft.aiFreedom,
+          heroMode: draft.heroMode,
+          heroFreeGenerationAllowed: draft.heroFreeGenerationAllowed,
           hero: draft.hero,
           opening: draft.opening,
           illustrationStyle: draft.illustrationStyle,
@@ -141,6 +147,8 @@ export function ScenarioRegistrationPage({ api }: { api?: ScenarioApi } = {}) {
     tone,
     lore,
     aiFreedom,
+    heroMode,
+    heroFreeGenerationAllowed,
     hero,
     opening,
     illustrationStyle,
@@ -198,7 +206,7 @@ export function ScenarioRegistrationPage({ api }: { api?: ScenarioApi } = {}) {
     if (step === 'lore') return lore ? '入力済み' : '未入力';
     if (step === 'ai') return aiFreedom;
     if (step.startsWith('as')) return 'US-AS';
-    if (step === 'hero') return hero ? '入力済み' : '未入力';
+    if (step === 'hero') return heroMode === 'fixed' ? '固定' : heroMode === 'select' ? '選択式' : '自由生成';
     if (step === 'opening') return opening ? '固定' : 'AI生成';
     return illustrationStyle ? '入力済み' : '未入力';
   };
@@ -290,8 +298,32 @@ export function ScenarioRegistrationPage({ api }: { api?: ScenarioApi } = {}) {
 
         {activeStep === 'hero' && (
           <section className="wizard-panel" aria-label="主人公">
-            <p><strong>{currentStep.help}。</strong>導入で毎回説明しなくてよい条件を置きます。セッション側で上書きできる余地も残します。</p>
-            <label>主人公の前提<textarea aria-label="主人公の前提" value={hero} onChange={(event) => setHero(event.target.value)} /></label>
+            <p><strong>{currentStep.help}。</strong>主人公を固定するか、候補から選べるようにするか、プレイヤーの自由生成を許可するかを設定します。</p>
+            <MyrialeSelect
+              label="主人公の扱い"
+              value={heroMode}
+              onValueChange={(value) => setHeroMode(value as 'fixed' | 'select' | 'free')}
+              options={[
+                { value: 'fixed', label: '固定キャラクター' },
+                { value: 'select', label: '候補キャラクターから選択' },
+                { value: 'free', label: '自由生成のみ' },
+              ]}
+            />
+            {heroMode === 'select' && (
+              <label className="choice-row">
+                <span>候補選択に加えて自由生成を許可</span>
+                <input
+                  type="checkbox"
+                  aria-label="自由生成を許可"
+                  checked={heroFreeGenerationAllowed}
+                  onChange={(event) => setHeroFreeGenerationAllowed(event.target.checked)}
+                />
+              </label>
+            )}
+            <label>
+              {heroMode === 'fixed' ? '固定する主人公' : heroMode === 'select' ? '候補キャラクター（1行に1人）' : '自由生成時の前提・制約'}
+              <textarea aria-label="主人公の設定" value={hero} onChange={(event) => setHero(event.target.value)} />
+            </label>
           </section>
         )}
 

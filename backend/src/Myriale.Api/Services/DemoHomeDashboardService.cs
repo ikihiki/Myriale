@@ -18,8 +18,8 @@ public sealed class DemoHomeDashboardService : IHomeDashboardService
             [
                 new PlaySessionSummaryDto(
                     Id: "SES-PREP-1098",
-                    ScenarioId: "SCN-001",
-                    ScenarioTitle: "月影の図書館",
+                    ScenarioId: "SCN-STAR-LIBRARY",
+                    ScenarioTitle: "星喰いの地下図書館",
                     State: "Paused",
                     HeroName: "リュカ",
                     Turn: 14,
@@ -27,8 +27,8 @@ public sealed class DemoHomeDashboardService : IHomeDashboardService
                     TurnDisplay: "第14ターン"),
                 new PlaySessionSummaryDto(
                     Id: "SES-ACT-2042",
-                    ScenarioId: "SCN-002",
-                    ScenarioTitle: "霧の港町",
+                    ScenarioId: "SCN-ASH-STATION",
+                    ScenarioTitle: "灰の駅と宛名のない切符",
                     State: "Active",
                     HeroName: "ノア",
                     Turn: 7,
@@ -38,26 +38,35 @@ public sealed class DemoHomeDashboardService : IHomeDashboardService
             RecommendedScenarios:
             [
                 new ScenarioSummaryDto(
-                    Id: "SCN-001",
-                    Title: "月影の図書館",
-                    Genre: "Mystery",
+                    Id: "SCN-STAR-LIBRARY",
+                    Title: "星喰いの地下図書館",
+                    Genre: "ダークファンタジー探索譚",
                     Status: "published",
-                    UpdatedAt: new DateOnly(2026, 6, 10),
-                    Summary: "古い魔導図書館で失われた索引を探す短編シナリオ。"),
+                    UpdatedAt: new DateOnly(2026, 7, 19),
+                    Summary: "地下に沈んだ王都で、禁書を読むたびに星座が書き換わる探索譚。",
+                    HeroMode: "select",
+                    HeroFreeGenerationAllowed: false,
+                    Hero: "ミラ / 星図を読む巡礼者\nセオ / 星図を燃やす護衛\nエル / 記憶を失った写字生"),
                 new ScenarioSummaryDto(
-                    Id: "SCN-002",
-                    Title: "霧の港町",
-                    Genre: "Fantasy",
+                    Id: "SCN-ASH-STATION",
+                    Title: "灰の駅と宛名のない切符",
+                    Genre: "終末ロードムービー",
                     Status: "published",
-                    UpdatedAt: new DateOnly(2026, 6, 12),
-                    Summary: "濃霧に包まれた港町で、消えた船員の行方を追います。"),
+                    UpdatedAt: new DateOnly(2026, 7, 19),
+                    Summary: "朝が来ない荒野を、宛名のない切符だけを頼りに渡るロードムービー。",
+                    HeroMode: "free",
+                    HeroFreeGenerationAllowed: false,
+                    Hero: "灰の駅で目覚めた旅人。名前と過去はプレイヤーが自由に決められる。"),
                 new ScenarioSummaryDto(
-                    Id: "SCN-003",
-                    Title: "星屑のキャラバン",
-                    Genre: "Adventure",
+                    Id: "SCN-GLASS-FOREST",
+                    Title: "硝子の森と夜明けの司書",
+                    Genre: "幻想ミステリ",
                     Status: "published",
-                    UpdatedAt: new DateOnly(2026, 6, 18),
-                    Summary: "砂漠を渡る隊商とともに星読みの遺跡を目指します。")
+                    UpdatedAt: new DateOnly(2026, 7, 19),
+                    Summary: "嘘を映す硝子の森で、夜明けを失った書架の秘密を追う幻想ミステリ。",
+                    HeroMode: "fixed",
+                    HeroFreeGenerationAllowed: false,
+                    Hero: "リュシエン / 夜明け前の森を巡る司書")
             ]);
 
         return Task.FromResult(response);

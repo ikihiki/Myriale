@@ -1,13 +1,13 @@
 :root {
-  --void: #121019;
-  --ink: #241b2f;
-  --paper: #fffaf0;
-  --vellum: #efe3c6;
-  --mist: #d6e7e0;
-  --iris: #7c5cff;
-  --ember: #ff9f68;
-  --line: rgba(36, 27, 47, 0.18);
-  --shadow: 0 24px 80px rgba(18, 16, 25, 0.16);
+  --void: var(--myr-color-void, #121019);
+  --ink: var(--myr-color-ink, #241b2f);
+  --paper: var(--myr-color-paper, #fffaf0);
+  --vellum: var(--myr-color-vellum, #efe3c6);
+  --mist: var(--myr-color-mist, #d6e7e0);
+  --iris: var(--myr-color-iris, #7c5cff);
+  --ember: var(--myr-color-ember, #ff9f68);
+  --line: color-mix(in srgb, var(--ink) 18%, transparent);
+  --shadow: var(--myr-shadow-panel, 0 24px 80px rgba(18, 16, 25, 0.16));
 }
 
 * { box-sizing: border-box; }
@@ -917,63 +917,6 @@ textarea { min-height: 126px; resize: vertical; }
   -webkit-line-clamp: 3;
 }
 
-
-.start-session-select-screen {
-  grid-template-columns: 168px minmax(560px, 1fr);
-}
-
-.start-session-scenario-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 12px;
-}
-
-.start-session-card,
-.start-session-narrative {
-  padding: 16px;
-  border: 1px solid rgba(23, 21, 31, .14);
-  border-radius: 18px;
-  background: rgba(255, 254, 249, .72);
-}
-
-.start-session-card span {
-  color: #b84a4a;
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
-
-.start-session-card h2,
-.start-session-narrative h2 {
-  margin: 6px 0 8px;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: clamp(22px, 2vw, 34px);
-  line-height: 1;
-  letter-spacing: -.04em;
-}
-
-.start-session-card button,
-.start-session-narrative button,
-.start-session-page .wizard-summary button {
-  border-radius: 999px;
-  padding: 8px 12px;
-  background: #2b2940;
-  color: #fffaf0;
-  font-size: 12px;
-}
-
-.start-session-card .primary,
-.start-session-page .wizard-panel .primary {
-  background: #d9a441;
-  color: #17151f;
-  font-weight: 900;
-}
-
-.start-session-page .contract-spine .text-button {
-  margin-top: 12px;
-  color: #d9a441;
-}
 @media (max-width: 1120px) {
   .scenario-forge-wizard { grid-template-columns: 1fr; }
   .scenario-forge-wizard .contract-spine,

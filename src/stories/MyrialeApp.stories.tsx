@@ -28,9 +28,18 @@ export const HomeDashboard: Story = {
       await expect(canvas.getByRole('region', { name: '中断しているセッション' })).toHaveTextContent('星喰いの地下図書館');
       await expect(canvas.getByRole('region', { name: 'おすすめのシナリオ' })).toHaveTextContent('灰の駅と宛名のない切符');
     });
+    await step('おすすめシナリオから開始すると一覧を挟まずイントロへ遷移する', async () => {
+      const recommended = within(canvas.getByTestId('home-scenario-SCN-STAR-LIBRARY'));
+      await userEvent.click(recommended.getByRole('button', { name: 'このシナリオで開始' }));
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/start?scenarioId=SCN-STAR-LIBRARY');
+      await expect(canvas.getByTestId('app-url')).not.toHaveTextContent('title=');
+      await expect(await canvas.findByRole('region', { name: 'イントロNarrative' })).toBeVisible();
+      await expect(canvas.getByTestId('selected-scenario-title')).toHaveTextContent('星喰いの地下図書館');
+      await userEvent.click(canvas.getByRole('button', { name: 'Myriale ホームへ' }));
+    });
     await step('主要導線から検索・新規作成・再開へ遷移できる', async () => {
       await userEvent.click(canvas.getByTestId('home-search-scenarios'));
-      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/start');
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/scenarios');
       await userEvent.click(canvas.getByRole('button', { name: 'Myriale ホームへ' }));
       await userEvent.click(canvas.getByTestId('home-create-scenario'));
       await expect(canvas.getByTestId('app-url')).toHaveTextContent('/scenarios/new');
@@ -43,19 +52,19 @@ export const HomeDashboard: Story = {
 
 export const FullAppHappyPath: Story = {
   name: '統合アプリ: シナリオ選択からプレイ画面へ遷移する',
-  args: { initialUrl: '/sessions/start', initialDb: createDemoDb('activeSession') },
+  args: { initialUrl: '/scenarios', initialDb: createDemoDb('activeSession') },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
     await step('URL風の状態からセッション開始画面を直接開く', async () => {
-      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/start');
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/scenarios');
       await expect(canvas.getByRole('region', { name: 'シナリオ一覧' })).toBeVisible();
     });
     await step('アプリ内ナビゲーションでプレイ画面へ移動し、統合版はイントロのみを表示する', async () => {
       await userEvent.click(canvas.getAllByRole('button', { name: 'セッション' })[0]);
       await userEvent.click(screen.getByRole('menuitem', { name: /プレイ中の対話/ }));
       await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098');
-      await expect(canvas.getByTestId('dialogue-log')).toHaveTextContent('水没した閲覧室');
+      await expect(await canvas.findByTestId('dialogue-log')).toHaveTextContent('水没した閲覧室');
       await expect(canvas.queryByRole('article', { name: 'Turn 02' })).not.toBeInTheDocument();
     });
   },
@@ -68,7 +77,7 @@ export const DirectOpenPlaySession: Story = {
     const canvas = within(canvasElement);
     await step('URLとDB seedで目的画面を再現する', async () => {
       await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098');
-      await expect(canvas.getByTestId('app-db-summary')).toHaveTextContent('route playSession');
+      await expect(canvas.getByTestId('app-db-summary')).toHaveTextContent('route /sessions/SES-PREP-1098');
       await expect(canvas.queryByRole('article', { name: 'Turn 02' })).not.toBeInTheDocument();
     });
   },
@@ -81,7 +90,7 @@ export const DirectOpenLorebook: Story = {
     const canvas = within(canvasElement);
     await step('ノート用DBをseedしてセッション画面内のLorebookを開く', async () => {
       await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098');
-      await expect(canvas.getByTestId('app-db-summary')).toHaveTextContent('route playSession');
+      await expect(canvas.getByTestId('app-db-summary')).toHaveTextContent('route /sessions/SES-PREP-1098');
       await expect(canvas.getByTestId('app-db-summary')).toHaveTextContent('notes full');
       await expect(canvas.getByTestId('session-notes-full')).toHaveTextContent('月読ミナト');
     });
@@ -95,7 +104,7 @@ export const DirectOpenAdminUsers: Story = {
     const canvas = within(canvasElement);
     await step('管理者向けデモDBでユーザー管理を開く', async () => {
       await expect(canvas.getByTestId('app-url')).toHaveTextContent('/account/admin/users');
-      await expect(canvas.getByTestId('app-db-summary')).toHaveTextContent('route adminUsers');
+      await expect(canvas.getByTestId('app-db-summary')).toHaveTextContent('route /account/admin/users');
     });
   },
 };
@@ -107,7 +116,7 @@ export const RecoverableSessionDemo: Story = {
     const canvas = within(canvasElement);
     await step('中断セッションの再開画面を直接開く', async () => {
       await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098/resume');
-      await expect(canvas.getByTestId('app-db-summary')).toHaveTextContent('route resumeSession');
+      await expect(canvas.getByTestId('app-db-summary')).toHaveTextContent('route /sessions/SES-PREP-1098/resume');
     });
   },
 };

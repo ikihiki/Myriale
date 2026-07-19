@@ -18,6 +18,64 @@ public sealed class ScenarioEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task GetScenario_ReturnsSeededScenario()
+    {
+        var client = _factory.CreateClient();
+
+        using var response = await client.GetAsync("/api/scenarios/SCN-STAR-LIBRARY");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("星喰いの地下図書館", json.GetProperty("title").GetString());
+        Assert.Equal("select", json.GetProperty("heroMode").GetString());
+        Assert.Contains("ミラ", json.GetProperty("hero").GetString());
+        Assert.Equal("あなたは水没した閲覧室で目を覚ます。", json.GetProperty("opening").GetString());
+    }
+
+    [Fact]
+    public async Task GetScenario_ReturnsSelectableScenarioWithFreeGenerationEnabled()
+    {
+        var client = _factory.CreateClient();
+
+        using var response = await client.GetAsync("/api/scenarios/SCN-MOONLIT-GARDEN");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("月虹の庭と眠らない時計", json.GetProperty("title").GetString());
+        Assert.Equal("select", json.GetProperty("heroMode").GetString());
+        Assert.True(json.GetProperty("heroFreeGenerationAllowed").GetBoolean());
+        Assert.Contains("イリス", json.GetProperty("hero").GetString());
+    }
+
+    [Fact]
+    public async Task RecommendHero_ReturnsAiRecommendationForSeededScenario()
+    {
+        var client = _factory.CreateClient();
+
+        using var response = await client.PostAsJsonAsync("/api/scenarios/SCN-MOONLIT-GARDEN/hero-recommendation", new
+        {
+            currentName = "アオイ",
+            currentProfile = "この世界の掟にまだ不慣れな旅人。"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.False(string.IsNullOrWhiteSpace(json.GetProperty("name").GetString()));
+        Assert.Contains("月虹の庭と眠らない時計", json.GetProperty("profile").GetString());
+        Assert.Contains("推薦", json.GetProperty("message").GetString());
+    }
+
+    [Fact]
+    public async Task GetScenario_ReturnsNotFoundForUnknownId()
+    {
+        var client = _factory.CreateClient();
+
+        using var response = await client.GetAsync("/api/scenarios/SCN-UNKNOWN");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
     public async Task CreateScenario_RequiresAuthentication()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
@@ -52,6 +110,8 @@ public sealed class ScenarioEndpointTests : IDisposable
             tone = "静かで不穏",
             lore = "星座は魔法体系の鍵。",
             aiFreedom = "中: 設定を守りつつ提案する",
+            heroMode = "select",
+            heroFreeGenerationAllowed = true,
             hero = "禁書司書の見習い。",
             opening = "あなたは水没した閲覧室で目を覚ます。",
             illustrationStyle = "銅版画風",
@@ -65,6 +125,8 @@ public sealed class ScenarioEndpointTests : IDisposable
         Assert.StartsWith("SCN-", json.GetProperty("id").GetString());
         Assert.Equal("draft", json.GetProperty("status").GetString());
         Assert.Equal("星喰いの地下図書館", json.GetProperty("title").GetString());
+        Assert.Equal("select", json.GetProperty("heroMode").GetString());
+        Assert.True(json.GetProperty("heroFreeGenerationAllowed").GetBoolean());
         Assert.Equal("銅版画風", json.GetProperty("illustrationStyle").GetString());
     }
 

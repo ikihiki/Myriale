@@ -12,11 +12,11 @@ import {
   TextField,
   defaultPasswordRequirements,
   passwordStrength,
-} from '../AccountKit';
-import { firstFieldError, type AccountApi, type AccountApiError, type AccountUser } from '../api/accountApi';
-import { createFetchAdminAiApi, firstAdminAiFieldError, type AdminAiApiError, type AiProviderKey } from '../api/adminAiApi';
-import { useAccountSession } from '../hooks/useAccountSession';
-import '../account.css';
+} from '../../account/AccountKit';
+import { firstFieldError, type AccountApi, type AccountApiError, type AccountUser } from '../../account/api/accountApi';
+import { createFetchAdminAiApi, firstAdminAiFieldError, type AdminAiApiError, type AiProviderKey } from '../../account/api/adminAiApi';
+import { useAccountSession } from '../../account/hooks/useAccountSession';
+import '../../account/account.css';
 
 export type AccountView =
   | 'register'
@@ -34,7 +34,8 @@ export type AccountView =
   | 'admin-ai-keys'
   | 'audit';
 
-type Notice = { tone?: 'success' | 'warning' | 'danger'; message: string } | null;
+type NoticeTone = 'success' | 'warning' | 'danger';
+type Notice = { tone?: NoticeTone; message: string } | null;
 
 const protectedViews = new Set<AccountView>(['profile', 'profile-edit', 'security', 'export', 'withdraw']);
 
@@ -49,7 +50,7 @@ export function AccountPage({ initialView = 'register', api }: { initialView?: A
     setView(next);
   };
 
-  const showNotice = (message: string, tone: Notice['tone'] = 'success') => setNotice({ message, tone });
+  const showNotice = (message: string, tone: NoticeTone = 'success') => setNotice({ message, tone });
 
   return (
     <div className="account-kit">

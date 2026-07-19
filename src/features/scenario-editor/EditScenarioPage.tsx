@@ -10,6 +10,7 @@ type EditSection =
   | 'basics'
   | 'world'
   | 'ai'
+  | 'hero'
   | 'asCast'
   | 'asLocations'
   | 'asBeats'
@@ -38,6 +39,9 @@ type ScenarioDraft = {
   tone: string;
   lore: string;
   aiFreedom: string;
+  heroMode: 'fixed' | 'select' | 'free';
+  heroFreeGenerationAllowed: boolean;
+  hero: string;
   narrativePolicy: string;
   illustrationStyle: string;
   mood: string;
@@ -57,6 +61,9 @@ const scenarioLibrary: ScenarioDraft[] = [
     tone: '静かで不穏、淡い希望',
     lore: '星座は魔法体系の鍵。\n死者の名前を読むと記憶を失う。',
     aiFreedom: '中: 設定を守りつつ提案する',
+    heroMode: 'select',
+    heroFreeGenerationAllowed: false,
+    hero: 'ミラ / 星図を読む巡礼者\nセオ / 星図を燃やす護衛\nエル / 記憶を失った写字生',
     narrativePolicy: '二人称・現在形で描写多め。プレイヤーの選択を尊重する。',
     illustrationStyle: '銅版画風 / 低彩度 / 細密',
     mood: '孤独、湿った静けさ、薄い金色の灯り',
@@ -77,6 +84,9 @@ const scenarioLibrary: ScenarioDraft[] = [
     tone: '乾いた祈り、遠い汽笛',
     lore: '朝が来ない荒野では、切符だけが次の町を覚えている。',
     aiFreedom: '高: 展開を広げる',
+    heroMode: 'free',
+    heroFreeGenerationAllowed: false,
+    hero: '灰の駅で目覚めた旅人。名前と過去はプレイヤーが自由に決められる。',
     narrativePolicy: '叙情的で簡潔。移動と別れを軸に進める。',
     illustrationStyle: '水彩 / くすんだ暖色 / 粒状感',
     mood: '郷愁、灰、遠い光',
@@ -96,6 +106,7 @@ const editSections: Array<{ id: EditSection; label: string; help: string }> = [
   { id: 'basics', label: '基本情報', help: 'タイトルと概要（あらすじ）' },
   { id: 'world', label: '世界観', help: 'ジャンル・雰囲気・Lore' },
   { id: 'ai', label: 'AI設定', help: 'AI裁量とNarrative生成方針' },
+  { id: 'hero', label: '主人公', help: '固定・選択式・自由生成' },
   { id: 'asCast', label: 'Cast候補', help: 'US-AS01: AIが使ってよい人物候補' },
   { id: 'asLocations', label: 'Location候補', help: 'US-AS02: 場所候補とアクセス条件' },
   { id: 'asBeats', label: 'Chapter / Beat', help: 'US-AS03/04: 章・ビート・条件・禁止事項' },
@@ -183,7 +194,7 @@ export function EditScenarioPage() {
   const openTestPlay = () => {
     setNotice('テストプレイ用のセッション開始アプリ画面へ移動します（本番には影響しません）。');
     if (appNavigate) {
-      appNavigate('startSession');
+      appNavigate('startSession', { query: { scenarioId: draft?.id ?? 'SCN-STAR-LIBRARY' } });
       return;
     }
     navigateToStory(STORY_IDS.startSession);
@@ -308,6 +319,37 @@ export function EditScenarioPage() {
                   />
                   <label>Narrative生成方針
                     <textarea aria-label="Narrative生成方針" value={draft.narrativePolicy} onChange={(event) => update('narrativePolicy', event.target.value)} />
+                  </label>
+                </section>
+              )}
+
+              {activeSection === 'hero' && (
+                <section className="wizard-panel" aria-label="主人公設定の編集">
+                  <p><strong>セッション開始時の主人公の扱いを設定します。</strong>固定、候補選択、自由生成のいずれかをシナリオ設定として保存します。</p>
+                  <MyrialeSelect
+                    label="主人公の扱い"
+                    value={draft.heroMode}
+                    onValueChange={(value) => update('heroMode', value as ScenarioDraft['heroMode'])}
+                    options={[
+                      { value: 'fixed', label: '固定キャラクター' },
+                      { value: 'select', label: '候補キャラクターから選択' },
+                      { value: 'free', label: '自由生成のみ' },
+                    ]}
+                  />
+                  {draft.heroMode === 'select' && (
+                    <label className="choice-row">
+                      <span>候補選択に加えて自由生成を許可</span>
+                      <input
+                        type="checkbox"
+                        aria-label="自由生成を許可"
+                        checked={draft.heroFreeGenerationAllowed}
+                        onChange={(event) => update('heroFreeGenerationAllowed', event.target.checked)}
+                      />
+                    </label>
+                  )}
+                  <label>
+                    {draft.heroMode === 'fixed' ? '固定する主人公' : draft.heroMode === 'select' ? '候補キャラクター（1行に1人）' : '自由生成時の前提・制約'}
+                    <textarea aria-label="主人公の設定" value={draft.hero} onChange={(event) => update('hero', event.target.value)} />
                   </label>
                 </section>
               )}

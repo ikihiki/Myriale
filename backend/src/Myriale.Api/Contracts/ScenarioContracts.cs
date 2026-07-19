@@ -7,6 +7,8 @@ public sealed record CreateScenarioRequest(
     string? Tone,
     string? Lore,
     string? AiFreedom,
+    string? HeroMode,
+    bool? HeroFreeGenerationAllowed,
     string? Hero,
     string? Opening,
     string? IllustrationStyle,
@@ -22,6 +24,8 @@ public sealed record ScenarioDraftResponse(
     string Tone,
     string Lore,
     string AiFreedom,
+    string HeroMode,
+    bool HeroFreeGenerationAllowed,
     string Hero,
     string Opening,
     string IllustrationStyle,
@@ -30,5 +34,9 @@ public sealed record ScenarioDraftResponse(
     string SampleScene,
     string Status,
     DateOnly UpdatedAt);
+
+public sealed record RecommendScenarioHeroRequest(string? CurrentName, string? CurrentProfile);
+
+public sealed record ScenarioHeroRecommendationResponse(string Name, string Profile, string Message);
 
 public sealed record ScenarioErrorResponse(string Message, IReadOnlyDictionary<string, string[]> Errors);

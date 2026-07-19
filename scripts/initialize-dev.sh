@@ -67,6 +67,38 @@ install_dotnet_user_local() {
   export PATH="$dotnet_root:$PATH"
 }
 
+install_user_path() {
+  local path_file="$HOME/.config/myriale/dev-path.sh"
+  local profile_file
+  local profile_files=("$HOME/.profile" "$HOME/.bashrc")
+
+  mkdir -p "$(dirname -- "$path_file")" "$HOME/.local/bin"
+  cat > "$path_file" <<'EOF'
+# Added by Myriale .mux/init. Keep user-local development tools on PATH.
+export DOTNET_ROOT="${DOTNET_ROOT:-$HOME/.dotnet}"
+export PATH="$HOME/.local/bin:$DOTNET_ROOT:$HOME/.dotnet/tools:$PATH"
+EOF
+
+  for profile_file in "${profile_files[@]}"; do
+    touch "$profile_file"
+    if ! grep -Fq 'myriale/dev-path.sh' "$profile_file"; then
+      cat >> "$profile_file" <<'EOF'
+
+# Myriale development tools
+if [ -f "$HOME/.config/myriale/dev-path.sh" ]; then
+  . "$HOME/.config/myriale/dev-path.sh"
+fi
+EOF
+    fi
+  done
+
+  # Make the paths available to the current initialization process as well.
+  # A parent shell cannot inherit exports from this script, so new shells use
+  # the profile entries above.
+  export DOTNET_ROOT="${DOTNET_ROOT:-$HOME/.dotnet}"
+  export PATH="$HOME/.local/bin:$DOTNET_ROOT:$HOME/.dotnet/tools:$PATH"
+}
+
 install_global_cli_tools() {
   local npm_prefix="${NPM_CONFIG_PREFIX:-$HOME/.local}"
 
@@ -115,6 +147,8 @@ fi
 
 cd "$repo_root"
 log "repository root: $repo_root"
+
+install_user_path
 
 if [[ -f package-lock.json ]]; then
   if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
