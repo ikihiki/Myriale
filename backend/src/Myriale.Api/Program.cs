@@ -13,7 +13,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddSingleton<IHomeDashboardService, DemoHomeDashboardService>();
 builder.Services.AddHttpClient("MockAi", client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["MockAi:BaseUrl"] ?? "http://myriale-mock-ai");
+    client.BaseAddress = new Uri(builder.Configuration["MockAi:BaseUrl"] ?? "https+http://myriale-mock-ai");
 });
 
 var accountConnectionString = builder.Configuration.GetConnectionString("MyrialeAccounts")

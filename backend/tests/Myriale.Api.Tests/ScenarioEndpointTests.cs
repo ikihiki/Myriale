@@ -48,6 +48,24 @@ public sealed class ScenarioEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task RecommendHero_ReturnsAiRecommendationForSeededScenario()
+    {
+        var client = _factory.CreateClient();
+
+        using var response = await client.PostAsJsonAsync("/api/scenarios/SCN-MOONLIT-GARDEN/hero-recommendation", new
+        {
+            currentName = "アオイ",
+            currentProfile = "この世界の掟にまだ不慣れな旅人。"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.False(string.IsNullOrWhiteSpace(json.GetProperty("name").GetString()));
+        Assert.Contains("月虹の庭と眠らない時計", json.GetProperty("profile").GetString());
+        Assert.Contains("推薦", json.GetProperty("message").GetString());
+    }
+
+    [Fact]
     public async Task GetScenario_ReturnsNotFoundForUnknownId()
     {
         var client = _factory.CreateClient();

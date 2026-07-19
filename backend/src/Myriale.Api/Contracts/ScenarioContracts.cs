@@ -35,4 +35,8 @@ public sealed record ScenarioDraftResponse(
     string Status,
     DateOnly UpdatedAt);
 
+public sealed record RecommendScenarioHeroRequest(string? CurrentName, string? CurrentProfile);
+
+public sealed record ScenarioHeroRecommendationResponse(string Name, string Profile, string Message);
+
 public sealed record ScenarioErrorResponse(string Message, IReadOnlyDictionary<string, string[]> Errors);

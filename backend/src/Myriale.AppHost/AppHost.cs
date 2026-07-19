@@ -122,6 +122,7 @@ else
 
     var api = builder.AddProject<Projects.Myriale_Api>("myriale-api")
         .WithReference(mockAi)
+        .WithEnvironment("MockAi__BaseUrl", mockAi.GetEndpoint("http"))
         .WaitFor(mockAi)
         .WithExternalHttpEndpoints();
 

@@ -6,6 +6,18 @@ var app = builder.Build();
 
 app.MapDefaultEndpoints();
 
+app.MapPost("/mock-ai/hero-recommendation", (MockHeroRecommendationRequest request) =>
+{
+    var name = request.Title.Contains("月虹", StringComparison.Ordinal) ? "ルネ" : "ノクト";
+    var profile = request.Title.Contains("月虹", StringComparison.Ordinal)
+        ? "失われた庭園の色を探し、十三回目の鐘の意味を読み解く記憶の採集者。"
+        : $"{request.Title}の導入と世界観を手掛かりに、物語の謎を追う旅人。";
+    return Results.Ok(new MockHeroRecommendationResponse(
+        name,
+        profile,
+        "AIがシナリオ設定から主人公案を推薦しました。内容を確認・修正してから確定してください。"));
+});
+
 app.MapPost("/mock-ai/scenario-assist", (MockScenarioAssistRequest request) =>
 {
     var response = request.Kind switch
@@ -47,6 +59,18 @@ app.MapPost("/mock-ai/scenario-assist", (MockScenarioAssistRequest request) =>
 });
 
 app.Run();
+
+public sealed record MockHeroRecommendationRequest(
+    string Id,
+    string Title,
+    string Genre,
+    string Tone,
+    string Lore,
+    string Opening,
+    string? CurrentName,
+    string? CurrentProfile);
+
+public sealed record MockHeroRecommendationResponse(string Name, string Profile, string Message);
 
 public sealed record MockScenarioAssistRequest(
     string Kind,

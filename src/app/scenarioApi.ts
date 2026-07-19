@@ -43,8 +43,20 @@ export type ScenarioAiAssistResponse = {
   previewText?: string | null;
 };
 
+export type RecommendScenarioHeroPayload = {
+  currentName?: string;
+  currentProfile?: string;
+};
+
+export type ScenarioHeroRecommendation = {
+  name: string;
+  profile: string;
+  message: string;
+};
+
 export type ScenarioApi = {
   getScenario: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioDraftDto>;
+  recommendHero: (scenarioId: string, payload: RecommendScenarioHeroPayload) => Promise<ScenarioHeroRecommendation>;
   createScenario: (payload: CreateScenarioPayload) => Promise<ScenarioDraftDto>;
   assistScenario: (payload: ScenarioAiAssistPayload) => Promise<ScenarioAiAssistResponse>;
 };
@@ -69,6 +81,16 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
       });
       if (!response.ok) throw await toApiError(response);
       return response.json() as Promise<ScenarioDraftDto>;
+    },
+    async recommendHero(scenarioId, payload) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/hero-recommendation`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<ScenarioHeroRecommendation>;
     },
     async createScenario(payload) {
       const response = await fetch(`${baseUrl}/`, {
@@ -178,6 +200,21 @@ export function createDemoScenarioApi(): ScenarioApi {
       const scenario = demoScenarios[scenarioId];
       if (!scenario) throw demoError('シナリオが見つかりません。', 404);
       return { ...scenario };
+    },
+    async recommendHero(scenarioId) {
+      const scenario = demoScenarios[scenarioId];
+      if (!scenario) throw demoError('シナリオが見つかりません。', 404);
+      return scenarioId === 'SCN-MOONLIT-GARDEN'
+        ? {
+            name: 'ルネ',
+            profile: '失われた庭園の色を探し、十三回目の鐘の意味を読み解く記憶の採集者。',
+            message: 'AIがシナリオ設定から主人公案を推薦しました。内容を確認・修正してから確定してください。',
+          }
+        : {
+            name: 'ノクト',
+            profile: `${scenario.title}の導入と世界観を手掛かりに、物語の謎を追う旅人。`,
+            message: 'AIがシナリオ設定から主人公案を推薦しました。内容を確認・修正してから確定してください。',
+          };
     },
     async createScenario(payload) {
       if (!payload.title.trim()) throw demoError('タイトルを入力すると下書き保存できます。', 400, { title: ['シナリオタイトルを入力してください。'] });

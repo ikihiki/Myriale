@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useForm, useStore } from '@tanstack/react-form';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { createFetchScenarioApi, type ScenarioApi } from '../../app/scenarioApi';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeSelect } from '../../ui/MyrialeRadix';
@@ -50,7 +50,15 @@ export type StartSessionSearch = {
   scenarioId?: string;
 };
 
-function ProtagonistForm({ scenario, onBeginStory }: { scenario: ScenarioSummary; onBeginStory: () => void }) {
+function ProtagonistForm({
+  scenario,
+  api,
+  onBeginStory,
+}: {
+  scenario: ScenarioSummary;
+  api: ScenarioApi;
+  onBeginStory: () => void;
+}) {
   const heroCandidates = scenario.hero.split('\n').map((candidate) => candidate.trim()).filter(Boolean);
   const [aiSuggestion, setAiSuggestion] = useState('');
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -64,6 +72,20 @@ function ProtagonistForm({ scenario, onBeginStory }: { scenario: ScenarioSummary
       setReviewOpen(true);
     },
   });
+  const heroRecommendation = useMutation({
+    mutationFn: () => api.recommendHero(scenario.id, {
+      currentName: form.state.values.createdName,
+      currentProfile: form.state.values.createdProfile,
+    }),
+    onSuccess: (recommendation) => {
+      form.setFieldValue('createdName', recommendation.name);
+      form.setFieldValue('createdProfile', recommendation.profile);
+      setAiSuggestion(recommendation.message);
+    },
+    onError: (error) => {
+      setAiSuggestion(error instanceof Error ? error.message : '主人公案を取得できませんでした。');
+    },
+  });
   const formValues = useStore(form.store, (state) => state.values);
   const heroInputMode = scenario.heroMode === 'free' || formValues.heroSelection === FREE_GENERATION_OPTION
     ? 'free'
@@ -75,9 +97,8 @@ function ProtagonistForm({ scenario, onBeginStory }: { scenario: ScenarioSummary
       : formValues.heroSelection;
 
   const generateAiHero = () => {
-    form.setFieldValue('createdName', 'ノクト');
-    form.setFieldValue('createdProfile', '失われた索引を探す見習い司書。イントロと世界観を踏まえたAI案です。');
-    setAiSuggestion('AI案を入力しました。内容を確認・修正してから確定してください。');
+    setAiSuggestion('');
+    heroRecommendation.mutate();
   };
 
   const beginStory = () => {
@@ -163,8 +184,9 @@ function ProtagonistForm({ scenario, onBeginStory }: { scenario: ScenarioSummary
                   type="button"
                   className="!rounded-full !bg-myr-vellum !px-4 !py-2.5 !text-xs !font-black !text-myr-ink hover:!bg-myr-mist focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
                   onClick={generateAiHero}
+                  disabled={heroRecommendation.isPending}
                 >
-                  AIに主人公を生成してもらう
+                  {heroRecommendation.isPending ? 'AIが主人公を推薦しています…' : 'AIに主人公を生成してもらう'}
                 </button>
                 {aiSuggestion && <p className="m-0 text-xs font-bold text-myr-iris" role="status">{aiSuggestion}</p>}
               </div>
@@ -332,7 +354,7 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
               </article>
             </section>
 
-            <ProtagonistForm scenario={selectedScenario} onBeginStory={beginStory} />
+            <ProtagonistForm scenario={selectedScenario} api={scenarioApi} onBeginStory={beginStory} />
           </section>
         </main>
       </div>
