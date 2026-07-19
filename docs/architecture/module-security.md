@@ -6,6 +6,8 @@ A C# module DLL is arbitrary executable code. `AssemblyLoadContext` provides dep
 
 Untrusted third-party DLL support requires a separate worker process or container with operating-system resource and network restrictions. The runtime abstraction must permit that move without changing session contracts.
 
+Module administration requires an Identity claim (`myriale:module-admin=true`) provisioned out of band. Public registration, email address matching, and ordinary authentication never grant module installation rights.
+
 ## UI boundary
 
 Module JavaScript is isolated in a sandboxed iframe. It has no direct access to application DOM, authentication state, or Myriale APIs. Network access is denied by the module shell policy; communication occurs through the versioned host protocol.

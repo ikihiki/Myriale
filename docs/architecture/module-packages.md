@@ -16,11 +16,11 @@ resources/
   locales/
 ```
 
-Development environments may load an expanded directory. Production packages use the `.myriale-module` extension and ZIP encoding.
+Modules with UI resources are installed as `.myriale-module` ZIP packages. Headless modules that declare no runtime, authoring, or result-summary UI may also be installed directly as a single `.dll` file. Development environments may load an expanded directory in a future workflow.
 
 ## Identity
 
-A package is identified by module ID, semantic version, and SHA-256 digest. Published scenario versions and active executions pin all three values. A package with the same ID and version but a different digest is rejected outside development.
+A package is identified by module ID, semantic version, and SHA-256 digest. Published scenario versions and active executions pin all three values. A package with the same ID and version but a different digest is rejected; development-time replacement will use a separate expanded-directory workflow rather than weakening the catalog invariant.
 
 ## Assembly contract
 
@@ -28,6 +28,10 @@ A package is identified by module ID, semantic version, and SHA-256 digest. Publ
 
 There is no required JSON manifest. The host loads the trusted assembly during installation and obtains a serializable `ModuleManifest` C# object. The validated manifest is cached for catalog queries.
 
+## Catalog storage
+
+The API stores validated ZIP packages or DLL files under digest-addressed `packages/` and `expanded/` directories and records relative paths in the database. Rescan reconciles `.myriale-module` and `.dll` inbox files, orphaned canonical inputs, missing resources, and digest/resource corruption. Application database initialization continues to use the existing startup reset-and-create behavior; module management does not introduce a separate schema initializer.
+
 ## Deferred work
 
-Package scanning, safe ZIP extraction, signature verification, catalog persistence, enable/disable operations, and package deletion protection are implemented in later changes.
+Package signatures, physical deletion protection based on scenario/session references, and the expanded-directory development loader are deferred to later changes.

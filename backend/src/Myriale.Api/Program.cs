@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Data;
 using Myriale.Api.Endpoints;
+using Myriale.Api.Modules;
 using Myriale.Api.Services;
 using Myriale.ServiceDefaults;
 
@@ -11,6 +12,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 builder.Services.AddOpenApi();
 builder.Services.AddSingleton<IHomeDashboardService, DemoHomeDashboardService>();
+builder.Services.Configure<ModulePackageOptions>(builder.Configuration.GetSection(ModulePackageOptions.SectionName));
+builder.Services.AddScoped<IModulePackageService, ModulePackageService>();
 builder.Services.AddHttpClient("MockAi", client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["MockAi:BaseUrl"] ?? "https+http://myriale-mock-ai");
@@ -31,7 +34,11 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     }
 });
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddIdentityCookies();
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("ModuleAdministration", policy =>
+        policy.RequireClaim("myriale:module-admin", "true"));
+});
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
         options.User.RequireUniqueEmail = true;
@@ -108,6 +115,7 @@ app.MapAccountEndpoints();
 
 app.MapScenarioEndpoints();
 app.MapScenarioAiEndpoints();
+app.MapModuleAdminEndpoints();
 app.MapAiAdminEndpoints();
 
 app.MapGet("/api/home/dashboard", async (
