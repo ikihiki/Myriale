@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Data;
 using Myriale.Api.Endpoints;
 using Myriale.Api.Modules;
+using Myriale.Api.Modules.Runtime;
 using Myriale.Api.Services;
 using Myriale.ServiceDefaults;
 
@@ -13,7 +14,12 @@ builder.AddServiceDefaults();
 builder.Services.AddOpenApi();
 builder.Services.AddSingleton<IHomeDashboardService, DemoHomeDashboardService>();
 builder.Services.Configure<ModulePackageOptions>(builder.Configuration.GetSection(ModulePackageOptions.SectionName));
+builder.Services.Configure<ModuleRuntimeOptions>(builder.Configuration.GetSection(ModuleRuntimeOptions.SectionName));
 builder.Services.AddScoped<IModulePackageService, ModulePackageService>();
+builder.Services.AddScoped<IModulePackageRuntimeCatalog, ModulePackageRuntimeCatalog>();
+builder.Services.AddScoped<IModuleRuntime, DotNetModuleRuntime>();
+builder.Services.AddSingleton<ModuleAssemblyCache>();
+builder.Services.AddSingleton<ModuleRuntimeInvocationGate>();
 builder.Services.AddHttpClient("MockAi", client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["MockAi:BaseUrl"] ?? "https+http://myriale-mock-ai");

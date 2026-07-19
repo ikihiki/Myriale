@@ -27,6 +27,16 @@ Active transitions may carry transient `uiEvents` for rendering the accepted ste
 
 The host validates every response before persistence. Request IDs provide idempotency and expected revisions prevent stale writes.
 
+## .NET runtime implementation
+
+The API resolves modules by the exact tuple of module ID, semantic version, and SHA-256 digest. Runtime calls require the package to remain enabled and installed. Before execution, the host verifies the canonical package digest and confirms that the expanded `module.dll` matches the canonical DLL or ZIP entry.
+
+`DotNetModuleRuntime` uses a digest-keyed, bounded cache of collectible `AssemblyLoadContext` instances. The cache retains the entry-point constructor but creates a fresh `IMyrialeModule` instance for every invocation so mutable module objects cannot leak state between sessions. Cache entries use leases and are unloaded only after active calls finish.
+
+The host enforces configuration, state, action, context, effect-count, and total-response limits. It also validates lifecycle status, outcome/error combinations, action and event identifiers, and dispatch revisions before results can reach persistence. Accepted active or completed dispatches advance the revision by exactly one; failed transitions retain the expected revision.
+
+Calls are bounded by a host-wide concurrency gate, including package integrity checks, assembly loading, invocation, response validation, and serialization. Caller cancellation is forwarded to modules, but the in-process runtime does not advertise a hard timeout: trusted code can ignore cancellation or block in constructors and static initializers. Untrusted modules therefore require a future worker process or container boundary.
+
 ## Deferred work
 
-Assembly loading, runtime timeouts, worker-process isolation, execution persistence, random-number recording, and recovery behavior are intentionally outside the SDK contract change.
+Worker-process isolation, execution persistence, random-number recording, package-cache invalidation across API processes, and recovery behavior remain deferred.
