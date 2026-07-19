@@ -918,8 +918,26 @@ textarea { min-height: 126px; resize: vertical; }
 }
 
 
-.start-session-select-screen {
-  grid-template-columns: 168px minmax(560px, 1fr);
+.start-session-select-screen,
+.start-session-content {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.start-session-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.start-session-page-head h1 {
+  margin: 0;
+}
+
+.start-session-page-head .text-button {
+  flex: 0 0 auto;
+  margin-top: 0;
 }
 
 .start-session-scenario-list {

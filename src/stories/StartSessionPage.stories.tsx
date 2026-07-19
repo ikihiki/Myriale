@@ -30,12 +30,13 @@ export const USS01StartNewSessionFromScenario: Story = {
       await expect(canvas.getByRole('button', { name: '新しいシナリオを登録' })).toBeVisible();
       await expect(canvas.queryByRole('complementary', { name: 'シナリオ登録導線' })).not.toBeInTheDocument();
     });
-    await step('Scenarioを選択してからSessionウィザードを開始し、設定をスナップショットする', async () => {
+    await step('Scenarioを選択すると、余分な状態表示を挟まずイントロと主人公選択を表示する', async () => {
       await startPreparing(canvas);
-      await expect(canvas.getByTestId('session-notice')).toHaveTextContent('Session用にスナップショット');
-      await expect(canvas.getByText('SES-PREP-1098')).toBeVisible();
-      await expect(canvas.getByTestId('session-state')).toHaveTextContent('Preparing');
-      await expect(canvas.getByRole('complementary', { name: 'セッション状態サマリー' })).toHaveTextContent('星喰いの地下図書館');
+      await expect(canvas.getByTestId('selected-scenario-title')).toHaveTextContent('星喰いの地下図書館');
+      await expect(canvas.getByRole('region', { name: 'イントロNarrative' })).toBeVisible();
+      await expect(canvas.getByRole('region', { name: '主人公確定' })).toBeVisible();
+      await expect(canvas.queryByTestId('session-notice')).not.toBeInTheDocument();
+      await expect(canvas.queryByRole('complementary', { name: 'セッション状態サマリー' })).not.toBeInTheDocument();
     });
   },
 };
@@ -68,7 +69,6 @@ export const USS03ConfirmHeroAfterIntro: Story = {
       await userEvent.click(canvas.getByRole('combobox', { name: '候補キャラクター' }));
       await userEvent.click(await screen.findByRole('option', { name: 'エル / 記憶を失った写字生' }));
       await userEvent.click(canvas.getByRole('button', { name: '開始内容を確認' }));
-      await expect(canvas.getByTestId('session-notice')).toHaveTextContent('Session固有データとして確定');
       await expect(canvas.getByRole('dialog', { name: '開始前の最終確認' })).toBeVisible();
       await expect(canvas.getByTestId('start-summary')).toHaveTextContent('エル / 記憶を失った写字生');
     });
@@ -86,14 +86,13 @@ export const USS03CreateHeroWithAiAssistance: Story = {
       await userEvent.click(await screen.findByRole('option', { name: 'キャラクタークリエイト' }));
       await userEvent.clear(canvas.getByLabelText('主人公の名前'));
       await userEvent.type(canvas.getByLabelText('主人公の名前'), 'ユイ');
-      await expect(canvas.getByTestId('hero-summary')).toHaveTextContent('ユイ');
+      await expect(canvas.getByLabelText('主人公の名前')).toHaveValue('ユイ');
     });
     await step('AIに任せても自動確定せず、確認・修正を促す', async () => {
       await userEvent.click(canvas.getByRole('combobox', { name: '主人公の扱い' }));
       await userEvent.click(await screen.findByRole('option', { name: 'AIによる自動生成案' }));
       await userEvent.click(canvas.getByRole('button', { name: 'AIに任せる' }));
       await expect(canvas.getByTestId('ai-hero-suggestion')).toHaveTextContent('確認・修正してから確定');
-      await expect(canvas.getByTestId('session-notice')).toHaveTextContent('自動確定はしません');
     });
   },
 };

@@ -1,12 +1,9 @@
 import { useState } from 'react';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
-import { WizardNavigation } from '../../shared/WizardNavigation';
 import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeSelect } from '../../ui/MyrialeRadix';
-import { SessionTurn } from '../../shared/SessionTurn';
 import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
 import type { AppRoute } from '../routes';
 
-type SessionStep = 'setup' | 'active';
 type HeroMode = 'fixed' | 'select' | 'create' | 'ai';
 
 type ScenarioSummary = {
@@ -18,11 +15,6 @@ type ScenarioSummary = {
   lore: string;
   opening: string;
 };
-
-const sessionSteps: Array<{ id: SessionStep; label: string; state: string; help: string }> = [
-  { id: 'setup', label: '導入と主人公', state: 'Preparing', help: 'イントロを読みながら主人公を決める' },
-  { id: 'active', label: '本編開始', state: 'Active', help: '確認後、最初のNarrativeを生成してプレイへ' },
-];
 
 const heroNames: Record<HeroMode, string> = {
   fixed: 'リュシエン / 地下図書館の禁書司書',
@@ -86,26 +78,16 @@ export function StartSessionPage({ route }: { route?: AppRoute } = {}) {
   const appNavigate = useAppNavigation();
   const routeScenario = scenarioFromRoute(route);
   const [selectedScenario, setSelectedScenario] = useState<ScenarioSummary | null>(routeScenario);
-  const [activeStep, setActiveStep] = useState<SessionStep>('setup');
-  const [sessionId, setSessionId] = useState(routeScenario ? 'SES-PREP-1098' : '未作成');
-  const [sessionState, setSessionState] = useState(routeScenario ? 'Preparing' : 'NotStarted');
-  const [notice, setNotice] = useState(routeScenario
-    ? `「${routeScenario.title}」から新しいSessionを作成し、イントロを表示しました。`
-    : 'まずScenario一覧から開始するシナリオを選択します。');
   const [heroMode, setHeroMode] = useState<HeroMode>('select');
   const [selectedHero, setSelectedHero] = useState(heroNames.select);
   const [createdName, setCreatedName] = useState('アオイ');
   const [createdProfile, setCreatedProfile] = useState('灰の駅で目覚めた旅人。星図を読む力はまだ不安定。');
   const [aiSuggestion, setAiSuggestion] = useState('AI案は未生成です。生成後もプレイヤー確認まで確定しません。');
-  const [firstNarrative, setFirstNarrative] = useState('本編Narrativeはまだ生成されていません。');
   const [reviewOpen, setReviewOpen] = useState(false);
 
-  const currentIndex = sessionSteps.findIndex((step) => step.id === activeStep);
-  const currentStep = sessionSteps[currentIndex];
   const heroForSummary = heroMode === 'create' ? `${createdName} / ${createdProfile}` : selectedHero;
 
   const openRegistration = () => {
-    setNotice('シナリオ登録アプリ画面へ移動します。');
     if (appNavigate) {
       appNavigate('scenarioRegister');
       return;
@@ -115,64 +97,39 @@ export function StartSessionPage({ route }: { route?: AppRoute } = {}) {
 
   const startPreparing = (scenario: ScenarioSummary) => {
     setSelectedScenario(scenario);
-    setSessionId('SES-PREP-1098');
-    setSessionState('Preparing');
-    setActiveStep('setup');
     setReviewOpen(false);
-    setFirstNarrative('本編Narrativeはまだ生成されていません。');
-    setNotice(`「${scenario.title}」から新しいSessionを作成し、Scenario設定をSession用にスナップショットしました。`);
   };
 
   const backToScenarioList = () => {
     setSelectedScenario(null);
-    setSessionId('未作成');
-    setSessionState('NotStarted');
-    setActiveStep('setup');
     setReviewOpen(false);
-    setNotice('Scenario一覧へ戻りました。別のScenarioを選択してからウィザードを開始します。');
   };
 
   const updateHeroMode = (mode: HeroMode) => {
     setHeroMode(mode);
     setSelectedHero(heroNames[mode]);
-    if (mode === 'fixed') {
-      setNotice('シナリオ定義済みの主人公を確認しました。ユーザー操作なしで候補が固定されます。');
-    } else if (mode === 'select') {
-      setNotice('候補から主人公を選択できます。');
-    } else if (mode === 'create') {
-      setNotice('名前やプロフィールを入力してSession固有の主人公を作成できます。');
-    } else {
-      setNotice('AI案を生成しても、自動確定はされません。');
-    }
   };
 
   const generateAiHero = () => {
     setAiSuggestion('AIがイントロとLoreを踏まえた主人公案を生成しました: ノクト / 失われた索引を探す見習い司書。確認・修正してから確定します。');
     setSelectedHero(heroNames.ai);
-    setNotice('AI主人公案を提示しました。自動確定はしません。');
   };
 
-  const openFinalReview = () => {
-    setReviewOpen(true);
-    setNotice('主人公情報をSession固有データとして確定しました。開始内容を確認してください。');
-  };
+  const openFinalReview = () => setReviewOpen(true);
 
   const beginStory = () => {
     setReviewOpen(false);
-    setSessionState('Active');
-    setFirstNarrative(`${selectedScenario?.opening ?? 'あなたは物語の入口で目を覚ます。'} 頭上では星座が紙魚のようにページを食み、遠くで誰かが名もなき旅人を呼んでいる。`);
     if (appNavigate) {
       appNavigate('playSession');
       return;
     }
-    setActiveStep('active');
-    setNotice('Session状態をActiveに変更し、第一ターンとしてイントロを表示しました。');
+    navigateToStory(STORY_IDS.playSession);
   };
 
   const sessionCrumbs: Crumb[] = [
     { label: 'Myriale', to: 'scenarioRegister' },
     { label: 'セッション', to: 'startSession' },
-    { label: selectedScenario ? 'セッション開始ウィザード' : 'シナリオを選ぶ' },
+    { label: selectedScenario ? 'セッション開始' : 'シナリオを選ぶ' },
   ];
   const playerAccount = { name: '霧野しおり', email: 'reader@myriale.example', initials: '霧野', role: 'プレイヤー' };
 
@@ -180,26 +137,10 @@ export function StartSessionPage({ route }: { route?: AppRoute } = {}) {
     return (
       <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={playerAccount}>
         <div className="scenario-forge scenario-forge-wizard start-session-page start-session-select-screen">
-        <WizardNavigation
-          title="Scenario Library"
-          ariaLabel="開始前の導線"
-          items={[
-            { id: 'library', label: 'シナリオ一覧', meta: '選択してから開始', ariaLabel: 'シナリオ一覧へ' },
-            { id: 'registration', label: '登録導線', meta: '未登録なら作成', ariaLabel: 'シナリオ登録へ' },
-          ]}
-          activeId="library"
-          onSelect={(id) => {
-            if (id === 'registration') openRegistration();
-          }}
-          markerLabel="SessionId"
-          markerValue={sessionId}
-        />
-
         <main className="forge-paper wizard-paper" aria-label="セッション開始前のシナリオ一覧">
           <p className="kicker">Session Start / Scenario library</p>
-          <div className="notice" role="status" data-testid="session-notice">{notice}</div>
           <section className="wizard-panel" aria-label="シナリオ一覧">
-            <p><strong>利用可能なScenarioを選択します。</strong>Session開始ウィザードは、Scenarioを選んでSession用スナップショットを作成してから始まります。</p>
+            <p><strong>利用可能なScenarioを選択します。</strong>選択するとイントロと主人公選択をすぐに表示します。</p>
             <div className="button-row"><button onClick={openRegistration}>新しいシナリオを登録</button></div>
             <div className="start-session-scenario-list" data-testid="scenario-list">
               {scenarios.map((scenario) => (
@@ -222,34 +163,16 @@ export function StartSessionPage({ route }: { route?: AppRoute } = {}) {
 
   return (
     <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={playerAccount}>
-      <div className="scenario-forge scenario-forge-wizard start-session-page">
-      <WizardNavigation
-        title="Session Flow"
-        ariaLabel="セッション開始ウィザードのステップ"
-        items={sessionSteps.map((step, index) => ({
-          id: step.id,
-          label: `${String(index + 1).padStart(2, '0')} / ${step.label}`,
-          meta: step.state,
-          ariaLabel: `${step.label}へ`,
-        }))}
-        activeId={activeStep}
-        onSelect={(id) => setActiveStep(id as SessionStep)}
-        markerLabel="SessionId"
-        markerValue={sessionId}
-        action={<button className="text-button" onClick={backToScenarioList}>シナリオ一覧へ戻る</button>}
-      />
-
+      <div className="scenario-forge scenario-forge-wizard start-session-page start-session-content">
       <main className="forge-paper wizard-paper" aria-label="セッション開始アプリ画面">
-        <p className="kicker">Session Start / Scenario to play</p>
-        <div className="notice" role="status" data-testid="session-notice">{notice}</div>
-
-        <div className="wizard-progress" aria-label="開始進捗">
-          <span>{String(currentIndex + 1).padStart(2, '0')}</span>
-          <strong>{currentStep.label}</strong>
-          <small>{currentStep.help}</small>
+        <div className="start-session-page-head">
+          <div>
+            <p className="kicker">Session Start / Scenario to play</p>
+            <h1 data-testid="selected-scenario-title">{selectedScenario.title}</h1>
+          </div>
+          <button className="text-button" onClick={backToScenarioList}>シナリオ一覧へ戻る</button>
         </div>
 
-        {activeStep === 'setup' && (
           <div className="start-session-setup" aria-label="イントロと主人公選択">
             <section className="wizard-panel start-session-intro-panel" aria-label="イントロNarrative">
               <p><strong>初回セッションではスキップ不可のイントロです。</strong>Lore、ジャンル、トーン、開始シーンを反映し、主人公未確定のため「あなた」として語ります。</p>
@@ -289,7 +212,7 @@ export function StartSessionPage({ route }: { route?: AppRoute } = {}) {
                 <>
                   <label>名前<input aria-label="主人公の名前" value={createdName} onChange={(event) => setCreatedName(event.target.value)} /></label>
                   <label>プロフィール<textarea aria-label="主人公プロフィール" value={createdProfile} onChange={(event) => setCreatedProfile(event.target.value)} /></label>
-                  <button onClick={() => setNotice('AIがプロフィール入力を補助しました。採用前に編集できます。')}>AIに入力補助してもらう</button>
+                  <button onClick={() => setCreatedProfile((profile) => `${profile} 失われた記憶の手がかりを追っている。`)}>AIに入力補助してもらう</button>
                 </>
               )}
               {heroMode === 'ai' && (
@@ -303,7 +226,6 @@ export function StartSessionPage({ route }: { route?: AppRoute } = {}) {
               <div className="button-row"><button className="primary" onClick={openFinalReview}>開始内容を確認</button></div>
             </section>
           </div>
-        )}
 
         <MyrialeDialogRoot open={reviewOpen} onOpenChange={setReviewOpen}>
           <MyrialeDialogContent
@@ -324,42 +246,10 @@ export function StartSessionPage({ route }: { route?: AppRoute } = {}) {
               <h2>{selectedScenario.title}</h2>
               <p>Scenario: {selectedScenario.title}</p>
               <p>主人公: {heroForSummary}</p>
-              <p>Session状態: {sessionState}</p>
             </article>
           </MyrialeDialogContent>
         </MyrialeDialogRoot>
-
-        {activeStep === 'active' && (
-          <section className="wizard-panel" aria-label="本編ターンログ">
-            <p><strong>SessionはActiveです。</strong>開始直後は選択肢ではなく、第一ターンとしてイントロNarrativeをターン表示します。</p>
-            <div className="session-turn-list" aria-label="セッションターン">
-              <SessionTurn
-                selected
-                testId="first-turn"
-                ariaLabel="Turn 1 イントロ"
-                narrativeTag="AI"
-                narrativeTestId="first-narrative"
-                lead={{
-                  tone: 'program',
-                  tag: 'TURN 1',
-                  srLabel: 'ターン: ',
-                  text: 'イントロ',
-                  testId: 'first-turn-lead',
-                }}
-                narrative={firstNarrative}
-              />
-            </div>
-          </section>
-        )}
       </main>
-
-      <aside className="ai-bookmark wizard-summary" aria-label="セッション状態サマリー">
-        <h2>Session</h2>
-        <article><h3>状態</h3><p data-testid="session-state">{sessionState}</p><p>{sessionId}</p></article>
-        <article><h3>Scenario snapshot</h3><p data-testid="selected-scenario-title">{selectedScenario.title}</p><p>{selectedScenario.genre}</p><p>{selectedScenario.tone}</p></article>
-        <article><h3>主人公</h3><p data-testid="hero-summary">{heroForSummary}</p></article>
-        <article><h3>Narrative</h3><p>イントロ: 表示済みにしてから主人公確定</p><p>{firstNarrative}</p></article>
-      </aside>
     </div>
     </AppChrome>
   );
