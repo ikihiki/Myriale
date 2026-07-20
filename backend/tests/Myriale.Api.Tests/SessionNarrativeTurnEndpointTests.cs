@@ -152,7 +152,12 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var firstJson = await first.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("narrative", firstJson.GetProperty("kind").GetString());
         Assert.Equal(body.input, firstJson.GetProperty("narrative").GetProperty("playerInput").GetString());
-        Assert.False(Assert.Single(_generator.DialogueRequests).IncludeInterpretation);
+        Assert.Equal(NarrativeDialogueSchema.Version, firstJson.GetProperty("narrative").GetProperty("schemaVersion").GetString());
+        Assert.Equal("action-result", firstJson.GetProperty("narrative").GetProperty("turnType").GetString());
+        Assert.Equal(_generator.DialogueHeading, firstJson.GetProperty("narrative").GetProperty("heading").GetString());
+        var dialogueRequest = Assert.Single(_generator.DialogueRequests);
+        Assert.Equal(NarrativeDialogueSchema.Version, dialogueRequest.SchemaVersion);
+        Assert.False(dialogueRequest.IncludeInterpretation);
         Assert.Equal(JsonValueKind.Null, firstJson.GetProperty("narrative").GetProperty("interpretation").ValueKind);
 
         using var replay = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/narrative-turns", body);
@@ -160,6 +165,24 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var replayJson = await replay.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(firstJson.GetProperty("id").GetString(), replayJson.GetProperty("id").GetString());
         Assert.Equal(1, await CountNarrativeTurnsAsync());
+    }
+
+    [Fact]
+    public async Task ClarificationWithProgressionSignalIsRejected()
+    {
+        var client = await AuthenticatedClientAsync("clarification-signal@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        _generator.DialogueTurnType = "clarification";
+        _generator.DialogueHeading = "現在の状況を整理する";
+        _generator.DialogueSignals = [new NarrativeProgressionSignal("constellation-door-reached")];
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/narrative-turns",
+            new { requestId = "clarification-with-signal", input = "今の状況を簡単にまとめて" });
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Equal("narrative_generation_failed", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+        Assert.Equal(0, await CountNarrativeTurnsAsync());
     }
 
     [Fact]
@@ -648,6 +671,8 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
 
         public List<NarrativeDialogueRequest> DialogueRequests { get; } = [];
         public IReadOnlyList<NarrativeProgressionSignal> DialogueSignals { get; set; } = [];
+        public string DialogueTurnType { get; set; } = "action-result";
+        public string DialogueHeading { get; set; } = "銀の鍵を掲げる";
         public string DialogueInterpretation { get; set; } = "Playerは銀の鍵を掲げる行動を選んだ。";
         public bool PauseDialogue { get; set; }
         public TaskCompletionSource DialogueEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -663,6 +688,9 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
                 await DialogueRelease.Task.WaitAsync(cancellationToken);
             }
             return new NarrativeDialogueResult(
+                NarrativeDialogueSchema.Version,
+                DialogueTurnType,
+                DialogueHeading,
                 "入力を受け止め、物語は次の場面へ進んだ。",
                 DialogueSignals,
                 DialogueInterpretation);

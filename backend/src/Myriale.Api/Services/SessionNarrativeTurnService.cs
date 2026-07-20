@@ -168,6 +168,7 @@ public sealed class SessionNarrativeTurnService(
             timeout.CancelAfter(GenerationTimeout);
             generated = await generator.GenerateDialogueAsync(
                 new NarrativeDialogueRequest(
+                    NarrativeDialogueSchema.Version,
                     new NarrativeScenarioInput(scenario.Title, scenario.Summary, scenario.Genre, scenario.Tone, scenario.Lore, scenario.AiFreedom, scenario.Hero, scenario.Opening),
                     recentTurns,
                     inputText,
@@ -177,6 +178,7 @@ public sealed class SessionNarrativeTurnService(
                     allowedSignals,
                     claimed.PlayerInput.Session.InterpretationEnabled),
                 timeout.Token);
+            ValidateGeneratedResult(generated, claimed.PlayerInput.Session.InterpretationEnabled);
             ValidateSignals(generated.Signals, allowedSignals);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -211,6 +213,9 @@ public sealed class SessionNarrativeTurnService(
             PreviousTurnId = claimed.PlayerInput.AcceptedAfterTurnId,
             Position = (claimedSession.HeadTurn?.Position ?? 0) + 1,
             Kind = "narrative",
+            DialogueSchemaVersion = generated.SchemaVersion,
+            DialogueTurnType = generated.TurnType,
+            Heading = generated.Heading,
             NarrativeBody = generated.Body,
             Interpretation = claimedSession.InterpretationEnabled ? generated.Interpretation : null,
             PlayerInputId = claimed.PlayerInput.Id,
@@ -298,6 +303,21 @@ public sealed class SessionNarrativeTurnService(
     }
 
     private static bool SameTurn(string? left, string? right) => string.Equals(left, right, StringComparison.Ordinal);
+
+    private static void ValidateGeneratedResult(NarrativeDialogueResult result, bool interpretationRequired)
+    {
+        if (!string.Equals(result.SchemaVersion, NarrativeDialogueSchema.Version, StringComparison.Ordinal)
+            || !NarrativeDialogueSchema.TurnTypes.Contains(result.TurnType)
+            || string.IsNullOrWhiteSpace(result.Heading)
+            || result.Heading.Length > 120
+            || string.IsNullOrWhiteSpace(result.Body)
+            || result.Body.Length > 20_000
+            || result.Signals is null
+            || (result.TurnType == "clarification" && result.Signals.Count > 0)
+            || (interpretationRequired && string.IsNullOrWhiteSpace(result.Interpretation))
+            || result.Interpretation?.Length > 500)
+            throw new NarrativeGenerationException("Narrative provider returned an invalid dialogue result.");
+    }
 
     private static void ValidateSignals(IReadOnlyList<NarrativeProgressionSignal> signals, IReadOnlyList<string> allowedSignals)
     {

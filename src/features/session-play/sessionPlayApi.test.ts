@@ -48,7 +48,19 @@ describe('sessionPlayApi', () => {
       scenarioId: 'SCN-STAR-LIBRARY',
       status: 'active',
       revision: 1,
-      turns: [],
+      interpretationEnabled: false,
+      turns: [{
+        id: 'TRN-1',
+        position: 1,
+        kind: 'narrative',
+        narrative: {
+          body: '扉の前で立ち止まる。',
+          schemaVersion: 'narrative-dialogue.v1',
+          turnType: 'action-result',
+          heading: '閉じた扉を確かめる',
+        },
+        createdAt: '2026-07-20T00:00:00Z',
+      }],
       pendingInputs: [{
         playerInputId: 'INP-1',
         requestId: 'narrative-1',
@@ -65,6 +77,11 @@ describe('sessionPlayApi', () => {
 
     const session = await getSession('SES-1', '/api/sessions');
 
+    expect(session.turns[0].narrative).toMatchObject({
+      schemaVersion: 'narrative-dialogue.v1',
+      turnType: 'action-result',
+      heading: '閉じた扉を確かめる',
+    });
     expect(session.pendingInputs[0]).toMatchObject({ requestId: 'narrative-1', isRetryable: true });
   });
 

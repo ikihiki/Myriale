@@ -25,14 +25,22 @@ public sealed class MockAiNarrativeGenerator(IHttpClientFactory httpClientFactor
         using var response = await client.PostAsJsonAsync("/mock-ai/narrative-dialogue", request, cancellationToken);
         if (!response.IsSuccessStatusCode) throw new NarrativeGenerationException("Narrative provider returned an error.");
         var result = await response.Content.ReadFromJsonAsync<NarrativeDialogueResult>(cancellationToken: cancellationToken);
-        if (string.IsNullOrWhiteSpace(result?.Body)
+        if (result is null
+            || !string.Equals(request.SchemaVersion, NarrativeDialogueSchema.Version, StringComparison.Ordinal)
+            || !string.Equals(result.SchemaVersion, NarrativeDialogueSchema.Version, StringComparison.Ordinal)
+            || !NarrativeDialogueSchema.TurnTypes.Contains(result.TurnType)
+            || string.IsNullOrWhiteSpace(result.Heading)
+            || result.Heading.Length > 120
+            || string.IsNullOrWhiteSpace(result.Body)
             || result.Body.Length > 20_000
             || result.Signals is null
+            || (result.TurnType == "clarification" && result.Signals.Count > 0)
             || (request.IncludeInterpretation && string.IsNullOrWhiteSpace(result.Interpretation))
             || result.Interpretation?.Length > 500)
             throw new NarrativeGenerationException("Narrative provider returned an invalid response.");
         return result with
         {
+            Heading = result.Heading.Trim(),
             Body = result.Body.Trim(),
             Interpretation = request.IncludeInterpretation ? result.Interpretation?.Trim() : null,
         };

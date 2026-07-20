@@ -15,7 +15,10 @@ public sealed record NarrativeTurnResponse(
     string? PlayerInput = null,
     string? AcceptedAfterTurnId = null,
     IReadOnlyList<string>? Signals = null,
-    string? Interpretation = null);
+    string? Interpretation = null,
+    string? SchemaVersion = null,
+    string? TurnType = null,
+    string? Heading = null);
 
 public sealed record NarrativeHandoffStatusResponse(
     string Status,

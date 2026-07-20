@@ -210,18 +210,19 @@ const resultForInput = (input: string, nextId: number): DialogueTurn => {
   };
 };
 
-const toDialogueTurn = (turn: NarrativeTurnApiResponse): DialogueTurn => ({
+export const toDialogueTurn = (turn: NarrativeTurnApiResponse): DialogueTurn => ({
   id: turn.position,
-  turnTitle: turn.narrative?.playerInput
-    ? 'Player Inputを受けたNarrative'
-    : turn.kind === 'module'
-      ? 'プログラムによる進行'
-      : '物語の始まり',
+  turnTitle: turn.narrative?.heading
+    ?? (turn.narrative?.playerInput
+      ? 'Player Inputを受けたNarrative'
+      : turn.kind === 'module'
+        ? 'プログラムによる進行'
+        : '物語の始まり'),
   playerInput: turn.narrative?.playerInput ?? undefined,
   interpretation: turn.narrative?.interpretation ?? undefined,
   narrative: turn.narrative?.body
     ?? (turn.kind === 'module' ? 'プログラムによる進行を実行しています。' : 'Narrativeを表示できません。'),
-  kind: 'action',
+  kind: turn.narrative?.turnType === 'clarification' ? 'clarification' : 'action',
   display: turn.kind === 'module'
     ? { allowRewind: false, showInterpretation: false, leadTone: 'program', leadTag: 'PROGRAM' }
     : undefined,

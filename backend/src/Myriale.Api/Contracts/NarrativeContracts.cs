@@ -3,6 +3,18 @@ using Myriale.ModuleSdk;
 
 namespace Myriale.Api.Contracts;
 
+public static class NarrativeDialogueSchema
+{
+    public const string Version = "narrative-dialogue.v1";
+
+    public static readonly IReadOnlySet<string> TurnTypes = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "action-result",
+        "npc-reply",
+        "clarification",
+    };
+}
+
 public sealed record NarrativeScenarioInput(
     string Title,
     string Summary,
@@ -28,6 +40,7 @@ public sealed record NarrativeSessionStateInput(
     IReadOnlyDictionary<string, bool> Flags);
 
 public sealed record NarrativeDialogueRequest(
+    string SchemaVersion,
     NarrativeScenarioInput Scenario,
     IReadOnlyList<NarrativeDialogueTurnInput> RecentTurns,
     string PlayerInput,
@@ -38,6 +51,9 @@ public sealed record NarrativeDialogueRequest(
 public sealed record NarrativeDialogueTurnInput(string? PlayerInput, string? Narrative);
 public sealed record NarrativeProgressionSignal(string Code);
 public sealed record NarrativeDialogueResult(
+    string SchemaVersion,
+    string TurnType,
+    string Heading,
     string Body,
     IReadOnlyList<NarrativeProgressionSignal> Signals,
     string? Interpretation = null);

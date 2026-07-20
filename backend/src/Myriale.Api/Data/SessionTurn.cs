@@ -18,6 +18,15 @@ public sealed class SessionTurn
     [Required, MaxLength(32)]
     public string Kind { get; set; } = "module";
 
+    [MaxLength(40)]
+    public string? DialogueSchemaVersion { get; set; }
+
+    [MaxLength(32)]
+    public string? DialogueTurnType { get; set; }
+
+    [MaxLength(120)]
+    public string? Heading { get; set; }
+
     public string? NarrativeBody { get; set; }
 
     [MaxLength(500)]

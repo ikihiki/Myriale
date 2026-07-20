@@ -171,6 +171,9 @@ public static class SessionEndpoints
             SessionId = session.Id,
             Position = 1,
             Kind = "narrative",
+            DialogueSchemaVersion = NarrativeDialogueSchema.Version,
+            DialogueTurnType = "opening",
+            Heading = scenario.Title,
             NarrativeBody = scenario.Opening,
             SourceSessionRevision = 0,
             CreatedAt = now,
@@ -336,7 +339,18 @@ public static class SessionEndpoints
             result.Turn.PreviousTurnId,
             result.Turn.Kind,
             null,
-            new NarrativeTurnResponse(null, result.Turn.SourceSessionRevision, result.Turn.NarrativeBody!, result.Turn.PlayerInputId, playerInput?.Text, playerInput?.AcceptedAfterTurnId, signals, result.Turn.Interpretation),
+            new NarrativeTurnResponse(
+                null,
+                result.Turn.SourceSessionRevision,
+                result.Turn.NarrativeBody!,
+                result.Turn.PlayerInputId,
+                playerInput?.Text,
+                playerInput?.AcceptedAfterTurnId,
+                signals,
+                result.Turn.Interpretation,
+                result.Turn.DialogueSchemaVersion,
+                result.Turn.DialogueTurnType,
+                result.Turn.Heading),
             null,
             result.Turn.CreatedAt));
     }
@@ -467,7 +481,13 @@ public static class SessionEndpoints
             turn.PreviousTurnId,
             turn.Kind,
             null,
-            new NarrativeTurnResponse(null, turn.SourceSessionRevision, turn.NarrativeBody!),
+            new NarrativeTurnResponse(
+                null,
+                turn.SourceSessionRevision,
+                turn.NarrativeBody!,
+                SchemaVersion: turn.DialogueSchemaVersion,
+                TurnType: turn.DialogueTurnType,
+                Heading: turn.Heading),
             null,
             turn.CreatedAt);
 
@@ -501,7 +521,10 @@ public static class SessionEndpoints
                     turn.PlayerInput?.Text,
                     turn.PlayerInput?.AcceptedAfterTurnId,
                     turn.NarrativeSignals.OrderBy(signal => signal.Code).Select(signal => signal.Code).ToArray(),
-                    turn.Interpretation),
+                    turn.Interpretation,
+                    turn.DialogueSchemaVersion,
+                    turn.DialogueTurnType,
+                    turn.Heading),
                 null,
                 turn.CreatedAt);
         }

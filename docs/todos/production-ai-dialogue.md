@@ -74,12 +74,12 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 
 ### 構造化Narrative結果
 
-- [ ] `NarrativeDialogueRequest`と`NarrativeDialogueResult`にschema versionを追加する。
-- [ ] Narrative結果に`turnType`を追加する。
-- [ ] Narrative結果に短い`heading`を追加する。
-- [ ] Narrative結果にプレイヤーへ開示可能な`inputInterpretation`を追加する。
-- [ ] `inputInterpretation`はchain-of-thoughtではなく、行動種別と要約だけを保持する。
-- [ ] Narrative結果の本文、heading、interpretation、signalsに長さと文字種の上限を設ける。
+- [x] `NarrativeDialogueRequest`と`NarrativeDialogueResult`にschema versionを追加する。
+- [x] Narrative結果に`turnType`を追加する。
+- [x] Narrative結果に短い`heading`を追加する。
+- [x] Narrative結果にプレイヤーへ開示可能な`inputInterpretation`を追加する。
+- [x] `inputInterpretation`はchain-of-thoughtではなく、行動種別と要約だけを保持する。
+- [x] Narrative結果の本文、heading、interpretation、signalsに長さと文字種の上限を設ける。
 - [ ] schema不一致、余分なfield、空本文、不正signalをhost側で拒否する。
 
 想定するturn type:
@@ -92,11 +92,11 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 
 ### Clarificationと非進行制約
 
-- [ ] 「今の状況を簡単にまとめて」をclient-only TurnではなくServer requestにする。
+- [x] 「今の状況を簡単にまとめて」をclient-only TurnではなくServer requestにする。
 - [ ] requestで期待するturn typeまたはinteraction typeを明示できるようにする。
-- [ ] `clarification`ではprogression signalを禁止する。
+- [x] `clarification`ではprogression signalを禁止する。
 - [ ] `clarification`では新規の事件、NPC、場所、Session flag変更を確定しない。
-- [ ] `clarification`がSessionの理解補助Turnとして履歴に残るか、非進行メッセージとして別保存されるかを決定する。
+- [x] `clarification`はSessionの理解補助Turnとして履歴に保存する。
 
 ### 進行signalの意味
 

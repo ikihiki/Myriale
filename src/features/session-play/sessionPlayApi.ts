@@ -5,6 +5,9 @@ export type NarrativeTurnApiResponse = {
   kind: string;
   execution?: unknown | null;
   narrative?: {
+    schemaVersion?: string | null;
+    turnType?: string | null;
+    heading?: string | null;
     body: string;
     playerInputId?: string | null;
     playerInput?: string | null;
