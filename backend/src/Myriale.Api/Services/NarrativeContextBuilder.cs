@@ -1,0 +1,85 @@
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Myriale.Api.Contracts;
+using Myriale.Api.Data;
+
+namespace Myriale.Api.Services;
+
+public sealed class NarrativeContextBuilder(ApplicationDbContext db) : INarrativeContextBuilder
+{
+    public async Task<NarrativeDialogueContext> BuildDialogueAsync(
+        string ownerId,
+        string sessionId,
+        string interactionType,
+        CancellationToken cancellationToken)
+    {
+        var session = await db.Sessions.AsNoTracking()
+            .Include(item => item.Scenario)
+            .Include(item => item.State)
+            .Include(item => item.Progress).ThenInclude(progress => progress!.CurrentNode)
+            .SingleOrDefaultAsync(item => item.Id == sessionId && item.OwnerId == ownerId, cancellationToken)
+            ?? throw new NarrativeGenerationException("Narrative context source is unavailable.");
+
+        var recentTurns = await db.SessionTurns.AsNoTracking()
+            .Include(turn => turn.PlayerInput)
+            .Where(turn => turn.SessionId == sessionId && turn.Kind == "narrative")
+            .OrderByDescending(turn => turn.Position)
+            .Take(8)
+            .OrderBy(turn => turn.Position)
+            .Select(turn => new NarrativeDialogueTurnInput(
+                turn.PlayerInput == null ? null : turn.PlayerInput.Text,
+                turn.NarrativeBody))
+            .ToListAsync(cancellationToken);
+
+        var flags = JsonSerializer.Deserialize<IReadOnlyDictionary<string, bool>>(session.State.FlagsJson)
+            ?? new Dictionary<string, bool>();
+        var allowedSignals = interactionType == NarrativeInteractionTypes.Clarification
+            ? []
+            : await LoadAllowedSignalsAsync(session.Progress, cancellationToken);
+
+        return new NarrativeDialogueContext(
+            new NarrativeScenarioInput(
+                session.Scenario.Title,
+                session.Scenario.Summary,
+                session.Scenario.Genre,
+                session.Scenario.Tone,
+                session.Scenario.Lore,
+                session.Scenario.AiFreedom,
+                session.Scenario.Hero,
+                session.Scenario.Opening),
+            recentTurns,
+            new NarrativeSessionStateInput(session.State.Revision, flags),
+            allowedSignals);
+    }
+
+    private async Task<IReadOnlyList<NarrativeAllowedSignal>> LoadAllowedSignalsAsync(
+        SessionProgressState? progress,
+        CancellationToken cancellationToken)
+    {
+        if (progress is null) return [];
+        var allowedCodes = JsonSerializer.Deserialize<IReadOnlyList<string>>(progress.CurrentNode.AllowedNarrativeSignalsJson) ?? [];
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        if (allowedCodes.Any(code => string.IsNullOrWhiteSpace(code)
+                || code.Length > 80
+                || code.Any(character => !(char.IsLower(character) || char.IsDigit(character) || character == '-'))
+                || !seen.Add(code)))
+            throw new NarrativeGenerationException("Scenario progression contains an invalid narrative signal allowlist.");
+        if (allowedCodes.Count == 0) return [];
+
+        var transitions = await db.ScenarioProgressionTransitions.AsNoTracking()
+            .Where(transition => transition.SourceNodeId == progress.CurrentNodeId
+                && allowedCodes.Contains(transition.SignalCode))
+            .Select(transition => new { transition.SignalCode, transition.TriggerDescription })
+            .ToDictionaryAsync(transition => transition.SignalCode, StringComparer.Ordinal, cancellationToken);
+        if (transitions.Count != allowedCodes.Count)
+            throw new NarrativeGenerationException("Scenario progression signal is missing a transition definition.");
+
+        return allowedCodes.Select(code =>
+        {
+            var transition = transitions[code];
+            if (string.IsNullOrWhiteSpace(transition.TriggerDescription) || transition.TriggerDescription.Length > 1000)
+                throw new NarrativeGenerationException("Scenario progression signal is missing a valid trigger description.");
+            return new NarrativeAllowedSignal(code, transition.TriggerDescription.Trim());
+        }).ToArray();
+    }
+}

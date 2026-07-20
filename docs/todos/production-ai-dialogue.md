@@ -110,10 +110,10 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 
 ### Context Builder
 
-- [ ] `INarrativeContextBuilder`を導入し、Context構築を`SessionNarrativeTurnService`から分離する。
+- [x] `INarrativeContextBuilder`を導入し、Context構築を`SessionNarrativeTurnService`から分離する。
 - [ ] Scenario Lore、Tone、AI Freedom、選択済みHeroをContextへ含める。
 - [ ] 現在のScenario progression nodeと許可された遷移条件を含める。
-- [ ] Session flagsと現在状態を含める。
+- [x] Session flagsと現在状態を含める。
 - [ ] Module OutcomeのPublic Facts、Narrative Hints、Forbidden Narrative Factsを後続対話へ含める。
 - [ ] Session SummaryとLorebookを後から差し込めるversioned contractを定義する。
 - [ ] Recent Turnsの件数ではなくtoken budgetでContext量を制御できるようにする。
