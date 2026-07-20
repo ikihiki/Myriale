@@ -42,6 +42,13 @@ public sealed record NarrativeDialogueResult(
     IReadOnlyList<NarrativeProgressionSignal> Signals,
     string? Interpretation = null);
 
+public sealed record NarrativeActionRecommendationRequest(
+    NarrativeScenarioInput Scenario,
+    IReadOnlyList<NarrativeDialogueTurnInput> RecentTurns,
+    NarrativeSessionStateInput SessionState);
+
+public sealed record NarrativeActionRecommendationResult(string Suggestion);
+
 public sealed record NarrativeHandoffRequest(
     NarrativeScenarioInput Scenario,
     NarrativeOutcomeInput Outcome,

@@ -98,6 +98,20 @@ export const USP05AskClarificationWithoutProgress: Story = {
   },
 };
 
+export const USP05BRecommendNextAction: Story = {
+  name: 'US-P05B: AIに次の行動案を推薦してほしい',
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await step('AI推薦ボタンを押すと、現在の状況に沿った行動案が入力欄へ入る', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: 'AIに次の行動を提案してもらう' }));
+      await expect(canvas.getByLabelText('自由に行動や会話を入力')).toHaveValue(
+        '銀の鍵を扉にかざし、刻まれた星座との対応を確かめる',
+      );
+      await expect(canvas.getByRole('status')).toHaveTextContent('内容を編集してから送信できます');
+    });
+  },
+};
+
 export const USP06ShowInputInterpretation: Story = {
   name: 'US-P06: 自分の入力がどう解釈されたか知りたい',
   play: async ({ canvasElement, step }) => {
@@ -115,8 +129,8 @@ export const USP06ShowInputInterpretation: Story = {
   },
 };
 
-export const USP07DeleteAndRedoPreviousTurn: Story = {
-  name: 'US-P07: ボタン操作で直前の行動を取り消してやり直したい',
+export const USP07DeleteDraftInput: Story = {
+  name: 'US-P07: 未送信の入力を取り消したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await step('未送信の入力は削除ボタンで取り消せる', async () => {
@@ -124,13 +138,7 @@ export const USP07DeleteAndRedoPreviousTurn: Story = {
       await userEvent.click(canvas.getByRole('button', { name: '入力を消去' }));
       await expect(canvas.getByLabelText('自由に行動や会話を入力')).toHaveValue('');
       await expect(canvas.getByRole('status')).toHaveTextContent('入力欄の未送信テキストを無効化');
-    });
-    await step('送信済みの直前ターンはやり直しボタンで巻き戻せる', async () => {
-      await sendAction(canvas, '階段へ急いで向かう');
-      await expect(canvas.getByTestId('dialogue-log')).toHaveTextContent('階段へ急いで向かう');
-      await userEvent.click(canvas.getByRole('button', { name: '直前のターンに戻る' }));
-      await expect(canvas.getByTestId('dialogue-log')).not.toHaveTextContent('階段へ急いで向かう');
-      await expect(canvas.getByRole('status')).toHaveTextContent('直前ターンを巻き戻しました');
+      await expect(canvas.queryByRole('button', { name: '直前のターンに戻る' })).not.toBeInTheDocument();
     });
   },
 };

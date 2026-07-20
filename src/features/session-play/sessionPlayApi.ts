@@ -89,6 +89,21 @@ export async function getSession(
   return response.json() as Promise<SessionApiResponse>;
 }
 
+export async function recommendNextAction(
+  sessionId: string,
+  baseUrl = getSessionApiBaseUrl(),
+): Promise<string> {
+  if (!baseUrl) throw sessionApiError('Session APIが設定されていません。', 503, 'session_api_unavailable');
+  const response = await fetch(`${baseUrl}/${encodeURIComponent(sessionId)}/action-recommendation`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) throw await toSessionApiError(response, '次の行動案を生成できませんでした。');
+  const payload = await response.json() as { suggestion: string };
+  return payload.suggestion;
+}
+
 export async function createNarrativeTurn(
   sessionId: string,
   input: string,

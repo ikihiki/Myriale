@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createNarrativeTurn, createSession, getSession } from './sessionPlayApi';
+import { createNarrativeTurn, createSession, getSession, recommendNextAction } from './sessionPlayApi';
 
 const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
@@ -66,6 +66,17 @@ describe('sessionPlayApi', () => {
     const session = await getSession('SES-1', '/api/sessions');
 
     expect(session.pendingInputs[0]).toMatchObject({ requestId: 'narrative-1', isRetryable: true });
+  });
+
+  it('requests an AI recommendation without advancing the Session', async () => {
+    const fetch = vi.fn().mockResolvedValue(response({ suggestion: '銀の鍵を扉にかざす' }));
+    vi.stubGlobal('fetch', fetch);
+
+    await expect(recommendNextAction('SES-1', '/api/sessions')).resolves.toBe('銀の鍵を扉にかざす');
+    expect(fetch).toHaveBeenCalledWith('/api/sessions/SES-1/action-recommendation', expect.objectContaining({
+      method: 'POST',
+      credentials: 'include',
+    }));
   });
 
   it('exposes the server error code so the same narrative request can be retried', async () => {

@@ -31,7 +31,9 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
             builder.ConfigureServices(services =>
             {
                 services.RemoveAll<INarrativeGenerator>();
+                services.RemoveAll<IActionRecommendationGenerator>();
                 services.AddSingleton<INarrativeGenerator>(_generator);
+                services.AddSingleton<IActionRecommendationGenerator>(_ => _generator);
             });
         });
     }
@@ -119,6 +121,23 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         Assert.Equal(2, recovered.GetProperty("turns").GetArrayLength());
         Assert.Equal("completed", recovered.GetProperty("turns")[0].GetProperty("narrativeHandoff").GetProperty("status").GetString());
         Assert.Equal(2, await GetHandoffAttemptsAsync());
+    }
+
+    [Fact]
+    public async Task ActionRecommendationUsesSessionContextWithoutAdvancingSession()
+    {
+        var client = await AuthenticatedClientAsync("action-recommendation@example.test");
+        var sessionId = await CreateSessionAsync(client);
+
+        using var response = await client.PostAsync($"/api/sessions/{sessionId}/action-recommendation", null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(_generator.ActionSuggestion, json.GetProperty("suggestion").GetString());
+        var request = Assert.Single(_generator.ActionRecommendationRequests);
+        Assert.Equal("星喰いの地下図書館", request.Scenario.Title);
+        Assert.Equal("あなたは水没した閲覧室で目を覚ます。", Assert.Single(request.RecentTurns).Narrative);
+        Assert.Equal(0, await CountNarrativeTurnsAsync());
     }
 
     [Fact]
@@ -606,7 +625,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         catch (UnauthorizedAccessException) { }
     }
 
-    private sealed class CapturingNarrativeGenerator : INarrativeGenerator
+    private sealed class CapturingNarrativeGenerator : INarrativeGenerator, IActionRecommendationGenerator
     {
         public List<NarrativeHandoffRequest> Requests { get; } = [];
         public bool Fail { get; set; }
@@ -614,6 +633,18 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         public bool Pause { get; set; }
         public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public List<NarrativeActionRecommendationRequest> ActionRecommendationRequests { get; } = [];
+        public string ActionSuggestion { get; set; } = "銀の鍵を扉にかざす";
+
+        public Task<NarrativeActionRecommendationResult> RecommendActionAsync(
+            NarrativeActionRecommendationRequest request,
+            CancellationToken cancellationToken)
+        {
+            lock (ActionRecommendationRequests) ActionRecommendationRequests.Add(request);
+            if (Fail) throw new NarrativeGenerationException("test failure");
+            return Task.FromResult(new NarrativeActionRecommendationResult(ActionSuggestion));
+        }
 
         public List<NarrativeDialogueRequest> DialogueRequests { get; } = [];
         public IReadOnlyList<NarrativeProgressionSignal> DialogueSignals { get; set; } = [];

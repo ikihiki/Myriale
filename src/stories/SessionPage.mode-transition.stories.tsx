@@ -104,7 +104,7 @@ export const USM06RestrictRewind: Story = {
     const canvas = within(canvasElement);
     await step('バトル中は巻き戻しを無効化し、終了後に可能と説明する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: 'バトル開始' }));
-      await expect(canvas.getByTestId('rewind-button')).toBeDisabled();
+      await expect(canvas.queryByRole('button', { name: '直前のターンに戻る' })).not.toBeInTheDocument();
       await expect(canvas.getByTestId('summary-rewind')).toHaveTextContent('終了後に可能');
       await expect(canvas.getByTestId('input-disabled-reason')).toHaveTextContent('終了後に可能');
     });

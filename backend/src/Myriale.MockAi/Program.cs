@@ -18,6 +18,17 @@ app.MapPost("/mock-ai/hero-recommendation", (MockHeroRecommendationRequest reque
         "AIがシナリオ設定から主人公案を推薦しました。内容を確認・修正してから確定してください。"));
 });
 
+app.MapPost("/mock-ai/action-recommendation", (MockActionRecommendationRequest request) =>
+{
+    var recent = request.RecentTurns.LastOrDefault()?.Narrative ?? request.Scenario.Opening;
+    var suggestion = recent.Contains("扉", StringComparison.Ordinal)
+        ? "銀の鍵を扉にかざし、刻まれた星座との対応を確かめる"
+        : recent.Contains("人物", StringComparison.Ordinal)
+            ? "書架の奥にいる人物へ、ここで何が起きたのか尋ねる"
+            : "周囲の安全を確かめながら、目につく手掛かりを詳しく調べる";
+    return Results.Ok(new MockActionRecommendationResult(suggestion));
+});
+
 app.MapPost("/mock-ai/narrative-dialogue", (MockNarrativeDialogueRequest request) =>
 {
     var recent = request.RecentTurns.LastOrDefault()?.Narrative;
@@ -94,6 +105,13 @@ public sealed record MockHeroRecommendationRequest(
     string? CurrentProfile);
 
 public sealed record MockHeroRecommendationResponse(string Name, string Profile, string Message);
+
+public sealed record MockActionRecommendationRequest(
+    MockNarrativeScenario Scenario,
+    IReadOnlyList<MockNarrativeDialogueTurn> RecentTurns,
+    MockNarrativeSessionState SessionState);
+
+public sealed record MockActionRecommendationResult(string Suggestion);
 
 public sealed record MockNarrativeDialogueRequest(
     MockNarrativeScenario Scenario,

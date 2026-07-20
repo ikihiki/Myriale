@@ -23,6 +23,9 @@ public static class SessionEndpoints
         group.MapGet("/{sessionId}", GetAsync)
             .WithName("GetSession")
             .WithSummary("Returns a session and its ordered turns.");
+        group.MapPost("/{sessionId}/action-recommendation", RecommendActionAsync)
+            .WithName("RecommendSessionAction")
+            .WithSummary("Returns an AI-generated suggestion for the next player action without advancing the session.");
         group.MapPost("/{sessionId}/narrative-turns", CreateNarrativeTurnAsync)
             .WithName("CreateSessionNarrativeTurn")
             .WithSummary("Persists one player input and generated narrative turn atomically.");
@@ -235,6 +238,71 @@ public static class SessionEndpoints
             return Results.Json(
                 new SessionErrorResponse("session_state_corrupt", "保存済みのSession stateを読み込めません。"),
                 statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    private static async Task<IResult> RecommendActionAsync(
+        string sessionId,
+        ClaimsPrincipal principal,
+        ApplicationDbContext db,
+        IActionRecommendationGenerator recommendations,
+        CancellationToken cancellationToken)
+    {
+        var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
+        var session = await db.Sessions.AsNoTracking()
+            .Include(item => item.Scenario)
+            .Include(item => item.State)
+            .SingleOrDefaultAsync(item => item.Id == sessionId && item.OwnerId == ownerId, cancellationToken);
+        if (session is null) return Results.NotFound();
+
+        var recentTurns = await db.SessionTurns.AsNoTracking()
+            .Where(turn => turn.SessionId == sessionId)
+            .Include(turn => turn.PlayerInput)
+            .OrderByDescending(turn => turn.Position)
+            .Take(8)
+            .OrderBy(turn => turn.Position)
+            .Select(turn => new NarrativeDialogueTurnInput(
+                turn.PlayerInput == null ? null : turn.PlayerInput.Text,
+                turn.NarrativeBody))
+            .ToListAsync(cancellationToken);
+        if (recentTurns.Count == 0)
+            recentTurns.Add(new NarrativeDialogueTurnInput(null, session.Scenario.Opening));
+        IReadOnlyDictionary<string, bool> flags;
+        try
+        {
+            flags = JsonSerializer.Deserialize<Dictionary<string, bool>>(session.State.FlagsJson) ?? new Dictionary<string, bool>();
+        }
+        catch (JsonException)
+        {
+            return Results.Json(
+                new SessionErrorResponse("session_state_corrupt", "保存済みのSession stateを読み込めません。"),
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+
+        try
+        {
+            var result = await recommendations.RecommendActionAsync(
+                new NarrativeActionRecommendationRequest(
+                    new NarrativeScenarioInput(
+                        session.Scenario.Title,
+                        session.Scenario.Summary,
+                        session.Scenario.Genre,
+                        session.Scenario.Tone,
+                        session.Scenario.Lore,
+                        session.Scenario.AiFreedom,
+                        session.Scenario.Hero,
+                        session.Scenario.Opening),
+                    recentTurns,
+                    new NarrativeSessionStateInput(session.State.Revision, flags)),
+                cancellationToken);
+            return Results.Ok(result);
+        }
+        catch (NarrativeGenerationException)
+        {
+            return Results.Json(
+                new SessionErrorResponse("action_recommendation_failed", "次の行動案を生成できませんでした。"),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
         }
     }
 

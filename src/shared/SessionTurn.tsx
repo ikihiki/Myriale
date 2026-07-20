@@ -99,7 +99,7 @@ export function SessionTurn({
 
   return (
     <article
-      className={`session-turn ${selected ? 'selected' : ''} ${variantClassName}`.trim()}
+      className={`session-turn group ${selected ? 'selected' : ''} ${variantClassName}`.trim()}
       aria-label={ariaLabel}
       data-testid={testId}
       ref={articleRef}
@@ -108,8 +108,10 @@ export function SessionTurn({
       {leadBlock}
       {narrativeBlock}
       {headingActions && (
-        <div className="session-turn-heading">
-          <div className="session-turn-actions">{headingActions}</div>
+        <div className="mt-[-2px] flex min-h-[30px] justify-start">
+          <div className="flex gap-1 opacity-40 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 max-sm:opacity-100 motion-reduce:transition-none">
+            {headingActions}
+          </div>
         </div>
       )}
     </article>

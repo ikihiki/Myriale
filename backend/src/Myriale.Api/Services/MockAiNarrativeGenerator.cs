@@ -3,8 +3,22 @@ using Myriale.Api.Contracts;
 
 namespace Myriale.Api.Services;
 
-public sealed class MockAiNarrativeGenerator(IHttpClientFactory httpClientFactory) : INarrativeGenerator
+public sealed class MockAiNarrativeGenerator(IHttpClientFactory httpClientFactory)
+    : INarrativeGenerator, IActionRecommendationGenerator
 {
+    public async Task<NarrativeActionRecommendationResult> RecommendActionAsync(
+        NarrativeActionRecommendationRequest request,
+        CancellationToken cancellationToken)
+    {
+        var client = httpClientFactory.CreateClient("MockAi");
+        using var response = await client.PostAsJsonAsync("/mock-ai/action-recommendation", request, cancellationToken);
+        if (!response.IsSuccessStatusCode) throw new NarrativeGenerationException("Action recommendation provider returned an error.");
+        var result = await response.Content.ReadFromJsonAsync<NarrativeActionRecommendationResult>(cancellationToken: cancellationToken);
+        if (string.IsNullOrWhiteSpace(result?.Suggestion) || result.Suggestion.Length > 500)
+            throw new NarrativeGenerationException("Action recommendation provider returned an invalid response.");
+        return result with { Suggestion = result.Suggestion.Trim() };
+    }
+
     public async Task<NarrativeDialogueResult> GenerateDialogueAsync(NarrativeDialogueRequest request, CancellationToken cancellationToken)
     {
         var client = httpClientFactory.CreateClient("MockAi");

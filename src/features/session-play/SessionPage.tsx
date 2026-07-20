@@ -10,6 +10,7 @@ import {
   createNarrativeTurn,
   getSession,
   getSessionApiBaseUrl,
+  recommendNextAction,
   type NarrativeTurnApiResponse,
   type SessionApiError,
   type SessionApiResponse,
@@ -19,7 +20,7 @@ import { useAppNavigation } from '../../shared/nav';
 
 function ArrowUpIcon() {
   return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+    <svg className="size-[18px] fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
       <path d="M10 15V5m0 0L6 9m4-4 4 4" />
     </svg>
   );
@@ -27,7 +28,7 @@ function ArrowUpIcon() {
 
 function RotateBackIcon() {
   return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+    <svg className="size-[18px] fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
       <path d="M6.5 6.5H3.75V3.75M4.2 6.2a7 7 0 1 1-.75 6.85" />
     </svg>
   );
@@ -35,15 +36,23 @@ function RotateBackIcon() {
 
 function SparkleIcon() {
   return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+    <svg className="size-[18px] fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
       <path d="M10 2.75c.45 2.65 1.85 4.05 4.5 4.5-2.65.45-4.05 1.85-4.5 4.5-.45-2.65-1.85-4.05-4.5-4.5 2.65-.45 4.05-1.85 4.5-4.5ZM15.25 12.5c.22 1.35.9 2.03 2.25 2.25-1.35.22-2.03.9-2.25 2.25-.22-1.35-.9-2.03-2.25-2.25 1.35-.22 2.03-.9 2.25-2.25Z" />
+    </svg>
+  );
+}
+
+function LightbulbIcon() {
+  return (
+    <svg className="size-[18px] fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M6.5 12.25c-1.1-.95-1.75-2.25-1.75-3.75a5.25 5.25 0 0 1 10.5 0c0 1.5-.65 2.8-1.75 3.75-.75.65-1 1.2-1 2H7.5c0-.8-.25-1.35-1-2ZM7.5 17h5M8 14.25h4" />
     </svg>
   );
 }
 
 function CloseIcon() {
   return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+    <svg className="size-[18px] fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
       <path d="m6 6 8 8m0-8-8 8" />
     </svg>
   );
@@ -333,6 +342,7 @@ function SessionDialogueSection({
     resumableInput ? { input: resumableInput.input, requestId: resumableInput.requestId } : null,
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRecommending, setIsRecommending] = useState(false);
   const [authenticationRequired, setAuthenticationRequired] = useState(false);
   const [notice, setNotice] = useState(
     resumableInput
@@ -473,6 +483,32 @@ function SessionDialogueSection({
     setNotice('補足要求として扱いました。行動ではないため、セッション状態と物語進行は変化しません。');
   };
 
+  const recommendAction = async () => {
+    if (isRecommending || isSubmitting) return;
+    setIsRecommending(true);
+    setAuthenticationRequired(false);
+    setNotice('AIが現在の状況から次の行動案を考えています。');
+    try {
+      const suggestion = serverSession
+        ? await recommendNextAction(sessionId)
+        : latestTurn.narrative.includes('扉')
+          ? '銀の鍵を扉にかざし、刻まれた星座との対応を確かめる'
+          : '周囲の安全を確かめながら、目につく手掛かりを詳しく調べる';
+      setInput(suggestion);
+      setDraftRequest(null);
+      setNotice('AIの提案を入力欄へ設定しました。内容を編集してから送信できます。');
+    } catch (error) {
+      const apiError = error as SessionApiError;
+      if (apiError.status === 401) {
+        setAuthenticationRequired(true);
+        onAuthenticationRequired?.();
+      }
+      setNotice(error instanceof Error ? error.message : '次の行動案を生成できませんでした。');
+    } finally {
+      setIsRecommending(false);
+    }
+  };
+
   const toggleInterpretation = (turn: DialogueTurn) => {
     const willShow = !showInterpretationFor.includes(turn.id);
     setShowInterpretationFor((current) =>
@@ -484,21 +520,6 @@ function SessionDialogueSection({
     setInput('');
     setDraftRequest(null);
     setNotice('削除: 入力欄の未送信テキストを無効化しました。再入力できます。');
-  };
-
-  const redoPreviousTurn = () => {
-    if (serverSession) {
-      setNotice('Serverに確定したTurnの巻き戻しはまだ利用できません。履歴は変更されていません。');
-      return;
-    }
-    if (turns.length === 1) {
-      setNotice('巻き戻せる直前ターンがありません。');
-      return;
-    }
-    const nextTurns = turns.slice(0, -1);
-    setTurns(nextTurns);
-    setSelectedTurnId(nextTurns[nextTurns.length - 1].id);
-    setNotice('やり直し: 直前ターンを巻き戻しました。AIコンテキストを再構築し、同じ地点から再入力できます。');
   };
 
   const jumpToHeading = (heading: HeadingLink) => {
@@ -769,7 +790,7 @@ function SessionDialogueSection({
                 selected={selectedTurnId === turn.id}
                 headingActions={display.allowRewind ? (
                   <button
-                    className="turn-rewind-button"
+                    className="!grid !size-[30px] !place-items-center !rounded-[9px] !border-0 !bg-transparent !p-0 !text-[#6b6874] hover:!bg-myr-ink/7 hover:!text-[#211e2b] focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
                     onClick={() => requestRewind(turn.id)}
                     aria-label="ここまで戻る"
                     title="ここまで戻る"
@@ -824,7 +845,7 @@ function SessionDialogueSection({
           </MyrialeDialogRoot>
         )}
 
-        <section className="dialogue-composer" aria-label="自然言語入力">
+        <section className="mx-auto mt-4 w-full max-w-[720px] justify-self-stretch px-2.5 pb-1 max-sm:px-0" aria-label="自然言語入力">
           {forcedMode && (
             <>
               <div className="mode-strip" aria-label="現在の入力モード">
@@ -836,8 +857,9 @@ function SessionDialogueSection({
               <p data-testid="mode-reason">{modeMeta.reason}</p>
             </>
           )}
-          <div className="composer-shell">
+          <div className="overflow-hidden rounded-[26px] border border-myr-ink/15 bg-[rgba(255,254,249,0.96)] shadow-[0_10px_30px_rgba(34,29,48,0.11),0_1px_2px_rgba(34,29,48,0.08)] transition-[border-color,box-shadow] duration-150 focus-within:border-myr-iris/45 focus-within:shadow-[0_12px_34px_rgba(34,29,48,0.14),0_0_0_3px_rgba(124,92,255,0.09)] max-sm:rounded-[22px] motion-reduce:transition-none">
             <textarea
+              className="!block !min-h-[76px] !max-h-[220px] !w-full !resize-y !rounded-none !border-0 !bg-transparent !px-[19px] !pt-[17px] !pb-2 !text-[15px] !leading-[1.6] !text-[#24212d] !shadow-none placeholder:!text-[#8a8791] focus:!outline-none focus:!shadow-none"
               aria-label="自由に行動や会話を入力"
               value={input}
               onChange={(event) => {
@@ -856,10 +878,10 @@ function SessionDialogueSection({
             />
 
             {sessionMode === 'dialogue' && (
-              <div className="composer-toolbar">
-                <div className="composer-tools" aria-label="入力補助">
+              <div className="flex items-center justify-between gap-3 px-2 pt-[5px] pb-2 pl-2.5">
+                <div className="flex items-center gap-0.5" aria-label="入力補助">
                   <button
-                    className="composer-tool-button"
+                    className="!grid !size-[34px] !place-items-center !rounded-[10px] !border-0 !bg-transparent !p-0 !text-[#67636f] hover:!bg-myr-ink/7 hover:!text-[#211e2b] focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
                     onClick={askClarification}
                     aria-label="状況を簡単にまとめて聞く"
                     title="状況を簡単にまとめて聞く"
@@ -867,7 +889,18 @@ function SessionDialogueSection({
                     <SparkleIcon />
                   </button>
                   <button
-                    className="composer-tool-button"
+                    className="!grid !size-[34px] !place-items-center !rounded-[10px] !border-0 !bg-transparent !p-0 !text-[#67636f] hover:!bg-myr-ink/7 hover:!text-[#211e2b] focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris disabled:!opacity-30"
+                    onClick={() => void recommendAction()}
+                    aria-label="AIに次の行動を提案してもらう"
+                    title="AIに次の行動を提案してもらう"
+                    disabled={isRecommending || isSubmitting}
+                  >
+                    {isRecommending
+                      ? <span className="size-3.5 animate-spin rounded-full border-2 border-myr-slate/30 border-t-myr-iris motion-reduce:animate-[spin_1.4s_linear_infinite]" aria-hidden="true" />
+                      : <LightbulbIcon />}
+                  </button>
+                  <button
+                    className="!grid !size-[34px] !place-items-center !rounded-[10px] !border-0 !bg-transparent !p-0 !text-[#67636f] hover:!bg-myr-ink/7 hover:!text-[#211e2b] focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris disabled:!opacity-30"
                     onClick={deleteDraft}
                     aria-label="入力を消去"
                     title="入力を消去"
@@ -875,25 +908,18 @@ function SessionDialogueSection({
                   >
                     <CloseIcon />
                   </button>
-                  <button
-                    className="composer-tool-button"
-                    onClick={redoPreviousTurn}
-                    data-testid="rewind-button"
-                    aria-label="直前のターンに戻る"
-                    title="直前のターンに戻る"
-                  >
-                    <RotateBackIcon />
-                  </button>
                 </div>
                 <button
-                  className="composer-send-button"
+                  className="!grid !size-9 !shrink-0 !place-items-center !rounded-full !border-0 !bg-[#211e2b] !p-0 !text-[#fffef9] !shadow-none transition-[transform,background-color,opacity] duration-150 hover:!translate-y-[-1px] hover:!bg-[#4d3bb5] focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris disabled:!cursor-not-allowed disabled:!bg-[#d5d1d8] disabled:!text-[#f8f6f2] motion-reduce:transition-none"
                   onClick={() => void sendInput()}
                   data-testid="send-free-input"
                   disabled={isSubmitting || !input.trim()}
                   aria-label={isSubmitting ? 'Narrativeを生成中' : draftRequest ? '同じ入力を再試行' : '行動を送る'}
                   title={draftRequest ? '同じ入力を再試行' : '行動を送る'}
                 >
-                  {isSubmitting ? <span className="composer-spinner" aria-hidden="true" /> : <ArrowUpIcon />}
+                  {isSubmitting
+                    ? <span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white motion-reduce:animate-[spin_1.4s_linear_infinite]" aria-hidden="true" />
+                    : <ArrowUpIcon />}
                 </button>
               </div>
             )}
