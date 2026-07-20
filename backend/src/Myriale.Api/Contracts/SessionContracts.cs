@@ -2,11 +2,24 @@ namespace Myriale.Api.Contracts;
 
 public sealed record CreateSessionRequest(string ScenarioId);
 
+public sealed record NarrativeTurnResponse(
+    string SourceModuleTurnId,
+    long SourceSessionRevision,
+    string Body);
+
+public sealed record NarrativeHandoffStatusResponse(
+    string Status,
+    string? ErrorCode,
+    string? ErrorMessage,
+    DateTimeOffset UpdatedAt);
+
 public sealed record SessionTurnResponse(
     string Id,
     int Position,
     string Kind,
-    ModuleExecutionResponse Execution,
+    ModuleExecutionResponse? Execution,
+    NarrativeTurnResponse? Narrative,
+    NarrativeHandoffStatusResponse? NarrativeHandoff,
     DateTimeOffset CreatedAt);
 
 public sealed record SessionStateResponse(

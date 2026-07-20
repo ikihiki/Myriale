@@ -39,6 +39,10 @@ Detached Module Executions continue to persist outcomes without applying effects
 
 ## Narrative handoff
 
-The next narrative is generated only after the outcome and effects are persisted. AI receives public facts, important events, final public state, narrative hints, and forbidden facts—not the full private module state or diagnostic log.
+When a Session-owned Module Turn completes, the host automatically prepares a durable Narrative handoff in the same transaction that commits the authoritative outcome, request receipt, effects, and `ModuleOutcomeApplication`. No public API starts the handoff. After that transaction commits and the module invocation gate is released, the host claims the handoff with a bounded lease and invokes the Narrative generator. Immediate-completion initialization and completed dispatch follow the same lifecycle.
 
-Narrative handoff, durable `emittedEvents` processing, scenario-defined flag catalogs, and additional effect handlers are deferred to later changes.
+The handoff records `pending`, `failed`, or `completed` state. Provider failures leave the completed Module Turn and applied effects untouched; replaying the matching module request retries a retryable failed handoff. Expired leases allow another API process to recover work after a crash. The final append revalidates the frozen post-effect Session State revision and Session turn position, and updates both optimistic-concurrency boundaries before inserting one uniquely linked `narrative` Session Turn.
+
+AI receives only scenario guidance, public facts, durable emitted events, final public module view state, post-effect flags, narrative hints, and forbidden facts. Private module state, configuration, context, randomness, request receipts, diagnostics, capabilities, leases, and transient UI events are excluded. A unique source-turn relationship guarantees that only one Narrative Turn is persisted. Session GET responses expose only safe handoff status and error information; they do not trigger generation.
+
+Durable `emittedEvents` processing beyond prompt projection, scenario-defined flag catalogs, additional effect handlers, player-input narrative turns, real provider selection, and background generation are deferred to later changes.
