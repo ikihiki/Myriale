@@ -10,8 +10,10 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<ModulePackage> ModulePackages => Set<ModulePackage>();
     public DbSet<Session> Sessions => Set<Session>();
     public DbSet<SessionTurn> SessionTurns => Set<SessionTurn>();
+    public DbSet<SessionState> SessionStates => Set<SessionState>();
     public DbSet<ModuleExecution> ModuleExecutions => Set<ModuleExecution>();
     public DbSet<ModuleExecutionRequest> ModuleExecutionRequests => Set<ModuleExecutionRequest>();
+    public DbSet<ModuleOutcomeApplication> ModuleOutcomeApplications => Set<ModuleOutcomeApplication>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -29,6 +31,14 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .WithMany()
             .HasForeignKey(session => session.ScenarioId)
             .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<SessionState>()
+            .Property(state => state.Revision)
+            .IsConcurrencyToken();
+        builder.Entity<SessionState>()
+            .HasOne(state => state.Session)
+            .WithOne(session => session.State)
+            .HasForeignKey<SessionState>(state => state.SessionId)
+            .OnDelete(DeleteBehavior.Cascade);
         builder.Entity<SessionTurn>()
             .HasIndex(turn => new { turn.SessionId, turn.Position })
             .IsUnique();
@@ -50,6 +60,27 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .IsConcurrencyToken();
         builder.Entity<ModuleExecution>()
             .HasIndex(execution => new { execution.OwnerId, execution.UpdatedAt });
+        builder.Entity<ModuleOutcomeApplication>()
+            .HasIndex(application => application.ExecutionId)
+            .IsUnique();
+        builder.Entity<ModuleOutcomeApplication>()
+            .HasIndex(application => application.ModuleExecutionRequestId)
+            .IsUnique();
+        builder.Entity<ModuleOutcomeApplication>()
+            .HasOne(application => application.Execution)
+            .WithOne(execution => execution.OutcomeApplication)
+            .HasForeignKey<ModuleOutcomeApplication>(application => application.ExecutionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<ModuleOutcomeApplication>()
+            .HasOne(application => application.Session)
+            .WithMany(session => session.OutcomeApplications)
+            .HasForeignKey(application => application.SessionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<ModuleOutcomeApplication>()
+            .HasOne(application => application.Request)
+            .WithOne(request => request.OutcomeApplication)
+            .HasForeignKey<ModuleOutcomeApplication>(application => application.ModuleExecutionRequestId)
+            .OnDelete(DeleteBehavior.Cascade);
         builder.Entity<ModuleExecutionRequest>()
             .HasIndex(request => new { request.OwnerId, request.RequestId })
             .IsUnique();

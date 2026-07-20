@@ -24,7 +24,7 @@ public sealed class ModuleContractSerializationTests
                 new ModuleUiEntry("resources/runtime.mjs", "myriale-turn-battle", ["resources/module.css"]),
                 null,
                 null),
-            ["read:session-state", "emit:session-effects"],
+            ["read:session-state", ModuleCapabilities.EmitSessionEffects],
             new ModuleLimits(65_536, 1_048_576, 65_536, 100));
 
         using var document = JsonDocument.Parse(JsonSerializer.Serialize(manifest, JsonOptions));
@@ -74,7 +74,7 @@ public sealed class ModuleContractSerializationTests
             [new ModuleFact("battle-result", "主人公が勝利した")],
             [
                 new ModuleEffect("set-parameter", Json("""{"targetId":"hero","parameterId":"hp","value":7}""")),
-                new ModuleEffect("set-flag", Json("""{"flagId":"boss-defeated","value":true}"""))
+                new ModuleEffect(ModuleEffectTypes.SetFlag, Json("""{"flagId":"boss-defeated","value":true}"""))
             ],
             [new ModuleEvent("machine-collapse", Json("""{"sceneId":"collapse"}"""))],
             ["戦闘直後の静寂を描写する"],

@@ -9,10 +9,15 @@ public sealed record SessionTurnResponse(
     ModuleExecutionResponse Execution,
     DateTimeOffset CreatedAt);
 
+public sealed record SessionStateResponse(
+    long Revision,
+    IReadOnlyDictionary<string, bool> Flags);
+
 public sealed record SessionResponse(
     string Id,
     string ScenarioId,
     string Status,
+    SessionStateResponse State,
     IReadOnlyList<SessionTurnResponse> Turns,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);

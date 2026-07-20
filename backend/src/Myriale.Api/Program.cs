@@ -23,6 +23,7 @@ builder.Services.AddScoped<IModulePackageRuntimeCatalog, ModulePackageRuntimeCat
 builder.Services.AddScoped<IModuleRuntime, DotNetModuleRuntime>();
 builder.Services.AddSingleton<ModuleAssemblyCache>();
 builder.Services.AddSingleton<ModuleRuntimeInvocationGate>();
+builder.Services.AddScoped<SessionOutcomeEffectService>();
 builder.Services.AddScoped<IModuleExecutionService, ModuleExecutionService>();
 builder.Services.AddScoped<IModuleUiResourceService, ModuleUiResourceService>();
 builder.Services.AddHttpClient("MockAi", client =>

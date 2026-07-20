@@ -15,6 +15,7 @@ namespace Myriale.Api.Modules.Execution;
 public sealed class ModuleExecutionService(
     ApplicationDbContext db,
     IModuleRuntime runtime,
+    SessionOutcomeEffectService effects,
     IOptions<ModuleExecutionOptions> options,
     ILogger<ModuleExecutionService> logger) : IModuleExecutionService
 {
@@ -56,9 +57,11 @@ public sealed class ModuleExecutionService(
             Session? session = null;
             if (sessionId is not null)
             {
-                session = await db.Sessions.SingleOrDefaultAsync(
-                    item => item.Id == sessionId && item.OwnerId == ownerId,
-                    cancellationToken);
+                session = await db.Sessions
+                    .Include(item => item.State)
+                    .SingleOrDefaultAsync(
+                        item => item.Id == sessionId && item.OwnerId == ownerId,
+                        cancellationToken);
                 if (session is null) return new ModuleExecutionServiceResult(StatusCodes.Status404NotFound);
                 if (session.Status != "active")
                     return Conflict("session_not_active", "アクティブではないセッションにModule Turnを追加できません。");
@@ -122,6 +125,7 @@ public sealed class ModuleExecutionService(
                 ModuleId = package.ModuleId,
                 ModuleVersion = package.Version,
                 ModuleDigest = package.Digest,
+                CapabilitiesJson = JsonSerializer.Serialize(manifest.Capabilities ?? [], _json),
                 ContractVersion = package.ContractVersion,
                 ConfigurationSchemaVersion = manifest.Configuration.SchemaVersion,
                 StateSchemaVersion = manifest.Configuration.StateSchemaVersion,
@@ -138,6 +142,7 @@ public sealed class ModuleExecutionService(
                 OwnerId = ownerId,
                 ExecutionId = execution.Id,
                 RequestId = request.RequestId,
+                ExpectedSessionRevision = session?.State.Revision,
                 Operation = "initialize",
                 PayloadHash = payloadHash,
                 RandomValuesJson = JsonSerializer.Serialize(randomValues, _json),
@@ -258,6 +263,14 @@ public sealed class ModuleExecutionService(
                 return await StoreRejectedReceiptAsync(ownerId, execution, request, payloadHash, conflict, cancellationToken);
             }
 
+            long? expectedSessionRevision = null;
+            if (execution.SessionTurnId is not null)
+            {
+                expectedSessionRevision = await db.SessionTurns.AsNoTracking()
+                    .Where(turn => turn.Id == execution.SessionTurnId)
+                    .Select(turn => turn.Session.State.Revision)
+                    .SingleAsync(cancellationToken);
+            }
             var randomValues = GenerateRandomValues(request.RandomValueCount);
             var receipt = new ModuleExecutionRequest
             {
@@ -265,6 +278,7 @@ public sealed class ModuleExecutionService(
                 ExecutionId = execution.Id,
                 RequestId = request.RequestId,
                 Operation = "dispatch",
+                ExpectedSessionRevision = expectedSessionRevision,
                 ExpectedRevision = request.ExpectedRevision,
                 PayloadHash = payloadHash,
                 ActionJson = request.Action.GetRawText(),
@@ -352,6 +366,12 @@ public sealed class ModuleExecutionService(
                     Parse(execution.ContextJson),
                     randomValues),
                 cancellationToken);
+            if (result.Status == ModuleExecutionStatuses.Completed)
+            {
+                var effectResult = await effects.PrepareAsync(execution, receipt, result.Outcome, cancellationToken);
+                if (!effectResult.IsSuccess)
+                    return await RejectInitializationEffectsAsync(execution, receipt, effectResult, cancellationToken);
+            }
             ApplyInitialization(execution, result);
             var response = ToResponse(execution, result.Error, []);
             var serviceResult = new ModuleExecutionServiceResult(
@@ -378,6 +398,23 @@ public sealed class ModuleExecutionService(
         }
     }
 
+    private async Task<ModuleExecutionServiceResult> RejectInitializationEffectsAsync(
+        ModuleExecution execution,
+        ModuleExecutionRequest receipt,
+        SessionOutcomeEffectResult effectResult,
+        CancellationToken cancellationToken)
+    {
+        var error = new ModuleError(effectResult.Code!, effectResult.Message!);
+        execution.Status = ModuleExecutionStatuses.Failed;
+        execution.Revision = 0;
+        execution.ErrorJson = JsonSerializer.Serialize(error, _json);
+        execution.UpdatedAt = DateTimeOffset.UtcNow;
+        execution.CompletedAt = execution.UpdatedAt;
+        var rejected = EffectError(effectResult, execution);
+        CompleteReceipt(receipt, rejected, "rejected");
+        return await FinalizeInitializationAsync(receipt, rejected, cancellationToken);
+    }
+
     private async Task<ModuleExecutionServiceResult> FinalizeInitializationAsync(
         ModuleExecutionRequest receipt,
         ModuleExecutionServiceResult result,
@@ -393,12 +430,24 @@ public sealed class ModuleExecutionService(
             db.ChangeTracker.Clear();
             var winner = await db.ModuleExecutionRequests.AsNoTracking()
                 .SingleAsync(item => item.Id == receipt.Id, cancellationToken);
-            return winner.Status == "pending"
-                ? new ModuleExecutionServiceResult(
-                    StatusCodes.Status409Conflict,
-                    Error: new ModuleExecutionErrorResponse("request_in_progress", "同じRequestIdの処理が進行中です。"),
-                    Replayed: true)
-                : Replay(winner, receipt.PayloadHash);
+            if (winner.Status != "pending") return Replay(winner, receipt.PayloadHash);
+            var currentSessionRevision = await GetCurrentSessionRevisionAsync(winner.ExecutionId, cancellationToken);
+            if (winner.ExpectedSessionRevision is not null
+                && currentSessionRevision is not null
+                && currentSessionRevision != winner.ExpectedSessionRevision)
+            {
+                var currentExecution = await db.ModuleExecutions.SingleAsync(item => item.Id == winner.ExecutionId, cancellationToken);
+                var trackedReceipt = await db.ModuleExecutionRequests.SingleAsync(item => item.Id == winner.Id, cancellationToken);
+                return await RejectInitializationEffectsAsync(
+                    currentExecution,
+                    trackedReceipt,
+                    SessionOutcomeEffectResult.Conflict(currentSessionRevision.Value),
+                    cancellationToken);
+            }
+            return new ModuleExecutionServiceResult(
+                StatusCodes.Status409Conflict,
+                Error: new ModuleExecutionErrorResponse("request_in_progress", "同じRequestIdの処理が進行中です。"),
+                Replayed: true);
         }
     }
 
@@ -448,6 +497,18 @@ public sealed class ModuleExecutionService(
                     randomValues),
                 cancellationToken);
 
+            if (transition.Status == ModuleExecutionStatuses.Completed)
+            {
+                var effectResult = await effects.PrepareAsync(execution, receipt, transition.Outcome, cancellationToken);
+                if (!effectResult.IsSuccess)
+                {
+                    var rejected = EffectError(effectResult, execution);
+                    CompleteReceipt(receipt, rejected, "rejected");
+                    await db.SaveChangesAsync(cancellationToken);
+                    return rejected;
+                }
+            }
+
             ModuleExecutionResponse response;
             if (transition.Status == ModuleExecutionStatuses.Failed)
             {
@@ -474,7 +535,12 @@ public sealed class ModuleExecutionService(
                 var current = await db.ModuleExecutions.AsNoTracking()
                     .SingleAsync(item => item.Id == execution.Id, cancellationToken);
                 var trackedReceipt = await db.ModuleExecutionRequests.SingleAsync(item => item.Id == receipt.Id, cancellationToken);
-                var conflict = Conflict("revision_conflict", "別のactionが先に受理されました。", current);
+                var currentSessionRevision = await GetCurrentSessionRevisionAsync(execution.Id, cancellationToken);
+                var conflict = trackedReceipt.ExpectedSessionRevision is not null
+                    && currentSessionRevision is not null
+                    && currentSessionRevision != trackedReceipt.ExpectedSessionRevision
+                        ? EffectError(SessionOutcomeEffectResult.Conflict(currentSessionRevision.Value), current)
+                        : Conflict("revision_conflict", "別のactionが先に受理されました。", current);
                 CompleteReceipt(trackedReceipt, conflict, "rejected");
                 await db.SaveChangesAsync(cancellationToken);
                 return conflict;
@@ -538,6 +604,12 @@ public sealed class ModuleExecutionService(
             return Replay(winner, payloadHash);
         }
     }
+
+    private async Task<long?> GetCurrentSessionRevisionAsync(string executionId, CancellationToken cancellationToken) =>
+        await db.ModuleExecutions.AsNoTracking()
+            .Where(execution => execution.Id == executionId && execution.SessionTurn != null)
+            .Select(execution => (long?)execution.SessionTurn!.Session.State.Revision)
+            .SingleOrDefaultAsync(cancellationToken);
 
     private async Task<ModuleExecutionServiceResult> AttachSessionTurnAsync(
         ModuleExecutionServiceResult result,
@@ -616,6 +688,21 @@ public sealed class ModuleExecutionService(
 
     private ModuleExecutionServiceResult Conflict(string code, string message, ModuleExecution execution) =>
         new(StatusCodes.Status409Conflict, Error: new ModuleExecutionErrorResponse(code, message, execution.Revision, ToResponse(execution, null, [])));
+
+    private ModuleExecutionServiceResult EffectError(SessionOutcomeEffectResult effectResult, ModuleExecution execution)
+    {
+        var status = effectResult.Code == "session_revision_conflict"
+            ? StatusCodes.Status409Conflict
+            : StatusCodes.Status422UnprocessableEntity;
+        return new ModuleExecutionServiceResult(
+            status,
+            Error: new ModuleExecutionErrorResponse(
+                effectResult.Code!,
+                effectResult.Message!,
+                execution.Revision,
+                ToResponse(execution, null, []),
+                effectResult.CurrentSessionRevision));
+    }
 
     private ModuleExecutionServiceResult RuntimeError(string code, string message, ModuleExecution? execution = null)
     {

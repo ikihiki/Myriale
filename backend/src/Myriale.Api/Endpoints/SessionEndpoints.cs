@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
@@ -52,6 +53,12 @@ public static class SessionEndpoints
             Status = "active",
             CreatedAt = now,
             UpdatedAt = now,
+            State = new SessionState
+            {
+                Revision = 0,
+                FlagsJson = "{}",
+                UpdatedAt = now,
+            },
         };
         db.Sessions.Add(session);
         await db.SaveChangesAsync(cancellationToken);
@@ -68,11 +75,21 @@ public static class SessionEndpoints
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
         var session = await db.Sessions.AsNoTracking()
+            .Include(item => item.State)
             .SingleOrDefaultAsync(item => item.Id == sessionId && item.OwnerId == ownerId, cancellationToken);
         if (session is null) return Results.NotFound();
 
         var turns = await LoadTurnsAsync(ownerId, sessionId, db, executions, cancellationToken);
-        return Results.Ok(ToResponse(session, turns));
+        try
+        {
+            return Results.Ok(ToResponse(session, turns));
+        }
+        catch (JsonException)
+        {
+            return Results.Json(
+                new SessionErrorResponse("session_state_corrupt", "保存済みのSession stateを読み込めません。"),
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
     }
 
     private static async Task<IResult> CreateModuleTurnAsync(
@@ -138,7 +155,16 @@ public static class SessionEndpoints
     }
 
     private static SessionResponse ToResponse(Session session, IReadOnlyList<SessionTurnResponse> turns) =>
-        new(session.Id, session.ScenarioId, session.Status, turns, session.CreatedAt, session.UpdatedAt);
+        new(
+            session.Id,
+            session.ScenarioId,
+            session.Status,
+            new SessionStateResponse(
+                session.State.Revision,
+                JsonSerializer.Deserialize<IReadOnlyDictionary<string, bool>>(session.State.FlagsJson) ?? new Dictionary<string, bool>()),
+            turns,
+            session.CreatedAt,
+            session.UpdatedAt);
 
     private static SessionTurnResponse ToTurnResponse(SessionTurn turn, ModuleExecutionResponse execution) =>
         new(turn.Id, turn.Position, turn.Kind, execution, turn.CreatedAt);

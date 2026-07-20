@@ -44,4 +44,5 @@ public sealed record ModuleExecutionErrorResponse(
     string Code,
     string Message,
     long? CurrentRevision = null,
-    ModuleExecutionResponse? Execution = null);
+    ModuleExecutionResponse? Execution = null,
+    long? CurrentSessionRevision = null);
