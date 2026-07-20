@@ -3,6 +3,9 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Myriale.Api.Data;
 
 namespace Myriale.Api.Tests;
 
@@ -38,6 +41,34 @@ public sealed class AccountEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, me.StatusCode);
         var current = await me.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("reader@example.test", current.GetProperty("email").GetString());
+    }
+
+    [Fact]
+    public async Task DevelopmentSeedAccount_CanLoginAndLoadProfile()
+    {
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            Assert.Equal(1, await db.Users.CountAsync());
+        }
+
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        using var login = await client.PostAsJsonAsync("/api/account/login", new
+        {
+            email = AccountSeedData.DefaultEmail,
+            password = AccountSeedData.DefaultPassword,
+        });
+
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        ApplyCookies(client, login);
+
+        using var me = await client.GetAsync("/api/account/me");
+        Assert.Equal(HttpStatusCode.OK, me.StatusCode);
+        var current = await me.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(AccountSeedData.DefaultDisplayName, current.GetProperty("displayName").GetString());
+        Assert.Equal(AccountSeedData.DefaultEmail, current.GetProperty("email").GetString());
+        Assert.True(current.GetProperty("emailConfirmed").GetBoolean());
     }
 
     [Fact]

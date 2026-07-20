@@ -3,7 +3,9 @@ import { useRouter } from '@tanstack/react-router';
 import { useForm, useStore } from '@tanstack/react-form';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createFetchScenarioApi, type ScenarioApi } from '../../app/scenarioApi';
-import { createSession, getSessionApiBaseUrl } from '../session-play/sessionPlayApi';
+import { toAppChromeAccount } from '../../account/accountPresentation';
+import { useAccountSession } from '../../account/hooks/useAccountSession';
+import { createSession, getSessionApiBaseUrl, type SessionApiError } from '../session-play/sessionPlayApi';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeSelect } from '../../ui/MyrialeRadix';
 import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
@@ -58,12 +60,16 @@ function ProtagonistForm({
   onBeginStory,
   isBeginning,
   beginError,
+  requiresLogin,
+  onLogin,
 }: {
   scenario: ScenarioSummary;
   api: ScenarioApi;
   onBeginStory: () => Promise<void> | void;
   isBeginning: boolean;
   beginError: string;
+  requiresLogin: boolean;
+  onLogin: () => void;
 }) {
   const heroCandidates = scenario.hero.split('\n').map((candidate) => candidate.trim()).filter(Boolean);
   const [aiSuggestion, setAiSuggestion] = useState('');
@@ -224,13 +230,22 @@ function ProtagonistForm({
               >
                 主人公選択を修正
               </button>
-              <button
-                className="!rounded-full !bg-myr-ink !px-4 !py-2.5 !font-extrabold !text-myr-paper hover:!bg-myr-iris"
-                onClick={() => void beginStory()}
-                disabled={isBeginning}
-              >
-                {isBeginning ? 'Sessionを作成しています…' : '物語を始める'}
-              </button>
+              {requiresLogin ? (
+                <button
+                  className="!rounded-full !bg-myr-ink !px-4 !py-2.5 !font-extrabold !text-myr-paper hover:!bg-myr-iris"
+                  onClick={onLogin}
+                >
+                  ログインへ
+                </button>
+              ) : (
+                <button
+                  className="!rounded-full !bg-myr-ink !px-4 !py-2.5 !font-extrabold !text-myr-paper hover:!bg-myr-iris"
+                  onClick={() => void beginStory()}
+                  disabled={isBeginning}
+                >
+                  {isBeginning ? 'Sessionを作成しています…' : '物語を始める'}
+                </button>
+              )}
             </>
           )}
         >
@@ -250,10 +265,13 @@ function ProtagonistForm({
 export function StartSessionPage({ search, api }: { search?: StartSessionSearch; api?: ScenarioApi } = {}) {
   const router = useRouter();
   const appNavigate = useAppNavigation();
+  const accountSession = useAccountSession();
+  const chromeAccount = toAppChromeAccount(accountSession.user);
   const scenarioApi = useMemo(() => api ?? createFetchScenarioApi(), [api]);
   const [sessionRequestId] = useState(() => `session-${crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`);
   const [isBeginning, setIsBeginning] = useState(false);
   const [beginError, setBeginError] = useState('');
+  const [requiresLogin, setRequiresLogin] = useState(false);
   const scenarioId = search?.scenarioId;
   const scenarioQuery = useQuery({
     queryKey: ['scenarios', 'detail', scenarioId],
@@ -265,12 +283,19 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
     () => scenarioQuery.data ? toScenarioSummary(scenarioQuery.data) : null,
     [scenarioQuery.data],
   );
-  const backToScenarioList = () => {
+  const navigateTo = (destination: 'scenarioList' | 'login') => {
     if (appNavigate) {
-      appNavigate('scenarioList');
+      appNavigate(destination);
       return;
     }
-    navigateToStory(STORY_IDS.scenarioList);
+    navigateToStory(STORY_IDS[destination]);
+  };
+  const backToScenarioList = () => navigateTo('scenarioList');
+  const goToLogin = () => navigateTo('login');
+  const logout = async () => {
+    await accountSession.api.logout();
+    accountSession.clearUser();
+    goToLogin();
   };
 
   const beginStory = async () => {
@@ -284,13 +309,27 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
       return;
     }
 
+    if (accountSession.status === 'anonymous') {
+      setBeginError('Sessionを開始するにはログインが必要です。');
+      setRequiresLogin(true);
+      return;
+    }
+
     setBeginError('');
+    setRequiresLogin(false);
     setIsBeginning(true);
     try {
       const session = await createSession(scenarioId, sessionRequestId);
       router.history.push(`/sessions/${encodeURIComponent(session.id)}`);
     } catch (error) {
-      setBeginError(error instanceof Error ? error.message : 'Sessionを開始できませんでした。');
+      const apiError = error as SessionApiError;
+      if (apiError.status === 401) {
+        accountSession.clearUser();
+        setBeginError('Sessionを開始するにはログインが必要です。ログイン後、もう一度開始してください。');
+        setRequiresLogin(true);
+      } else {
+        setBeginError(error instanceof Error ? error.message : 'Sessionを開始できませんでした。');
+      }
     } finally {
       setIsBeginning(false);
     }
@@ -301,11 +340,9 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
     { label: 'セッション', to: 'scenarioList' },
     { label: 'セッション開始' },
   ];
-  const playerAccount = { name: '霧野しおり', email: 'reader@myriale.example', initials: '霧野', role: 'プレイヤー' };
-
   if (scenarioId && scenarioQuery.isPending) {
     return (
-      <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={playerAccount}>
+      <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={chromeAccount} onLogout={logout}>
         <main className="grid min-h-[calc(100vh-118px)] place-items-center bg-[image:var(--myr-screen-background)] p-6 text-myr-ink">
           <p className="rounded-full bg-myr-paper px-5 py-3 font-black shadow-myr-card" role="status">シナリオを読み込んでいます。</p>
         </main>
@@ -315,7 +352,7 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
 
   if (!scenarioId || scenarioQuery.isError || !selectedScenario) {
     return (
-      <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={playerAccount}>
+      <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={chromeAccount} onLogout={logout}>
         <main className="grid min-h-[calc(100vh-118px)] place-items-center bg-[image:var(--myr-screen-background)] p-6 text-myr-ink">
           <section className="max-w-xl rounded-myr-panel bg-myr-paper p-8 text-center shadow-myr-panel" aria-label="シナリオ読み込みエラー">
             <h1 className="font-myr-display text-4xl">シナリオを読み込めませんでした</h1>
@@ -336,7 +373,7 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
   }
 
   return (
-    <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={playerAccount}>
+    <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={chromeAccount} onLogout={logout}>
       <div
         data-myriale-theme="archive"
         className="min-h-[calc(100vh-118px)] bg-[image:var(--myr-screen-background)] p-3 font-myr-body text-myr-ink md:p-5"
@@ -386,6 +423,8 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
               onBeginStory={beginStory}
               isBeginning={isBeginning}
               beginError={beginError}
+              requiresLogin={requiresLogin}
+              onLogin={goToLogin}
             />
           </section>
         </main>

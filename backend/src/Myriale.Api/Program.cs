@@ -120,6 +120,9 @@ using (var scope = app.Services.CreateScope())
 
     db.Database.EnsureCreated();
     await ScenarioSeedData.SeedAsync(db);
+
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+    await AccountSeedData.SeedAsync(userManager, app.Configuration);
 }
 
 app.UseCors("MyrialeFrontend");

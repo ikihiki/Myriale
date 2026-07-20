@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { toAppChromeAccount, type AppChromeAccount } from '../../account/accountPresentation';
+import { useAccountSession } from '../../account/hooks/useAccountSession';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { useOptionalAppStore, type TurnDisplayFlags } from '../../app/store';
 import { SessionTurn } from '../../shared/SessionTurn';
@@ -13,6 +15,7 @@ import {
   type SessionApiResponse,
 } from './sessionPlayApi';
 import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeToggle, MyrialeSelect } from '../../ui/MyrialeRadix';
+import { useAppNavigation } from '../../shared/nav';
 
 type TurnKind = 'action' | 'clarification' | 'rewound';
 
@@ -197,40 +200,95 @@ export function SessionPage({ sessionId = 'SES-PREP-1098' }: { sessionId?: strin
 }
 
 function ServerSessionPage({ sessionId }: { sessionId: string }) {
+  const appNavigate = useAppNavigation();
+  const accountSession = useAccountSession();
+  const chromeAccount = toAppChromeAccount(accountSession.user);
   const [session, setSession] = useState<SessionApiResponse | null>(null);
   const [error, setError] = useState('');
+  const [requiresLogin, setRequiresLogin] = useState(false);
+
+  const goToLogin = () => appNavigate?.('login');
+  const logout = async () => {
+    await accountSession.api.logout();
+    accountSession.clearUser();
+    goToLogin();
+  };
 
   useEffect(() => {
     const abort = new AbortController();
     setSession(null);
     setError('');
+    setRequiresLogin(false);
     void getSession(sessionId, undefined, abort.signal)
       .then(setSession)
       .catch((reason: SessionApiError) => {
-        if (reason.name !== 'AbortError') setError(reason.message);
+        if (reason.name === 'AbortError') return;
+        if (reason.status === 401) {
+          accountSession.clearUser();
+          setRequiresLogin(true);
+          setError('Sessionを表示するにはログインが必要です。');
+          return;
+        }
+        setError(reason.message);
       });
     return () => abort.abort();
-  }, [sessionId]);
+  }, [accountSession.clearUser, sessionId]);
 
-  const playerAccount = { name: '霧野しおり', email: 'reader@myriale.example', initials: '霧野', role: 'プレイヤー' };
   if (!session) {
     return (
-      <AppChrome section="sessions" breadcrumbs={[{ label: 'Myriale', to: 'home' }, { label: 'セッション' }]} account={playerAccount}>
+      <AppChrome section="sessions" breadcrumbs={[{ label: 'Myriale', to: 'home' }, { label: 'セッション' }]} account={chromeAccount} onLogout={logout}>
         <main className="grid min-h-[calc(100vh-118px)] place-items-center bg-[image:var(--myr-screen-background)] p-6 text-myr-ink">
           <section className="max-w-xl rounded-myr-panel bg-myr-paper p-8 text-center shadow-myr-panel" aria-label={error ? 'Session読み込みエラー' : 'Session読み込み中'}>
             <h1 className="font-myr-display text-4xl">{error ? 'Sessionを読み込めませんでした' : 'Sessionを読み込んでいます'}</h1>
             <p role={error ? 'alert' : 'status'}>{error || '確定済みのTurnを取得しています。'}</p>
-            {error && <button className="!rounded-full !bg-myr-ink !px-5 !py-3 !font-black !text-myr-paper" onClick={() => window.location.reload()}>再読み込み</button>}
+            {error && (
+              <button
+                className="!rounded-full !bg-myr-ink !px-5 !py-3 !font-black !text-myr-paper"
+                onClick={requiresLogin ? goToLogin : () => window.location.reload()}
+              >
+                {requiresLogin ? 'ログインへ' : '再読み込み'}
+              </button>
+            )}
           </section>
         </main>
       </AppChrome>
     );
   }
 
-  return <SessionDialogueSection sessionId={sessionId} serverSession={session} />;
+  return (
+    <SessionDialogueSection
+      sessionId={sessionId}
+      serverSession={session}
+      account={chromeAccount}
+      onLogout={logout}
+      onLogin={goToLogin}
+      onAuthenticationRequired={accountSession.clearUser}
+    />
+  );
 }
 
-function SessionDialogueSection({ sessionId, serverSession }: { sessionId: string; serverSession?: SessionApiResponse }) {
+const demoPlayerAccount: AppChromeAccount = {
+  name: '霧野しおり',
+  email: 'reader@myriale.example',
+  initials: '霧野',
+  role: 'プレイヤー',
+};
+
+function SessionDialogueSection({
+  sessionId,
+  serverSession,
+  account = demoPlayerAccount,
+  onLogout,
+  onLogin,
+  onAuthenticationRequired,
+}: {
+  sessionId: string;
+  serverSession?: SessionApiResponse;
+  account?: AppChromeAccount | null;
+  onLogout?: () => void | Promise<void>;
+  onLogin?: () => void;
+  onAuthenticationRequired?: () => void;
+}) {
   const appStore = useOptionalAppStore();
   const dbSession = appStore?.db.playSessions[sessionId];
   const initialTurnCount = clampInitialTurnCount(dbSession?.turn);
@@ -245,6 +303,7 @@ function SessionDialogueSection({ sessionId, serverSession }: { sessionId: strin
     resumableInput ? { input: resumableInput.input, requestId: resumableInput.requestId } : null,
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [authenticationRequired, setAuthenticationRequired] = useState(false);
   const [notice, setNotice] = useState(
     resumableInput
       ? resumableInput.errorMessage ?? '未完了のPlayer Inputを復元しました。同じRequest IDで再試行できます。'
@@ -331,6 +390,7 @@ function SessionDialogueSection({ sessionId, serverSession }: { sessionId: strin
       : `narrative-${crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
     setDraftRequest({ input: submittedInput, requestId });
     setIsSubmitting(true);
+    setAuthenticationRequired(false);
     setNotice('Player Inputを受理し、Narrativeを生成しています。');
     try {
       const nextTurn = serverSession
@@ -345,10 +405,14 @@ function SessionDialogueSection({ sessionId, serverSession }: { sessionId: strin
         : 'Player Inputを行動として解釈し、結果をNarrativeとして生成しました。次の重要な進行は入力待ちです。');
     } catch (error) {
       const apiError = error as SessionApiError;
+      if (apiError.status === 401) {
+        setAuthenticationRequired(true);
+        onAuthenticationRequired?.();
+      }
       const prefix = apiError.code === 'request_in_progress'
         ? '同じ入力のNarrative生成が進行中です。'
         : apiError.status === 401
-          ? 'ログイン状態を確認してください。'
+          ? 'ログインが必要です。'
           : apiError.status === 409
             ? 'Sessionの状態が変わったため、この入力を確定できませんでした。'
             : '';
@@ -615,7 +679,8 @@ function SessionDialogueSection({ sessionId, serverSession }: { sessionId: strin
         { label: 'セッション', to: 'startSession' },
         { label: 'プレイ中の対話' },
       ]}
-      account={{ name: '霧野しおり', email: 'reader@myriale.example', initials: '霧野', role: 'プレイヤー' }}
+      account={account}
+      onLogout={onLogout}
     >
       <div className={sessionPageClassName} style={sessionPageStyle}>
       <WizardNavigation
@@ -650,7 +715,14 @@ function SessionDialogueSection({ sessionId, serverSession }: { sessionId: strin
             </>
           )}
         </div>
-        {notice && <div className="notice" role="status" data-testid="dialogue-notice">{notice}</div>}
+        {notice && (
+          <div className="notice" role="status" data-testid="dialogue-notice">
+            <span>{notice}</span>
+            {authenticationRequired && onLogin && (
+              <button className="primary" onClick={onLogin}>ログインへ</button>
+            )}
+          </div>
+        )}
 
         <section className="dialogue-log" aria-label="対話ログ" data-testid="dialogue-log">
           {turns.map((turn) => {
