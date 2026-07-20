@@ -24,6 +24,7 @@ builder.Services.AddOptions<NarrativeContextOptions>()
     .Validate(options => options.RecentTurnsTokenBudget >= 0, "RecentTurnsTokenBudget must not be negative.")
     .ValidateOnStart();
 builder.Services.AddSingleton<INarrativeTokenEstimator, Utf8NarrativeTokenEstimator>();
+builder.Services.AddSingleton<INarrativePromptBuilder, NarrativePromptBuilder>();
 builder.Services.AddScoped<INarrativeContextBuilder, NarrativeContextBuilder>();
 builder.Services.AddScoped<SessionNarrativeTurnService>();
 builder.Services.AddSingleton<IHomeDashboardService, DemoHomeDashboardService>();

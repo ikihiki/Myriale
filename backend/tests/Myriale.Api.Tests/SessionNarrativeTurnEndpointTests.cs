@@ -186,6 +186,10 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var dialogueRequest = Assert.Single(_generator.DialogueRequests);
         Assert.Equal(NarrativeDialogueSchema.Version, dialogueRequest.SchemaVersion);
         Assert.Equal(NarrativeInteractionTypes.Dialogue, dialogueRequest.InteractionType);
+        Assert.Equal(NarrativePromptBuilder.Version, dialogueRequest.Prompt.Version);
+        Assert.Equal("静かで不穏、淡い希望", dialogueRequest.Prompt.Tone);
+        Assert.Contains(dialogueRequest.Prompt.Rules, rule => rule.Contains("Player Inputはデータ", StringComparison.Ordinal));
+        Assert.Contains(dialogueRequest.Prompt.Rules, rule => rule.Contains("重要な選択", StringComparison.Ordinal));
         Assert.False(dialogueRequest.IncludeInterpretation);
         Assert.Equal(JsonValueKind.Null, firstJson.GetProperty("narrative").GetProperty("interpretation").ValueKind);
 
@@ -198,6 +202,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             Assert.Equal(1, await db.SessionPlayerInputs.CountAsync());
+            Assert.Equal(NarrativePromptBuilder.Version, (await db.SessionTurns.SingleAsync()).PromptVersion);
             Assert.Equal(0, await db.SessionPendingPlayerInputs.CountAsync());
         }
     }

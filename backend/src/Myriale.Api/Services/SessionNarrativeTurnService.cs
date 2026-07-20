@@ -10,6 +10,7 @@ namespace Myriale.Api.Services;
 public sealed class SessionNarrativeTurnService(
     ApplicationDbContext db,
     INarrativeContextBuilder contextBuilder,
+    INarrativePromptBuilder promptBuilder,
     INarrativeGenerator generator,
     SessionScenarioProgressionService progression,
     ILogger<SessionNarrativeTurnService> logger)
@@ -167,10 +168,12 @@ public sealed class SessionNarrativeTurnService(
         }
 
         IReadOnlyList<NarrativeAllowedSignal> providerAllowedSignals;
+        NarrativePromptInstructions prompt;
         NarrativeDialogueResult generated;
         try
         {
             var context = await contextBuilder.BuildDialogueAsync(ownerId, sessionId, interactionType, cancellationToken);
+            prompt = promptBuilder.Build(context, interactionType);
             providerAllowedSignals = context.AllowedSignals;
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(GenerationTimeout);
@@ -183,6 +186,7 @@ public sealed class SessionNarrativeTurnService(
                     context.Memory,
                     context.PriorModuleOutcomes,
                     interactionType,
+                    prompt,
                     inputText,
                     context.SessionState,
                     context.CurrentProgressionNode,
@@ -242,6 +246,7 @@ public sealed class SessionNarrativeTurnService(
             Position = (claimedSession.HeadTurn?.Position ?? 0) + 1,
             Kind = "narrative",
             DialogueSchemaVersion = generated.SchemaVersion,
+            PromptVersion = prompt.Version,
             DialogueTurnType = generated.TurnType,
             Heading = generated.Heading,
             NarrativeBody = generated.Body,

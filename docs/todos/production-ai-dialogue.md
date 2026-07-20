@@ -123,14 +123,14 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 
 ### Prompt Builder
 
-- [ ] `INarrativePromptBuilder`を導入し、Provider adapterからNarrative指示を分離する。
-- [ ] Player Inputをsystem/developer instructionと明確に分離し、prompt injectionを命令として扱わない。
-- [ ] Scenario Toneと主人公視点を維持する指示を定義する。
-- [ ] Player Inputにない重要な選択や主人公の代理行動を確定しないよう指示する。
-- [ ] Narrativeは状況提示または行動結果を描写し、次の重要な決定をPlayerへ返す。
-- [ ] Canon、Session flags、Module Outcome、Forbidden Factsを変更しないよう指示する。
-- [ ] `AiFreedom`の各値を具体的な生成制約へmappingする。
-- [ ] prompt versionを記録し、品質評価で比較できるようにする。
+- [x] `INarrativePromptBuilder`を導入し、Provider adapterからNarrative指示を分離する。
+- [x] Player Inputをsystem/developer instructionと明確に分離し、prompt injectionを命令として扱わない。
+- [x] Scenario Toneと主人公視点を維持する指示を定義する。
+- [x] Player Inputにない重要な選択や主人公の代理行動を確定しないよう指示する。
+- [x] Narrativeは状況提示または行動結果を描写し、次の重要な決定をPlayerへ返す。
+- [x] Canon、Session flags、Module Outcome、Forbidden Factsを変更しないよう指示する。
+- [x] `AiFreedom`の各値を具体的な生成制約へmappingする。
+- [x] prompt versionを記録し、品質評価で比較できるようにする。
 
 ### フェーズ2完了条件
 

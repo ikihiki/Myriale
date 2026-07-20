@@ -21,6 +21,9 @@ public sealed class SessionTurn
     [MaxLength(40)]
     public string? DialogueSchemaVersion { get; set; }
 
+    [MaxLength(40)]
+    public string? PromptVersion { get; set; }
+
     [MaxLength(32)]
     public string? DialogueTurnType { get; set; }
 
