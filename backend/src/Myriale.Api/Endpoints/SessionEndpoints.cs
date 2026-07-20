@@ -398,26 +398,25 @@ public static class SessionEndpoints
         return response is null ? Results.NotFound() : Results.Ok(response);
     }
 
-    private static Task<List<SessionPlayerInputWorkResponse>> LoadPendingInputsAsync(
+    private static Task<List<SessionPendingPlayerInputResponse>> LoadPendingInputsAsync(
         string sessionId,
         ApplicationDbContext db,
         CancellationToken cancellationToken) =>
-        db.SessionPlayerInputWorks.AsNoTracking()
-            .Where(work => work.PlayerInput.SessionId == sessionId
-                && !db.SessionTurns.Any(turn => turn.PlayerInputId == work.PlayerInputId))
-            .OrderBy(work => work.PlayerInputId)
-            .Select(work => new SessionPlayerInputWorkResponse(
-                work.PlayerInputId,
-                work.PlayerInput.RequestId,
-                work.PlayerInput.Text,
-                work.PlayerInput.InteractionType,
-                work.PlayerInput.AcceptedAfterTurnId,
-                work.Status,
-                work.IsRetryable,
-                work.ErrorCode,
-                work.ErrorMessage,
-                work.AttemptCount,
-                work.UpdatedAt))
+        db.SessionPendingPlayerInputs.AsNoTracking()
+            .Where(input => input.SessionId == sessionId)
+            .OrderBy(input => input.Id)
+            .Select(input => new SessionPendingPlayerInputResponse(
+                input.Id,
+                input.RequestId,
+                input.Text,
+                input.InteractionType,
+                input.AcceptedAfterTurnId,
+                input.Status,
+                input.IsRetryable,
+                input.ErrorCode,
+                input.ErrorMessage,
+                input.AttemptCount,
+                input.UpdatedAt))
             .ToListAsync(cancellationToken);
 
     private static async Task<IReadOnlyList<SessionTurnResponse>> LoadTurnsAsync(
@@ -446,7 +445,7 @@ public static class SessionEndpoints
     private static SessionResponse ToResponse(
         Session session,
         IReadOnlyList<SessionTurnResponse> turns,
-        IReadOnlyList<SessionPlayerInputWorkResponse> pendingInputs)
+        IReadOnlyList<SessionPendingPlayerInputResponse> pendingInputs)
     {
         var transition = session.ProgressionTransitionReceipts
             .OrderByDescending(receipt => receipt.CreatedAt)

@@ -35,6 +35,7 @@ public sealed class Session
     public SessionProgressState? Progress { get; set; }
     public ICollection<SessionTurn> Turns { get; set; } = [];
     public ICollection<ModuleOutcomeApplication> OutcomeApplications { get; set; } = [];
+    public ICollection<SessionPendingPlayerInput> PendingPlayerInputs { get; set; } = [];
     public ICollection<SessionPlayerInput> PlayerInputs { get; set; } = [];
     public ICollection<SessionNarrativeSignal> NarrativeSignals { get; set; } = [];
     public ICollection<SessionProgressionTransitionReceipt> ProgressionTransitionReceipts { get; set; } = [];

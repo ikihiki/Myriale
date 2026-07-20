@@ -19,7 +19,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<SessionProgressionTransitionReceipt> SessionProgressionTransitionReceipts => Set<SessionProgressionTransitionReceipt>();
     public DbSet<SessionNarrativeHandoff> SessionNarrativeHandoffs => Set<SessionNarrativeHandoff>();
     public DbSet<SessionPlayerInput> SessionPlayerInputs => Set<SessionPlayerInput>();
-    public DbSet<SessionPlayerInputWork> SessionPlayerInputWorks => Set<SessionPlayerInputWork>();
+    public DbSet<SessionPendingPlayerInput> SessionPendingPlayerInputs => Set<SessionPendingPlayerInput>();
     public DbSet<ModuleExecution> ModuleExecutions => Set<ModuleExecution>();
     public DbSet<ModuleExecutionRequest> ModuleExecutionRequests => Set<ModuleExecutionRequest>();
     public DbSet<ModuleOutcomeApplication> ModuleOutcomeApplications => Set<ModuleOutcomeApplication>();
@@ -160,14 +160,22 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .WithOne(turn => turn.NarrativeHandoff)
             .HasForeignKey<SessionNarrativeHandoff>(handoff => handoff.SourceModuleTurnId)
             .OnDelete(DeleteBehavior.Cascade);
-        builder.Entity<SessionPlayerInputWork>()
-            .Property(work => work.Revision)
+        builder.Entity<SessionPendingPlayerInput>()
+            .Property(input => input.Revision)
             .IsConcurrencyToken();
-        builder.Entity<SessionPlayerInputWork>()
-            .HasOne(work => work.PlayerInput)
-            .WithOne(input => input.Work)
-            .HasForeignKey<SessionPlayerInputWork>(work => work.PlayerInputId)
+        builder.Entity<SessionPendingPlayerInput>()
+            .HasIndex(input => new { input.SessionId, input.RequestId })
+            .IsUnique();
+        builder.Entity<SessionPendingPlayerInput>()
+            .HasOne(input => input.Session)
+            .WithMany(session => session.PendingPlayerInputs)
+            .HasForeignKey(input => input.SessionId)
             .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionPendingPlayerInput>()
+            .HasOne(input => input.AcceptedAfterTurn)
+            .WithMany()
+            .HasForeignKey(input => input.AcceptedAfterTurnId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.Entity<SessionPlayerInput>()
             .HasIndex(input => new { input.SessionId, input.RequestId })
             .IsUnique();

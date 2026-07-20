@@ -166,6 +166,12 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var replayJson = await replay.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(firstJson.GetProperty("id").GetString(), replayJson.GetProperty("id").GetString());
         Assert.Equal(1, await CountNarrativeTurnsAsync());
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            Assert.Equal(1, await db.SessionPlayerInputs.CountAsync());
+            Assert.Equal(0, await db.SessionPendingPlayerInputs.CountAsync());
+        }
     }
 
     [Fact]
@@ -263,6 +269,13 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         Assert.Equal("narrative_generation_failed", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
         Assert.Equal(0, await CountNarrativeTurnsAsync());
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var pending = await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>()
+                .SessionPendingPlayerInputs.AsNoTracking().SingleAsync();
+            Assert.Equal("failed", pending.Status);
+            Assert.True(pending.IsRetryable);
+        }
     }
 
     [Fact]
@@ -315,13 +328,14 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         await using (var pendingScope = _factory.Services.CreateAsyncScope())
         {
             var db = pendingScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var input = await db.SessionPlayerInputs.AsNoTracking().SingleAsync();
+            var input = await db.SessionPendingPlayerInputs.AsNoTracking().SingleAsync();
             var session = await db.Sessions.AsNoTracking().SingleAsync();
             inputId = input.Id;
             Assert.Null(input.AcceptedAfterTurnId);
             Assert.Null(session.HeadTurnId);
+            Assert.Equal(0, await db.SessionPlayerInputs.CountAsync());
             Assert.False(await db.SessionTurns.AnyAsync(turn => turn.PlayerInputId == input.Id));
-            Assert.Equal("pending", (await db.SessionPlayerInputWorks.AsNoTracking().SingleAsync()).Status);
+            Assert.Equal("pending", input.Status);
         }
 
         _generator.DialogueRelease.TrySetResult();
@@ -341,7 +355,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         Assert.Null(storedInput.AcceptedAfterTurnId);
         Assert.Equal(turnId, storedSession.HeadTurnId);
         Assert.Equal(0, (await completedDb.SessionStates.AsNoTracking().SingleAsync()).Revision);
-        Assert.Equal("completed", (await completedDb.SessionPlayerInputWorks.AsNoTracking().SingleAsync()).Status);
+        Assert.Equal(0, await completedDb.SessionPendingPlayerInputs.CountAsync());
     }
 
     [Fact]

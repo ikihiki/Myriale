@@ -51,23 +51,31 @@ public sealed class SessionNarrativeTurnService(
 
         var hashPayload = $"{interactionType}\n{inputText}";
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(hashPayload))).ToLowerInvariant();
-        var input = await db.SessionPlayerInputs
+        var completedInput = await db.SessionPlayerInputs
             .Include(item => item.NarrativeTurn)
-            .Include(item => item.Work)
             .SingleOrDefaultAsync(item => item.SessionId == sessionId && item.RequestId == request.RequestId, cancellationToken);
-        if (input is not null)
+        if (completedInput is not null)
         {
-            if (!string.Equals(input.PayloadHash, hash, StringComparison.Ordinal))
+            if (!string.Equals(completedInput.PayloadHash, hash, StringComparison.Ordinal))
                 return SessionNarrativeTurnResult.Error(409, "idempotency_key_reused", "同じRequestIdに別の入力は指定できません。");
-            if (input.NarrativeTurn is not null)
-                return await CompleteAsync(ownerId, input.NarrativeTurn, cancellationToken);
-            if (!input.Work.IsRetryable)
-                return SessionNarrativeTurnResult.Error(409, input.Work.ErrorCode ?? "narrative_not_retryable", input.Work.ErrorMessage ?? "Narrative生成を再試行できません。");
+            if (completedInput.NarrativeTurn is null)
+                return SessionNarrativeTurnResult.Error(409, "narrative_incomplete", "完了済みPlayer InputにNarrative Turnがありません。");
+            return await CompleteAsync(ownerId, completedInput.NarrativeTurn, cancellationToken);
+        }
+
+        var pendingInput = await db.SessionPendingPlayerInputs
+            .SingleOrDefaultAsync(item => item.SessionId == sessionId && item.RequestId == request.RequestId, cancellationToken);
+        if (pendingInput is not null)
+        {
+            if (!string.Equals(pendingInput.PayloadHash, hash, StringComparison.Ordinal))
+                return SessionNarrativeTurnResult.Error(409, "idempotency_key_reused", "同じRequestIdに別の入力は指定できません。");
+            if (!pendingInput.IsRetryable)
+                return SessionNarrativeTurnResult.Error(409, pendingInput.ErrorCode ?? "narrative_not_retryable", pendingInput.ErrorMessage ?? "Narrative生成を再試行できません。");
         }
         else
         {
             var now = DateTimeOffset.UtcNow;
-            input = new SessionPlayerInput
+            pendingInput = new SessionPendingPlayerInput
             {
                 Id = $"INP-{Guid.NewGuid():N}".ToUpperInvariant(),
                 SessionId = sessionId,
@@ -76,18 +84,15 @@ public sealed class SessionNarrativeTurnService(
                 InteractionType = interactionType,
                 PayloadHash = hash,
                 AcceptedAfterTurnId = session.HeadTurnId,
+                Status = "pending",
+                Revision = 0,
+                AttemptCount = 0,
+                IsRetryable = true,
                 CreatedAt = now,
-                Work = new SessionPlayerInputWork
-                {
-                    Status = "pending",
-                    Revision = 0,
-                    AttemptCount = 0,
-                    IsRetryable = true,
-                    UpdatedAt = now,
-                },
+                UpdatedAt = now,
             };
             session.Revision++;
-            db.SessionPlayerInputs.Add(input);
+            db.SessionPendingPlayerInputs.Add(pendingInput);
             try
             {
                 await db.SaveChangesAsync(cancellationToken);
@@ -100,15 +105,21 @@ public sealed class SessionNarrativeTurnService(
             catch (DbUpdateException)
             {
                 db.ChangeTracker.Clear();
-                var winner = await db.SessionPlayerInputs
+                completedInput = await db.SessionPlayerInputs.AsNoTracking()
                     .Include(item => item.NarrativeTurn)
-                    .Include(item => item.Work)
                     .SingleOrDefaultAsync(item => item.SessionId == sessionId && item.RequestId == request.RequestId, cancellationToken);
-                if (winner is null) throw;
-                if (!string.Equals(winner.PayloadHash, hash, StringComparison.Ordinal))
+                if (completedInput is not null)
+                {
+                    if (!string.Equals(completedInput.PayloadHash, hash, StringComparison.Ordinal))
+                        return SessionNarrativeTurnResult.Error(409, "idempotency_key_reused", "同じRequestIdに別の入力は指定できません。");
+                    if (completedInput.NarrativeTurn is null) throw;
+                    return await CompleteAsync(ownerId, completedInput.NarrativeTurn, cancellationToken);
+                }
+                pendingInput = await db.SessionPendingPlayerInputs
+                    .SingleOrDefaultAsync(item => item.SessionId == sessionId && item.RequestId == request.RequestId, cancellationToken);
+                if (pendingInput is null) throw;
+                if (!string.Equals(pendingInput.PayloadHash, hash, StringComparison.Ordinal))
                     return SessionNarrativeTurnResult.Error(409, "idempotency_key_reused", "同じRequestIdに別の入力は指定できません。");
-                if (winner.NarrativeTurn is not null) return await CompleteAsync(ownerId, winner.NarrativeTurn, cancellationToken);
-                input = winner;
             }
         }
 
@@ -117,25 +128,25 @@ public sealed class SessionNarrativeTurnService(
             .Where(item => item.Id == sessionId && item.OwnerId == ownerId)
             .Select(item => item.HeadTurnId)
             .SingleAsync(cancellationToken);
-        if (!SameTurn(currentHeadId, input.AcceptedAfterTurnId))
+        if (!SameTurn(currentHeadId, pendingInput.AcceptedAfterTurnId))
         {
-            await MarkFailedAsync(input.Id, null, "session_advanced", "Player Input受付後にSessionが進行しました。", retryable: false, cancellationToken);
+            await MarkFailedAsync(pendingInput.Id, null, "session_advanced", "Player Input受付後にSessionが進行しました。", retryable: false, cancellationToken);
             return SessionNarrativeTurnResult.Error(409, "session_advanced", "Player Input受付後にSessionが進行しました。");
         }
 
-        var work = await db.SessionPlayerInputWorks.SingleAsync(item => item.PlayerInputId == input.Id, cancellationToken);
+        pendingInput = await db.SessionPendingPlayerInputs.SingleAsync(item => item.Id == pendingInput.Id, cancellationToken);
         var leaseId = $"NIL-{Guid.NewGuid():N}".ToUpperInvariant();
         var nowClaimed = DateTimeOffset.UtcNow;
-        if (work.LeaseExpiresAt is not null && work.LeaseExpiresAt > nowClaimed)
+        if (pendingInput.LeaseExpiresAt is not null && pendingInput.LeaseExpiresAt > nowClaimed)
             return SessionNarrativeTurnResult.Error(409, "request_in_progress", "同じ入力のNarrative生成が進行中です。");
-        work.Status = "pending";
-        work.Revision++;
-        work.AttemptCount++;
-        work.LeaseId = leaseId;
-        work.LeaseExpiresAt = nowClaimed.Add(LeaseDuration);
-        work.ErrorCode = null;
-        work.ErrorMessage = null;
-        work.UpdatedAt = nowClaimed;
+        pendingInput.Status = "pending";
+        pendingInput.Revision++;
+        pendingInput.AttemptCount++;
+        pendingInput.LeaseId = leaseId;
+        pendingInput.LeaseExpiresAt = nowClaimed.Add(LeaseDuration);
+        pendingInput.ErrorCode = null;
+        pendingInput.ErrorMessage = null;
+        pendingInput.UpdatedAt = nowClaimed;
         try
         {
             await db.SaveChangesAsync(cancellationToken);
@@ -146,11 +157,11 @@ public sealed class SessionNarrativeTurnService(
         }
 
         db.ChangeTracker.Clear();
-        var claimed = await LoadClaimAsync(ownerId, input.Id, leaseId, cancellationToken);
+        var claimed = await LoadClaimAsync(ownerId, pendingInput.Id, leaseId, cancellationToken);
         if (claimed is null) return SessionNarrativeTurnResult.Error(409, "request_in_progress", "同じ入力のNarrative生成が進行中です。");
-        if (!SameTurn(claimed.PlayerInput.Session.HeadTurnId, claimed.PlayerInput.AcceptedAfterTurnId))
+        if (!SameTurn(claimed.Session.HeadTurnId, claimed.AcceptedAfterTurnId))
         {
-            await MarkFailedAsync(input.Id, leaseId, "session_advanced", "Narrative生成前にSessionが進行しました。", retryable: false, cancellationToken);
+            await MarkFailedAsync(pendingInput.Id, leaseId, "session_advanced", "Narrative生成前にSessionが進行しました。", retryable: false, cancellationToken);
             return SessionNarrativeTurnResult.Error(409, "session_advanced", "Narrative生成前にSessionが進行しました。");
         }
 
@@ -162,10 +173,10 @@ public sealed class SessionNarrativeTurnService(
             .OrderBy(turn => turn.Position)
             .Select(turn => new NarrativeDialogueTurnInput(turn.PlayerInput == null ? null : turn.PlayerInput.Text, turn.NarrativeBody))
             .ToListAsync(cancellationToken);
-        var scenario = claimed.PlayerInput.Session.Scenario;
-        var allowedSignals = claimed.PlayerInput.Session.Progress is null
+        var scenario = claimed.Session.Scenario;
+        var allowedSignals = claimed.Session.Progress is null
             ? []
-            : JsonSerializer.Deserialize<IReadOnlyList<string>>(claimed.PlayerInput.Session.Progress.CurrentNode.AllowedNarrativeSignalsJson) ?? [];
+            : JsonSerializer.Deserialize<IReadOnlyList<string>>(claimed.Session.Progress.CurrentNode.AllowedNarrativeSignalsJson) ?? [];
         NarrativeDialogueResult generated;
         try
         {
@@ -179,44 +190,61 @@ public sealed class SessionNarrativeTurnService(
                     interactionType,
                     inputText,
                     new NarrativeSessionStateInput(
-                        claimed.PlayerInput.Session.State.Revision,
-                        JsonSerializer.Deserialize<IReadOnlyDictionary<string, bool>>(claimed.PlayerInput.Session.State.FlagsJson) ?? new Dictionary<string, bool>()),
+                        claimed.Session.State.Revision,
+                        JsonSerializer.Deserialize<IReadOnlyDictionary<string, bool>>(claimed.Session.State.FlagsJson) ?? new Dictionary<string, bool>()),
                     allowedSignals,
-                    claimed.PlayerInput.Session.InterpretationEnabled),
+                    claimed.Session.InterpretationEnabled),
                 timeout.Token);
-            ValidateGeneratedResult(generated, interactionType, claimed.PlayerInput.Session.InterpretationEnabled);
+            ValidateGeneratedResult(generated, interactionType, claimed.Session.InterpretationEnabled);
             ValidateSignals(generated.Signals, allowedSignals);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            await ReleaseClaimAsync(input.Id, leaseId);
+            await ReleaseClaimAsync(pendingInput.Id, leaseId);
             throw;
         }
         catch (Exception exception) when (exception is NarrativeGenerationException or HttpRequestException or JsonException or OperationCanceledException)
         {
             logger.LogWarning(exception, "Dialogue narrative generation failed for {SessionId}", sessionId);
-            await MarkFailedAsync(input.Id, leaseId, "narrative_generation_failed", "Narrativeの生成に失敗しました。", retryable: true, CancellationToken.None);
+            await MarkFailedAsync(pendingInput.Id, leaseId, "narrative_generation_failed", "Narrativeの生成に失敗しました。", retryable: true, CancellationToken.None);
             return SessionNarrativeTurnResult.Error(503, "narrative_generation_failed", "Narrativeの生成に失敗しました。");
         }
 
         db.ChangeTracker.Clear();
-        claimed = await LoadClaimAsync(ownerId, input.Id, leaseId, cancellationToken);
-        if (claimed is null) return SessionNarrativeTurnResult.Error(409, "request_in_progress", "同じ入力のNarrative生成が進行中です。");
-        if (claimed.PlayerInput.NarrativeTurn is not null)
-            return await CompleteAsync(ownerId, claimed.PlayerInput.NarrativeTurn, cancellationToken);
-        var claimedSession = claimed.PlayerInput.Session;
-        if (!SameTurn(claimedSession.HeadTurnId, claimed.PlayerInput.AcceptedAfterTurnId))
+        claimed = await LoadClaimAsync(ownerId, pendingInput.Id, leaseId, cancellationToken);
+        if (claimed is null)
         {
-            await MarkFailedAsync(input.Id, leaseId, "session_advanced", "Narrative生成中にSessionが進行しました。", retryable: false, cancellationToken);
+            var concurrentlyCompleted = await db.SessionPlayerInputs.AsNoTracking()
+                .Include(item => item.NarrativeTurn)
+                .SingleOrDefaultAsync(item => item.Id == pendingInput.Id, cancellationToken);
+            return concurrentlyCompleted?.NarrativeTurn is not null
+                ? await CompleteAsync(ownerId, concurrentlyCompleted.NarrativeTurn, cancellationToken)
+                : SessionNarrativeTurnResult.Error(409, "request_in_progress", "同じ入力のNarrative生成が進行中です。");
+        }
+        var claimedSession = claimed.Session;
+        if (!SameTurn(claimedSession.HeadTurnId, claimed.AcceptedAfterTurnId))
+        {
+            await MarkFailedAsync(pendingInput.Id, leaseId, "session_advanced", "Narrative生成中にSessionが進行しました。", retryable: false, cancellationToken);
             return SessionNarrativeTurnResult.Error(409, "session_advanced", "Narrative生成中にSessionが進行しました。");
         }
 
         var completedAt = DateTimeOffset.UtcNow;
+        var finalizedInput = new SessionPlayerInput
+        {
+            Id = claimed.Id,
+            SessionId = claimed.SessionId,
+            RequestId = claimed.RequestId,
+            Text = claimed.Text,
+            InteractionType = claimed.InteractionType,
+            PayloadHash = claimed.PayloadHash,
+            AcceptedAfterTurnId = claimed.AcceptedAfterTurnId,
+            CreatedAt = claimed.CreatedAt,
+        };
         var turn = new SessionTurn
         {
             Id = $"TRN-{Guid.NewGuid():N}".ToUpperInvariant(),
             SessionId = sessionId,
-            PreviousTurnId = claimed.PlayerInput.AcceptedAfterTurnId,
+            PreviousTurnId = claimed.AcceptedAfterTurnId,
             Position = (claimedSession.HeadTurn?.Position ?? 0) + 1,
             Kind = "narrative",
             DialogueSchemaVersion = generated.SchemaVersion,
@@ -224,7 +252,8 @@ public sealed class SessionNarrativeTurnService(
             Heading = generated.Heading,
             NarrativeBody = generated.Body,
             Interpretation = claimedSession.InterpretationEnabled ? generated.Interpretation : null,
-            PlayerInputId = claimed.PlayerInput.Id,
+            PlayerInputId = finalizedInput.Id,
+            PlayerInput = finalizedInput,
             SourceSessionRevision = claimedSession.State.Revision,
             CreatedAt = completedAt,
         };
@@ -232,13 +261,8 @@ public sealed class SessionNarrativeTurnService(
         claimedSession.HeadTurn = turn;
         claimedSession.Revision++;
         claimedSession.UpdatedAt = completedAt;
-        claimed.Status = "completed";
-        claimed.IsRetryable = false;
-        claimed.LeaseId = null;
-        claimed.LeaseExpiresAt = null;
-        claimed.ErrorCode = null;
-        claimed.ErrorMessage = null;
-        claimed.UpdatedAt = completedAt;
+        db.SessionPlayerInputs.Add(finalizedInput);
+        db.SessionPendingPlayerInputs.Remove(claimed);
         foreach (var generatedSignal in generated.Signals)
         {
             var signal = new SessionNarrativeSignal
@@ -292,10 +316,10 @@ public sealed class SessionNarrativeTurnService(
         {
             db.ChangeTracker.Clear();
             var existing = await db.SessionPlayerInputs.AsNoTracking().Include(item => item.NarrativeTurn)
-                .SingleAsync(item => item.Id == input.Id, cancellationToken);
+                .SingleAsync(item => item.Id == pendingInput.Id, cancellationToken);
             if (existing.NarrativeTurn is null)
             {
-                await MarkFailedAsync(input.Id, null, "session_advanced", "Narrative生成中にSessionが進行しました。", retryable: false, cancellationToken);
+                await MarkFailedAsync(pendingInput.Id, null, "session_advanced", "Narrative生成中にSessionが進行しました。", retryable: false, cancellationToken);
                 return SessionNarrativeTurnResult.Error(409, "session_advanced", "Narrative生成中にSessionが進行しました。");
             }
             return await CompleteAsync(ownerId, existing.NarrativeTurn, cancellationToken);
@@ -350,35 +374,34 @@ public sealed class SessionNarrativeTurnService(
         }
     }
 
-    private Task<SessionPlayerInputWork?> LoadClaimAsync(string ownerId, string inputId, string leaseId, CancellationToken cancellationToken) =>
-        db.SessionPlayerInputWorks
-            .Include(work => work.PlayerInput).ThenInclude(input => input.NarrativeTurn)
-            .Include(work => work.PlayerInput).ThenInclude(input => input.Session).ThenInclude(session => session.State)
-            .Include(work => work.PlayerInput).ThenInclude(input => input.Session).ThenInclude(session => session.Scenario)
-            .Include(work => work.PlayerInput).ThenInclude(input => input.Session).ThenInclude(session => session.HeadTurn)
-            .Include(work => work.PlayerInput).ThenInclude(input => input.Session).ThenInclude(session => session.Progress).ThenInclude(progress => progress!.CurrentNode)
-            .SingleOrDefaultAsync(work => work.PlayerInputId == inputId && work.LeaseId == leaseId && work.PlayerInput.Session.OwnerId == ownerId, cancellationToken);
+    private Task<SessionPendingPlayerInput?> LoadClaimAsync(string ownerId, string inputId, string leaseId, CancellationToken cancellationToken) =>
+        db.SessionPendingPlayerInputs
+            .Include(input => input.Session).ThenInclude(session => session.State)
+            .Include(input => input.Session).ThenInclude(session => session.Scenario)
+            .Include(input => input.Session).ThenInclude(session => session.HeadTurn)
+            .Include(input => input.Session).ThenInclude(session => session.Progress).ThenInclude(progress => progress!.CurrentNode)
+            .SingleOrDefaultAsync(input => input.Id == inputId && input.LeaseId == leaseId && input.Session.OwnerId == ownerId, cancellationToken);
 
     private Task<int> MarkFailedAsync(string inputId, string? leaseId, string code, string message, bool retryable, CancellationToken cancellationToken) =>
-        db.SessionPlayerInputWorks
-            .Where(work => work.PlayerInputId == inputId && (leaseId == null || work.LeaseId == leaseId))
+        db.SessionPendingPlayerInputs
+            .Where(input => input.Id == inputId && (leaseId == null || input.LeaseId == leaseId))
             .ExecuteUpdateAsync(setters => setters
-                .SetProperty(work => work.Status, "failed")
-                .SetProperty(work => work.IsRetryable, retryable)
-                .SetProperty(work => work.LeaseId, (string?)null)
-                .SetProperty(work => work.LeaseExpiresAt, (DateTimeOffset?)null)
-                .SetProperty(work => work.ErrorCode, code)
-                .SetProperty(work => work.ErrorMessage, message)
-                .SetProperty(work => work.UpdatedAt, DateTimeOffset.UtcNow), cancellationToken);
+                .SetProperty(input => input.Status, "failed")
+                .SetProperty(input => input.IsRetryable, retryable)
+                .SetProperty(input => input.LeaseId, (string?)null)
+                .SetProperty(input => input.LeaseExpiresAt, (DateTimeOffset?)null)
+                .SetProperty(input => input.ErrorCode, code)
+                .SetProperty(input => input.ErrorMessage, message)
+                .SetProperty(input => input.UpdatedAt, DateTimeOffset.UtcNow), cancellationToken);
 
     private Task<int> ReleaseClaimAsync(string inputId, string leaseId) =>
-        db.SessionPlayerInputWorks
-            .Where(work => work.PlayerInputId == inputId && work.LeaseId == leaseId)
+        db.SessionPendingPlayerInputs
+            .Where(input => input.Id == inputId && input.LeaseId == leaseId)
             .ExecuteUpdateAsync(setters => setters
-                .SetProperty(work => work.Status, "pending")
-                .SetProperty(work => work.LeaseId, (string?)null)
-                .SetProperty(work => work.LeaseExpiresAt, (DateTimeOffset?)null)
-                .SetProperty(work => work.UpdatedAt, DateTimeOffset.UtcNow), CancellationToken.None);
+                .SetProperty(input => input.Status, "pending")
+                .SetProperty(input => input.LeaseId, (string?)null)
+                .SetProperty(input => input.LeaseExpiresAt, (DateTimeOffset?)null)
+                .SetProperty(input => input.UpdatedAt, DateTimeOffset.UtcNow), CancellationToken.None);
 }
 
 public sealed record SessionNarrativeTurnResult(int StatusCode, SessionTurn? Turn, string? Code, string? Message)

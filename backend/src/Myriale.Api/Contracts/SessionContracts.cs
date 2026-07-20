@@ -62,7 +62,7 @@ public sealed record SessionProgressionResponse(
     string? ModuleTurnId,
     string? ErrorCode);
 
-public sealed record SessionPlayerInputWorkResponse(
+public sealed record SessionPendingPlayerInputResponse(
     string PlayerInputId,
     string RequestId,
     string Input,
@@ -85,7 +85,7 @@ public sealed record SessionResponse(
     SessionStateResponse State,
     SessionProgressionResponse? Progression,
     IReadOnlyList<SessionTurnResponse> Turns,
-    IReadOnlyList<SessionPlayerInputWorkResponse> PendingInputs,
+    IReadOnlyList<SessionPendingPlayerInputResponse> PendingInputs,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
