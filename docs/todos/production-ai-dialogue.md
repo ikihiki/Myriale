@@ -103,10 +103,10 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 
 - [x] Scenario progression signalにAI向けのtrigger descriptionを追加する。
 - [ ] 必要に応じてpositive exampleとcounter exampleを追加する。
-- [ ] AI結果のsignalに短い`evidence`を要求する。
-- [ ] hostが現在node、allowlist、turn type、signal件数、evidenceを検証する。
+- [x] AI結果のsignalに短い`evidence`を要求する。
+- [x] hostが現在node、allowlist、turn type、signal件数、evidenceを検証する。
 - [x] opaqueなsignal codeだけをAIへ渡す現在の契約を廃止する。
-- [ ] signal誤発火時にModule Turnが開始されないことをテストする。
+- [x] signal誤発火時にModule Turnが開始されないことをテストする。
 
 ### Context Builder
 
@@ -135,7 +135,7 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 
 - [ ] Mock Providerを使った契約テストで全turn typeとschema validationが通る。
 - [x] clarificationが進行signalやSession Stateを変更しない。
-- [ ] signalのtrigger descriptionとevidenceがrequest/responseに含まれ、host検証される。
+- [x] signalのtrigger descriptionとevidenceがrequest/responseに含まれ、host検証される。
 - [ ] Context Builderの出力に必要情報だけが含まれ、非公開データが含まれない。
 
 ## フェーズ3: 実AI Provider

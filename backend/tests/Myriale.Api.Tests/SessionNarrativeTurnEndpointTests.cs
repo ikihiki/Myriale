@@ -313,7 +313,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     {
         var client = await AuthenticatedClientAsync("dialogue-malformed-signal@example.test");
         var sessionId = await CreateSessionAsync(client);
-        _generator.DialogueSignals = [new NarrativeProgressionSignal("Invalid Signal")];
+        _generator.DialogueSignals = [new NarrativeProgressionSignal("Invalid Signal", "Player input provides evidence for this signal.")];
 
         using var response = await client.PostAsJsonAsync(
             $"/api/sessions/{sessionId}/narrative-turns",
@@ -323,13 +323,30 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task DialogueSignalWithoutEvidenceIsRejectedBeforeProgression()
+    {
+        var client = await AuthenticatedClientAsync("dialogue-missing-evidence@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        _generator.DialogueSignals = [new NarrativeProgressionSignal("constellation-door-reached", "   ")];
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/narrative-turns",
+            new { requestId = "dialogue-missing-evidence", input = "閉じた星座の扉へ進む" });
+
+        await AssertDialogueGenerationRejectedAsync(response);
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal(0, await db.ModuleExecutions.CountAsync());
+    }
+
+    [Fact]
     public async Task ClarificationWithProgressionSignalIsRejected()
     {
         var client = await AuthenticatedClientAsync("clarification-signal@example.test");
         var sessionId = await CreateSessionAsync(client);
         _generator.DialogueTurnType = "clarification";
         _generator.DialogueHeading = "現在の状況を整理する";
-        _generator.DialogueSignals = [new NarrativeProgressionSignal("constellation-door-reached")];
+        _generator.DialogueSignals = [new NarrativeProgressionSignal("constellation-door-reached", "Player input provides evidence for this signal.")];
 
         using var response = await client.PostAsJsonAsync(
             $"/api/sessions/{sessionId}/narrative-turns",
@@ -508,7 +525,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     {
         var client = await AuthenticatedClientAsync("dialogue-signal@example.test");
         var sessionId = await CreateSessionAsync(client);
-        _generator.DialogueSignals = [new NarrativeProgressionSignal("constellation-door-reached")];
+        _generator.DialogueSignals = [new NarrativeProgressionSignal("constellation-door-reached", "Player input provides evidence for this signal.")];
 
         using var response = await client.PostAsJsonAsync(
             $"/api/sessions/{sessionId}/narrative-turns",
@@ -526,7 +543,8 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         Assert.Equal(1, session.GetProperty("progression").GetProperty("revision").GetInt64());
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        Assert.Equal(1, await db.SessionNarrativeSignals.CountAsync());
+        var storedSignal = await db.SessionNarrativeSignals.SingleAsync();
+        Assert.Equal("Player input provides evidence for this signal.", storedSignal.Evidence);
         Assert.Equal(1, await db.SessionProgressionTransitionReceipts.CountAsync());
     }
 
@@ -555,7 +573,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var clientModuleError = await clientModule.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("scenario_module_turn_managed", clientModuleError.GetProperty("code").GetString());
 
-        _generator.DialogueSignals = [new NarrativeProgressionSignal("constellation-door-reached")];
+        _generator.DialogueSignals = [new NarrativeProgressionSignal("constellation-door-reached", "Player input provides evidence for this signal.")];
         var body = new { requestId = "dialogue-module-transition", input = "閉じた星座の扉へ進む" };
 
         using var created = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/narrative-turns", body);
@@ -609,7 +627,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     {
         var client = await AuthenticatedClientAsync("dialogue-invalid-signal@example.test");
         var sessionId = await CreateSessionAsync(client);
-        _generator.DialogueSignals = [new NarrativeProgressionSignal("untrusted-signal")];
+        _generator.DialogueSignals = [new NarrativeProgressionSignal("untrusted-signal", "Player input provides evidence for this signal.")];
 
         using var response = await client.PostAsJsonAsync(
             $"/api/sessions/{sessionId}/narrative-turns",

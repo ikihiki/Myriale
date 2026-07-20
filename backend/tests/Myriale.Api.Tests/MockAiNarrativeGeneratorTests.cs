@@ -13,12 +13,12 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v2",
+              "schemaVersion": "narrative-dialogue.v3",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
               "signals": [
-                { "code": "constellation-door-reached" }
+                { "code": "constellation-door-reached", "evidence": "Player reached the closed constellation door." }
               ],
               "interpretation": null
             }
@@ -37,7 +37,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var handler = new StaticJsonHandler("""
             {
-              "schemaVersion": "narrative-dialogue.v2",
+              "schemaVersion": "narrative-dialogue.v3",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
@@ -60,12 +60,12 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v2",
+              "schemaVersion": "narrative-dialogue.v3",
               "turnType": "clarification",
               "heading": "現在の状況を整理する",
               "body": "あなたは水没した閲覧室で銀の鍵を持っている。",
               "signals": [
-                { "code": "constellation-door-reached" }
+                { "code": "constellation-door-reached", "evidence": "Player reached the closed constellation door." }
               ]
             }
             """);
@@ -80,7 +80,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v2",
+              "schemaVersion": "narrative-dialogue.v3",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
@@ -97,13 +97,14 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v2",
+              "schemaVersion": "narrative-dialogue.v3",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
               "signals": [
                 {
                   "code": "constellation-door-reached",
+                  "evidence": "Player reached the door.",
                   "confidence": 1
                 }
               ]

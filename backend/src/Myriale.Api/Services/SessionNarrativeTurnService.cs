@@ -272,6 +272,7 @@ public sealed class SessionNarrativeTurnService(
                 SessionId = sessionId,
                 NarrativeTurnId = turn.Id,
                 Code = generatedSignal.Code,
+                Evidence = generatedSignal.Evidence.Trim(),
                 CreatedAt = completedAt,
             };
             db.SessionNarrativeSignals.Add(signal);
@@ -401,6 +402,8 @@ public sealed class SessionNarrativeTurnService(
         {
             if (string.IsNullOrWhiteSpace(signal.Code)
                 || signal.Code.Length > 80
+                || string.IsNullOrWhiteSpace(signal.Evidence)
+                || signal.Evidence.Length > 500
                 || signal.Code.Any(character => !(char.IsLower(character) || char.IsDigit(character) || character == '-'))
                 || !seen.Add(signal.Code)
                 || !allowedCodes.Contains(signal.Code))

@@ -31,7 +31,7 @@ app.MapPost("/mock-ai/action-recommendation", (MockActionRecommendationRequest r
 
 app.MapPost("/mock-ai/narrative-dialogue", (MockNarrativeDialogueRequest request) =>
 {
-    const string schemaVersion = "narrative-dialogue.v2";
+    const string schemaVersion = "narrative-dialogue.v3";
     if (!string.Equals(request.SchemaVersion, schemaVersion, StringComparison.Ordinal))
         return Results.BadRequest();
     if (request.InteractionType is not ("dialogue" or "clarification"))
@@ -49,7 +49,7 @@ app.MapPost("/mock-ai/narrative-dialogue", (MockNarrativeDialogueRequest request
     var signals = !isClarification
         && request.AllowedSignals.Any(signal => signal.Code == "constellation-door-reached")
         && input.Contains("扉", StringComparison.Ordinal)
-            ? new[] { new MockNarrativeProgressionSignal("constellation-door-reached") }
+            ? new[] { new MockNarrativeProgressionSignal("constellation-door-reached", "Player input states that the Player proceeds to the closed constellation door.") }
             : [];
     var body = isClarification
         ? "あなたは水没した地下図書館にいて、銀の鍵を持っています。これは理解補助の説明であり、物語の状態は進みません。"
@@ -145,7 +145,7 @@ public sealed record MockNarrativeDialogueRequest(
 
 public sealed record MockAllowedNarrativeSignal(string Code, string TriggerDescription);
 public sealed record MockNarrativeDialogueTurn(string? PlayerInput, string? Narrative);
-public sealed record MockNarrativeProgressionSignal(string Code);
+public sealed record MockNarrativeProgressionSignal(string Code, string Evidence);
 public sealed record MockNarrativeDialogueResult(
     string SchemaVersion,
     string TurnType,
