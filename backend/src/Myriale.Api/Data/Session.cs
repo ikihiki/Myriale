@@ -16,6 +16,9 @@ public sealed class Session
     [MaxLength(120)]
     public string? CreationRequestId { get; set; }
 
+    [Required, MaxLength(1000)]
+    public string SelectedHero { get; set; } = string.Empty;
+
     [Required, MaxLength(32)]
     public string Status { get; set; } = "active";
 

@@ -1,7 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Myriale.Api.Modules.Runtime;
 using Myriale.ModuleSdk;
 using Myriale.Api.Contracts;
@@ -11,8 +10,7 @@ namespace Myriale.Api.Services;
 
 public sealed class NarrativeContextBuilder(
     ApplicationDbContext db,
-    INarrativeTokenEstimator tokenEstimator,
-    IOptions<NarrativeContextOptions> options) : INarrativeContextBuilder
+    INarrativeRecentTurnSelector recentTurnSelector) : INarrativeContextBuilder
 {
     public async Task<NarrativeDialogueContext> BuildDialogueAsync(
         string ownerId,
@@ -35,7 +33,7 @@ public sealed class NarrativeContextBuilder(
                 turn.PlayerInput == null ? null : turn.PlayerInput.Text,
                 turn.NarrativeBody))
             .ToListAsync(cancellationToken);
-        var recentTurns = SelectRecentTurns(newestTurns, options.Value.RecentTurnsTokenBudget);
+        var recentTurns = recentTurnSelector.Select(newestTurns);
 
         var storedOutcomeJson = await db.SessionTurns.AsNoTracking()
             .Where(turn => turn.SessionId == sessionId
@@ -79,7 +77,7 @@ public sealed class NarrativeContextBuilder(
             session.Scenario.Tone,
             session.Scenario.Lore,
             session.Scenario.AiFreedom,
-            session.Scenario.Hero,
+            session.SelectedHero,
             session.Scenario.Opening);
         var sessionState = new NarrativeSessionStateInput(session.State.Revision, flags);
         var memory = new NarrativeSessionMemoryInput(null, []);
@@ -113,25 +111,6 @@ public sealed class NarrativeContextBuilder(
             sessionState,
             session.Progress?.CurrentNode.Code,
             allowedSignals);
-    }
-
-    private IReadOnlyList<NarrativeDialogueTurnInput> SelectRecentTurns(
-        IReadOnlyList<NarrativeDialogueTurnInput> newestTurns,
-        int tokenBudget)
-    {
-        if (tokenBudget <= 0) return [];
-        var selected = new List<NarrativeDialogueTurnInput>();
-        var usedTokens = 0;
-        foreach (var turn in newestTurns)
-        {
-            var cost = tokenEstimator.EstimateTokens(turn);
-            if (cost <= 0) throw new NarrativeGenerationException("Narrative token estimator returned an invalid cost.");
-            if (cost > tokenBudget - usedTokens) break;
-            selected.Add(turn);
-            usedTokens += cost;
-        }
-        selected.Reverse();
-        return selected;
     }
 
     private async Task<IReadOnlyList<NarrativeAllowedSignal>> LoadAllowedSignalsAsync(

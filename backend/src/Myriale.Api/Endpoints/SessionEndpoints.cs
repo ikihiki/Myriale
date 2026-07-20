@@ -72,7 +72,9 @@ public static class SessionEndpoints
             if (replay is not null)
             {
                 if (!string.Equals(replay.ScenarioId, request.ScenarioId, StringComparison.Ordinal)
-                    || replay.InterpretationEnabled != request.InterpretationEnabled)
+                    || replay.InterpretationEnabled != request.InterpretationEnabled
+                    || (request.SelectedHero is not null
+                        && !string.Equals(replay.SelectedHero, request.SelectedHero.Trim(), StringComparison.Ordinal)))
                     return Results.Conflict(new SessionErrorResponse("idempotency_key_reused", "同じRequestIdに別のSession設定は指定できません。"));
                 var replayTurns = await LoadTurnsAsync(ownerId, replay.Id, db, executions, cancellationToken);
                 var replayPending = await LoadPendingInputsAsync(replay.Id, db, cancellationToken);
@@ -83,6 +85,12 @@ public static class SessionEndpoints
         var scenario = await db.Scenarios.AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == request.ScenarioId, cancellationToken);
         if (scenario is null) return Results.NotFound();
+
+        var selectedHero = string.IsNullOrWhiteSpace(request.SelectedHero)
+            ? scenario.Hero
+            : request.SelectedHero.Trim();
+        if (selectedHero.Length > 1000)
+            return Results.BadRequest(new SessionErrorResponse("invalid_selected_hero", "選択した主人公は1000文字以内で指定してください。"));
 
         var now = DateTimeOffset.UtcNow;
         var initialNode = await db.ScenarioProgressionNodes
@@ -119,6 +127,7 @@ public static class SessionEndpoints
             OwnerId = ownerId,
             ScenarioId = request.ScenarioId,
             CreationRequestId = requestId,
+            SelectedHero = selectedHero,
             Status = "active",
             InterpretationEnabled = request.InterpretationEnabled,
             CreatedAt = now,
@@ -248,6 +257,7 @@ public static class SessionEndpoints
         string sessionId,
         ClaimsPrincipal principal,
         ApplicationDbContext db,
+        INarrativeRecentTurnSelector recentTurnSelector,
         IActionRecommendationGenerator recommendations,
         CancellationToken cancellationToken)
     {
@@ -259,16 +269,15 @@ public static class SessionEndpoints
             .SingleOrDefaultAsync(item => item.Id == sessionId && item.OwnerId == ownerId, cancellationToken);
         if (session is null) return Results.NotFound();
 
-        var recentTurns = await db.SessionTurns.AsNoTracking()
+        var newestTurns = await db.SessionTurns.AsNoTracking()
             .Where(turn => turn.SessionId == sessionId)
             .Include(turn => turn.PlayerInput)
             .OrderByDescending(turn => turn.Position)
-            .Take(8)
-            .OrderBy(turn => turn.Position)
             .Select(turn => new NarrativeDialogueTurnInput(
                 turn.PlayerInput == null ? null : turn.PlayerInput.Text,
                 turn.NarrativeBody))
             .ToListAsync(cancellationToken);
+        var recentTurns = recentTurnSelector.Select(newestTurns).ToList();
         if (recentTurns.Count == 0)
             recentTurns.Add(new NarrativeDialogueTurnInput(null, session.Scenario.Opening));
         IReadOnlyDictionary<string, bool> flags;
@@ -294,7 +303,7 @@ public static class SessionEndpoints
                         session.Scenario.Tone,
                         session.Scenario.Lore,
                         session.Scenario.AiFreedom,
-                        session.Scenario.Hero,
+                        session.SelectedHero,
                         session.Scenario.Opening),
                     recentTurns,
                     new NarrativeSessionStateInput(session.State.Revision, flags)),

@@ -172,7 +172,8 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     public async Task NarrativeTurnPersistsPlayerInputAndReplaysIdempotently()
     {
         var client = await AuthenticatedClientAsync("dialogue-persist@example.test");
-        var sessionId = await CreateSessionAsync(client);
+        const string selectedHero = "ミナ / 沈んだ書庫を調べる記録者";
+        var sessionId = await CreateSessionAsync(client, selectedHero: selectedHero);
         var body = new { requestId = "dialogue-1", input = "銀の鍵を掲げて扉へ進む" };
 
         using var first = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/narrative-turns", body);
@@ -186,6 +187,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var dialogueRequest = Assert.Single(_generator.DialogueRequests);
         Assert.Equal(NarrativeDialogueSchema.Version, dialogueRequest.SchemaVersion);
         Assert.Equal(NarrativeInteractionTypes.Dialogue, dialogueRequest.InteractionType);
+        Assert.Equal(selectedHero, dialogueRequest.Scenario.Hero);
         Assert.Equal(NarrativeContextSchema.Version, dialogueRequest.ContextDiagnostics.SchemaVersion);
         Assert.Contains("scenario", dialogueRequest.ContextDiagnostics.ComponentIds);
         Assert.True(dialogueRequest.ContextDiagnostics.SizeBytes > 0);
@@ -319,6 +321,23 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
             });
         Assert.Equal(HttpStatusCode.Conflict, reused.StatusCode);
         Assert.Equal("idempotency_key_reused", (await reused.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task NpcReplyTurnTypeIsAcceptedForDialogueInteraction()
+    {
+        var client = await AuthenticatedClientAsync("dialogue-npc-reply@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        _generator.DialogueTurnType = "npc-reply";
+        _generator.DialogueHeading = "書架の奥の人物が答える";
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/narrative-turns",
+            new { requestId = "dialogue-npc-reply", input = "奥の人物へ何が起きたか尋ねる" });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("npc-reply", json.GetProperty("narrative").GetProperty("turnType").GetString());
     }
 
     [Fact]
@@ -810,12 +829,16 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         randomValueCount = 0,
     };
 
-    private async Task<string> CreateSessionAsync(HttpClient client, bool interpretationEnabled = false)
+    private async Task<string> CreateSessionAsync(
+        HttpClient client,
+        bool interpretationEnabled = false,
+        string? selectedHero = null)
     {
         using var response = await client.PostAsJsonAsync("/api/sessions/", new
         {
             scenarioId = "SCN-STAR-LIBRARY",
             interpretationEnabled,
+            selectedHero,
         });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;

@@ -68,13 +68,14 @@ export async function createSession(
   requestId: string,
   baseUrl = getSessionApiBaseUrl(),
   interpretationEnabled = false,
+  selectedHero?: string,
 ): Promise<SessionApiResponse> {
   if (!baseUrl) throw sessionApiError('Session APIが設定されていません。', 503, 'session_api_unavailable');
   const response = await fetch(`${baseUrl}/`, {
     method: 'POST',
     credentials: 'include',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ scenarioId, requestId, interpretationEnabled }),
+    body: JSON.stringify({ scenarioId, requestId, interpretationEnabled, selectedHero }),
   });
   if (!response.ok) throw await toSessionApiError(response, 'Sessionを開始できませんでした。');
   return response.json() as Promise<SessionApiResponse>;

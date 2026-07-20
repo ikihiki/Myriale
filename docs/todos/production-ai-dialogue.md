@@ -96,13 +96,13 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 - [x] requestで期待するturn typeまたはinteraction typeを明示できるようにする。
 - [x] `clarification`ではprogression signalを禁止する。
 - [x] `clarification`からhost所有の進行やSession flag変更を確定できないようにする。
-- [ ] `clarification`の本文で新規の事件、NPC、場所を確定しないよう、Prompt BuilderとCanon Contextで制約する。
+- [x] `clarification`の本文で新規の事件、NPC、場所を確定しないよう、Prompt BuilderとCanon Contextで制約する。
 - [x] `clarification`はSessionの理解補助Turnとして履歴に保存する。
 
 ### 進行signalの意味
 
 - [x] Scenario progression signalにAI向けのtrigger descriptionを追加する。
-- [ ] 必要に応じてpositive exampleとcounter exampleを追加する。
+- [x] trigger descriptionに発火条件とcounter exampleを含める。
 - [x] AI結果のsignalに短い`evidence`を要求する。
 - [x] hostが現在node、allowlist、turn type、signal件数、evidenceを検証する。
 - [x] opaqueなsignal codeだけをAIへ渡す現在の契約を廃止する。
@@ -111,15 +111,15 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 ### Context Builder
 
 - [x] `INarrativeContextBuilder`を導入し、Context構築を`SessionNarrativeTurnService`から分離する。
-- [ ] Scenario Lore、Tone、AI Freedom、選択済みHeroをContextへ含める。
+- [x] Scenario Lore、Tone、AI Freedom、選択済みHeroをContextへ含める。
 - [x] 現在のScenario progression nodeと許可された遷移条件を含める。
 - [x] Session flagsと現在状態を含める。
 - [x] Module OutcomeのPublic Facts、Narrative Hints、Forbidden Narrative Factsを後続対話へ含める。
 - [x] Session SummaryとLorebookを後から差し込めるversioned contractを定義する。
 - [x] Dialogue ContextのRecent Turnsをturn境界と時系列順を保った推定token budgetで制御する。
-- [ ] Action RecommendationのRecent Turnsを同じtoken budget policyへ統合する。
+- [x] Action RecommendationのRecent Turnsを同じtoken budget policyへ統合する。
 - [x] Contextのschema version、構成要素ID、サイズ、hashを診断用に記録する。
-- [ ] private Module State、configuration、context、乱数、receipt、provider secretをAI requestへ含めない。
+- [x] private Module State、configuration、context、乱数、receipt、provider secretをAI requestへ含めない。
 
 ### Prompt Builder
 
@@ -134,10 +134,10 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 
 ### フェーズ2完了条件
 
-- [ ] Mock Providerを使った契約テストで全turn typeとschema validationが通る。
+- [x] Mock Providerを使った契約テストで全turn typeとschema validationが通る。
 - [x] clarificationが進行signalやSession Stateを変更しない。
 - [x] signalのtrigger descriptionとevidenceがrequest/responseに含まれ、host検証される。
-- [ ] Context Builderの出力に必要情報だけが含まれ、非公開データが含まれない。
+- [x] Context Builderの出力に必要情報だけが含まれ、非公開データが含まれない。
 
 ## フェーズ3: 実AI Provider
 
