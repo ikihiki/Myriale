@@ -51,4 +51,4 @@ Sessions currently reference the scenario identity rather than an immutable publ
 
 ## Deferred work
 
-Effect application, narrative handoff, scenario-version snapshots, narrative turns, worker-process isolation, package-cache invalidation across API processes, and retained database lifecycle management remain deferred.
+Additional effect vocabularies, narrative handoff, durable emitted-event processing, scenario-version snapshots, narrative turns, worker-process isolation, package-cache invalidation across API processes, and retained database lifecycle management remain deferred.

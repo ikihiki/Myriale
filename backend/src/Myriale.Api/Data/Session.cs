@@ -22,5 +22,7 @@ public sealed class Session
     public DateTimeOffset UpdatedAt { get; set; }
 
     public Scenario Scenario { get; set; } = null!;
+    public SessionState State { get; set; } = null!;
     public ICollection<SessionTurn> Turns { get; set; } = [];
+    public ICollection<ModuleOutcomeApplication> OutcomeApplications { get; set; } = [];
 }

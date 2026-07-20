@@ -250,8 +250,10 @@ public sealed class ModuleExecutionEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, complete.StatusCode);
         var completed = await complete.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("completed", completed.GetProperty("status").GetString());
-        Assert.Equal("first", completed.GetProperty("outcome").GetProperty("effects")[0].GetProperty("type").GetString());
-        Assert.Equal("second", completed.GetProperty("outcome").GetProperty("effects")[1].GetProperty("type").GetString());
+        Assert.Equal("set-flag", completed.GetProperty("outcome").GetProperty("effects")[0].GetProperty("type").GetString());
+        Assert.False(completed.GetProperty("outcome").GetProperty("effects")[0].GetProperty("payload").GetProperty("value").GetBoolean());
+        Assert.Equal("set-flag", completed.GetProperty("outcome").GetProperty("effects")[1].GetProperty("type").GetString());
+        Assert.True(completed.GetProperty("outcome").GetProperty("effects")[1].GetProperty("payload").GetProperty("value").GetBoolean());
         Assert.Equal("completed", completed.GetProperty("outcome").GetProperty("emittedEvents")[0].GetProperty("type").GetString());
     }
 
@@ -282,6 +284,12 @@ public sealed class ModuleExecutionEndpointTests : IDisposable
         using var complete = await client.PostAsJsonAsync("/api/module-executions/", InitializeBody("immediate", new { completeOnInitialize = true }, new { }));
         Assert.Equal(HttpStatusCode.Created, complete.StatusCode);
         Assert.Equal("completed", (await complete.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("status").GetString());
+        await using (var verification = _factory.Services.CreateAsyncScope())
+        {
+            var db = verification.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            Assert.Equal(0, await db.ModuleOutcomeApplications.CountAsync());
+            Assert.Null((await db.ModuleExecutions.SingleAsync(item => item.SessionTurnId == null)).SessionTurnId);
+        }
 
         var identity = await GetIdentityAsync();
         await using (var scope = _factory.Services.CreateAsyncScope())

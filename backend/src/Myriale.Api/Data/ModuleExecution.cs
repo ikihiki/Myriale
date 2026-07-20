@@ -22,6 +22,9 @@ public sealed class ModuleExecution
     [Required, MaxLength(32)]
     public string ContractVersion { get; set; } = string.Empty;
 
+    [Required]
+    public string CapabilitiesJson { get; set; } = "[]";
+
     public int ConfigurationSchemaVersion { get; set; }
     public int StateSchemaVersion { get; set; }
 
@@ -53,6 +56,7 @@ public sealed class ModuleExecution
     [MaxLength(40)]
     public string? SessionTurnId { get; set; }
 
+    public ModuleOutcomeApplication? OutcomeApplication { get; set; }
     public ICollection<ModuleExecutionRequest> Requests { get; set; } = [];
     public SessionTurn? SessionTurn { get; set; }
 }

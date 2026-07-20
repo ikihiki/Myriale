@@ -108,9 +108,189 @@ public sealed class SessionModuleTurnEndpointTests : IDisposable
 
         using var session = await client.GetAsync($"/api/sessions/{sessionId}");
         var sessionJson = await session.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(1, sessionJson.GetProperty("state").GetProperty("revision").GetInt64());
+        Assert.True(sessionJson.GetProperty("state").GetProperty("flags").GetProperty("module-completed").GetBoolean());
         Assert.Equal(2, sessionJson.GetProperty("turns").GetArrayLength());
         await using var scope = _factory.Services.CreateAsyncScope();
         Assert.Equal(2, await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().SessionTurns.CountAsync());
+    }
+
+    [Fact]
+    public async Task CompletedOutcomeAppliesOrderedFlagsExactlyOnce()
+    {
+        var client = await AuthenticatedClientAsync("effect-owner@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        using var created = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/module-turns", InitializeBody("effect-init"));
+        var executionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("execution").GetProperty("id").GetString()!;
+        var body = new
+        {
+            requestId = "effect-complete",
+            expectedRevision = 0,
+            action = new { mode = "complete" },
+            randomValueCount = 0,
+        };
+
+        using var completed = await client.PostAsJsonAsync($"/api/module-executions/{executionId}/dispatch", body);
+        using var replay = await client.PostAsJsonAsync($"/api/module-executions/{executionId}/dispatch", body);
+        Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+
+        using var session = await client.GetAsync($"/api/sessions/{sessionId}");
+        var sessionJson = await session.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(1, sessionJson.GetProperty("state").GetProperty("revision").GetInt64());
+        Assert.True(sessionJson.GetProperty("state").GetProperty("flags").GetProperty("module-completed").GetBoolean());
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var application = await db.ModuleOutcomeApplications.SingleAsync();
+        Assert.Equal(0, application.ExpectedSessionRevision);
+        Assert.Equal(1, application.AppliedSessionRevision);
+        Assert.Equal(2, application.EffectCount);
+        Assert.Equal(1, await db.ModuleOutcomeApplications.CountAsync());
+    }
+
+    [Fact]
+    public async Task PendingCompletionKeepsItsRecordedSessionRevision()
+    {
+        var client = await AuthenticatedClientAsync("stale-effect@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        using var created = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/module-turns", InitializeBody("stale-effect-init"));
+        var executionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("execution").GetProperty("id").GetString()!;
+        var body = new
+        {
+            requestId = "stale-effect-complete",
+            expectedRevision = 0,
+            action = new { mode = "delay-complete", milliseconds = 250 },
+            randomValueCount = 0,
+        };
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            client.PostAsJsonAsync($"/api/module-executions/{executionId}/dispatch", body, cancellation.Token));
+
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var state = await db.SessionStates.SingleAsync();
+            state.Revision = 1;
+            state.FlagsJson = "{\"other-turn\":true}";
+            await db.SaveChangesAsync();
+            Assert.Equal(0, (await db.ModuleExecutionRequests.SingleAsync(item => item.RequestId == "stale-effect-complete")).ExpectedSessionRevision);
+        }
+
+        using var resumed = await client.PostAsJsonAsync($"/api/module-executions/{executionId}/dispatch", body);
+        Assert.Equal(HttpStatusCode.Conflict, resumed.StatusCode);
+        var error = await resumed.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("session_revision_conflict", error.GetProperty("code").GetString());
+        Assert.Equal(1, error.GetProperty("currentSessionRevision").GetInt64());
+
+        await using var verification = _factory.Services.CreateAsyncScope();
+        var verificationDb = verification.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal("active", (await verificationDb.ModuleExecutions.SingleAsync()).Status);
+        Assert.Equal(0, (await verificationDb.ModuleExecutions.SingleAsync()).Revision);
+        Assert.Equal(0, await verificationDb.ModuleOutcomeApplications.CountAsync());
+        Assert.Equal("rejected", (await verificationDb.ModuleExecutionRequests.SingleAsync(item => item.RequestId == "stale-effect-complete")).Status);
+    }
+
+    [Fact]
+    public async Task InvalidEffectIsRejectedWithoutCompletingExecutionOrChangingSessionState()
+    {
+        var client = await AuthenticatedClientAsync("invalid-effect@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        using var created = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/module-turns", InitializeBody("invalid-effect-init"));
+        var executionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("execution").GetProperty("id").GetString()!;
+
+        using var rejected = await client.PostAsJsonAsync($"/api/module-executions/{executionId}/dispatch", new
+        {
+            requestId = "invalid-effect",
+            expectedRevision = 0,
+            action = new { mode = "complete-malformed-effect" },
+            randomValueCount = 0,
+        });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, rejected.StatusCode);
+        var error = await rejected.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("invalid_effect_payload", error.GetProperty("code").GetString());
+        Assert.Equal(0, error.GetProperty("currentRevision").GetInt64());
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal("active", (await db.ModuleExecutions.SingleAsync()).Status);
+        Assert.Equal(0, (await db.ModuleExecutions.SingleAsync()).Revision);
+        Assert.Equal(0, (await db.SessionStates.SingleAsync()).Revision);
+        Assert.Equal(0, await db.ModuleOutcomeApplications.CountAsync());
+    }
+
+    [Fact]
+    public async Task CatalogChangeDoesNotRevokePinnedEffectCapability()
+    {
+        var client = await AuthenticatedClientAsync("pinned-capability@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        using var created = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/module-turns", InitializeBody("pinned-capability-init"));
+        var executionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("execution").GetProperty("id").GetString()!;
+        await SetCatalogCapabilitiesAsync();
+
+        using var completed = await client.PostAsJsonAsync($"/api/module-executions/{executionId}/dispatch", new
+        {
+            requestId = "pinned-capability-complete",
+            expectedRevision = 0,
+            action = new { mode = "complete" },
+            randomValueCount = 0,
+        });
+        Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
+        await using var scope = _factory.Services.CreateAsyncScope();
+        Assert.Equal(1, await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().ModuleOutcomeApplications.CountAsync());
+    }
+
+    [Fact]
+    public async Task MissingEffectCapabilityIsRejected()
+    {
+        var client = await AuthenticatedClientAsync("missing-capability@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        _ = await GetIdentityAsync();
+        await SetCatalogCapabilitiesAsync();
+
+        using var created = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/module-turns", InitializeBody("capability-init"));
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var executionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("execution").GetProperty("id").GetString()!;
+        await SetCatalogCapabilitiesAsync("emit:session-effects");
+
+        using var rejected = await client.PostAsJsonAsync($"/api/module-executions/{executionId}/dispatch", new
+        {
+            requestId = "capability-complete",
+            expectedRevision = 0,
+            action = new { mode = "complete" },
+            randomValueCount = 0,
+        });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, rejected.StatusCode);
+        Assert.Equal("effect_capability_missing", (await rejected.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task CorruptSessionStateReturnsControlledErrors()
+    {
+        var client = await AuthenticatedClientAsync("corrupt-state@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        using var created = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/module-turns", InitializeBody("corrupt-state-init"));
+        var executionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("execution").GetProperty("id").GetString()!;
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var state = await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().SessionStates.SingleAsync();
+            state.FlagsJson = "not-json";
+            await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().SaveChangesAsync();
+        }
+
+        using var get = await client.GetAsync($"/api/sessions/{sessionId}");
+        Assert.Equal(HttpStatusCode.InternalServerError, get.StatusCode);
+        Assert.Equal("session_state_corrupt", (await get.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+
+        using var rejected = await client.PostAsJsonAsync($"/api/module-executions/{executionId}/dispatch", new
+        {
+            requestId = "corrupt-state-complete",
+            expectedRevision = 0,
+            action = new { mode = "complete" },
+            randomValueCount = 0,
+        });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, rejected.StatusCode);
+        Assert.Equal("session_state_corrupt", (await rejected.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
     }
 
     [Fact]
@@ -219,6 +399,28 @@ public sealed class SessionModuleTurnEndpointTests : IDisposable
         await service.SetEnabledAsync(installed.Package.Digest, true, default);
         _identity = new ModulePackageIdentity(installed.Package.ModuleId, installed.Package.Version, installed.Package.Digest);
         return _identity;
+    }
+
+    private async Task SetCatalogCapabilitiesAsync(params string[] capabilities)
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var package = await db.ModulePackages.SingleAsync();
+        using var manifest = JsonDocument.Parse(package.ManifestJson);
+        var root = manifest.RootElement;
+        package.ManifestJson = JsonSerializer.Serialize(new
+        {
+            id = root.GetProperty("id").GetString(),
+            version = root.GetProperty("version").GetString(),
+            displayName = root.GetProperty("displayName").GetString(),
+            description = root.GetProperty("description").GetString(),
+            contractVersion = root.GetProperty("contractVersion").GetString(),
+            configuration = root.GetProperty("configuration"),
+            userInterfaces = root.GetProperty("userInterfaces"),
+            capabilities,
+            limits = root.GetProperty("limits"),
+        });
+        await db.SaveChangesAsync();
     }
 
     private async Task<HttpClient> AuthenticatedClientAsync(string email)

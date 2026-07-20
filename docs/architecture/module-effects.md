@@ -6,16 +6,19 @@ A module owns its internal state while active. It does not directly mutate the s
 
 Effects use a stable string discriminator plus JSON payload. This keeps the SDK transport-neutral and allows unknown future effects to be rejected safely by an older host.
 
+The first host-owned effect vocabulary contains `set-flag`:
+
 ```json
 {
-  "type": "set-parameter",
+  "type": "set-flag",
   "payload": {
-    "targetId": "hero",
-    "parameterId": "hp",
-    "value": 7
+    "flagId": "boss-defeated",
+    "value": true
   }
 }
 ```
+
+A package must declare the `emit:session-effects` capability before a Session-owned execution may emit effects. The capability list is snapshotted onto the execution at initialization, so later catalog changes cannot rewrite authorization for an in-flight turn. Flag IDs are bounded host identifiers, values are Boolean, and unknown effect types or payload properties are rejected. Parameter, inventory, clue, and arbitrary JSON-patch effects remain unsupported until their host domain schemas exist.
 
 Transition `uiEvents` are transient instructions for rendering the accepted internal step, such as damage or animation cues. They do not change session state and are not authoritative after completion. Outcome `emittedEvents` are durable scenario-level facts used for history and subsequent scene evaluation.
 
@@ -30,12 +33,12 @@ The host validates that:
 - effects have not already been applied;
 - the session revision still matches.
 
-Validated effects are applied in order in the same transaction that completes the future session-owned module turn. Failure responses do not carry effects.
+For a Session-owned execution, the host validates the complete ordered batch before staging any mutation. It records the expected Session State revision with the pending module request, applies the batch in order, increments the state revision once, and inserts a unique `ModuleOutcomeApplication` receipt. The execution completion, request completion, state update, and application receipt are committed by one `SaveChanges` transaction. Replays return the stored response without applying effects again.
 
-Module Executions persist the complete runtime-validated outcome, including ordered effects and durable `emittedEvents`, but do not apply them. A Session-owned Module Turn now establishes the aggregate ownership boundary, but completion still means only that the module lifecycle produced an authoritative outcome. A later integration must validate capabilities and host-owned effect rules, apply each effect exactly once, and record that application before narrative generation.
+Detached Module Executions continue to persist outcomes without applying effects. A stale Session revision returns `session_revision_conflict`; unsupported effects, malformed payloads, and missing capabilities are rejected without changing an active execution or Session State. Failed initialization is terminal, while a rejected dispatch retains its prior active snapshot.
 
 ## Narrative handoff
 
 The next narrative is generated only after the outcome and effects are persisted. AI receives public facts, important events, final public state, narrative hints, and forbidden facts—not the full private module state or diagnostic log.
 
-Concrete effect handlers and session integration are deferred to later changes.
+Narrative handoff, durable `emittedEvents` processing, scenario-defined flag catalogs, and additional effect handlers are deferred to later changes.

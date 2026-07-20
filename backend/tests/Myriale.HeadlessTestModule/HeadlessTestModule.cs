@@ -17,7 +17,7 @@ public sealed class HeadlessTestModule : IMyrialeModule
         ModuleContractVersions.V1,
         new ModuleConfigurationManifest(1, 1, []),
         new ModuleUiManifest(null, null, null),
-        [],
+        [ModuleCapabilities.EmitSessionEffects],
         new ModuleLimits(65_536, 65_536, 16_384, 2));
 
     public ValueTask<ModuleValidationResult> ValidateConfigAsync(ModuleValidationRequest request, CancellationToken cancellationToken)
@@ -57,6 +57,18 @@ public sealed class HeadlessTestModule : IMyrialeModule
         if (mode == "delay")
         {
             await Task.Delay(request.Action.GetProperty("milliseconds").GetInt32(), cancellationToken);
+        }
+        if (mode == "delay-complete")
+        {
+            await Task.Delay(request.Action.GetProperty("milliseconds").GetInt32(), cancellationToken);
+            return new ModuleTransitionResult(
+                ModuleExecutionStatuses.Completed,
+                request.ExpectedRevision + 1,
+                request.State,
+                Json(new { completed = true }),
+                [],
+                [],
+                CompletedOutcome());
         }
         if (mode == "oversized-response")
         {
@@ -102,6 +114,14 @@ public sealed class HeadlessTestModule : IMyrialeModule
                     [],
                     []));
         }
+        if (mode == "complete-unknown-effect")
+        {
+            return Completed(request, new ModuleEffect("unknown-effect", Json(new { })));
+        }
+        if (mode == "complete-malformed-effect")
+        {
+            return Completed(request, new ModuleEffect(ModuleEffectTypes.SetFlag, Json(new { flagId = "bad flag", value = true })));
+        }
         if (mode == "failed")
         {
             return new ModuleTransitionResult(
@@ -127,6 +147,15 @@ public sealed class HeadlessTestModule : IMyrialeModule
         return Active(request, request.ExpectedRevision + 1);
     }
 
+    private static ModuleTransitionResult Completed(ModuleDispatchRequest request, ModuleEffect effect) => new(
+        ModuleExecutionStatuses.Completed,
+        request.ExpectedRevision + 1,
+        request.State,
+        Json(new { completed = true }),
+        [],
+        [],
+        new ModuleOutcome("test", "complete", "Complete", "Completed.", [], [effect], [], [], []));
+
     private ModuleTransitionResult Active(ModuleDispatchRequest request, long revision) => new(
         ModuleExecutionStatuses.Active,
         revision,
@@ -141,7 +170,10 @@ public sealed class HeadlessTestModule : IMyrialeModule
         "Complete",
         "Completed.",
         [new ModuleFact("result", "The module completed.")],
-        [new ModuleEffect("first", Json(new { order = 1 })), new ModuleEffect("second", Json(new { order = 2 }))],
+        [
+            new ModuleEffect(ModuleEffectTypes.SetFlag, Json(new { flagId = "module-completed", value = false })),
+            new ModuleEffect(ModuleEffectTypes.SetFlag, Json(new { flagId = "module-completed", value = true })),
+        ],
         [new ModuleEvent("completed", Json(new { durable = true }))],
         ["Describe the confirmed result."],
         ["Do not invent another outcome."]);

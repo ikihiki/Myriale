@@ -20,6 +20,8 @@ public sealed class ModuleExecutionRequest
 
     public long? ExpectedRevision { get; set; }
 
+    public long? ExpectedSessionRevision { get; set; }
+
     [Required, MaxLength(64)]
     public string PayloadHash { get; set; } = string.Empty;
 
@@ -36,5 +38,6 @@ public sealed class ModuleExecutionRequest
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
 
+    public ModuleOutcomeApplication? OutcomeApplication { get; set; }
     public ModuleExecution Execution { get; set; } = null!;
 }
