@@ -16,13 +16,22 @@ public sealed class Session
     [Required, MaxLength(32)]
     public string Status { get; set; } = "active";
 
-    public int NextTurnPosition { get; set; }
+    [MaxLength(40)]
+    public string? HeadTurnId { get; set; }
+
+    public long Revision { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 
     public Scenario Scenario { get; set; } = null!;
+    public SessionTurn? HeadTurn { get; set; }
     public SessionState State { get; set; } = null!;
+    public SessionProgressState? Progress { get; set; }
     public ICollection<SessionTurn> Turns { get; set; } = [];
     public ICollection<ModuleOutcomeApplication> OutcomeApplications { get; set; } = [];
+    public ICollection<SessionPlayerInput> PlayerInputs { get; set; } = [];
+    public ICollection<SessionNarrativeSignal> NarrativeSignals { get; set; } = [];
+    public ICollection<SessionProgressionTransitionReceipt> ProgressionTransitionReceipts { get; set; } = [];
+    public ICollection<SessionProgressionModuleSnapshot> ProgressionModuleSnapshots { get; set; } = [];
 }

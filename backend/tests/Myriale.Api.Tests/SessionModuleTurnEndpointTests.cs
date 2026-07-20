@@ -318,7 +318,8 @@ public sealed class SessionModuleTurnEndpointTests : IDisposable
         Assert.Equal(2, await db.SessionTurns.CountAsync());
         Assert.Equal(2, await db.ModuleExecutions.CountAsync());
         Assert.Equal(2, await db.ModuleExecutionRequests.CountAsync());
-        Assert.Equal(2, (await db.Sessions.SingleAsync()).NextTurnPosition);
+        var storedSession = await db.Sessions.Include(item => item.HeadTurn).SingleAsync();
+        Assert.Equal(2, storedSession.HeadTurn?.Position);
     }
 
     [Fact]

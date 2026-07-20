@@ -18,6 +18,19 @@ app.MapPost("/mock-ai/hero-recommendation", (MockHeroRecommendationRequest reque
         "AIがシナリオ設定から主人公案を推薦しました。内容を確認・修正してから確定してください。"));
 });
 
+app.MapPost("/mock-ai/narrative-dialogue", (MockNarrativeDialogueRequest request) =>
+{
+    var recent = request.RecentTurns.LastOrDefault()?.Narrative;
+    var context = string.IsNullOrWhiteSpace(recent) ? "図書館の静けさ" : "直前の出来事を踏まえ";
+    var signals = request.AllowedSignals.Contains("constellation-door-reached", StringComparer.Ordinal)
+        && request.PlayerInput.Contains("扉", StringComparison.Ordinal)
+        ? new[] { new MockNarrativeProgressionSignal("constellation-door-reached") }
+        : [];
+    return Results.Ok(new MockNarrativeDialogueResult(
+        $"{context}、あなたの「{request.PlayerInput.Trim()}」という行動を受けて、物語は確定した状況から静かに続いていく。",
+        signals));
+});
+
 app.MapPost("/mock-ai/narrative-handoff", (MockNarrativeHandoffRequest request) =>
 {
     var facts = string.Join("、", request.Outcome.PublicFacts.Select(fact => fact.Text));
@@ -78,6 +91,17 @@ public sealed record MockHeroRecommendationRequest(
     string? CurrentProfile);
 
 public sealed record MockHeroRecommendationResponse(string Name, string Profile, string Message);
+
+public sealed record MockNarrativeDialogueRequest(
+    MockNarrativeScenario Scenario,
+    IReadOnlyList<MockNarrativeDialogueTurn> RecentTurns,
+    string PlayerInput,
+    MockNarrativeSessionState SessionState,
+    IReadOnlyList<string> AllowedSignals);
+
+public sealed record MockNarrativeDialogueTurn(string? PlayerInput, string? Narrative);
+public sealed record MockNarrativeProgressionSignal(string Code);
+public sealed record MockNarrativeDialogueResult(string Body, IReadOnlyList<MockNarrativeProgressionSignal> Signals);
 
 public sealed record MockNarrativeHandoffRequest(
     MockNarrativeScenario Scenario,

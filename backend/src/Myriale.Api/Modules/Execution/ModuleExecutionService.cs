@@ -29,7 +29,7 @@ public sealed class ModuleExecutionService(
         string ownerId,
         InitializeModuleExecutionRequest request,
         CancellationToken cancellationToken) =>
-        InitializeCoreAsync(ownerId, null, request, cancellationToken, true, 0);
+        InitializeCoreAsync(ownerId, null, request, cancellationToken, true, 0, allowManagedSession: true);
 
     public async Task<ModuleExecutionServiceResult> InitializeSessionTurnAsync(
         string ownerId,
@@ -37,7 +37,18 @@ public sealed class ModuleExecutionService(
         InitializeModuleExecutionRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await InitializeCoreAsync(ownerId, sessionId, request, cancellationToken, true, 0);
+        var result = await InitializeCoreAsync(ownerId, sessionId, request, cancellationToken, true, 0, allowManagedSession: false);
+        await TryAutomaticNarrativeHandoffAsync(ownerId, result);
+        return result;
+    }
+
+    public async Task<ModuleExecutionServiceResult> InitializeScenarioSessionTurnAsync(
+        string ownerId,
+        string sessionId,
+        InitializeModuleExecutionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await InitializeCoreAsync(ownerId, sessionId, request, cancellationToken, true, 0, allowManagedSession: true);
         await TryAutomaticNarrativeHandoffAsync(ownerId, result);
         return result;
     }
@@ -48,7 +59,8 @@ public sealed class ModuleExecutionService(
         InitializeModuleExecutionRequest request,
         CancellationToken cancellationToken,
         bool acquireGate,
-        int positionRetryCount)
+        int positionRetryCount,
+        bool allowManagedSession)
     {
         if (acquireGate) await Gate.WaitAsync(cancellationToken);
         try
@@ -65,12 +77,16 @@ public sealed class ModuleExecutionService(
             {
                 session = await db.Sessions
                     .Include(item => item.State)
+                    .Include(item => item.HeadTurn)
                     .SingleOrDefaultAsync(
                         item => item.Id == sessionId && item.OwnerId == ownerId,
                         cancellationToken);
                 if (session is null) return new ModuleExecutionServiceResult(StatusCodes.Status404NotFound);
                 if (session.Status != "active")
                     return Conflict("session_not_active", "アクティブではないセッションにModule Turnを追加できません。");
+                if (!allowManagedSession && await db.SessionProgressionModuleSnapshots.AsNoTracking()
+                        .AnyAsync(snapshot => snapshot.SessionId == sessionId, cancellationToken))
+                    return Conflict("scenario_module_turn_managed", "Scenario進行用Module Turnはhostオーケストレーターだけが開始できます。");
             }
 
             var digest = request.Digest.Trim().ToLowerInvariant();
@@ -157,17 +173,20 @@ public sealed class ModuleExecutionService(
             SessionTurn? turn = null;
             if (session is not null)
             {
-                session.NextTurnPosition++;
                 turn = new SessionTurn
                 {
                     Id = NewSessionTurnId(),
                     SessionId = session.Id,
-                    Position = session.NextTurnPosition,
+                    PreviousTurnId = session.HeadTurnId,
+                    Position = (session.HeadTurn?.Position ?? 0) + 1,
                     Kind = "module",
                     CreatedAt = now,
                     ModuleExecution = execution,
                 };
                 execution.SessionTurnId = turn.Id;
+                session.HeadTurnId = turn.Id;
+                session.HeadTurn = turn;
+                session.Revision++;
                 session.UpdatedAt = now;
                 db.SessionTurns.Add(turn);
             }
@@ -181,8 +200,8 @@ public sealed class ModuleExecutionService(
             {
                 db.ChangeTracker.Clear();
                 if (positionRetryCount >= 5)
-                    return Conflict("session_turn_position_conflict", "Module Turnの順序を確定できませんでした。もう一度実行してください。");
-                return await InitializeCoreAsync(ownerId, sessionId, request, cancellationToken, false, positionRetryCount + 1);
+                    return Conflict("session_head_conflict", "Module Turnの直前Turnを確定できませんでした。もう一度実行してください。");
+                return await InitializeCoreAsync(ownerId, sessionId, request, cancellationToken, false, positionRetryCount + 1, allowManagedSession);
             }
             catch (DbUpdateException)
             {
@@ -657,7 +676,7 @@ public sealed class ModuleExecutionService(
     private async Task<bool> IsSessionAdvancedAsync(string executionId, CancellationToken cancellationToken) =>
         await db.ModuleExecutions.AsNoTracking()
             .Where(execution => execution.Id == executionId && execution.SessionTurn != null)
-            .Select(execution => execution.SessionTurn!.Position != execution.SessionTurn.Session.NextTurnPosition)
+            .Select(execution => execution.SessionTurn!.Session.HeadTurnId != execution.SessionTurn.Id)
             .SingleOrDefaultAsync(cancellationToken);
 
     private async Task<long?> GetCurrentSessionRevisionAsync(string executionId, CancellationToken cancellationToken) =>

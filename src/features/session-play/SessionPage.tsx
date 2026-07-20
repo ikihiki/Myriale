@@ -4,6 +4,7 @@ import { useOptionalAppStore, type TurnDisplayFlags } from '../../app/store';
 import { SessionTurn } from '../../shared/SessionTurn';
 import { SessionNotesWorkspace } from '../../SessionNotesWorkspace';
 import { WizardNavigation } from '../../shared/WizardNavigation';
+import { createNarrativeTurn } from './sessionPlayApi';
 import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeToggle, MyrialeSelect } from '../../ui/MyrialeRadix';
 
 type TurnKind = 'action' | 'clarification' | 'rewound';
@@ -243,17 +244,33 @@ function SessionDialogueSection({ sessionId }: { sessionId: string }) {
     }
   }, [selectedTurnId, turns]);
 
-  const sendInput = () => {
-    if (!input.trim()) {
+  const sendInput = async () => {
+    const submittedInput = input.trim();
+    if (!submittedInput) {
       setNotice('自然言語で行動や会話を入力してください。文法が不完全でも受理します。');
       return;
     }
 
-    const nextTurn = resultForInput(input, turns.length + 1);
-    setTurns((current) => [...current, nextTurn]);
-    setSelectedTurnId(nextTurn.id);
-    setInput('');
-    setNotice('Player Inputを行動として解釈し、結果をNarrativeとして生成しました。次の重要な進行は入力待ちです。');
+    const requestId = `narrative-${crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
+    try {
+      const serverTurn = await createNarrativeTurn(sessionId, submittedInput, requestId);
+      const nextTurn = serverTurn?.narrative?.body
+        ? {
+            id: turns.length + 1,
+            turnTitle: 'Player Inputを受けたNarrative',
+            playerInput: submittedInput,
+            narrative: serverTurn.narrative.body,
+            interpretation: 'Session APIへ永続化し、サーバー側Narrativeとして生成しました。',
+            kind: 'action' as const,
+          }
+        : resultForInput(submittedInput, turns.length + 1);
+      setTurns((current) => [...current, nextTurn]);
+      setSelectedTurnId(nextTurn.id);
+      setInput('');
+      setNotice(serverTurn ? 'Player InputとNarrativeをSessionへ保存しました。' : 'Player Inputを行動として解釈し、結果をNarrativeとして生成しました。次の重要な進行は入力待ちです。');
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Narrativeの生成に失敗しました。入力を保持して再試行できます。');
+    }
   };
 
   const askClarification = () => {

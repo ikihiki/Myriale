@@ -123,7 +123,7 @@ public sealed class SessionNarrativeHandoffService(
             await NormalizeCompletedAsync(executionId, cancellationToken);
             return;
         }
-        if (source.Position != source.Session.NextTurnPosition
+        if (source.Session.HeadTurnId != source.Id
             || source.Session.State.Revision != handoff.SourceSessionRevision)
         {
             await MarkFailedAsync(
@@ -137,9 +137,8 @@ public sealed class SessionNarrativeHandoffService(
         }
 
         var completedAt = DateTimeOffset.UtcNow;
-        source.Session.State.UpdatedAt = completedAt;
-        source.Session.NextTurnPosition++;
         source.Session.UpdatedAt = completedAt;
+        source.Session.Revision++;
         handoff.Status = "completed";
         handoff.IsRetryable = false;
         handoff.LeaseId = null;
@@ -148,17 +147,21 @@ public sealed class SessionNarrativeHandoffService(
         handoff.LastErrorMessage = null;
         handoff.UpdatedAt = completedAt;
         handoff.CompletedAt = completedAt;
-        db.SessionTurns.Add(new SessionTurn
+        var narrativeTurn = new SessionTurn
         {
             Id = NewTurnId(),
             SessionId = source.SessionId,
-            Position = source.Session.NextTurnPosition,
+            PreviousTurnId = source.Id,
+            Position = source.Position + 1,
             Kind = "narrative",
             NarrativeBody = body,
             SourceModuleTurnId = source.Id,
             SourceSessionRevision = handoff.SourceSessionRevision,
             CreatedAt = completedAt,
-        });
+        };
+        source.Session.HeadTurnId = narrativeTurn.Id;
+        source.Session.HeadTurn = narrativeTurn;
+        db.SessionTurns.Add(narrativeTurn);
         try
         {
             await db.SaveChangesAsync(cancellationToken);
@@ -188,6 +191,8 @@ public sealed class SessionNarrativeHandoffService(
             .Include(handoff => handoff.SourceModuleTurn)
                 .ThenInclude(turn => turn.Session).ThenInclude(session => session.Scenario)
             .Include(handoff => handoff.SourceModuleTurn)
+                .ThenInclude(turn => turn.Session).ThenInclude(session => session.HeadTurn)
+            .Include(handoff => handoff.SourceModuleTurn)
                 .ThenInclude(turn => turn.Session).ThenInclude(session => session.State)
             .Include(handoff => handoff.SourceModuleTurn)
                 .ThenInclude(turn => turn.ModuleExecution).ThenInclude(execution => execution!.OutcomeApplication)
@@ -203,7 +208,7 @@ public sealed class SessionNarrativeHandoffService(
         var execution = source.ModuleExecution!;
         if (execution.Status != ModuleExecutionStatuses.Completed || execution.OutcomeJson is null)
             throw new NarrativeHandoffValidationException("module_turn_not_completed", "Module Turnが完了していません。");
-        if (source.Position != source.Session.NextTurnPosition
+        if (source.Session.HeadTurnId != source.Id
             || source.Session.State.Revision != handoff.SourceSessionRevision)
             throw new NarrativeHandoffValidationException("session_advanced", "Module Turnの後にSessionが進行しています。");
 

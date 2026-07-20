@@ -12,6 +12,9 @@ public sealed class SessionTurn
 
     public int Position { get; set; }
 
+    [MaxLength(40)]
+    public string? PreviousTurnId { get; set; }
+
     [Required, MaxLength(32)]
     public string Kind { get; set; } = "module";
 
@@ -20,12 +23,19 @@ public sealed class SessionTurn
     [MaxLength(40)]
     public string? SourceModuleTurnId { get; set; }
 
+    [MaxLength(40)]
+    public string? PlayerInputId { get; set; }
+
     public long? SourceSessionRevision { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 
     public Session Session { get; set; } = null!;
+    public SessionTurn? PreviousTurn { get; set; }
+    public SessionTurn? NextTurn { get; set; }
     public ModuleExecution? ModuleExecution { get; set; }
     public SessionTurn? SourceModuleTurn { get; set; }
     public SessionTurn? NarrativeTurn { get; set; }
     public SessionNarrativeHandoff? NarrativeHandoff { get; set; }
+    public SessionPlayerInput? PlayerInput { get; set; }
+    public ICollection<SessionNarrativeSignal> NarrativeSignals { get; set; } = [];
 }

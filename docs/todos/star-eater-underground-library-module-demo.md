@@ -26,35 +26,35 @@
 
 ### プレイヤー入力とNarrative
 
-- [ ] Session所有のプレイヤー入力を、順序付きかつ冪等に永続化するAPIとエンティティ境界を定義する。
-- [ ] プレイヤー入力からAI Narrative Turnを生成し、Sessionの`NextTurnPosition`と同じ同時実行境界で一度だけ追加する。
-- [ ] AI失敗、client retry、複数worker競合、Session進行競合時の状態と再試行方法を定義する。
-- [ ] 通常対話では、Narrative生成完了後に次のプレイヤー入力を待つ。
+- [x] Session所有のプレイヤー入力を、順序付きかつ冪等に永続化するAPIとエンティティ境界を定義する。
+- [x] プレイヤー入力からAI Narrative Turnを生成し、Sessionの`HeadTurnId` compare-and-swapと同じ同時実行境界で一度だけ追加する。
+- [x] AI失敗、client retry、複数worker競合、Session進行競合時の状態と再試行方法を定義する。
+- [x] 通常対話では、Narrative生成完了後に次のプレイヤー入力を待つ。
 
 ### Scenario進行オーケストレーター
 
-- [ ] Scenarioの進行ノードと、各ノードから開始するModule定義を永続化する。
-- [ ] NarrativeまたはModule Outcomeの確定データから次の進行ノードを評価するhost側オーケストレーターを実装する。
-- [ ] Narrative生成結果を本文だけでなく、許可された進行signalを含む構造化結果として返す契約を定義する。
-- [ ] Narrative用promptには現在nodeで許可されたsignalだけを渡し、hostがschemaとallowlistを検証してから永続化する。
-- [ ] 「閉じた星座」の扉への到達を表すsignalを、Narrative Turnと同じtransactionでreceipt付きの確定データとして保存する。
-- [ ] Module開始条件にはNarrative本文の再解釈ではなく、検証・永続化済みsignal、Outcome code、durable emitted event、またはSession flagを使用する。
-- [ ] Narrative signalおよび進行遷移ごとのreceiptと一意制約を設け、retry、複数worker、クラッシュ回復時もsignalと次のModule Turnを一度だけ保存する。
-- [ ] オーケストレーターの状態をSession GETで安全に確認でき、GET自体は進行処理を開始しないようにする。
+- [x] Scenarioの進行ノードと、各ノード間のsignal遷移および開始Module定義を永続化する。
+- [x] Narrativeの確定signalから次の進行ノードを評価するhost側オーケストレーターを実装する（Module Outcome起点は未実装）。
+- [x] Narrative生成結果を本文だけでなく、許可された進行signalを含む構造化結果として返す契約を定義する。
+- [x] Narrative用promptには現在nodeで許可されたsignalだけを渡し、hostがschemaとallowlistを検証してから永続化する。
+- [x] 「閉じた星座」の扉への到達を表すsignalを、Narrative Turnと同じtransactionでreceipt付きの確定データとして保存する。
+- [x] Module開始条件にはNarrative本文の再解釈ではなく、検証・永続化済みsignalを使用する（Outcome code、durable emitted event、Session flag起点は未実装）。
+- [x] Narrative signalおよび進行遷移ごとのreceiptと一意制約を設け、retry、複数worker、クラッシュ回復時もsignalと次のModule Turnを一度だけ保存する。
+- [x] オーケストレーターの状態をSession GETで安全に確認でき、GET自体は進行処理を開始しないようにする。
 - [ ] ダイス失敗時は`constellation-guardian-awakened`を根拠として、Narrative handoff完了後に戦闘Module Turnを作成する。
 
 ## フェーズ1: 星座の扉のダイス判定
 
 ### Scenario Authoringとの統合
 
-- [ ] Scenarioが利用するModule packageとconfigurationを指定できるようにする。
-- [ ] Narrativeからダイス判定を開始する条件をシナリオ側で表現する。
+- [x] Scenario進行遷移が利用するModule packageとconfigurationを指定できるようにする。
+- [x] NarrativeからModule Turnを開始するsignal条件をシナリオ側で表現する（実ダイスModule指定は未実装）。
 - [ ] 『星喰いの地下図書館』に「閉じた星座」の扉の判定設定を追加する。
-- [ ] Session開始時に、このデモで使用するModuleのID、version、digestとconfiguration snapshotを固定する。
-- [ ] Session開始後にScenario側のModule指定が変更されても、進行中Sessionは固定済みsnapshotを使用する。
-- [ ] Scenario進行用のModule Turn作成をhost内部のオーケストレーター経路へ限定する。
-- [ ] 既存のclient駆動Module Turn作成APIは、Scenario Sessionでは内部化または拒否し、少なくとも現在nodeとSession固定snapshotへの完全一致をhost側で強制する。
-- [ ] クライアントが任意のModule identity、configuration、contextを指定してScenario進行を迂回できないことを検証する。
+- [x] Session開始時に、このデモで使用するModuleのID、version、digestとconfiguration snapshotを固定する。
+- [x] Session開始後にScenario側のModule指定が変更されても、進行中Sessionは固定済みsnapshotを使用する。
+- [x] Scenario進行用のModule Turn作成をhost内部のオーケストレーター経路へ限定する。
+- [x] 既存のclient駆動Module Turn作成APIは、固定Module snapshotを持つScenario Sessionでは拒否し、host内部経路だけを許可する。
+- [x] クライアントが任意のModule identity、configuration、contextを指定してScenario進行を迂回できないことを検証する。
 
 ### ダイス判定Module
 
@@ -70,7 +70,7 @@
 
 ### セッション統合
 
-- [ ] Narrative TurnからSession所有のModule Turnを開始する。
+- [x] Narrative Turnの確定signalからSession所有のModule Turnを開始する。
 - [ ] Module実行中は通常の自由入力を無効化し、現在の目的を表示する。
 - [ ] 再読み込みや画面遷移後も同じ判定状態を再開できる。
 - [ ] 完了OutcomeとEffectが冪等に保存され、再送時に重複適用されないことを確認する。
@@ -107,7 +107,7 @@
 - [ ] ダイス判定Moduleと戦闘Moduleを再現可能な手順でbuildし、`.myriale-module` packageを生成する。
 - [ ] クリーンなAppHost起動時に、デモ用Module packageをcatalogへ導入する開発用bootstrapを用意する。
 - [ ] packageのdigestを導入後に確定し、seed Scenarioまたは開発用設定がそのexact identityを参照する。
-- [ ] Moduleが管理者承認済みかつenabledな状態でのみデモSessionを開始できるようにする。
+- [x] Moduleが導入済みかつenabledな状態でのみ、Module設定済みScenario Sessionを開始できるようにする。
 - [ ] DB再作成後も、文書化されたbootstrap手順だけで両Moduleを再導入できることを確認する。
 - [ ] CIまたはintegration testでpackage生成、install、rescan、resolve、executionまでを検証する。
 
@@ -147,11 +147,11 @@
 
 ### フェーズ0: 永続Narrative入力とScenario進行
 
-- [ ] プレイヤー入力とAI NarrativeがSessionの順序付きTurnとして永続化される。
-- [ ] retry、複数worker、クラッシュ回復時も同じ入力、Narrative signal、進行遷移が重複保存されない。
-- [ ] Narrative本文を再解釈せず、hostが検証・永続化した構造化signalからSession所有Module Turnを一度だけ開始できる。
-- [ ] Session開始時にModule identityとconfiguration snapshotが固定される。
-- [ ] Scenario Sessionではクライアントが固定snapshot外のModule identity、configuration、contextでModule Turnを作成できない。
+- [x] プレイヤー入力とAI NarrativeがSessionの順序付きTurnとして永続化される。
+- [x] retry、複数worker、クラッシュ回復時も同じ入力、Narrative signal、進行遷移が重複保存されない。
+- [x] Narrative本文を再解釈せず、hostが検証・永続化した構造化signalからSession所有Module Turnを一度だけ開始できる。
+- [x] Session開始時にModule identityとconfiguration snapshotが固定される。
+- [x] Scenario Sessionではクライアントが固定snapshot外のModule identity、configuration、contextでModule Turnを作成できない。
 
 ### フェーズ1: ダイス判定デモ
 

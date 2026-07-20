@@ -27,6 +27,17 @@ public sealed record NarrativeSessionStateInput(
     long Revision,
     IReadOnlyDictionary<string, bool> Flags);
 
+public sealed record NarrativeDialogueRequest(
+    NarrativeScenarioInput Scenario,
+    IReadOnlyList<NarrativeDialogueTurnInput> RecentTurns,
+    string PlayerInput,
+    NarrativeSessionStateInput SessionState,
+    IReadOnlyList<string> AllowedSignals);
+
+public sealed record NarrativeDialogueTurnInput(string? PlayerInput, string? Narrative);
+public sealed record NarrativeProgressionSignal(string Code);
+public sealed record NarrativeDialogueResult(string Body, IReadOnlyList<NarrativeProgressionSignal> Signals);
+
 public sealed record NarrativeHandoffRequest(
     NarrativeScenarioInput Scenario,
     NarrativeOutcomeInput Outcome,
