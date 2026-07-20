@@ -174,15 +174,13 @@ public sealed class SessionNarrativeTurnService(
             .Select(turn => new NarrativeDialogueTurnInput(turn.PlayerInput == null ? null : turn.PlayerInput.Text, turn.NarrativeBody))
             .ToListAsync(cancellationToken);
         var scenario = claimed.Session.Scenario;
-        var allowedSignals = claimed.Session.Progress is null
-            ? []
-            : JsonSerializer.Deserialize<IReadOnlyList<string>>(claimed.Session.Progress.CurrentNode.AllowedNarrativeSignalsJson) ?? [];
-        var providerAllowedSignals = interactionType == NarrativeInteractionTypes.Clarification
-            ? []
-            : allowedSignals;
+        IReadOnlyList<NarrativeAllowedSignal> providerAllowedSignals;
         NarrativeDialogueResult generated;
         try
         {
+            providerAllowedSignals = interactionType == NarrativeInteractionTypes.Clarification
+                ? []
+                : await LoadAllowedSignalsAsync(claimed.Session.Progress, cancellationToken);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(GenerationTimeout);
             generated = await generator.GenerateDialogueAsync(
@@ -337,6 +335,36 @@ public sealed class SessionNarrativeTurnService(
 
     private static bool SameTurn(string? left, string? right) => string.Equals(left, right, StringComparison.Ordinal);
 
+    private async Task<IReadOnlyList<NarrativeAllowedSignal>> LoadAllowedSignalsAsync(
+        SessionProgressState? progress,
+        CancellationToken cancellationToken)
+    {
+        if (progress is null) return [];
+        var allowedCodes = JsonSerializer.Deserialize<IReadOnlyList<string>>(progress.CurrentNode.AllowedNarrativeSignalsJson) ?? [];
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        if (allowedCodes.Any(code => string.IsNullOrWhiteSpace(code)
+                || code.Length > 80
+                || code.Any(character => !(char.IsLower(character) || char.IsDigit(character) || character == '-'))
+                || !seen.Add(code)))
+            throw new NarrativeGenerationException("Scenario progression contains an invalid narrative signal allowlist.");
+        if (allowedCodes.Count == 0) return [];
+
+        var transitions = await db.ScenarioProgressionTransitions.AsNoTracking()
+            .Where(transition => transition.SourceNodeId == progress.CurrentNodeId
+                && allowedCodes.Contains(transition.SignalCode))
+            .ToDictionaryAsync(transition => transition.SignalCode, StringComparer.Ordinal, cancellationToken);
+        if (transitions.Count != allowedCodes.Count)
+            throw new NarrativeGenerationException("Scenario progression signal is missing a transition definition.");
+
+        return allowedCodes.Select(code =>
+        {
+            var transition = transitions[code];
+            if (string.IsNullOrWhiteSpace(transition.TriggerDescription) || transition.TriggerDescription.Length > 1000)
+                throw new NarrativeGenerationException("Scenario progression signal is missing a valid trigger description.");
+            return new NarrativeAllowedSignal(code, transition.TriggerDescription.Trim());
+        }).ToArray();
+    }
+
     private static void ValidateGeneratedResult(
         NarrativeDialogueResult result,
         string interactionType,
@@ -362,9 +390,12 @@ public sealed class SessionNarrativeTurnService(
             throw new NarrativeGenerationException("Narrative provider returned an invalid dialogue result.");
     }
 
-    private static void ValidateSignals(IReadOnlyList<NarrativeProgressionSignal> signals, IReadOnlyList<string> allowedSignals)
+    private static void ValidateSignals(
+        IReadOnlyList<NarrativeProgressionSignal> signals,
+        IReadOnlyList<NarrativeAllowedSignal> allowedSignals)
     {
         if (signals.Count > 1) throw new NarrativeGenerationException("Narrative provider returned too many progression signals.");
+        var allowedCodes = allowedSignals.Select(signal => signal.Code).ToHashSet(StringComparer.Ordinal);
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var signal in signals)
         {
@@ -372,7 +403,7 @@ public sealed class SessionNarrativeTurnService(
                 || signal.Code.Length > 80
                 || signal.Code.Any(character => !(char.IsLower(character) || char.IsDigit(character) || character == '-'))
                 || !seen.Add(signal.Code)
-                || !allowedSignals.Contains(signal.Code, StringComparer.Ordinal))
+                || !allowedCodes.Contains(signal.Code))
                 throw new NarrativeGenerationException("Narrative provider returned an invalid progression signal.");
         }
     }

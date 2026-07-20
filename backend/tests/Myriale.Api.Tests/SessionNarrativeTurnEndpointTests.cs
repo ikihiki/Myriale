@@ -483,6 +483,27 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task MissingSignalTriggerDescriptionRejectsGenerationBeforeProviderInvocation()
+    {
+        var client = await AuthenticatedClientAsync("dialogue-missing-trigger-description@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        await using (var mutationScope = _factory.Services.CreateAsyncScope())
+        {
+            var transition = await mutationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>()
+                .ScenarioProgressionTransitions.SingleAsync(item => item.Id == "SPT-STAR-LIBRARY-DOOR-REACHED");
+            transition.TriggerDescription = "   ";
+            await mutationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>().SaveChangesAsync();
+        }
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/narrative-turns",
+            new { requestId = "dialogue-missing-trigger-description", input = "閉じた星座の扉へ進む" });
+
+        await AssertDialogueGenerationRejectedAsync(response);
+        Assert.Empty(_generator.DialogueRequests);
+    }
+
+    [Fact]
     public async Task AllowedNarrativeSignalIsPersistedAndAdvancesScenarioProgression()
     {
         var client = await AuthenticatedClientAsync("dialogue-signal@example.test");
@@ -495,7 +516,10 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var created = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("constellation-door-reached", created.GetProperty("narrative").GetProperty("signals")[0].GetString());
-        Assert.Equal(["constellation-door-reached"], Assert.Single(_generator.DialogueRequests).AllowedSignals);
+        var allowedSignal = Assert.Single(Assert.Single(_generator.DialogueRequests).AllowedSignals);
+        Assert.Equal("constellation-door-reached", allowedSignal.Code);
+        Assert.Contains("実際に到達", allowedSignal.TriggerDescription, StringComparison.Ordinal);
+        Assert.Contains("話す、尋ねる、遠くから見るだけでは発火しない", allowedSignal.TriggerDescription, StringComparison.Ordinal);
 
         var session = await GetSessionAsync(client, sessionId);
         Assert.Equal("constellation-door-check", session.GetProperty("progression").GetProperty("currentNode").GetString());

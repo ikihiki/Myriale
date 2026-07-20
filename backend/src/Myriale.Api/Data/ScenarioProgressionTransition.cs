@@ -13,6 +13,9 @@ public sealed class ScenarioProgressionTransition
     [Required, MaxLength(80)]
     public string SignalCode { get; set; } = string.Empty;
 
+    [Required, MaxLength(1000)]
+    public string TriggerDescription { get; set; } = string.Empty;
+
     [Required, MaxLength(80)]
     public string TargetNodeId { get; set; } = string.Empty;
 

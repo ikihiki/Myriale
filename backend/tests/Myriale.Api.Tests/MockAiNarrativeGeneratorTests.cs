@@ -13,7 +13,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v1",
+              "schemaVersion": "narrative-dialogue.v2",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
@@ -33,11 +33,34 @@ public sealed class MockAiNarrativeGeneratorTests
     }
 
     [Fact]
+    public async Task DialogueRequestSerializesStructuredSignalTriggerDescription()
+    {
+        var handler = new StaticJsonHandler("""
+            {
+              "schemaVersion": "narrative-dialogue.v2",
+              "turnType": "action-result",
+              "heading": "銀の鍵を掲げる",
+              "body": "扉の星座が淡く輝いた。",
+              "signals": []
+            }
+            """);
+        var generator = CreateGenerator(handler);
+
+        await generator.GenerateDialogueAsync(CreateRequest(), default);
+
+        var request = JsonDocument.Parse(Assert.IsType<string>(handler.LastRequestJson)).RootElement;
+        Assert.Equal(NarrativeDialogueSchema.Version, request.GetProperty("schemaVersion").GetString());
+        var signal = Assert.Single(request.GetProperty("allowedSignals").EnumerateArray());
+        Assert.Equal("constellation-door-reached", signal.GetProperty("code").GetString());
+        Assert.Contains("実際に到達", signal.GetProperty("triggerDescription").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ClarificationResultRejectsProgressionSignal()
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v1",
+              "schemaVersion": "narrative-dialogue.v2",
               "turnType": "clarification",
               "heading": "現在の状況を整理する",
               "body": "あなたは水没した閲覧室で銀の鍵を持っている。",
@@ -57,7 +80,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v1",
+              "schemaVersion": "narrative-dialogue.v2",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
@@ -74,7 +97,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v1",
+              "schemaVersion": "narrative-dialogue.v2",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
@@ -90,9 +113,12 @@ public sealed class MockAiNarrativeGeneratorTests
         await Assert.ThrowsAsync<JsonException>(() => generator.GenerateDialogueAsync(CreateRequest(), default));
     }
 
-    private static MockAiNarrativeGenerator CreateGenerator(string responseJson)
+    private static MockAiNarrativeGenerator CreateGenerator(string responseJson) =>
+        CreateGenerator(new StaticJsonHandler(responseJson));
+
+    private static MockAiNarrativeGenerator CreateGenerator(StaticJsonHandler handler)
     {
-        var client = new HttpClient(new StaticJsonHandler(responseJson))
+        var client = new HttpClient(handler)
         {
             BaseAddress = new Uri("http://mock-ai.test"),
         };
@@ -101,7 +127,7 @@ public sealed class MockAiNarrativeGeneratorTests
 
     private static NarrativeDialogueRequest CreateRequest(
         string interactionType = NarrativeInteractionTypes.Dialogue,
-        IReadOnlyList<string>? allowedSignals = null) => new(
+        IReadOnlyList<NarrativeAllowedSignal>? allowedSignals = null) => new(
         NarrativeDialogueSchema.Version,
         new NarrativeScenarioInput(
             "星喰いの地下図書館",
@@ -116,7 +142,7 @@ public sealed class MockAiNarrativeGeneratorTests
         interactionType,
         "銀の鍵を掲げる",
         new NarrativeSessionStateInput(0, new Dictionary<string, bool>()),
-        allowedSignals ?? ["constellation-door-reached"],
+        allowedSignals ?? [new NarrativeAllowedSignal("constellation-door-reached", "Playerが閉じた星座の扉へ実際に到達したとき。")],
         false);
 
     private sealed class StaticHttpClientFactory(HttpClient client) : IHttpClientFactory
@@ -126,10 +152,17 @@ public sealed class MockAiNarrativeGeneratorTests
 
     private sealed class StaticJsonHandler(string responseJson) : HttpMessageHandler
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
-            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        public string? LastRequestJson { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            LastRequestJson = request.Content is null
+                ? null
+                : await request.Content.ReadAsStringAsync(cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(responseJson, Encoding.UTF8, "application/json"),
-            });
+            };
+        }
     }
 }

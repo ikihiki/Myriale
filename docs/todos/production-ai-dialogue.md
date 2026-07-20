@@ -101,11 +101,11 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 
 ### 進行signalの意味
 
-- [ ] Scenario progression signalにAI向けのtrigger descriptionを追加する。
+- [x] Scenario progression signalにAI向けのtrigger descriptionを追加する。
 - [ ] 必要に応じてpositive exampleとcounter exampleを追加する。
 - [ ] AI結果のsignalに短い`evidence`を要求する。
 - [ ] hostが現在node、allowlist、turn type、signal件数、evidenceを検証する。
-- [ ] opaqueなsignal codeだけをAIへ渡す現在の契約を廃止する。
+- [x] opaqueなsignal codeだけをAIへ渡す現在の契約を廃止する。
 - [ ] signal誤発火時にModule Turnが開始されないことをテストする。
 
 ### Context Builder

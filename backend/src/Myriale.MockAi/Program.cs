@@ -31,7 +31,7 @@ app.MapPost("/mock-ai/action-recommendation", (MockActionRecommendationRequest r
 
 app.MapPost("/mock-ai/narrative-dialogue", (MockNarrativeDialogueRequest request) =>
 {
-    const string schemaVersion = "narrative-dialogue.v1";
+    const string schemaVersion = "narrative-dialogue.v2";
     if (!string.Equals(request.SchemaVersion, schemaVersion, StringComparison.Ordinal))
         return Results.BadRequest();
     if (request.InteractionType is not ("dialogue" or "clarification"))
@@ -47,7 +47,7 @@ app.MapPost("/mock-ai/narrative-dialogue", (MockNarrativeDialogueRequest request
     var turnType = isClarification ? "clarification" : isNpcReply ? "npc-reply" : "action-result";
     var heading = isClarification ? "現在の状況を整理する" : isNpcReply ? "書架の奥の人物へ問いかける" : "次の手掛かりを確かめる";
     var signals = !isClarification
-        && request.AllowedSignals.Contains("constellation-door-reached", StringComparer.Ordinal)
+        && request.AllowedSignals.Any(signal => signal.Code == "constellation-door-reached")
         && input.Contains("扉", StringComparison.Ordinal)
             ? new[] { new MockNarrativeProgressionSignal("constellation-door-reached") }
             : [];
@@ -140,9 +140,10 @@ public sealed record MockNarrativeDialogueRequest(
     string InteractionType,
     string PlayerInput,
     MockNarrativeSessionState SessionState,
-    IReadOnlyList<string> AllowedSignals,
+    IReadOnlyList<MockAllowedNarrativeSignal> AllowedSignals,
     bool IncludeInterpretation);
 
+public sealed record MockAllowedNarrativeSignal(string Code, string TriggerDescription);
 public sealed record MockNarrativeDialogueTurn(string? PlayerInput, string? Narrative);
 public sealed record MockNarrativeProgressionSignal(string Code);
 public sealed record MockNarrativeDialogueResult(
