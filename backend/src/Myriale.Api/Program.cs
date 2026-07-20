@@ -127,6 +127,7 @@ app.MapAccountEndpoints();
 app.MapScenarioEndpoints();
 app.MapScenarioAiEndpoints();
 app.MapModuleAdminEndpoints();
+app.MapSessionEndpoints();
 app.MapModuleExecutionEndpoints();
 app.MapModuleUiEndpoints();
 app.MapAiAdminEndpoints();

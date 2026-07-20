@@ -22,12 +22,28 @@ public sealed class ModuleExecutionService(
     private readonly ModuleExecutionOptions _options = options.Value;
     private readonly JsonSerializerOptions _json = ModuleJsonSerializerOptions.Create();
 
-    public async Task<ModuleExecutionServiceResult> InitializeAsync(
+    public Task<ModuleExecutionServiceResult> InitializeAsync(
         string ownerId,
         InitializeModuleExecutionRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken) =>
+        InitializeCoreAsync(ownerId, null, request, cancellationToken, true, 0);
+
+    public Task<ModuleExecutionServiceResult> InitializeSessionTurnAsync(
+        string ownerId,
+        string sessionId,
+        InitializeModuleExecutionRequest request,
+        CancellationToken cancellationToken) =>
+        InitializeCoreAsync(ownerId, sessionId, request, cancellationToken, true, 0);
+
+    private async Task<ModuleExecutionServiceResult> InitializeCoreAsync(
+        string ownerId,
+        string? sessionId,
+        InitializeModuleExecutionRequest request,
+        CancellationToken cancellationToken,
+        bool acquireGate,
+        int positionRetryCount)
     {
-        await Gate.WaitAsync(cancellationToken);
+        if (acquireGate) await Gate.WaitAsync(cancellationToken);
         try
         {
             var inputError = ValidateCommon(request.RequestId, request.RandomValueCount);
@@ -37,11 +53,24 @@ public sealed class ModuleExecutionService(
                 || request.Context.ValueKind == JsonValueKind.Undefined)
                 return BadRequest("invalid_request", "モジュール識別情報、configuration、contextを確認してください。");
 
+            Session? session = null;
+            if (sessionId is not null)
+            {
+                session = await db.Sessions.SingleOrDefaultAsync(
+                    item => item.Id == sessionId && item.OwnerId == ownerId,
+                    cancellationToken);
+                if (session is null) return new ModuleExecutionServiceResult(StatusCodes.Status404NotFound);
+                if (session.Status != "active")
+                    return Conflict("session_not_active", "アクティブではないセッションにModule Turnを追加できません。");
+            }
+
             var digest = request.Digest.Trim().ToLowerInvariant();
             if (!TryFingerprint(writer =>
             {
                 writer.WriteStartObject();
                 writer.WriteString("operation", "initialize");
+                if (sessionId is null) writer.WriteNull("sessionId");
+                else writer.WriteString("sessionId", sessionId);
                 writer.WriteString("moduleId", request.ModuleId);
                 writer.WriteString("version", request.Version);
                 writer.WriteString("digest", digest);
@@ -59,9 +88,11 @@ public sealed class ModuleExecutionService(
             if (existing is not null)
             {
                 var replay = Replay(existing, payloadHash);
-                return existing.Status == "pending" && replay.Error?.Code == "request_in_progress"
+                if (replay.Error?.Code == "idempotency_key_reused") return replay;
+                var result = existing.Status == "pending" && replay.Error?.Code == "request_in_progress"
                     ? await ResumeInitializationAsync(ownerId, existing.Id, payloadHash, cancellationToken)
                     : replay;
+                return await AttachSessionTurnAsync(result, existing.ExecutionId, sessionId, cancellationToken);
             }
 
             var package = await db.ModulePackages.AsNoTracking().SingleOrDefaultAsync(item =>
@@ -112,11 +143,35 @@ public sealed class ModuleExecutionService(
                 RandomValuesJson = JsonSerializer.Serialize(randomValues, _json),
                 CreatedAt = now,
             };
+            SessionTurn? turn = null;
+            if (session is not null)
+            {
+                session.NextTurnPosition++;
+                turn = new SessionTurn
+                {
+                    Id = NewSessionTurnId(),
+                    SessionId = session.Id,
+                    Position = session.NextTurnPosition,
+                    Kind = "module",
+                    CreatedAt = now,
+                    ModuleExecution = execution,
+                };
+                execution.SessionTurnId = turn.Id;
+                session.UpdatedAt = now;
+                db.SessionTurns.Add(turn);
+            }
             db.ModuleExecutions.Add(execution);
             db.ModuleExecutionRequests.Add(receipt);
             try
             {
                 await db.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException) when (sessionId is not null)
+            {
+                db.ChangeTracker.Clear();
+                if (positionRetryCount >= 5)
+                    return Conflict("session_turn_position_conflict", "Module Turnの順序を確定できませんでした。もう一度実行してください。");
+                return await InitializeCoreAsync(ownerId, sessionId, request, cancellationToken, false, positionRetryCount + 1);
             }
             catch (DbUpdateException)
             {
@@ -125,16 +180,19 @@ public sealed class ModuleExecutionService(
                     .SingleOrDefaultAsync(item => item.OwnerId == ownerId && item.RequestId == request.RequestId, cancellationToken);
                 if (winner is null) throw;
                 var replay = Replay(winner, payloadHash);
-                return winner.Status == "pending" && replay.Error?.Code == "request_in_progress"
+                if (replay.Error?.Code == "idempotency_key_reused") return replay;
+                var result = winner.Status == "pending" && replay.Error?.Code == "request_in_progress"
                     ? await ResumeInitializationAsync(ownerId, winner.Id, payloadHash, cancellationToken)
                     : replay;
+                return await AttachSessionTurnAsync(result, winner.ExecutionId, sessionId, cancellationToken);
             }
 
-            return await RunInitializationAsync(execution, receipt, randomValues, cancellationToken);
+            var initialized = await RunInitializationAsync(execution, receipt, randomValues, cancellationToken);
+            return turn is null ? initialized : initialized with { SessionTurnId = turn.Id };
         }
         finally
         {
-            Gate.Release();
+            if (acquireGate) Gate.Release();
         }
     }
 
@@ -481,6 +539,22 @@ public sealed class ModuleExecutionService(
         }
     }
 
+    private async Task<ModuleExecutionServiceResult> AttachSessionTurnAsync(
+        ModuleExecutionServiceResult result,
+        string executionId,
+        string? sessionId,
+        CancellationToken cancellationToken)
+    {
+        if (sessionId is null) return result;
+        var turnId = await db.ModuleExecutions.AsNoTracking()
+            .Where(execution => execution.Id == executionId && execution.SessionTurn != null && execution.SessionTurn.SessionId == sessionId)
+            .Select(execution => execution.SessionTurnId)
+            .SingleOrDefaultAsync(cancellationToken);
+        return turnId is null
+            ? Conflict("session_turn_mismatch", "RequestIdに対応するModule Turnを確認できません。")
+            : result with { SessionTurnId = turnId };
+    }
+
     private void ApplyInitialization(ModuleExecution execution, ModuleInitializationResult result)
     {
         execution.Status = result.Status;
@@ -536,6 +610,9 @@ public sealed class ModuleExecutionService(
 
     private ModuleExecutionServiceResult BadRequest(string code, string message) =>
         new(StatusCodes.Status400BadRequest, Error: new ModuleExecutionErrorResponse(code, message));
+
+    private ModuleExecutionServiceResult Conflict(string code, string message) =>
+        new(StatusCodes.Status409Conflict, Error: new ModuleExecutionErrorResponse(code, message));
 
     private ModuleExecutionServiceResult Conflict(string code, string message, ModuleExecution execution) =>
         new(StatusCodes.Status409Conflict, Error: new ModuleExecutionErrorResponse(code, message, execution.Revision, ToResponse(execution, null, [])));
@@ -673,6 +750,8 @@ public sealed class ModuleExecutionService(
         }
         return $"{(negative ? "-" : string.Empty)}{digits}e{exponent}";
     }
+
+    private static string NewSessionTurnId() => $"TRN-{Guid.NewGuid():N}".ToUpperInvariant();
 
     private static string NewExecutionId() => $"MEX-{Guid.NewGuid():N}".ToUpperInvariant();
 }
