@@ -69,6 +69,7 @@ public sealed class NarrativeContextBuilder(ApplicationDbContext db) : INarrativ
             : await LoadAllowedSignalsAsync(session.Progress, cancellationToken);
 
         return new NarrativeDialogueContext(
+            NarrativeContextSchema.Version,
             new NarrativeScenarioInput(
                 session.Scenario.Title,
                 session.Scenario.Summary,
@@ -79,6 +80,7 @@ public sealed class NarrativeContextBuilder(ApplicationDbContext db) : INarrativ
                 session.Scenario.Hero,
                 session.Scenario.Opening),
             recentTurns,
+            new NarrativeSessionMemoryInput(null, []),
             priorModuleOutcomes,
             new NarrativeSessionStateInput(session.State.Revision, flags),
             session.Progress?.CurrentNode.Code,

@@ -13,7 +13,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v5",
+              "schemaVersion": "narrative-dialogue.v6",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
@@ -37,7 +37,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var handler = new StaticJsonHandler("""
             {
-              "schemaVersion": "narrative-dialogue.v5",
+              "schemaVersion": "narrative-dialogue.v6",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
@@ -60,7 +60,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v5",
+              "schemaVersion": "narrative-dialogue.v6",
               "turnType": "clarification",
               "heading": "現在の状況を整理する",
               "body": "あなたは水没した閲覧室で銀の鍵を持っている。",
@@ -80,7 +80,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v5",
+              "schemaVersion": "narrative-dialogue.v6",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
@@ -97,7 +97,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v5",
+              "schemaVersion": "narrative-dialogue.v6",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
@@ -130,6 +130,7 @@ public sealed class MockAiNarrativeGeneratorTests
         string interactionType = NarrativeInteractionTypes.Dialogue,
         IReadOnlyList<NarrativeAllowedSignal>? allowedSignals = null) => new(
         NarrativeDialogueSchema.Version,
+        NarrativeContextSchema.Version,
         new NarrativeScenarioInput(
             "星喰いの地下図書館",
             "水没した図書館を探索する。",
@@ -140,6 +141,7 @@ public sealed class MockAiNarrativeGeneratorTests
             "探索者",
             "水没した閲覧室で目を覚ます。"),
         [],
+        new NarrativeSessionMemoryInput(null, []),
         [],
         interactionType,
         "銀の鍵を掲げる",

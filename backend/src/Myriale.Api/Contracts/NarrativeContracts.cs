@@ -5,7 +5,7 @@ namespace Myriale.Api.Contracts;
 
 public static class NarrativeDialogueSchema
 {
-    public const string Version = "narrative-dialogue.v5";
+    public const string Version = "narrative-dialogue.v6";
 
     public static readonly IReadOnlySet<string> TurnTypes = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -39,6 +39,16 @@ public sealed record NarrativeSessionStateInput(
     long Revision,
     IReadOnlyDictionary<string, bool> Flags);
 
+public static class NarrativeContextSchema
+{
+    public const string Version = "narrative-context.v1";
+}
+
+public sealed record NarrativeLorebookEntryInput(string Id, string Text);
+public sealed record NarrativeSessionMemoryInput(
+    string? Summary,
+    IReadOnlyList<NarrativeLorebookEntryInput> Lorebook);
+
 public sealed record NarrativePriorModuleOutcomeInput(
     IReadOnlyList<ModuleFact> PublicFacts,
     IReadOnlyList<string> NarrativeHints,
@@ -48,8 +58,10 @@ public sealed record NarrativeAllowedSignal(string Code, string TriggerDescripti
 
 public sealed record NarrativeDialogueRequest(
     string SchemaVersion,
+    string ContextSchemaVersion,
     NarrativeScenarioInput Scenario,
     IReadOnlyList<NarrativeDialogueTurnInput> RecentTurns,
+    NarrativeSessionMemoryInput Memory,
     IReadOnlyList<NarrativePriorModuleOutcomeInput> PriorModuleOutcomes,
     string InteractionType,
     string PlayerInput,

@@ -177,8 +177,10 @@ public sealed class SessionNarrativeTurnService(
             generated = await generator.GenerateDialogueAsync(
                 new NarrativeDialogueRequest(
                     NarrativeDialogueSchema.Version,
+                    context.SchemaVersion,
                     context.Scenario,
                     context.RecentTurns,
+                    context.Memory,
                     context.PriorModuleOutcomes,
                     interactionType,
                     inputText,
