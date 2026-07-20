@@ -5,7 +5,7 @@ namespace Myriale.Api.Contracts;
 
 public static class NarrativeDialogueSchema
 {
-    public const string Version = "narrative-dialogue.v3";
+    public const string Version = "narrative-dialogue.v4";
 
     public static readonly IReadOnlySet<string> TurnTypes = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -48,6 +48,7 @@ public sealed record NarrativeDialogueRequest(
     string InteractionType,
     string PlayerInput,
     NarrativeSessionStateInput SessionState,
+    string? CurrentProgressionNode,
     IReadOnlyList<NarrativeAllowedSignal> AllowedSignals,
     bool IncludeInterpretation);
 

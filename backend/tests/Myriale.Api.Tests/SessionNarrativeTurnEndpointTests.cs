@@ -534,6 +534,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var created = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("constellation-door-reached", created.GetProperty("narrative").GetProperty("signals")[0].GetString());
         var allowedSignal = Assert.Single(Assert.Single(_generator.DialogueRequests).AllowedSignals);
+        Assert.Equal("exploration", Assert.Single(_generator.DialogueRequests).CurrentProgressionNode);
         Assert.Equal("constellation-door-reached", allowedSignal.Code);
         Assert.Contains("実際に到達", allowedSignal.TriggerDescription, StringComparison.Ordinal);
         Assert.Contains("話す、尋ねる、遠くから見るだけでは発火しない", allowedSignal.TriggerDescription, StringComparison.Ordinal);

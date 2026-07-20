@@ -15,4 +15,5 @@ public sealed record NarrativeDialogueContext(
     NarrativeScenarioInput Scenario,
     IReadOnlyList<NarrativeDialogueTurnInput> RecentTurns,
     NarrativeSessionStateInput SessionState,
+    string? CurrentProgressionNode,
     IReadOnlyList<NarrativeAllowedSignal> AllowedSignals);

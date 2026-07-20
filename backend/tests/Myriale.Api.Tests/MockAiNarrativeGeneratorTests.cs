@@ -13,7 +13,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v3",
+              "schemaVersion": "narrative-dialogue.v4",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
@@ -37,7 +37,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var handler = new StaticJsonHandler("""
             {
-              "schemaVersion": "narrative-dialogue.v3",
+              "schemaVersion": "narrative-dialogue.v4",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
@@ -60,7 +60,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v3",
+              "schemaVersion": "narrative-dialogue.v4",
               "turnType": "clarification",
               "heading": "現在の状況を整理する",
               "body": "あなたは水没した閲覧室で銀の鍵を持っている。",
@@ -80,7 +80,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v3",
+              "schemaVersion": "narrative-dialogue.v4",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
@@ -97,7 +97,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v3",
+              "schemaVersion": "narrative-dialogue.v4",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
@@ -143,6 +143,7 @@ public sealed class MockAiNarrativeGeneratorTests
         interactionType,
         "銀の鍵を掲げる",
         new NarrativeSessionStateInput(0, new Dictionary<string, bool>()),
+        "exploration",
         allowedSignals ?? [new NarrativeAllowedSignal("constellation-door-reached", "Playerが閉じた星座の扉へ実際に到達したとき。")],
         false);
 

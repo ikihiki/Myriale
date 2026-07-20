@@ -182,6 +182,7 @@ public sealed class SessionNarrativeTurnService(
                     interactionType,
                     inputText,
                     context.SessionState,
+                    context.CurrentProgressionNode,
                     context.AllowedSignals,
                     claimed.Session.InterpretationEnabled),
                 timeout.Token);

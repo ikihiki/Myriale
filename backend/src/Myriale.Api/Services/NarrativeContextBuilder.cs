@@ -49,6 +49,7 @@ public sealed class NarrativeContextBuilder(ApplicationDbContext db) : INarrativ
                 session.Scenario.Opening),
             recentTurns,
             new NarrativeSessionStateInput(session.State.Revision, flags),
+            session.Progress?.CurrentNode.Code,
             allowedSignals);
     }
 
