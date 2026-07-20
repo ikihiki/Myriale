@@ -6,6 +6,7 @@ using Myriale.Api.Endpoints;
 using Myriale.Api.Modules;
 using Myriale.Api.Modules.Execution;
 using Myriale.Api.Modules.Runtime;
+using Myriale.Api.Modules.UI;
 using Myriale.Api.Services;
 using Myriale.ServiceDefaults;
 
@@ -23,6 +24,7 @@ builder.Services.AddScoped<IModuleRuntime, DotNetModuleRuntime>();
 builder.Services.AddSingleton<ModuleAssemblyCache>();
 builder.Services.AddSingleton<ModuleRuntimeInvocationGate>();
 builder.Services.AddScoped<IModuleExecutionService, ModuleExecutionService>();
+builder.Services.AddScoped<IModuleUiResourceService, ModuleUiResourceService>();
 builder.Services.AddHttpClient("MockAi", client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["MockAi:BaseUrl"] ?? "https+http://myriale-mock-ai");
@@ -126,6 +128,7 @@ app.MapScenarioEndpoints();
 app.MapScenarioAiEndpoints();
 app.MapModuleAdminEndpoints();
 app.MapModuleExecutionEndpoints();
+app.MapModuleUiEndpoints();
 app.MapAiAdminEndpoints();
 
 app.MapGet("/api/home/dashboard", async (

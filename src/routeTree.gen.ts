@@ -22,6 +22,7 @@ import { Route as AccountRegisterRouteImport } from './routes/account/register'
 import { Route as AccountResetPasswordRouteImport } from './routes/account/reset-password'
 import { Route as AccountSecurityRouteImport } from './routes/account/security'
 import { Route as AccountWithdrawRouteImport } from './routes/account/withdraw'
+import { Route as ModuleExecutionsExecutionIdRouteImport } from './routes/module-executions/$executionId'
 import { Route as ScenariosIndexRouteImport } from './routes/scenarios/index'
 import { Route as ScenariosNewRouteImport } from './routes/scenarios/new'
 import { Route as SessionsSessionIdRouteRouteImport } from './routes/sessions/$sessionId/route'
@@ -107,6 +108,12 @@ const AccountWithdrawRoute = AccountWithdrawRouteImport.update({
   path: '/withdraw',
   getParentRoute: () => AccountRouteRoute,
 } as any)
+const ModuleExecutionsExecutionIdRoute =
+  ModuleExecutionsExecutionIdRouteImport.update({
+    id: '/module-executions/$executionId',
+    path: '/module-executions/$executionId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ScenariosIndexRoute = ScenariosIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -221,6 +228,7 @@ export interface FileRoutesByFullPath {
   '/account/reset-password': typeof AccountResetPasswordRoute
   '/account/security': typeof AccountSecurityRoute
   '/account/withdraw': typeof AccountWithdrawRoute
+  '/module-executions/$executionId': typeof ModuleExecutionsExecutionIdRoute
   '/scenarios/new': typeof ScenariosNewRoute
   '/sessions/start': typeof SessionsStartRoute
   '/scenarios/': typeof ScenariosIndexRoute
@@ -252,6 +260,7 @@ export interface FileRoutesByTo {
   '/account/reset-password': typeof AccountResetPasswordRoute
   '/account/security': typeof AccountSecurityRoute
   '/account/withdraw': typeof AccountWithdrawRoute
+  '/module-executions/$executionId': typeof ModuleExecutionsExecutionIdRoute
   '/scenarios/new': typeof ScenariosNewRoute
   '/sessions/start': typeof SessionsStartRoute
   '/scenarios': typeof ScenariosIndexRoute
@@ -286,6 +295,7 @@ export interface FileRoutesById {
   '/account/reset-password': typeof AccountResetPasswordRoute
   '/account/security': typeof AccountSecurityRoute
   '/account/withdraw': typeof AccountWithdrawRoute
+  '/module-executions/$executionId': typeof ModuleExecutionsExecutionIdRoute
   '/scenarios/new': typeof ScenariosNewRoute
   '/sessions/start': typeof SessionsStartRoute
   '/scenarios/': typeof ScenariosIndexRoute
@@ -322,6 +332,7 @@ export interface FileRouteTypes {
     | '/account/reset-password'
     | '/account/security'
     | '/account/withdraw'
+    | '/module-executions/$executionId'
     | '/scenarios/new'
     | '/sessions/start'
     | '/scenarios/'
@@ -353,6 +364,7 @@ export interface FileRouteTypes {
     | '/account/reset-password'
     | '/account/security'
     | '/account/withdraw'
+    | '/module-executions/$executionId'
     | '/scenarios/new'
     | '/sessions/start'
     | '/scenarios'
@@ -386,6 +398,7 @@ export interface FileRouteTypes {
     | '/account/reset-password'
     | '/account/security'
     | '/account/withdraw'
+    | '/module-executions/$executionId'
     | '/scenarios/new'
     | '/sessions/start'
     | '/scenarios/'
@@ -411,6 +424,7 @@ export interface RootRouteChildren {
   AccountRouteRoute: typeof AccountRouteRouteWithChildren
   ScenariosRouteRoute: typeof ScenariosRouteRouteWithChildren
   SessionsRouteRoute: typeof SessionsRouteRouteWithChildren
+  ModuleExecutionsExecutionIdRoute: typeof ModuleExecutionsExecutionIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -505,6 +519,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/account/withdraw'
       preLoaderRoute: typeof AccountWithdrawRouteImport
       parentRoute: typeof AccountRouteRoute
+    }
+    '/module-executions/$executionId': {
+      id: '/module-executions/$executionId'
+      path: '/module-executions/$executionId'
+      fullPath: '/module-executions/$executionId'
+      preLoaderRoute: typeof ModuleExecutionsExecutionIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/scenarios/': {
       id: '/scenarios/'
@@ -775,6 +796,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccountRouteRoute: AccountRouteRouteWithChildren,
   ScenariosRouteRoute: ScenariosRouteRouteWithChildren,
   SessionsRouteRoute: SessionsRouteRouteWithChildren,
+  ModuleExecutionsExecutionIdRoute: ModuleExecutionsExecutionIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
