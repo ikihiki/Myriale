@@ -13,6 +13,7 @@ public interface INarrativeContextBuilder
 
 public sealed record NarrativeDialogueContext(
     string SchemaVersion,
+    NarrativeContextDiagnostics Diagnostics,
     NarrativeScenarioInput Scenario,
     IReadOnlyList<NarrativeDialogueTurnInput> RecentTurns,
     NarrativeSessionMemoryInput Memory,

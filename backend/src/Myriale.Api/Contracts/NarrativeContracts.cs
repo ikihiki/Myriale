@@ -5,7 +5,7 @@ namespace Myriale.Api.Contracts;
 
 public static class NarrativeDialogueSchema
 {
-    public const string Version = "narrative-dialogue.v7";
+    public const string Version = "narrative-dialogue.v8";
 
     public static readonly IReadOnlySet<string> TurnTypes = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -56,6 +56,12 @@ public sealed record NarrativePriorModuleOutcomeInput(
 
 public sealed record NarrativeAllowedSignal(string Code, string TriggerDescription);
 
+public sealed record NarrativeContextDiagnostics(
+    string SchemaVersion,
+    IReadOnlyList<string> ComponentIds,
+    int SizeBytes,
+    string Hash);
+
 public sealed record NarrativePromptInstructions(
     string Version,
     string Perspective,
@@ -66,6 +72,7 @@ public sealed record NarrativePromptInstructions(
 public sealed record NarrativeDialogueRequest(
     string SchemaVersion,
     string ContextSchemaVersion,
+    NarrativeContextDiagnostics ContextDiagnostics,
     NarrativeScenarioInput Scenario,
     IReadOnlyList<NarrativeDialogueTurnInput> RecentTurns,
     NarrativeSessionMemoryInput Memory,

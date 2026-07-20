@@ -13,7 +13,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v7",
+              "schemaVersion": "narrative-dialogue.v8",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
@@ -37,7 +37,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var handler = new StaticJsonHandler("""
             {
-              "schemaVersion": "narrative-dialogue.v7",
+              "schemaVersion": "narrative-dialogue.v8",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
@@ -60,7 +60,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v7",
+              "schemaVersion": "narrative-dialogue.v8",
               "turnType": "clarification",
               "heading": "現在の状況を整理する",
               "body": "あなたは水没した閲覧室で銀の鍵を持っている。",
@@ -80,7 +80,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v7",
+              "schemaVersion": "narrative-dialogue.v8",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
@@ -97,7 +97,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v7",
+              "schemaVersion": "narrative-dialogue.v8",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
@@ -131,6 +131,7 @@ public sealed class MockAiNarrativeGeneratorTests
         IReadOnlyList<NarrativeAllowedSignal>? allowedSignals = null) => new(
         NarrativeDialogueSchema.Version,
         NarrativeContextSchema.Version,
+        new NarrativeContextDiagnostics(NarrativeContextSchema.Version, ["scenario"], 100, new string('a', 64)),
         new NarrativeScenarioInput(
             "星喰いの地下図書館",
             "水没した図書館を探索する。",

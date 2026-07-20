@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -71,21 +72,45 @@ public sealed class NarrativeContextBuilder(
             ? []
             : await LoadAllowedSignalsAsync(session.Progress, cancellationToken);
 
+        var scenarioInput = new NarrativeScenarioInput(
+            session.Scenario.Title,
+            session.Scenario.Summary,
+            session.Scenario.Genre,
+            session.Scenario.Tone,
+            session.Scenario.Lore,
+            session.Scenario.AiFreedom,
+            session.Scenario.Hero,
+            session.Scenario.Opening);
+        var sessionState = new NarrativeSessionStateInput(session.State.Revision, flags);
+        var memory = new NarrativeSessionMemoryInput(null, []);
+        var componentIds = new List<string> { "scenario", "session-state", "memory" };
+        if (recentTurns.Count > 0) componentIds.Add("recent-turns");
+        if (priorModuleOutcomes.Count > 0) componentIds.Add("module-outcomes");
+        if (session.Progress is not null) componentIds.Add("progression");
+        var diagnosticBytes = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            scenarioInput,
+            recentTurns,
+            memory,
+            priorModuleOutcomes,
+            sessionState,
+            currentProgressionNode = session.Progress?.CurrentNode.Code,
+            allowedSignals,
+        });
+        var diagnostics = new NarrativeContextDiagnostics(
+            NarrativeContextSchema.Version,
+            componentIds,
+            diagnosticBytes.Length,
+            Convert.ToHexString(SHA256.HashData(diagnosticBytes)).ToLowerInvariant());
+
         return new NarrativeDialogueContext(
             NarrativeContextSchema.Version,
-            new NarrativeScenarioInput(
-                session.Scenario.Title,
-                session.Scenario.Summary,
-                session.Scenario.Genre,
-                session.Scenario.Tone,
-                session.Scenario.Lore,
-                session.Scenario.AiFreedom,
-                session.Scenario.Hero,
-                session.Scenario.Opening),
+            diagnostics,
+            scenarioInput,
             recentTurns,
-            new NarrativeSessionMemoryInput(null, []),
+            memory,
             priorModuleOutcomes,
-            new NarrativeSessionStateInput(session.State.Revision, flags),
+            sessionState,
             session.Progress?.CurrentNode.Code,
             allowedSignals);
     }

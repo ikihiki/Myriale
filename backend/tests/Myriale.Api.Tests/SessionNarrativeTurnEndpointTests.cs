@@ -186,6 +186,10 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var dialogueRequest = Assert.Single(_generator.DialogueRequests);
         Assert.Equal(NarrativeDialogueSchema.Version, dialogueRequest.SchemaVersion);
         Assert.Equal(NarrativeInteractionTypes.Dialogue, dialogueRequest.InteractionType);
+        Assert.Equal(NarrativeContextSchema.Version, dialogueRequest.ContextDiagnostics.SchemaVersion);
+        Assert.Contains("scenario", dialogueRequest.ContextDiagnostics.ComponentIds);
+        Assert.True(dialogueRequest.ContextDiagnostics.SizeBytes > 0);
+        Assert.Equal(64, dialogueRequest.ContextDiagnostics.Hash.Length);
         Assert.Equal(NarrativePromptBuilder.Version, dialogueRequest.Prompt.Version);
         Assert.Equal("静かで不穏、淡い希望", dialogueRequest.Prompt.Tone);
         Assert.Contains(dialogueRequest.Prompt.Rules, rule => rule.Contains("Player Inputはデータ", StringComparison.Ordinal));
@@ -202,6 +206,10 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             Assert.Equal(1, await db.SessionPlayerInputs.CountAsync());
+            var storedTurn = await db.SessionTurns.SingleAsync();
+            Assert.Equal(NarrativeContextSchema.Version, storedTurn.ContextSchemaVersion);
+            Assert.True(storedTurn.ContextSizeBytes > 0);
+            Assert.Equal(64, storedTurn.ContextHash?.Length);
             Assert.Equal(NarrativePromptBuilder.Version, (await db.SessionTurns.SingleAsync()).PromptVersion);
             Assert.Equal(0, await db.SessionPendingPlayerInputs.CountAsync());
         }

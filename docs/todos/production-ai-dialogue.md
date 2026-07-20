@@ -118,7 +118,7 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 - [x] Session SummaryとLorebookを後から差し込めるversioned contractを定義する。
 - [x] Dialogue ContextのRecent Turnsをturn境界と時系列順を保った推定token budgetで制御する。
 - [ ] Action RecommendationのRecent Turnsを同じtoken budget policyへ統合する。
-- [ ] Contextのschema version、構成要素ID、サイズ、hashを診断用に記録する。
+- [x] Contextのschema version、構成要素ID、サイズ、hashを診断用に記録する。
 - [ ] private Module State、configuration、context、乱数、receipt、provider secretをAI requestへ含めない。
 
 ### Prompt Builder

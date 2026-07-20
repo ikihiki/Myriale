@@ -22,6 +22,15 @@ public sealed class SessionTurn
     public string? DialogueSchemaVersion { get; set; }
 
     [MaxLength(40)]
+    public string? ContextSchemaVersion { get; set; }
+
+    public string? ContextComponentIdsJson { get; set; }
+    public int? ContextSizeBytes { get; set; }
+
+    [MaxLength(64)]
+    public string? ContextHash { get; set; }
+
+    [MaxLength(40)]
     public string? PromptVersion { get; set; }
 
     [MaxLength(32)]

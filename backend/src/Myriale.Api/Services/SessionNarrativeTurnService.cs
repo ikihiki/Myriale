@@ -167,12 +167,13 @@ public sealed class SessionNarrativeTurnService(
             return SessionNarrativeTurnResult.Error(409, "session_advanced", "Narrative生成前にSessionが進行しました。");
         }
 
+        NarrativeDialogueContext context;
         IReadOnlyList<NarrativeAllowedSignal> providerAllowedSignals;
         NarrativePromptInstructions prompt;
         NarrativeDialogueResult generated;
         try
         {
-            var context = await contextBuilder.BuildDialogueAsync(ownerId, sessionId, interactionType, cancellationToken);
+            context = await contextBuilder.BuildDialogueAsync(ownerId, sessionId, interactionType, cancellationToken);
             prompt = promptBuilder.Build(context, interactionType);
             providerAllowedSignals = context.AllowedSignals;
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -181,6 +182,7 @@ public sealed class SessionNarrativeTurnService(
                 new NarrativeDialogueRequest(
                     NarrativeDialogueSchema.Version,
                     context.SchemaVersion,
+                    context.Diagnostics,
                     context.Scenario,
                     context.RecentTurns,
                     context.Memory,
@@ -246,6 +248,10 @@ public sealed class SessionNarrativeTurnService(
             Position = (claimedSession.HeadTurn?.Position ?? 0) + 1,
             Kind = "narrative",
             DialogueSchemaVersion = generated.SchemaVersion,
+            ContextSchemaVersion = context.Diagnostics.SchemaVersion,
+            ContextComponentIdsJson = JsonSerializer.Serialize(context.Diagnostics.ComponentIds),
+            ContextSizeBytes = context.Diagnostics.SizeBytes,
+            ContextHash = context.Diagnostics.Hash,
             PromptVersion = prompt.Version,
             DialogueTurnType = generated.TurnType,
             Heading = generated.Heading,
