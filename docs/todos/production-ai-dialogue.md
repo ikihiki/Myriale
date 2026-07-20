@@ -80,7 +80,7 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 - [x] Narrative結果にプレイヤーへ開示可能な`inputInterpretation`を追加する。
 - [x] `inputInterpretation`はchain-of-thoughtではなく、行動種別と要約だけを保持する。
 - [x] Narrative結果の本文、heading、interpretation、signalsに長さと文字種の上限を設ける。
-- [ ] schema不一致、余分なfield、空本文、不正signalをhost側で拒否する。
+- [x] schema不一致、余分なfield、空本文、不正signalをhost側で拒否する。
 
 想定するturn type:
 

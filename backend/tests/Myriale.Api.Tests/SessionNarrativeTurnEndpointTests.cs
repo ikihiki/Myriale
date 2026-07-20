@@ -249,6 +249,48 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task DialogueWithWrongSchemaVersionIsRejectedBeforePersistence()
+    {
+        var client = await AuthenticatedClientAsync("dialogue-wrong-schema@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        _generator.DialogueSchemaVersion = "narrative-dialogue.v999";
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/narrative-turns",
+            new { requestId = "dialogue-wrong-schema", input = "銀の鍵を掲げる" });
+
+        await AssertDialogueGenerationRejectedAsync(response);
+    }
+
+    [Fact]
+    public async Task DialogueWithEmptyBodyIsRejectedBeforePersistence()
+    {
+        var client = await AuthenticatedClientAsync("dialogue-empty-body@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        _generator.DialogueBody = "   ";
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/narrative-turns",
+            new { requestId = "dialogue-empty-body", input = "銀の鍵を掲げる" });
+
+        await AssertDialogueGenerationRejectedAsync(response);
+    }
+
+    [Fact]
+    public async Task DialogueWithMalformedSignalIsRejectedBeforePersistence()
+    {
+        var client = await AuthenticatedClientAsync("dialogue-malformed-signal@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        _generator.DialogueSignals = [new NarrativeProgressionSignal("Invalid Signal")];
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/narrative-turns",
+            new { requestId = "dialogue-malformed-signal", input = "銀の鍵を掲げる" });
+
+        await AssertDialogueGenerationRejectedAsync(response);
+    }
+
+    [Fact]
     public async Task ClarificationWithProgressionSignalIsRejected()
     {
         var client = await AuthenticatedClientAsync("clarification-signal@example.test");
@@ -618,6 +660,21 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         Assert.Equal(2, session.GetProperty("turns").GetArrayLength());
     }
 
+    private async Task AssertDialogueGenerationRejectedAsync(HttpResponseMessage response)
+    {
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Equal("narrative_generation_failed", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var pending = await db.SessionPendingPlayerInputs.AsNoTracking().SingleAsync();
+        Assert.Equal("failed", pending.Status);
+        Assert.True(pending.IsRetryable);
+        Assert.Equal(0, await db.SessionPlayerInputs.CountAsync());
+        Assert.Equal(0, await db.SessionTurns.CountAsync(turn => turn.Kind == "narrative"));
+        Assert.Equal(0, await db.SessionNarrativeSignals.CountAsync());
+        Assert.Equal(0, await db.SessionProgressionTransitionReceipts.CountAsync());
+    }
+
     private async Task<(string TurnId, string ExecutionId)> CreateActiveTurnAsync(HttpClient client, string sessionId, string requestId)
     {
         using var response = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/module-turns", InitializeBody(requestId));
@@ -765,9 +822,11 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         }
 
         public List<NarrativeDialogueRequest> DialogueRequests { get; } = [];
+        public string DialogueSchemaVersion { get; set; } = NarrativeDialogueSchema.Version;
         public IReadOnlyList<NarrativeProgressionSignal> DialogueSignals { get; set; } = [];
         public string DialogueTurnType { get; set; } = "action-result";
         public string DialogueHeading { get; set; } = "銀の鍵を掲げる";
+        public string DialogueBody { get; set; } = "入力を受け止め、物語は次の場面へ進んだ。";
         public string DialogueInterpretation { get; set; } = "Playerは銀の鍵を掲げる行動を選んだ。";
         public bool PauseDialogue { get; set; }
         public TaskCompletionSource DialogueEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -783,10 +842,10 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
                 await DialogueRelease.Task.WaitAsync(cancellationToken);
             }
             return new NarrativeDialogueResult(
-                NarrativeDialogueSchema.Version,
+                DialogueSchemaVersion,
                 DialogueTurnType,
                 DialogueHeading,
-                "入力を受け止め、物語は次の場面へ進んだ。",
+                DialogueBody,
                 DialogueSignals,
                 DialogueInterpretation);
         }
