@@ -1009,15 +1009,53 @@ textarea { min-height: 126px; resize: vertical; }
 
 .session-turn-heading {
   display: flex;
-  justify-content: flex-end;
+  min-height: 30px;
+  justify-content: flex-start;
+  margin-top: -2px;
 }
 
-.session-turn-actions button {
-  border-radius: 999px;
-  padding: 8px 12px;
-  background: #2b2940;
-  color: #fffaf0;
-  font-size: 12px;
+.session-turn-actions {
+  display: flex;
+  gap: 4px;
+  opacity: .42;
+  transition: opacity 160ms ease;
+}
+
+.session-turn:hover .session-turn-actions,
+.session-turn:focus-within .session-turn-actions {
+  opacity: 1;
+}
+
+.session-turn-actions .turn-rewind-button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  padding: 0;
+  background: transparent;
+  color: #6b6874;
+}
+
+.session-turn-actions .turn-rewind-button:hover {
+  background: rgba(23, 21, 31, .07);
+  color: #211e2b;
+}
+
+.session-turn-actions .turn-rewind-button:focus-visible {
+  outline: 2px solid #7c5cff;
+  outline-offset: 2px;
+}
+
+.session-turn-actions .turn-rewind-button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .dialogue-composer button,
@@ -1151,9 +1189,12 @@ textarea { min-height: 126px; resize: vertical; }
 }
 
 .dialogue-composer {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(23, 21, 31, .18);
+  width: 100%;
+  max-width: 720px;
+  box-sizing: border-box;
+  justify-self: stretch;
+  margin: 16px auto 0;
+  padding: 0 10px 4px;
 }
 
 .dialogue-composer label {
@@ -1164,8 +1205,152 @@ textarea { min-height: 126px; resize: vertical; }
   font-weight: 900;
 }
 
-.session-play-page .dialogue-composer textarea {
-  min-height: 110px;
+.composer-shell {
+  overflow: hidden;
+  border: 1px solid rgba(23, 21, 31, .16);
+  border-radius: 26px;
+  background: rgba(255, 254, 249, .96);
+  box-shadow: 0 10px 30px rgba(34, 29, 48, .11), 0 1px 2px rgba(34, 29, 48, .08);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.composer-shell:focus-within {
+  border-color: rgba(124, 92, 255, .45);
+  box-shadow: 0 12px 34px rgba(34, 29, 48, .14), 0 0 0 3px rgba(124, 92, 255, .09);
+}
+
+.session-play-page .dialogue-composer .composer-shell textarea {
+  display: block;
+  width: 100%;
+  min-height: 76px;
+  max-height: 220px;
+  resize: vertical;
+  border: 0;
+  border-radius: 0;
+  padding: 17px 19px 8px;
+  background: transparent;
+  box-shadow: none;
+  color: #24212d;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.session-play-page .dialogue-composer .composer-shell textarea::placeholder {
+  color: #8a8791;
+}
+
+.session-play-page .dialogue-composer .composer-shell textarea:focus {
+  outline: 0;
+  box-shadow: none;
+}
+
+.composer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 8px 8px 10px;
+}
+
+.composer-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.dialogue-composer .composer-tool-button,
+.dialogue-composer .composer-send-button {
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.dialogue-composer .composer-tool-button {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: transparent;
+  color: #67636f;
+}
+
+.dialogue-composer .composer-tool-button:hover:not(:disabled) {
+  background: rgba(23, 21, 31, .07);
+  color: #211e2b;
+}
+
+.dialogue-composer .composer-tool-button:disabled {
+  opacity: .3;
+}
+
+.dialogue-composer .composer-send-button {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #211e2b;
+  color: #fffef9;
+  box-shadow: none;
+  transition: transform 140ms ease, background 140ms ease, opacity 140ms ease;
+}
+
+.dialogue-composer .composer-send-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: #4d3bb5;
+}
+
+.dialogue-composer .composer-send-button:disabled {
+  background: #d5d1d8;
+  color: #f8f6f2;
+  cursor: not-allowed;
+}
+
+.dialogue-composer .composer-tool-button:focus-visible,
+.dialogue-composer .composer-send-button:focus-visible {
+  outline: 2px solid #7c5cff;
+  outline-offset: 2px;
+}
+
+.composer-tool-button svg,
+.composer-send-button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.composer-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, .42);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: composer-spin 700ms linear infinite;
+}
+
+@keyframes composer-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-spinner { animation-duration: 1400ms; }
+  .composer-shell,
+  .composer-send-button,
+  .session-turn-actions { transition: none; }
+}
+
+@media (max-width: 640px) {
+  .dialogue-composer {
+    padding-inline: 0;
+  }
+
+  .composer-shell { border-radius: 22px; }
+  .session-turn-actions { opacity: 1; }
 }
 
 .debug-drawer {

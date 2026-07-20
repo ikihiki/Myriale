@@ -17,6 +17,38 @@ import {
 import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeToggle, MyrialeSelect } from '../../ui/MyrialeRadix';
 import { useAppNavigation } from '../../shared/nav';
 
+function ArrowUpIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M10 15V5m0 0L6 9m4-4 4 4" />
+    </svg>
+  );
+}
+
+function RotateBackIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M6.5 6.5H3.75V3.75M4.2 6.2a7 7 0 1 1-.75 6.85" />
+    </svg>
+  );
+}
+
+function SparkleIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M10 2.75c.45 2.65 1.85 4.05 4.5 4.5-2.65.45-4.05 1.85-4.5 4.5-.45-2.65-1.85-4.05-4.5-4.5 2.65-.45 4.05-1.85 4.5-4.5ZM15.25 12.5c.22 1.35.9 2.03 2.25 2.25-1.35.22-2.03.9-2.25 2.25-.22-1.35-.9-2.03-2.25-2.25 1.35-.22 2.03-.9 2.25-2.25Z" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="m6 6 8 8m0-8-8 8" />
+    </svg>
+  );
+}
+
 type TurnKind = 'action' | 'clarification' | 'rewound';
 
 type DialogueTurn = {
@@ -735,7 +767,16 @@ function SessionDialogueSection({
                 }}
                 ariaLabel={`Turn ${String(turn.id).padStart(2, '0')}`}
                 selected={selectedTurnId === turn.id}
-                headingActions={display.allowRewind ? <button onClick={() => requestRewind(turn.id)}>ここまで戻る</button> : undefined}
+                headingActions={display.allowRewind ? (
+                  <button
+                    className="turn-rewind-button"
+                    onClick={() => requestRewind(turn.id)}
+                    aria-label="ここまで戻る"
+                    title="ここまで戻る"
+                  >
+                    <RotateBackIcon />
+                  </button>
+                ) : undefined}
                 narrative={turn.narrative}
                 narrativeTestId={`turn-${turn.id}-narrative`}
                 lead={
@@ -795,28 +836,68 @@ function SessionDialogueSection({
               <p data-testid="mode-reason">{modeMeta.reason}</p>
             </>
           )}
-          <textarea
-            aria-label="自由に行動や会話を入力"
-            value={input}
-            onChange={(event) => {
-              const nextInput = event.target.value;
-              setInput(nextInput);
-              if (draftRequest && draftRequest.input !== nextInput.trim()) setDraftRequest(null);
-            }}
-            placeholder="例: 酒場の奥にいる人物に話しかける / 周囲を警戒しながら村を出る"
-            disabled={forcedMode || isSubmitting}
-          />
+          <div className="composer-shell">
+            <textarea
+              aria-label="自由に行動や会話を入力"
+              value={input}
+              onChange={(event) => {
+                const nextInput = event.target.value;
+                setInput(nextInput);
+                if (draftRequest && draftRequest.input !== nextInput.trim()) setDraftRequest(null);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                  event.preventDefault();
+                  if (input.trim() && !isSubmitting) void sendInput();
+                }
+              }}
+              placeholder="次の行動を入力"
+              disabled={forcedMode || isSubmitting}
+            />
 
-          {sessionMode === 'dialogue' && (
-            <div className="button-row">
-              <button className="primary" onClick={() => void sendInput()} data-testid="send-free-input" disabled={isSubmitting}>
-                {isSubmitting ? 'Narrativeを生成中…' : draftRequest ? '同じ入力を再試行' : '行動を送る'}
-              </button>
-              <button onClick={askClarification}>状況を簡単にまとめて聞く</button>
-              <button onClick={deleteDraft}>削除（入力取り消し）</button>
-              <button onClick={redoPreviousTurn} data-testid="rewind-button">やり直し（直前ターン巻き戻し）</button>
-            </div>
-          )}
+            {sessionMode === 'dialogue' && (
+              <div className="composer-toolbar">
+                <div className="composer-tools" aria-label="入力補助">
+                  <button
+                    className="composer-tool-button"
+                    onClick={askClarification}
+                    aria-label="状況を簡単にまとめて聞く"
+                    title="状況を簡単にまとめて聞く"
+                  >
+                    <SparkleIcon />
+                  </button>
+                  <button
+                    className="composer-tool-button"
+                    onClick={deleteDraft}
+                    aria-label="入力を消去"
+                    title="入力を消去"
+                    disabled={!input}
+                  >
+                    <CloseIcon />
+                  </button>
+                  <button
+                    className="composer-tool-button"
+                    onClick={redoPreviousTurn}
+                    data-testid="rewind-button"
+                    aria-label="直前のターンに戻る"
+                    title="直前のターンに戻る"
+                  >
+                    <RotateBackIcon />
+                  </button>
+                </div>
+                <button
+                  className="composer-send-button"
+                  onClick={() => void sendInput()}
+                  data-testid="send-free-input"
+                  disabled={isSubmitting || !input.trim()}
+                  aria-label={isSubmitting ? 'Narrativeを生成中' : draftRequest ? '同じ入力を再試行' : '行動を送る'}
+                  title={draftRequest ? '同じ入力を再試行' : '行動を送る'}
+                >
+                  {isSubmitting ? <span className="composer-spinner" aria-hidden="true" /> : <ArrowUpIcon />}
+                </button>
+              </div>
+            )}
+          </div>
 
 
           {sessionMode === 'battle' && (

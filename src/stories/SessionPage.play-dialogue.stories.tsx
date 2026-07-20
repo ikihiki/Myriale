@@ -121,14 +121,14 @@ export const USP07DeleteAndRedoPreviousTurn: Story = {
     const canvas = within(canvasElement);
     await step('未送信の入力は削除ボタンで取り消せる', async () => {
       await userEvent.type(canvas.getByLabelText('自由に行動や会話を入力'), '入力ミス');
-      await userEvent.click(canvas.getByRole('button', { name: '削除（入力取り消し）' }));
+      await userEvent.click(canvas.getByRole('button', { name: '入力を消去' }));
       await expect(canvas.getByLabelText('自由に行動や会話を入力')).toHaveValue('');
       await expect(canvas.getByRole('status')).toHaveTextContent('入力欄の未送信テキストを無効化');
     });
     await step('送信済みの直前ターンはやり直しボタンで巻き戻せる', async () => {
       await sendAction(canvas, '階段へ急いで向かう');
       await expect(canvas.getByTestId('dialogue-log')).toHaveTextContent('階段へ急いで向かう');
-      await userEvent.click(canvas.getByRole('button', { name: 'やり直し（直前ターン巻き戻し）' }));
+      await userEvent.click(canvas.getByRole('button', { name: '直前のターンに戻る' }));
       await expect(canvas.getByTestId('dialogue-log')).not.toHaveTextContent('階段へ急いで向かう');
       await expect(canvas.getByRole('status')).toHaveTextContent('直前ターンを巻き戻しました');
     });

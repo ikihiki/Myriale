@@ -39,7 +39,7 @@ export type TurnLead = {
 };
 
 export type SessionTurnProps = {
-  /** Trailing heading slot (e.g. a "ここまで戻る" button). */
+  /** Quiet action row shown after the Narrative (e.g. a "ここまで戻る" button). */
   headingActions?: ReactNode;
   /**
    * Lead block shown *before* the Narrative: the user input (AI dialogue) or the
@@ -104,14 +104,14 @@ export function SessionTurn({
       data-testid={testId}
       ref={articleRef}
     >
+      {/* Always input → result: lead (user/system action) then the AI Narrative. */}
+      {leadBlock}
+      {narrativeBlock}
       {headingActions && (
         <div className="session-turn-heading">
           <div className="session-turn-actions">{headingActions}</div>
         </div>
       )}
-      {/* Always input → result: lead (user/system action) then the AI Narrative. */}
-      {leadBlock}
-      {narrativeBlock}
     </article>
   );
 }
