@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Myriale.Api.Modules.Runtime;
 using Myriale.ModuleSdk;
 using Myriale.Api.Contracts;
@@ -7,7 +8,10 @@ using Myriale.Api.Data;
 
 namespace Myriale.Api.Services;
 
-public sealed class NarrativeContextBuilder(ApplicationDbContext db) : INarrativeContextBuilder
+public sealed class NarrativeContextBuilder(
+    ApplicationDbContext db,
+    INarrativeTokenEstimator tokenEstimator,
+    IOptions<NarrativeContextOptions> options) : INarrativeContextBuilder
 {
     public async Task<NarrativeDialogueContext> BuildDialogueAsync(
         string ownerId,
@@ -22,16 +26,15 @@ public sealed class NarrativeContextBuilder(ApplicationDbContext db) : INarrativ
             .SingleOrDefaultAsync(item => item.Id == sessionId && item.OwnerId == ownerId, cancellationToken)
             ?? throw new NarrativeGenerationException("Narrative context source is unavailable.");
 
-        var recentTurns = await db.SessionTurns.AsNoTracking()
+        var newestTurns = await db.SessionTurns.AsNoTracking()
             .Include(turn => turn.PlayerInput)
             .Where(turn => turn.SessionId == sessionId && turn.Kind == "narrative")
             .OrderByDescending(turn => turn.Position)
-            .Take(8)
-            .OrderBy(turn => turn.Position)
             .Select(turn => new NarrativeDialogueTurnInput(
                 turn.PlayerInput == null ? null : turn.PlayerInput.Text,
                 turn.NarrativeBody))
             .ToListAsync(cancellationToken);
+        var recentTurns = SelectRecentTurns(newestTurns, options.Value.RecentTurnsTokenBudget);
 
         var storedOutcomeJson = await db.SessionTurns.AsNoTracking()
             .Where(turn => turn.SessionId == sessionId
@@ -85,6 +88,25 @@ public sealed class NarrativeContextBuilder(ApplicationDbContext db) : INarrativ
             new NarrativeSessionStateInput(session.State.Revision, flags),
             session.Progress?.CurrentNode.Code,
             allowedSignals);
+    }
+
+    private IReadOnlyList<NarrativeDialogueTurnInput> SelectRecentTurns(
+        IReadOnlyList<NarrativeDialogueTurnInput> newestTurns,
+        int tokenBudget)
+    {
+        if (tokenBudget <= 0) return [];
+        var selected = new List<NarrativeDialogueTurnInput>();
+        var usedTokens = 0;
+        foreach (var turn in newestTurns)
+        {
+            var cost = tokenEstimator.EstimateTokens(turn);
+            if (cost <= 0) throw new NarrativeGenerationException("Narrative token estimator returned an invalid cost.");
+            if (cost > tokenBudget - usedTokens) break;
+            selected.Add(turn);
+            usedTokens += cost;
+        }
+        selected.Reverse();
+        return selected;
     }
 
     private async Task<IReadOnlyList<NarrativeAllowedSignal>> LoadAllowedSignalsAsync(
