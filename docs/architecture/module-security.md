@@ -10,7 +10,11 @@ Module administration requires an Identity claim (`myriale:module-admin=true`) p
 
 ## UI boundary
 
-Module JavaScript is isolated in a sandboxed iframe. It has no direct access to application DOM, authentication state, or Myriale APIs. Network access is denied by the module shell policy; communication occurs through the versioned host protocol.
+Module JavaScript is isolated in an opaque-origin iframe with only `allow-scripts`. It has no direct access to the application DOM, cookies, authentication state, storage, forms, or Myriale APIs. A shell CSP denies direct fetch/subresource, frame, worker, media, object, and form access. The authenticated parent verifies and fetches package resources, then transfers source over a private `MessageChannel`; package code receives no resource URL or credentials.
+
+The UI script belongs to the same administrator-approved trusted package as the C# DLL. Browser sandboxing protects application authority and credentials; it is not a containment boundary for deliberately malicious package UI. In particular, browser sandboxes permit a frame to navigate its own browsing context, which could disclose data already given to that trusted UI through a destination URL. The host detects any subsequent frame load, closes the channel, refuses to reconnect, and displays an error, but it does not claim to prevent deliberate exfiltration by an approved package. Untrusted UI requires a separately isolated origin and network policy outside this in-process package model.
+
+The one bootstrap `postMessage` uses a wildcard target because opaque origins cannot be named, but the shell verifies `event.source === parent`, the embedded parent origin, and an unguessable per-frame capability before accepting the transferred port. The parent validates protocol version, execution ID, revision, enabled action ID, message size, and dispatch concurrency. A hostile UI can still consume CPU within the browser process; the iframe boundary protects application authority, not browser resource availability.
 
 ## Data and authority
 
@@ -18,6 +22,6 @@ The module receives snapshots rather than host services. It cannot directly writ
 
 ## Package validation
 
-Later package installation work must enforce safe archive extraction, file and expanded-size limits, one managed DLL, declared-resource allowlists, SDK compatibility, immutable digests, and explicit administrator enablement.
+Package installation enforces safe archive extraction, file and expanded-size limits, one managed DLL, declared-resource allowlists, SDK compatibility, immutable digests, and explicit administrator enablement. Runtime resource delivery repeats canonical digest and resource-integrity checks before bytes are served.
 
 Secrets, provider keys, server paths, and private scenario facts must never appear in module view state or client messages.
