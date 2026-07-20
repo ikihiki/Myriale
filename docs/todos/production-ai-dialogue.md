@@ -95,7 +95,8 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 - [x] 「今の状況を簡単にまとめて」をclient-only TurnではなくServer requestにする。
 - [x] requestで期待するturn typeまたはinteraction typeを明示できるようにする。
 - [x] `clarification`ではprogression signalを禁止する。
-- [ ] `clarification`では新規の事件、NPC、場所、Session flag変更を確定しない。
+- [x] `clarification`からhost所有の進行やSession flag変更を確定できないようにする。
+- [ ] `clarification`の本文で新規の事件、NPC、場所を確定しないよう、Prompt BuilderとCanon Contextで制約する。
 - [x] `clarification`はSessionの理解補助Turnとして履歴に保存する。
 
 ### 進行signalの意味
@@ -133,7 +134,7 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 ### フェーズ2完了条件
 
 - [ ] Mock Providerを使った契約テストで全turn typeとschema validationが通る。
-- [ ] clarificationが進行signalやSession Stateを変更しない。
+- [x] clarificationが進行signalやSession Stateを変更しない。
 - [ ] signalのtrigger descriptionとevidenceがrequest/responseに含まれ、host検証される。
 - [ ] Context Builderの出力に必要情報だけが含まれ、非公開データが含まれない。
 

@@ -191,12 +191,31 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task ClarificationInteractionIsPersistedAndRequiresClarificationResult()
+    public async Task ClarificationReceivesNoProgressionCapabilitiesAndPreservesWorldState()
     {
         var client = await AuthenticatedClientAsync("clarification-contract@example.test");
         var sessionId = await CreateSessionAsync(client);
         _generator.DialogueTurnType = "clarification";
         _generator.DialogueHeading = "現在の状況を整理する";
+        const long stateRevision = 4;
+        string initialFlagsJson;
+        string initialProgressNodeId;
+        long initialProgressRevision;
+        await using (var setupScope = _factory.Services.CreateAsyncScope())
+        {
+            var db = setupScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var state = await db.SessionStates.SingleAsync(item => item.SessionId == sessionId);
+            state.Revision = stateRevision;
+            state.FlagsJson = JsonSerializer.Serialize(new Dictionary<string, bool> { ["library-lit"] = true });
+            initialFlagsJson = state.FlagsJson;
+            var progress = await db.SessionProgressStates
+                .Include(item => item.CurrentNode)
+                .SingleAsync(item => item.SessionId == sessionId);
+            Assert.Contains("constellation-door-reached", progress.CurrentNode.AllowedNarrativeSignalsJson, StringComparison.Ordinal);
+            initialProgressNodeId = progress.CurrentNodeId;
+            initialProgressRevision = progress.Revision;
+            await db.SaveChangesAsync();
+        }
 
         using var response = await client.PostAsJsonAsync(
             $"/api/sessions/{sessionId}/narrative-turns",
@@ -210,12 +229,25 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("clarification", json.GetProperty("narrative").GetProperty("turnType").GetString());
-        Assert.Equal(NarrativeInteractionTypes.Clarification, Assert.Single(_generator.DialogueRequests).InteractionType);
+        var request = Assert.Single(_generator.DialogueRequests);
+        Assert.Equal(NarrativeInteractionTypes.Clarification, request.InteractionType);
+        Assert.Empty(request.AllowedSignals);
+        Assert.Equal(stateRevision, request.SessionState.Revision);
+        Assert.True(request.SessionState.Flags["library-lit"]);
 
         await using var scope = _factory.Services.CreateAsyncScope();
-        var storedInput = await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>()
-            .SessionPlayerInputs.AsNoTracking().SingleAsync();
+        var verificationDb = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var storedInput = await verificationDb.SessionPlayerInputs.AsNoTracking().SingleAsync();
         Assert.Equal(NarrativeInteractionTypes.Clarification, storedInput.InteractionType);
+        var storedState = await verificationDb.SessionStates.AsNoTracking().SingleAsync(item => item.SessionId == sessionId);
+        Assert.Equal(stateRevision, storedState.Revision);
+        Assert.Equal(initialFlagsJson, storedState.FlagsJson);
+        var storedProgress = await verificationDb.SessionProgressStates.AsNoTracking().SingleAsync(item => item.SessionId == sessionId);
+        Assert.Equal(initialProgressNodeId, storedProgress.CurrentNodeId);
+        Assert.Equal(initialProgressRevision, storedProgress.Revision);
+        Assert.Equal(0, await verificationDb.SessionNarrativeSignals.CountAsync());
+        Assert.Equal(0, await verificationDb.SessionProgressionTransitionReceipts.CountAsync());
+        Assert.Equal(0, await verificationDb.ModuleExecutions.CountAsync());
     }
 
     [Fact]

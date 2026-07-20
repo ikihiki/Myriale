@@ -177,6 +177,9 @@ public sealed class SessionNarrativeTurnService(
         var allowedSignals = claimed.Session.Progress is null
             ? []
             : JsonSerializer.Deserialize<IReadOnlyList<string>>(claimed.Session.Progress.CurrentNode.AllowedNarrativeSignalsJson) ?? [];
+        var providerAllowedSignals = interactionType == NarrativeInteractionTypes.Clarification
+            ? []
+            : allowedSignals;
         NarrativeDialogueResult generated;
         try
         {
@@ -192,11 +195,11 @@ public sealed class SessionNarrativeTurnService(
                     new NarrativeSessionStateInput(
                         claimed.Session.State.Revision,
                         JsonSerializer.Deserialize<IReadOnlyDictionary<string, bool>>(claimed.Session.State.FlagsJson) ?? new Dictionary<string, bool>()),
-                    allowedSignals,
+                    providerAllowedSignals,
                     claimed.Session.InterpretationEnabled),
                 timeout.Token);
             ValidateGeneratedResult(generated, interactionType, claimed.Session.InterpretationEnabled);
-            ValidateSignals(generated.Signals, allowedSignals);
+            ValidateSignals(generated.Signals, providerAllowedSignals);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
