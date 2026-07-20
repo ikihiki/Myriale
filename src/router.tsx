@@ -1,8 +1,10 @@
 import { createBrowserHistory, createMemoryHistory, createRouter } from '@tanstack/react-router';
+import { createFetchAccountApi, type AccountApi } from './account/api/accountApi';
 import { routeTree } from './routeTree.gen';
 
 export type AppRouterContext = {
   showDebugPanel: boolean;
+  accountApi: AccountApi;
 };
 
 export type AppHistoryMode = 'browser' | 'memory';
@@ -11,10 +13,12 @@ export function createAppRouter({
   initialUrl = '/',
   historyMode = 'memory',
   showDebugPanel = true,
+  accountApi = createFetchAccountApi(),
 }: {
   initialUrl?: string;
   historyMode?: AppHistoryMode;
   showDebugPanel?: boolean;
+  accountApi?: AccountApi;
 } = {}) {
   const history = historyMode === 'browser'
     ? createBrowserHistory()
@@ -23,7 +27,7 @@ export function createAppRouter({
   return createRouter({
     routeTree,
     history,
-    context: { showDebugPanel },
+    context: { showDebugPanel, accountApi },
     defaultPreload: 'intent',
   });
 }
