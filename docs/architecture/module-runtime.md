@@ -41,7 +41,7 @@ Calls are bounded by a host-wide concurrency gate, including package integrity c
 
 The API retains an authenticated detached Module Execution seam for preview and tooling. Each execution is owner-scoped and pins module ID, semantic version, package digest, contract version, configuration/state schema versions, configuration, and context. State, view state, available actions, revision, and a completed outcome are persisted after every accepted lifecycle step.
 
-A play `Session` is owner-scoped to one existing scenario. A `SessionTurn` has a stable position and may own exactly one Module Execution. The session's next-position counter is an optimistic concurrency token, so competing API processes retry allocation instead of producing duplicate positions. Creating a Module Turn inserts its turn, execution, and initialization receipt atomically; every internal dispatch continues to update that same execution and never creates another turn. Detached executions remain valid and have no Session Turn.
+A play `Session` is owner-scoped to one existing scenario. A `SessionTurn` has a stable position and is currently either a Module Turn owning exactly one Module Execution or a Narrative Turn linked to the completed Module Turn that produced it. The session's next-position counter is an optimistic concurrency token, so competing API processes retry allocation instead of producing duplicate positions. Creating a Module Turn inserts its turn, execution, and initialization receipt atomically; every internal dispatch continues to update that same execution and never creates another turn. Detached executions remain valid and have no Session Turn.
 
 Initialization and dispatch request IDs are recorded as durable receipts. Receipts store semantic request fingerprints, host-generated random values, actions, and exact responses. Session ownership participates in initialization fingerprints, so a request ID cannot be replayed into a different session. Matching retries replay a completed response; a retry of a pending request reinvokes the pure module operation with the same snapshots and random values. Revision concurrency ensures that at most one competing action becomes the accepted state transition.
 
@@ -51,4 +51,4 @@ Sessions currently reference the scenario identity rather than an immutable publ
 
 ## Deferred work
 
-Additional effect vocabularies, narrative handoff, durable emitted-event processing, scenario-version snapshots, narrative turns, worker-process isolation, package-cache invalidation across API processes, and retained database lifecycle management remain deferred.
+Additional effect vocabularies, player-input narrative turns, durable emitted-event processing, scenario-version snapshots, real AI provider selection, background generation, worker-process isolation, package-cache invalidation across API processes, and retained database lifecycle management remain deferred.

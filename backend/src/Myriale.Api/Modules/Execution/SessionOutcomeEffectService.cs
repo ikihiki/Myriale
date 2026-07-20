@@ -27,6 +27,7 @@ public sealed partial class SessionOutcomeEffectService(ApplicationDbContext db)
             .Where(turn => turn.Id == execution.SessionTurnId)
             .Select(turn => turn.SessionId)
             .SingleAsync(cancellationToken);
+        var session = await db.Sessions.SingleAsync(item => item.Id == sessionId, cancellationToken);
         var state = await db.SessionStates.SingleAsync(item => item.SessionId == sessionId, cancellationToken);
         if (state.Revision != request.ExpectedSessionRevision.Value)
             return SessionOutcomeEffectResult.Conflict(state.Revision);
@@ -80,6 +81,7 @@ public sealed partial class SessionOutcomeEffectService(ApplicationDbContext db)
             return Invalid("session_state_too_large", "Session flag stateが上限を超えています。");
 
         var now = DateTimeOffset.UtcNow;
+        session.UpdatedAt = now;
         state.FlagsJson = flagsJson;
         state.Revision++;
         state.UpdatedAt = now;
@@ -111,4 +113,6 @@ public sealed record SessionOutcomeEffectResult(
     public static SessionOutcomeEffectResult Success { get; } = new(true, null, null, null);
     public static SessionOutcomeEffectResult Conflict(long currentRevision) =>
         new(false, "session_revision_conflict", "Session stateのrevisionが更新されています。", currentRevision);
+    public static SessionOutcomeEffectResult Advanced(long currentRevision) =>
+        new(false, "session_advanced", "Module処理中にSessionが進行しました。", currentRevision);
 }

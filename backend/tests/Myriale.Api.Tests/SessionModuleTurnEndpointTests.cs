@@ -81,6 +81,7 @@ public sealed class SessionModuleTurnEndpointTests : IDisposable
         Assert.Equal(2, await db.ModuleExecutionRequests.CountAsync());
         var stored = await db.SessionTurns.Include(item => item.ModuleExecution).SingleAsync();
         Assert.Equal(sessionId, stored.SessionId);
+        Assert.NotNull(stored.ModuleExecution);
         Assert.Equal(executionId, stored.ModuleExecution.Id);
         Assert.Equal(stored.Id, stored.ModuleExecution.SessionTurnId);
     }
@@ -325,11 +326,13 @@ public sealed class SessionModuleTurnEndpointTests : IDisposable
     {
         var client = await AuthenticatedClientAsync("pending-turn@example.test");
         var sessionId = await CreateSessionAsync(client);
-        var body = InitializeBody("pending-turn", new { initializationDelayMilliseconds = 250 });
-        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+        var body = InitializeBody("pending-turn", new { initializationDelayMilliseconds = 5_000 });
+        using var cancellation = new CancellationTokenSource();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            client.PostAsJsonAsync($"/api/sessions/{sessionId}/module-turns", body, cancellation.Token));
+        var pendingRequest = client.PostAsJsonAsync($"/api/sessions/{sessionId}/module-turns", body, cancellation.Token);
+        await WaitForPendingRequestAsync("pending-turn");
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pendingRequest);
 
         await using (var scope = _factory.Services.CreateAsyncScope())
         {
@@ -365,6 +368,19 @@ public sealed class SessionModuleTurnEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.NotFound, getSession.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, getTurn.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, createTurn.StatusCode);
+    }
+
+    private async Task WaitForPendingRequestAsync(string requestId)
+    {
+        for (var attempt = 0; attempt < 500; attempt++)
+        {
+            await using var scope = _factory.Services.CreateAsyncScope();
+            if (await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().ModuleExecutionRequests
+                .AnyAsync(request => request.RequestId == requestId && request.Status == "pending"))
+                return;
+            await Task.Delay(20);
+        }
+        throw new TimeoutException($"Pending request was not persisted: {requestId}");
     }
 
     private async Task<string> CreateSessionAsync(HttpClient client)

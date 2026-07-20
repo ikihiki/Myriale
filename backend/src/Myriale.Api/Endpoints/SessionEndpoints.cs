@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Modules.Execution;
+using Myriale.Api.Services;
 
 namespace Myriale.Api.Endpoints;
 
@@ -25,6 +26,9 @@ public static class SessionEndpoints
         group.MapPost("/{sessionId}/module-turns", CreateModuleTurnAsync)
             .WithName("CreateSessionModuleTurn")
             .WithSummary("Creates one session turn and its module execution atomically.");
+        group.MapPost("/{sessionId}/module-turns/{turnId}/narrative", CreateNarrativeAsync)
+            .WithName("CreateModuleTurnNarrative")
+            .WithSummary("Generates one durable Narrative Turn from an applied Module Outcome.");
         group.MapGet("/{sessionId}/turns/{turnId}", GetTurnAsync)
             .WithName("GetSessionTurn")
             .WithSummary("Returns one owner-visible session turn.");
@@ -110,8 +114,29 @@ public static class SessionEndpoints
 
         var turn = await db.SessionTurns.AsNoTracking()
             .SingleAsync(item => item.Id == result.SessionTurnId && item.SessionId == sessionId, cancellationToken);
-        var response = ToTurnResponse(turn, result.Response);
+        var response = ToModuleTurnResponse(turn, result.Response);
         return Results.Created($"/api/sessions/{sessionId}/turns/{turn.Id}", response);
+    }
+
+    private static async Task<IResult> CreateNarrativeAsync(
+        string sessionId,
+        string turnId,
+        ClaimsPrincipal principal,
+        SessionNarrativeHandoffService service,
+        CancellationToken cancellationToken)
+    {
+        var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
+        var result = await service.CreateAsync(ownerId, sessionId, turnId, cancellationToken);
+        if (result.StatusCode == StatusCodes.Status404NotFound && result.Response is null && result.Error is null)
+            return Results.NotFound();
+        if (result.Response is not null)
+        {
+            return result.StatusCode == StatusCodes.Status201Created
+                ? Results.Created($"/api/sessions/{sessionId}/turns/{result.Response.Id}", result.Response)
+                : Results.Ok(result.Response);
+        }
+        return Results.Json(result.Error, statusCode: result.StatusCode);
     }
 
     private static async Task<IResult> GetTurnAsync(
@@ -124,13 +149,11 @@ public static class SessionEndpoints
     {
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
-        var stored = await db.SessionTurns.AsNoTracking()
-            .Where(item => item.Id == turnId && item.SessionId == sessionId && item.Session.OwnerId == ownerId)
-            .Select(item => new { Turn = item, ExecutionId = item.ModuleExecution.Id })
-            .SingleOrDefaultAsync(cancellationToken);
-        if (stored is null) return Results.NotFound();
-        var execution = await executions.GetAsync(ownerId, stored.ExecutionId, cancellationToken);
-        return execution.Response is null ? Results.NotFound() : Results.Ok(ToTurnResponse(stored.Turn, execution.Response));
+        var turn = await db.SessionTurns.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.Id == turnId && item.SessionId == sessionId && item.Session.OwnerId == ownerId, cancellationToken);
+        if (turn is null) return Results.NotFound();
+        var response = await ToTurnResponseAsync(turn, ownerId, db, executions, cancellationToken);
+        return response is null ? Results.NotFound() : Results.Ok(response);
     }
 
     private static async Task<IReadOnlyList<SessionTurnResponse>> LoadTurnsAsync(
@@ -143,13 +166,12 @@ public static class SessionEndpoints
         var stored = await db.SessionTurns.AsNoTracking()
             .Where(item => item.SessionId == sessionId)
             .OrderBy(item => item.Position)
-            .Select(item => new { Turn = item, ExecutionId = item.ModuleExecution.Id })
             .ToListAsync(cancellationToken);
         var responses = new List<SessionTurnResponse>(stored.Count);
-        foreach (var item in stored)
+        foreach (var turn in stored)
         {
-            var execution = await executions.GetAsync(ownerId, item.ExecutionId, cancellationToken);
-            if (execution.Response is not null) responses.Add(ToTurnResponse(item.Turn, execution.Response));
+            var response = await ToTurnResponseAsync(turn, ownerId, db, executions, cancellationToken);
+            if (response is not null) responses.Add(response);
         }
         return responses;
     }
@@ -166,8 +188,36 @@ public static class SessionEndpoints
             session.CreatedAt,
             session.UpdatedAt);
 
-    private static SessionTurnResponse ToTurnResponse(SessionTurn turn, ModuleExecutionResponse execution) =>
-        new(turn.Id, turn.Position, turn.Kind, execution, turn.CreatedAt);
+    private static SessionTurnResponse ToModuleTurnResponse(SessionTurn turn, ModuleExecutionResponse execution) =>
+        new(turn.Id, turn.Position, turn.Kind, execution, null, turn.CreatedAt);
+
+    private static async Task<SessionTurnResponse?> ToTurnResponseAsync(
+        SessionTurn turn,
+        string ownerId,
+        ApplicationDbContext db,
+        IModuleExecutionService executions,
+        CancellationToken cancellationToken)
+    {
+        if (turn.Kind == "narrative")
+        {
+            if (turn.SourceModuleTurnId is null || turn.SourceSessionRevision is null || turn.NarrativeBody is null) return null;
+            return new SessionTurnResponse(
+                turn.Id,
+                turn.Position,
+                turn.Kind,
+                null,
+                new NarrativeTurnResponse(turn.SourceModuleTurnId, turn.SourceSessionRevision.Value, turn.NarrativeBody),
+                turn.CreatedAt);
+        }
+
+        var executionId = await db.ModuleExecutions.AsNoTracking()
+            .Where(item => item.SessionTurnId == turn.Id)
+            .Select(item => item.Id)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (executionId is null) return null;
+        var execution = await executions.GetAsync(ownerId, executionId, cancellationToken);
+        return execution.Response is null ? null : ToModuleTurnResponse(turn, execution.Response);
+    }
 
     private static string NewSessionId() => $"SES-{Guid.NewGuid():N}".ToUpperInvariant();
 }

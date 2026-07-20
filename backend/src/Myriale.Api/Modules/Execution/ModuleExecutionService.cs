@@ -432,6 +432,16 @@ public sealed class ModuleExecutionService(
                 .SingleAsync(item => item.Id == receipt.Id, cancellationToken);
             if (winner.Status != "pending") return Replay(winner, receipt.PayloadHash);
             var currentSessionRevision = await GetCurrentSessionRevisionAsync(winner.ExecutionId, cancellationToken);
+            if (currentSessionRevision is not null && await IsSessionAdvancedAsync(winner.ExecutionId, cancellationToken))
+            {
+                var currentExecution = await db.ModuleExecutions.SingleAsync(item => item.Id == winner.ExecutionId, cancellationToken);
+                var trackedReceipt = await db.ModuleExecutionRequests.SingleAsync(item => item.Id == winner.Id, cancellationToken);
+                return await RejectInitializationEffectsAsync(
+                    currentExecution,
+                    trackedReceipt,
+                    SessionOutcomeEffectResult.Advanced(currentSessionRevision.Value),
+                    cancellationToken);
+            }
             if (winner.ExpectedSessionRevision is not null
                 && currentSessionRevision is not null
                 && currentSessionRevision != winner.ExpectedSessionRevision)
@@ -536,11 +546,15 @@ public sealed class ModuleExecutionService(
                     .SingleAsync(item => item.Id == execution.Id, cancellationToken);
                 var trackedReceipt = await db.ModuleExecutionRequests.SingleAsync(item => item.Id == receipt.Id, cancellationToken);
                 var currentSessionRevision = await GetCurrentSessionRevisionAsync(execution.Id, cancellationToken);
-                var conflict = trackedReceipt.ExpectedSessionRevision is not null
-                    && currentSessionRevision is not null
-                    && currentSessionRevision != trackedReceipt.ExpectedSessionRevision
-                        ? EffectError(SessionOutcomeEffectResult.Conflict(currentSessionRevision.Value), current)
-                        : Conflict("revision_conflict", "別のactionが先に受理されました。", current);
+                var sessionAdvanced = currentSessionRevision is not null
+                    && await IsSessionAdvancedAsync(execution.Id, cancellationToken);
+                var conflict = sessionAdvanced
+                    ? EffectError(SessionOutcomeEffectResult.Advanced(currentSessionRevision!.Value), current)
+                    : trackedReceipt.ExpectedSessionRevision is not null
+                        && currentSessionRevision is not null
+                        && currentSessionRevision != trackedReceipt.ExpectedSessionRevision
+                            ? EffectError(SessionOutcomeEffectResult.Conflict(currentSessionRevision.Value), current)
+                            : Conflict("revision_conflict", "別のactionが先に受理されました。", current);
                 CompleteReceipt(trackedReceipt, conflict, "rejected");
                 await db.SaveChangesAsync(cancellationToken);
                 return conflict;
@@ -604,6 +618,12 @@ public sealed class ModuleExecutionService(
             return Replay(winner, payloadHash);
         }
     }
+
+    private async Task<bool> IsSessionAdvancedAsync(string executionId, CancellationToken cancellationToken) =>
+        await db.ModuleExecutions.AsNoTracking()
+            .Where(execution => execution.Id == executionId && execution.SessionTurn != null)
+            .Select(execution => execution.SessionTurn!.Position != execution.SessionTurn.Session.NextTurnPosition)
+            .SingleOrDefaultAsync(cancellationToken);
 
     private async Task<long?> GetCurrentSessionRevisionAsync(string executionId, CancellationToken cancellationToken) =>
         await db.ModuleExecutions.AsNoTracking()
@@ -691,7 +711,7 @@ public sealed class ModuleExecutionService(
 
     private ModuleExecutionServiceResult EffectError(SessionOutcomeEffectResult effectResult, ModuleExecution execution)
     {
-        var status = effectResult.Code == "session_revision_conflict"
+        var status = effectResult.Code is "session_revision_conflict" or "session_advanced"
             ? StatusCodes.Status409Conflict
             : StatusCodes.Status422UnprocessableEntity;
         return new ModuleExecutionServiceResult(

@@ -18,6 +18,13 @@ app.MapPost("/mock-ai/hero-recommendation", (MockHeroRecommendationRequest reque
         "AIがシナリオ設定から主人公案を推薦しました。内容を確認・修正してから確定してください。"));
 });
 
+app.MapPost("/mock-ai/narrative-handoff", (MockNarrativeHandoffRequest request) =>
+{
+    var facts = string.Join("、", request.Outcome.PublicFacts.Select(fact => fact.Text));
+    var body = $"{request.Outcome.Summary} {facts}。物語は確定した結果を受け止め、次の静かな瞬間へ進む。";
+    return Results.Ok(new MockNarrativeHandoffResponse(body));
+});
+
 app.MapPost("/mock-ai/scenario-assist", (MockScenarioAssistRequest request) =>
 {
     var response = request.Kind switch
@@ -71,6 +78,36 @@ public sealed record MockHeroRecommendationRequest(
     string? CurrentProfile);
 
 public sealed record MockHeroRecommendationResponse(string Name, string Profile, string Message);
+
+public sealed record MockNarrativeHandoffRequest(
+    MockNarrativeScenario Scenario,
+    MockNarrativeOutcome Outcome,
+    object FinalPublicModuleState,
+    MockNarrativeSessionState SessionState);
+
+public sealed record MockNarrativeScenario(
+    string Title,
+    string Summary,
+    string Genre,
+    string Tone,
+    string Lore,
+    string AiFreedom,
+    string Hero,
+    string Opening);
+
+public sealed record MockNarrativeOutcome(
+    string Category,
+    string Code,
+    string Title,
+    string Summary,
+    IReadOnlyList<MockNarrativeFact> PublicFacts,
+    IReadOnlyList<object> EmittedEvents,
+    IReadOnlyList<string> NarrativeHints,
+    IReadOnlyList<string> ForbiddenNarrativeFacts);
+
+public sealed record MockNarrativeFact(string Type, string Text);
+public sealed record MockNarrativeSessionState(long Revision, IReadOnlyDictionary<string, bool> Flags);
+public sealed record MockNarrativeHandoffResponse(string Body);
 
 public sealed record MockScenarioAssistRequest(
     string Kind,

@@ -43,6 +43,14 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .HasIndex(turn => new { turn.SessionId, turn.Position })
             .IsUnique();
         builder.Entity<SessionTurn>()
+            .HasIndex(turn => turn.SourceModuleTurnId)
+            .IsUnique();
+        builder.Entity<SessionTurn>()
+            .HasOne(turn => turn.SourceModuleTurn)
+            .WithOne(turn => turn.NarrativeTurn)
+            .HasForeignKey<SessionTurn>(turn => turn.SourceModuleTurnId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<SessionTurn>()
             .HasOne(turn => turn.Session)
             .WithMany(session => session.Turns)
             .HasForeignKey(turn => turn.SessionId)

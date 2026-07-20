@@ -39,6 +39,8 @@ Detached Module Executions continue to persist outcomes without applying effects
 
 ## Narrative handoff
 
-The next narrative is generated only after the outcome and effects are persisted. AI receives public facts, important events, final public state, narrative hints, and forbidden facts—not the full private module state or diagnostic log.
+A completed, latest Session-owned Module Turn may be handed off through an idempotent endpoint that appends one `narrative` Session Turn. Effectful outcomes require their committed `ModuleOutcomeApplication`; zero-effect outcomes require only the committed authoritative outcome. The handoff captures the post-effect Session State revision before generation and revalidates both the state revision and Session turn position before persistence. Its final write touches both concurrency boundaries; effect application likewise touches Session turn ordering. This makes effect completion and Narrative append mutually exclusive at commit when either snapshot is stale, so stale prose is never appended after the Session advances.
 
-Narrative handoff, durable `emittedEvents` processing, scenario-defined flag catalogs, and additional effect handlers are deferred to later changes.
+AI receives only scenario guidance, public facts, durable emitted events, final public module view state, post-effect flags, narrative hints, and forbidden facts. Private module state, configuration, context, randomness, request receipts, diagnostics, capabilities, and transient UI events are excluded. Provider calls may occur more than once under concurrency, but a unique source-turn relationship guarantees that only one Narrative Turn is persisted; replays return that durable turn.
+
+Durable `emittedEvents` processing beyond prompt projection, scenario-defined flag catalogs, additional effect handlers, player-input narrative turns, real provider selection, and background generation are deferred to later changes.
