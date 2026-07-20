@@ -93,7 +93,7 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 ### Clarificationと非進行制約
 
 - [x] 「今の状況を簡単にまとめて」をclient-only TurnではなくServer requestにする。
-- [ ] requestで期待するturn typeまたはinteraction typeを明示できるようにする。
+- [x] requestで期待するturn typeまたはinteraction typeを明示できるようにする。
 - [x] `clarification`ではprogression signalを禁止する。
 - [ ] `clarification`では新規の事件、NPC、場所、Session flag変更を確定しない。
 - [x] `clarification`はSessionの理解補助Turnとして履歴に保存する。

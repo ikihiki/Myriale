@@ -157,6 +157,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         Assert.Equal(_generator.DialogueHeading, firstJson.GetProperty("narrative").GetProperty("heading").GetString());
         var dialogueRequest = Assert.Single(_generator.DialogueRequests);
         Assert.Equal(NarrativeDialogueSchema.Version, dialogueRequest.SchemaVersion);
+        Assert.Equal(NarrativeInteractionTypes.Dialogue, dialogueRequest.InteractionType);
         Assert.False(dialogueRequest.IncludeInterpretation);
         Assert.Equal(JsonValueKind.Null, firstJson.GetProperty("narrative").GetProperty("interpretation").ValueKind);
 
@@ -165,6 +166,80 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var replayJson = await replay.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(firstJson.GetProperty("id").GetString(), replayJson.GetProperty("id").GetString());
         Assert.Equal(1, await CountNarrativeTurnsAsync());
+    }
+
+    [Fact]
+    public async Task UnknownInteractionTypeIsRejectedBeforeInputPersistence()
+    {
+        var client = await AuthenticatedClientAsync("invalid-interaction@example.test");
+        var sessionId = await CreateSessionAsync(client);
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/narrative-turns",
+            new { requestId = "invalid-interaction", input = "扉を調べる", interactionType = "unknown" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("invalid_interaction_type", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+        await using var scope = _factory.Services.CreateAsyncScope();
+        Assert.Equal(0, await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().SessionPlayerInputs.CountAsync());
+    }
+
+    [Fact]
+    public async Task ClarificationInteractionIsPersistedAndRequiresClarificationResult()
+    {
+        var client = await AuthenticatedClientAsync("clarification-contract@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        _generator.DialogueTurnType = "clarification";
+        _generator.DialogueHeading = "現在の状況を整理する";
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/narrative-turns",
+            new
+            {
+                requestId = "clarification-contract",
+                input = "今の状況を簡単にまとめて",
+                interactionType = NarrativeInteractionTypes.Clarification,
+            });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("clarification", json.GetProperty("narrative").GetProperty("turnType").GetString());
+        Assert.Equal(NarrativeInteractionTypes.Clarification, Assert.Single(_generator.DialogueRequests).InteractionType);
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var storedInput = await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>()
+            .SessionPlayerInputs.AsNoTracking().SingleAsync();
+        Assert.Equal(NarrativeInteractionTypes.Clarification, storedInput.InteractionType);
+    }
+
+    [Fact]
+    public async Task InteractionTypeMismatchIsRejectedAndRequestReplayCannotChangeType()
+    {
+        var client = await AuthenticatedClientAsync("interaction-mismatch@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        _generator.DialogueTurnType = "clarification";
+
+        using var mismatch = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/narrative-turns",
+            new
+            {
+                requestId = "interaction-mismatch",
+                input = "扉を調べる",
+                interactionType = NarrativeInteractionTypes.Dialogue,
+            });
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, mismatch.StatusCode);
+
+        _generator.DialogueTurnType = "action-result";
+        using var reused = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/narrative-turns",
+            new
+            {
+                requestId = "interaction-mismatch",
+                input = "扉を調べる",
+                interactionType = NarrativeInteractionTypes.Clarification,
+            });
+        Assert.Equal(HttpStatusCode.Conflict, reused.StatusCode);
+        Assert.Equal("idempotency_key_reused", (await reused.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
     }
 
     [Fact]
@@ -178,7 +253,12 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
 
         using var response = await client.PostAsJsonAsync(
             $"/api/sessions/{sessionId}/narrative-turns",
-            new { requestId = "clarification-with-signal", input = "今の状況を簡単にまとめて" });
+            new
+            {
+                requestId = "clarification-with-signal",
+                input = "今の状況を簡単にまとめて",
+                interactionType = NarrativeInteractionTypes.Clarification,
+            });
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         Assert.Equal("narrative_generation_failed", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
@@ -227,6 +307,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var pendingInput = Assert.Single(pendingSession.GetProperty("pendingInputs").EnumerateArray());
         Assert.Equal("dialogue-event", pendingInput.GetProperty("requestId").GetString());
         Assert.Equal("扉の前で立ち止まる", pendingInput.GetProperty("input").GetString());
+        Assert.Equal(NarrativeInteractionTypes.Dialogue, pendingInput.GetProperty("interactionType").GetString());
         Assert.Equal("pending", pendingInput.GetProperty("status").GetString());
         Assert.True(pendingInput.GetProperty("isRetryable").GetBoolean());
 

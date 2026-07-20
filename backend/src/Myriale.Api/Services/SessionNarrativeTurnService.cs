@@ -35,6 +35,9 @@ public sealed class SessionNarrativeTurnService(
         var inputText = request.Input?.Trim() ?? string.Empty;
         if (inputText.Length is 0 or > 4000)
             return SessionNarrativeTurnResult.Error(400, "invalid_input", "入力は1文字以上4000文字以内で指定してください。");
+        var interactionType = request.InteractionType?.Trim() ?? string.Empty;
+        if (!NarrativeInteractionTypes.Allowed.Contains(interactionType))
+            return SessionNarrativeTurnResult.Error(400, "invalid_interaction_type", "InteractionTypeが不正です。");
 
         var session = await db.Sessions
             .Include(item => item.Scenario)
@@ -46,7 +49,8 @@ public sealed class SessionNarrativeTurnService(
         if (!string.Equals(session.Status, "active", StringComparison.OrdinalIgnoreCase))
             return SessionNarrativeTurnResult.Error(409, "session_not_active", "Sessionは入力を受け付けていません。");
 
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(inputText))).ToLowerInvariant();
+        var hashPayload = $"{interactionType}\n{inputText}";
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(hashPayload))).ToLowerInvariant();
         var input = await db.SessionPlayerInputs
             .Include(item => item.NarrativeTurn)
             .Include(item => item.Work)
@@ -69,6 +73,7 @@ public sealed class SessionNarrativeTurnService(
                 SessionId = sessionId,
                 RequestId = request.RequestId,
                 Text = inputText,
+                InteractionType = interactionType,
                 PayloadHash = hash,
                 AcceptedAfterTurnId = session.HeadTurnId,
                 CreatedAt = now,
@@ -171,6 +176,7 @@ public sealed class SessionNarrativeTurnService(
                     NarrativeDialogueSchema.Version,
                     new NarrativeScenarioInput(scenario.Title, scenario.Summary, scenario.Genre, scenario.Tone, scenario.Lore, scenario.AiFreedom, scenario.Hero, scenario.Opening),
                     recentTurns,
+                    interactionType,
                     inputText,
                     new NarrativeSessionStateInput(
                         claimed.PlayerInput.Session.State.Revision,
@@ -178,7 +184,7 @@ public sealed class SessionNarrativeTurnService(
                     allowedSignals,
                     claimed.PlayerInput.Session.InterpretationEnabled),
                 timeout.Token);
-            ValidateGeneratedResult(generated, claimed.PlayerInput.Session.InterpretationEnabled);
+            ValidateGeneratedResult(generated, interactionType, claimed.PlayerInput.Session.InterpretationEnabled);
             ValidateSignals(generated.Signals, allowedSignals);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -304,10 +310,20 @@ public sealed class SessionNarrativeTurnService(
 
     private static bool SameTurn(string? left, string? right) => string.Equals(left, right, StringComparison.Ordinal);
 
-    private static void ValidateGeneratedResult(NarrativeDialogueResult result, bool interpretationRequired)
+    private static void ValidateGeneratedResult(
+        NarrativeDialogueResult result,
+        string interactionType,
+        bool interpretationRequired)
     {
+        var turnTypeMatchesInteraction = interactionType switch
+        {
+            NarrativeInteractionTypes.Clarification => result.TurnType == "clarification",
+            NarrativeInteractionTypes.Dialogue => result.TurnType is "action-result" or "npc-reply",
+            _ => false,
+        };
         if (!string.Equals(result.SchemaVersion, NarrativeDialogueSchema.Version, StringComparison.Ordinal)
             || !NarrativeDialogueSchema.TurnTypes.Contains(result.TurnType)
+            || !turnTypeMatchesInteraction
             || string.IsNullOrWhiteSpace(result.Heading)
             || result.Heading.Length > 120
             || string.IsNullOrWhiteSpace(result.Body)

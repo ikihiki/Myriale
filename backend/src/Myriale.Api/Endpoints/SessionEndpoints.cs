@@ -410,6 +410,7 @@ public static class SessionEndpoints
                 work.PlayerInputId,
                 work.PlayerInput.RequestId,
                 work.PlayerInput.Text,
+                work.PlayerInput.InteractionType,
                 work.PlayerInput.AcceptedAfterTurnId,
                 work.Status,
                 work.IsRetryable,

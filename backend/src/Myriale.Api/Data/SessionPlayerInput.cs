@@ -16,6 +16,9 @@ public sealed class SessionPlayerInput
     [Required, MaxLength(4000)]
     public string Text { get; set; } = string.Empty;
 
+    [Required, MaxLength(32)]
+    public string InteractionType { get; set; } = "dialogue";
+
     [Required, MaxLength(64)]
     public string PayloadHash { get; set; } = string.Empty;
 

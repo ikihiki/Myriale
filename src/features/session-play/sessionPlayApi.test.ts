@@ -65,6 +65,7 @@ describe('sessionPlayApi', () => {
         playerInputId: 'INP-1',
         requestId: 'narrative-1',
         input: '扉を調べる',
+        interactionType: 'clarification',
         status: 'failed',
         isRetryable: true,
         attemptCount: 1,
@@ -82,7 +83,11 @@ describe('sessionPlayApi', () => {
       turnType: 'action-result',
       heading: '閉じた扉を確かめる',
     });
-    expect(session.pendingInputs[0]).toMatchObject({ requestId: 'narrative-1', isRetryable: true });
+    expect(session.pendingInputs[0]).toMatchObject({
+      requestId: 'narrative-1',
+      interactionType: 'clarification',
+      isRetryable: true,
+    });
   });
 
   it('requests an AI recommendation without advancing the Session', async () => {
@@ -104,5 +109,26 @@ describe('sessionPlayApi', () => {
 
     await expect(createNarrativeTurn('SES-1', '扉を調べる', 'narrative-1', '/api/sessions'))
       .rejects.toMatchObject({ status: 503, code: 'narrative_generation_failed' });
+  });
+
+  it('sends an explicit clarification interaction type', async () => {
+    const fetch = vi.fn().mockResolvedValue(response({ id: 'TRN-2', position: 2, kind: 'narrative' }));
+    vi.stubGlobal('fetch', fetch);
+
+    await createNarrativeTurn(
+      'SES-1',
+      '今の状況を簡単にまとめて',
+      'clarification-1',
+      '/api/sessions',
+      'clarification',
+    );
+
+    expect(fetch).toHaveBeenCalledWith('/api/sessions/SES-1/narrative-turns', expect.objectContaining({
+      body: JSON.stringify({
+        requestId: 'clarification-1',
+        input: '今の状況を簡単にまとめて',
+        interactionType: 'clarification',
+      }),
+    }));
   });
 });

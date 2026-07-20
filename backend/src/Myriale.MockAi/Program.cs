@@ -34,14 +34,16 @@ app.MapPost("/mock-ai/narrative-dialogue", (MockNarrativeDialogueRequest request
     const string schemaVersion = "narrative-dialogue.v1";
     if (!string.Equals(request.SchemaVersion, schemaVersion, StringComparison.Ordinal))
         return Results.BadRequest();
+    if (request.InteractionType is not ("dialogue" or "clarification"))
+        return Results.BadRequest();
     var input = request.PlayerInput.Trim();
     var recent = request.RecentTurns.LastOrDefault()?.Narrative;
     var context = string.IsNullOrWhiteSpace(recent) ? "図書館の静けさ" : "直前の出来事を踏まえ";
-    var isClarification = input.Contains("状況", StringComparison.Ordinal) && input.Contains("まとめ", StringComparison.Ordinal);
-    var isNpcReply = input.Contains("話", StringComparison.Ordinal)
+    var isClarification = request.InteractionType == "clarification";
+    var isNpcReply = !isClarification && (input.Contains("話", StringComparison.Ordinal)
         || input.Contains("聞", StringComparison.Ordinal)
         || input.Contains("尋", StringComparison.Ordinal)
-        || input.Contains("人物", StringComparison.Ordinal);
+        || input.Contains("人物", StringComparison.Ordinal));
     var turnType = isClarification ? "clarification" : isNpcReply ? "npc-reply" : "action-result";
     var heading = isClarification ? "現在の状況を整理する" : isNpcReply ? "書架の奥の人物へ問いかける" : "次の手掛かりを確かめる";
     var signals = !isClarification
@@ -135,6 +137,7 @@ public sealed record MockNarrativeDialogueRequest(
     string SchemaVersion,
     MockNarrativeScenario Scenario,
     IReadOnlyList<MockNarrativeDialogueTurn> RecentTurns,
+    string InteractionType,
     string PlayerInput,
     MockNarrativeSessionState SessionState,
     IReadOnlyList<string> AllowedSignals,

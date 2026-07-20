@@ -43,6 +43,7 @@ public sealed record NarrativeDialogueRequest(
     string SchemaVersion,
     NarrativeScenarioInput Scenario,
     IReadOnlyList<NarrativeDialogueTurnInput> RecentTurns,
+    string InteractionType,
     string PlayerInput,
     NarrativeSessionStateInput SessionState,
     IReadOnlyList<string> AllowedSignals,

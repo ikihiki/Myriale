@@ -1,11 +1,26 @@
 namespace Myriale.Api.Contracts;
 
+public static class NarrativeInteractionTypes
+{
+    public const string Dialogue = "dialogue";
+    public const string Clarification = "clarification";
+
+    public static readonly IReadOnlySet<string> Allowed = new HashSet<string>(StringComparer.Ordinal)
+    {
+        Dialogue,
+        Clarification,
+    };
+}
+
 public sealed record CreateSessionRequest(
     string ScenarioId,
     string? RequestId = null,
     bool InterpretationEnabled = false);
 
-public sealed record CreateNarrativeTurnRequest(string RequestId, string Input);
+public sealed record CreateNarrativeTurnRequest(
+    string RequestId,
+    string Input,
+    string InteractionType = NarrativeInteractionTypes.Dialogue);
 
 public sealed record NarrativeTurnResponse(
     string? SourceModuleTurnId,
@@ -51,6 +66,7 @@ public sealed record SessionPlayerInputWorkResponse(
     string PlayerInputId,
     string RequestId,
     string Input,
+    string InteractionType,
     string? AcceptedAfterTurnId,
     string Status,
     bool IsRetryable,
