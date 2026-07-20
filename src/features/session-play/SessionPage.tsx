@@ -448,9 +448,6 @@ function SessionDialogueSection({
     setShowInterpretationFor((current) =>
       willShow ? [...current, turn.id] : current.filter((id) => id !== turn.id),
     );
-    if (willShow) {
-      setNotice('入力直下に内部解釈を表示しました。意図とのズレがあれば、削除・やり直しできます。');
-    }
   };
 
   const deleteDraft = () => {
@@ -786,26 +783,28 @@ function SessionDialogueSection({
         )}
 
         <section className="dialogue-composer" aria-label="自然言語入力">
-          <div className="mode-strip" aria-label="現在の入力モード">
-            <span className="mode-badge" data-testid="mode-badge">{modeMeta.badge}</span>
-            <span data-testid="session-mode-state">{modeMeta.label}</span>
-            <span>{modeMeta.summary}</span>
-          </div>
-          {forcedMode && <p data-testid="input-disabled-reason">{modeMeta.reason} 終了後に可能。</p>}
-          <p data-testid="mode-reason">{modeMeta.reason}</p>
-          <label className={forcedMode ? 'visually-hidden' : undefined}>自由に行動や会話を入力
-            <textarea
-              aria-label="自由に行動や会話を入力"
-              value={input}
-              onChange={(event) => {
-                const nextInput = event.target.value;
-                setInput(nextInput);
-                if (draftRequest && draftRequest.input !== nextInput.trim()) setDraftRequest(null);
-              }}
-              placeholder="例: 酒場の奥にいる人物に話しかける / 周囲を警戒しながら村を出る"
-              disabled={forcedMode || isSubmitting}
-            />
-          </label>
+          {forcedMode && (
+            <>
+              <div className="mode-strip" aria-label="現在の入力モード">
+                <span className="mode-badge" data-testid="mode-badge">{modeMeta.badge}</span>
+                <span data-testid="session-mode-state">{modeMeta.label}</span>
+                <span>{modeMeta.summary}</span>
+              </div>
+              <p data-testid="input-disabled-reason">{modeMeta.reason} 終了後に可能。</p>
+              <p data-testid="mode-reason">{modeMeta.reason}</p>
+            </>
+          )}
+          <textarea
+            aria-label="自由に行動や会話を入力"
+            value={input}
+            onChange={(event) => {
+              const nextInput = event.target.value;
+              setInput(nextInput);
+              if (draftRequest && draftRequest.input !== nextInput.trim()) setDraftRequest(null);
+            }}
+            placeholder="例: 酒場の奥にいる人物に話しかける / 周囲を警戒しながら村を出る"
+            disabled={forcedMode || isSubmitting}
+          />
 
           {sessionMode === 'dialogue' && (
             <div className="button-row">

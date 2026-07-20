@@ -106,7 +106,7 @@ export const USP06ShowInputInterpretation: Story = {
     await step('解釈トグルはPlayer Inputの直下にあり、押すと内部解釈を表示する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: 'Turn 13の入力解釈を見る' }));
       await expect(canvas.getByTestId('turn-13-interpretation')).toHaveTextContent('NPCへの会話として解釈');
-      await expect(canvas.getByRole('status')).toHaveTextContent('ズレがあれば、削除・やり直し');
+      await expect(canvas.queryByText('入力直下に内部解釈を表示しました。意図とのズレがあれば、削除・やり直しできます。')).not.toBeInTheDocument();
     });
     await step('もう一度押すと解釈を隠せる', async () => {
       await userEvent.click(canvas.getByRole('button', { name: 'Turn 13の入力解釈を隠す' }));

@@ -33,8 +33,8 @@ export const USPG01ForcedModeDisablesInput: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await openDebugPanel(canvas);
-    await step('初期はAI対話モードで、自由入力が有効', async () => {
-      await expect(canvas.getByTestId('mode-badge')).toHaveTextContent('対話中');
+    await step('初期は余分なモード説明を表示せず、自由入力が有効', async () => {
+      await expect(canvas.queryByTestId('mode-badge')).not.toBeInTheDocument();
       await expect(canvas.getByLabelText('自由に行動や会話を入力')).toBeEnabled();
     });
     await step('バトル開始でForced Modeに入り、自由入力が無効化され理由が示される', async () => {
@@ -163,7 +163,7 @@ export const USPG08ReturnToDialogue: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'バトルを開始' }));
     await step('シーン終了でForced Modeが解除され、自由入力欄が再表示される', async () => {
       await userEvent.click(canvas.getByRole('button', { name: 'AI対話へ戻る' }));
-      await expect(canvas.getByTestId('mode-badge')).toHaveTextContent('対話中');
+      await expect(canvas.queryByTestId('mode-badge')).not.toBeInTheDocument();
       await expect(canvas.getByLabelText('自由に行動や会話を入力')).toBeEnabled();
       await expect(canvas.queryByTestId('input-disabled-reason')).not.toBeInTheDocument();
     });
@@ -181,8 +181,8 @@ export const USPG09ShowCurrentMode: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await openDebugPanel(canvas);
-    await step('対話 → バトル → 判定 → イベントで、モードバッジが切り替わる', async () => {
-      await expect(canvas.getByTestId('mode-badge')).toHaveTextContent('対話中');
+    await step('Forced Modeでは、バトル → 判定 → イベントのモードバッジが切り替わる', async () => {
+      await expect(canvas.queryByTestId('mode-badge')).not.toBeInTheDocument();
       await userEvent.click(canvas.getByRole('button', { name: 'バトルを開始' }));
       await expect(canvas.getByTestId('mode-badge')).toHaveTextContent('バトル中');
       await userEvent.click(canvas.getByRole('button', { name: '判定を開始' }));

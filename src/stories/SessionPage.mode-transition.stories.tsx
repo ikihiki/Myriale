@@ -58,7 +58,7 @@ export const USM03ReturnToDialogue: Story = {
     await userEvent.click(canvas.getByRole('button', { name: '強制イベント開始' }));
     await step('正常終了でAI対話モードへ復帰し、自由入力を再度有効にする', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '正常終了してAI対話へ戻る' }));
-      await expect(canvas.getByTestId('mode-badge')).toHaveTextContent('対話中');
+      await expect(canvas.queryByTestId('mode-badge')).not.toBeInTheDocument();
       await expect(canvas.getByLabelText('自由に行動や会話を入力')).toBeEnabled();
       await expect(canvas.getByTestId('mode-notice')).toHaveTextContent('自由入力と巻き戻しが再度有効');
     });
@@ -78,7 +78,7 @@ export const USM04RecoverFromError: Story = {
     });
     await step('最後に確定した地点からAI対話へ復帰する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '最後に確定した地点から再開' }));
-      await expect(canvas.getByTestId('mode-badge')).toHaveTextContent('対話中');
+      await expect(canvas.queryByTestId('mode-badge')).not.toBeInTheDocument();
       await expect(canvas.getByTestId('recovery-point')).toHaveTextContent('lastConfirmed');
     });
   },
