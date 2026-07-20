@@ -4,7 +4,14 @@ import { useOptionalAppStore, type TurnDisplayFlags } from '../../app/store';
 import { SessionTurn } from '../../shared/SessionTurn';
 import { SessionNotesWorkspace } from '../../SessionNotesWorkspace';
 import { WizardNavigation } from '../../shared/WizardNavigation';
-import { createNarrativeTurn } from './sessionPlayApi';
+import {
+  createNarrativeTurn,
+  getSession,
+  getSessionApiBaseUrl,
+  type NarrativeTurnApiResponse,
+  type SessionApiError,
+  type SessionApiResponse,
+} from './sessionPlayApi';
 import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeToggle, MyrialeSelect } from '../../ui/MyrialeRadix';
 
 type TurnKind = 'action' | 'clarification' | 'rewound';
@@ -159,28 +166,93 @@ const resultForInput = (input: string, nextId: number): DialogueTurn => {
   };
 };
 
+const toDialogueTurn = (turn: NarrativeTurnApiResponse): DialogueTurn => ({
+  id: turn.position,
+  turnTitle: turn.narrative?.playerInput
+    ? 'Player Inputを受けたNarrative'
+    : turn.kind === 'module'
+      ? 'プログラムによる進行'
+      : '物語の始まり',
+  playerInput: turn.narrative?.playerInput ?? undefined,
+  interpretation: turn.narrative?.playerInput
+    ? 'Session APIへ永続化されたPlayer Inputです。'
+    : undefined,
+  narrative: turn.narrative?.body
+    ?? (turn.kind === 'module' ? 'プログラムによる進行を実行しています。' : 'Narrativeを表示できません。'),
+  kind: 'action',
+  display: turn.kind === 'module'
+    ? { allowRewind: false, showInterpretation: false, leadTone: 'program', leadTag: 'PROGRAM' }
+    : undefined,
+});
+
 const clampInitialTurnCount = (count: number | undefined) => {
   if (!Number.isFinite(count)) return initialTurns.length;
   return Math.min(Math.max(Math.trunc(count ?? initialTurns.length), 1), initialTurns.length);
 };
 
 export function SessionPage({ sessionId = 'SES-PREP-1098' }: { sessionId?: string } = {}) {
-  return <SessionDialogueSection sessionId={sessionId} />;
+  return getSessionApiBaseUrl()
+    ? <ServerSessionPage sessionId={sessionId} />
+    : <SessionDialogueSection sessionId={sessionId} />;
 }
 
+function ServerSessionPage({ sessionId }: { sessionId: string }) {
+  const [session, setSession] = useState<SessionApiResponse | null>(null);
+  const [error, setError] = useState('');
 
-function SessionDialogueSection({ sessionId }: { sessionId: string }) {
+  useEffect(() => {
+    const abort = new AbortController();
+    setSession(null);
+    setError('');
+    void getSession(sessionId, undefined, abort.signal)
+      .then(setSession)
+      .catch((reason: SessionApiError) => {
+        if (reason.name !== 'AbortError') setError(reason.message);
+      });
+    return () => abort.abort();
+  }, [sessionId]);
+
+  const playerAccount = { name: '霧野しおり', email: 'reader@myriale.example', initials: '霧野', role: 'プレイヤー' };
+  if (!session) {
+    return (
+      <AppChrome section="sessions" breadcrumbs={[{ label: 'Myriale', to: 'home' }, { label: 'セッション' }]} account={playerAccount}>
+        <main className="grid min-h-[calc(100vh-118px)] place-items-center bg-[image:var(--myr-screen-background)] p-6 text-myr-ink">
+          <section className="max-w-xl rounded-myr-panel bg-myr-paper p-8 text-center shadow-myr-panel" aria-label={error ? 'Session読み込みエラー' : 'Session読み込み中'}>
+            <h1 className="font-myr-display text-4xl">{error ? 'Sessionを読み込めませんでした' : 'Sessionを読み込んでいます'}</h1>
+            <p role={error ? 'alert' : 'status'}>{error || '確定済みのTurnを取得しています。'}</p>
+            {error && <button className="!rounded-full !bg-myr-ink !px-5 !py-3 !font-black !text-myr-paper" onClick={() => window.location.reload()}>再読み込み</button>}
+          </section>
+        </main>
+      </AppChrome>
+    );
+  }
+
+  return <SessionDialogueSection sessionId={sessionId} serverSession={session} />;
+}
+
+function SessionDialogueSection({ sessionId, serverSession }: { sessionId: string; serverSession?: SessionApiResponse }) {
   const appStore = useOptionalAppStore();
   const dbSession = appStore?.db.playSessions[sessionId];
   const initialTurnCount = clampInitialTurnCount(dbSession?.turn);
-  const initialVisibleTurns = initialTurns.slice(0, initialTurnCount);
+  const initialVisibleTurns = serverSession
+    ? serverSession.turns.map(toDialogueTurn)
+    : initialTurns.slice(0, initialTurnCount);
+  const resumableInput = serverSession?.pendingInputs.at(-1);
   const [turns, setTurns] = useState<DialogueTurn[]>(initialVisibleTurns);
-  const [input, setInput] = useState('');
-  const [selectedTurnId, setSelectedTurnId] = useState(1);
+  const [input, setInput] = useState(resumableInput?.input ?? '');
+  const [selectedTurnId, setSelectedTurnId] = useState(initialVisibleTurns.at(-1)?.id ?? 1);
+  const [draftRequest, setDraftRequest] = useState<{ input: string; requestId: string } | null>(
+    resumableInput ? { input: resumableInput.input, requestId: resumableInput.requestId } : null,
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [notice, setNotice] = useState(
-    initialTurnCount === 1
-      ? ''
-      : `Session状態はActiveです。DB設定により、複数ターン経過後（Turn ${String(initialTurnCount).padStart(2, '0')}まで）のログを表示しています。AIが現在地、周囲、直近の出来事をNarrativeとして提示しました。`,
+    resumableInput
+      ? resumableInput.errorMessage ?? '未完了のPlayer Inputを復元しました。同じRequest IDで再試行できます。'
+      : serverSession
+        ? 'Serverに保存された確定済みTurnを表示しています。'
+        : initialTurnCount === 1
+          ? ''
+          : `Session状態はActiveです。DB設定により、複数ターン経過後（Turn ${String(initialTurnCount).padStart(2, '0')}まで）のログを表示しています。AIが現在地、周囲、直近の出来事をNarrativeとして提示しました。`,
   );
   const notesMode = appStore?.db.ui.notesPanelMode ?? 'side';
   const setNotesMode = (mode: 'side' | 'full') => {
@@ -204,7 +276,9 @@ function SessionDialogueSection({ sessionId }: { sessionId: string }) {
     [selectedTurnId, turns],
   );
   const latestTurn = turns[turns.length - 1];
-  const availableHeadingLinks = headingLinks.filter((heading) => heading.startTurnId <= latestTurn.id);
+  const availableHeadingLinks = serverSession
+    ? turns.map((turn) => ({ title: turn.turnTitle, startTurnId: turn.id, summary: 'Serverに保存された確定済みTurn' }))
+    : headingLinks.filter((heading) => heading.startTurnId <= latestTurn.id);
   // TOCの末尾は常に最後のTurnを指す: 最後のAI見出しがログ末尾より手前で終わる場合、最新Turnへのリンクを補う。
   const tocHeadingLinks: HeadingLink[] =
     availableHeadingLinks[availableHeadingLinks.length - 1]?.startTurnId === latestTurn.id
@@ -250,30 +324,48 @@ function SessionDialogueSection({ sessionId }: { sessionId: string }) {
       setNotice('自然言語で行動や会話を入力してください。文法が不完全でも受理します。');
       return;
     }
+    if (isSubmitting) return;
 
-    const requestId = `narrative-${crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
+    const requestId = draftRequest?.input === submittedInput
+      ? draftRequest.requestId
+      : `narrative-${crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
+    setDraftRequest({ input: submittedInput, requestId });
+    setIsSubmitting(true);
+    setNotice('Player Inputを受理し、Narrativeを生成しています。');
     try {
-      const serverTurn = await createNarrativeTurn(sessionId, submittedInput, requestId);
-      const nextTurn = serverTurn?.narrative?.body
-        ? {
-            id: turns.length + 1,
-            turnTitle: 'Player Inputを受けたNarrative',
-            playerInput: submittedInput,
-            narrative: serverTurn.narrative.body,
-            interpretation: 'Session APIへ永続化し、サーバー側Narrativeとして生成しました。',
-            kind: 'action' as const,
-          }
+      const nextTurn = serverSession
+        ? toDialogueTurn(await createNarrativeTurn(sessionId, submittedInput, requestId))
         : resultForInput(submittedInput, turns.length + 1);
-      setTurns((current) => [...current, nextTurn]);
+      setTurns((current) => current.some((turn) => turn.id === nextTurn.id) ? current : [...current, nextTurn]);
       setSelectedTurnId(nextTurn.id);
       setInput('');
-      setNotice(serverTurn ? 'Player InputとNarrativeをSessionへ保存しました。' : 'Player Inputを行動として解釈し、結果をNarrativeとして生成しました。次の重要な進行は入力待ちです。');
+      setDraftRequest(null);
+      setNotice(serverSession
+        ? 'Player InputとNarrativeをSessionへ保存しました。'
+        : 'Player Inputを行動として解釈し、結果をNarrativeとして生成しました。次の重要な進行は入力待ちです。');
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Narrativeの生成に失敗しました。入力を保持して再試行できます。');
+      const apiError = error as SessionApiError;
+      const prefix = apiError.code === 'request_in_progress'
+        ? '同じ入力のNarrative生成が進行中です。'
+        : apiError.status === 401
+          ? 'ログイン状態を確認してください。'
+          : apiError.status === 409
+            ? 'Sessionの状態が変わったため、この入力を確定できませんでした。'
+            : '';
+      setNotice(`${prefix}${error instanceof Error ? error.message : 'Narrativeの生成に失敗しました。'} 入力を保持して同じRequest IDで再試行できます。`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const askClarification = () => {
+    if (serverSession) {
+      const clarificationInput = '今の状況を簡単にまとめて';
+      setInput(clarificationInput);
+      setDraftRequest(null);
+      setNotice('補足要求を入力欄へ設定しました。現在は通常のPlayer InputとしてServerへ送信します。');
+      return;
+    }
     const clarification: DialogueTurn = {
       id: turns.length + 1,
       turnTitle: '状況の再説明',
@@ -299,10 +391,15 @@ function SessionDialogueSection({ sessionId }: { sessionId: string }) {
 
   const deleteDraft = () => {
     setInput('');
+    setDraftRequest(null);
     setNotice('削除: 入力欄の未送信テキストを無効化しました。再入力できます。');
   };
 
   const redoPreviousTurn = () => {
+    if (serverSession) {
+      setNotice('Serverに確定したTurnの巻き戻しはまだ利用できません。履歴は変更されていません。');
+      return;
+    }
     if (turns.length === 1) {
       setNotice('巻き戻せる直前ターンがありません。');
       return;
@@ -319,6 +416,10 @@ function SessionDialogueSection({ sessionId }: { sessionId: string }) {
   };
 
   const requestRewind = (id: number) => {
+    if (serverSession) {
+      setNotice('Serverに確定したTurnの巻き戻しはまだ利用できません。履歴は変更されていません。');
+      return;
+    }
     setPendingRewindId(id);
     setNotice(`Turn ${String(id).padStart(2, '0')}まで戻る前に確認します。指定ターン以降のログと非同期処理を無効化します。`);
   };
@@ -375,6 +476,7 @@ function SessionDialogueSection({ sessionId }: { sessionId: string }) {
     ...defaultTurnDisplay,
     ...(dbSession?.turnDisplay?.[turn.id] ?? {}),
     ...(turn.display ?? {}),
+    ...(serverSession ? { allowRewind: false } : {}),
   });
   const generatedLog = turns.map((turn) => `${turn.turnTitle} ${turn.playerInput ?? ''} ${turn.narrative}`).join('\n');
 
@@ -623,15 +725,21 @@ function SessionDialogueSection({ sessionId }: { sessionId: string }) {
             <textarea
               aria-label="自由に行動や会話を入力"
               value={input}
-              onChange={(event) => setInput(event.target.value)}
+              onChange={(event) => {
+                const nextInput = event.target.value;
+                setInput(nextInput);
+                if (draftRequest && draftRequest.input !== nextInput.trim()) setDraftRequest(null);
+              }}
               placeholder="例: 酒場の奥にいる人物に話しかける / 周囲を警戒しながら村を出る"
-              disabled={forcedMode}
+              disabled={forcedMode || isSubmitting}
             />
           </label>
 
           {sessionMode === 'dialogue' && (
             <div className="button-row">
-              <button className="primary" onClick={sendInput} data-testid="send-free-input">行動を送る</button>
+              <button className="primary" onClick={() => void sendInput()} data-testid="send-free-input" disabled={isSubmitting}>
+                {isSubmitting ? 'Narrativeを生成中…' : draftRequest ? '同じ入力を再試行' : '行動を送る'}
+              </button>
               <button onClick={askClarification}>状況を簡単にまとめて聞く</button>
               <button onClick={deleteDraft}>削除（入力取り消し）</button>
               <button onClick={redoPreviousTurn} data-testid="rewind-button">やり直し（直前ターン巻き戻し）</button>

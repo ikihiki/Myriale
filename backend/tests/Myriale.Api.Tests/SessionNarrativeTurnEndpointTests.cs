@@ -152,6 +152,13 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
             new { requestId = "dialogue-event", input = "扉の前で立ち止まる" });
         await _generator.DialogueEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        var pendingSession = await GetSessionAsync(client, sessionId);
+        var pendingInput = Assert.Single(pendingSession.GetProperty("pendingInputs").EnumerateArray());
+        Assert.Equal("dialogue-event", pendingInput.GetProperty("requestId").GetString());
+        Assert.Equal("扉の前で立ち止まる", pendingInput.GetProperty("input").GetString());
+        Assert.Equal("pending", pendingInput.GetProperty("status").GetString());
+        Assert.True(pendingInput.GetProperty("isRetryable").GetBoolean());
+
         string inputId;
         await using (var pendingScope = _factory.Services.CreateAsyncScope())
         {

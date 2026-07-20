@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
+import { useRouter } from '@tanstack/react-router';
 import { useForm, useStore } from '@tanstack/react-form';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createFetchScenarioApi, type ScenarioApi } from '../../app/scenarioApi';
+import { createSession, getSessionApiBaseUrl } from '../session-play/sessionPlayApi';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeSelect } from '../../ui/MyrialeRadix';
 import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
@@ -54,10 +56,14 @@ function ProtagonistForm({
   scenario,
   api,
   onBeginStory,
+  isBeginning,
+  beginError,
 }: {
   scenario: ScenarioSummary;
   api: ScenarioApi;
-  onBeginStory: () => void;
+  onBeginStory: () => Promise<void> | void;
+  isBeginning: boolean;
+  beginError: string;
 }) {
   const heroCandidates = scenario.hero.split('\n').map((candidate) => candidate.trim()).filter(Boolean);
   const [aiSuggestion, setAiSuggestion] = useState('');
@@ -101,9 +107,8 @@ function ProtagonistForm({
     heroRecommendation.mutate();
   };
 
-  const beginStory = () => {
-    setReviewOpen(false);
-    onBeginStory();
+  const beginStory = async () => {
+    await onBeginStory();
   };
 
   return (
@@ -221,13 +226,15 @@ function ProtagonistForm({
               </button>
               <button
                 className="!rounded-full !bg-myr-ink !px-4 !py-2.5 !font-extrabold !text-myr-paper hover:!bg-myr-iris"
-                onClick={beginStory}
+                onClick={() => void beginStory()}
+                disabled={isBeginning}
               >
-                物語を始める
+                {isBeginning ? 'Sessionを作成しています…' : '物語を始める'}
               </button>
             </>
           )}
         >
+          {beginError && <p className="m-0 mb-4 text-sm font-bold text-myr-ruby" role="alert">{beginError}</p>}
           <article className="rounded-myr-card border border-myr-ink/15 bg-white/65 p-4 shadow-myr-card" data-testid="start-summary">
             <span className="font-myr-mono text-[0.6875rem] font-black tracking-[0.08em] text-myr-ruby uppercase">Session snapshot</span>
             <h2 className="my-2 font-myr-display text-3xl leading-none tracking-[-0.04em]">{scenario.title}</h2>
@@ -241,8 +248,12 @@ function ProtagonistForm({
 }
 
 export function StartSessionPage({ search, api }: { search?: StartSessionSearch; api?: ScenarioApi } = {}) {
+  const router = useRouter();
   const appNavigate = useAppNavigation();
   const scenarioApi = useMemo(() => api ?? createFetchScenarioApi(), [api]);
+  const [sessionRequestId] = useState(() => `session-${crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`);
+  const [isBeginning, setIsBeginning] = useState(false);
+  const [beginError, setBeginError] = useState('');
   const scenarioId = search?.scenarioId;
   const scenarioQuery = useQuery({
     queryKey: ['scenarios', 'detail', scenarioId],
@@ -262,12 +273,27 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
     navigateToStory(STORY_IDS.scenarioList);
   };
 
-  const beginStory = () => {
-    if (appNavigate) {
-      appNavigate('playSession');
+  const beginStory = async () => {
+    if (!scenarioId || isBeginning) return;
+    if (!getSessionApiBaseUrl()) {
+      if (appNavigate) {
+        appNavigate('playSession');
+        return;
+      }
+      navigateToStory(STORY_IDS.playSession);
       return;
     }
-    navigateToStory(STORY_IDS.playSession);
+
+    setBeginError('');
+    setIsBeginning(true);
+    try {
+      const session = await createSession(scenarioId, sessionRequestId);
+      router.history.push(`/sessions/${encodeURIComponent(session.id)}`);
+    } catch (error) {
+      setBeginError(error instanceof Error ? error.message : 'Sessionを開始できませんでした。');
+    } finally {
+      setIsBeginning(false);
+    }
   };
 
   const sessionCrumbs: Crumb[] = [
@@ -354,7 +380,13 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
               </article>
             </section>
 
-            <ProtagonistForm scenario={selectedScenario} api={scenarioApi} onBeginStory={beginStory} />
+            <ProtagonistForm
+              scenario={selectedScenario}
+              api={scenarioApi}
+              onBeginStory={beginStory}
+              isBeginning={isBeginning}
+              beginError={beginError}
+            />
           </section>
         </main>
       </div>

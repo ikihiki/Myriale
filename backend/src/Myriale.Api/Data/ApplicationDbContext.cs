@@ -60,6 +60,10 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .HasForeignKey(session => session.HeadTurnId)
             .OnDelete(DeleteBehavior.Restrict);
         builder.Entity<Session>()
+            .HasIndex(session => new { session.OwnerId, session.CreationRequestId })
+            .IsUnique()
+            .HasFilter("\"CreationRequestId\" IS NOT NULL");
+        builder.Entity<Session>()
             .HasIndex(session => new { session.OwnerId, session.UpdatedAt });
         builder.Entity<Session>()
             .HasOne(session => session.Scenario)
