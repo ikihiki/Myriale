@@ -14,7 +14,7 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 
 - [x] Player InputをSession所有の不変イベントとして永続化する。
 - [x] 同一`RequestId`のreplayとpayload不一致を検出する。
-- [x] AI生成のlease、retry、errorを`SessionPlayerInputWork`で管理する。
+- [x] 未完了のPlayer InputとAI生成のlease、retry、errorを`SessionPendingPlayerInput`で管理し、完了時に確定Inputへ変換してPending rowを削除する。
 - [x] Narrative Turnを`Session.HeadTurnId`のcompare-and-swap境界で一度だけ追加する。
 - [x] AIが返した進行signalをhost側のallowlistで検証する。
 - [x] Narrative Turn、signal、進行receiptを同一transactionで保存する。
@@ -74,13 +74,13 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 
 ### 構造化Narrative結果
 
-- [ ] `NarrativeDialogueRequest`と`NarrativeDialogueResult`にschema versionを追加する。
-- [ ] Narrative結果に`turnType`を追加する。
-- [ ] Narrative結果に短い`heading`を追加する。
-- [ ] Narrative結果にプレイヤーへ開示可能な`inputInterpretation`を追加する。
-- [ ] `inputInterpretation`はchain-of-thoughtではなく、行動種別と要約だけを保持する。
-- [ ] Narrative結果の本文、heading、interpretation、signalsに長さと文字種の上限を設ける。
-- [ ] schema不一致、余分なfield、空本文、不正signalをhost側で拒否する。
+- [x] `NarrativeDialogueRequest`と`NarrativeDialogueResult`にschema versionを追加する。
+- [x] Narrative結果に`turnType`を追加する。
+- [x] Narrative結果に短い`heading`を追加する。
+- [x] Narrative結果にプレイヤーへ開示可能な`inputInterpretation`を追加する。
+- [x] `inputInterpretation`はchain-of-thoughtではなく、行動種別と要約だけを保持する。
+- [x] Narrative結果の本文、heading、interpretation、signalsに長さと文字種の上限を設ける。
+- [x] schema不一致、余分なfield、空本文、不正signalをhost側で拒否する。
 
 想定するturn type:
 
@@ -92,50 +92,52 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 
 ### Clarificationと非進行制約
 
-- [ ] 「今の状況を簡単にまとめて」をclient-only TurnではなくServer requestにする。
-- [ ] requestで期待するturn typeまたはinteraction typeを明示できるようにする。
-- [ ] `clarification`ではprogression signalを禁止する。
-- [ ] `clarification`では新規の事件、NPC、場所、Session flag変更を確定しない。
-- [ ] `clarification`がSessionの理解補助Turnとして履歴に残るか、非進行メッセージとして別保存されるかを決定する。
+- [x] 「今の状況を簡単にまとめて」をclient-only TurnではなくServer requestにする。
+- [x] requestで期待するturn typeまたはinteraction typeを明示できるようにする。
+- [x] `clarification`ではprogression signalを禁止する。
+- [x] `clarification`からhost所有の進行やSession flag変更を確定できないようにする。
+- [x] `clarification`の本文で新規の事件、NPC、場所を確定しないよう、Prompt BuilderとCanon Contextで制約する。
+- [x] `clarification`はSessionの理解補助Turnとして履歴に保存する。
 
 ### 進行signalの意味
 
-- [ ] Scenario progression signalにAI向けのtrigger descriptionを追加する。
-- [ ] 必要に応じてpositive exampleとcounter exampleを追加する。
-- [ ] AI結果のsignalに短い`evidence`を要求する。
-- [ ] hostが現在node、allowlist、turn type、signal件数、evidenceを検証する。
-- [ ] opaqueなsignal codeだけをAIへ渡す現在の契約を廃止する。
-- [ ] signal誤発火時にModule Turnが開始されないことをテストする。
+- [x] Scenario progression signalにAI向けのtrigger descriptionを追加する。
+- [x] trigger descriptionに発火条件とcounter exampleを含める。
+- [x] AI結果のsignalに短い`evidence`を要求する。
+- [x] hostが現在node、allowlist、turn type、signal件数、evidenceを検証する。
+- [x] opaqueなsignal codeだけをAIへ渡す現在の契約を廃止する。
+- [x] signal誤発火時にModule Turnが開始されないことをテストする。
 
 ### Context Builder
 
-- [ ] `INarrativeContextBuilder`を導入し、Context構築を`SessionNarrativeTurnService`から分離する。
-- [ ] Scenario Lore、Tone、AI Freedom、選択済みHeroをContextへ含める。
-- [ ] 現在のScenario progression nodeと許可された遷移条件を含める。
-- [ ] Session flagsと現在状態を含める。
-- [ ] Module OutcomeのPublic Facts、Narrative Hints、Forbidden Narrative Factsを後続対話へ含める。
-- [ ] Session SummaryとLorebookを後から差し込めるversioned contractを定義する。
-- [ ] Recent Turnsの件数ではなくtoken budgetでContext量を制御できるようにする。
-- [ ] Contextのschema version、構成要素ID、サイズ、hashを診断用に記録する。
-- [ ] private Module State、configuration、context、乱数、receipt、provider secretをAI requestへ含めない。
+- [x] `INarrativeContextBuilder`を導入し、Context構築を`SessionNarrativeTurnService`から分離する。
+- [x] Scenario Lore、Tone、AI Freedom、選択済みHeroをContextへ含める。
+- [x] 現在のScenario progression nodeと許可された遷移条件を含める。
+- [x] Session flagsと現在状態を含める。
+- [x] Module OutcomeのPublic Facts、Narrative Hints、Forbidden Narrative Factsを後続対話へ含める。
+- [x] Session SummaryとLorebookを後から差し込めるversioned contractを定義する。
+- [x] Dialogue ContextのRecent Turnsをturn境界と時系列順を保った推定token budgetで制御する。
+- [x] Action RecommendationのRecent Turnsを同じtoken budget policyへ統合する。
+- [x] Contextのschema version、構成要素ID、サイズ、hashを診断用に記録する。
+- [x] private Module State、configuration、context、乱数、receipt、provider secretをAI requestへ含めない。
 
 ### Prompt Builder
 
-- [ ] `INarrativePromptBuilder`を導入し、Provider adapterからNarrative指示を分離する。
-- [ ] Player Inputをsystem/developer instructionと明確に分離し、prompt injectionを命令として扱わない。
-- [ ] Scenario Toneと主人公視点を維持する指示を定義する。
-- [ ] Player Inputにない重要な選択や主人公の代理行動を確定しないよう指示する。
-- [ ] Narrativeは状況提示または行動結果を描写し、次の重要な決定をPlayerへ返す。
-- [ ] Canon、Session flags、Module Outcome、Forbidden Factsを変更しないよう指示する。
-- [ ] `AiFreedom`の各値を具体的な生成制約へmappingする。
-- [ ] prompt versionを記録し、品質評価で比較できるようにする。
+- [x] `INarrativePromptBuilder`を導入し、Provider adapterからNarrative指示を分離する。
+- [x] Player Inputをsystem/developer instructionと明確に分離し、prompt injectionを命令として扱わない。
+- [x] Scenario Toneと主人公視点を維持する指示を定義する。
+- [x] Player Inputにない重要な選択や主人公の代理行動を確定しないよう指示する。
+- [x] Narrativeは状況提示または行動結果を描写し、次の重要な決定をPlayerへ返す。
+- [x] Canon、Session flags、Module Outcome、Forbidden Factsを変更しないよう指示する。
+- [x] `AiFreedom`の各値を具体的な生成制約へmappingする。
+- [x] prompt versionを記録し、品質評価で比較できるようにする。
 
 ### フェーズ2完了条件
 
-- [ ] Mock Providerを使った契約テストで全turn typeとschema validationが通る。
-- [ ] clarificationが進行signalやSession Stateを変更しない。
-- [ ] signalのtrigger descriptionとevidenceがrequest/responseに含まれ、host検証される。
-- [ ] Context Builderの出力に必要情報だけが含まれ、非公開データが含まれない。
+- [x] Mock Providerを使った契約テストで全turn typeとschema validationが通る。
+- [x] clarificationが進行signalやSession Stateを変更しない。
+- [x] signalのtrigger descriptionとevidenceがrequest/responseに含まれ、host検証される。
+- [x] Context Builderの出力に必要情報だけが含まれ、非公開データが含まれない。
 
 ## フェーズ3: 実AI Provider
 

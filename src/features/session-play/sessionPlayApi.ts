@@ -5,6 +5,9 @@ export type NarrativeTurnApiResponse = {
   kind: string;
   execution?: unknown | null;
   narrative?: {
+    schemaVersion?: string | null;
+    turnType?: string | null;
+    heading?: string | null;
     body: string;
     playerInputId?: string | null;
     playerInput?: string | null;
@@ -20,10 +23,13 @@ export type NarrativeTurnApiResponse = {
   createdAt: string;
 };
 
+export type NarrativeInteractionType = 'dialogue' | 'clarification';
+
 export type PendingPlayerInputApiResponse = {
   playerInputId: string;
   requestId: string;
   input: string;
+  interactionType: NarrativeInteractionType;
   acceptedAfterTurnId?: string | null;
   status: string;
   isRetryable: boolean;
@@ -62,13 +68,14 @@ export async function createSession(
   requestId: string,
   baseUrl = getSessionApiBaseUrl(),
   interpretationEnabled = false,
+  selectedHero?: string,
 ): Promise<SessionApiResponse> {
   if (!baseUrl) throw sessionApiError('Session APIが設定されていません。', 503, 'session_api_unavailable');
   const response = await fetch(`${baseUrl}/`, {
     method: 'POST',
     credentials: 'include',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ scenarioId, requestId, interpretationEnabled }),
+    body: JSON.stringify({ scenarioId, requestId, interpretationEnabled, selectedHero }),
   });
   if (!response.ok) throw await toSessionApiError(response, 'Sessionを開始できませんでした。');
   return response.json() as Promise<SessionApiResponse>;
@@ -109,13 +116,14 @@ export async function createNarrativeTurn(
   input: string,
   requestId: string,
   baseUrl = getSessionApiBaseUrl(),
+  interactionType: NarrativeInteractionType = 'dialogue',
 ): Promise<NarrativeTurnApiResponse> {
   if (!baseUrl) throw sessionApiError('Session APIが設定されていません。', 503, 'session_api_unavailable');
   const response = await fetch(`${baseUrl}/${encodeURIComponent(sessionId)}/narrative-turns`, {
     method: 'POST',
     credentials: 'include',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ requestId, input }),
+    body: JSON.stringify({ requestId, input, interactionType }),
   });
   if (!response.ok) throw await toSessionApiError(response, 'Narrativeの生成に失敗しました。');
   return response.json() as Promise<NarrativeTurnApiResponse>;

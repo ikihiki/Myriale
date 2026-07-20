@@ -123,6 +123,7 @@ public static class ScenarioSeedData
             Id = "SPT-STAR-LIBRARY-DOOR-REACHED",
             SourceNodeId = "SPN-STAR-LIBRARY-EXPLORATION",
             SignalCode = "constellation-door-reached",
+            TriggerDescription = "Playerが閉じた星座の扉の場所まで実際に到達したときだけ発火する。扉について話す、尋ねる、遠くから見るだけでは発火しない。",
             TargetNodeId = "SPN-STAR-LIBRARY-DOOR-CHECK",
         },
     ];
@@ -150,6 +151,7 @@ public static class ScenarioSeedData
         Id = transition.Id,
         SourceNodeId = transition.SourceNodeId,
         SignalCode = transition.SignalCode,
+        TriggerDescription = transition.TriggerDescription,
         TargetNodeId = transition.TargetNodeId,
         ModuleId = transition.ModuleId,
         ModuleVersion = transition.ModuleVersion,

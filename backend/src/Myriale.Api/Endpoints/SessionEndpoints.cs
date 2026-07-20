@@ -72,7 +72,9 @@ public static class SessionEndpoints
             if (replay is not null)
             {
                 if (!string.Equals(replay.ScenarioId, request.ScenarioId, StringComparison.Ordinal)
-                    || replay.InterpretationEnabled != request.InterpretationEnabled)
+                    || replay.InterpretationEnabled != request.InterpretationEnabled
+                    || (request.SelectedHero is not null
+                        && !string.Equals(replay.SelectedHero, request.SelectedHero.Trim(), StringComparison.Ordinal)))
                     return Results.Conflict(new SessionErrorResponse("idempotency_key_reused", "同じRequestIdに別のSession設定は指定できません。"));
                 var replayTurns = await LoadTurnsAsync(ownerId, replay.Id, db, executions, cancellationToken);
                 var replayPending = await LoadPendingInputsAsync(replay.Id, db, cancellationToken);
@@ -83,6 +85,12 @@ public static class SessionEndpoints
         var scenario = await db.Scenarios.AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == request.ScenarioId, cancellationToken);
         if (scenario is null) return Results.NotFound();
+
+        var selectedHero = string.IsNullOrWhiteSpace(request.SelectedHero)
+            ? scenario.Hero
+            : request.SelectedHero.Trim();
+        if (selectedHero.Length > 1000)
+            return Results.BadRequest(new SessionErrorResponse("invalid_selected_hero", "選択した主人公は1000文字以内で指定してください。"));
 
         var now = DateTimeOffset.UtcNow;
         var initialNode = await db.ScenarioProgressionNodes
@@ -119,6 +127,7 @@ public static class SessionEndpoints
             OwnerId = ownerId,
             ScenarioId = request.ScenarioId,
             CreationRequestId = requestId,
+            SelectedHero = selectedHero,
             Status = "active",
             InterpretationEnabled = request.InterpretationEnabled,
             CreatedAt = now,
@@ -171,6 +180,9 @@ public static class SessionEndpoints
             SessionId = session.Id,
             Position = 1,
             Kind = "narrative",
+            DialogueSchemaVersion = NarrativeDialogueSchema.Version,
+            DialogueTurnType = "opening",
+            Heading = scenario.Title,
             NarrativeBody = scenario.Opening,
             SourceSessionRevision = 0,
             CreatedAt = now,
@@ -245,6 +257,7 @@ public static class SessionEndpoints
         string sessionId,
         ClaimsPrincipal principal,
         ApplicationDbContext db,
+        INarrativeRecentTurnSelector recentTurnSelector,
         IActionRecommendationGenerator recommendations,
         CancellationToken cancellationToken)
     {
@@ -256,16 +269,15 @@ public static class SessionEndpoints
             .SingleOrDefaultAsync(item => item.Id == sessionId && item.OwnerId == ownerId, cancellationToken);
         if (session is null) return Results.NotFound();
 
-        var recentTurns = await db.SessionTurns.AsNoTracking()
+        var newestTurns = await db.SessionTurns.AsNoTracking()
             .Where(turn => turn.SessionId == sessionId)
             .Include(turn => turn.PlayerInput)
             .OrderByDescending(turn => turn.Position)
-            .Take(8)
-            .OrderBy(turn => turn.Position)
             .Select(turn => new NarrativeDialogueTurnInput(
                 turn.PlayerInput == null ? null : turn.PlayerInput.Text,
                 turn.NarrativeBody))
             .ToListAsync(cancellationToken);
+        var recentTurns = recentTurnSelector.Select(newestTurns).ToList();
         if (recentTurns.Count == 0)
             recentTurns.Add(new NarrativeDialogueTurnInput(null, session.Scenario.Opening));
         IReadOnlyDictionary<string, bool> flags;
@@ -291,7 +303,7 @@ public static class SessionEndpoints
                         session.Scenario.Tone,
                         session.Scenario.Lore,
                         session.Scenario.AiFreedom,
-                        session.Scenario.Hero,
+                        session.SelectedHero,
                         session.Scenario.Opening),
                     recentTurns,
                     new NarrativeSessionStateInput(session.State.Revision, flags)),
@@ -336,7 +348,18 @@ public static class SessionEndpoints
             result.Turn.PreviousTurnId,
             result.Turn.Kind,
             null,
-            new NarrativeTurnResponse(null, result.Turn.SourceSessionRevision, result.Turn.NarrativeBody!, result.Turn.PlayerInputId, playerInput?.Text, playerInput?.AcceptedAfterTurnId, signals, result.Turn.Interpretation),
+            new NarrativeTurnResponse(
+                null,
+                result.Turn.SourceSessionRevision,
+                result.Turn.NarrativeBody!,
+                result.Turn.PlayerInputId,
+                playerInput?.Text,
+                playerInput?.AcceptedAfterTurnId,
+                signals,
+                result.Turn.Interpretation,
+                result.Turn.DialogueSchemaVersion,
+                result.Turn.DialogueTurnType,
+                result.Turn.Heading),
             null,
             result.Turn.CreatedAt));
     }
@@ -384,25 +407,25 @@ public static class SessionEndpoints
         return response is null ? Results.NotFound() : Results.Ok(response);
     }
 
-    private static Task<List<SessionPlayerInputWorkResponse>> LoadPendingInputsAsync(
+    private static Task<List<SessionPendingPlayerInputResponse>> LoadPendingInputsAsync(
         string sessionId,
         ApplicationDbContext db,
         CancellationToken cancellationToken) =>
-        db.SessionPlayerInputWorks.AsNoTracking()
-            .Where(work => work.PlayerInput.SessionId == sessionId
-                && !db.SessionTurns.Any(turn => turn.PlayerInputId == work.PlayerInputId))
-            .OrderBy(work => work.PlayerInputId)
-            .Select(work => new SessionPlayerInputWorkResponse(
-                work.PlayerInputId,
-                work.PlayerInput.RequestId,
-                work.PlayerInput.Text,
-                work.PlayerInput.AcceptedAfterTurnId,
-                work.Status,
-                work.IsRetryable,
-                work.ErrorCode,
-                work.ErrorMessage,
-                work.AttemptCount,
-                work.UpdatedAt))
+        db.SessionPendingPlayerInputs.AsNoTracking()
+            .Where(input => input.SessionId == sessionId)
+            .OrderBy(input => input.Id)
+            .Select(input => new SessionPendingPlayerInputResponse(
+                input.Id,
+                input.RequestId,
+                input.Text,
+                input.InteractionType,
+                input.AcceptedAfterTurnId,
+                input.Status,
+                input.IsRetryable,
+                input.ErrorCode,
+                input.ErrorMessage,
+                input.AttemptCount,
+                input.UpdatedAt))
             .ToListAsync(cancellationToken);
 
     private static async Task<IReadOnlyList<SessionTurnResponse>> LoadTurnsAsync(
@@ -431,7 +454,7 @@ public static class SessionEndpoints
     private static SessionResponse ToResponse(
         Session session,
         IReadOnlyList<SessionTurnResponse> turns,
-        IReadOnlyList<SessionPlayerInputWorkResponse> pendingInputs)
+        IReadOnlyList<SessionPendingPlayerInputResponse> pendingInputs)
     {
         var transition = session.ProgressionTransitionReceipts
             .OrderByDescending(receipt => receipt.CreatedAt)
@@ -467,7 +490,13 @@ public static class SessionEndpoints
             turn.PreviousTurnId,
             turn.Kind,
             null,
-            new NarrativeTurnResponse(null, turn.SourceSessionRevision, turn.NarrativeBody!),
+            new NarrativeTurnResponse(
+                null,
+                turn.SourceSessionRevision,
+                turn.NarrativeBody!,
+                SchemaVersion: turn.DialogueSchemaVersion,
+                TurnType: turn.DialogueTurnType,
+                Heading: turn.Heading),
             null,
             turn.CreatedAt);
 
@@ -501,7 +530,10 @@ public static class SessionEndpoints
                     turn.PlayerInput?.Text,
                     turn.PlayerInput?.AcceptedAfterTurnId,
                     turn.NarrativeSignals.OrderBy(signal => signal.Code).Select(signal => signal.Code).ToArray(),
-                    turn.Interpretation),
+                    turn.Interpretation,
+                    turn.DialogueSchemaVersion,
+                    turn.DialogueTurnType,
+                    turn.Heading),
                 null,
                 turn.CreatedAt);
         }

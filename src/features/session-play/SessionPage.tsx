@@ -11,6 +11,7 @@ import {
   getSession,
   getSessionApiBaseUrl,
   recommendNextAction,
+  type NarrativeInteractionType,
   type NarrativeTurnApiResponse,
   type SessionApiError,
   type SessionApiResponse,
@@ -210,18 +211,19 @@ const resultForInput = (input: string, nextId: number): DialogueTurn => {
   };
 };
 
-const toDialogueTurn = (turn: NarrativeTurnApiResponse): DialogueTurn => ({
+export const toDialogueTurn = (turn: NarrativeTurnApiResponse): DialogueTurn => ({
   id: turn.position,
-  turnTitle: turn.narrative?.playerInput
-    ? 'Player Inputを受けたNarrative'
-    : turn.kind === 'module'
-      ? 'プログラムによる進行'
-      : '物語の始まり',
+  turnTitle: turn.narrative?.heading
+    ?? (turn.narrative?.playerInput
+      ? 'Player Inputを受けたNarrative'
+      : turn.kind === 'module'
+        ? 'プログラムによる進行'
+        : '物語の始まり'),
   playerInput: turn.narrative?.playerInput ?? undefined,
   interpretation: turn.narrative?.interpretation ?? undefined,
   narrative: turn.narrative?.body
     ?? (turn.kind === 'module' ? 'プログラムによる進行を実行しています。' : 'Narrativeを表示できません。'),
-  kind: 'action',
+  kind: turn.narrative?.turnType === 'clarification' ? 'clarification' : 'action',
   display: turn.kind === 'module'
     ? { allowRewind: false, showInterpretation: false, leadTone: 'program', leadTag: 'PROGRAM' }
     : undefined,
@@ -337,9 +339,22 @@ function SessionDialogueSection({
   const resumableInput = serverSession?.pendingInputs.at(-1);
   const [turns, setTurns] = useState<DialogueTurn[]>(initialVisibleTurns);
   const [input, setInput] = useState(resumableInput?.input ?? '');
+  const [interactionType, setInteractionType] = useState<NarrativeInteractionType>(
+    resumableInput?.interactionType ?? 'dialogue',
+  );
   const [selectedTurnId, setSelectedTurnId] = useState(initialVisibleTurns.at(-1)?.id ?? 1);
-  const [draftRequest, setDraftRequest] = useState<{ input: string; requestId: string } | null>(
-    resumableInput ? { input: resumableInput.input, requestId: resumableInput.requestId } : null,
+  const [draftRequest, setDraftRequest] = useState<{
+    input: string;
+    requestId: string;
+    interactionType: NarrativeInteractionType;
+  } | null>(
+    resumableInput
+      ? {
+          input: resumableInput.input,
+          requestId: resumableInput.requestId,
+          interactionType: resumableInput.interactionType ?? 'dialogue',
+        }
+      : null,
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRecommending, setIsRecommending] = useState(false);
@@ -426,19 +441,21 @@ function SessionDialogueSection({
     if (isSubmitting) return;
 
     const requestId = draftRequest?.input === submittedInput
+      && draftRequest.interactionType === interactionType
       ? draftRequest.requestId
       : `narrative-${crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
-    setDraftRequest({ input: submittedInput, requestId });
+    setDraftRequest({ input: submittedInput, requestId, interactionType });
     setIsSubmitting(true);
     setAuthenticationRequired(false);
     setNotice('Player Inputを受理し、Narrativeを生成しています。');
     try {
       const nextTurn = serverSession
-        ? toDialogueTurn(await createNarrativeTurn(sessionId, submittedInput, requestId))
+        ? toDialogueTurn(await createNarrativeTurn(sessionId, submittedInput, requestId, undefined, interactionType))
         : resultForInput(submittedInput, turns.length + 1);
       setTurns((current) => current.some((turn) => turn.id === nextTurn.id) ? current : [...current, nextTurn]);
       setSelectedTurnId(nextTurn.id);
       setInput('');
+      setInteractionType('dialogue');
       setDraftRequest(null);
       setNotice(serverSession
         ? 'Player InputとNarrativeをSessionへ保存しました。'
@@ -466,8 +483,9 @@ function SessionDialogueSection({
     if (serverSession) {
       const clarificationInput = '今の状況を簡単にまとめて';
       setInput(clarificationInput);
+      setInteractionType('clarification');
       setDraftRequest(null);
-      setNotice('補足要求を入力欄へ設定しました。現在は通常のPlayer InputとしてServerへ送信します。');
+      setNotice('補足要求を入力欄へ設定しました。理解補助として送信し、物語進行は許可しません。');
       return;
     }
     const clarification: DialogueTurn = {
@@ -495,6 +513,7 @@ function SessionDialogueSection({
           ? '銀の鍵を扉にかざし、刻まれた星座との対応を確かめる'
           : '周囲の安全を確かめながら、目につく手掛かりを詳しく調べる';
       setInput(suggestion);
+      setInteractionType('dialogue');
       setDraftRequest(null);
       setNotice('AIの提案を入力欄へ設定しました。内容を編集してから送信できます。');
     } catch (error) {
@@ -518,6 +537,7 @@ function SessionDialogueSection({
 
   const deleteDraft = () => {
     setInput('');
+    setInteractionType('dialogue');
     setDraftRequest(null);
     setNotice('削除: 入力欄の未送信テキストを無効化しました。再入力できます。');
   };

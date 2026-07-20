@@ -19,6 +19,14 @@ builder.Services.AddScoped<INarrativeGenerator>(services => services.GetRequired
 builder.Services.AddScoped<IActionRecommendationGenerator>(services => services.GetRequiredService<MockAiNarrativeGenerator>());
 builder.Services.AddScoped<SessionNarrativeHandoffService>();
 builder.Services.AddScoped<SessionScenarioProgressionService>();
+builder.Services.AddOptions<NarrativeContextOptions>()
+    .Bind(builder.Configuration.GetSection(NarrativeContextOptions.SectionName))
+    .Validate(options => options.RecentTurnsTokenBudget >= 0, "RecentTurnsTokenBudget must not be negative.")
+    .ValidateOnStart();
+builder.Services.AddSingleton<INarrativeRecentTurnSelector, NarrativeRecentTurnSelector>();
+builder.Services.AddSingleton<INarrativeTokenEstimator, Utf8NarrativeTokenEstimator>();
+builder.Services.AddSingleton<INarrativePromptBuilder, NarrativePromptBuilder>();
+builder.Services.AddScoped<INarrativeContextBuilder, NarrativeContextBuilder>();
 builder.Services.AddScoped<SessionNarrativeTurnService>();
 builder.Services.AddSingleton<IHomeDashboardService, DemoHomeDashboardService>();
 builder.Services.Configure<ModulePackageOptions>(builder.Configuration.GetSection(ModulePackageOptions.SectionName));

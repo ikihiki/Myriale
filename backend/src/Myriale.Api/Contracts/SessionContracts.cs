@@ -1,11 +1,27 @@
 namespace Myriale.Api.Contracts;
 
+public static class NarrativeInteractionTypes
+{
+    public const string Dialogue = "dialogue";
+    public const string Clarification = "clarification";
+
+    public static readonly IReadOnlySet<string> Allowed = new HashSet<string>(StringComparer.Ordinal)
+    {
+        Dialogue,
+        Clarification,
+    };
+}
+
 public sealed record CreateSessionRequest(
     string ScenarioId,
     string? RequestId = null,
-    bool InterpretationEnabled = false);
+    bool InterpretationEnabled = false,
+    string? SelectedHero = null);
 
-public sealed record CreateNarrativeTurnRequest(string RequestId, string Input);
+public sealed record CreateNarrativeTurnRequest(
+    string RequestId,
+    string Input,
+    string InteractionType = NarrativeInteractionTypes.Dialogue);
 
 public sealed record NarrativeTurnResponse(
     string? SourceModuleTurnId,
@@ -15,7 +31,10 @@ public sealed record NarrativeTurnResponse(
     string? PlayerInput = null,
     string? AcceptedAfterTurnId = null,
     IReadOnlyList<string>? Signals = null,
-    string? Interpretation = null);
+    string? Interpretation = null,
+    string? SchemaVersion = null,
+    string? TurnType = null,
+    string? Heading = null);
 
 public sealed record NarrativeHandoffStatusResponse(
     string Status,
@@ -44,10 +63,11 @@ public sealed record SessionProgressionResponse(
     string? ModuleTurnId,
     string? ErrorCode);
 
-public sealed record SessionPlayerInputWorkResponse(
+public sealed record SessionPendingPlayerInputResponse(
     string PlayerInputId,
     string RequestId,
     string Input,
+    string InteractionType,
     string? AcceptedAfterTurnId,
     string Status,
     bool IsRetryable,
@@ -66,7 +86,7 @@ public sealed record SessionResponse(
     SessionStateResponse State,
     SessionProgressionResponse? Progression,
     IReadOnlyList<SessionTurnResponse> Turns,
-    IReadOnlyList<SessionPlayerInputWorkResponse> PendingInputs,
+    IReadOnlyList<SessionPendingPlayerInputResponse> PendingInputs,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 

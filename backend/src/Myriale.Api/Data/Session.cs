@@ -16,6 +16,9 @@ public sealed class Session
     [MaxLength(120)]
     public string? CreationRequestId { get; set; }
 
+    [Required, MaxLength(1000)]
+    public string SelectedHero { get; set; } = string.Empty;
+
     [Required, MaxLength(32)]
     public string Status { get; set; } = "active";
 
@@ -35,6 +38,7 @@ public sealed class Session
     public SessionProgressState? Progress { get; set; }
     public ICollection<SessionTurn> Turns { get; set; } = [];
     public ICollection<ModuleOutcomeApplication> OutcomeApplications { get; set; } = [];
+    public ICollection<SessionPendingPlayerInput> PendingPlayerInputs { get; set; } = [];
     public ICollection<SessionPlayerInput> PlayerInputs { get; set; } = [];
     public ICollection<SessionNarrativeSignal> NarrativeSignals { get; set; } = [];
     public ICollection<SessionProgressionTransitionReceipt> ProgressionTransitionReceipts { get; set; } = [];

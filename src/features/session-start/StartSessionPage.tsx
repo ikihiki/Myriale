@@ -68,7 +68,7 @@ function ProtagonistForm({
 }: {
   scenario: ScenarioSummary;
   api: ScenarioApi;
-  onBeginStory: () => Promise<void> | void;
+  onBeginStory: (selectedHero: string) => Promise<void> | void;
   isBeginning: boolean;
   beginError: string;
   requiresLogin: boolean;
@@ -120,7 +120,7 @@ function ProtagonistForm({
   };
 
   const beginStory = async () => {
-    await onBeginStory();
+    await onBeginStory(heroForSummary);
   };
 
   return (
@@ -329,7 +329,7 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
     goToLogin();
   };
 
-  const beginStory = async () => {
+  const beginStory = async (selectedHero: string) => {
     if (!scenarioId || isBeginning) return;
     if (!getSessionApiBaseUrl()) {
       if (appNavigate) {
@@ -350,7 +350,7 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
     setRequiresLogin(false);
     setIsBeginning(true);
     try {
-      const session = await createSession(scenarioId, sessionRequestId, undefined, interpretationEnabled);
+      const session = await createSession(scenarioId, sessionRequestId, undefined, interpretationEnabled, selectedHero);
       router.history.push(`/sessions/${encodeURIComponent(session.id)}`);
     } catch (error) {
       const apiError = error as SessionApiError;
