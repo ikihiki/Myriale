@@ -7,12 +7,19 @@ public sealed record NarrativeTurnResponse(
     long SourceSessionRevision,
     string Body);
 
+public sealed record NarrativeHandoffStatusResponse(
+    string Status,
+    string? ErrorCode,
+    string? ErrorMessage,
+    DateTimeOffset UpdatedAt);
+
 public sealed record SessionTurnResponse(
     string Id,
     int Position,
     string Kind,
     ModuleExecutionResponse? Execution,
     NarrativeTurnResponse? Narrative,
+    NarrativeHandoffStatusResponse? NarrativeHandoff,
     DateTimeOffset CreatedAt);
 
 public sealed record SessionStateResponse(

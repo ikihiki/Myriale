@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Modules.Runtime;
+using Myriale.Api.Services;
 using Myriale.ModuleSdk;
 
 namespace Myriale.Api.Modules.Execution;
@@ -16,6 +17,7 @@ public sealed class ModuleExecutionService(
     ApplicationDbContext db,
     IModuleRuntime runtime,
     SessionOutcomeEffectService effects,
+    SessionNarrativeHandoffService narrativeHandoff,
     IOptions<ModuleExecutionOptions> options,
     ILogger<ModuleExecutionService> logger) : IModuleExecutionService
 {
@@ -29,12 +31,16 @@ public sealed class ModuleExecutionService(
         CancellationToken cancellationToken) =>
         InitializeCoreAsync(ownerId, null, request, cancellationToken, true, 0);
 
-    public Task<ModuleExecutionServiceResult> InitializeSessionTurnAsync(
+    public async Task<ModuleExecutionServiceResult> InitializeSessionTurnAsync(
         string ownerId,
         string sessionId,
         InitializeModuleExecutionRequest request,
-        CancellationToken cancellationToken) =>
-        InitializeCoreAsync(ownerId, sessionId, request, cancellationToken, true, 0);
+        CancellationToken cancellationToken)
+    {
+        var result = await InitializeCoreAsync(ownerId, sessionId, request, cancellationToken, true, 0);
+        await TryAutomaticNarrativeHandoffAsync(ownerId, result);
+        return result;
+    }
 
     private async Task<ModuleExecutionServiceResult> InitializeCoreAsync(
         string ownerId,
@@ -219,6 +225,17 @@ public sealed class ModuleExecutionService(
         DispatchModuleExecutionRequest request,
         CancellationToken cancellationToken)
     {
+        var result = await DispatchCoreAsync(ownerId, executionId, request, cancellationToken);
+        await TryAutomaticNarrativeHandoffAsync(ownerId, result);
+        return result;
+    }
+
+    private async Task<ModuleExecutionServiceResult> DispatchCoreAsync(
+        string ownerId,
+        string executionId,
+        DispatchModuleExecutionRequest request,
+        CancellationToken cancellationToken)
+    {
         await Gate.WaitAsync(cancellationToken);
         try
         {
@@ -372,6 +389,8 @@ public sealed class ModuleExecutionService(
                 if (!effectResult.IsSuccess)
                     return await RejectInitializationEffectsAsync(execution, receipt, effectResult, cancellationToken);
             }
+            if (result.Status == ModuleExecutionStatuses.Completed)
+                await narrativeHandoff.PrepareAsync(execution, receipt, result.Outcome, cancellationToken);
             ApplyInitialization(execution, result);
             var response = ToResponse(execution, result.Error, []);
             var serviceResult = new ModuleExecutionServiceResult(
@@ -519,6 +538,9 @@ public sealed class ModuleExecutionService(
                 }
             }
 
+            if (transition.Status == ModuleExecutionStatuses.Completed)
+                await narrativeHandoff.PrepareAsync(execution, receipt, transition.Outcome, cancellationToken);
+
             ModuleExecutionResponse response;
             if (transition.Status == ModuleExecutionStatuses.Failed)
             {
@@ -570,6 +592,19 @@ public sealed class ModuleExecutionService(
             CompleteReceipt(receipt, rejected, "rejected");
             await db.SaveChangesAsync(cancellationToken);
             return rejected;
+        }
+    }
+
+    private async Task TryAutomaticNarrativeHandoffAsync(string ownerId, ModuleExecutionServiceResult result)
+    {
+        if (result.Response?.Status != ModuleExecutionStatuses.Completed) return;
+        try
+        {
+            await narrativeHandoff.EnsureAsync(ownerId, result.Response.Id, CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Automatic narrative handoff failed unexpectedly for {ExecutionId}", result.Response.Id);
         }
     }
 

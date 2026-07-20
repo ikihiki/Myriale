@@ -8,40 +8,204 @@ namespace Myriale.Api.Services;
 
 public sealed class SessionNarrativeHandoffService(
     ApplicationDbContext db,
-    INarrativeGenerator generator)
+    INarrativeGenerator generator,
+    ILogger<SessionNarrativeHandoffService> logger)
 {
+    private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan GenerationTimeout = TimeSpan.FromSeconds(30);
     private readonly JsonSerializerOptions _json = ModuleJsonSerializerOptions.Create();
 
-    public async Task<NarrativeHandoffServiceResult> CreateAsync(
-        string ownerId,
-        string sessionId,
-        string moduleTurnId,
+    public async Task PrepareAsync(
+        ModuleExecution execution,
+        ModuleExecutionRequest completionRequest,
+        ModuleOutcome? outcome,
         CancellationToken cancellationToken)
     {
-        var existing = await db.SessionTurns.AsNoTracking()
-            .SingleOrDefaultAsync(turn => turn.SourceModuleTurnId == moduleTurnId
-                && turn.SessionId == sessionId
-                && turn.Session.OwnerId == ownerId,
-                cancellationToken);
-        if (existing is not null) return Success(existing, StatusCodes.Status200OK, true);
+        if (execution.SessionTurnId is null || outcome is null) return;
+        if (await db.SessionNarrativeHandoffs.AnyAsync(
+                handoff => handoff.SourceModuleTurnId == execution.SessionTurnId,
+                cancellationToken))
+            return;
 
         var source = await db.SessionTurns
-            .Include(turn => turn.Session).ThenInclude(session => session.Scenario)
             .Include(turn => turn.Session).ThenInclude(session => session.State)
-            .Include(turn => turn.ModuleExecution).ThenInclude(execution => execution!.OutcomeApplication)
-            .SingleOrDefaultAsync(turn => turn.Id == moduleTurnId
-                && turn.SessionId == sessionId
-                && turn.Session.OwnerId == ownerId
-                && turn.Kind == "module",
-                cancellationToken);
-        if (source?.ModuleExecution is null)
-            return new NarrativeHandoffServiceResult(StatusCodes.Status404NotFound);
+            .SingleAsync(turn => turn.Id == execution.SessionTurnId, cancellationToken);
+        var now = DateTimeOffset.UtcNow;
+        db.SessionNarrativeHandoffs.Add(new SessionNarrativeHandoff
+        {
+            SourceModuleTurnId = source.Id,
+            ExecutionId = execution.Id,
+            SessionId = source.SessionId,
+            SourceSessionRevision = source.Session.State.Revision,
+            Status = "pending",
+            IsRetryable = true,
+            AttemptCount = 0,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
+    }
 
-        var execution = source.ModuleExecution;
+    public async Task EnsureAsync(string ownerId, string executionId, CancellationToken cancellationToken)
+    {
+        db.ChangeTracker.Clear();
+        var now = DateTimeOffset.UtcNow;
+        var leaseId = $"NHL-{Guid.NewGuid():N}".ToUpperInvariant();
+        var leaseExpiresAt = now.Add(LeaseDuration);
+        var claim = await db.SessionNarrativeHandoffs
+            .SingleOrDefaultAsync(handoff => handoff.ExecutionId == executionId, cancellationToken);
+        if (claim is null
+            || claim.Status == "completed"
+            || !claim.IsRetryable
+            || claim.LeaseExpiresAt is not null && claim.LeaseExpiresAt > now)
+            return;
+        claim.Status = "pending";
+        claim.AttemptCount++;
+        claim.Revision++;
+        claim.LeaseId = leaseId;
+        claim.LeaseExpiresAt = leaseExpiresAt;
+        claim.LastErrorCode = null;
+        claim.LastErrorMessage = null;
+        claim.UpdatedAt = now;
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return;
+        }
+
+        db.ChangeTracker.Clear();
+        var handoff = await LoadClaimAsync(ownerId, executionId, leaseId, cancellationToken);
+        if (handoff?.SourceModuleTurn.ModuleExecution is null) return;
+
+        NarrativeHandoffRequest request;
+        try
+        {
+            request = BuildRequest(handoff);
+        }
+        catch (NarrativeHandoffValidationException exception)
+        {
+            await MarkFailedAsync(executionId, leaseId, exception.Code, exception.Message, retryable: false, cancellationToken);
+            return;
+        }
+
+        string body;
+        try
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(GenerationTimeout);
+            body = await generator.GenerateAsync(request, timeout.Token);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (Exception exception) when (exception is NarrativeGenerationException or HttpRequestException or JsonException or OperationCanceledException)
+        {
+            logger.LogWarning(exception, "Automatic narrative generation failed for {ExecutionId}", executionId);
+            await MarkFailedAsync(
+                executionId,
+                leaseId,
+                "narrative_generation_failed",
+                "Narrativeの生成に失敗しました。",
+                retryable: true,
+                CancellationToken.None);
+            return;
+        }
+
+        db.ChangeTracker.Clear();
+        handoff = await LoadClaimAsync(ownerId, executionId, leaseId, cancellationToken);
+        if (handoff is null) return;
+        var source = handoff.SourceModuleTurn;
+        if (source.NarrativeTurn is not null)
+        {
+            await NormalizeCompletedAsync(executionId, cancellationToken);
+            return;
+        }
+        if (source.Position != source.Session.NextTurnPosition
+            || source.Session.State.Revision != handoff.SourceSessionRevision)
+        {
+            await MarkFailedAsync(
+                executionId,
+                leaseId,
+                "session_advanced",
+                "Narrative生成中にSessionが進行しました。",
+                retryable: false,
+                cancellationToken);
+            return;
+        }
+
+        var completedAt = DateTimeOffset.UtcNow;
+        source.Session.State.UpdatedAt = completedAt;
+        source.Session.NextTurnPosition++;
+        source.Session.UpdatedAt = completedAt;
+        handoff.Status = "completed";
+        handoff.IsRetryable = false;
+        handoff.LeaseId = null;
+        handoff.LeaseExpiresAt = null;
+        handoff.LastErrorCode = null;
+        handoff.LastErrorMessage = null;
+        handoff.UpdatedAt = completedAt;
+        handoff.CompletedAt = completedAt;
+        db.SessionTurns.Add(new SessionTurn
+        {
+            Id = NewTurnId(),
+            SessionId = source.SessionId,
+            Position = source.Session.NextTurnPosition,
+            Kind = "narrative",
+            NarrativeBody = body,
+            SourceModuleTurnId = source.Id,
+            SourceSessionRevision = handoff.SourceSessionRevision,
+            CreatedAt = completedAt,
+        });
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            db.ChangeTracker.Clear();
+            if (await db.SessionTurns.AsNoTracking().AnyAsync(turn => turn.SourceModuleTurnId == source.Id, cancellationToken))
+                await NormalizeCompletedAsync(executionId, cancellationToken);
+            else
+                await MarkFailedAsync(
+                    executionId,
+                    leaseId,
+                    "session_advanced",
+                    "Narrative生成中にSessionが進行しました。",
+                    retryable: false,
+                    cancellationToken);
+        }
+    }
+
+    private async Task<SessionNarrativeHandoff?> LoadClaimAsync(
+        string ownerId,
+        string executionId,
+        string leaseId,
+        CancellationToken cancellationToken) =>
+        await db.SessionNarrativeHandoffs
+            .Include(handoff => handoff.SourceModuleTurn)
+                .ThenInclude(turn => turn.Session).ThenInclude(session => session.Scenario)
+            .Include(handoff => handoff.SourceModuleTurn)
+                .ThenInclude(turn => turn.Session).ThenInclude(session => session.State)
+            .Include(handoff => handoff.SourceModuleTurn)
+                .ThenInclude(turn => turn.ModuleExecution).ThenInclude(execution => execution!.OutcomeApplication)
+            .Include(handoff => handoff.SourceModuleTurn).ThenInclude(turn => turn.NarrativeTurn)
+            .SingleOrDefaultAsync(handoff => handoff.ExecutionId == executionId
+                && handoff.LeaseId == leaseId
+                && handoff.SourceModuleTurn.Session.OwnerId == ownerId,
+                cancellationToken);
+
+    private NarrativeHandoffRequest BuildRequest(SessionNarrativeHandoff handoff)
+    {
+        var source = handoff.SourceModuleTurn;
+        var execution = source.ModuleExecution!;
         if (execution.Status != ModuleExecutionStatuses.Completed || execution.OutcomeJson is null)
-            return Conflict("module_turn_not_completed", "完了していないModule TurnからNarrativeを生成できません。");
-        if (source.Position != source.Session.NextTurnPosition)
-            return Conflict("session_advanced", "このModule Turnの後にSessionが進行しています。");
+            throw new NarrativeHandoffValidationException("module_turn_not_completed", "Module Turnが完了していません。");
+        if (source.Position != source.Session.NextTurnPosition
+            || source.Session.State.Revision != handoff.SourceSessionRevision)
+            throw new NarrativeHandoffValidationException("session_advanced", "Module Turnの後にSessionが進行しています。");
 
         ModuleOutcome outcome;
         JsonElement viewState;
@@ -54,22 +218,21 @@ public sealed class SessionNarrativeHandoffService(
             flags = JsonSerializer.Deserialize<IReadOnlyDictionary<string, bool>>(source.Session.State.FlagsJson, _json)
                 ?? new Dictionary<string, bool>();
         }
-        catch (JsonException)
+        catch (JsonException exception)
         {
-            return new NarrativeHandoffServiceResult(
-                StatusCodes.Status422UnprocessableEntity,
-                Error: new NarrativeHandoffErrorResponse("narrative_source_invalid", "Narrative生成元の公開データを読み込めません。"));
+            throw new NarrativeHandoffValidationException("narrative_source_invalid", "Narrative生成元の公開データを読み込めません。", exception);
         }
 
-        var stateRevision = source.Session.State.Revision;
         if (outcome.Effects.Count > 0)
         {
             var application = execution.OutcomeApplication;
-            if (application is null || application.SessionId != sessionId || application.AppliedSessionRevision != stateRevision)
-                return Conflict("effects_not_applied", "Outcome Effectの適用が完了していません。");
+            if (application is null
+                || application.SessionId != source.SessionId
+                || application.AppliedSessionRevision != handoff.SourceSessionRevision)
+                throw new NarrativeHandoffValidationException("effects_not_applied", "Outcome Effectの適用が完了していません。");
         }
 
-        var request = new NarrativeHandoffRequest(
+        return new NarrativeHandoffRequest(
             new NarrativeScenarioInput(
                 source.Session.Scenario.Title,
                 source.Session.Scenario.Summary,
@@ -89,94 +252,47 @@ public sealed class SessionNarrativeHandoffService(
                 outcome.NarrativeHints,
                 outcome.ForbiddenNarrativeFacts),
             viewState,
-            new NarrativeSessionStateInput(stateRevision, flags));
-
-        string body;
-        try
-        {
-            body = await generator.GenerateAsync(request, cancellationToken);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (OperationCanceledException)
-        {
-            return new NarrativeHandoffServiceResult(
-                StatusCodes.Status502BadGateway,
-                Error: new NarrativeHandoffErrorResponse("narrative_generation_failed", "Narrativeの生成に失敗しました。"));
-        }
-        catch (Exception exception) when (exception is NarrativeGenerationException or HttpRequestException or JsonException)
-        {
-            return new NarrativeHandoffServiceResult(
-                StatusCodes.Status502BadGateway,
-                Error: new NarrativeHandoffErrorResponse("narrative_generation_failed", "Narrativeの生成に失敗しました。"));
-        }
-
-        var current = await db.Sessions.AsNoTracking()
-            .Where(session => session.Id == sessionId && session.OwnerId == ownerId)
-            .Select(session => new { session.NextTurnPosition, StateRevision = session.State.Revision })
-            .SingleAsync(cancellationToken);
-        if (current.NextTurnPosition != source.Position || current.StateRevision != stateRevision)
-        {
-            var winner = await db.SessionTurns.AsNoTracking()
-                .SingleOrDefaultAsync(turn => turn.SourceModuleTurnId == moduleTurnId
-                    && turn.SessionId == sessionId
-                    && turn.Session.OwnerId == ownerId,
-                    cancellationToken);
-            return winner is not null
-                ? Success(winner, StatusCodes.Status200OK, true)
-                : Conflict("session_advanced", "Narrative生成中にSessionが進行しました。");
-        }
-
-        var now = DateTimeOffset.UtcNow;
-        source.Session.State.UpdatedAt = now;
-        source.Session.NextTurnPosition++;
-        source.Session.UpdatedAt = now;
-        var narrative = new SessionTurn
-        {
-            Id = NewTurnId(),
-            SessionId = sessionId,
-            Position = source.Session.NextTurnPosition,
-            Kind = "narrative",
-            NarrativeBody = body,
-            SourceModuleTurnId = source.Id,
-            SourceSessionRevision = stateRevision,
-            CreatedAt = now,
-        };
-        db.SessionTurns.Add(narrative);
-        try
-        {
-            await db.SaveChangesAsync(cancellationToken);
-            return Success(narrative, StatusCodes.Status201Created, false);
-        }
-        catch (DbUpdateException)
-        {
-            db.ChangeTracker.Clear();
-            var winner = await db.SessionTurns.AsNoTracking()
-                .SingleOrDefaultAsync(turn => turn.SourceModuleTurnId == moduleTurnId
-                    && turn.SessionId == sessionId
-                    && turn.Session.OwnerId == ownerId,
-                    cancellationToken);
-            if (winner is not null) return Success(winner, StatusCodes.Status200OK, true);
-            return Conflict("session_advanced", "Narrative生成中にSessionが進行しました。");
-        }
+            new NarrativeSessionStateInput(handoff.SourceSessionRevision, flags));
     }
 
-    private static NarrativeHandoffServiceResult Success(SessionTurn turn, int statusCode, bool replayed) =>
-        new(statusCode, ToResponse(turn), Replayed: replayed);
+    private Task<int> MarkFailedAsync(
+        string executionId,
+        string leaseId,
+        string code,
+        string message,
+        bool retryable,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return db.SessionNarrativeHandoffs
+            .Where(handoff => handoff.ExecutionId == executionId && handoff.LeaseId == leaseId)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(handoff => handoff.Status, "failed")
+                .SetProperty(handoff => handoff.IsRetryable, retryable)
+                .SetProperty(handoff => handoff.LeaseId, (string?)null)
+                .SetProperty(handoff => handoff.LeaseExpiresAt, (DateTimeOffset?)null)
+                .SetProperty(handoff => handoff.LastErrorCode, code)
+                .SetProperty(handoff => handoff.LastErrorMessage, message)
+                .SetProperty(handoff => handoff.UpdatedAt, now),
+                cancellationToken);
+    }
 
-    private static NarrativeHandoffServiceResult Conflict(string code, string message) =>
-        new(StatusCodes.Status409Conflict, Error: new NarrativeHandoffErrorResponse(code, message));
-
-    private static SessionTurnResponse ToResponse(SessionTurn turn) =>
-        new(
-            turn.Id,
-            turn.Position,
-            turn.Kind,
-            null,
-            new NarrativeTurnResponse(turn.SourceModuleTurnId!, turn.SourceSessionRevision!.Value, turn.NarrativeBody!),
-            turn.CreatedAt);
+    private Task<int> NormalizeCompletedAsync(string executionId, CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return db.SessionNarrativeHandoffs
+            .Where(handoff => handoff.ExecutionId == executionId)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(handoff => handoff.Status, "completed")
+                .SetProperty(handoff => handoff.IsRetryable, false)
+                .SetProperty(handoff => handoff.LeaseId, (string?)null)
+                .SetProperty(handoff => handoff.LeaseExpiresAt, (DateTimeOffset?)null)
+                .SetProperty(handoff => handoff.LastErrorCode, (string?)null)
+                .SetProperty(handoff => handoff.LastErrorMessage, (string?)null)
+                .SetProperty(handoff => handoff.UpdatedAt, now)
+                .SetProperty(handoff => handoff.CompletedAt, handoff => handoff.CompletedAt ?? now),
+                cancellationToken);
+    }
 
     private static JsonElement Parse(string json)
     {
@@ -187,8 +303,8 @@ public sealed class SessionNarrativeHandoffService(
     private static string NewTurnId() => $"TRN-{Guid.NewGuid():N}".ToUpperInvariant();
 }
 
-public sealed record NarrativeHandoffServiceResult(
-    int StatusCode,
-    SessionTurnResponse? Response = null,
-    NarrativeHandoffErrorResponse? Error = null,
-    bool Replayed = false);
+public sealed class NarrativeHandoffValidationException(string code, string message, Exception? innerException = null)
+    : Exception(message, innerException)
+{
+    public string Code { get; } = code;
+}

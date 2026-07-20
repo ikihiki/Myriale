@@ -11,6 +11,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<Session> Sessions => Set<Session>();
     public DbSet<SessionTurn> SessionTurns => Set<SessionTurn>();
     public DbSet<SessionState> SessionStates => Set<SessionState>();
+    public DbSet<SessionNarrativeHandoff> SessionNarrativeHandoffs => Set<SessionNarrativeHandoff>();
     public DbSet<ModuleExecution> ModuleExecutions => Set<ModuleExecution>();
     public DbSet<ModuleExecutionRequest> ModuleExecutionRequests => Set<ModuleExecutionRequest>();
     public DbSet<ModuleOutcomeApplication> ModuleOutcomeApplications => Set<ModuleOutcomeApplication>();
@@ -42,6 +43,17 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         builder.Entity<SessionTurn>()
             .HasIndex(turn => new { turn.SessionId, turn.Position })
             .IsUnique();
+        builder.Entity<SessionNarrativeHandoff>()
+            .Property(handoff => handoff.Revision)
+            .IsConcurrencyToken();
+        builder.Entity<SessionNarrativeHandoff>()
+            .HasIndex(handoff => handoff.ExecutionId)
+            .IsUnique();
+        builder.Entity<SessionNarrativeHandoff>()
+            .HasOne(handoff => handoff.SourceModuleTurn)
+            .WithOne(turn => turn.NarrativeHandoff)
+            .HasForeignKey<SessionNarrativeHandoff>(handoff => handoff.SourceModuleTurnId)
+            .OnDelete(DeleteBehavior.Cascade);
         builder.Entity<SessionTurn>()
             .HasIndex(turn => turn.SourceModuleTurnId)
             .IsUnique();
