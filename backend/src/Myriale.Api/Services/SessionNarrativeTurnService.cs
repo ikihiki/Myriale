@@ -179,6 +179,7 @@ public sealed class SessionNarrativeTurnService(
                     NarrativeDialogueSchema.Version,
                     context.Scenario,
                     context.RecentTurns,
+                    context.PriorModuleOutcomes,
                     interactionType,
                     inputText,
                     context.SessionState,

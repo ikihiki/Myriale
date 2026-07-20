@@ -1,5 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Myriale.Api.Modules.Runtime;
+using Myriale.ModuleSdk;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 
@@ -31,6 +33,35 @@ public sealed class NarrativeContextBuilder(ApplicationDbContext db) : INarrativ
                 turn.NarrativeBody))
             .ToListAsync(cancellationToken);
 
+        var storedOutcomeJson = await db.SessionTurns.AsNoTracking()
+            .Where(turn => turn.SessionId == sessionId
+                && turn.Session.OwnerId == ownerId
+                && turn.Kind == "module"
+                && turn.ModuleExecution != null
+                && turn.ModuleExecution.Status == ModuleExecutionStatuses.Completed
+                && turn.ModuleExecution.OutcomeJson != null)
+            .OrderBy(turn => turn.Position)
+            .Select(turn => turn.ModuleExecution!.OutcomeJson!)
+            .ToListAsync(cancellationToken);
+        IReadOnlyList<NarrativePriorModuleOutcomeInput> priorModuleOutcomes;
+        try
+        {
+            var moduleJson = ModuleJsonSerializerOptions.Create();
+            priorModuleOutcomes = storedOutcomeJson.Select(json =>
+            {
+                var outcome = JsonSerializer.Deserialize<ModuleOutcome>(json, moduleJson)
+                    ?? throw new JsonException("Stored module outcome is empty.");
+                return new NarrativePriorModuleOutcomeInput(
+                    outcome.PublicFacts,
+                    outcome.NarrativeHints,
+                    outcome.ForbiddenNarrativeFacts);
+            }).ToArray();
+        }
+        catch (JsonException exception)
+        {
+            throw new NarrativeGenerationException("Stored module outcome is invalid.", exception);
+        }
+
         var flags = JsonSerializer.Deserialize<IReadOnlyDictionary<string, bool>>(session.State.FlagsJson)
             ?? new Dictionary<string, bool>();
         var allowedSignals = interactionType == NarrativeInteractionTypes.Clarification
@@ -48,6 +79,7 @@ public sealed class NarrativeContextBuilder(ApplicationDbContext db) : INarrativ
                 session.Scenario.Hero,
                 session.Scenario.Opening),
             recentTurns,
+            priorModuleOutcomes,
             new NarrativeSessionStateInput(session.State.Revision, flags),
             session.Progress?.CurrentNode.Code,
             allowedSignals);

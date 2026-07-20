@@ -14,6 +14,7 @@ public interface INarrativeContextBuilder
 public sealed record NarrativeDialogueContext(
     NarrativeScenarioInput Scenario,
     IReadOnlyList<NarrativeDialogueTurnInput> RecentTurns,
+    IReadOnlyList<NarrativePriorModuleOutcomeInput> PriorModuleOutcomes,
     NarrativeSessionStateInput SessionState,
     string? CurrentProgressionNode,
     IReadOnlyList<NarrativeAllowedSignal> AllowedSignals);

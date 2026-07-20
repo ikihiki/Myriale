@@ -31,7 +31,7 @@ app.MapPost("/mock-ai/action-recommendation", (MockActionRecommendationRequest r
 
 app.MapPost("/mock-ai/narrative-dialogue", (MockNarrativeDialogueRequest request) =>
 {
-    const string schemaVersion = "narrative-dialogue.v4";
+    const string schemaVersion = "narrative-dialogue.v5";
     if (!string.Equals(request.SchemaVersion, schemaVersion, StringComparison.Ordinal))
         return Results.BadRequest();
     if (request.InteractionType is not ("dialogue" or "clarification"))
@@ -137,12 +137,18 @@ public sealed record MockNarrativeDialogueRequest(
     string SchemaVersion,
     MockNarrativeScenario Scenario,
     IReadOnlyList<MockNarrativeDialogueTurn> RecentTurns,
+    IReadOnlyList<MockPriorModuleOutcome> PriorModuleOutcomes,
     string InteractionType,
     string PlayerInput,
     MockNarrativeSessionState SessionState,
     string? CurrentProgressionNode,
     IReadOnlyList<MockAllowedNarrativeSignal> AllowedSignals,
     bool IncludeInterpretation);
+
+public sealed record MockPriorModuleOutcome(
+    IReadOnlyList<MockNarrativeFact> PublicFacts,
+    IReadOnlyList<string> NarrativeHints,
+    IReadOnlyList<string> ForbiddenNarrativeFacts);
 
 public sealed record MockAllowedNarrativeSignal(string Code, string TriggerDescription);
 public sealed record MockNarrativeDialogueTurn(string? PlayerInput, string? Narrative);

@@ -63,7 +63,7 @@ public sealed class SessionModuleTurnEndpointTests : IDisposable
         Assert.Equal(createdJson.GetProperty("turns")[0].GetProperty("id").GetString(), createdJson.GetProperty("headTurnId").GetString());
         var openingNarrative = createdJson.GetProperty("turns")[0].GetProperty("narrative");
         Assert.Equal("あなたは水没した閲覧室で目を覚ます。", openingNarrative.GetProperty("body").GetString());
-        Assert.Equal("narrative-dialogue.v4", openingNarrative.GetProperty("schemaVersion").GetString());
+        Assert.Equal("narrative-dialogue.v5", openingNarrative.GetProperty("schemaVersion").GetString());
         Assert.Equal("opening", openingNarrative.GetProperty("turnType").GetString());
         Assert.Equal("星喰いの地下図書館", openingNarrative.GetProperty("heading").GetString());
         Assert.Equal(1, createdJson.GetProperty("turns")[0].GetProperty("position").GetInt32());

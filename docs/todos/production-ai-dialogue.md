@@ -114,7 +114,7 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 - [ ] Scenario Lore、Tone、AI Freedom、選択済みHeroをContextへ含める。
 - [x] 現在のScenario progression nodeと許可された遷移条件を含める。
 - [x] Session flagsと現在状態を含める。
-- [ ] Module OutcomeのPublic Facts、Narrative Hints、Forbidden Narrative Factsを後続対話へ含める。
+- [x] Module OutcomeのPublic Facts、Narrative Hints、Forbidden Narrative Factsを後続対話へ含める。
 - [ ] Session SummaryとLorebookを後から差し込めるversioned contractを定義する。
 - [ ] Recent Turnsの件数ではなくtoken budgetでContext量を制御できるようにする。
 - [ ] Contextのschema version、構成要素ID、サイズ、hashを診断用に記録する。

@@ -13,7 +13,7 @@ describe('toDialogueTurn', () => {
     const turn = toDialogueTurn({
       ...baseTurn,
       narrative: {
-        schemaVersion: 'narrative-dialogue.v4',
+        schemaVersion: 'narrative-dialogue.v5',
         turnType: 'clarification',
         heading: '現在の状況を整理する',
         body: '現在地と手掛かりを整理した。',

@@ -13,7 +13,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v4",
+              "schemaVersion": "narrative-dialogue.v5",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
@@ -37,7 +37,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var handler = new StaticJsonHandler("""
             {
-              "schemaVersion": "narrative-dialogue.v4",
+              "schemaVersion": "narrative-dialogue.v5",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
@@ -60,7 +60,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v4",
+              "schemaVersion": "narrative-dialogue.v5",
               "turnType": "clarification",
               "heading": "現在の状況を整理する",
               "body": "あなたは水没した閲覧室で銀の鍵を持っている。",
@@ -80,7 +80,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v4",
+              "schemaVersion": "narrative-dialogue.v5",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
@@ -97,7 +97,7 @@ public sealed class MockAiNarrativeGeneratorTests
     {
         var generator = CreateGenerator("""
             {
-              "schemaVersion": "narrative-dialogue.v4",
+              "schemaVersion": "narrative-dialogue.v5",
               "turnType": "action-result",
               "heading": "銀の鍵を掲げる",
               "body": "扉の星座が淡く輝いた。",
@@ -139,6 +139,7 @@ public sealed class MockAiNarrativeGeneratorTests
             "Guided",
             "探索者",
             "水没した閲覧室で目を覚ます。"),
+        [],
         [],
         interactionType,
         "銀の鍵を掲げる",

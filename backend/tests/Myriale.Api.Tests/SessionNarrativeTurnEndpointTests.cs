@@ -124,6 +124,34 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task DialogueContextIncludesOnlyPublicCanonFromCompletedModuleOutcomes()
+    {
+        var client = await AuthenticatedClientAsync("dialogue-module-canon@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        var (_, executionId) = await CreateActiveTurnAsync(client, sessionId, "canon-init");
+        using var completed = await CompleteAsync(client, executionId, "canon-complete");
+        Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
+
+        using var dialogue = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/narrative-turns",
+            new { requestId = "canon-dialogue", input = "確定した結果を振り返る" });
+        Assert.Equal(HttpStatusCode.OK, dialogue.StatusCode);
+
+        var request = Assert.Single(_generator.DialogueRequests);
+        var outcome = Assert.Single(request.PriorModuleOutcomes);
+        Assert.Equal("The module completed.", Assert.Single(outcome.PublicFacts).Text);
+        Assert.NotEmpty(outcome.NarrativeHints);
+        Assert.NotEmpty(outcome.ForbiddenNarrativeFacts);
+        var projected = JsonSerializer.Serialize(request.PriorModuleOutcomes);
+        Assert.DoesNotContain("configuration", projected, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("context", projected, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("stateJson", projected, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("random", projected, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("effects", projected, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("emittedEvents", projected, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task ActionRecommendationUsesSessionContextWithoutAdvancingSession()
     {
         var client = await AuthenticatedClientAsync("action-recommendation@example.test");
