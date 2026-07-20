@@ -1,0 +1,147 @@
+using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
+using Myriale.Api.Contracts;
+using Myriale.Api.Data;
+using Myriale.Api.Modules.Execution;
+
+namespace Myriale.Api.Endpoints;
+
+public static class SessionEndpoints
+{
+    public static RouteGroupBuilder MapSessionEndpoints(this IEndpointRouteBuilder routes)
+    {
+        var group = routes.MapGroup("/api/sessions")
+            .WithTags("Sessions")
+            .RequireAuthorization()
+            .RequireCors("MyrialeFrontend");
+
+        group.MapPost("/", CreateAsync)
+            .WithName("CreateSession")
+            .WithSummary("Creates an owner-scoped play session for an existing scenario.");
+        group.MapGet("/{sessionId}", GetAsync)
+            .WithName("GetSession")
+            .WithSummary("Returns a session and its ordered turns.");
+        group.MapPost("/{sessionId}/module-turns", CreateModuleTurnAsync)
+            .WithName("CreateSessionModuleTurn")
+            .WithSummary("Creates one session turn and its module execution atomically.");
+        group.MapGet("/{sessionId}/turns/{turnId}", GetTurnAsync)
+            .WithName("GetSessionTurn")
+            .WithSummary("Returns one owner-visible session turn.");
+        return group;
+    }
+
+    private static async Task<IResult> CreateAsync(
+        CreateSessionRequest request,
+        ClaimsPrincipal principal,
+        ApplicationDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
+        if (string.IsNullOrWhiteSpace(request.ScenarioId))
+            return Results.BadRequest(new SessionErrorResponse("invalid_scenario_id", "ScenarioIdを指定してください。"));
+        if (!await db.Scenarios.AsNoTracking().AnyAsync(item => item.Id == request.ScenarioId, cancellationToken))
+            return Results.NotFound();
+
+        var now = DateTimeOffset.UtcNow;
+        var session = new Session
+        {
+            Id = NewSessionId(),
+            OwnerId = ownerId,
+            ScenarioId = request.ScenarioId,
+            Status = "active",
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        db.Sessions.Add(session);
+        await db.SaveChangesAsync(cancellationToken);
+        return Results.Created($"/api/sessions/{session.Id}", ToResponse(session, []));
+    }
+
+    private static async Task<IResult> GetAsync(
+        string sessionId,
+        ClaimsPrincipal principal,
+        ApplicationDbContext db,
+        IModuleExecutionService executions,
+        CancellationToken cancellationToken)
+    {
+        var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
+        var session = await db.Sessions.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.Id == sessionId && item.OwnerId == ownerId, cancellationToken);
+        if (session is null) return Results.NotFound();
+
+        var turns = await LoadTurnsAsync(ownerId, sessionId, db, executions, cancellationToken);
+        return Results.Ok(ToResponse(session, turns));
+    }
+
+    private static async Task<IResult> CreateModuleTurnAsync(
+        string sessionId,
+        InitializeModuleExecutionRequest request,
+        ClaimsPrincipal principal,
+        ApplicationDbContext db,
+        IModuleExecutionService executions,
+        CancellationToken cancellationToken)
+    {
+        var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
+        var result = await executions.InitializeSessionTurnAsync(ownerId, sessionId, request, cancellationToken);
+        if (result.StatusCode == StatusCodes.Status404NotFound && result.Response is null && result.Error is null)
+            return Results.NotFound();
+        if (result.Response is null || result.SessionTurnId is null)
+            return Results.Json(result.Error, statusCode: result.StatusCode);
+
+        var turn = await db.SessionTurns.AsNoTracking()
+            .SingleAsync(item => item.Id == result.SessionTurnId && item.SessionId == sessionId, cancellationToken);
+        var response = ToTurnResponse(turn, result.Response);
+        return Results.Created($"/api/sessions/{sessionId}/turns/{turn.Id}", response);
+    }
+
+    private static async Task<IResult> GetTurnAsync(
+        string sessionId,
+        string turnId,
+        ClaimsPrincipal principal,
+        ApplicationDbContext db,
+        IModuleExecutionService executions,
+        CancellationToken cancellationToken)
+    {
+        var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
+        var stored = await db.SessionTurns.AsNoTracking()
+            .Where(item => item.Id == turnId && item.SessionId == sessionId && item.Session.OwnerId == ownerId)
+            .Select(item => new { Turn = item, ExecutionId = item.ModuleExecution.Id })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (stored is null) return Results.NotFound();
+        var execution = await executions.GetAsync(ownerId, stored.ExecutionId, cancellationToken);
+        return execution.Response is null ? Results.NotFound() : Results.Ok(ToTurnResponse(stored.Turn, execution.Response));
+    }
+
+    private static async Task<IReadOnlyList<SessionTurnResponse>> LoadTurnsAsync(
+        string ownerId,
+        string sessionId,
+        ApplicationDbContext db,
+        IModuleExecutionService executions,
+        CancellationToken cancellationToken)
+    {
+        var stored = await db.SessionTurns.AsNoTracking()
+            .Where(item => item.SessionId == sessionId)
+            .OrderBy(item => item.Position)
+            .Select(item => new { Turn = item, ExecutionId = item.ModuleExecution.Id })
+            .ToListAsync(cancellationToken);
+        var responses = new List<SessionTurnResponse>(stored.Count);
+        foreach (var item in stored)
+        {
+            var execution = await executions.GetAsync(ownerId, item.ExecutionId, cancellationToken);
+            if (execution.Response is not null) responses.Add(ToTurnResponse(item.Turn, execution.Response));
+        }
+        return responses;
+    }
+
+    private static SessionResponse ToResponse(Session session, IReadOnlyList<SessionTurnResponse> turns) =>
+        new(session.Id, session.ScenarioId, session.Status, turns, session.CreatedAt, session.UpdatedAt);
+
+    private static SessionTurnResponse ToTurnResponse(SessionTurn turn, ModuleExecutionResponse execution) =>
+        new(turn.Id, turn.Position, turn.Kind, execution, turn.CreatedAt);
+
+    private static string NewSessionId() => $"SES-{Guid.NewGuid():N}".ToUpperInvariant();
+}

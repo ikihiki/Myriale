@@ -50,5 +50,9 @@ public sealed class ModuleExecution
     public DateTimeOffset UpdatedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
 
+    [MaxLength(40)]
+    public string? SessionTurnId { get; set; }
+
     public ICollection<ModuleExecutionRequest> Requests { get; set; } = [];
+    public SessionTurn? SessionTurn { get; set; }
 }

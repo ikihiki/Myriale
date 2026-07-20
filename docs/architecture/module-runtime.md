@@ -37,16 +37,18 @@ The host enforces configuration, state, action, context, effect-count, and total
 
 Calls are bounded by a host-wide concurrency gate, including package integrity checks, assembly loading, invocation, response validation, and serialization. Caller cancellation is forwarded to modules, but the in-process runtime does not advertise a hard timeout: trusted code can ignore cancellation or block in constructors and static initializers. Untrusted modules therefore require a future worker process or container boundary.
 
-## Detached execution persistence
+## Execution and Session Turn persistence
 
-Before Session and SessionTurn aggregates are introduced, the API exposes an authenticated detached Module Execution seam. Each execution is owner-scoped and pins module ID, semantic version, package digest, contract version, configuration/state schema versions, configuration, and context. State, view state, available actions, revision, and a completed outcome are persisted after every accepted lifecycle step.
+The API retains an authenticated detached Module Execution seam for preview and tooling. Each execution is owner-scoped and pins module ID, semantic version, package digest, contract version, configuration/state schema versions, configuration, and context. State, view state, available actions, revision, and a completed outcome are persisted after every accepted lifecycle step.
 
-Initialization and dispatch request IDs are recorded as durable receipts. Receipts store semantic request fingerprints, host-generated random values, actions, and exact responses. Matching retries replay a completed response; a retry of a pending request reinvokes the pure module operation with the same snapshots and random values. Revision concurrency ensures that at most one competing action becomes the accepted state transition.
+A play `Session` is owner-scoped to one existing scenario. A `SessionTurn` has a stable position and may own exactly one Module Execution. The session's next-position counter is an optimistic concurrency token, so competing API processes retry allocation instead of producing duplicate positions. Creating a Module Turn inserts its turn, execution, and initialization receipt atomically; every internal dispatch continues to update that same execution and never creates another turn. Detached executions remain valid and have no Session Turn.
+
+Initialization and dispatch request IDs are recorded as durable receipts. Receipts store semantic request fingerprints, host-generated random values, actions, and exact responses. Session ownership participates in initialization fingerprints, so a request ID cannot be replayed into a different session. Matching retries replay a completed response; a retry of a pending request reinvokes the pure module operation with the same snapshots and random values. Revision concurrency ensures that at most one competing action becomes the accepted state transition.
 
 A module-declared failed dispatch does not mutate the execution snapshot or revision. Its transient error and `uiEvents` are retained in the request receipt for replay. A failed initialization is terminal. Ordinary API responses expose view state and available actions but not private module state, configuration, context, or recorded randomness.
 
-The current application startup still recreates the database. These records are database-backed within the running application environment but restart durability is intentionally not claimed until database lifecycle management is changed separately.
+Sessions currently reference the scenario identity rather than an immutable published scenario version. The current application startup also recreates the database. These records are database-backed within the running application environment, but scenario-version pinning and restart durability are intentionally not claimed yet.
 
 ## Deferred work
 
-Session/SessionTurn ownership, effect application, narrative handoff, worker-process isolation, package-cache invalidation across API processes, and retained database lifecycle management remain deferred.
+Effect application, narrative handoff, scenario-version snapshots, narrative turns, worker-process isolation, package-cache invalidation across API processes, and retained database lifecycle management remain deferred.

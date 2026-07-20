@@ -64,6 +64,7 @@ public sealed class ModuleExecutionEndpointTests : IDisposable
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var stored = await db.ModuleExecutions.SingleAsync(item => item.Id == id);
+        Assert.Null(stored.SessionTurn);
         Assert.Contains("difficulty", stored.ConfigurationJson);
         Assert.Contains("hidden", stored.ContextJson);
         Assert.Contains("initialized", stored.StateJson);

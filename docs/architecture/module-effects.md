@@ -32,7 +32,7 @@ The host validates that:
 
 Validated effects are applied in order in the same transaction that completes the future session-owned module turn. Failure responses do not carry effects.
 
-Detached Module Executions persist the complete validated outcome, including ordered effects and durable `emittedEvents`, but do not apply them. Completion at this layer means the module lifecycle produced an authoritative outcome; Session integration must later validate capabilities and apply each effect exactly once before narrative generation.
+Module Executions persist the complete runtime-validated outcome, including ordered effects and durable `emittedEvents`, but do not apply them. A Session-owned Module Turn now establishes the aggregate ownership boundary, but completion still means only that the module lifecycle produced an authoritative outcome. A later integration must validate capabilities and host-owned effect rules, apply each effect exactly once, and record that application before narrative generation.
 
 ## Narrative handoff
 
