@@ -8,10 +8,18 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<Scenario> Scenarios => Set<Scenario>();
     public DbSet<AiProviderKey> AiProviderKeys => Set<AiProviderKey>();
     public DbSet<ModulePackage> ModulePackages => Set<ModulePackage>();
+    public DbSet<ScenarioProgressionNode> ScenarioProgressionNodes => Set<ScenarioProgressionNode>();
+    public DbSet<ScenarioProgressionTransition> ScenarioProgressionTransitions => Set<ScenarioProgressionTransition>();
     public DbSet<Session> Sessions => Set<Session>();
     public DbSet<SessionTurn> SessionTurns => Set<SessionTurn>();
     public DbSet<SessionState> SessionStates => Set<SessionState>();
+    public DbSet<SessionProgressionModuleSnapshot> SessionProgressionModuleSnapshots => Set<SessionProgressionModuleSnapshot>();
+    public DbSet<SessionProgressState> SessionProgressStates => Set<SessionProgressState>();
+    public DbSet<SessionNarrativeSignal> SessionNarrativeSignals => Set<SessionNarrativeSignal>();
+    public DbSet<SessionProgressionTransitionReceipt> SessionProgressionTransitionReceipts => Set<SessionProgressionTransitionReceipt>();
     public DbSet<SessionNarrativeHandoff> SessionNarrativeHandoffs => Set<SessionNarrativeHandoff>();
+    public DbSet<SessionPlayerInput> SessionPlayerInputs => Set<SessionPlayerInput>();
+    public DbSet<SessionPlayerInputWork> SessionPlayerInputWorks => Set<SessionPlayerInputWork>();
     public DbSet<ModuleExecution> ModuleExecutions => Set<ModuleExecution>();
     public DbSet<ModuleExecutionRequest> ModuleExecutionRequests => Set<ModuleExecutionRequest>();
     public DbSet<ModuleOutcomeApplication> ModuleOutcomeApplications => Set<ModuleOutcomeApplication>();
@@ -22,9 +30,35 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         builder.Entity<ModulePackage>()
             .HasIndex(package => new { package.ModuleId, package.Version })
             .IsUnique();
+        builder.Entity<ScenarioProgressionNode>()
+            .HasIndex(node => new { node.ScenarioId, node.Code })
+            .IsUnique();
+        builder.Entity<ScenarioProgressionNode>()
+            .HasOne(node => node.Scenario)
+            .WithMany()
+            .HasForeignKey(node => node.ScenarioId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<ScenarioProgressionTransition>()
+            .HasIndex(transition => new { transition.SourceNodeId, transition.SignalCode })
+            .IsUnique();
+        builder.Entity<ScenarioProgressionTransition>()
+            .HasOne(transition => transition.SourceNode)
+            .WithMany()
+            .HasForeignKey(transition => transition.SourceNodeId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<ScenarioProgressionTransition>()
+            .HasOne(transition => transition.TargetNode)
+            .WithMany()
+            .HasForeignKey(transition => transition.TargetNodeId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.Entity<Session>()
-            .Property(session => session.NextTurnPosition)
+            .Property(session => session.Revision)
             .IsConcurrencyToken();
+        builder.Entity<Session>()
+            .HasOne(session => session.HeadTurn)
+            .WithMany()
+            .HasForeignKey(session => session.HeadTurnId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.Entity<Session>()
             .HasIndex(session => new { session.OwnerId, session.UpdatedAt });
         builder.Entity<Session>()
@@ -40,6 +74,74 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .WithOne(session => session.State)
             .HasForeignKey<SessionState>(state => state.SessionId)
             .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionProgressionModuleSnapshot>()
+            .HasIndex(snapshot => new { snapshot.SessionId, snapshot.TransitionId })
+            .IsUnique();
+        builder.Entity<SessionProgressionModuleSnapshot>()
+            .HasOne(snapshot => snapshot.Session)
+            .WithMany(session => session.ProgressionModuleSnapshots)
+            .HasForeignKey(snapshot => snapshot.SessionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionProgressionModuleSnapshot>()
+            .HasOne(snapshot => snapshot.Transition)
+            .WithMany()
+            .HasForeignKey(snapshot => snapshot.TransitionId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<SessionProgressState>()
+            .Property(progress => progress.Revision)
+            .IsConcurrencyToken();
+        builder.Entity<SessionProgressState>()
+            .HasOne(progress => progress.Session)
+            .WithOne(session => session.Progress)
+            .HasForeignKey<SessionProgressState>(progress => progress.SessionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionProgressState>()
+            .HasOne(progress => progress.CurrentNode)
+            .WithMany()
+            .HasForeignKey(progress => progress.CurrentNodeId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<SessionNarrativeSignal>()
+            .HasIndex(signal => new { signal.NarrativeTurnId, signal.Code })
+            .IsUnique();
+        builder.Entity<SessionNarrativeSignal>()
+            .HasOne(signal => signal.Session)
+            .WithMany(session => session.NarrativeSignals)
+            .HasForeignKey(signal => signal.SessionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionNarrativeSignal>()
+            .HasOne(signal => signal.NarrativeTurn)
+            .WithMany(turn => turn.NarrativeSignals)
+            .HasForeignKey(signal => signal.NarrativeTurnId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionProgressionTransitionReceipt>()
+            .Property(receipt => receipt.Revision)
+            .IsConcurrencyToken();
+        builder.Entity<SessionProgressionTransitionReceipt>()
+            .HasIndex(receipt => receipt.ModuleTurnId)
+            .IsUnique();
+        builder.Entity<SessionProgressionTransitionReceipt>()
+            .HasOne(receipt => receipt.ModuleTurn)
+            .WithOne()
+            .HasForeignKey<SessionProgressionTransitionReceipt>(receipt => receipt.ModuleTurnId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<SessionProgressionTransitionReceipt>()
+            .HasIndex(receipt => receipt.SourceSignalId)
+            .IsUnique();
+        builder.Entity<SessionProgressionTransitionReceipt>()
+            .HasOne(receipt => receipt.Session)
+            .WithMany(session => session.ProgressionTransitionReceipts)
+            .HasForeignKey(receipt => receipt.SessionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionProgressionTransitionReceipt>()
+            .HasOne(receipt => receipt.SourceSignal)
+            .WithOne(signal => signal.TransitionReceipt)
+            .HasForeignKey<SessionProgressionTransitionReceipt>(receipt => receipt.SourceSignalId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionProgressionTransitionReceipt>()
+            .HasOne(receipt => receipt.Transition)
+            .WithMany()
+            .HasForeignKey(receipt => receipt.TransitionId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.Entity<SessionTurn>()
             .HasIndex(turn => new { turn.SessionId, turn.Position })
             .IsUnique();
@@ -54,6 +156,48 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .WithOne(turn => turn.NarrativeHandoff)
             .HasForeignKey<SessionNarrativeHandoff>(handoff => handoff.SourceModuleTurnId)
             .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionPlayerInputWork>()
+            .Property(work => work.Revision)
+            .IsConcurrencyToken();
+        builder.Entity<SessionPlayerInputWork>()
+            .HasOne(work => work.PlayerInput)
+            .WithOne(input => input.Work)
+            .HasForeignKey<SessionPlayerInputWork>(work => work.PlayerInputId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionPlayerInput>()
+            .HasIndex(input => new { input.SessionId, input.RequestId })
+            .IsUnique();
+        builder.Entity<SessionPlayerInput>()
+            .HasOne(input => input.Session)
+            .WithMany(session => session.PlayerInputs)
+            .HasForeignKey(input => input.SessionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionPlayerInput>()
+            .HasOne(input => input.AcceptedAfterTurn)
+            .WithMany()
+            .HasForeignKey(input => input.AcceptedAfterTurnId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<SessionTurn>()
+            .HasIndex(turn => new { turn.SessionId, turn.PreviousTurnId })
+            .IsUnique()
+            .HasFilter("\"PreviousTurnId\" IS NOT NULL");
+        builder.Entity<SessionTurn>()
+            .HasIndex(turn => turn.SessionId)
+            .IsUnique()
+            .HasFilter("\"PreviousTurnId\" IS NULL");
+        builder.Entity<SessionTurn>()
+            .HasOne(turn => turn.PreviousTurn)
+            .WithOne(turn => turn.NextTurn)
+            .HasForeignKey<SessionTurn>(turn => turn.PreviousTurnId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<SessionTurn>()
+            .HasIndex(turn => turn.PlayerInputId)
+            .IsUnique();
+        builder.Entity<SessionTurn>()
+            .HasOne(turn => turn.PlayerInput)
+            .WithOne(input => input.NarrativeTurn)
+            .HasForeignKey<SessionTurn>(turn => turn.PlayerInputId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.Entity<SessionTurn>()
             .HasIndex(turn => turn.SourceModuleTurnId)
             .IsUnique();

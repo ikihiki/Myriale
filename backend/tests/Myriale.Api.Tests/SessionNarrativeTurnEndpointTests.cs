@@ -122,6 +122,238 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task NarrativeTurnPersistsPlayerInputAndReplaysIdempotently()
+    {
+        var client = await AuthenticatedClientAsync("dialogue-persist@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        var body = new { requestId = "dialogue-1", input = "銀の鍵を掲げて扉へ進む" };
+
+        using var first = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/narrative-turns", body);
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        var firstJson = await first.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("narrative", firstJson.GetProperty("kind").GetString());
+        Assert.Equal(body.input, firstJson.GetProperty("narrative").GetProperty("playerInput").GetString());
+
+        using var replay = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/narrative-turns", body);
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+        var replayJson = await replay.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(firstJson.GetProperty("id").GetString(), replayJson.GetProperty("id").GetString());
+        Assert.Equal(1, await CountNarrativeTurnsAsync());
+    }
+
+    [Fact]
+    public async Task PlayerInputIsImmutableEventAndPendingIsDerivedFromSessionHead()
+    {
+        var client = await AuthenticatedClientAsync("dialogue-event@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        _generator.PauseDialogue = true;
+        var request = client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/narrative-turns",
+            new { requestId = "dialogue-event", input = "扉の前で立ち止まる" });
+        await _generator.DialogueEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        string inputId;
+        await using (var pendingScope = _factory.Services.CreateAsyncScope())
+        {
+            var db = pendingScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var input = await db.SessionPlayerInputs.AsNoTracking().SingleAsync();
+            var session = await db.Sessions.AsNoTracking().SingleAsync();
+            inputId = input.Id;
+            Assert.Null(input.AcceptedAfterTurnId);
+            Assert.Null(session.HeadTurnId);
+            Assert.False(await db.SessionTurns.AnyAsync(turn => turn.PlayerInputId == input.Id));
+            Assert.Equal("pending", (await db.SessionPlayerInputWorks.AsNoTracking().SingleAsync()).Status);
+        }
+
+        _generator.DialogueRelease.TrySetResult();
+        using var completed = await request;
+        Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
+        var created = await completed.Content.ReadFromJsonAsync<JsonElement>();
+        var turnId = created.GetProperty("id").GetString();
+        Assert.Null(created.GetProperty("previousTurnId").GetString());
+        Assert.Null(created.GetProperty("narrative").GetProperty("acceptedAfterTurnId").GetString());
+
+        await using var completedScope = _factory.Services.CreateAsyncScope();
+        var completedDb = completedScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var storedInput = await completedDb.SessionPlayerInputs.AsNoTracking().SingleAsync();
+        var storedSession = await completedDb.Sessions.AsNoTracking().SingleAsync();
+        Assert.Equal(inputId, storedInput.Id);
+        Assert.Equal("扉の前で立ち止まる", storedInput.Text);
+        Assert.Null(storedInput.AcceptedAfterTurnId);
+        Assert.Equal(turnId, storedSession.HeadTurnId);
+        Assert.Equal(0, (await completedDb.SessionStates.AsNoTracking().SingleAsync()).Revision);
+        Assert.Equal("completed", (await completedDb.SessionPlayerInputWorks.AsNoTracking().SingleAsync()).Status);
+    }
+
+    [Fact]
+    public async Task NarrativeTurnReplayDoesNotExposeAnotherOwnersSession()
+    {
+        var owner = await AuthenticatedClientAsync("dialogue-owner@example.test");
+        var intruder = await AuthenticatedClientAsync("dialogue-intruder@example.test");
+        var sessionId = await CreateSessionAsync(owner);
+        var body = new { requestId = "dialogue-private", input = "扉を調べる" };
+        using var created = await owner.PostAsJsonAsync($"/api/sessions/{sessionId}/narrative-turns", body);
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+
+        using var replay = await intruder.PostAsJsonAsync($"/api/sessions/{sessionId}/narrative-turns", body);
+        Assert.Equal(HttpStatusCode.NotFound, replay.StatusCode);
+    }
+
+    [Fact]
+    public async Task NarrativeThenModuleTurnsUseContiguousPositions()
+    {
+        var client = await AuthenticatedClientAsync("dialogue-position@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        using var narrative = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/narrative-turns",
+            new { requestId = "dialogue-position", input = "閉じた星座の扉へ進む" });
+        Assert.Equal(HttpStatusCode.OK, narrative.StatusCode);
+        using var module = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/module-turns",
+            InitializeBody("module-after-dialogue"));
+        Assert.Equal(HttpStatusCode.Created, module.StatusCode);
+
+        var session = await GetSessionAsync(client, sessionId);
+        var orderedTurns = session.GetProperty("turns").EnumerateArray().ToArray();
+        Assert.Null(orderedTurns[0].GetProperty("previousTurnId").GetString());
+        Assert.Equal(orderedTurns[0].GetProperty("id").GetString(), orderedTurns[1].GetProperty("previousTurnId").GetString());
+        Assert.Equal(orderedTurns[1].GetProperty("id").GetString(), session.GetProperty("headTurnId").GetString());
+        Assert.Equal([1, 2], session.GetProperty("turns").EnumerateArray().Select(turn => turn.GetProperty("position").GetInt32()).ToArray());
+    }
+
+    [Fact]
+    public async Task NarrativeTurnRejectsIdempotencyKeyReuseWithDifferentInput()
+    {
+        var client = await AuthenticatedClientAsync("dialogue-idempotency@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        using var first = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/narrative-turns", new { requestId = "dialogue-1", input = "扉に触れる" });
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+
+        using var reused = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/narrative-turns", new { requestId = "dialogue-1", input = "階段へ戻る" });
+        Assert.Equal(HttpStatusCode.Conflict, reused.StatusCode);
+        var error = await reused.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("idempotency_key_reused", error.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task AllowedNarrativeSignalIsPersistedAndAdvancesScenarioProgression()
+    {
+        var client = await AuthenticatedClientAsync("dialogue-signal@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        _generator.DialogueSignals = [new NarrativeProgressionSignal("constellation-door-reached")];
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/narrative-turns",
+            new { requestId = "dialogue-signal", input = "閉じた星座の扉へ進む" });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var created = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("constellation-door-reached", created.GetProperty("narrative").GetProperty("signals")[0].GetString());
+        Assert.Equal(["constellation-door-reached"], Assert.Single(_generator.DialogueRequests).AllowedSignals);
+
+        var session = await GetSessionAsync(client, sessionId);
+        Assert.Equal("constellation-door-check", session.GetProperty("progression").GetProperty("currentNode").GetString());
+        Assert.Equal(1, session.GetProperty("progression").GetProperty("revision").GetInt64());
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal(1, await db.SessionNarrativeSignals.CountAsync());
+        Assert.Equal(1, await db.SessionProgressionTransitionReceipts.CountAsync());
+    }
+
+    [Fact]
+    public async Task NarrativeSignalStartsConfiguredModuleTurnExactlyOnceFromSnapshot()
+    {
+        var identity = await GetIdentityAsync();
+        await ConfigureDoorTransitionAsync(identity);
+        var client = await AuthenticatedClientAsync("dialogue-module-transition@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        await using (var mutationScope = _factory.Services.CreateAsyncScope())
+        {
+            var mutationDb = mutationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var snapshot = await mutationDb.SessionProgressionModuleSnapshots.SingleAsync(item => item.SessionId == sessionId);
+            Assert.Equal("{\"purpose\":\"constellation-door\"}", snapshot.ConfigurationJson);
+            var transition = await mutationDb.ScenarioProgressionTransitions.SingleAsync(item => item.Id == snapshot.TransitionId);
+            transition.ModuleConfigurationJson = "{\"purpose\":\"changed-after-session-start\"}";
+            transition.ModuleContextJson = "{\"scene\":\"changed-after-session-start\"}";
+            await mutationDb.SaveChangesAsync();
+        }
+
+        using var clientModule = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/module-turns",
+            InitializeBody("client-bypass-attempt", new { purpose = "client-controlled" }));
+        Assert.Equal(HttpStatusCode.Conflict, clientModule.StatusCode);
+        var clientModuleError = await clientModule.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("scenario_module_turn_managed", clientModuleError.GetProperty("code").GetString());
+
+        _generator.DialogueSignals = [new NarrativeProgressionSignal("constellation-door-reached")];
+        var body = new { requestId = "dialogue-module-transition", input = "閉じた星座の扉へ進む" };
+
+        using var created = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/narrative-turns", body);
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        var firstSession = await GetSessionAsync(client, sessionId);
+        var turns = firstSession.GetProperty("turns").EnumerateArray().ToArray();
+        Assert.Equal([1, 2], turns.Select(turn => turn.GetProperty("position").GetInt32()).ToArray());
+        Assert.Equal(["narrative", "module"], turns.Select(turn => turn.GetProperty("kind").GetString()!).ToArray());
+        Assert.Equal("completed", firstSession.GetProperty("progression").GetProperty("transitionStatus").GetString());
+        Assert.Equal(turns[1].GetProperty("id").GetString(), firstSession.GetProperty("progression").GetProperty("moduleTurnId").GetString());
+
+        using var replay = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/narrative-turns", body);
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+        var replayedSession = await GetSessionAsync(client, sessionId);
+        Assert.Equal(2, replayedSession.GetProperty("turns").GetArrayLength());
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var receipt = await db.SessionProgressionTransitionReceipts.SingleAsync();
+        Assert.Equal(identity.ModuleId, receipt.ModuleId);
+        Assert.Equal(identity.Version, receipt.ModuleVersion);
+        Assert.Equal(identity.Digest, receipt.ModuleDigest);
+        Assert.Equal("{\"purpose\":\"constellation-door\"}", receipt.ModuleConfigurationJson);
+        Assert.Equal("{\"purpose\":\"constellation-door\"}", (await db.ModuleExecutions.SingleAsync()).ConfigurationJson);
+        Assert.Equal(1, await db.ModuleExecutions.CountAsync());
+        Assert.Equal(1, await db.ModuleExecutionRequests.CountAsync(request => request.RequestId == $"scenario-transition:{receipt.Id}"));
+    }
+
+    [Fact]
+    public async Task SessionStartRejectsConfiguredModuleThatIsNotEnabled()
+    {
+        var identity = await GetIdentityAsync();
+        await ConfigureDoorTransitionAsync(identity);
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var packages = scope.ServiceProvider.GetRequiredService<IModulePackageService>();
+            await packages.SetEnabledAsync(identity.Digest, false, default);
+        }
+        var client = await AuthenticatedClientAsync("dialogue-disabled-module@example.test");
+
+        using var response = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId = "SCN-STAR-LIBRARY" });
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var error = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("scenario_module_unavailable", error.GetProperty("code").GetString());
+        await using var verification = _factory.Services.CreateAsyncScope();
+        Assert.Equal(0, await verification.ServiceProvider.GetRequiredService<ApplicationDbContext>().Sessions.CountAsync());
+    }
+
+    [Fact]
+    public async Task UnknownNarrativeSignalIsRejectedWithoutPersistingTurnOrProgression()
+    {
+        var client = await AuthenticatedClientAsync("dialogue-invalid-signal@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        _generator.DialogueSignals = [new NarrativeProgressionSignal("untrusted-signal")];
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/narrative-turns",
+            new { requestId = "dialogue-invalid-signal", input = "扉へ進む" });
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        var session = await GetSessionAsync(client, sessionId);
+        Assert.Empty(session.GetProperty("turns").EnumerateArray());
+        Assert.Equal("exploration", session.GetProperty("progression").GetProperty("currentNode").GetString());
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal(0, await db.SessionNarrativeSignals.CountAsync());
+        Assert.Equal(0, await db.SessionProgressionTransitionReceipts.CountAsync());
+    }
+
+    [Fact]
     public async Task ActiveTurnDoesNotGenerateAndPublicTriggerRouteDoesNotExist()
     {
         var client = await AuthenticatedClientAsync("no-trigger@example.test");
@@ -261,6 +493,20 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         };
     }
 
+    private async Task ConfigureDoorTransitionAsync(ModulePackageIdentity identity)
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var transition = await db.ScenarioProgressionTransitions.SingleAsync(item => item.Id == "SPT-STAR-LIBRARY-DOOR-REACHED");
+        transition.ModuleId = identity.ModuleId;
+        transition.ModuleVersion = identity.Version;
+        transition.ModuleDigest = identity.Digest;
+        transition.ModuleConfigurationJson = "{\"purpose\":\"constellation-door\"}";
+        transition.ModuleContextJson = "{\"scene\":\"closed-constellation-door\"}";
+        transition.ModuleRandomValueCount = 0;
+        await db.SaveChangesAsync();
+    }
+
     private async Task<ModulePackageIdentity> GetIdentityAsync()
     {
         if (_identity is not null) return _identity;
@@ -319,6 +565,24 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         public bool Pause { get; set; }
         public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public List<NarrativeDialogueRequest> DialogueRequests { get; } = [];
+        public IReadOnlyList<NarrativeProgressionSignal> DialogueSignals { get; set; } = [];
+        public bool PauseDialogue { get; set; }
+        public TaskCompletionSource DialogueEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource DialogueRelease { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<NarrativeDialogueResult> GenerateDialogueAsync(NarrativeDialogueRequest request, CancellationToken cancellationToken)
+        {
+            lock (DialogueRequests) DialogueRequests.Add(request);
+            if (Fail) throw new NarrativeGenerationException("test failure");
+            if (PauseDialogue)
+            {
+                DialogueEntered.TrySetResult();
+                await DialogueRelease.Task.WaitAsync(cancellationToken);
+            }
+            return new NarrativeDialogueResult("入力を受け止め、物語は次の場面へ進んだ。", DialogueSignals);
+        }
 
         public async Task<string> GenerateAsync(NarrativeHandoffRequest request, CancellationToken cancellationToken)
         {

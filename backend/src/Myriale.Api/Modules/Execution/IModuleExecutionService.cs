@@ -6,6 +6,7 @@ public interface IModuleExecutionService
 {
     Task<ModuleExecutionServiceResult> InitializeAsync(string ownerId, InitializeModuleExecutionRequest request, CancellationToken cancellationToken);
     Task<ModuleExecutionServiceResult> InitializeSessionTurnAsync(string ownerId, string sessionId, InitializeModuleExecutionRequest request, CancellationToken cancellationToken);
+    Task<ModuleExecutionServiceResult> InitializeScenarioSessionTurnAsync(string ownerId, string sessionId, InitializeModuleExecutionRequest request, CancellationToken cancellationToken);
     Task<ModuleExecutionServiceResult> GetAsync(string ownerId, string executionId, CancellationToken cancellationToken);
     Task<ModuleExecutionServiceResult> DispatchAsync(string ownerId, string executionId, DispatchModuleExecutionRequest request, CancellationToken cancellationToken);
 }

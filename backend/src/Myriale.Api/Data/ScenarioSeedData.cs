@@ -96,12 +96,68 @@ public static class ScenarioSeedData
         },
     ];
 
+    public static readonly IReadOnlyList<ScenarioProgressionNode> ProgressionNodes =
+    [
+        new ScenarioProgressionNode
+        {
+            Id = "SPN-STAR-LIBRARY-EXPLORATION",
+            ScenarioId = "SCN-STAR-LIBRARY",
+            Code = "exploration",
+            IsInitial = true,
+            AllowedNarrativeSignalsJson = "[\"constellation-door-reached\"]",
+        },
+        new ScenarioProgressionNode
+        {
+            Id = "SPN-STAR-LIBRARY-DOOR-CHECK",
+            ScenarioId = "SCN-STAR-LIBRARY",
+            Code = "constellation-door-check",
+            IsInitial = false,
+            AllowedNarrativeSignalsJson = "[]",
+        },
+    ];
+
+    public static readonly IReadOnlyList<ScenarioProgressionTransition> ProgressionTransitions =
+    [
+        new ScenarioProgressionTransition
+        {
+            Id = "SPT-STAR-LIBRARY-DOOR-REACHED",
+            SourceNodeId = "SPN-STAR-LIBRARY-EXPLORATION",
+            SignalCode = "constellation-door-reached",
+            TargetNodeId = "SPN-STAR-LIBRARY-DOOR-CHECK",
+        },
+    ];
+
     public static async Task SeedAsync(ApplicationDbContext db, CancellationToken cancellationToken = default)
     {
         if (await db.Scenarios.AnyAsync(cancellationToken)) return;
         db.Scenarios.AddRange(Scenarios.Select(Clone));
+        db.ScenarioProgressionNodes.AddRange(ProgressionNodes.Select(Clone));
+        db.ScenarioProgressionTransitions.AddRange(ProgressionTransitions.Select(Clone));
         await db.SaveChangesAsync(cancellationToken);
     }
+
+    private static ScenarioProgressionNode Clone(ScenarioProgressionNode node) => new()
+    {
+        Id = node.Id,
+        ScenarioId = node.ScenarioId,
+        Code = node.Code,
+        IsInitial = node.IsInitial,
+        AllowedNarrativeSignalsJson = node.AllowedNarrativeSignalsJson,
+    };
+
+    private static ScenarioProgressionTransition Clone(ScenarioProgressionTransition transition) => new()
+    {
+        Id = transition.Id,
+        SourceNodeId = transition.SourceNodeId,
+        SignalCode = transition.SignalCode,
+        TargetNodeId = transition.TargetNodeId,
+        ModuleId = transition.ModuleId,
+        ModuleVersion = transition.ModuleVersion,
+        ModuleDigest = transition.ModuleDigest,
+        ModuleConfigurationJson = transition.ModuleConfigurationJson,
+        ModuleContextJson = transition.ModuleContextJson,
+        ModuleRandomValueCount = transition.ModuleRandomValueCount,
+    };
 
     private static Scenario Clone(Scenario scenario) => new()
     {
