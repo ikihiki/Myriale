@@ -6,7 +6,8 @@ public sealed record AccountUserResponse(
     string Email,
     string Bio,
     bool EmailConfirmed,
-    string State);
+    string State,
+    bool CanDebugDialogue);
 
 public sealed record AccountErrorResponse(string Message, IReadOnlyDictionary<string, string[]> Errors);
 

@@ -46,6 +46,63 @@ public sealed class SessionModuleTurnEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task IdempotentSessionStartCreatesOneOpeningTurn()
+    {
+        var client = await AuthenticatedClientAsync("session-opening@example.test");
+        var body = new { scenarioId = "SCN-STAR-LIBRARY", requestId = "start-star-library" };
+
+        using var created = await client.PostAsJsonAsync("/api/sessions/", body);
+        using var replay = await client.PostAsJsonAsync("/api/sessions/", body);
+
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+        var createdJson = await created.Content.ReadFromJsonAsync<JsonElement>();
+        var replayJson = await replay.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(createdJson.GetProperty("id").GetString(), replayJson.GetProperty("id").GetString());
+        Assert.Equal(1, createdJson.GetProperty("revision").GetInt64());
+        Assert.Equal(createdJson.GetProperty("turns")[0].GetProperty("id").GetString(), createdJson.GetProperty("headTurnId").GetString());
+        Assert.Equal("あなたは水没した閲覧室で目を覚ます。", createdJson.GetProperty("turns")[0].GetProperty("narrative").GetProperty("body").GetString());
+        Assert.Equal(1, createdJson.GetProperty("turns")[0].GetProperty("position").GetInt32());
+        Assert.Empty(createdJson.GetProperty("pendingInputs").EnumerateArray());
+
+        using var reused = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId = "SCN-ASH-STATION", requestId = "start-star-library" });
+        Assert.Equal(HttpStatusCode.Conflict, reused.StatusCode);
+        Assert.Equal("idempotency_key_reused", (await reused.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal(1, await db.Sessions.CountAsync());
+        Assert.Equal(1, await db.SessionTurns.CountAsync());
+    }
+
+    [Fact]
+    public async Task InterpretationSettingRequiresPermissionAndIsPartOfIdempotentSessionConfiguration()
+    {
+        const string email = "session-interpretation@example.test";
+        var client = await AuthenticatedClientAsync(email);
+        var body = new { scenarioId = "SCN-STAR-LIBRARY", requestId = "start-with-interpretation", interpretationEnabled = true };
+
+        using var forbidden = await client.PostAsJsonAsync("/api/sessions/", body);
+        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+        Assert.Equal("dialogue_debug_forbidden", (await forbidden.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+
+        await GrantDialogueDebugAsync(email);
+        using var created = await client.PostAsJsonAsync("/api/sessions/", body);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var createdJson = await created.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(createdJson.GetProperty("interpretationEnabled").GetBoolean());
+
+        using var reused = await client.PostAsJsonAsync("/api/sessions/", new
+        {
+            scenarioId = "SCN-STAR-LIBRARY",
+            requestId = "start-with-interpretation",
+            interpretationEnabled = false,
+        });
+        Assert.Equal(HttpStatusCode.Conflict, reused.StatusCode);
+        Assert.Equal("idempotency_key_reused", (await reused.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+    }
+
+    [Fact]
     public async Task ModuleTurnIsPersistedAtomicallyAndInternalDispatchDoesNotAddTurns()
     {
         var client = await AuthenticatedClientAsync("session-owner@example.test");
@@ -437,6 +494,15 @@ public sealed class SessionModuleTurnEndpointTests : IDisposable
             capabilities,
             limits = root.GetProperty("limits"),
         });
+        await db.SaveChangesAsync();
+    }
+
+    private async Task GrantDialogueDebugAsync(string email)
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var user = await db.Users.SingleAsync(item => item.Email == email);
+        user.CanDebugDialogue = true;
         await db.SaveChangesAsync();
     }
 

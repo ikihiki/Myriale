@@ -1,6 +1,9 @@
 namespace Myriale.Api.Contracts;
 
-public sealed record CreateSessionRequest(string ScenarioId);
+public sealed record CreateSessionRequest(
+    string ScenarioId,
+    string? RequestId = null,
+    bool InterpretationEnabled = false);
 
 public sealed record CreateNarrativeTurnRequest(string RequestId, string Input);
 
@@ -11,7 +14,8 @@ public sealed record NarrativeTurnResponse(
     string? PlayerInputId = null,
     string? PlayerInput = null,
     string? AcceptedAfterTurnId = null,
-    IReadOnlyList<string>? Signals = null);
+    IReadOnlyList<string>? Signals = null,
+    string? Interpretation = null);
 
 public sealed record NarrativeHandoffStatusResponse(
     string Status,
@@ -40,15 +44,29 @@ public sealed record SessionProgressionResponse(
     string? ModuleTurnId,
     string? ErrorCode);
 
+public sealed record SessionPlayerInputWorkResponse(
+    string PlayerInputId,
+    string RequestId,
+    string Input,
+    string? AcceptedAfterTurnId,
+    string Status,
+    bool IsRetryable,
+    string? ErrorCode,
+    string? ErrorMessage,
+    int AttemptCount,
+    DateTimeOffset UpdatedAt);
+
 public sealed record SessionResponse(
     string Id,
     string ScenarioId,
     string Status,
     string? HeadTurnId,
     long Revision,
+    bool InterpretationEnabled,
     SessionStateResponse State,
     SessionProgressionResponse? Progression,
     IReadOnlyList<SessionTurnResponse> Turns,
+    IReadOnlyList<SessionPlayerInputWorkResponse> PendingInputs,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 

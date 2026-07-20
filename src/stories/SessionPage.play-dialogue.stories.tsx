@@ -98,6 +98,20 @@ export const USP05AskClarificationWithoutProgress: Story = {
   },
 };
 
+export const USP05BRecommendNextAction: Story = {
+  name: 'US-P05B: AIに次の行動案を推薦してほしい',
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await step('AI推薦ボタンを押すと、現在の状況に沿った行動案が入力欄へ入る', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: 'AIに次の行動を提案してもらう' }));
+      await expect(canvas.getByLabelText('自由に行動や会話を入力')).toHaveValue(
+        '銀の鍵を扉にかざし、刻まれた星座との対応を確かめる',
+      );
+      await expect(canvas.getByRole('status')).toHaveTextContent('内容を編集してから送信できます');
+    });
+  },
+};
+
 export const USP06ShowInputInterpretation: Story = {
   name: 'US-P06: 自分の入力がどう解釈されたか知りたい',
   play: async ({ canvasElement, step }) => {
@@ -106,7 +120,7 @@ export const USP06ShowInputInterpretation: Story = {
     await step('解釈トグルはPlayer Inputの直下にあり、押すと内部解釈を表示する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: 'Turn 13の入力解釈を見る' }));
       await expect(canvas.getByTestId('turn-13-interpretation')).toHaveTextContent('NPCへの会話として解釈');
-      await expect(canvas.getByRole('status')).toHaveTextContent('ズレがあれば、削除・やり直し');
+      await expect(canvas.queryByText('入力直下に内部解釈を表示しました。意図とのズレがあれば、削除・やり直しできます。')).not.toBeInTheDocument();
     });
     await step('もう一度押すと解釈を隠せる', async () => {
       await userEvent.click(canvas.getByRole('button', { name: 'Turn 13の入力解釈を隠す' }));
@@ -115,22 +129,16 @@ export const USP06ShowInputInterpretation: Story = {
   },
 };
 
-export const USP07DeleteAndRedoPreviousTurn: Story = {
-  name: 'US-P07: ボタン操作で直前の行動を取り消してやり直したい',
+export const USP07DeleteDraftInput: Story = {
+  name: 'US-P07: 未送信の入力を取り消したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await step('未送信の入力は削除ボタンで取り消せる', async () => {
       await userEvent.type(canvas.getByLabelText('自由に行動や会話を入力'), '入力ミス');
-      await userEvent.click(canvas.getByRole('button', { name: '削除（入力取り消し）' }));
+      await userEvent.click(canvas.getByRole('button', { name: '入力を消去' }));
       await expect(canvas.getByLabelText('自由に行動や会話を入力')).toHaveValue('');
       await expect(canvas.getByRole('status')).toHaveTextContent('入力欄の未送信テキストを無効化');
-    });
-    await step('送信済みの直前ターンはやり直しボタンで巻き戻せる', async () => {
-      await sendAction(canvas, '階段へ急いで向かう');
-      await expect(canvas.getByTestId('dialogue-log')).toHaveTextContent('階段へ急いで向かう');
-      await userEvent.click(canvas.getByRole('button', { name: 'やり直し（直前ターン巻き戻し）' }));
-      await expect(canvas.getByTestId('dialogue-log')).not.toHaveTextContent('階段へ急いで向かう');
-      await expect(canvas.getByRole('status')).toHaveTextContent('直前ターンを巻き戻しました');
+      await expect(canvas.queryByRole('button', { name: '直前のターンに戻る' })).not.toBeInTheDocument();
     });
   },
 };

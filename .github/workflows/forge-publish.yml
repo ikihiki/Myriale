@@ -105,13 +105,15 @@ jobs:
           echo "FORGE_CHART_REGISTRY=$chart_registry" >> "$GITHUB_ENV"
           echo "FORGE_IMAGE_REPOSITORY=${repository}/images" >> "$GITHUB_ENV"
 
-      - name: Restore and test
+      - name: Restore, build, and test
         shell: bash
         env:
           SOLUTION_PATH: ${{ inputs.solution-path }}
         run: |
+          set -euo pipefail
           dotnet restore "$SOLUTION_PATH"
-          dotnet test "$SOLUTION_PATH" --configuration Release --no-restore
+          dotnet build "$SOLUTION_PATH" --configuration Release --no-restore
+          dotnet test "$SOLUTION_PATH" --configuration Release --no-build --logger "console;verbosity=normal"
 
       - name: Login to GHCR
         uses: docker/login-action@v3

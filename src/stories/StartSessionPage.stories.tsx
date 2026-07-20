@@ -146,10 +146,17 @@ export const USS04ReviewBeforeStarting: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await startPreparing(canvas);
+    await step('権限があるPlayerだけがデバッグ用の解釈説明を選択できる', async () => {
+      const interpretation = canvas.getByRole('checkbox', { name: /解釈説明を有効にする/ });
+      await expect(interpretation).not.toBeChecked();
+      await userEvent.click(interpretation);
+      await expect(interpretation).toBeChecked();
+    });
     await userEvent.click(canvas.getByRole('button', { name: '開始内容を確認' }));
-    await step('ダイアログの開始サマリーでScenario概要と主人公を確認する', async () => {
+    await step('ダイアログの開始サマリーでScenario概要、主人公、デバッグ設定を確認する', async () => {
       await waitFor(() => expect(canvas.getByRole('dialog', { name: '開始前の最終確認' })).toBeVisible());
       await expect(canvas.getByTestId('start-summary')).toHaveTextContent('Scenario: 星喰いの地下図書館');
+      await expect(canvas.getByTestId('start-summary')).toHaveTextContent('解釈説明: 有効（デバッグ）');
       await expect(canvas.getByTestId('start-summary')).toHaveTextContent('主人公: ミラ');
     });
     await step('修正を選ぶとダイアログを閉じて主人公選択へ戻れる', async () => {

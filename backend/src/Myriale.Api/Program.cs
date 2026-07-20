@@ -14,7 +14,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 builder.Services.AddOpenApi();
-builder.Services.AddScoped<INarrativeGenerator, MockAiNarrativeGenerator>();
+builder.Services.AddScoped<MockAiNarrativeGenerator>();
+builder.Services.AddScoped<INarrativeGenerator>(services => services.GetRequiredService<MockAiNarrativeGenerator>());
+builder.Services.AddScoped<IActionRecommendationGenerator>(services => services.GetRequiredService<MockAiNarrativeGenerator>());
 builder.Services.AddScoped<SessionNarrativeHandoffService>();
 builder.Services.AddScoped<SessionScenarioProgressionService>();
 builder.Services.AddScoped<SessionNarrativeTurnService>();
@@ -120,6 +122,9 @@ using (var scope = app.Services.CreateScope())
 
     db.Database.EnsureCreated();
     await ScenarioSeedData.SeedAsync(db);
+
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+    await AccountSeedData.SeedAsync(userManager, app.Configuration);
 }
 
 app.UseCors("MyrialeFrontend");

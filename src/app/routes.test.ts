@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { createDemoAccountApi } from '../account/api/accountApi';
+import { safeRedirectTarget } from '../auth/requireAuthenticated';
 import { createAppRouter } from '../router';
 import { appHrefForStoryKey, appPathForStoryKey } from './navigation';
 
@@ -10,6 +12,43 @@ describe('TanStack app routing', () => {
     expect(router.state.location.pathname).toBe('/sessions/SES-PREP-1098');
     expect(router.state.location.search).toEqual({ turn: 3 });
     expect(router.state.matches[router.state.matches.length - 1]?.params).toMatchObject({ sessionId: 'SES-PREP-1098' });
+  });
+
+  it('redirects an anonymous Session route to login and preserves the requested URL', async () => {
+    const accountApi = createDemoAccountApi();
+    await accountApi.logout();
+    const router = createAppRouter({
+      initialUrl: '/sessions/SES-PRIVATE?turn=3',
+      accountApi,
+    });
+
+    await router.load();
+
+    expect(router.state.location.pathname).toBe('/account/login');
+    expect(router.state.location.search).toEqual({ redirect: '/sessions/SES-PRIVATE?turn=3' });
+  });
+
+  it('guards Session start before the page can call its APIs', async () => {
+    const accountApi = createDemoAccountApi();
+    await accountApi.logout();
+    const router = createAppRouter({
+      initialUrl: '/sessions/start?scenarioId=SCN-STAR-LIBRARY',
+      accountApi,
+    });
+
+    await router.load();
+
+    expect(router.state.location.pathname).toBe('/account/login');
+    expect(router.state.location.search).toEqual({
+      redirect: '/sessions/start?scenarioId=SCN-STAR-LIBRARY',
+    });
+  });
+
+  it('accepts only local return destinations for guarded login', () => {
+    expect(safeRedirectTarget('/sessions/SES-1')).toBe('/sessions/SES-1');
+    expect(safeRedirectTarget('//example.test/steal')).toBeUndefined();
+    expect(safeRedirectTarget('https://example.test/steal')).toBeUndefined();
+    expect(safeRedirectTarget('/account/login?redirect=/sessions/SES-1')).toBeUndefined();
   });
 
   it('redirects a session start without scenarioId to the scenario list', async () => {

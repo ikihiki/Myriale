@@ -13,8 +13,13 @@ public sealed class Session
     [Required, MaxLength(40)]
     public string ScenarioId { get; set; } = string.Empty;
 
+    [MaxLength(120)]
+    public string? CreationRequestId { get; set; }
+
     [Required, MaxLength(32)]
     public string Status { get; set; } = "active";
+
+    public bool InterpretationEnabled { get; set; }
 
     [MaxLength(40)]
     public string? HeadTurnId { get; set; }

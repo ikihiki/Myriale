@@ -39,7 +39,15 @@ type Notice = { tone?: NoticeTone; message: string } | null;
 
 const protectedViews = new Set<AccountView>(['profile', 'profile-edit', 'security', 'export', 'withdraw']);
 
-export function AccountPage({ initialView = 'register', api }: { initialView?: AccountView; api?: AccountApi }) {
+export function AccountPage({
+  initialView = 'register',
+  api,
+  onAuthenticated,
+}: {
+  initialView?: AccountView;
+  api?: AccountApi;
+  onAuthenticated?: () => void;
+}) {
   const [view, setView] = useState<AccountView>(initialView);
   const [notice, setNotice] = useState<Notice>(null);
   const session = useAccountSession(api);
@@ -56,7 +64,7 @@ export function AccountPage({ initialView = 'register', api }: { initialView?: A
     <div className="account-kit">
       {notice && <FloatingNotice notice={notice} />}
       {view === 'register' && <RegisterPage api={session.api} onRegistered={(user) => { session.acceptUser(user); showNotice('UserIdを発行し、登録後ログイン済みにしました。'); go('profile'); }} onLogin={() => go('login')} />}
-      {view === 'login' && <LoginPage api={session.api} onLoggedIn={(user) => { session.acceptUser(user); showNotice('ログインしました。'); go('profile'); }} onRegister={() => go('register')} onReset={() => go('reset')} />}
+      {view === 'login' && <LoginPage api={session.api} onLoggedIn={(user) => { session.acceptUser(user); showNotice('ログインしました。'); if (onAuthenticated) onAuthenticated(); else go('profile'); }} onRegister={() => go('register')} onReset={() => go('reset')} />}
       {view === 'reset' && <ResetPasswordPage api={session.api} onLogin={() => go('login')} />}
       {view === 'oauth' && <RoadmapAuthPage title="外部アカウント連携" lead="OAuth サインインは ASP.NET Core Identity の external login provider で Phase 2 に接続します。" onLogin={() => go('login')} />}
       {view === 'verify-email' && <RoadmapAuthPage title="メール確認" lead="メール確認は Identity token provider とメール送信基盤を接続して Phase 2 で提供します。" onLogin={() => go('login')} />}

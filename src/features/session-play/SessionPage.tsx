@@ -1,11 +1,62 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { toAppChromeAccount, type AppChromeAccount } from '../../account/accountPresentation';
+import { useAccountSession } from '../../account/hooks/useAccountSession';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { useOptionalAppStore, type TurnDisplayFlags } from '../../app/store';
 import { SessionTurn } from '../../shared/SessionTurn';
 import { SessionNotesWorkspace } from '../../SessionNotesWorkspace';
 import { WizardNavigation } from '../../shared/WizardNavigation';
-import { createNarrativeTurn } from './sessionPlayApi';
+import {
+  createNarrativeTurn,
+  getSession,
+  getSessionApiBaseUrl,
+  recommendNextAction,
+  type NarrativeTurnApiResponse,
+  type SessionApiError,
+  type SessionApiResponse,
+} from './sessionPlayApi';
 import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeToggle, MyrialeSelect } from '../../ui/MyrialeRadix';
+import { useAppNavigation } from '../../shared/nav';
+
+function ArrowUpIcon() {
+  return (
+    <svg className="size-[18px] fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M10 15V5m0 0L6 9m4-4 4 4" />
+    </svg>
+  );
+}
+
+function RotateBackIcon() {
+  return (
+    <svg className="size-[18px] fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M6.5 6.5H3.75V3.75M4.2 6.2a7 7 0 1 1-.75 6.85" />
+    </svg>
+  );
+}
+
+function SparkleIcon() {
+  return (
+    <svg className="size-[18px] fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M10 2.75c.45 2.65 1.85 4.05 4.5 4.5-2.65.45-4.05 1.85-4.5 4.5-.45-2.65-1.85-4.05-4.5-4.5 2.65-.45 4.05-1.85 4.5-4.5ZM15.25 12.5c.22 1.35.9 2.03 2.25 2.25-1.35.22-2.03.9-2.25 2.25-.22-1.35-.9-2.03-2.25-2.25 1.35-.22 2.03-.9 2.25-2.25Z" />
+    </svg>
+  );
+}
+
+function LightbulbIcon() {
+  return (
+    <svg className="size-[18px] fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M6.5 12.25c-1.1-.95-1.75-2.25-1.75-3.75a5.25 5.25 0 0 1 10.5 0c0 1.5-.65 2.8-1.75 3.75-.75.65-1 1.2-1 2H7.5c0-.8-.25-1.35-1-2ZM7.5 17h5M8 14.25h4" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg className="size-[18px] fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="m6 6 8 8m0-8-8 8" />
+    </svg>
+  );
+}
 
 type TurnKind = 'action' | 'clarification' | 'rewound';
 
@@ -159,28 +210,148 @@ const resultForInput = (input: string, nextId: number): DialogueTurn => {
   };
 };
 
+const toDialogueTurn = (turn: NarrativeTurnApiResponse): DialogueTurn => ({
+  id: turn.position,
+  turnTitle: turn.narrative?.playerInput
+    ? 'Player Inputを受けたNarrative'
+    : turn.kind === 'module'
+      ? 'プログラムによる進行'
+      : '物語の始まり',
+  playerInput: turn.narrative?.playerInput ?? undefined,
+  interpretation: turn.narrative?.interpretation ?? undefined,
+  narrative: turn.narrative?.body
+    ?? (turn.kind === 'module' ? 'プログラムによる進行を実行しています。' : 'Narrativeを表示できません。'),
+  kind: 'action',
+  display: turn.kind === 'module'
+    ? { allowRewind: false, showInterpretation: false, leadTone: 'program', leadTag: 'PROGRAM' }
+    : undefined,
+});
+
 const clampInitialTurnCount = (count: number | undefined) => {
   if (!Number.isFinite(count)) return initialTurns.length;
   return Math.min(Math.max(Math.trunc(count ?? initialTurns.length), 1), initialTurns.length);
 };
 
 export function SessionPage({ sessionId = 'SES-PREP-1098' }: { sessionId?: string } = {}) {
-  return <SessionDialogueSection sessionId={sessionId} />;
+  return getSessionApiBaseUrl()
+    ? <ServerSessionPage sessionId={sessionId} />
+    : <SessionDialogueSection sessionId={sessionId} />;
 }
 
+function ServerSessionPage({ sessionId }: { sessionId: string }) {
+  const appNavigate = useAppNavigation();
+  const accountSession = useAccountSession();
+  const chromeAccount = toAppChromeAccount(accountSession.user);
+  const [session, setSession] = useState<SessionApiResponse | null>(null);
+  const [error, setError] = useState('');
+  const [requiresLogin, setRequiresLogin] = useState(false);
 
-function SessionDialogueSection({ sessionId }: { sessionId: string }) {
+  const goToLogin = () => appNavigate?.('login');
+  const logout = async () => {
+    await accountSession.api.logout();
+    accountSession.clearUser();
+    goToLogin();
+  };
+
+  useEffect(() => {
+    const abort = new AbortController();
+    setSession(null);
+    setError('');
+    setRequiresLogin(false);
+    void getSession(sessionId, undefined, abort.signal)
+      .then(setSession)
+      .catch((reason: SessionApiError) => {
+        if (reason.name === 'AbortError') return;
+        if (reason.status === 401) {
+          accountSession.clearUser();
+          setRequiresLogin(true);
+          setError('Sessionを表示するにはログインが必要です。');
+          return;
+        }
+        setError(reason.message);
+      });
+    return () => abort.abort();
+  }, [accountSession.clearUser, sessionId]);
+
+  if (!session) {
+    return (
+      <AppChrome section="sessions" breadcrumbs={[{ label: 'Myriale', to: 'home' }, { label: 'セッション' }]} account={chromeAccount} onLogout={logout}>
+        <main className="grid min-h-[calc(100vh-118px)] place-items-center bg-[image:var(--myr-screen-background)] p-6 text-myr-ink">
+          <section className="max-w-xl rounded-myr-panel bg-myr-paper p-8 text-center shadow-myr-panel" aria-label={error ? 'Session読み込みエラー' : 'Session読み込み中'}>
+            <h1 className="font-myr-display text-4xl">{error ? 'Sessionを読み込めませんでした' : 'Sessionを読み込んでいます'}</h1>
+            <p role={error ? 'alert' : 'status'}>{error || '確定済みのTurnを取得しています。'}</p>
+            {error && (
+              <button
+                className="!rounded-full !bg-myr-ink !px-5 !py-3 !font-black !text-myr-paper"
+                onClick={requiresLogin ? goToLogin : () => window.location.reload()}
+              >
+                {requiresLogin ? 'ログインへ' : '再読み込み'}
+              </button>
+            )}
+          </section>
+        </main>
+      </AppChrome>
+    );
+  }
+
+  return (
+    <SessionDialogueSection
+      sessionId={sessionId}
+      serverSession={session}
+      account={chromeAccount}
+      onLogout={logout}
+      onLogin={goToLogin}
+      onAuthenticationRequired={accountSession.clearUser}
+    />
+  );
+}
+
+const demoPlayerAccount: AppChromeAccount = {
+  name: '霧野しおり',
+  email: 'reader@myriale.example',
+  initials: '霧野',
+  role: 'プレイヤー',
+};
+
+function SessionDialogueSection({
+  sessionId,
+  serverSession,
+  account = demoPlayerAccount,
+  onLogout,
+  onLogin,
+  onAuthenticationRequired,
+}: {
+  sessionId: string;
+  serverSession?: SessionApiResponse;
+  account?: AppChromeAccount | null;
+  onLogout?: () => void | Promise<void>;
+  onLogin?: () => void;
+  onAuthenticationRequired?: () => void;
+}) {
   const appStore = useOptionalAppStore();
   const dbSession = appStore?.db.playSessions[sessionId];
   const initialTurnCount = clampInitialTurnCount(dbSession?.turn);
-  const initialVisibleTurns = initialTurns.slice(0, initialTurnCount);
+  const initialVisibleTurns = serverSession
+    ? serverSession.turns.map(toDialogueTurn)
+    : initialTurns.slice(0, initialTurnCount);
+  const resumableInput = serverSession?.pendingInputs.at(-1);
   const [turns, setTurns] = useState<DialogueTurn[]>(initialVisibleTurns);
-  const [input, setInput] = useState('');
-  const [selectedTurnId, setSelectedTurnId] = useState(1);
+  const [input, setInput] = useState(resumableInput?.input ?? '');
+  const [selectedTurnId, setSelectedTurnId] = useState(initialVisibleTurns.at(-1)?.id ?? 1);
+  const [draftRequest, setDraftRequest] = useState<{ input: string; requestId: string } | null>(
+    resumableInput ? { input: resumableInput.input, requestId: resumableInput.requestId } : null,
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRecommending, setIsRecommending] = useState(false);
+  const [authenticationRequired, setAuthenticationRequired] = useState(false);
   const [notice, setNotice] = useState(
-    initialTurnCount === 1
-      ? ''
-      : `Session状態はActiveです。DB設定により、複数ターン経過後（Turn ${String(initialTurnCount).padStart(2, '0')}まで）のログを表示しています。AIが現在地、周囲、直近の出来事をNarrativeとして提示しました。`,
+    resumableInput
+      ? resumableInput.errorMessage ?? '未完了のPlayer Inputを復元しました。同じRequest IDで再試行できます。'
+      : serverSession
+        ? 'Serverに保存された確定済みTurnを表示しています。'
+        : initialTurnCount === 1
+          ? ''
+          : `Session状態はActiveです。DB設定により、複数ターン経過後（Turn ${String(initialTurnCount).padStart(2, '0')}まで）のログを表示しています。AIが現在地、周囲、直近の出来事をNarrativeとして提示しました。`,
   );
   const notesMode = appStore?.db.ui.notesPanelMode ?? 'side';
   const setNotesMode = (mode: 'side' | 'full') => {
@@ -204,7 +375,9 @@ function SessionDialogueSection({ sessionId }: { sessionId: string }) {
     [selectedTurnId, turns],
   );
   const latestTurn = turns[turns.length - 1];
-  const availableHeadingLinks = headingLinks.filter((heading) => heading.startTurnId <= latestTurn.id);
+  const availableHeadingLinks = serverSession
+    ? turns.map((turn) => ({ title: turn.turnTitle, startTurnId: turn.id, summary: 'Serverに保存された確定済みTurn' }))
+    : headingLinks.filter((heading) => heading.startTurnId <= latestTurn.id);
   // TOCの末尾は常に最後のTurnを指す: 最後のAI見出しがログ末尾より手前で終わる場合、最新Turnへのリンクを補う。
   const tocHeadingLinks: HeadingLink[] =
     availableHeadingLinks[availableHeadingLinks.length - 1]?.startTurnId === latestTurn.id
@@ -250,30 +423,53 @@ function SessionDialogueSection({ sessionId }: { sessionId: string }) {
       setNotice('自然言語で行動や会話を入力してください。文法が不完全でも受理します。');
       return;
     }
+    if (isSubmitting) return;
 
-    const requestId = `narrative-${crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
+    const requestId = draftRequest?.input === submittedInput
+      ? draftRequest.requestId
+      : `narrative-${crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
+    setDraftRequest({ input: submittedInput, requestId });
+    setIsSubmitting(true);
+    setAuthenticationRequired(false);
+    setNotice('Player Inputを受理し、Narrativeを生成しています。');
     try {
-      const serverTurn = await createNarrativeTurn(sessionId, submittedInput, requestId);
-      const nextTurn = serverTurn?.narrative?.body
-        ? {
-            id: turns.length + 1,
-            turnTitle: 'Player Inputを受けたNarrative',
-            playerInput: submittedInput,
-            narrative: serverTurn.narrative.body,
-            interpretation: 'Session APIへ永続化し、サーバー側Narrativeとして生成しました。',
-            kind: 'action' as const,
-          }
+      const nextTurn = serverSession
+        ? toDialogueTurn(await createNarrativeTurn(sessionId, submittedInput, requestId))
         : resultForInput(submittedInput, turns.length + 1);
-      setTurns((current) => [...current, nextTurn]);
+      setTurns((current) => current.some((turn) => turn.id === nextTurn.id) ? current : [...current, nextTurn]);
       setSelectedTurnId(nextTurn.id);
       setInput('');
-      setNotice(serverTurn ? 'Player InputとNarrativeをSessionへ保存しました。' : 'Player Inputを行動として解釈し、結果をNarrativeとして生成しました。次の重要な進行は入力待ちです。');
+      setDraftRequest(null);
+      setNotice(serverSession
+        ? 'Player InputとNarrativeをSessionへ保存しました。'
+        : 'Player Inputを行動として解釈し、結果をNarrativeとして生成しました。次の重要な進行は入力待ちです。');
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Narrativeの生成に失敗しました。入力を保持して再試行できます。');
+      const apiError = error as SessionApiError;
+      if (apiError.status === 401) {
+        setAuthenticationRequired(true);
+        onAuthenticationRequired?.();
+      }
+      const prefix = apiError.code === 'request_in_progress'
+        ? '同じ入力のNarrative生成が進行中です。'
+        : apiError.status === 401
+          ? 'ログインが必要です。'
+          : apiError.status === 409
+            ? 'Sessionの状態が変わったため、この入力を確定できませんでした。'
+            : '';
+      setNotice(`${prefix}${error instanceof Error ? error.message : 'Narrativeの生成に失敗しました。'} 入力を保持して同じRequest IDで再試行できます。`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const askClarification = () => {
+    if (serverSession) {
+      const clarificationInput = '今の状況を簡単にまとめて';
+      setInput(clarificationInput);
+      setDraftRequest(null);
+      setNotice('補足要求を入力欄へ設定しました。現在は通常のPlayer InputとしてServerへ送信します。');
+      return;
+    }
     const clarification: DialogueTurn = {
       id: turns.length + 1,
       turnTitle: '状況の再説明',
@@ -287,30 +483,43 @@ function SessionDialogueSection({ sessionId }: { sessionId: string }) {
     setNotice('補足要求として扱いました。行動ではないため、セッション状態と物語進行は変化しません。');
   };
 
+  const recommendAction = async () => {
+    if (isRecommending || isSubmitting) return;
+    setIsRecommending(true);
+    setAuthenticationRequired(false);
+    setNotice('AIが現在の状況から次の行動案を考えています。');
+    try {
+      const suggestion = serverSession
+        ? await recommendNextAction(sessionId)
+        : latestTurn.narrative.includes('扉')
+          ? '銀の鍵を扉にかざし、刻まれた星座との対応を確かめる'
+          : '周囲の安全を確かめながら、目につく手掛かりを詳しく調べる';
+      setInput(suggestion);
+      setDraftRequest(null);
+      setNotice('AIの提案を入力欄へ設定しました。内容を編集してから送信できます。');
+    } catch (error) {
+      const apiError = error as SessionApiError;
+      if (apiError.status === 401) {
+        setAuthenticationRequired(true);
+        onAuthenticationRequired?.();
+      }
+      setNotice(error instanceof Error ? error.message : '次の行動案を生成できませんでした。');
+    } finally {
+      setIsRecommending(false);
+    }
+  };
+
   const toggleInterpretation = (turn: DialogueTurn) => {
     const willShow = !showInterpretationFor.includes(turn.id);
     setShowInterpretationFor((current) =>
       willShow ? [...current, turn.id] : current.filter((id) => id !== turn.id),
     );
-    if (willShow) {
-      setNotice('入力直下に内部解釈を表示しました。意図とのズレがあれば、削除・やり直しできます。');
-    }
   };
 
   const deleteDraft = () => {
     setInput('');
+    setDraftRequest(null);
     setNotice('削除: 入力欄の未送信テキストを無効化しました。再入力できます。');
-  };
-
-  const redoPreviousTurn = () => {
-    if (turns.length === 1) {
-      setNotice('巻き戻せる直前ターンがありません。');
-      return;
-    }
-    const nextTurns = turns.slice(0, -1);
-    setTurns(nextTurns);
-    setSelectedTurnId(nextTurns[nextTurns.length - 1].id);
-    setNotice('やり直し: 直前ターンを巻き戻しました。AIコンテキストを再構築し、同じ地点から再入力できます。');
   };
 
   const jumpToHeading = (heading: HeadingLink) => {
@@ -319,6 +528,10 @@ function SessionDialogueSection({ sessionId }: { sessionId: string }) {
   };
 
   const requestRewind = (id: number) => {
+    if (serverSession) {
+      setNotice('Serverに確定したTurnの巻き戻しはまだ利用できません。履歴は変更されていません。');
+      return;
+    }
     setPendingRewindId(id);
     setNotice(`Turn ${String(id).padStart(2, '0')}まで戻る前に確認します。指定ターン以降のログと非同期処理を無効化します。`);
   };
@@ -375,6 +588,7 @@ function SessionDialogueSection({ sessionId }: { sessionId: string }) {
     ...defaultTurnDisplay,
     ...(dbSession?.turnDisplay?.[turn.id] ?? {}),
     ...(turn.display ?? {}),
+    ...(serverSession ? { allowRewind: false } : {}),
   });
   const generatedLog = turns.map((turn) => `${turn.turnTitle} ${turn.playerInput ?? ''} ${turn.narrative}`).join('\n');
 
@@ -513,7 +727,8 @@ function SessionDialogueSection({ sessionId }: { sessionId: string }) {
         { label: 'セッション', to: 'startSession' },
         { label: 'プレイ中の対話' },
       ]}
-      account={{ name: '霧野しおり', email: 'reader@myriale.example', initials: '霧野', role: 'プレイヤー' }}
+      account={account}
+      onLogout={onLogout}
     >
       <div className={sessionPageClassName} style={sessionPageStyle}>
       <WizardNavigation
@@ -548,13 +763,23 @@ function SessionDialogueSection({ sessionId }: { sessionId: string }) {
             </>
           )}
         </div>
-        {notice && <div className="notice" role="status" data-testid="dialogue-notice">{notice}</div>}
+        {notice && (
+          <div className="notice" role="status" data-testid="dialogue-notice">
+            <span>{notice}</span>
+            {authenticationRequired && onLogin && (
+              <button className="primary" onClick={onLogin}>ログインへ</button>
+            )}
+          </div>
+        )}
 
         <section className="dialogue-log" aria-label="対話ログ" data-testid="dialogue-log">
           {turns.map((turn) => {
             const display = displayForTurn(turn);
             const leadTone = display.leadTone ?? 'player';
-            const canShowInterpretation = Boolean(turn.interpretation && display.showInterpretation);
+            const interpretationUiEnabled = serverSession?.interpretationEnabled ?? true;
+            const canShowInterpretation = Boolean(
+              interpretationUiEnabled && turn.interpretation && display.showInterpretation,
+            );
             return (
               <SessionTurn
                 key={turn.id}
@@ -563,7 +788,16 @@ function SessionDialogueSection({ sessionId }: { sessionId: string }) {
                 }}
                 ariaLabel={`Turn ${String(turn.id).padStart(2, '0')}`}
                 selected={selectedTurnId === turn.id}
-                headingActions={display.allowRewind ? <button onClick={() => requestRewind(turn.id)}>ここまで戻る</button> : undefined}
+                headingActions={display.allowRewind ? (
+                  <button
+                    className="!grid !size-[30px] !place-items-center !rounded-[9px] !border-0 !bg-transparent !p-0 !text-[#6b6874] hover:!bg-myr-ink/7 hover:!text-[#211e2b] focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
+                    onClick={() => requestRewind(turn.id)}
+                    aria-label="ここまで戻る"
+                    title="ここまで戻る"
+                  >
+                    <RotateBackIcon />
+                  </button>
+                ) : undefined}
                 narrative={turn.narrative}
                 narrativeTestId={`turn-${turn.id}-narrative`}
                 lead={
@@ -611,32 +845,85 @@ function SessionDialogueSection({ sessionId }: { sessionId: string }) {
           </MyrialeDialogRoot>
         )}
 
-        <section className="dialogue-composer" aria-label="自然言語入力">
-          <div className="mode-strip" aria-label="現在の入力モード">
-            <span className="mode-badge" data-testid="mode-badge">{modeMeta.badge}</span>
-            <span data-testid="session-mode-state">{modeMeta.label}</span>
-            <span>{modeMeta.summary}</span>
-          </div>
-          {forcedMode && <p data-testid="input-disabled-reason">{modeMeta.reason} 終了後に可能。</p>}
-          <p data-testid="mode-reason">{modeMeta.reason}</p>
-          <label className={forcedMode ? 'visually-hidden' : undefined}>自由に行動や会話を入力
+        <section className="mx-auto mt-4 w-full max-w-[720px] justify-self-stretch px-2.5 pb-1 max-sm:px-0" aria-label="自然言語入力">
+          {forcedMode && (
+            <>
+              <div className="mode-strip" aria-label="現在の入力モード">
+                <span className="mode-badge" data-testid="mode-badge">{modeMeta.badge}</span>
+                <span data-testid="session-mode-state">{modeMeta.label}</span>
+                <span>{modeMeta.summary}</span>
+              </div>
+              <p data-testid="input-disabled-reason">{modeMeta.reason} 終了後に可能。</p>
+              <p data-testid="mode-reason">{modeMeta.reason}</p>
+            </>
+          )}
+          <div className="overflow-hidden rounded-[26px] border border-myr-ink/15 bg-[rgba(255,254,249,0.96)] shadow-[0_10px_30px_rgba(34,29,48,0.11),0_1px_2px_rgba(34,29,48,0.08)] transition-[border-color,box-shadow] duration-150 focus-within:border-myr-iris/45 focus-within:shadow-[0_12px_34px_rgba(34,29,48,0.14),0_0_0_3px_rgba(124,92,255,0.09)] max-sm:rounded-[22px] motion-reduce:transition-none">
             <textarea
+              className="!block !min-h-[76px] !max-h-[220px] !w-full !resize-y !rounded-none !border-0 !bg-transparent !px-[19px] !pt-[17px] !pb-2 !text-[15px] !leading-[1.6] !text-[#24212d] !shadow-none placeholder:!text-[#8a8791] focus:!outline-none focus:!shadow-none"
               aria-label="自由に行動や会話を入力"
               value={input}
-              onChange={(event) => setInput(event.target.value)}
-              placeholder="例: 酒場の奥にいる人物に話しかける / 周囲を警戒しながら村を出る"
-              disabled={forcedMode}
+              onChange={(event) => {
+                const nextInput = event.target.value;
+                setInput(nextInput);
+                if (draftRequest && draftRequest.input !== nextInput.trim()) setDraftRequest(null);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                  event.preventDefault();
+                  if (input.trim() && !isSubmitting) void sendInput();
+                }
+              }}
+              placeholder="次の行動を入力"
+              disabled={forcedMode || isSubmitting}
             />
-          </label>
 
-          {sessionMode === 'dialogue' && (
-            <div className="button-row">
-              <button className="primary" onClick={sendInput} data-testid="send-free-input">行動を送る</button>
-              <button onClick={askClarification}>状況を簡単にまとめて聞く</button>
-              <button onClick={deleteDraft}>削除（入力取り消し）</button>
-              <button onClick={redoPreviousTurn} data-testid="rewind-button">やり直し（直前ターン巻き戻し）</button>
-            </div>
-          )}
+            {sessionMode === 'dialogue' && (
+              <div className="flex items-center justify-between gap-3 px-2 pt-[5px] pb-2 pl-2.5">
+                <div className="flex items-center gap-0.5" aria-label="入力補助">
+                  <button
+                    className="!grid !size-[34px] !place-items-center !rounded-[10px] !border-0 !bg-transparent !p-0 !text-[#67636f] hover:!bg-myr-ink/7 hover:!text-[#211e2b] focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
+                    onClick={askClarification}
+                    aria-label="状況を簡単にまとめて聞く"
+                    title="状況を簡単にまとめて聞く"
+                  >
+                    <SparkleIcon />
+                  </button>
+                  <button
+                    className="!grid !size-[34px] !place-items-center !rounded-[10px] !border-0 !bg-transparent !p-0 !text-[#67636f] hover:!bg-myr-ink/7 hover:!text-[#211e2b] focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris disabled:!opacity-30"
+                    onClick={() => void recommendAction()}
+                    aria-label="AIに次の行動を提案してもらう"
+                    title="AIに次の行動を提案してもらう"
+                    disabled={isRecommending || isSubmitting}
+                  >
+                    {isRecommending
+                      ? <span className="size-3.5 animate-spin rounded-full border-2 border-myr-slate/30 border-t-myr-iris motion-reduce:animate-[spin_1.4s_linear_infinite]" aria-hidden="true" />
+                      : <LightbulbIcon />}
+                  </button>
+                  <button
+                    className="!grid !size-[34px] !place-items-center !rounded-[10px] !border-0 !bg-transparent !p-0 !text-[#67636f] hover:!bg-myr-ink/7 hover:!text-[#211e2b] focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris disabled:!opacity-30"
+                    onClick={deleteDraft}
+                    aria-label="入力を消去"
+                    title="入力を消去"
+                    disabled={!input}
+                  >
+                    <CloseIcon />
+                  </button>
+                </div>
+                <button
+                  className="!grid !size-9 !shrink-0 !place-items-center !rounded-full !border-0 !bg-[#211e2b] !p-0 !text-[#fffef9] !shadow-none transition-[transform,background-color,opacity] duration-150 hover:!translate-y-[-1px] hover:!bg-[#4d3bb5] focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris disabled:!cursor-not-allowed disabled:!bg-[#d5d1d8] disabled:!text-[#f8f6f2] motion-reduce:transition-none"
+                  onClick={() => void sendInput()}
+                  data-testid="send-free-input"
+                  disabled={isSubmitting || !input.trim()}
+                  aria-label={isSubmitting ? 'Narrativeを生成中' : draftRequest ? '同じ入力を再試行' : '行動を送る'}
+                  title={draftRequest ? '同じ入力を再試行' : '行動を送る'}
+                >
+                  {isSubmitting
+                    ? <span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white motion-reduce:animate-[spin_1.4s_linear_infinite]" aria-hidden="true" />
+                    : <ArrowUpIcon />}
+                </button>
+              </div>
+            )}
+          </div>
 
 
           {sessionMode === 'battle' && (

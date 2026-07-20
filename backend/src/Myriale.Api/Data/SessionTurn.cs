@@ -20,6 +20,9 @@ public sealed class SessionTurn
 
     public string? NarrativeBody { get; set; }
 
+    [MaxLength(500)]
+    public string? Interpretation { get; set; }
+
     [MaxLength(40)]
     public string? SourceModuleTurnId { get; set; }
 

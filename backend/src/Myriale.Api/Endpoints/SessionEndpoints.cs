@@ -23,6 +23,9 @@ public static class SessionEndpoints
         group.MapGet("/{sessionId}", GetAsync)
             .WithName("GetSession")
             .WithSummary("Returns a session and its ordered turns.");
+        group.MapPost("/{sessionId}/action-recommendation", RecommendActionAsync)
+            .WithName("RecommendSessionAction")
+            .WithSummary("Returns an AI-generated suggestion for the next player action without advancing the session.");
         group.MapPost("/{sessionId}/narrative-turns", CreateNarrativeTurnAsync)
             .WithName("CreateSessionNarrativeTurn")
             .WithSummary("Persists one player input and generated narrative turn atomically.");
@@ -39,14 +42,47 @@ public static class SessionEndpoints
         CreateSessionRequest request,
         ClaimsPrincipal principal,
         ApplicationDbContext db,
+        IModuleExecutionService executions,
         CancellationToken cancellationToken)
     {
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
         if (string.IsNullOrWhiteSpace(request.ScenarioId))
             return Results.BadRequest(new SessionErrorResponse("invalid_scenario_id", "ScenarioIdを指定してください。"));
-        if (!await db.Scenarios.AsNoTracking().AnyAsync(item => item.Id == request.ScenarioId, cancellationToken))
-            return Results.NotFound();
+        var requestId = request.RequestId?.Trim();
+        if (requestId is { Length: > 120 })
+            return Results.BadRequest(new SessionErrorResponse("invalid_request_id", "RequestIdは120文字以内で指定してください。"));
+        if (string.IsNullOrEmpty(requestId)) requestId = null;
+        var canDebugDialogue = await db.Users.AsNoTracking()
+            .Where(user => user.Id == ownerId)
+            .Select(user => user.CanDebugDialogue)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (request.InterpretationEnabled && !canDebugDialogue)
+            return Results.Json(
+                new SessionErrorResponse("dialogue_debug_forbidden", "解釈説明を有効にする権限がありません。"),
+                statusCode: StatusCodes.Status403Forbidden);
+
+        if (requestId is not null)
+        {
+            var replay = await db.Sessions.AsNoTracking()
+                .Include(item => item.State)
+                .Include(item => item.Progress).ThenInclude(progress => progress!.CurrentNode)
+                .Include(item => item.ProgressionTransitionReceipts)
+                .SingleOrDefaultAsync(item => item.OwnerId == ownerId && item.CreationRequestId == requestId, cancellationToken);
+            if (replay is not null)
+            {
+                if (!string.Equals(replay.ScenarioId, request.ScenarioId, StringComparison.Ordinal)
+                    || replay.InterpretationEnabled != request.InterpretationEnabled)
+                    return Results.Conflict(new SessionErrorResponse("idempotency_key_reused", "同じRequestIdに別のSession設定は指定できません。"));
+                var replayTurns = await LoadTurnsAsync(ownerId, replay.Id, db, executions, cancellationToken);
+                var replayPending = await LoadPendingInputsAsync(replay.Id, db, cancellationToken);
+                return Results.Ok(ToResponse(replay, replayTurns, replayPending));
+            }
+        }
+
+        var scenario = await db.Scenarios.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.Id == request.ScenarioId, cancellationToken);
+        if (scenario is null) return Results.NotFound();
 
         var now = DateTimeOffset.UtcNow;
         var initialNode = await db.ScenarioProgressionNodes
@@ -76,12 +112,15 @@ public static class SessionEndpoints
                     "scenario_module_unavailable",
                     "Scenarioが使用するModule packageは承認済みかつ有効である必要があります。"));
         }
+
         var session = new Session
         {
             Id = NewSessionId(),
             OwnerId = ownerId,
             ScenarioId = request.ScenarioId,
+            CreationRequestId = requestId,
             Status = "active",
+            InterpretationEnabled = request.InterpretationEnabled,
             CreatedAt = now,
             UpdatedAt = now,
             State = new SessionState
@@ -116,9 +155,60 @@ public static class SessionEndpoints
                 CreatedAt = now,
             });
         }
-        db.Sessions.Add(session);
-        await db.SaveChangesAsync(cancellationToken);
-        return Results.Created($"/api/sessions/{session.Id}", ToResponse(session, []));
+
+        // Legacy callers that do not provide an idempotency key retain the pre-opening behavior.
+        // The production Session-start flow always supplies RequestId and receives a durable root Opening Turn.
+        if (requestId is null)
+        {
+            db.Sessions.Add(session);
+            await db.SaveChangesAsync(cancellationToken);
+            return Results.Created($"/api/sessions/{session.Id}", ToResponse(session, [], []));
+        }
+
+        var opening = new SessionTurn
+        {
+            Id = $"TRN-{Guid.NewGuid():N}".ToUpperInvariant(),
+            SessionId = session.Id,
+            Position = 1,
+            Kind = "narrative",
+            NarrativeBody = scenario.Opening,
+            SourceSessionRevision = 0,
+            CreatedAt = now,
+        };
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            db.Sessions.Add(session);
+            await db.SaveChangesAsync(cancellationToken);
+            db.SessionTurns.Add(opening);
+            session.HeadTurnId = opening.Id;
+            session.HeadTurn = opening;
+            session.Revision = 1;
+            await db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch (DbUpdateException) when (requestId is not null)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            db.ChangeTracker.Clear();
+            var winner = await db.Sessions.AsNoTracking()
+                .Include(item => item.State)
+                .Include(item => item.Progress).ThenInclude(progress => progress!.CurrentNode)
+                .Include(item => item.ProgressionTransitionReceipts)
+                .SingleOrDefaultAsync(item => item.OwnerId == ownerId && item.CreationRequestId == requestId, cancellationToken);
+            if (winner is null) throw;
+            if (!string.Equals(winner.ScenarioId, request.ScenarioId, StringComparison.Ordinal)
+                || winner.InterpretationEnabled != request.InterpretationEnabled)
+                return Results.Conflict(new SessionErrorResponse("idempotency_key_reused", "同じRequestIdに別のSession設定は指定できません。"));
+            var winnerTurns = await LoadTurnsAsync(ownerId, winner.Id, db, executions, cancellationToken);
+            var winnerPending = await LoadPendingInputsAsync(winner.Id, db, cancellationToken);
+            return Results.Ok(ToResponse(winner, winnerTurns, winnerPending));
+        }
+
+        return Results.Created(
+            $"/api/sessions/{session.Id}",
+            ToResponse(session, [ToOpeningTurnResponse(opening)], []));
     }
 
     private static async Task<IResult> GetAsync(
@@ -138,15 +228,81 @@ public static class SessionEndpoints
         if (session is null) return Results.NotFound();
 
         var turns = await LoadTurnsAsync(ownerId, sessionId, db, executions, cancellationToken);
+        var pendingInputs = await LoadPendingInputsAsync(sessionId, db, cancellationToken);
         try
         {
-            return Results.Ok(ToResponse(session, turns));
+            return Results.Ok(ToResponse(session, turns, pendingInputs));
         }
         catch (JsonException)
         {
             return Results.Json(
                 new SessionErrorResponse("session_state_corrupt", "保存済みのSession stateを読み込めません。"),
                 statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    private static async Task<IResult> RecommendActionAsync(
+        string sessionId,
+        ClaimsPrincipal principal,
+        ApplicationDbContext db,
+        IActionRecommendationGenerator recommendations,
+        CancellationToken cancellationToken)
+    {
+        var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
+        var session = await db.Sessions.AsNoTracking()
+            .Include(item => item.Scenario)
+            .Include(item => item.State)
+            .SingleOrDefaultAsync(item => item.Id == sessionId && item.OwnerId == ownerId, cancellationToken);
+        if (session is null) return Results.NotFound();
+
+        var recentTurns = await db.SessionTurns.AsNoTracking()
+            .Where(turn => turn.SessionId == sessionId)
+            .Include(turn => turn.PlayerInput)
+            .OrderByDescending(turn => turn.Position)
+            .Take(8)
+            .OrderBy(turn => turn.Position)
+            .Select(turn => new NarrativeDialogueTurnInput(
+                turn.PlayerInput == null ? null : turn.PlayerInput.Text,
+                turn.NarrativeBody))
+            .ToListAsync(cancellationToken);
+        if (recentTurns.Count == 0)
+            recentTurns.Add(new NarrativeDialogueTurnInput(null, session.Scenario.Opening));
+        IReadOnlyDictionary<string, bool> flags;
+        try
+        {
+            flags = JsonSerializer.Deserialize<Dictionary<string, bool>>(session.State.FlagsJson) ?? new Dictionary<string, bool>();
+        }
+        catch (JsonException)
+        {
+            return Results.Json(
+                new SessionErrorResponse("session_state_corrupt", "保存済みのSession stateを読み込めません。"),
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+
+        try
+        {
+            var result = await recommendations.RecommendActionAsync(
+                new NarrativeActionRecommendationRequest(
+                    new NarrativeScenarioInput(
+                        session.Scenario.Title,
+                        session.Scenario.Summary,
+                        session.Scenario.Genre,
+                        session.Scenario.Tone,
+                        session.Scenario.Lore,
+                        session.Scenario.AiFreedom,
+                        session.Scenario.Hero,
+                        session.Scenario.Opening),
+                    recentTurns,
+                    new NarrativeSessionStateInput(session.State.Revision, flags)),
+                cancellationToken);
+            return Results.Ok(result);
+        }
+        catch (NarrativeGenerationException)
+        {
+            return Results.Json(
+                new SessionErrorResponse("action_recommendation_failed", "次の行動案を生成できませんでした。"),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
         }
     }
 
@@ -180,7 +336,7 @@ public static class SessionEndpoints
             result.Turn.PreviousTurnId,
             result.Turn.Kind,
             null,
-            new NarrativeTurnResponse(null, result.Turn.SourceSessionRevision, result.Turn.NarrativeBody!, result.Turn.PlayerInputId, playerInput?.Text, playerInput?.AcceptedAfterTurnId, signals),
+            new NarrativeTurnResponse(null, result.Turn.SourceSessionRevision, result.Turn.NarrativeBody!, result.Turn.PlayerInputId, playerInput?.Text, playerInput?.AcceptedAfterTurnId, signals, result.Turn.Interpretation),
             null,
             result.Turn.CreatedAt));
     }
@@ -228,6 +384,27 @@ public static class SessionEndpoints
         return response is null ? Results.NotFound() : Results.Ok(response);
     }
 
+    private static Task<List<SessionPlayerInputWorkResponse>> LoadPendingInputsAsync(
+        string sessionId,
+        ApplicationDbContext db,
+        CancellationToken cancellationToken) =>
+        db.SessionPlayerInputWorks.AsNoTracking()
+            .Where(work => work.PlayerInput.SessionId == sessionId
+                && !db.SessionTurns.Any(turn => turn.PlayerInputId == work.PlayerInputId))
+            .OrderBy(work => work.PlayerInputId)
+            .Select(work => new SessionPlayerInputWorkResponse(
+                work.PlayerInputId,
+                work.PlayerInput.RequestId,
+                work.PlayerInput.Text,
+                work.PlayerInput.AcceptedAfterTurnId,
+                work.Status,
+                work.IsRetryable,
+                work.ErrorCode,
+                work.ErrorMessage,
+                work.AttemptCount,
+                work.UpdatedAt))
+            .ToListAsync(cancellationToken);
+
     private static async Task<IReadOnlyList<SessionTurnResponse>> LoadTurnsAsync(
         string ownerId,
         string sessionId,
@@ -251,7 +428,10 @@ public static class SessionEndpoints
         return responses;
     }
 
-    private static SessionResponse ToResponse(Session session, IReadOnlyList<SessionTurnResponse> turns)
+    private static SessionResponse ToResponse(
+        Session session,
+        IReadOnlyList<SessionTurnResponse> turns,
+        IReadOnlyList<SessionPlayerInputWorkResponse> pendingInputs)
     {
         var transition = session.ProgressionTransitionReceipts
             .OrderByDescending(receipt => receipt.CreatedAt)
@@ -262,6 +442,7 @@ public static class SessionEndpoints
             session.Status,
             session.HeadTurnId,
             session.Revision,
+            session.InterpretationEnabled,
             new SessionStateResponse(
                 session.State.Revision,
                 JsonSerializer.Deserialize<IReadOnlyDictionary<string, bool>>(session.State.FlagsJson) ?? new Dictionary<string, bool>()),
@@ -274,9 +455,21 @@ public static class SessionEndpoints
                     transition?.ModuleTurnId,
                     transition?.ErrorCode),
             turns,
+            pendingInputs,
             session.CreatedAt,
             session.UpdatedAt);
     }
+
+    private static SessionTurnResponse ToOpeningTurnResponse(SessionTurn turn) =>
+        new(
+            turn.Id,
+            turn.Position,
+            turn.PreviousTurnId,
+            turn.Kind,
+            null,
+            new NarrativeTurnResponse(null, turn.SourceSessionRevision, turn.NarrativeBody!),
+            null,
+            turn.CreatedAt);
 
     private static SessionTurnResponse ToModuleTurnResponse(SessionTurn turn, ModuleExecutionResponse execution) =>
         new(turn.Id, turn.Position, turn.PreviousTurnId, turn.Kind, execution, null, ToHandoffResponse(turn), turn.CreatedAt);
@@ -290,7 +483,10 @@ public static class SessionEndpoints
     {
         if (turn.Kind == "narrative")
         {
-            if (turn.SourceModuleTurnId is null && turn.PlayerInputId is null || turn.SourceSessionRevision is null || turn.NarrativeBody is null) return null;
+            var isOpening = turn.PreviousTurnId is null && turn.SourceModuleTurnId is null && turn.PlayerInputId is null;
+            if ((!isOpening && turn.SourceModuleTurnId is null && turn.PlayerInputId is null)
+                || turn.SourceSessionRevision is null
+                || turn.NarrativeBody is null) return null;
             return new SessionTurnResponse(
                 turn.Id,
                 turn.Position,
@@ -304,7 +500,8 @@ public static class SessionEndpoints
                     turn.PlayerInputId,
                     turn.PlayerInput?.Text,
                     turn.PlayerInput?.AcceptedAfterTurnId,
-                    turn.NarrativeSignals.OrderBy(signal => signal.Code).Select(signal => signal.Code).ToArray()),
+                    turn.NarrativeSignals.OrderBy(signal => signal.Code).Select(signal => signal.Code).ToArray(),
+                    turn.Interpretation),
                 null,
                 turn.CreatedAt);
         }

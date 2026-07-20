@@ -174,7 +174,8 @@ public sealed class SessionNarrativeTurnService(
                     new NarrativeSessionStateInput(
                         claimed.PlayerInput.Session.State.Revision,
                         JsonSerializer.Deserialize<IReadOnlyDictionary<string, bool>>(claimed.PlayerInput.Session.State.FlagsJson) ?? new Dictionary<string, bool>()),
-                    allowedSignals),
+                    allowedSignals,
+                    claimed.PlayerInput.Session.InterpretationEnabled),
                 timeout.Token);
             ValidateSignals(generated.Signals, allowedSignals);
         }
@@ -211,6 +212,7 @@ public sealed class SessionNarrativeTurnService(
             Position = (claimedSession.HeadTurn?.Position ?? 0) + 1,
             Kind = "narrative",
             NarrativeBody = generated.Body,
+            Interpretation = claimedSession.InterpretationEnabled ? generated.Interpretation : null,
             PlayerInputId = claimed.PlayerInput.Id,
             SourceSessionRevision = claimedSession.State.Revision,
             CreatedAt = completedAt,

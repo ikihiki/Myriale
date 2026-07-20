@@ -3,17 +3,39 @@ using Myriale.Api.Contracts;
 
 namespace Myriale.Api.Services;
 
-public sealed class MockAiNarrativeGenerator(IHttpClientFactory httpClientFactory) : INarrativeGenerator
+public sealed class MockAiNarrativeGenerator(IHttpClientFactory httpClientFactory)
+    : INarrativeGenerator, IActionRecommendationGenerator
 {
+    public async Task<NarrativeActionRecommendationResult> RecommendActionAsync(
+        NarrativeActionRecommendationRequest request,
+        CancellationToken cancellationToken)
+    {
+        var client = httpClientFactory.CreateClient("MockAi");
+        using var response = await client.PostAsJsonAsync("/mock-ai/action-recommendation", request, cancellationToken);
+        if (!response.IsSuccessStatusCode) throw new NarrativeGenerationException("Action recommendation provider returned an error.");
+        var result = await response.Content.ReadFromJsonAsync<NarrativeActionRecommendationResult>(cancellationToken: cancellationToken);
+        if (string.IsNullOrWhiteSpace(result?.Suggestion) || result.Suggestion.Length > 500)
+            throw new NarrativeGenerationException("Action recommendation provider returned an invalid response.");
+        return result with { Suggestion = result.Suggestion.Trim() };
+    }
+
     public async Task<NarrativeDialogueResult> GenerateDialogueAsync(NarrativeDialogueRequest request, CancellationToken cancellationToken)
     {
         var client = httpClientFactory.CreateClient("MockAi");
         using var response = await client.PostAsJsonAsync("/mock-ai/narrative-dialogue", request, cancellationToken);
         if (!response.IsSuccessStatusCode) throw new NarrativeGenerationException("Narrative provider returned an error.");
         var result = await response.Content.ReadFromJsonAsync<NarrativeDialogueResult>(cancellationToken: cancellationToken);
-        if (string.IsNullOrWhiteSpace(result?.Body) || result.Body.Length > 20_000 || result.Signals is null)
+        if (string.IsNullOrWhiteSpace(result?.Body)
+            || result.Body.Length > 20_000
+            || result.Signals is null
+            || (request.IncludeInterpretation && string.IsNullOrWhiteSpace(result.Interpretation))
+            || result.Interpretation?.Length > 500)
             throw new NarrativeGenerationException("Narrative provider returned an invalid response.");
-        return result with { Body = result.Body.Trim() };
+        return result with
+        {
+            Body = result.Body.Trim(),
+            Interpretation = request.IncludeInterpretation ? result.Interpretation?.Trim() : null,
+        };
     }
 
     public async Task<string> GenerateAsync(NarrativeHandoffRequest request, CancellationToken cancellationToken)
