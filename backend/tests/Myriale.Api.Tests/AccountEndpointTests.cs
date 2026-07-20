@@ -41,6 +41,7 @@ public sealed class AccountEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, me.StatusCode);
         var current = await me.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("reader@example.test", current.GetProperty("email").GetString());
+        Assert.False(current.GetProperty("canDebugDialogue").GetBoolean());
     }
 
     [Fact]
@@ -69,6 +70,7 @@ public sealed class AccountEndpointTests : IDisposable
         Assert.Equal(AccountSeedData.DefaultDisplayName, current.GetProperty("displayName").GetString());
         Assert.Equal(AccountSeedData.DefaultEmail, current.GetProperty("email").GetString());
         Assert.True(current.GetProperty("emailConfirmed").GetBoolean());
+        Assert.True(current.GetProperty("canDebugDialogue").GetBoolean());
     }
 
     [Fact]

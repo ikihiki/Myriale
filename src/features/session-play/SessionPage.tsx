@@ -177,9 +177,7 @@ const toDialogueTurn = (turn: NarrativeTurnApiResponse): DialogueTurn => ({
       ? 'プログラムによる進行'
       : '物語の始まり',
   playerInput: turn.narrative?.playerInput ?? undefined,
-  interpretation: turn.narrative?.playerInput
-    ? 'Session APIへ永続化されたPlayer Inputです。'
-    : undefined,
+  interpretation: turn.narrative?.interpretation ?? undefined,
   narrative: turn.narrative?.body
     ?? (turn.kind === 'module' ? 'プログラムによる進行を実行しています。' : 'Narrativeを表示できません。'),
   kind: 'action',
@@ -725,7 +723,10 @@ function SessionDialogueSection({
           {turns.map((turn) => {
             const display = displayForTurn(turn);
             const leadTone = display.leadTone ?? 'player';
-            const canShowInterpretation = Boolean(turn.interpretation && display.showInterpretation);
+            const interpretationUiEnabled = serverSession?.interpretationEnabled ?? true;
+            const canShowInterpretation = Boolean(
+              interpretationUiEnabled && turn.interpretation && display.showInterpretation,
+            );
             return (
               <SessionTurn
                 key={turn.id}

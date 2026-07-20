@@ -19,7 +19,26 @@ describe('sessionPlayApi', () => {
 
     expect(fetch).toHaveBeenCalledWith('/api/sessions/', expect.objectContaining({
       method: 'POST',
-      body: JSON.stringify({ scenarioId: 'SCN-STAR-LIBRARY', requestId: 'session-request-1' }),
+      body: JSON.stringify({
+        scenarioId: 'SCN-STAR-LIBRARY',
+        requestId: 'session-request-1',
+        interpretationEnabled: false,
+      }),
+    }));
+  });
+
+  it('requests interpretation output only when explicitly enabled', async () => {
+    const fetch = vi.fn().mockResolvedValue(response({ id: 'SES-1', turns: [], pendingInputs: [] }, 201));
+    vi.stubGlobal('fetch', fetch);
+
+    await createSession('SCN-STAR-LIBRARY', 'session-request-2', '/api/sessions', true);
+
+    expect(fetch).toHaveBeenCalledWith('/api/sessions/', expect.objectContaining({
+      body: JSON.stringify({
+        scenarioId: 'SCN-STAR-LIBRARY',
+        requestId: 'session-request-2',
+        interpretationEnabled: true,
+      }),
     }));
   });
 

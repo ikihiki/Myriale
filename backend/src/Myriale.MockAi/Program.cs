@@ -28,7 +28,10 @@ app.MapPost("/mock-ai/narrative-dialogue", (MockNarrativeDialogueRequest request
         : [];
     return Results.Ok(new MockNarrativeDialogueResult(
         $"{context}、あなたの「{request.PlayerInput.Trim()}」という行動を受けて、物語は確定した状況から静かに続いていく。",
-        signals));
+        signals,
+        request.IncludeInterpretation
+            ? $"「{request.PlayerInput.Trim()}」を、現在の状況に対するPlayerの行動として解釈しました。"
+            : null));
 });
 
 app.MapPost("/mock-ai/narrative-handoff", (MockNarrativeHandoffRequest request) =>
@@ -97,11 +100,15 @@ public sealed record MockNarrativeDialogueRequest(
     IReadOnlyList<MockNarrativeDialogueTurn> RecentTurns,
     string PlayerInput,
     MockNarrativeSessionState SessionState,
-    IReadOnlyList<string> AllowedSignals);
+    IReadOnlyList<string> AllowedSignals,
+    bool IncludeInterpretation);
 
 public sealed record MockNarrativeDialogueTurn(string? PlayerInput, string? Narrative);
 public sealed record MockNarrativeProgressionSignal(string Code);
-public sealed record MockNarrativeDialogueResult(string Body, IReadOnlyList<MockNarrativeProgressionSignal> Signals);
+public sealed record MockNarrativeDialogueResult(
+    string Body,
+    IReadOnlyList<MockNarrativeProgressionSignal> Signals,
+    string? Interpretation);
 
 public sealed record MockNarrativeHandoffRequest(
     MockNarrativeScenario Scenario,

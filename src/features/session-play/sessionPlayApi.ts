@@ -10,6 +10,7 @@ export type NarrativeTurnApiResponse = {
     playerInput?: string | null;
     acceptedAfterTurnId?: string | null;
     signals?: string[] | null;
+    interpretation?: string | null;
   } | null;
   narrativeHandoff?: {
     status: string;
@@ -38,6 +39,7 @@ export type SessionApiResponse = {
   status: string;
   headTurnId?: string | null;
   revision: number;
+  interpretationEnabled: boolean;
   turns: NarrativeTurnApiResponse[];
   pendingInputs: PendingPlayerInputApiResponse[];
   createdAt: string;
@@ -59,13 +61,14 @@ export async function createSession(
   scenarioId: string,
   requestId: string,
   baseUrl = getSessionApiBaseUrl(),
+  interpretationEnabled = false,
 ): Promise<SessionApiResponse> {
   if (!baseUrl) throw sessionApiError('Session APIが設定されていません。', 503, 'session_api_unavailable');
   const response = await fetch(`${baseUrl}/`, {
     method: 'POST',
     credentials: 'include',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ scenarioId, requestId }),
+    body: JSON.stringify({ scenarioId, requestId, interpretationEnabled }),
   });
   if (!response.ok) throw await toSessionApiError(response, 'Sessionを開始できませんでした。');
   return response.json() as Promise<SessionApiResponse>;

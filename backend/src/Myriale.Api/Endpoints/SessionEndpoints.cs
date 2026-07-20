@@ -50,6 +50,14 @@ public static class SessionEndpoints
         if (requestId is { Length: > 120 })
             return Results.BadRequest(new SessionErrorResponse("invalid_request_id", "RequestIdは120文字以内で指定してください。"));
         if (string.IsNullOrEmpty(requestId)) requestId = null;
+        var canDebugDialogue = await db.Users.AsNoTracking()
+            .Where(user => user.Id == ownerId)
+            .Select(user => user.CanDebugDialogue)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (request.InterpretationEnabled && !canDebugDialogue)
+            return Results.Json(
+                new SessionErrorResponse("dialogue_debug_forbidden", "解釈説明を有効にする権限がありません。"),
+                statusCode: StatusCodes.Status403Forbidden);
 
         if (requestId is not null)
         {
@@ -60,8 +68,9 @@ public static class SessionEndpoints
                 .SingleOrDefaultAsync(item => item.OwnerId == ownerId && item.CreationRequestId == requestId, cancellationToken);
             if (replay is not null)
             {
-                if (!string.Equals(replay.ScenarioId, request.ScenarioId, StringComparison.Ordinal))
-                    return Results.Conflict(new SessionErrorResponse("idempotency_key_reused", "同じRequestIdに別のScenarioは指定できません。"));
+                if (!string.Equals(replay.ScenarioId, request.ScenarioId, StringComparison.Ordinal)
+                    || replay.InterpretationEnabled != request.InterpretationEnabled)
+                    return Results.Conflict(new SessionErrorResponse("idempotency_key_reused", "同じRequestIdに別のSession設定は指定できません。"));
                 var replayTurns = await LoadTurnsAsync(ownerId, replay.Id, db, executions, cancellationToken);
                 var replayPending = await LoadPendingInputsAsync(replay.Id, db, cancellationToken);
                 return Results.Ok(ToResponse(replay, replayTurns, replayPending));
@@ -108,6 +117,7 @@ public static class SessionEndpoints
             ScenarioId = request.ScenarioId,
             CreationRequestId = requestId,
             Status = "active",
+            InterpretationEnabled = request.InterpretationEnabled,
             CreatedAt = now,
             UpdatedAt = now,
             State = new SessionState
@@ -185,8 +195,9 @@ public static class SessionEndpoints
                 .Include(item => item.ProgressionTransitionReceipts)
                 .SingleOrDefaultAsync(item => item.OwnerId == ownerId && item.CreationRequestId == requestId, cancellationToken);
             if (winner is null) throw;
-            if (!string.Equals(winner.ScenarioId, request.ScenarioId, StringComparison.Ordinal))
-                return Results.Conflict(new SessionErrorResponse("idempotency_key_reused", "同じRequestIdに別のScenarioは指定できません。"));
+            if (!string.Equals(winner.ScenarioId, request.ScenarioId, StringComparison.Ordinal)
+                || winner.InterpretationEnabled != request.InterpretationEnabled)
+                return Results.Conflict(new SessionErrorResponse("idempotency_key_reused", "同じRequestIdに別のSession設定は指定できません。"));
             var winnerTurns = await LoadTurnsAsync(ownerId, winner.Id, db, executions, cancellationToken);
             var winnerPending = await LoadPendingInputsAsync(winner.Id, db, cancellationToken);
             return Results.Ok(ToResponse(winner, winnerTurns, winnerPending));
@@ -257,7 +268,7 @@ public static class SessionEndpoints
             result.Turn.PreviousTurnId,
             result.Turn.Kind,
             null,
-            new NarrativeTurnResponse(null, result.Turn.SourceSessionRevision, result.Turn.NarrativeBody!, result.Turn.PlayerInputId, playerInput?.Text, playerInput?.AcceptedAfterTurnId, signals),
+            new NarrativeTurnResponse(null, result.Turn.SourceSessionRevision, result.Turn.NarrativeBody!, result.Turn.PlayerInputId, playerInput?.Text, playerInput?.AcceptedAfterTurnId, signals, result.Turn.Interpretation),
             null,
             result.Turn.CreatedAt));
     }
@@ -363,6 +374,7 @@ public static class SessionEndpoints
             session.Status,
             session.HeadTurnId,
             session.Revision,
+            session.InterpretationEnabled,
             new SessionStateResponse(
                 session.State.Revision,
                 JsonSerializer.Deserialize<IReadOnlyDictionary<string, bool>>(session.State.FlagsJson) ?? new Dictionary<string, bool>()),
@@ -420,7 +432,8 @@ public static class SessionEndpoints
                     turn.PlayerInputId,
                     turn.PlayerInput?.Text,
                     turn.PlayerInput?.AcceptedAfterTurnId,
-                    turn.NarrativeSignals.OrderBy(signal => signal.Code).Select(signal => signal.Code).ToArray()),
+                    turn.NarrativeSignals.OrderBy(signal => signal.Code).Select(signal => signal.Code).ToArray(),
+                    turn.Interpretation),
                 null,
                 turn.CreatedAt);
         }

@@ -35,6 +35,7 @@ public static class AccountSeedData
             EmailConfirmed = true,
             DisplayName = displayName,
             Bio = "星図を読む巡礼者。夜の図書館で物語を探しています。",
+            CanDebugDialogue = true,
         };
         var result = await userManager.CreateAsync(user, password);
         if (!result.Succeeded)

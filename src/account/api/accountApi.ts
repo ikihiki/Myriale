@@ -5,6 +5,7 @@ export type AccountUser = {
   bio: string;
   emailConfirmed: boolean;
   state: 'active' | 'deleted' | string;
+  canDebugDialogue?: boolean;
 };
 
 export type AccountApiError = Error & {
@@ -110,6 +111,7 @@ export function createDemoAccountApi(): AccountApi {
     bio: '星図を読む巡礼者。夜の図書館で物語を探しています。',
     emailConfirmed: true,
     state: 'active',
+    canDebugDialogue: true,
   };
   let demoResetToken = 'demo-reset-token';
 
@@ -124,7 +126,7 @@ export function createDemoAccountApi(): AccountApi {
     },
     async login(payload) {
       if (payload.email !== 'reader@myriale.example' || payload.password !== 'mist-library-2026') throw demoError('メールアドレスまたはパスワードが違います。', 401);
-      demoUser = { id: 'USR-1031', displayName: '霧野しおり', email: 'reader@myriale.example', bio: '星図を読む巡礼者。夜の図書館で物語を探しています。', emailConfirmed: true, state: 'active' };
+      demoUser = { id: 'USR-1031', displayName: '霧野しおり', email: 'reader@myriale.example', bio: '星図を読む巡礼者。夜の図書館で物語を探しています。', emailConfirmed: true, state: 'active', canDebugDialogue: true };
       return demoUser;
     },
     async logout() {

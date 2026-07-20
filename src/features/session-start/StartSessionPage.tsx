@@ -62,6 +62,9 @@ function ProtagonistForm({
   beginError,
   requiresLogin,
   onLogin,
+  canConfigureInterpretation,
+  interpretationEnabled,
+  onInterpretationEnabledChange,
 }: {
   scenario: ScenarioSummary;
   api: ScenarioApi;
@@ -70,6 +73,9 @@ function ProtagonistForm({
   beginError: string;
   requiresLogin: boolean;
   onLogin: () => void;
+  canConfigureInterpretation: boolean;
+  interpretationEnabled: boolean;
+  onInterpretationEnabledChange: (enabled: boolean) => void;
 }) {
   const heroCandidates = scenario.hero.split('\n').map((candidate) => candidate.trim()).filter(Boolean);
   const [aiSuggestion, setAiSuggestion] = useState('');
@@ -204,6 +210,25 @@ function ProtagonistForm({
             </div>
           )}
 
+          {canConfigureInterpretation && (
+            <section className="mt-7 border-t border-myr-ink/15 pt-5" aria-label="解釈説明のデバッグ設定">
+              <label className="flex items-start gap-3 rounded-myr-card bg-myr-vellum/55 p-4 text-sm text-myr-ink">
+                <input
+                  type="checkbox"
+                  className="mt-1 size-4 accent-myr-iris"
+                  checked={interpretationEnabled}
+                  onChange={(event) => onInterpretationEnabledChange(event.target.checked)}
+                />
+                <span>
+                  <strong className="block">解釈説明を有効にする</strong>
+                  <span className="mt-1 block text-xs leading-5 text-myr-slate">
+                    デバッグ用です。有効なSessionではAIに短い解釈説明も生成させ、「どう解釈された？」を表示します。
+                  </span>
+                </span>
+              </label>
+            </section>
+          )}
+
           <div className="mt-7 flex justify-end border-t border-myr-ink/15 pt-5">
             <button
               type="submit"
@@ -254,6 +279,11 @@ function ProtagonistForm({
             <span className="font-myr-mono text-[0.6875rem] font-black tracking-[0.08em] text-myr-ruby uppercase">Session snapshot</span>
             <h2 className="my-2 font-myr-display text-3xl leading-none tracking-[-0.04em]">{scenario.title}</h2>
             <p className="my-2 text-sm text-myr-slate">Scenario: {scenario.title}</p>
+            {canConfigureInterpretation && (
+              <p className="my-2 text-sm text-myr-slate">
+                解釈説明: {interpretationEnabled ? '有効（デバッグ）' : '無効'}
+              </p>
+            )}
             <p className="my-2 text-sm text-myr-slate">主人公: {heroForSummary}</p>
           </article>
         </MyrialeDialogContent>
@@ -271,6 +301,7 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
   const [sessionRequestId] = useState(() => `session-${crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`);
   const [isBeginning, setIsBeginning] = useState(false);
   const [beginError, setBeginError] = useState('');
+  const [interpretationEnabled, setInterpretationEnabled] = useState(false);
   const [requiresLogin, setRequiresLogin] = useState(false);
   const scenarioId = search?.scenarioId;
   const scenarioQuery = useQuery({
@@ -319,7 +350,7 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
     setRequiresLogin(false);
     setIsBeginning(true);
     try {
-      const session = await createSession(scenarioId, sessionRequestId);
+      const session = await createSession(scenarioId, sessionRequestId, undefined, interpretationEnabled);
       router.history.push(`/sessions/${encodeURIComponent(session.id)}`);
     } catch (error) {
       const apiError = error as SessionApiError;
@@ -425,6 +456,9 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
               beginError={beginError}
               requiresLogin={requiresLogin}
               onLogin={goToLogin}
+              canConfigureInterpretation={accountSession.user?.canDebugDialogue === true}
+              interpretationEnabled={interpretationEnabled}
+              onInterpretationEnabledChange={setInterpretationEnabled}
             />
           </section>
         </main>

@@ -217,7 +217,8 @@ public static class AccountEndpoints
         user.Email ?? string.Empty,
         user.Bio,
         user.EmailConfirmed,
-        IsDeleted(user) ? "deleted" : "active");
+        IsDeleted(user) ? "deleted" : "active",
+        user.CanDebugDialogue);
 
     private static Dictionary<string, string[]> ValidateRegister(RegisterRequest request)
     {

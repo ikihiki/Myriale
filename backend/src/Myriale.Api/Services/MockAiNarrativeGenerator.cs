@@ -11,9 +11,17 @@ public sealed class MockAiNarrativeGenerator(IHttpClientFactory httpClientFactor
         using var response = await client.PostAsJsonAsync("/mock-ai/narrative-dialogue", request, cancellationToken);
         if (!response.IsSuccessStatusCode) throw new NarrativeGenerationException("Narrative provider returned an error.");
         var result = await response.Content.ReadFromJsonAsync<NarrativeDialogueResult>(cancellationToken: cancellationToken);
-        if (string.IsNullOrWhiteSpace(result?.Body) || result.Body.Length > 20_000 || result.Signals is null)
+        if (string.IsNullOrWhiteSpace(result?.Body)
+            || result.Body.Length > 20_000
+            || result.Signals is null
+            || (request.IncludeInterpretation && string.IsNullOrWhiteSpace(result.Interpretation))
+            || result.Interpretation?.Length > 500)
             throw new NarrativeGenerationException("Narrative provider returned an invalid response.");
-        return result with { Body = result.Body.Trim() };
+        return result with
+        {
+            Body = result.Body.Trim(),
+            Interpretation = request.IncludeInterpretation ? result.Interpretation?.Trim() : null,
+        };
     }
 
     public async Task<string> GenerateAsync(NarrativeHandoffRequest request, CancellationToken cancellationToken)

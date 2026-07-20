@@ -133,12 +133,41 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var firstJson = await first.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("narrative", firstJson.GetProperty("kind").GetString());
         Assert.Equal(body.input, firstJson.GetProperty("narrative").GetProperty("playerInput").GetString());
+        Assert.False(Assert.Single(_generator.DialogueRequests).IncludeInterpretation);
+        Assert.Equal(JsonValueKind.Null, firstJson.GetProperty("narrative").GetProperty("interpretation").ValueKind);
 
         using var replay = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/narrative-turns", body);
         Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
         var replayJson = await replay.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(firstJson.GetProperty("id").GetString(), replayJson.GetProperty("id").GetString());
         Assert.Equal(1, await CountNarrativeTurnsAsync());
+    }
+
+    [Fact]
+    public async Task EnabledInterpretationIsRequestedPersistedAndReturned()
+    {
+        const string email = "dialogue-interpretation@example.test";
+        var client = await AuthenticatedClientAsync(email);
+        await GrantDialogueDebugAsync(email);
+        var sessionId = await CreateSessionAsync(client, interpretationEnabled: true);
+
+        using var created = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/narrative-turns",
+            new { requestId = "dialogue-with-interpretation", input = "銀の鍵を掲げる" });
+
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        var createdJson = await created.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(Assert.Single(_generator.DialogueRequests).IncludeInterpretation);
+        Assert.Equal(_generator.DialogueInterpretation, createdJson.GetProperty("narrative").GetProperty("interpretation").GetString());
+
+        var session = await GetSessionAsync(client, sessionId);
+        Assert.True(session.GetProperty("interpretationEnabled").GetBoolean());
+        var persistedNarrative = Assert.Single(
+            session.GetProperty("turns").EnumerateArray(),
+            turn => turn.GetProperty("kind").GetString() == "narrative");
+        Assert.Equal(
+            _generator.DialogueInterpretation,
+            persistedNarrative.GetProperty("narrative").GetProperty("interpretation").GetString());
     }
 
     [Fact]
@@ -471,9 +500,13 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         randomValueCount = 0,
     };
 
-    private async Task<string> CreateSessionAsync(HttpClient client)
+    private async Task<string> CreateSessionAsync(HttpClient client, bool interpretationEnabled = false)
     {
-        using var response = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId = "SCN-STAR-LIBRARY" });
+        using var response = await client.PostAsJsonAsync("/api/sessions/", new
+        {
+            scenarioId = "SCN-STAR-LIBRARY",
+            interpretationEnabled,
+        });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
     }
@@ -546,6 +579,15 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         return await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().ModuleOutcomeApplications.CountAsync();
     }
 
+    private async Task GrantDialogueDebugAsync(string email)
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var user = await db.Users.SingleAsync(item => item.Email == email);
+        user.CanDebugDialogue = true;
+        await db.SaveChangesAsync();
+    }
+
     private async Task<HttpClient> AuthenticatedClientAsync(string email)
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
@@ -575,6 +617,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
 
         public List<NarrativeDialogueRequest> DialogueRequests { get; } = [];
         public IReadOnlyList<NarrativeProgressionSignal> DialogueSignals { get; set; } = [];
+        public string DialogueInterpretation { get; set; } = "Playerは銀の鍵を掲げる行動を選んだ。";
         public bool PauseDialogue { get; set; }
         public TaskCompletionSource DialogueEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource DialogueRelease { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -588,7 +631,10 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
                 DialogueEntered.TrySetResult();
                 await DialogueRelease.Task.WaitAsync(cancellationToken);
             }
-            return new NarrativeDialogueResult("入力を受け止め、物語は次の場面へ進んだ。", DialogueSignals);
+            return new NarrativeDialogueResult(
+                "入力を受け止め、物語は次の場面へ進んだ。",
+                DialogueSignals,
+                DialogueInterpretation);
         }
 
         public async Task<string> GenerateAsync(NarrativeHandoffRequest request, CancellationToken cancellationToken)
