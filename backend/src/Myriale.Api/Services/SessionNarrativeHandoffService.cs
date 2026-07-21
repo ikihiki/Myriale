@@ -12,7 +12,6 @@ public sealed class SessionNarrativeHandoffService(
     ILogger<SessionNarrativeHandoffService> logger)
 {
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(2);
-    private static readonly TimeSpan GenerationTimeout = TimeSpan.FromSeconds(30);
     private readonly JsonSerializerOptions _json = ModuleJsonSerializerOptions.Create();
 
     public async Task PrepareAsync(
@@ -91,25 +90,29 @@ public sealed class SessionNarrativeHandoffService(
         }
 
         string body;
+        AiGenerationMetadata generationMetadata;
         try
         {
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(GenerationTimeout);
-            body = await generator.GenerateAsync(request, timeout.Token);
+            var generation = await generator.GenerateAsync(request, cancellationToken);
+            body = generation.Value;
+            generationMetadata = generation.Metadata;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             return;
         }
-        catch (Exception exception) when (exception is NarrativeGenerationException or HttpRequestException or JsonException or OperationCanceledException)
+        catch (Exception exception) when (exception is NarrativeGenerationException or AiProviderException or HttpRequestException or JsonException or OperationCanceledException)
         {
-            logger.LogWarning(exception, "Automatic narrative generation failed for {ExecutionId}", executionId);
+            var providerError = exception as AiProviderException;
+            var code = providerError?.Code ?? (exception is OperationCanceledException ? AiProviderErrorCodes.Timeout : AiProviderErrorCodes.SchemaFailure);
+            var retryable = providerError?.Retryable ?? true;
+            logger.LogWarning("Automatic narrative generation failed for {ExecutionId}: {ErrorCode}", executionId, code);
             await MarkFailedAsync(
                 executionId,
                 leaseId,
-                "narrative_generation_failed",
+                code,
                 "Narrativeの生成に失敗しました。",
-                retryable: true,
+                retryable,
                 CancellationToken.None);
             return;
         }
@@ -158,6 +161,14 @@ public sealed class SessionNarrativeHandoffService(
             DialogueTurnType = "module-handoff",
             Heading = "確定した結果を受ける",
             NarrativeBody = body,
+            AiProvider = generationMetadata.Provider,
+            AiModel = generationMetadata.Model,
+            AiResponseId = generationMetadata.ResponseId,
+            AiInputTokens = generationMetadata.InputTokens,
+            AiOutputTokens = generationMetadata.OutputTokens,
+            AiLatencyMilliseconds = generationMetadata.LatencyMilliseconds,
+            AiAttemptCount = generationMetadata.AttemptCount,
+            AiFinishReason = generationMetadata.FinishReason,
             SourceModuleTurnId = source.Id,
             SourceSessionRevision = handoff.SourceSessionRevision,
             CreatedAt = completedAt,

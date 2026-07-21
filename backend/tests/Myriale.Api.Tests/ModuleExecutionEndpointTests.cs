@@ -137,8 +137,8 @@ public sealed class ModuleExecutionEndpointTests : IDisposable
     public async Task CancelledPendingInitializationCanResume()
     {
         var client = await AuthenticatedClientAsync("initialize-recovery@example.test");
-        var body = InitializeBody("initialize-recovery", new { initializationDelayMilliseconds = 250 }, new { }, 3);
-        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+        var body = InitializeBody("initialize-recovery", new { initializationDelayMilliseconds = 500 }, new { }, 3);
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(150));
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             client.PostAsJsonAsync("/api/module-executions/", body, cancellation.Token));

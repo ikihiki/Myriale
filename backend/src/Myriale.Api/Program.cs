@@ -14,9 +14,27 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 builder.Services.AddOpenApi();
+builder.Services.AddDataProtection();
+builder.Services.AddOptions<AiProviderOptions>()
+    .Bind(builder.Configuration.GetSection(AiProviderOptions.SectionName))
+    .Validate(options => options.Provider is "mock" or "openai" or "runpod", "Provider must be mock, openai, or runpod.")
+    .Validate(options => options.TimeoutSeconds > 0 && options.MaxOutputTokens > 0 && options.MaxAttempts > 0, "AI provider limits must be positive.")
+    .Validate(options => options.SessionRequestsPerMinute > 0
+        && options.UserRequestsPerMinute > 0
+        && options.MaxTokensPerSession > 0
+        && options.LeaseRecoveryIntervalSeconds > 0, "AI quota and recovery limits must be positive.")
+    .ValidateOnStart();
+builder.Services.AddScoped<IAiCredentialStore, DataProtectionAiCredentialStore>();
+builder.Services.AddHostedService<AiLeaseRecoveryWorker>();
+builder.Services.AddScoped<OpenAiCompatibleTextProvider>();
+builder.Services.AddScoped<IAiTextProvider>(services => services.GetRequiredService<OpenAiCompatibleTextProvider>());
 builder.Services.AddScoped<MockAiNarrativeGenerator>();
-builder.Services.AddScoped<INarrativeGenerator>(services => services.GetRequiredService<MockAiNarrativeGenerator>());
-builder.Services.AddScoped<IActionRecommendationGenerator>(services => services.GetRequiredService<MockAiNarrativeGenerator>());
+builder.Services.AddScoped<ProviderNarrativeGenerator>();
+builder.Services.AddScoped<INarrativeGenerator>(services =>
+    string.Equals(builder.Configuration["AiProvider:Provider"], "mock", StringComparison.OrdinalIgnoreCase)
+        ? services.GetRequiredService<MockAiNarrativeGenerator>()
+        : services.GetRequiredService<ProviderNarrativeGenerator>());
+builder.Services.AddScoped<IActionRecommendationGenerator>(services => (IActionRecommendationGenerator)services.GetRequiredService<INarrativeGenerator>());
 builder.Services.AddScoped<SessionNarrativeHandoffService>();
 builder.Services.AddScoped<SessionScenarioProgressionService>();
 builder.Services.AddOptions<NarrativeContextOptions>()
@@ -40,6 +58,7 @@ builder.Services.AddSingleton<ModuleRuntimeInvocationGate>();
 builder.Services.AddScoped<SessionOutcomeEffectService>();
 builder.Services.AddScoped<IModuleExecutionService, ModuleExecutionService>();
 builder.Services.AddScoped<IModuleUiResourceService, ModuleUiResourceService>();
+builder.Services.AddHttpClient("OpenAiCompatible");
 builder.Services.AddHttpClient("MockAi", client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["MockAi:BaseUrl"] ?? "https+http://myriale-mock-ai");
@@ -64,6 +83,8 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("ModuleAdministration", policy =>
         policy.RequireClaim("myriale:module-admin", "true"));
+    options.AddPolicy("AiAdministration", policy =>
+        policy.RequireClaim("myriale:ai-admin", "true"));
 });
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {

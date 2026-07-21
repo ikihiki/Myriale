@@ -50,6 +50,15 @@ public sealed class SessionTurn
     [MaxLength(40)]
     public string? PlayerInputId { get; set; }
 
+    [MaxLength(40)] public string? AiProvider { get; set; }
+    [MaxLength(160)] public string? AiModel { get; set; }
+    [MaxLength(160)] public string? AiResponseId { get; set; }
+    public int? AiInputTokens { get; set; }
+    public int? AiOutputTokens { get; set; }
+    public long? AiLatencyMilliseconds { get; set; }
+    public int? AiAttemptCount { get; set; }
+    [MaxLength(80)] public string? AiFinishReason { get; set; }
+
     public long? SourceSessionRevision { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 

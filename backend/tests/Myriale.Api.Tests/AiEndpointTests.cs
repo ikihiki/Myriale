@@ -3,6 +3,11 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Myriale.Api.Data;
+using Myriale.Api.Services;
 
 namespace Myriale.Api.Tests;
 
@@ -14,24 +19,41 @@ public sealed class AiEndpointTests : IDisposable
     public AiEndpointTests()
     {
         _factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:MyrialeAccounts", $"Data Source={_dbPath}"));
+            .WithWebHostBuilder(builder =>
+            {
+                builder.UseSetting("ConnectionStrings:MyrialeAccounts", $"Data Source={_dbPath}");
+                builder.ConfigureServices(services =>
+                {
+                    services.RemoveAll<IAiTextProvider>();
+                    services.AddSingleton<IAiTextProvider, SuccessfulTextProvider>();
+                });
+            });
     }
 
     [Fact]
-    public async Task AdminAiKeys_StoresMaskedKeyAndTestsMockConnection()
+    public async Task AdminAiKeys_RequiresClaimEncryptsKeyAndTestsProvider()
     {
-        var client = await CreateSignedInClientAsync();
+        using var anonymous = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/admin/ai-keys/")).StatusCode);
 
-        using var saved = await client.PutAsJsonAsync("/api/admin/ai-keys/mock-text", new { displayName = "Mock Text", secret = "mock-secret-1234" });
+        var client = await CreateSignedInClientAsync(grantAdmin: false);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/admin/ai-keys/")).StatusCode);
+        client = await CreateSignedInClientAsync(grantAdmin: true);
+
+        using var saved = await client.PutAsJsonAsync("/api/admin/ai-keys/openai", new { displayName = "OpenAI", secret = "test-secret-1234" });
         Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
         var savedJson = await saved.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("••••••••1234", savedJson.GetProperty("maskedKey").GetString());
-        Assert.False(savedJson.ToString().Contains("mock-secret-1234", StringComparison.Ordinal));
+        Assert.DoesNotContain("test-secret-1234", savedJson.ToString(), StringComparison.Ordinal);
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            Assert.DoesNotContain("test-secret-1234", (await db.AiProviderKeys.FindAsync("openai"))!.Secret, StringComparison.Ordinal);
+        }
 
-        using var tested = await client.PostAsync("/api/admin/ai-keys/mock-text/test", null);
+        using var tested = await client.PostAsync("/api/admin/ai-keys/openai/test", null);
         Assert.Equal(HttpStatusCode.OK, tested.StatusCode);
-        var testedJson = await tested.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("mock-validated", testedJson.GetProperty("status").GetString());
+        Assert.Equal("valid", (await tested.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("status").GetString());
     }
 
     [Fact]
@@ -69,7 +91,7 @@ public sealed class AiEndpointTests : IDisposable
         if (File.Exists(_dbPath)) File.Delete(_dbPath);
     }
 
-    private async Task<HttpClient> CreateSignedInClientAsync()
+    private async Task<HttpClient> CreateSignedInClientAsync(bool grantAdmin = false)
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var register = await client.PostAsJsonAsync("/api/account/register", new
@@ -80,6 +102,16 @@ public sealed class AiEndpointTests : IDisposable
         });
         ApplyCookies(client, register);
         Assert.Equal(HttpStatusCode.OK, register.StatusCode);
+        if (grantAdmin)
+        {
+            var email = (await register.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("email").GetString()!;
+            await using var scope = _factory.Services.CreateAsyncScope();
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await users.FindByEmailAsync(email) ?? throw new InvalidOperationException();
+            await users.AddClaimAsync(user, new System.Security.Claims.Claim("myriale:ai-admin", "true"));
+            using var login = await client.PostAsJsonAsync("/api/account/login", new { email, password = "letters1" });
+            ApplyCookies(client, login);
+        }
         return client;
     }
 
@@ -93,4 +125,10 @@ public sealed class AiEndpointTests : IDisposable
             if (!string.IsNullOrWhiteSpace(cookie)) client.DefaultRequestHeaders.Add("Cookie", cookie);
         }
     }
+    private sealed class SuccessfulTextProvider : IAiTextProvider
+    {
+        public Task<AiTextResponse> GenerateAsync(AiTextRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task TestConnectionAsync(string provider, string credential, CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
 }

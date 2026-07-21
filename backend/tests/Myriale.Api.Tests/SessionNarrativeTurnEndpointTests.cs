@@ -112,7 +112,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var failedSession = await GetSessionAsync(client, sessionId);
         Assert.Equal(1, failedSession.GetProperty("turns").GetArrayLength());
         Assert.Equal("failed", failedSession.GetProperty("turns")[0].GetProperty("narrativeHandoff").GetProperty("status").GetString());
-        Assert.Equal("narrative_generation_failed", failedSession.GetProperty("turns")[0].GetProperty("narrativeHandoff").GetProperty("errorCode").GetString());
+        Assert.Equal("schema_failure", failedSession.GetProperty("turns")[0].GetProperty("narrativeHandoff").GetProperty("errorCode").GetString());
 
         _generator.Fail = false;
         using var replay = await client.PostAsJsonAsync($"/api/module-executions/{executionId}/dispatch", body);
@@ -212,7 +212,15 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
             Assert.Equal(NarrativeContextSchema.Version, storedTurn.ContextSchemaVersion);
             Assert.True(storedTurn.ContextSizeBytes > 0);
             Assert.Equal(64, storedTurn.ContextHash?.Length);
-            Assert.Equal(NarrativePromptBuilder.Version, (await db.SessionTurns.SingleAsync()).PromptVersion);
+            Assert.Equal(NarrativePromptBuilder.Version, storedTurn.PromptVersion);
+            Assert.Equal("test-provider", storedTurn.AiProvider);
+            Assert.Equal("test-model", storedTurn.AiModel);
+            Assert.Equal("response-1", storedTurn.AiResponseId);
+            Assert.Equal(12, storedTurn.AiInputTokens);
+            Assert.Equal(8, storedTurn.AiOutputTokens);
+            Assert.Equal(25, storedTurn.AiLatencyMilliseconds);
+            Assert.Equal(1, storedTurn.AiAttemptCount);
+            Assert.Equal("stop", storedTurn.AiFinishReason);
             Assert.Equal(0, await db.SessionPendingPlayerInputs.CountAsync());
         }
     }
@@ -418,7 +426,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
             });
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
-        Assert.Equal("narrative_generation_failed", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+        Assert.Equal("schema_failure", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
         Assert.Equal(0, await CountNarrativeTurnsAsync());
         await using (var scope = _factory.Services.CreateAsyncScope())
         {
@@ -798,7 +806,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     private async Task AssertDialogueGenerationRejectedAsync(HttpResponseMessage response)
     {
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
-        Assert.Equal("narrative_generation_failed", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+        Assert.Equal("schema_failure", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var pending = await db.SessionPendingPlayerInputs.AsNoTracking().SingleAsync();
@@ -971,7 +979,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         public TaskCompletionSource DialogueEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource DialogueRelease { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public async Task<NarrativeDialogueResult> GenerateDialogueAsync(NarrativeDialogueRequest request, CancellationToken cancellationToken)
+        public async Task<NarrativeGeneration<NarrativeDialogueResult>> GenerateDialogueAsync(NarrativeDialogueRequest request, CancellationToken cancellationToken)
         {
             lock (DialogueRequests) DialogueRequests.Add(request);
             if (Fail) throw new NarrativeGenerationException("test failure");
@@ -980,16 +988,16 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
                 DialogueEntered.TrySetResult();
                 await DialogueRelease.Task.WaitAsync(cancellationToken);
             }
-            return new NarrativeDialogueResult(
+            return new(new NarrativeDialogueResult(
                 DialogueSchemaVersion,
                 DialogueTurnType,
                 DialogueHeading,
                 DialogueBody,
                 DialogueSignals,
-                DialogueInterpretation);
+                DialogueInterpretation), Metadata());
         }
 
-        public async Task<string> GenerateAsync(NarrativeHandoffRequest request, CancellationToken cancellationToken)
+        public async Task<NarrativeGeneration<string>> GenerateAsync(NarrativeHandoffRequest request, CancellationToken cancellationToken)
         {
             if (OnGenerate is not null) await OnGenerate();
             lock (Requests) Requests.Add(request);
@@ -999,7 +1007,9 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
                 Entered.TrySetResult();
                 await Release.Task.WaitAsync(cancellationToken);
             }
-            return "確定した結果を受け、物語は次の場面へ進んだ。";
+            return new("確定した結果を受け、物語は次の場面へ進んだ。", Metadata());
         }
+
+        private static AiGenerationMetadata Metadata() => new("test-provider", "test-model", "response-1", 12, 8, 25, 1, "stop");
     }
 }

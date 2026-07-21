@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 
 namespace Myriale.Api.Data;
@@ -26,7 +27,12 @@ public static class AccountSeedData
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        if (await userManager.FindByEmailAsync(email) is not null) return;
+        var existing = await userManager.FindByEmailAsync(email);
+        if (existing is not null)
+        {
+            await EnsureAdminClaimsAsync(userManager, existing);
+            return;
+        }
 
         var user = new ApplicationUser
         {
@@ -43,5 +49,14 @@ public static class AccountSeedData
             var errors = string.Join(", ", result.Errors.Select(error => $"{error.Code}: {error.Description}"));
             throw new InvalidOperationException($"Failed to create the seeded account: {errors}");
         }
+        await EnsureAdminClaimsAsync(userManager, user);
+    }
+
+    private static async Task EnsureAdminClaimsAsync(UserManager<ApplicationUser> userManager, ApplicationUser user)
+    {
+        var claims = await userManager.GetClaimsAsync(user);
+        foreach (var type in new[] { "myriale:module-admin", "myriale:ai-admin" })
+            if (!claims.Any(claim => claim.Type == type && claim.Value == "true"))
+                await userManager.AddClaimAsync(user, new Claim(type, "true"));
     }
 }

@@ -1,0 +1,107 @@
+using System.Net;
+using System.Text;
+using System.Text.Json;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Options;
+using Myriale.Api.Services;
+
+namespace Myriale.Api.Tests;
+
+public sealed class OpenAiCompatibleTextProviderTests
+{
+    [Fact]
+    public async Task Generate_UsesStrictJsonSchemaAndCapturesMetadata()
+    {
+        var handler = new QueueHandler(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("{\"id\":\"resp-1\",\"choices\":[{\"message\":{\"content\":\"{\\\"ok\\\":true}\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":4}}", Encoding.UTF8, "application/json")
+        });
+        var provider = Create(handler);
+
+        var result = await provider.GenerateAsync(Request(), default);
+
+        Assert.Contains("\"type\":\"json_schema\"", handler.LastBody, StringComparison.Ordinal);
+        Assert.Contains("\"strict\":true", handler.LastBody, StringComparison.Ordinal);
+        Assert.Equal("resp-1", result.Metadata.ResponseId);
+        Assert.Equal(11, result.Metadata.InputTokens);
+        Assert.Equal(4, result.Metadata.OutputTokens);
+        Assert.Equal("stop", result.Metadata.FinishReason);
+    }
+
+    [Fact]
+    public async Task Generate_RetriesRateLimitAndReportsFinalAttempt()
+    {
+        var rateLimited = new HttpResponseMessage(HttpStatusCode.TooManyRequests)
+        {
+            Content = new StringContent("{\"error\":\"rate limited\"}")
+        };
+        rateLimited.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.Zero);
+        var handler = new QueueHandler(
+            rateLimited,
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"id\":\"resp-2\",\"choices\":[{\"message\":{\"content\":\"{\\\"ok\\\":true}\"},\"finish_reason\":\"stop\"}]}", Encoding.UTF8, "application/json")
+            });
+
+        var result = await Create(handler).GenerateAsync(Request(), default);
+
+        Assert.Equal(2, handler.RequestCount);
+        Assert.Equal(2, result.Metadata.AttemptCount);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized, AiProviderErrorCodes.InvalidCredential, false)]
+    [InlineData(HttpStatusCode.TooManyRequests, AiProviderErrorCodes.RateLimited, true)]
+    [InlineData(HttpStatusCode.InternalServerError, AiProviderErrorCodes.ProviderUnavailable, true)]
+    [InlineData(HttpStatusCode.BadRequest, AiProviderErrorCodes.SchemaFailure, false)]
+    public async Task Generate_NormalizesProviderErrors(HttpStatusCode status, string code, bool retryable)
+    {
+        var handler = new QueueHandler(new HttpResponseMessage(status) { Content = new StringContent("{\"error\":\"failure\"}") });
+        var exception = await Assert.ThrowsAsync<AiProviderException>(() => Create(handler, maxAttempts: 1).GenerateAsync(Request(), default));
+        Assert.Equal(code, exception.Code);
+        Assert.Equal(retryable, exception.Retryable);
+    }
+
+    [Fact]
+    public async Task Generate_ClassifiesModelNotFound()
+    {
+        var handler = new QueueHandler(new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent("model not found") });
+        var exception = await Assert.ThrowsAsync<AiProviderException>(() => Create(handler, maxAttempts: 1).GenerateAsync(Request(), default));
+        Assert.Equal(AiProviderErrorCodes.ModelNotFound, exception.Code);
+    }
+
+    private static OpenAiCompatibleTextProvider Create(QueueHandler handler, int maxAttempts = 2)
+    {
+        var client = new HttpClient(handler);
+        var options = Options.Create(new AiProviderOptions { Provider = "runpod", BaseUrl = "https://example.test/openai/v1", Model = "test-model", ApiKey = "fallback", MaxAttempts = maxAttempts, InitialBackoffMilliseconds = 0 });
+        return new OpenAiCompatibleTextProvider(new Factory(client), new CredentialStore(), options);
+    }
+    private static AiTextRequest Request()
+    {
+        using var schema = JsonDocument.Parse("{\"type\":\"object\"}");
+        return new(
+            [new ChatMessage(ChatRole.System, "system"), new ChatMessage(ChatRole.User, "user")],
+            ChatResponseFormat.ForJsonSchema(schema.RootElement.Clone(), "test"));
+    }
+
+    private sealed class Factory(HttpClient client) : IHttpClientFactory { public HttpClient CreateClient(string name) => client; }
+    private sealed class CredentialStore : IAiCredentialStore
+    {
+        public Task SaveAsync(string provider, string displayName, string secret, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<string?> GetAsync(string provider, CancellationToken cancellationToken) => Task.FromResult<string?>("secret");
+        public Task DeleteAsync(string provider, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public string Mask(string secret) => throw new NotSupportedException();
+    }
+    private sealed class QueueHandler(params HttpResponseMessage[] responses) : HttpMessageHandler
+    {
+        private readonly Queue<HttpResponseMessage> _responses = new(responses);
+        public string LastBody { get; private set; } = string.Empty;
+        public int RequestCount { get; private set; }
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            LastBody = await request.Content!.ReadAsStringAsync(cancellationToken);
+            return _responses.Dequeue();
+        }
+    }
+}

@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 
@@ -13,10 +14,10 @@ public sealed class SessionNarrativeTurnService(
     INarrativePromptBuilder promptBuilder,
     INarrativeGenerator generator,
     SessionScenarioProgressionService progression,
+    IOptions<AiProviderOptions> aiOptions,
     ILogger<SessionNarrativeTurnService> logger)
 {
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(2);
-    private static readonly TimeSpan GenerationTimeout = TimeSpan.FromSeconds(30);
 
     public Task<SessionNarrativeTurnResult> CreateAsync(
         string ownerId,
@@ -76,6 +77,9 @@ public sealed class SessionNarrativeTurnService(
         }
         else
         {
+            var quotaError = await CheckQuotaAsync(ownerId, sessionId, cancellationToken);
+            if (quotaError is not null) return quotaError;
+
             var now = DateTimeOffset.UtcNow;
             pendingInput = new SessionPendingPlayerInput
             {
@@ -171,14 +175,13 @@ public sealed class SessionNarrativeTurnService(
         IReadOnlyList<NarrativeAllowedSignal> providerAllowedSignals;
         NarrativePromptInstructions prompt;
         NarrativeDialogueResult generated;
+        AiGenerationMetadata generationMetadata;
         try
         {
             context = await contextBuilder.BuildDialogueAsync(ownerId, sessionId, interactionType, cancellationToken);
             prompt = promptBuilder.Build(context, interactionType);
             providerAllowedSignals = context.AllowedSignals;
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(GenerationTimeout);
-            generated = await generator.GenerateDialogueAsync(
+            var generation = await generator.GenerateDialogueAsync(
                 new NarrativeDialogueRequest(
                     NarrativeDialogueSchema.Version,
                     context.SchemaVersion,
@@ -194,7 +197,9 @@ public sealed class SessionNarrativeTurnService(
                     context.CurrentProgressionNode,
                     context.AllowedSignals,
                     claimed.Session.InterpretationEnabled),
-                timeout.Token);
+                cancellationToken);
+            generated = generation.Value;
+            generationMetadata = generation.Metadata;
             ValidateGeneratedResult(generated, interactionType, claimed.Session.InterpretationEnabled);
             ValidateSignals(generated.Signals, providerAllowedSignals);
         }
@@ -203,11 +208,14 @@ public sealed class SessionNarrativeTurnService(
             await ReleaseClaimAsync(pendingInput.Id, leaseId);
             throw;
         }
-        catch (Exception exception) when (exception is NarrativeGenerationException or HttpRequestException or JsonException or OperationCanceledException)
+        catch (Exception exception) when (exception is NarrativeGenerationException or AiProviderException or HttpRequestException or JsonException or OperationCanceledException)
         {
-            logger.LogWarning(exception, "Dialogue narrative generation failed for {SessionId}", sessionId);
-            await MarkFailedAsync(pendingInput.Id, leaseId, "narrative_generation_failed", "Narrativeの生成に失敗しました。", retryable: true, CancellationToken.None);
-            return SessionNarrativeTurnResult.Error(503, "narrative_generation_failed", "Narrativeの生成に失敗しました。");
+            var providerError = exception as AiProviderException;
+            var code = providerError?.Code ?? (exception is OperationCanceledException ? AiProviderErrorCodes.Timeout : AiProviderErrorCodes.SchemaFailure);
+            var retryable = providerError?.Retryable ?? true;
+            logger.LogWarning("Dialogue narrative generation failed for {SessionId}: {ErrorCode}", sessionId, code);
+            await MarkFailedAsync(pendingInput.Id, leaseId, code, "Narrativeの生成に失敗しました。", retryable, CancellationToken.None);
+            return SessionNarrativeTurnResult.Error(code == AiProviderErrorCodes.RateLimited ? 429 : 503, code, "Narrativeの生成に失敗しました。");
         }
 
         db.ChangeTracker.Clear();
@@ -257,6 +265,14 @@ public sealed class SessionNarrativeTurnService(
             Heading = generated.Heading,
             NarrativeBody = generated.Body,
             Interpretation = claimedSession.InterpretationEnabled ? generated.Interpretation : null,
+            AiProvider = generationMetadata.Provider,
+            AiModel = generationMetadata.Model,
+            AiResponseId = generationMetadata.ResponseId,
+            AiInputTokens = generationMetadata.InputTokens,
+            AiOutputTokens = generationMetadata.OutputTokens,
+            AiLatencyMilliseconds = generationMetadata.LatencyMilliseconds,
+            AiAttemptCount = generationMetadata.AttemptCount,
+            AiFinishReason = generationMetadata.FinishReason,
             PlayerInputId = finalizedInput.Id,
             PlayerInput = finalizedInput,
             SourceSessionRevision = claimedSession.State.Revision,
@@ -330,6 +346,50 @@ public sealed class SessionNarrativeTurnService(
             }
             return await CompleteAsync(ownerId, existing.NarrativeTurn, cancellationToken);
         }
+    }
+
+    private async Task<SessionNarrativeTurnResult?> CheckQuotaAsync(
+        string ownerId,
+        string sessionId,
+        CancellationToken cancellationToken)
+    {
+        var options = aiOptions.Value;
+        var cutoff = DateTimeOffset.UtcNow.AddMinutes(-1);
+        var sessionCompletedAt = await db.SessionPlayerInputs.AsNoTracking()
+            .Where(input => input.SessionId == sessionId)
+            .Select(input => input.CreatedAt)
+            .ToListAsync(cancellationToken);
+        var sessionPendingAt = await db.SessionPendingPlayerInputs.AsNoTracking()
+            .Where(input => input.SessionId == sessionId)
+            .Select(input => input.CreatedAt)
+            .ToListAsync(cancellationToken);
+        var sessionRequests = sessionCompletedAt.Count(createdAt => createdAt >= cutoff)
+            + sessionPendingAt.Count(createdAt => createdAt >= cutoff);
+        if (sessionRequests >= options.SessionRequestsPerMinute)
+            return SessionNarrativeTurnResult.Error(429, "session_rate_limited", "SessionのAI入力上限に達しました。しばらく待って再試行してください。");
+
+        var userCompletedAt = await db.SessionPlayerInputs.AsNoTracking()
+            .Where(input => input.Session.OwnerId == ownerId)
+            .Select(input => input.CreatedAt)
+            .ToListAsync(cancellationToken);
+        var userPendingAt = await db.SessionPendingPlayerInputs.AsNoTracking()
+            .Where(input => input.Session.OwnerId == ownerId)
+            .Select(input => input.CreatedAt)
+            .ToListAsync(cancellationToken);
+        var userRequests = userCompletedAt.Count(createdAt => createdAt >= cutoff)
+            + userPendingAt.Count(createdAt => createdAt >= cutoff);
+        if (userRequests >= options.UserRequestsPerMinute)
+            return SessionNarrativeTurnResult.Error(429, "user_rate_limited", "ユーザーのAI入力上限に達しました。しばらく待って再試行してください。");
+
+        var tokenUsage = await db.SessionTurns.AsNoTracking()
+            .Where(turn => turn.SessionId == sessionId)
+            .Select(turn => new { turn.AiInputTokens, turn.AiOutputTokens })
+            .ToListAsync(cancellationToken);
+        var consumedTokens = tokenUsage.Sum(turn => (long)(turn.AiInputTokens ?? 0) + (turn.AiOutputTokens ?? 0));
+        if (consumedTokens >= options.MaxTokensPerSession)
+            return SessionNarrativeTurnResult.Error(429, "session_ai_budget_exceeded", "SessionのAI利用上限に達しました。");
+
+        return null;
     }
 
     private async Task<SessionNarrativeTurnResult> CompleteAsync(string ownerId, SessionTurn turn, CancellationToken cancellationToken)
