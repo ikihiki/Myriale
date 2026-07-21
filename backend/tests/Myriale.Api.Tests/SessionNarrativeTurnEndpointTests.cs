@@ -142,7 +142,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         using var dialogue = await client.PostAsJsonAsync(
             $"/api/sessions/{sessionId}/narrative-turns",
             new { requestId = "canon-dialogue", input = "確定した結果を振り返る" });
-        Assert.Equal(HttpStatusCode.OK, dialogue.StatusCode);
+        await AssertNarrativeExecutionSucceededAsync(client, dialogue);
 
         var request = Assert.Single(_generator.DialogueRequests);
         var outcome = Assert.Single(request.PriorModuleOutcomes);
@@ -203,8 +203,8 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var body = new { requestId = "dialogue-1", input = "銀の鍵を掲げて扉へ進む" };
 
         using var first = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/narrative-turns", body);
-        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
-        var firstJson = await first.Content.ReadFromJsonAsync<JsonElement>();
+        var firstAccepted = await AssertNarrativeExecutionSucceededAsync(client, first);
+        var firstJson = await GetNarrativeTurnForInputAsync(client, sessionId, firstAccepted.GetProperty("input").GetProperty("id").GetString()!);
         Assert.Equal("narrative", firstJson.GetProperty("kind").GetString());
         Assert.Equal(body.input, firstJson.GetProperty("narrative").GetProperty("playerInput").GetString());
         Assert.Equal(NarrativeDialogueSchema.Version, firstJson.GetProperty("narrative").GetProperty("schemaVersion").GetString());
@@ -226,9 +226,9 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         Assert.Equal(JsonValueKind.Null, firstJson.GetProperty("narrative").GetProperty("interpretation").ValueKind);
 
         using var replay = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/narrative-turns", body);
-        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
-        var replayJson = await replay.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal(firstJson.GetProperty("id").GetString(), replayJson.GetProperty("id").GetString());
+        var replayJson = await AssertNarrativeExecutionSucceededAsync(client, replay);
+        Assert.Equal(firstAccepted.GetProperty("input").GetProperty("id").GetString(), replayJson.GetProperty("input").GetProperty("id").GetString());
+        Assert.Equal(firstAccepted.GetProperty("execution").GetProperty("id").GetString(), replayJson.GetProperty("execution").GetProperty("id").GetString());
         Assert.Equal(1, await CountNarrativeTurnsAsync());
         await using (var scope = _factory.Services.CreateAsyncScope())
         {
@@ -247,7 +247,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
             Assert.Equal(25, storedTurn.AiLatencyMilliseconds);
             Assert.Equal(1, storedTurn.AiAttemptCount);
             Assert.Equal("stop", storedTurn.AiFinishReason);
-            Assert.Equal(0, await db.SessionPendingPlayerInputs.CountAsync());
+            Assert.Equal(firstAccepted.GetProperty("input").GetProperty("id").GetString(), storedTurn.PlayerInputId);
         }
     }
 
@@ -303,8 +303,8 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
                 interactionType = NarrativeInteractionTypes.Clarification,
             });
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var accepted = await AssertNarrativeExecutionSucceededAsync(client, response);
+        var json = await GetNarrativeTurnForInputAsync(client, sessionId, accepted.GetProperty("input").GetProperty("id").GetString()!);
         Assert.Equal("clarification", json.GetProperty("narrative").GetProperty("turnType").GetString());
         var request = Assert.Single(_generator.DialogueRequests);
         Assert.Equal(NarrativeInteractionTypes.Clarification, request.InteractionType);
@@ -342,7 +342,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
                 input = "扉を調べる",
                 interactionType = NarrativeInteractionTypes.Dialogue,
             });
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, mismatch.StatusCode);
+        await AssertDialogueGenerationRejectedAsync(client, mismatch);
 
         _generator.DialogueTurnType = "action-result";
         using var reused = await client.PostAsJsonAsync(
@@ -369,8 +369,8 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
             $"/api/sessions/{sessionId}/narrative-turns",
             new { requestId = "dialogue-npc-reply", input = "奥の人物へ何が起きたか尋ねる" });
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var accepted = await AssertNarrativeExecutionSucceededAsync(client, response);
+        var json = await GetNarrativeTurnForInputAsync(client, sessionId, accepted.GetProperty("input").GetProperty("id").GetString()!);
         Assert.Equal("npc-reply", json.GetProperty("narrative").GetProperty("turnType").GetString());
     }
 
@@ -385,7 +385,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
             $"/api/sessions/{sessionId}/narrative-turns",
             new { requestId = "dialogue-wrong-schema", input = "銀の鍵を掲げる" });
 
-        await AssertDialogueGenerationRejectedAsync(response, "schemaVersion expected=narrative-dialogue.v8 actual=narrative-dialogue.v999");
+        await AssertDialogueGenerationRejectedAsync(client, response, "schemaVersion expected=narrative-dialogue.v8 actual=narrative-dialogue.v999");
     }
 
     [Fact]
@@ -399,7 +399,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
             $"/api/sessions/{sessionId}/narrative-turns",
             new { requestId = "dialogue-empty-body", input = "銀の鍵を掲げる" });
 
-        await AssertDialogueGenerationRejectedAsync(response, "body is empty");
+        await AssertDialogueGenerationRejectedAsync(client, response, "Narrative provider returned an invalid body.");
     }
 
     [Fact]
@@ -413,7 +413,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
             $"/api/sessions/{sessionId}/narrative-turns",
             new { requestId = "dialogue-malformed-signal", input = "銀の鍵を掲げる" });
 
-        await AssertDialogueGenerationRejectedAsync(response);
+        await AssertDialogueGenerationRejectedAsync(client, response);
     }
 
     [Fact]
@@ -427,7 +427,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
             $"/api/sessions/{sessionId}/narrative-turns",
             new { requestId = "dialogue-missing-evidence", input = "閉じた星座の扉へ進む" });
 
-        await AssertDialogueGenerationRejectedAsync(response);
+        await AssertDialogueGenerationRejectedAsync(client, response);
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         Assert.Equal(0, await db.ModuleExecutions.CountAsync());
@@ -451,17 +451,13 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
                 interactionType = NarrativeInteractionTypes.Clarification,
             });
 
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
-        var error = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("schema_failure", error.GetProperty("code").GetString());
-        Assert.Contains("Exception", error.GetProperty("details").GetString(), StringComparison.Ordinal);
+        await AssertDialogueGenerationRejectedAsync(client, response);
         Assert.Equal(0, await CountNarrativeTurnsAsync());
         await using (var scope = _factory.Services.CreateAsyncScope())
         {
-            var pending = await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>()
-                .SessionPendingPlayerInputs.AsNoTracking().SingleAsync();
-            Assert.Equal("failed", pending.Status);
-            Assert.True(pending.IsRetryable);
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var input = await db.SessionPlayerInputs.AsNoTracking().SingleAsync();
+            Assert.Equal(NarrativeInteractionTypes.Clarification, input.InteractionType);
         }
     }
 
@@ -477,8 +473,8 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
             $"/api/sessions/{sessionId}/narrative-turns",
             new { requestId = "dialogue-with-interpretation", input = "銀の鍵を掲げる" });
 
-        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
-        var createdJson = await created.Content.ReadFromJsonAsync<JsonElement>();
+        var accepted = await AssertNarrativeExecutionSucceededAsync(client, created);
+        var createdJson = await GetNarrativeTurnForInputAsync(client, sessionId, accepted.GetProperty("input").GetProperty("id").GetString()!);
         Assert.True(Assert.Single(_generator.DialogueRequests).IncludeInterpretation);
         Assert.Equal(_generator.DialogueInterpretation, createdJson.GetProperty("narrative").GetProperty("interpretation").GetString());
 
@@ -498,9 +494,12 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var client = await AuthenticatedClientAsync("dialogue-event@example.test");
         var sessionId = await CreateSessionAsync(client);
         _generator.PauseDialogue = true;
-        var request = client.PostAsJsonAsync(
+        using var response = await client.PostAsJsonAsync(
             $"/api/sessions/{sessionId}/narrative-turns",
             new { requestId = "dialogue-event", input = "扉の前で立ち止まる" });
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var accepted = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var executionId = accepted.GetProperty("execution").GetProperty("id").GetString()!;
         await _generator.DialogueEntered.Task.WaitAsync(AsyncSignalTimeout);
 
         var pendingSession = await GetSessionAsync(client, sessionId);
@@ -508,27 +507,27 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         Assert.Equal("dialogue-event", pendingInput.GetProperty("requestId").GetString());
         Assert.Equal("扉の前で立ち止まる", pendingInput.GetProperty("input").GetString());
         Assert.Equal(NarrativeInteractionTypes.Dialogue, pendingInput.GetProperty("interactionType").GetString());
-        Assert.Equal("pending", pendingInput.GetProperty("status").GetString());
+        Assert.Equal(SessionExecutionStatuses.Running, pendingInput.GetProperty("status").GetString());
         Assert.True(pendingInput.GetProperty("isRetryable").GetBoolean());
 
         string inputId;
         await using (var pendingScope = _factory.Services.CreateAsyncScope())
         {
             var db = pendingScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var input = await db.SessionPendingPlayerInputs.AsNoTracking().SingleAsync();
+            var input = await db.SessionPlayerInputs.AsNoTracking().SingleAsync();
+            var execution = await db.SessionExecutions.AsNoTracking().SingleAsync();
             var session = await db.Sessions.AsNoTracking().SingleAsync();
             inputId = input.Id;
+            Assert.Equal(accepted.GetProperty("input").GetProperty("id").GetString(), input.Id);
             Assert.Null(input.AcceptedAfterTurnId);
             Assert.Null(session.HeadTurnId);
-            Assert.Equal(0, await db.SessionPlayerInputs.CountAsync());
             Assert.False(await db.SessionTurns.AnyAsync(turn => turn.PlayerInputId == input.Id));
-            Assert.Equal("pending", input.Status);
+            Assert.Equal(SessionExecutionStatuses.Running, execution.Status);
         }
 
         _generator.DialogueRelease.TrySetResult();
-        using var completed = await request;
-        Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
-        var created = await completed.Content.ReadFromJsonAsync<JsonElement>();
+        await WaitForExecutionStatusAsync(client, executionId, SessionExecutionStatuses.Succeeded);
+        var created = await GetNarrativeTurnForInputAsync(client, sessionId, inputId);
         var turnId = created.GetProperty("id").GetString();
         Assert.Null(created.GetProperty("previousTurnId").GetString());
         Assert.Null(created.GetProperty("narrative").GetProperty("acceptedAfterTurnId").GetString());
@@ -542,7 +541,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         Assert.Null(storedInput.AcceptedAfterTurnId);
         Assert.Equal(turnId, storedSession.HeadTurnId);
         Assert.Equal(0, (await completedDb.SessionStates.AsNoTracking().SingleAsync()).Revision);
-        Assert.Equal(0, await completedDb.SessionPendingPlayerInputs.CountAsync());
+        Assert.Equal(SessionExecutionStatuses.Succeeded, (await completedDb.SessionExecutions.AsNoTracking().SingleAsync()).Status);
     }
 
     [Fact]
@@ -567,7 +566,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         using var narrative = await client.PostAsJsonAsync(
             $"/api/sessions/{sessionId}/narrative-turns",
             new { requestId = "dialogue-position", input = "閉じた星座の扉へ進む" });
-        Assert.Equal(HttpStatusCode.OK, narrative.StatusCode);
+        await AssertNarrativeExecutionSucceededAsync(client, narrative);
         using var module = await client.PostAsJsonAsync(
             $"/api/sessions/{sessionId}/module-turns",
             InitializeBody("module-after-dialogue"));
@@ -587,7 +586,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var client = await AuthenticatedClientAsync("dialogue-idempotency@example.test");
         var sessionId = await CreateSessionAsync(client);
         using var first = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/narrative-turns", new { requestId = "dialogue-1", input = "扉に触れる" });
-        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        await AssertNarrativeExecutionSucceededAsync(client, first);
 
         using var reused = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/narrative-turns", new { requestId = "dialogue-1", input = "階段へ戻る" });
         Assert.Equal(HttpStatusCode.Conflict, reused.StatusCode);
@@ -612,7 +611,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
             $"/api/sessions/{sessionId}/narrative-turns",
             new { requestId = "dialogue-missing-trigger-description", input = "閉じた星座の扉へ進む" });
 
-        await AssertDialogueGenerationRejectedAsync(response);
+        await AssertDialogueGenerationRejectedAsync(client, response);
         Assert.Empty(_generator.DialogueRequests);
     }
 
@@ -626,8 +625,8 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         using var response = await client.PostAsJsonAsync(
             $"/api/sessions/{sessionId}/narrative-turns",
             new { requestId = "dialogue-signal", input = "閉じた星座の扉へ進む" });
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var created = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var accepted = await AssertNarrativeExecutionSucceededAsync(client, response);
+        var created = await GetNarrativeTurnForInputAsync(client, sessionId, accepted.GetProperty("input").GetProperty("id").GetString()!);
         Assert.Equal("constellation-door-reached", created.GetProperty("narrative").GetProperty("signals")[0].GetString());
         var allowedSignal = Assert.Single(Assert.Single(_generator.DialogueRequests).AllowedSignals);
         Assert.Equal("exploration", Assert.Single(_generator.DialogueRequests).CurrentProgressionNode);
@@ -674,7 +673,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var body = new { requestId = "dialogue-module-transition", input = "閉じた星座の扉へ進む" };
 
         using var created = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/narrative-turns", body);
-        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        var firstAccepted = await AssertNarrativeExecutionSucceededAsync(client, created);
         var firstSession = await GetSessionAsync(client, sessionId);
         var turns = firstSession.GetProperty("turns").EnumerateArray().ToArray();
         Assert.Equal([1, 2], turns.Select(turn => turn.GetProperty("position").GetInt32()).ToArray());
@@ -683,7 +682,8 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         Assert.Equal(turns[1].GetProperty("id").GetString(), firstSession.GetProperty("progression").GetProperty("moduleTurnId").GetString());
 
         using var replay = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/narrative-turns", body);
-        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+        var replayAccepted = await AssertNarrativeExecutionSucceededAsync(client, replay);
+        Assert.Equal(firstAccepted.GetProperty("execution").GetProperty("id").GetString(), replayAccepted.GetProperty("execution").GetProperty("id").GetString());
         var replayedSession = await GetSessionAsync(client, sessionId);
         Assert.Equal(2, replayedSession.GetProperty("turns").GetArrayLength());
 
@@ -729,7 +729,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         using var response = await client.PostAsJsonAsync(
             $"/api/sessions/{sessionId}/narrative-turns",
             new { requestId = "dialogue-invalid-signal", input = "扉へ進む" });
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        await AssertDialogueGenerationRejectedAsync(client, response);
         var session = await GetSessionAsync(client, sessionId);
         Assert.Empty(session.GetProperty("turns").EnumerateArray());
         Assert.Equal("exploration", session.GetProperty("progression").GetProperty("currentNode").GetString());
@@ -827,23 +827,83 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         Assert.Equal(0, await db.SessionTurns.CountAsync(item => item.SourceModuleTurnId == handoff.TriggerId));
     }
 
-    private async Task AssertDialogueGenerationRejectedAsync(HttpResponseMessage response, string? expectedDetails = null)
+    private async Task AssertDialogueGenerationRejectedAsync(
+        HttpClient client,
+        HttpResponseMessage response,
+        string? expectedDetails = null)
     {
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
-        var error = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("schema_failure", error.GetProperty("code").GetString());
-        var details = error.GetProperty("details").GetString();
-        Assert.Contains("Exception", details, StringComparison.Ordinal);
-        if (expectedDetails is not null) Assert.Contains(expectedDetails, details, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var accepted = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var inputId = accepted.GetProperty("input").GetProperty("id").GetString();
+        var executionId = accepted.GetProperty("execution").GetProperty("id").GetString()!;
+        var execution = await WaitForExecutionStatusAsync(client, executionId, SessionExecutionStatuses.Failed);
+
+        Assert.Equal("schema_failure", execution.GetProperty("errorCode").GetString());
+        Assert.Equal("Narrativeを生成できませんでした。入力内容は保存されています。", execution.GetProperty("userErrorMessage").GetString());
+        Assert.False(execution.GetProperty("isRetryable").GetBoolean());
+        Assert.False(execution.GetProperty("capabilities").GetProperty("canRetry").GetBoolean());
+        Assert.True(execution.GetProperty("capabilities").GetProperty("canDismiss").GetBoolean());
+        var attempt = Assert.Single(execution.GetProperty("developmentDiagnostics").GetProperty("attempts").EnumerateArray());
+        Assert.Equal("failed", attempt.GetProperty("status").GetString());
+        Assert.Equal("schema_failure", attempt.GetProperty("errorCode").GetString());
+        Assert.False(attempt.GetProperty("retryable").GetBoolean());
+        Assert.Contains("Exception", attempt.GetProperty("exceptionChain").GetString(), StringComparison.Ordinal);
+        if (expectedDetails is not null)
+            Assert.Contains(expectedDetails, attempt.GetProperty("redactedResponseExcerpt").GetString(), StringComparison.Ordinal);
+
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var pending = await db.SessionPendingPlayerInputs.AsNoTracking().SingleAsync();
-        Assert.Equal("failed", pending.Status);
-        Assert.True(pending.IsRetryable);
-        Assert.Equal(0, await db.SessionPlayerInputs.CountAsync());
+        var storedInput = await db.SessionPlayerInputs.AsNoTracking().SingleAsync();
+        Assert.Equal(inputId, storedInput.Id);
         Assert.Equal(0, await db.SessionTurns.CountAsync(turn => turn.Kind == "narrative"));
         Assert.Equal(0, await db.SessionNarrativeSignals.CountAsync());
         Assert.Equal(0, await db.SessionProgressionTransitionReceipts.CountAsync());
+    }
+
+    private async Task<JsonElement> AssertNarrativeExecutionSucceededAsync(HttpClient client, HttpResponseMessage response)
+    {
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var accepted = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(SessionExecutionKinds.Narrative, accepted.GetProperty("execution").GetProperty("kind").GetString());
+        Assert.Equal(
+            accepted.GetProperty("input").GetProperty("id").GetString(),
+            accepted.GetProperty("execution").GetProperty("triggerId").GetString());
+        await WaitForExecutionStatusAsync(
+            client,
+            accepted.GetProperty("execution").GetProperty("id").GetString()!,
+            SessionExecutionStatuses.Succeeded);
+        return accepted;
+    }
+
+    private static async Task<JsonElement> WaitForExecutionStatusAsync(
+        HttpClient client,
+        string executionId,
+        string expectedStatus)
+    {
+        using var timeout = new CancellationTokenSource(AsyncSignalTimeout);
+        JsonElement latest = default;
+        while (!timeout.IsCancellationRequested)
+        {
+            using var response = await client.GetAsync($"/api/session-executions/{executionId}", timeout.Token);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            latest = await response.Content.ReadFromJsonAsync<JsonElement>(timeout.Token);
+            var status = latest.GetProperty("status").GetString();
+            if (status == expectedStatus) return latest;
+            Assert.False(SessionExecutionStatuses.IsTerminal(status!), $"Execution {executionId} reached unexpected terminal status {status}: {latest}");
+            await Task.Delay(50, timeout.Token);
+        }
+
+        Assert.Fail($"Execution {executionId} did not reach {expectedStatus}. Latest projection: {latest}");
+        return default;
+    }
+
+    private static async Task<JsonElement> GetNarrativeTurnForInputAsync(HttpClient client, string sessionId, string inputId)
+    {
+        var session = await GetSessionAsync(client, sessionId);
+        return Assert.Single(
+            session.GetProperty("turns").EnumerateArray(),
+            turn => turn.GetProperty("kind").GetString() == "narrative"
+                && turn.GetProperty("narrative").GetProperty("playerInputId").GetString() == inputId);
     }
 
     private async Task<(string TurnId, string ExecutionId)> CreateActiveTurnAsync(HttpClient client, string sessionId, string requestId)
