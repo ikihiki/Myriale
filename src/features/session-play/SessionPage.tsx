@@ -7,15 +7,18 @@ import { SessionTurn } from '../../shared/SessionTurn';
 import { SessionNotesWorkspace } from '../../SessionNotesWorkspace';
 import { WizardNavigation } from '../../shared/WizardNavigation';
 import {
-  createNarrativeTurn,
+  acceptSessionInput,
   getSession,
   getSessionApiBaseUrl,
+  hasActiveSessionExecutions,
+  mutateSessionExecution,
   recommendNextAction,
   type NarrativeInteractionType,
   type NarrativeTurnApiResponse,
   type SessionApiError,
   type SessionApiResponse,
 } from './sessionPlayApi';
+import { SessionActivityFeed } from './SessionActivityFeed';
 import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeToggle, MyrialeSelect } from '../../ui/MyrialeRadix';
 import { useAppNavigation } from '../../shared/nav';
 
@@ -275,6 +278,14 @@ function ServerSessionPage({ sessionId }: { sessionId: string }) {
     return () => abort.abort();
   }, [accountSession.clearUser, sessionId]);
 
+  useEffect(() => {
+    if (!session || !hasActiveSessionExecutions(session)) return;
+    const interval = window.setInterval(() => {
+      void getSession(sessionId).then(setSession).catch(() => undefined);
+    }, 750);
+    return () => window.clearInterval(interval);
+  }, [session, sessionId]);
+
   if (!session) {
     return (
       <AppChrome section="sessions" breadcrumbs={[{ label: 'Myriale', to: 'home' }, { label: 'セッション' }]} account={chromeAccount} onLogout={logout}>
@@ -304,6 +315,7 @@ function ServerSessionPage({ sessionId }: { sessionId: string }) {
       onLogout={logout}
       onLogin={goToLogin}
       onAuthenticationRequired={accountSession.clearUser}
+      onSessionChange={setSession}
     />
   );
 }
@@ -322,6 +334,7 @@ function SessionDialogueSection({
   onLogout,
   onLogin,
   onAuthenticationRequired,
+  onSessionChange,
 }: {
   sessionId: string;
   serverSession?: SessionApiResponse;
@@ -329,6 +342,7 @@ function SessionDialogueSection({
   onLogout?: () => void | Promise<void>;
   onLogin?: () => void;
   onAuthenticationRequired?: () => void;
+  onSessionChange?: (session: SessionApiResponse) => void;
 }) {
   const appStore = useOptionalAppStore();
   const dbSession = appStore?.db.playSessions[sessionId];
@@ -440,26 +454,36 @@ function SessionDialogueSection({
     }
     if (isSubmitting) return;
 
-    const requestId = draftRequest?.input === submittedInput
-      && draftRequest.interactionType === interactionType
-      ? draftRequest.requestId
+    const reusableDraft = draftRequest?.input === submittedInput && draftRequest.interactionType === interactionType ? draftRequest : null;
+    const requestId = reusableDraft
+      ? reusableDraft.requestId
       : `narrative-${crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
     setDraftRequest({ input: submittedInput, requestId, interactionType });
     setIsSubmitting(true);
     setAuthenticationRequired(false);
     setNotice('Player Inputを受理し、Narrativeを生成しています。');
     try {
-      const nextTurn = serverSession
-        ? toDialogueTurn(await createNarrativeTurn(sessionId, submittedInput, requestId, undefined, interactionType))
-        : resultForInput(submittedInput, turns.length + 1);
-      setTurns((current) => current.some((turn) => turn.id === nextTurn.id) ? current : [...current, nextTurn]);
-      setSelectedTurnId(nextTurn.id);
+      if (serverSession) {
+        const accepted = await acceptSessionInput(sessionId, submittedInput, requestId, undefined, interactionType);
+        const nextOrder = Math.max(0, ...(serverSession.activity ?? []).map((item) => item.order)) + 1;
+        onSessionChange?.({
+          ...serverSession,
+          inputs: [...(serverSession.inputs ?? []), accepted.input],
+          executions: [...(serverSession.executions ?? []), accepted.execution],
+          activity: [...(serverSession.activity ?? []),
+            { type: 'input', id: accepted.input.id, order: nextOrder },
+            { type: 'execution', id: accepted.execution.id, order: nextOrder + 1, causalId: accepted.input.id }],
+        });
+        setNotice('Player Inputを保存し、Narrative生成を開始しました。ブラウザを閉じても処理は継続します。');
+      } else {
+        const nextTurn = resultForInput(submittedInput, turns.length + 1);
+        setTurns((current) => current.some((turn) => turn.id === nextTurn.id) ? current : [...current, nextTurn]);
+        setSelectedTurnId(nextTurn.id);
+        setNotice('Player Inputを行動として解釈し、結果をNarrativeとして生成しました。次の重要な進行は入力待ちです。');
+      }
       setInput('');
       setInteractionType('dialogue');
       setDraftRequest(null);
-      setNotice(serverSession
-        ? 'Player InputとNarrativeをSessionへ保存しました。'
-        : 'Player Inputを行動として解釈し、結果をNarrativeとして生成しました。次の重要な進行は入力待ちです。');
     } catch (error) {
       const apiError = error as SessionApiError;
       if (apiError.status === 401) {
@@ -476,6 +500,17 @@ function SessionDialogueSection({
       setNotice(`${prefix}${error instanceof Error ? error.message : 'Narrativeの生成に失敗しました。'} 入力を保持して同じRequest IDで再試行できます。`);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleExecutionAction = async (executionId: string, action: 'retry' | 'cancel' | 'dismiss') => {
+    if (!serverSession) return;
+    try {
+      const updated = await mutateSessionExecution(executionId, action);
+      onSessionChange?.({ ...serverSession, executions: (serverSession.executions ?? []).map((item) => item.id === executionId ? updated : item) });
+      setNotice(action === 'retry' ? '同じExecution slotで再試行を開始しました。' : action === 'cancel' ? 'キャンセルを要求しました。' : 'Execution詳細を閉じました。');
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Executionを更新できませんでした。');
     }
   };
 
@@ -792,11 +827,14 @@ function SessionDialogueSection({
           </div>
         )}
 
+        {serverSession ? (
+          <SessionActivityFeed session={serverSession} onExecutionAction={(id, action) => void handleExecutionAction(id, action)} />
+        ) : (
         <section className="dialogue-log" aria-label="対話ログ" data-testid="dialogue-log">
           {turns.map((turn) => {
             const display = displayForTurn(turn);
             const leadTone = display.leadTone ?? 'player';
-            const interpretationUiEnabled = serverSession?.interpretationEnabled ?? true;
+            const interpretationUiEnabled = true;
             const canShowInterpretation = Boolean(
               interpretationUiEnabled && turn.interpretation && display.showInterpretation,
             );
@@ -850,7 +888,8 @@ function SessionDialogueSection({
               />
             );
           })}
-        </section>
+        </section>        )}
+
 
         {pendingRewindId != null && (
           <MyrialeDialogRoot open onOpenChange={(open) => { if (!open) setPendingRewindId(null); }}>

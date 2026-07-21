@@ -993,6 +993,35 @@ textarea { min-height: 126px; resize: vertical; }
 /* Shared turn-display (SessionTurn): used by AI dialogue and program-driven
    scenes. A turn = optional heading + a lead block (player input or program
    fact) + the AI Narrative body. */
+.session-input-item,
+.session-execution-item,
+.note-proposal-item,
+.image-artifact-item {
+  margin: 0 auto 12px;
+  width: min(100%, 720px);
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--myr-ink) 14%, transparent);
+  background: color-mix(in srgb, var(--myr-paper) 94%, white);
+  padding: 14px 16px;
+}
+.session-input-item { display: flex; gap: 10px; align-items: baseline; border-left: 4px solid var(--myr-iris); }
+.session-input-item p { margin: 0; font-weight: 700; }
+.session-execution-item { border-style: dashed; color: var(--myr-slate); }
+.session-execution-item.status-failed { border-style: solid; border-color: #b9473f; background: #fff4f2; color: #67241f; }
+.session-execution-item.status-cancelled,
+.session-execution-item.status-superseded { opacity: .78; }
+.execution-diagnostics { margin-top: 10px; }
+.execution-diagnostics pre { max-height: 260px; overflow: auto; white-space: pre-wrap; font-size: 12px; }
+.execution-diagnostics dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; }
+.execution-diagnostics dd { margin: 0; overflow-wrap: anywhere; }
+.note-proposal-diff { display: grid; gap: 8px; margin-block: 10px; }
+.note-proposal-diff del, .note-proposal-diff ins { display: block; padding: 10px; border-radius: 10px; text-decoration: none; }
+.note-proposal-diff del { background: #fff0ef; }
+.note-proposal-diff ins { background: #eff9f1; }
+.image-artifact-item img { display: block; width: 100%; max-height: 420px; object-fit: cover; border-radius: 12px; }
+.image-artifact-item [role="img"] { display: grid; min-height: 180px; place-items: center; border-radius: 12px; background: linear-gradient(135deg, #d7d0f6, #b9dce0); font-weight: 800; }
+@media (prefers-reduced-motion: reduce) { .session-execution-item * { animation: none !important; transition: none !important; } }
+
 .session-turn {
   padding: 14px;
   border: 1px solid rgba(23, 21, 31, .14);
