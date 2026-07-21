@@ -655,7 +655,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
 
         using var created = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", body);
         var firstAccepted = await AssertNarrativeExecutionSucceededAsync(client, created);
-        var firstSession = await GetSessionAsync(client, sessionId);
+        var firstSession = await WaitForTransitionStatusAsync(client, sessionId, "completed");
         var turns = firstSession.GetProperty("turns").EnumerateArray().ToArray();
         Assert.Equal([1, 2], turns.Select(turn => turn.GetProperty("position").GetInt32()).ToArray());
         Assert.Equal(["narrative", "module"], turns.Select(turn => turn.GetProperty("kind").GetString()!).ToArray());
@@ -984,6 +984,18 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
             .Where(execution => execution.Kind == SessionExecutionKinds.ModuleHandoff)
             .Select(execution => execution.AttemptCount)
             .SingleAsync();
+    }
+
+    private static async Task<JsonElement> WaitForTransitionStatusAsync(HttpClient client, string sessionId, string expectedStatus)
+    {
+        using var timeout = new CancellationTokenSource(AsyncSignalTimeout);
+        while (true)
+        {
+            var session = await GetSessionAsync(client, sessionId);
+            if (session.GetProperty("progression").GetProperty("transitionStatus").GetString() == expectedStatus)
+                return session;
+            await Task.Delay(50, timeout.Token);
+        }
     }
 
     private async Task WaitForHandoffStatusAsync(string expectedStatus)
