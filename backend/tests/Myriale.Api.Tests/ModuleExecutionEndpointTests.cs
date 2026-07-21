@@ -137,11 +137,13 @@ public sealed class ModuleExecutionEndpointTests : IDisposable
     public async Task CancelledPendingInitializationCanResume()
     {
         var client = await AuthenticatedClientAsync("initialize-recovery@example.test");
-        var body = InitializeBody("initialize-recovery", new { initializationDelayMilliseconds = 500 }, new { }, 3);
-        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(150));
+        var body = InitializeBody("initialize-recovery", new { initializationDelayMilliseconds = 5_000 }, new { }, 3);
+        using var cancellation = new CancellationTokenSource();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            client.PostAsJsonAsync("/api/module-executions/", body, cancellation.Token));
+        var pendingRequest = client.PostAsJsonAsync("/api/module-executions/", body, cancellation.Token);
+        await WaitForPendingRequestAsync("initialize-recovery");
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pendingRequest);
 
         await using (var scope = _factory.Services.CreateAsyncScope())
         {
@@ -299,6 +301,19 @@ public sealed class ModuleExecutionEndpointTests : IDisposable
         using var disabled = await client.PostAsJsonAsync("/api/module-executions/", InitializeBody("disabled"));
         Assert.Equal(HttpStatusCode.Conflict, disabled.StatusCode);
         Assert.Equal("package_disabled", (await disabled.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+    }
+
+    private async Task WaitForPendingRequestAsync(string requestId)
+    {
+        for (var attempt = 0; attempt < 500; attempt++)
+        {
+            await using var scope = _factory.Services.CreateAsyncScope();
+            if (await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().ModuleExecutionRequests
+                .AnyAsync(request => request.RequestId == requestId && request.Status == "pending"))
+                return;
+            await Task.Delay(20);
+        }
+        throw new TimeoutException($"Pending request was not persisted: {requestId}");
     }
 
     private async Task<string> CreateExecutionAsync(HttpClient client, string requestId)
