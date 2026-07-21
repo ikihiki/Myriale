@@ -261,10 +261,10 @@ function RoadmapOperationsView({ title }: { title: string }) {
 function AdminAiKeysView() {
   const api = useMemo(() => createFetchAdminAiApi(), []);
   const [keys, setKeys] = useState<AiProviderKey[]>([]);
-  const [provider, setProvider] = useState('mock-text');
-  const [displayName, setDisplayName] = useState('Aspire Mock Text AI');
-  const [secret, setSecret] = useState('mock-key-demo');
-  const [notice, setNotice] = useState('Aspire上のモックAIに渡すプロバイダーキーを管理します。実キーは画面に再表示しません。');
+  const [provider, setProvider] = useState('runpod');
+  const [displayName, setDisplayName] = useState('Runpod Serverless');
+  const [secret, setSecret] = useState('');
+  const [notice, setNotice] = useState('デプロイ設定と管理画面で登録したAIキーを確認できます。キー本体は再表示しません。');
   const [error, setError] = useState<AdminAiApiError | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -274,12 +274,17 @@ function AdminAiKeysView() {
 
   useEffect(() => { void reload(); }, []);
 
+  const changeProvider = (next: string) => {
+    setProvider(next);
+    setDisplayName(next === 'runpod' ? 'Runpod Serverless' : 'OpenAI');
+  };
+
   const save = async () => {
     setBusy(true); setError(null);
     try {
       const key = await api.saveKey(provider, { displayName, secret });
-      setKeys([key, ...keys.filter((item) => item.provider !== key.provider)]);
-      setNotice('AIキーを保存しました。キー本体はマスクして保持します。');
+      setKeys(keys.map((item) => item.provider === key.provider ? key : item));
+      setNotice(`${key.displayName}のAIキーを保存しました。`);
       setSecret('');
     } catch (caught) { setError(caught as AdminAiApiError); } finally { setBusy(false); }
   };
@@ -289,22 +294,22 @@ function AdminAiKeysView() {
     try {
       const key = await api.testKey(target);
       setKeys(keys.map((item) => item.provider === target ? key : item));
-      setNotice('Aspire Mock AI への接続テストに成功しました。');
+      setNotice(`${key.displayName}への接続テストに成功しました。`);
     } catch (caught) { setError(caught as AdminAiApiError); } finally { setBusy(false); }
   };
 
   const remove = async (target: string) => {
     setBusy(true); setError(null);
-    try { await api.deleteKey(target); setKeys(keys.filter((item) => item.provider !== target)); setNotice('AIキーを削除しました。'); } catch (caught) { setError(caught as AdminAiApiError); } finally { setBusy(false); }
+    try { await api.deleteKey(target); await reload(); setNotice('管理画面で保存したAIキーを削除しました。'); } catch (caught) { setError(caught as AdminAiApiError); } finally { setBusy(false); }
   };
 
-  return <section className="reg-card" role="region" aria-label="AIキー管理"><SectionHead kicker="Admin / Mock AI" title="AIキー管理" lead="文章AI、挿絵AI、ルール確認AIのプロバイダーキーを登録し、シナリオ作成補助から利用できるようにします。" />
+  return <section className="reg-card" role="region" aria-label="AIキー管理"><SectionHead kicker="Admin / AI Providers" title="AI Provider管理" lead="OpenAIまたはRunpodの接続状態を確認し、必要に応じてAPIキーを登録します。" />
     <NoticeBanner tone={error ? 'danger' : 'info'} testId="ai-key-notice">{error?.message ?? notice}</NoticeBanner>
     <div className="card-grid two">
-      <div className="reg-card"><h2>キー登録</h2><TextField label="プロバイダーID" value={provider} onChange={setProvider} error={firstAdminAiFieldError(error, 'provider')} /><TextField label="表示名" value={displayName} onChange={setDisplayName} error={firstAdminAiFieldError(error, 'displayName')} /><TextField label="APIキー" value={secret} onChange={setSecret} placeholder="mock-key-..." error={firstAdminAiFieldError(error, 'secret')} /><div className="button-row"><Button variant="primary" onClick={save} disabled={busy}>保存する</Button></div></div>
-      <div className="reg-card"><h2>利用方針</h2><p className="muted">現在は Aspire の <strong>myriale-mock-ai</strong> が応答します。本番AIへ切り替える際も、この画面の masked key と接続テスト状態を確認できます。</p></div>
+      <div className="reg-card"><h2>管理画面からキーを登録</h2><div className="field"><label htmlFor="ai-provider">Provider</label><select id="ai-provider" value={provider} onChange={(event) => changeProvider(event.target.value)}><option value="runpod">Runpod</option><option value="openai">OpenAI</option></select>{firstAdminAiFieldError(error, 'provider') && <p className="field-error">{firstAdminAiFieldError(error, 'provider')}</p>}</div><TextField label="表示名" value={displayName} onChange={setDisplayName} error={firstAdminAiFieldError(error, 'displayName')} /><TextField label="APIキー" value={secret} onChange={setSecret} placeholder={provider === 'runpod' ? 'rpa_...' : 'sk-...'} error={firstAdminAiFieldError(error, 'secret')} /><p className="field-help">Vaultまたは環境変数で設定済みの場合、ここで同じキーを再登録する必要はありません。</p><div className="button-row"><Button variant="primary" onClick={save} disabled={busy || !secret.trim()}>キーを保存</Button></div></div>
+      <div className="reg-card"><h2>設定の優先順位</h2><ol className="provider-priority"><li><strong>Vault / 環境変数</strong><span>デプロイ時に注入された設定を最優先で使用します。</span></li><li><strong>管理画面</strong><span>環境設定がないProviderでは暗号化してDBへ保存します。</span></li></ol><p className="muted">「使用中」は現在Narrative生成に選択されているProviderです。</p></div>
     </div>
-    <div className="reg-card flush"><table className="user-table" aria-label="AIキー一覧"><thead><tr><th>Provider</th><th>表示名</th><th>Masked key</th><th>状態</th><th>操作</th></tr></thead><tbody>{keys.map((key) => <tr key={key.provider} data-testid={'ai-key-row-' + key.provider}><td><strong>{key.provider}</strong></td><td>{key.displayName}</td><td>{key.maskedKey}</td><td>{key.status}</td><td><div className="inline-actions"><Button onClick={() => void test(key.provider)} disabled={busy}>接続テスト</Button><Button variant="danger" onClick={() => void remove(key.provider)} disabled={busy}>削除</Button></div></td></tr>)}</tbody></table></div>
+    <div className="reg-card flush provider-table-wrap"><table className="user-table" aria-label="AIキー一覧"><thead><tr><th>Provider</th><th>接続設定</th><th>キー</th><th>検証状態</th><th>操作</th></tr></thead><tbody>{keys.map((key) => <tr key={key.provider} data-testid={'ai-key-row-' + key.provider}><td><strong>{key.displayName}</strong><span className="provider-id">{key.provider}</span></td><td><div className="provider-badges">{key.active && <span className="provider-badge active">使用中</span>}<span className={`provider-badge ${key.credentialSource}`}>{key.credentialSource === 'environment' ? 'Vault / 環境変数' : key.credentialSource === 'database' ? '管理画面' : '未設定'}</span></div></td><td>{key.maskedKey}</td><td><span className={`provider-status ${key.status}`}>{key.status === 'valid' ? '接続済み' : key.status === 'untested' ? '未検証' : key.status}</span></td><td><div className="inline-actions"><Button onClick={() => void test(key.provider)} disabled={busy || !key.configured}>接続テスト</Button>{key.credentialSource === 'database' && <Button variant="danger" onClick={() => void remove(key.provider)} disabled={busy}>削除</Button>}</div></td></tr>)}</tbody></table></div>
   </section>;
 }
 

@@ -5,6 +5,8 @@ public sealed record AiProviderKeyResponse(
     string DisplayName,
     bool Configured,
     string MaskedKey,
+    string CredentialSource,
+    bool Active,
     string Status,
     DateTimeOffset UpdatedAt,
     DateTimeOffset? LastValidatedAt);

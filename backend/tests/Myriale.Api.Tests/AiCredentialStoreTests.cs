@@ -28,6 +28,7 @@ public sealed class AiCredentialStoreTests
             var configuration = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>
                 {
+                    ["AiProvider:Provider"] = "runpod",
                     ["AiProvider:ApiKey"] = "vault-secret"
                 })
                 .Build();

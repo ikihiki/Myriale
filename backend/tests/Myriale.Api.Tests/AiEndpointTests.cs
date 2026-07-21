@@ -57,6 +57,48 @@ public sealed class AiEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task AdminAiKeys_ListsAndTestsEnvironmentConfiguredProviderWithoutDatabaseKey()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"myriale-ai-environment-{Guid.NewGuid():N}.db");
+        using var factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder =>
+            {
+                builder.UseSetting("ConnectionStrings:MyrialeAccounts", $"Data Source={databasePath}");
+                builder.UseSetting("AiProvider:Provider", "runpod");
+                builder.UseSetting("AiProvider:ApiKey", "vault-secret-5678");
+                builder.UseSetting("AiProvider:BaseUrl", "https://api.runpod.ai/v2/example/openai/v1");
+                builder.UseSetting("AiProvider:Model", "Qwen/Qwen3-8B");
+                builder.ConfigureServices(services =>
+                {
+                    services.RemoveAll<IAiTextProvider>();
+                    services.AddSingleton<IAiTextProvider, SuccessfulTextProvider>();
+                });
+            });
+        try
+        {
+            var client = await CreateSignedInClientAsync(grantAdmin: true, factory);
+            using var listed = await client.GetAsync("/api/admin/ai-keys/");
+            Assert.Equal(HttpStatusCode.OK, listed.StatusCode);
+            var providers = (await listed.Content.ReadFromJsonAsync<JsonElement>()).EnumerateArray().ToArray();
+            var runpod = providers.Single(item => item.GetProperty("provider").GetString() == "runpod");
+            Assert.True(runpod.GetProperty("configured").GetBoolean());
+            Assert.True(runpod.GetProperty("active").GetBoolean());
+            Assert.Equal("environment", runpod.GetProperty("credentialSource").GetString());
+            Assert.Equal("••••••••5678", runpod.GetProperty("maskedKey").GetString());
+
+            using var tested = await client.PostAsync("/api/admin/ai-keys/runpod/test", null);
+            Assert.Equal(HttpStatusCode.OK, tested.StatusCode);
+            var testedJson = await tested.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal("valid", testedJson.GetProperty("status").GetString());
+            Assert.Equal("environment", testedJson.GetProperty("credentialSource").GetString());
+        }
+        finally
+        {
+            if (File.Exists(databasePath)) File.Delete(databasePath);
+        }
+    }
+
+    [Fact]
     public async Task ScenarioAiAssist_ReturnsMockSuggestion()
     {
         var client = await CreateSignedInClientAsync();
@@ -91,9 +133,10 @@ public sealed class AiEndpointTests : IDisposable
         if (File.Exists(_dbPath)) File.Delete(_dbPath);
     }
 
-    private async Task<HttpClient> CreateSignedInClientAsync(bool grantAdmin = false)
+    private async Task<HttpClient> CreateSignedInClientAsync(bool grantAdmin = false, WebApplicationFactory<Program>? factory = null)
     {
-        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        factory ??= _factory;
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var register = await client.PostAsJsonAsync("/api/account/register", new
         {
             displayName = "管理者",
@@ -105,7 +148,7 @@ public sealed class AiEndpointTests : IDisposable
         if (grantAdmin)
         {
             var email = (await register.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("email").GetString()!;
-            await using var scope = _factory.Services.CreateAsyncScope();
+            await using var scope = factory.Services.CreateAsyncScope();
             var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var user = await users.FindByEmailAsync(email) ?? throw new InvalidOperationException();
             await users.AddClaimAsync(user, new System.Security.Claims.Claim("myriale:ai-admin", "true"));

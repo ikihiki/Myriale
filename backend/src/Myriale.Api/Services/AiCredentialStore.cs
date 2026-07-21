@@ -20,7 +20,10 @@ public sealed class DataProtectionAiCredentialStore(ApplicationDbContext db, IDa
     }
     public async Task<string?> GetAsync(string provider, CancellationToken cancellationToken)
     {
-        var configured = configuration[$"AiProvider:Providers:{provider}:ApiKey"] ?? configuration["AiProvider:ApiKey"];
+        var configured = configuration[$"AiProvider:Providers:{provider}:ApiKey"];
+        if (string.IsNullOrWhiteSpace(configured)
+            && string.Equals(configuration["AiProvider:Provider"], provider, StringComparison.OrdinalIgnoreCase))
+            configured = configuration["AiProvider:ApiKey"];
         if (!string.IsNullOrWhiteSpace(configured)) return configured;
 
         var encrypted = await db.AiProviderKeys.AsNoTracking().Where(x => x.Provider == provider).Select(x => x.Secret).SingleOrDefaultAsync(cancellationToken);
