@@ -205,24 +205,6 @@ export async function recommendNextAction(
   return payload.suggestion;
 }
 
-export async function createNarrativeTurn(
-  sessionId: string,
-  input: string,
-  requestId: string,
-  baseUrl = getSessionApiBaseUrl(),
-  interactionType: NarrativeInteractionType = 'dialogue',
-): Promise<NarrativeTurnApiResponse> {
-  if (!baseUrl) throw sessionApiError('Session APIが設定されていません。', 503, 'session_api_unavailable');
-  const response = await fetch(`${baseUrl}/${encodeURIComponent(sessionId)}/narrative-turns`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ requestId, input, interactionType }),
-  });
-  if (!response.ok) throw await toSessionApiError(response, 'Narrativeの生成に失敗しました。');
-  return response.json() as Promise<NarrativeTurnApiResponse>;
-}
-
 async function toSessionApiError(response: Response, fallback: string): Promise<SessionApiError> {
   const payload = await response.json().catch(() => null) as { code?: string; message?: string; details?: string } | null;
   const message = payload?.details ? `${payload.message ?? fallback}\n${payload.details}` : payload?.message ?? fallback;

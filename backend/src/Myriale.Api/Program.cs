@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Myriale.Api.Data;
 using Myriale.Api.Endpoints;
 using Myriale.Api.Modules;
@@ -98,9 +97,6 @@ var accountConnectionString = builder.Configuration.GetConnectionString("Myriale
     ?? "Data Source=myriale-accounts.db";
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    // The retained migration baseline is provider-neutral; SQLite and PostgreSQL add different
-    // provider annotations that can otherwise trigger a false pending-model warning at startup.
-    options.ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
     if (IsPostgresConnectionString(accountConnectionString))
     {
         options.UseNpgsql(accountConnectionString);
@@ -170,12 +166,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-    if (db.Database.IsNpgsql())
-    {
-        await LegacyPostgresSchemaAdopter.AdoptAsync(db);
-        await db.Database.MigrateAsync();
-    }
-    else await db.Database.EnsureCreatedAsync();
+    await db.Database.EnsureCreatedAsync();
     await ScenarioSeedData.SeedAsync(db);
 
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();

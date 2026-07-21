@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { acceptSessionInput, createNarrativeTurn, createSession, getSession, mutateSessionExecution, recommendNextAction, reviewSessionNoteProposal } from './sessionPlayApi';
+import { acceptSessionInput, createSession, getSession, mutateSessionExecution, recommendNextAction, reviewSessionNoteProposal } from './sessionPlayApi';
 
 const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
@@ -127,40 +127,5 @@ describe('sessionPlayApi', () => {
     }));
   });
 
-  it('exposes the server error code and Development diagnostics so the same narrative request can be retried', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response({
-      code: 'schema_failure',
-      message: 'Narrativeの生成に失敗しました。',
-      details: 'AiProviderException: invalid structured output -> JsonException: missing heading',
-    }, 503)));
 
-    await expect(createNarrativeTurn('SES-1', '扉を調べる', 'narrative-1', '/api/sessions'))
-      .rejects.toMatchObject({
-        status: 503,
-        code: 'schema_failure',
-        details: 'AiProviderException: invalid structured output -> JsonException: missing heading',
-        message: expect.stringContaining('JsonException: missing heading'),
-      });
-  });
-
-  it('sends an explicit clarification interaction type', async () => {
-    const fetch = vi.fn().mockResolvedValue(response({ id: 'TRN-2', position: 2, kind: 'narrative' }));
-    vi.stubGlobal('fetch', fetch);
-
-    await createNarrativeTurn(
-      'SES-1',
-      '今の状況を簡単にまとめて',
-      'clarification-1',
-      '/api/sessions',
-      'clarification',
-    );
-
-    expect(fetch).toHaveBeenCalledWith('/api/sessions/SES-1/narrative-turns', expect.objectContaining({
-      body: JSON.stringify({
-        requestId: 'clarification-1',
-        input: '今の状況を簡単にまとめて',
-        interactionType: 'clarification',
-      }),
-    }));
-  });
 });

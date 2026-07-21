@@ -14,7 +14,7 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 
 - [x] Player InputをSession所有の不変イベントとして永続化する。
 - [x] 同一`RequestId`のreplayとpayload不一致を検出する。
-- [x] 未完了のPlayer InputとAI生成のlease、retry、errorを`SessionPendingPlayerInput`で管理し、完了時に確定Inputへ変換してPending rowを削除する。
+- [x] Player Inputを受付時に確定し、AI生成のlease、retry、errorを`SessionExecution`と`SessionExecutionAttempt`で管理する。
 - [x] Narrative Turnを`Session.HeadTurnId`のcompare-and-swap境界で一度だけ追加する。
 - [x] AIが返した進行signalをhost側のallowlistで検証する。
 - [x] Narrative Turn、signal、進行receiptを同一transactionで保存する。

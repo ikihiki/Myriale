@@ -39,6 +39,6 @@ Audit telemetry/log output for forbidden data: player text, full prompt/Narrativ
 - `SessionArtifactRetentionWorker` lists storage every `SessionImages:ReconciliationIntervalMinutes`, removes rows/objects past `RetainUntil`, and deletes unreferenced objects only after `SessionImages:OrphanGraceMinutes`. Search `session.artifact.reconcile` logs for `ExpiredDeleted`, `OrphansDeleted`, and `MissingObjects`; investigate missing objects before repairing or removing their database rows.
 - Development uses the deterministic note + one-pixel PNG Session fixture when `SessionArtifactFixture:Enabled=true`. Test hosts opt in with `SessionArtifactFixture:EnableInTestHost=true`. Disable the fixture outside development/demo environments.
 
-## Migration and rollback
+## Database initialization
 
-PostgreSQL startup applies retained EF migrations; SQLite development/test startup uses non-destructive `EnsureCreated`. Startup never drops the schema or database file. Before deployment, back up the database and validate migration SQL. Legacy pending/handoff rows are retained during the compatibility window; do not allow old and new workers to claim the same work. Roll back the read path before rolling back schema. Preserve Request ID semantics and existing Turn chains.
+PostgreSQL、SQLiteともに起動時はEntity Framework Coreの`EnsureCreated`で現在のschemaを作成する。既存schemaのupgradeやbackfillは行わないため、model変更時は開発・Preview環境のdatabaseを再作成する。Session Executionの運用開始前に空のdatabaseであることを確認する。

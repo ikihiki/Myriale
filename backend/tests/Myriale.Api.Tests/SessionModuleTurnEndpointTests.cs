@@ -31,7 +31,7 @@ public sealed class SessionModuleTurnEndpointTests : IDisposable
     public async Task SessionEndpointsRequireAuthenticationAndUnknownScenarioIsNotCreated()
     {
         var anonymous = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
-        using var create = await anonymous.PostAsJsonAsync("/api/sessions/", new { scenarioId = "SCN-STAR-LIBRARY" });
+        using var create = await anonymous.PostAsJsonAsync("/api/sessions/", new { scenarioId = "SCN-STAR-LIBRARY", requestId = $"test-session-{Guid.NewGuid():N}" });
         using var get = await anonymous.GetAsync("/api/sessions/SES-UNKNOWN");
         using var turn = await anonymous.PostAsJsonAsync("/api/sessions/SES-UNKNOWN/module-turns", InitializeBody("anonymous"));
         Assert.Equal(HttpStatusCode.Unauthorized, create.StatusCode);
@@ -39,7 +39,7 @@ public sealed class SessionModuleTurnEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.Unauthorized, turn.StatusCode);
 
         var client = await AuthenticatedClientAsync("unknown-scenario@example.test");
-        using var unknown = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId = "SCN-UNKNOWN" });
+        using var unknown = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId = "SCN-UNKNOWN", requestId = "unknown-scenario" });
         Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
         await using var scope = _factory.Services.CreateAsyncScope();
         Assert.Equal(0, await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Sessions.CountAsync());
@@ -452,9 +452,16 @@ public sealed class SessionModuleTurnEndpointTests : IDisposable
 
     private async Task<string> CreateSessionAsync(HttpClient client)
     {
-        using var response = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId = "SCN-STAR-LIBRARY" });
+        using var response = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId = "SCN-STAR-LIBRARY", requestId = $"test-session-{Guid.NewGuid():N}" });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
+        var sessionId = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var session = await db.Sessions.SingleAsync(item => item.Id == sessionId);
+        session.HeadTurnId = null;
+        await db.SaveChangesAsync();
+        await db.SessionTurns.Where(turn => turn.SessionId == sessionId).ExecuteDeleteAsync();
+        return sessionId;
     }
 
     private object InitializeBody(string requestId, object? configuration = null)

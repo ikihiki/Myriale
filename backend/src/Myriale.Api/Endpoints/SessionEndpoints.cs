@@ -29,9 +29,6 @@ public static class SessionEndpoints
         group.MapPost("/{sessionId}/inputs", AcceptInputAsync)
             .WithName("AcceptSessionInput")
             .WithSummary("Durably accepts player input and queues narrative generation.");
-        group.MapPost("/{sessionId}/narrative-turns", CreateNarrativeTurnAsync)
-            .WithName("CreateSessionNarrativeTurn")
-            .WithSummary("Compatibility alias that durably accepts input and queues narrative generation.");
         group.MapPost("/{sessionId}/module-turns", CreateModuleTurnAsync)
             .WithName("CreateSessionModuleTurn")
             .WithSummary("Creates one session turn and its module execution atomically.");
@@ -53,9 +50,8 @@ public static class SessionEndpoints
         if (string.IsNullOrWhiteSpace(request.ScenarioId))
             return Results.BadRequest(new SessionErrorResponse("invalid_scenario_id", "ScenarioIdを指定してください。"));
         var requestId = request.RequestId?.Trim();
-        if (requestId is { Length: > 120 })
-            return Results.BadRequest(new SessionErrorResponse("invalid_request_id", "RequestIdは120文字以内で指定してください。"));
-        if (string.IsNullOrEmpty(requestId)) requestId = null;
+        if (string.IsNullOrWhiteSpace(requestId) || requestId.Length > 120)
+            return Results.BadRequest(new SessionErrorResponse("invalid_request_id", "RequestIdを120文字以内で指定してください。"));
         var canDebugDialogue = await db.Users.AsNoTracking()
             .Where(user => user.Id == ownerId)
             .Select(user => user.CanDebugDialogue)
@@ -65,24 +61,21 @@ public static class SessionEndpoints
                 new SessionErrorResponse("dialogue_debug_forbidden", "解釈説明を有効にする権限がありません。"),
                 statusCode: StatusCodes.Status403Forbidden);
 
-        if (requestId is not null)
+        var replay = await db.Sessions.AsNoTracking()
+            .Include(item => item.State)
+            .Include(item => item.Progress).ThenInclude(progress => progress!.CurrentNode)
+            .Include(item => item.ProgressionTransitionReceipts)
+            .SingleOrDefaultAsync(item => item.OwnerId == ownerId && item.CreationRequestId == requestId, cancellationToken);
+        if (replay is not null)
         {
-            var replay = await db.Sessions.AsNoTracking()
-                .Include(item => item.State)
-                .Include(item => item.Progress).ThenInclude(progress => progress!.CurrentNode)
-                .Include(item => item.ProgressionTransitionReceipts)
-                .SingleOrDefaultAsync(item => item.OwnerId == ownerId && item.CreationRequestId == requestId, cancellationToken);
-            if (replay is not null)
-            {
-                if (!string.Equals(replay.ScenarioId, request.ScenarioId, StringComparison.Ordinal)
-                    || replay.InterpretationEnabled != request.InterpretationEnabled
-                    || (request.SelectedHero is not null
-                        && !string.Equals(replay.SelectedHero, request.SelectedHero.Trim(), StringComparison.Ordinal)))
-                    return Results.Conflict(new SessionErrorResponse("idempotency_key_reused", "同じRequestIdに別のSession設定は指定できません。"));
-                var replayTurns = await LoadTurnsAsync(ownerId, replay.Id, db, executions, cancellationToken);
-                var replayPending = await LoadPendingInputsAsync(replay.Id, db, cancellationToken);
-                return Results.Ok(ToResponse(replay, replayTurns, replayPending));
-            }
+            if (!string.Equals(replay.ScenarioId, request.ScenarioId, StringComparison.Ordinal)
+                || replay.InterpretationEnabled != request.InterpretationEnabled
+                || (request.SelectedHero is not null
+                    && !string.Equals(replay.SelectedHero, request.SelectedHero.Trim(), StringComparison.Ordinal)))
+                return Results.Conflict(new SessionErrorResponse("idempotency_key_reused", "同じRequestIdに別のSession設定は指定できません。"));
+            var replayTurns = await LoadTurnsAsync(ownerId, replay.Id, db, executions, cancellationToken);
+            var replayPending = await LoadPendingInputsAsync(replay.Id, db, cancellationToken);
+            return Results.Ok(ToResponse(replay, replayTurns, replayPending));
         }
 
         var scenario = await db.Scenarios.AsNoTracking()
@@ -166,15 +159,6 @@ public static class SessionEndpoints
                 RandomValueCount = transition.ModuleRandomValueCount,
                 CreatedAt = now,
             });
-        }
-
-        // Legacy callers that do not provide an idempotency key retain the pre-opening behavior.
-        // The production Session-start flow always supplies RequestId and receives a durable root Opening Turn.
-        if (requestId is null)
-        {
-            db.Sessions.Add(session);
-            await db.SaveChangesAsync(cancellationToken);
-            return Results.Created($"/api/sessions/{session.Id}", ToResponse(session, [], []));
         }
 
         var opening = new SessionTurn
@@ -357,25 +341,6 @@ public static class SessionEndpoints
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
         return await AcceptInputCoreAsync(ownerId, sessionId, request, inputs, environment, cancellationToken);
-    }
-
-    private static async Task<IResult> CreateNarrativeTurnAsync(
-        string sessionId,
-        CreateNarrativeTurnRequest request,
-        ClaimsPrincipal principal,
-        SessionInputService inputs,
-        IHostEnvironment environment,
-        CancellationToken cancellationToken)
-    {
-        var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
-        return await AcceptInputCoreAsync(
-            ownerId,
-            sessionId,
-            new CreateSessionInputRequest(request.RequestId, request.Input, request.InteractionType),
-            inputs,
-            environment,
-            cancellationToken);
     }
 
     private static async Task<IResult> AcceptInputCoreAsync(

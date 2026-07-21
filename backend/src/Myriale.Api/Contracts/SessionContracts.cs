@@ -14,14 +14,9 @@ public static class NarrativeInteractionTypes
 
 public sealed record CreateSessionRequest(
     string ScenarioId,
-    string? RequestId = null,
+    string RequestId,
     bool InterpretationEnabled = false,
     string? SelectedHero = null);
-
-public sealed record CreateNarrativeTurnRequest(
-    string RequestId,
-    string Input,
-    string InteractionType = NarrativeInteractionTypes.Dialogue);
 
 public sealed record NarrativeTurnResponse(
     string? SourceModuleTurnId,
