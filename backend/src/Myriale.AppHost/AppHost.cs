@@ -200,7 +200,7 @@ internal sealed class MyrialeAiProviderExternalSecret : BaseKubernetesResource
         Metadata.Name = "myriale-ai-provider";
         Spec = new ExternalSecretSpec
         {
-            RefreshInterval = "1h",
+            RefreshInterval = "5m",
             SecretStoreRef = new ExternalSecretStoreReference
             {
                 Name = "secret-store",
@@ -228,7 +228,7 @@ internal sealed class MyrialeAiProviderExternalSecret : BaseKubernetesResource
 internal sealed class ExternalSecretSpec
 {
     [YamlMember(Alias = "refreshInterval")]
-    public string RefreshInterval { get; init; } = "1h";
+    public string RefreshInterval { get; init; } = "5m";
 
     [YamlMember(Alias = "secretStoreRef")]
     public ExternalSecretStoreReference SecretStoreRef { get; init; } = new();
