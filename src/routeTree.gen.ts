@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountRouteRouteImport } from './routes/account/route'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ScenariosRouteRouteImport } from './routes/scenarios/route'
 import { Route as SessionsRouteRouteImport } from './routes/sessions/route'
 import { Route as AccountAdminRouteRouteImport } from './routes/account/admin/route'
@@ -51,6 +52,11 @@ const IndexRoute = IndexRouteImport.update({
 const AccountRouteRoute = AccountRouteRouteImport.update({
   id: '/account',
   path: '/account',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ScenariosRouteRoute = ScenariosRouteRouteImport.update({
@@ -218,6 +224,7 @@ export interface FileRoutesByFullPath {
   '/account': typeof AccountRouteRouteWithChildren
   '/scenarios': typeof ScenariosRouteRouteWithChildren
   '/sessions': typeof SessionsRouteRouteWithChildren
+  '/admin': typeof AdminRoute
   '/account/admin': typeof AccountAdminRouteRouteWithChildren
   '/account/profile': typeof AccountProfileRouteRouteWithChildren
   '/sessions/$sessionId': typeof SessionsSessionIdRouteRouteWithChildren
@@ -252,6 +259,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRouteRouteWithChildren
   '/sessions': typeof SessionsRouteRouteWithChildren
+  '/admin': typeof AdminRoute
   '/account/admin': typeof AccountAdminRouteRouteWithChildren
   '/account/export': typeof AccountExportRoute
   '/account/login': typeof AccountLoginRoute
@@ -285,6 +293,7 @@ export interface FileRoutesById {
   '/account': typeof AccountRouteRouteWithChildren
   '/scenarios': typeof ScenariosRouteRouteWithChildren
   '/sessions': typeof SessionsRouteRouteWithChildren
+  '/admin': typeof AdminRoute
   '/account/admin': typeof AccountAdminRouteRouteWithChildren
   '/account/profile': typeof AccountProfileRouteRouteWithChildren
   '/sessions/$sessionId': typeof SessionsSessionIdRouteRouteWithChildren
@@ -322,6 +331,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/scenarios'
     | '/sessions'
+    | '/admin'
     | '/account/admin'
     | '/account/profile'
     | '/sessions/$sessionId'
@@ -356,6 +366,7 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/sessions'
+    | '/admin'
     | '/account/admin'
     | '/account/export'
     | '/account/login'
@@ -388,6 +399,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/scenarios'
     | '/sessions'
+    | '/admin'
     | '/account/admin'
     | '/account/profile'
     | '/sessions/$sessionId'
@@ -424,6 +436,7 @@ export interface RootRouteChildren {
   AccountRouteRoute: typeof AccountRouteRouteWithChildren
   ScenariosRouteRoute: typeof ScenariosRouteRouteWithChildren
   SessionsRouteRoute: typeof SessionsRouteRouteWithChildren
+  AdminRoute: typeof AdminRoute
   ModuleExecutionsExecutionIdRoute: typeof ModuleExecutionsExecutionIdRoute
 }
 
@@ -441,6 +454,13 @@ declare module '@tanstack/react-router' {
       path: '/account'
       fullPath: '/account'
       preLoaderRoute: typeof AccountRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/scenarios': {
@@ -796,6 +816,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccountRouteRoute: AccountRouteRouteWithChildren,
   ScenariosRouteRoute: ScenariosRouteRouteWithChildren,
   SessionsRouteRoute: SessionsRouteRouteWithChildren,
+  AdminRoute: AdminRoute,
   ModuleExecutionsExecutionIdRoute: ModuleExecutionsExecutionIdRoute,
 }
 export const routeTree = rootRouteImport
