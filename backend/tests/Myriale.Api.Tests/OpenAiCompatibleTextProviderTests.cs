@@ -29,6 +29,41 @@ public sealed class OpenAiCompatibleTextProviderTests
     }
 
     [Fact]
+    public async Task Generate_ActiveRootSettingsOverridePlaceholderProfile()
+    {
+        var handler = new QueueHandler(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("{\"choices\":[{\"message\":{\"content\":\"{\\\"ok\\\":true}\"},\"finish_reason\":\"stop\"}]}", Encoding.UTF8, "application/json")
+        });
+        var options = Options.Create(new AiProviderOptions
+        {
+            Provider = "runpod",
+            BaseUrl = "https://api.runpod.ai/v2/real-endpoint/openai/v1",
+            Model = "Qwen/Qwen3-8B",
+            ApiKey = "active-key",
+            MaxAttempts = 1,
+            Providers = new Dictionary<string, AiProviderProfileOptions>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["runpod"] = new()
+                {
+                    BaseUrl = "https://api.runpod.ai/v2/YOUR_ENDPOINT_ID/openai/v1",
+                    Model = "YOUR_VLLM_MODEL"
+                }
+            }
+        });
+        var provider = new OpenAiCompatibleTextProvider(
+            new Factory(new HttpClient(handler)),
+            new CredentialStore(),
+            options);
+
+        await provider.GenerateAsync(Request(), default);
+
+        Assert.Equal("https://api.runpod.ai/v2/real-endpoint/openai/v1/chat/completions", handler.LastUri?.ToString());
+        using var body = JsonDocument.Parse(handler.LastBody);
+        Assert.Equal("Qwen/Qwen3-8B", body.RootElement.GetProperty("model").GetString());
+    }
+
+    [Fact]
     public async Task Generate_RetriesRateLimitAndReportsFinalAttempt()
     {
         var rateLimited = new HttpResponseMessage(HttpStatusCode.TooManyRequests)
@@ -96,10 +131,12 @@ public sealed class OpenAiCompatibleTextProviderTests
     {
         private readonly Queue<HttpResponseMessage> _responses = new(responses);
         public string LastBody { get; private set; } = string.Empty;
+        public Uri? LastUri { get; private set; }
         public int RequestCount { get; private set; }
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             RequestCount++;
+            LastUri = request.RequestUri;
             LastBody = await request.Content!.ReadAsStringAsync(cancellationToken);
             return _responses.Dequeue();
         }

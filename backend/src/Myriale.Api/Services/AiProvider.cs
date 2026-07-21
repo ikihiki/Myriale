@@ -212,12 +212,15 @@ public sealed class OpenAiCompatibleTextProvider(
     private static AiProviderOptions ResolveOptions(AiProviderOptions configured, string provider)
     {
         configured.Providers.TryGetValue(provider, out var profile);
+        var isActiveProvider = string.Equals(Normalize(configured.Provider), provider, StringComparison.OrdinalIgnoreCase);
         return new AiProviderOptions
         {
             Provider = provider,
-            BaseUrl = profile?.BaseUrl ?? configured.BaseUrl,
-            Model = profile?.Model ?? configured.Model,
-            ApiKey = profile?.ApiKey ?? configured.ApiKey,
+            // Forge injects the active Provider settings at the AiProvider root. Those values must win over
+            // appsettings.json profiles, whose Runpod values are documentation placeholders.
+            BaseUrl = isActiveProvider ? configured.BaseUrl ?? profile?.BaseUrl : profile?.BaseUrl ?? configured.BaseUrl,
+            Model = isActiveProvider ? ResolveModel(configured.Model, profile?.Model) : ResolveModel(profile?.Model, configured.Model),
+            ApiKey = isActiveProvider ? configured.ApiKey ?? profile?.ApiKey : profile?.ApiKey ?? configured.ApiKey,
             TimeoutSeconds = configured.TimeoutSeconds,
             MaxOutputTokens = configured.MaxOutputTokens,
             Temperature = configured.Temperature,
@@ -225,6 +228,10 @@ public sealed class OpenAiCompatibleTextProvider(
             InitialBackoffMilliseconds = configured.InitialBackoffMilliseconds,
         };
     }
+
+    private static string ResolveModel(params string?[] candidates) =>
+        candidates.FirstOrDefault(candidate => !string.IsNullOrWhiteSpace(candidate))
+        ?? throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "AI model is required.", false);
 
     private static string ResolveBaseUrl(string provider, string? configured) =>
         (configured ?? (provider == "openai" ? "https://api.openai.com/v1/" : throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "Runpod BaseUrl is required.", false))).TrimEnd('/') + "/";
