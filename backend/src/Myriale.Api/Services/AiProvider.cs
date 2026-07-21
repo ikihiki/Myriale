@@ -22,12 +22,19 @@ public static class AiProviderErrorCodes
     public const string ContentRejected = "content_rejected";
 }
 
-public sealed class AiProviderException(string code, string message, bool retryable, TimeSpan? retryAfter = null, Exception? inner = null)
+public sealed class AiProviderException(
+    string code,
+    string message,
+    bool retryable,
+    TimeSpan? retryAfter = null,
+    Exception? inner = null,
+    string? providerResponseExcerpt = null)
     : Exception(message, inner)
 {
     public string Code { get; } = code;
     public bool Retryable { get; } = retryable;
     public TimeSpan? RetryAfter { get; } = retryAfter;
+    public string? ProviderResponseExcerpt { get; } = providerResponseExcerpt;
 }
 
 public sealed record AiTextRequest(
@@ -80,7 +87,8 @@ public interface IAiCredentialStore
 public sealed class OpenAiCompatibleTextProvider(
     IHttpClientFactory clients,
     IAiCredentialStore credentials,
-    IOptions<AiProviderOptions> configuredOptions) : IAiTextProvider
+    IOptions<AiProviderOptions> configuredOptions,
+    ILogger<OpenAiCompatibleTextProvider> logger) : IAiTextProvider
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -126,6 +134,16 @@ public sealed class OpenAiCompatibleTextProvider(
             {
                 last = exception;
                 var delay = exception.RetryAfter ?? TimeSpan.FromMilliseconds(Math.Max(0, options.InitialBackoffMilliseconds) * Math.Pow(2, attempt - 1));
+                logger.LogWarning(
+                    exception,
+                    "AI Provider request attempt failed and will be retried. Provider={Provider} Model={Model} Schema={SchemaName} Attempt={Attempt} MaxAttempts={MaxAttempts} ErrorCode={ErrorCode} RetryDelayMilliseconds={RetryDelayMilliseconds}",
+                    provider,
+                    options.Model,
+                    request.ResponseFormat.SchemaName,
+                    attempt,
+                    options.MaxAttempts,
+                    exception.Code,
+                    delay.TotalMilliseconds);
                 await Task.Delay(delay, cancellationToken);
             }
         }
@@ -165,7 +183,23 @@ public sealed class OpenAiCompatibleTextProvider(
             timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(1, options.TimeoutSeconds)));
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
             stopwatch.Stop();
-            if (!response.IsSuccessStatusCode) throw await ClassifyAsync(response);
+            if (!response.IsSuccessStatusCode)
+            {
+                var providerException = await ClassifyAsync(response);
+                logger.LogWarning(
+                    "AI Provider returned an unsuccessful response. Provider={Provider} Model={Model} Schema={SchemaName} Endpoint={Endpoint} Attempt={Attempt} StatusCode={StatusCode} ReasonPhrase={ReasonPhrase} ProviderRequestId={ProviderRequestId} ErrorCode={ErrorCode} ResponseBody={ResponseBody}",
+                    provider,
+                    options.Model,
+                    input.ResponseFormat.SchemaName,
+                    endpoint.GetLeftPart(UriPartial.Path),
+                    attempt,
+                    (int)response.StatusCode,
+                    response.ReasonPhrase,
+                    ProviderRequestId(response),
+                    providerException.Code,
+                    providerException.ProviderResponseExcerpt);
+                throw providerException;
+            }
             await using var stream = await response.Content.ReadAsStreamAsync(timeout.Token);
             using var document = await JsonDocument.ParseAsync(stream, cancellationToken: timeout.Token);
             var root = document.RootElement;
@@ -183,11 +217,26 @@ public sealed class OpenAiCompatibleTextProvider(
             return new AiTextResponse(text, new(provider, options.Model, root.TryGetProperty("id", out var id) ? id.GetString() : null, inputTokens, outputTokens, stopwatch.ElapsedMilliseconds, attempt, finishReason));
         }
         catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
-        { throw new AiProviderException(AiProviderErrorCodes.Timeout, "AI Provider request timed out.", true, null, exception); }
+        {
+            logger.LogWarning(exception,
+                "AI Provider request timed out. Provider={Provider} Model={Model} Schema={SchemaName} Endpoint={Endpoint} Attempt={Attempt} TimeoutSeconds={TimeoutSeconds}",
+                provider, options.Model, input.ResponseFormat.SchemaName, endpoint.GetLeftPart(UriPartial.Path), attempt, options.TimeoutSeconds);
+            throw new AiProviderException(AiProviderErrorCodes.Timeout, "AI Provider request timed out.", true, null, exception);
+        }
         catch (HttpRequestException exception)
-        { throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "AI Provider is unavailable.", true, null, exception); }
+        {
+            logger.LogWarning(exception,
+                "AI Provider transport failed. Provider={Provider} Model={Model} Schema={SchemaName} Endpoint={Endpoint} Attempt={Attempt} HttpRequestError={HttpRequestError} StatusCode={StatusCode}",
+                provider, options.Model, input.ResponseFormat.SchemaName, endpoint.GetLeftPart(UriPartial.Path), attempt, exception.HttpRequestError, exception.StatusCode is null ? null : (int)exception.StatusCode);
+            throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "AI Provider is unavailable.", true, null, exception);
+        }
         catch (Exception exception) when (exception is JsonException or KeyNotFoundException or InvalidOperationException)
-        { throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "AI Provider returned an invalid response envelope.", false, null, exception); }
+        {
+            logger.LogWarning(exception,
+                "AI Provider response envelope was invalid. Provider={Provider} Model={Model} Schema={SchemaName} Endpoint={Endpoint} Attempt={Attempt} ExceptionType={ExceptionType}",
+                provider, options.Model, input.ResponseFormat.SchemaName, endpoint.GetLeftPart(UriPartial.Path), attempt, exception.GetType().Name);
+            throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "AI Provider returned an invalid response envelope.", false, null, exception);
+        }
     }
 
     private static async Task<AiProviderException> ClassifyAsync(HttpResponseMessage response)
@@ -196,18 +245,44 @@ public sealed class OpenAiCompatibleTextProvider(
         var retryAfter = response.Headers.RetryAfter?.Delta
             ?? (response.Headers.RetryAfter?.Date is { } date ? date - DateTimeOffset.UtcNow : null);
         var lower = body.ToLowerInvariant();
+        var excerpt = SafeProviderResponseExcerpt(body);
         return response.StatusCode switch
         {
-            HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => new(AiProviderErrorCodes.InvalidCredential, "AI Provider rejected the credential.", false),
-            HttpStatusCode.NotFound when lower.Contains("model") => new(AiProviderErrorCodes.ModelNotFound, "AI model was not found.", false),
-            HttpStatusCode.TooManyRequests => new(AiProviderErrorCodes.RateLimited, "AI Provider rate limit exceeded.", true, retryAfter),
-            HttpStatusCode.BadRequest when lower.Contains("content") || lower.Contains("safety") => new(AiProviderErrorCodes.ContentRejected, "AI Provider rejected the content.", false),
-            HttpStatusCode.BadRequest => new(AiProviderErrorCodes.SchemaFailure, "AI Provider rejected the structured output request.", false),
-            >= HttpStatusCode.InternalServerError => new(AiProviderErrorCodes.ProviderUnavailable, "AI Provider is unavailable.", true, retryAfter),
-            _ => new(AiProviderErrorCodes.ProviderUnavailable, "AI Provider request failed.", false),
+            HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => new(AiProviderErrorCodes.InvalidCredential, "AI Provider rejected the credential.", false, null, null, excerpt),
+            HttpStatusCode.NotFound when lower.Contains("model") => new(AiProviderErrorCodes.ModelNotFound, "AI model was not found.", false, null, null, excerpt),
+            HttpStatusCode.TooManyRequests => new(AiProviderErrorCodes.RateLimited, "AI Provider rate limit exceeded.", true, retryAfter, null, excerpt),
+            HttpStatusCode.BadRequest when lower.Contains("content") || lower.Contains("safety") => new(AiProviderErrorCodes.ContentRejected, "AI Provider rejected the content.", false, null, null, excerpt),
+            HttpStatusCode.BadRequest => new(AiProviderErrorCodes.SchemaFailure, "AI Provider rejected the structured output request.", false, null, null, excerpt),
+            >= HttpStatusCode.InternalServerError => new(AiProviderErrorCodes.ProviderUnavailable, "AI Provider is unavailable.", true, retryAfter, null, excerpt),
+            _ => new(AiProviderErrorCodes.ProviderUnavailable, "AI Provider request failed.", false, null, null, excerpt),
         };
     }
 
+
+    private static string? ProviderRequestId(HttpResponseMessage response)
+    {
+        foreach (var name in new[] { "x-request-id", "request-id", "cf-ray" })
+            if (response.Headers.TryGetValues(name, out var values)) return values.FirstOrDefault();
+        return null;
+    }
+
+    private static string SafeProviderResponseExcerpt(string body)
+    {
+        const int maxLength = 1_000;
+        var compact = string.Join(' ', body.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        foreach (var prefix in new[] { "Bearer ", "sk-", "rpa_" })
+        {
+            var start = compact.IndexOf(prefix, StringComparison.OrdinalIgnoreCase);
+            while (start >= 0)
+            {
+                var end = compact.IndexOfAny([' ', '\"', '\'', ',', '}', ']'], start + prefix.Length);
+                if (end < 0) end = compact.Length;
+                compact = string.Concat(compact.AsSpan(0, start), "[REDACTED]", compact.AsSpan(end));
+                start = compact.IndexOf(prefix, start + "[REDACTED]".Length, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+        return compact.Length <= maxLength ? compact : compact[..maxLength] + "…";
+    }
 
     private static AiProviderOptions ResolveOptions(AiProviderOptions configured, string provider)
     {

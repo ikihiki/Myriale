@@ -213,7 +213,17 @@ public sealed class SessionNarrativeTurnService(
             var providerError = exception as AiProviderException;
             var code = providerError?.Code ?? (exception is OperationCanceledException ? AiProviderErrorCodes.Timeout : AiProviderErrorCodes.SchemaFailure);
             var retryable = providerError?.Retryable ?? true;
-            logger.LogWarning("Dialogue narrative generation failed for {SessionId}: {ErrorCode}", sessionId, code);
+            logger.LogWarning(
+                exception,
+                "Dialogue narrative generation failed. SessionId={SessionId} PendingInputId={PendingInputId} LeaseId={LeaseId} ErrorCode={ErrorCode} ErrorMessage={ErrorMessage} Retryable={Retryable} ExceptionType={ExceptionType} InnerExceptionType={InnerExceptionType}",
+                sessionId,
+                pendingInput.Id,
+                leaseId,
+                code,
+                exception.Message,
+                retryable,
+                exception.GetType().Name,
+                exception.InnerException?.GetType().Name);
             await MarkFailedAsync(pendingInput.Id, leaseId, code, "Narrativeの生成に失敗しました。", retryable, CancellationToken.None);
             return SessionNarrativeTurnResult.Error(code == AiProviderErrorCodes.RateLimited ? 429 : 503, code, "Narrativeの生成に失敗しました。");
         }

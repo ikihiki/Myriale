@@ -2,6 +2,8 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Myriale.Api.Services;
 
@@ -54,7 +56,8 @@ public sealed class OpenAiCompatibleTextProviderTests
         var provider = new OpenAiCompatibleTextProvider(
             new Factory(new HttpClient(handler)),
             new CredentialStore(),
-            options);
+            options,
+            NullLogger<OpenAiCompatibleTextProvider>.Instance);
 
         await provider.GenerateAsync(Request(), default);
 
@@ -84,6 +87,37 @@ public sealed class OpenAiCompatibleTextProviderTests
         Assert.Equal(2, result.Metadata.AttemptCount);
     }
 
+    [Fact]
+    public async Task Generate_LogsProviderStatusRequestIdAndRedactedErrorBody()
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.BadRequest)
+        {
+            ReasonPhrase = "Bad Request",
+            Content = new StringContent("{\"error\":{\"message\":\"response_format unsupported for Bearer diagnostic-token\"}}")
+        };
+        response.Headers.TryAddWithoutValidation("x-request-id", "req-diagnostic-1");
+        var handler = new QueueHandler(response);
+        var logger = new RecordingLogger<OpenAiCompatibleTextProvider>();
+        var options = Options.Create(new AiProviderOptions
+        {
+            Provider = "runpod",
+            BaseUrl = "https://example.test/openai/v1",
+            Model = "test-model",
+            ApiKey = "fallback",
+            MaxAttempts = 1
+        });
+        var provider = new OpenAiCompatibleTextProvider(new Factory(new HttpClient(handler)), new CredentialStore(), options, logger);
+
+        await Assert.ThrowsAsync<AiProviderException>(() => provider.GenerateAsync(Request(), default));
+
+        var entry = Assert.Single(logger.Entries);
+        Assert.Contains("StatusCode=400", entry, StringComparison.Ordinal);
+        Assert.Contains("ProviderRequestId=req-diagnostic-1", entry, StringComparison.Ordinal);
+        Assert.Contains("response_format unsupported", entry, StringComparison.Ordinal);
+        Assert.DoesNotContain("diagnostic-token", entry, StringComparison.Ordinal);
+        Assert.Contains("[REDACTED]", entry, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData(HttpStatusCode.Unauthorized, AiProviderErrorCodes.InvalidCredential, false)]
     [InlineData(HttpStatusCode.TooManyRequests, AiProviderErrorCodes.RateLimited, true)]
@@ -109,7 +143,7 @@ public sealed class OpenAiCompatibleTextProviderTests
     {
         var client = new HttpClient(handler);
         var options = Options.Create(new AiProviderOptions { Provider = "runpod", BaseUrl = "https://example.test/openai/v1", Model = "test-model", ApiKey = "fallback", MaxAttempts = maxAttempts, InitialBackoffMilliseconds = 0 });
-        return new OpenAiCompatibleTextProvider(new Factory(client), new CredentialStore(), options);
+        return new OpenAiCompatibleTextProvider(new Factory(client), new CredentialStore(), options, NullLogger<OpenAiCompatibleTextProvider>.Instance);
     }
     private static AiTextRequest Request()
     {
@@ -127,6 +161,15 @@ public sealed class OpenAiCompatibleTextProviderTests
         public Task DeleteAsync(string provider, CancellationToken cancellationToken) => throw new NotSupportedException();
         public string Mask(string secret) => throw new NotSupportedException();
     }
+    private sealed class RecordingLogger<T> : ILogger<T>
+    {
+        public List<string> Entries { get; } = [];
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Add(formatter(state, exception));
+    }
+
     private sealed class QueueHandler(params HttpResponseMessage[] responses) : HttpMessageHandler
     {
         private readonly Queue<HttpResponseMessage> _responses = new(responses);

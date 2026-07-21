@@ -106,7 +106,16 @@ public sealed class SessionNarrativeHandoffService(
             var providerError = exception as AiProviderException;
             var code = providerError?.Code ?? (exception is OperationCanceledException ? AiProviderErrorCodes.Timeout : AiProviderErrorCodes.SchemaFailure);
             var retryable = providerError?.Retryable ?? true;
-            logger.LogWarning("Automatic narrative generation failed for {ExecutionId}: {ErrorCode}", executionId, code);
+            logger.LogWarning(
+                exception,
+                "Automatic narrative generation failed. ExecutionId={ExecutionId} LeaseId={LeaseId} ErrorCode={ErrorCode} ErrorMessage={ErrorMessage} Retryable={Retryable} ExceptionType={ExceptionType} InnerExceptionType={InnerExceptionType}",
+                executionId,
+                leaseId,
+                code,
+                exception.Message,
+                retryable,
+                exception.GetType().Name,
+                exception.InnerException?.GetType().Name);
             await MarkFailedAsync(
                 executionId,
                 leaseId,
