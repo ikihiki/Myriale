@@ -36,7 +36,6 @@ builder.Services.AddScoped<INarrativeGenerator>(services =>
         ? services.GetRequiredService<MockAiNarrativeGenerator>()
         : services.GetRequiredService<ProviderNarrativeGenerator>());
 builder.Services.AddScoped<IActionRecommendationGenerator>(services => (IActionRecommendationGenerator)services.GetRequiredService<INarrativeGenerator>());
-builder.Services.AddScoped<SessionNarrativeHandoffService>();
 builder.Services.AddScoped<SessionScenarioProgressionService>();
 builder.Services.AddScoped<SessionInputService>();
 builder.Services.AddScoped<ISessionExecutionHandler, NarrativeExecutionHandler>();

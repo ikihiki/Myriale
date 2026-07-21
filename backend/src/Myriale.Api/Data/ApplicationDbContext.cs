@@ -17,7 +17,6 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<SessionProgressState> SessionProgressStates => Set<SessionProgressState>();
     public DbSet<SessionNarrativeSignal> SessionNarrativeSignals => Set<SessionNarrativeSignal>();
     public DbSet<SessionProgressionTransitionReceipt> SessionProgressionTransitionReceipts => Set<SessionProgressionTransitionReceipt>();
-    public DbSet<SessionNarrativeHandoff> SessionNarrativeHandoffs => Set<SessionNarrativeHandoff>();
     public DbSet<SessionPlayerInput> SessionPlayerInputs => Set<SessionPlayerInput>();
     public DbSet<SessionPendingPlayerInput> SessionPendingPlayerInputs => Set<SessionPendingPlayerInput>();
     public DbSet<SessionExecution> SessionExecutions => Set<SessionExecution>();
@@ -156,17 +155,6 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         builder.Entity<SessionTurn>()
             .HasIndex(turn => new { turn.SessionId, turn.Position })
             .IsUnique();
-        builder.Entity<SessionNarrativeHandoff>()
-            .Property(handoff => handoff.Revision)
-            .IsConcurrencyToken();
-        builder.Entity<SessionNarrativeHandoff>()
-            .HasIndex(handoff => handoff.ExecutionId)
-            .IsUnique();
-        builder.Entity<SessionNarrativeHandoff>()
-            .HasOne(handoff => handoff.SourceModuleTurn)
-            .WithOne(turn => turn.NarrativeHandoff)
-            .HasForeignKey<SessionNarrativeHandoff>(handoff => handoff.SourceModuleTurnId)
-            .OnDelete(DeleteBehavior.Cascade);
         builder.Entity<SessionPendingPlayerInput>()
             .Property(input => input.Revision)
             .IsConcurrencyToken();

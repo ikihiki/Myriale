@@ -17,7 +17,6 @@ public sealed class ModuleExecutionService(
     ApplicationDbContext db,
     IModuleRuntime runtime,
     SessionOutcomeEffectService effects,
-    SessionNarrativeHandoffService narrativeHandoff,
     IOptions<ModuleExecutionOptions> options,
     ILogger<ModuleExecutionService> logger) : IModuleExecutionService
 {
@@ -37,9 +36,7 @@ public sealed class ModuleExecutionService(
         InitializeModuleExecutionRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await InitializeCoreAsync(ownerId, sessionId, request, cancellationToken, true, 0, allowManagedSession: false);
-        await TryAutomaticNarrativeHandoffAsync(ownerId, result);
-        return result;
+        return await InitializeCoreAsync(ownerId, sessionId, request, cancellationToken, true, 0, allowManagedSession: false);
     }
 
     public async Task<ModuleExecutionServiceResult> InitializeScenarioSessionTurnAsync(
@@ -48,9 +45,7 @@ public sealed class ModuleExecutionService(
         InitializeModuleExecutionRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await InitializeCoreAsync(ownerId, sessionId, request, cancellationToken, true, 0, allowManagedSession: true);
-        await TryAutomaticNarrativeHandoffAsync(ownerId, result);
-        return result;
+        return await InitializeCoreAsync(ownerId, sessionId, request, cancellationToken, true, 0, allowManagedSession: true);
     }
 
     private async Task<ModuleExecutionServiceResult> InitializeCoreAsync(
@@ -244,9 +239,7 @@ public sealed class ModuleExecutionService(
         DispatchModuleExecutionRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await DispatchCoreAsync(ownerId, executionId, request, cancellationToken);
-        await TryAutomaticNarrativeHandoffAsync(ownerId, result);
-        return result;
+        return await DispatchCoreAsync(ownerId, executionId, request, cancellationToken);
     }
 
     private async Task<ModuleExecutionServiceResult> DispatchCoreAsync(
@@ -409,7 +402,7 @@ public sealed class ModuleExecutionService(
                     return await RejectInitializationEffectsAsync(execution, receipt, effectResult, cancellationToken);
             }
             if (result.Status == ModuleExecutionStatuses.Completed)
-                await narrativeHandoff.PrepareAsync(execution, receipt, result.Outcome, cancellationToken);
+                await PrepareModuleHandoffAsync(execution, result.Outcome, cancellationToken);
             ApplyInitialization(execution, result);
             var response = ToResponse(execution, result.Error, []);
             var serviceResult = new ModuleExecutionServiceResult(
@@ -558,7 +551,7 @@ public sealed class ModuleExecutionService(
             }
 
             if (transition.Status == ModuleExecutionStatuses.Completed)
-                await narrativeHandoff.PrepareAsync(execution, receipt, transition.Outcome, cancellationToken);
+                await PrepareModuleHandoffAsync(execution, transition.Outcome, cancellationToken);
 
             ModuleExecutionResponse response;
             if (transition.Status == ModuleExecutionStatuses.Failed)
@@ -614,17 +607,36 @@ public sealed class ModuleExecutionService(
         }
     }
 
-    private async Task TryAutomaticNarrativeHandoffAsync(string ownerId, ModuleExecutionServiceResult result)
+    private async Task PrepareModuleHandoffAsync(
+        ModuleExecution execution,
+        ModuleOutcome? outcome,
+        CancellationToken cancellationToken)
     {
-        if (result.Response?.Status != ModuleExecutionStatuses.Completed) return;
-        try
+        if (execution.SessionTurnId is null || outcome is null) return;
+        var source = await db.SessionTurns
+            .Include(turn => turn.Session)
+            .SingleAsync(turn => turn.Id == execution.SessionTurnId, cancellationToken);
+        var idempotencyKey = $"module-handoff:{execution.Id}";
+        if (db.SessionExecutions.Local.Any(item => item.SessionId == source.SessionId && item.IdempotencyKey == idempotencyKey)
+            || await db.SessionExecutions.AnyAsync(item => item.SessionId == source.SessionId && item.IdempotencyKey == idempotencyKey, cancellationToken))
+            return;
+        var now = DateTimeOffset.UtcNow;
+        db.SessionExecutions.Add(new SessionExecution
         {
-            await narrativeHandoff.EnsureAsync(ownerId, result.Response.Id, CancellationToken.None);
-        }
-        catch (Exception exception)
-        {
-            logger.LogError(exception, "Automatic narrative handoff failed unexpectedly for {ExecutionId}", result.Response.Id);
-        }
+            Id = $"EXE-{Guid.NewGuid():N}".ToUpperInvariant(),
+            SessionId = source.SessionId,
+            Kind = SessionExecutionKinds.ModuleHandoff,
+            TriggerType = "module-outcome",
+            TriggerId = source.Id,
+            Status = SessionExecutionStatuses.Queued,
+            Revision = 0,
+            IdempotencyKey = idempotencyKey,
+            PayloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(execution.Id))).ToLowerInvariant(),
+            AcceptedHeadTurnId = source.Id,
+            AcceptedSessionRevision = source.Session.Revision,
+            CreatedAt = now,
+            QueuedAt = now,
+        });
     }
 
     private ModuleExecutionServiceResult? ValidateCommon(string requestId, int randomValueCount)

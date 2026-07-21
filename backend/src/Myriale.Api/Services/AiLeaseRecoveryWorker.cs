@@ -51,23 +51,8 @@ public sealed class AiLeaseRecoveryWorker(
             input.UpdatedAt = now;
         }
 
-        var expiredHandoffs = (await db.SessionNarrativeHandoffs
-                .Where(handoff => handoff.IsRetryable && handoff.LeaseExpiresAt != null)
-                .ToListAsync(cancellationToken))
-            .Where(handoff => handoff.LeaseExpiresAt <= now)
-            .ToList();
-        foreach (var handoff in expiredHandoffs)
-        {
-            handoff.Status = "failed";
-            handoff.LastErrorCode = "lease_expired";
-            handoff.LastErrorMessage = "AI生成leaseの期限が切れました。再試行できます。";
-            handoff.LeaseId = null;
-            handoff.LeaseExpiresAt = null;
-            handoff.UpdatedAt = now;
-        }
-
-        if (expiredInputs.Count + expiredHandoffs.Count == 0) return;
+        if (expiredInputs.Count == 0) return;
         await db.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Recovered {PendingInputCount} pending AI inputs and {HandoffCount} narrative handoffs.", expiredInputs.Count, expiredHandoffs.Count);
+        logger.LogInformation("Recovered {PendingInputCount} pending AI inputs.", expiredInputs.Count);
     }
 }

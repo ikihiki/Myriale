@@ -40,23 +40,32 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task CompletedDispatchAutomaticallyCreatesNarrativeFromPublicAppliedOutcome()
+    public async Task CompletedDispatchQueuesOneHandoffAndReturnsWithoutWaitingForProvider()
     {
         var client = await AuthenticatedClientAsync("automatic-narrative@example.test");
         var sessionId = await CreateSessionAsync(client);
-        var (_, executionId) = await CreateActiveTurnAsync(client, sessionId, "automatic-init");
+        var (turnId, executionId) = await CreateActiveTurnAsync(client, sessionId, "automatic-init");
+        _generator.Pause = true;
 
-        _generator.OnGenerate = async () =>
-        {
-            await using var scope = _factory.Services.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            Assert.Equal("completed", (await db.ModuleExecutions.SingleAsync()).Status);
-            Assert.Equal(1, await db.ModuleOutcomeApplications.CountAsync());
-            Assert.Equal("pending", (await db.SessionNarrativeHandoffs.SingleAsync()).Status);
-        };
         using var completed = await CompleteAsync(client, executionId, "automatic-complete");
         Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
         Assert.Equal("completed", (await completed.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("status").GetString());
+        await _generator.Entered.Task.WaitAsync(AsyncSignalTimeout);
+
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            Assert.Equal("completed", (await db.ModuleExecutions.SingleAsync()).Status);
+            Assert.Equal(1, await db.ModuleOutcomeApplications.CountAsync());
+            var handoff = await db.SessionExecutions.SingleAsync(item => item.Kind == SessionExecutionKinds.ModuleHandoff);
+            Assert.Equal(turnId, handoff.TriggerId);
+            Assert.Equal($"module-handoff:{executionId}", handoff.IdempotencyKey);
+            Assert.Equal(SessionExecutionStatuses.Running, handoff.Status);
+            Assert.Equal(1, await db.SessionExecutionAttempts.CountAsync(item => item.ExecutionId == handoff.Id));
+        }
+
+        _generator.Release.TrySetResult();
+        await WaitForHandoffStatusAsync(SessionExecutionStatuses.Succeeded);
 
         var request = Assert.Single(_generator.Requests);
         Assert.Equal("星喰いの地下図書館", request.Scenario.Title);
@@ -77,9 +86,9 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var module = session.GetProperty("turns")[0];
         var narrative = session.GetProperty("turns")[1];
         Assert.Equal("completed", module.GetProperty("narrativeHandoff").GetProperty("status").GetString());
-        Assert.Equal(1, await GetHandoffAttemptsAsync());
         Assert.Equal("narrative", narrative.GetProperty("kind").GetString());
         Assert.Equal(module.GetProperty("id").GetString(), narrative.GetProperty("narrative").GetProperty("sourceModuleTurnId").GetString());
+        await AssertHandoffArtifactAndAttemptMetadataAsync();
     }
 
     [Fact]
@@ -93,6 +102,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
 
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         Assert.Equal("completed", (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("execution").GetProperty("status").GetString());
+        await WaitForHandoffStatusAsync(SessionExecutionStatuses.Succeeded);
         Assert.Single(_generator.Requests);
         var session = await GetSessionAsync(client, sessionId);
         Assert.Equal(2, session.GetProperty("turns").GetArrayLength());
@@ -100,28 +110,23 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task GenerationFailureKeepsModuleCompletionAndMatchingReplayRetriesAutomatically()
+    public async Task WorkerRetriesHandoffWithoutReplayingModuleCompletion()
     {
         var client = await AuthenticatedClientAsync("narrative-retry@example.test");
         var sessionId = await CreateSessionAsync(client);
         var (_, executionId) = await CreateActiveTurnAsync(client, sessionId, "retry-init");
-        var body = DispatchBody("retry-complete");
-        _generator.Fail = true;
+        _generator.FailuresRemaining = 1;
 
-        using var completed = await client.PostAsJsonAsync($"/api/module-executions/{executionId}/dispatch", body);
+        using var completed = await client.PostAsJsonAsync(
+            $"/api/module-executions/{executionId}/dispatch",
+            DispatchBody("retry-complete"));
         Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
-        var failedSession = await GetSessionAsync(client, sessionId);
-        Assert.Equal(1, failedSession.GetProperty("turns").GetArrayLength());
-        Assert.Equal("failed", failedSession.GetProperty("turns")[0].GetProperty("narrativeHandoff").GetProperty("status").GetString());
-        Assert.Equal("schema_failure", failedSession.GetProperty("turns")[0].GetProperty("narrativeHandoff").GetProperty("errorCode").GetString());
 
-        _generator.Fail = false;
-        using var replay = await client.PostAsJsonAsync($"/api/module-executions/{executionId}/dispatch", body);
-        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+        await WaitForHandoffStatusAsync(SessionExecutionStatuses.Succeeded);
+        Assert.Equal(2, await GetHandoffAttemptsAsync());
         var recovered = await GetSessionAsync(client, sessionId);
         Assert.Equal(2, recovered.GetProperty("turns").GetArrayLength());
         Assert.Equal("completed", recovered.GetProperty("turns")[0].GetProperty("narrativeHandoff").GetProperty("status").GetString());
-        Assert.Equal(2, await GetHandoffAttemptsAsync());
     }
 
     [Fact]
@@ -132,6 +137,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var (_, executionId) = await CreateActiveTurnAsync(client, sessionId, "canon-init");
         using var completed = await CompleteAsync(client, executionId, "canon-complete");
         Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
+        await WaitForHandoffStatusAsync(SessionExecutionStatuses.Succeeded);
 
         using var dialogue = await client.PostAsJsonAsync(
             $"/api/sessions/{sessionId}/narrative-turns",
@@ -742,6 +748,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
 
         using var completed = await completion;
         Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
+        await WaitForHandoffStatusAsync(SessionExecutionStatuses.Superseded);
         Assert.Equal("completed", (await completed.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("status").GetString());
         var session = await GetSessionAsync(client, sessionId);
         Assert.Equal(2, session.GetProperty("turns").GetArrayLength());
@@ -752,58 +759,53 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task ExpiredPendingLeaseIsRecoveredByCompletionReplay()
+    public async Task CompletionReplayDoesNotEnqueueAnotherHandoff()
     {
-        var client = await AuthenticatedClientAsync("lease-recovery@example.test");
+        var client = await AuthenticatedClientAsync("handoff-replay@example.test");
         var sessionId = await CreateSessionAsync(client);
-        var (_, executionId) = await CreateActiveTurnAsync(client, sessionId, "lease-init");
-        var body = DispatchBody("lease-complete");
-        _generator.Fail = true;
-        using var failed = await client.PostAsJsonAsync($"/api/module-executions/{executionId}/dispatch", body);
-        Assert.Equal(HttpStatusCode.OK, failed.StatusCode);
+        var (_, executionId) = await CreateActiveTurnAsync(client, sessionId, "replay-init");
+        var body = DispatchBody("replay-complete");
+        _generator.Pause = true;
+
+        using var completed = await client.PostAsJsonAsync($"/api/module-executions/{executionId}/dispatch", body);
+        Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
+        await _generator.Entered.Task.WaitAsync(AsyncSignalTimeout);
+        using var replay = await client.PostAsJsonAsync($"/api/module-executions/{executionId}/dispatch", body);
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
 
         await using (var scope = _factory.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var handoff = await db.SessionNarrativeHandoffs.SingleAsync();
-            handoff.Status = "pending";
-            handoff.LeaseId = "NHL-EXPIRED";
-            handoff.LeaseExpiresAt = DateTimeOffset.UtcNow.AddMinutes(-1);
-            handoff.LastErrorCode = null;
-            handoff.LastErrorMessage = null;
-            await db.SaveChangesAsync();
+            Assert.Equal(1, await db.SessionExecutions.CountAsync(item => item.Kind == SessionExecutionKinds.ModuleHandoff));
         }
-
-        _generator.Fail = false;
-        using var replay = await client.PostAsJsonAsync($"/api/module-executions/{executionId}/dispatch", body);
-        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
-        Assert.Equal(1, await CountNarrativeTurnsAsync());
-        var session = await GetSessionAsync(client, sessionId);
-        Assert.Equal("completed", session.GetProperty("turns")[0].GetProperty("narrativeHandoff").GetProperty("status").GetString());
+        _generator.Release.TrySetResult();
+        await WaitForHandoffStatusAsync(SessionExecutionStatuses.Succeeded);
     }
 
     [Fact]
-    public async Task ConcurrentCompletionReplayPersistsOneNarrativeTurn()
+    public async Task SessionAdvanceDuringGenerationPublishesNoArtifactOrTurn()
     {
-        var client = await AuthenticatedClientAsync("automatic-concurrent@example.test");
+        var client = await AuthenticatedClientAsync("strict-causal-guard@example.test");
         var sessionId = await CreateSessionAsync(client);
-        var (_, executionId) = await CreateActiveTurnAsync(client, sessionId, "concurrent-init");
-        var body = DispatchBody("concurrent-complete");
-        _generator.Fail = true;
-        using var failed = await client.PostAsJsonAsync($"/api/module-executions/{executionId}/dispatch", body);
-        Assert.Equal(HttpStatusCode.OK, failed.StatusCode);
-        _generator.Fail = false;
+        var (_, executionId) = await CreateActiveTurnAsync(client, sessionId, "guard-init");
+        _generator.Pause = true;
 
-        var responses = await Task.WhenAll(
-            client.PostAsJsonAsync($"/api/module-executions/{executionId}/dispatch", body),
-            client.PostAsJsonAsync($"/api/module-executions/{executionId}/dispatch", body));
-        foreach (var response in responses)
-        {
-            using (response) Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        }
-        Assert.Equal(1, await CountNarrativeTurnsAsync());
-        var session = await GetSessionAsync(client, sessionId);
-        Assert.Equal(2, session.GetProperty("turns").GetArrayLength());
+        using var completed = await client.PostAsJsonAsync(
+            $"/api/module-executions/{executionId}/dispatch",
+            DispatchBody("guard-complete"));
+        Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
+        await _generator.Entered.Task.WaitAsync(AsyncSignalTimeout);
+        using var advanced = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/module-turns", InitializeBody("guard-later"));
+        Assert.Equal(HttpStatusCode.Created, advanced.StatusCode);
+        _generator.Release.TrySetResult();
+
+        await WaitForHandoffStatusAsync(SessionExecutionStatuses.Superseded);
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var handoff = await db.SessionExecutions.SingleAsync(item => item.Kind == SessionExecutionKinds.ModuleHandoff);
+        Assert.Equal("session_advanced", handoff.ErrorCode);
+        Assert.Equal(0, await db.SessionArtifacts.CountAsync(item => item.ExecutionId == handoff.Id));
+        Assert.Equal(0, await db.SessionTurns.CountAsync(item => item.SourceModuleTurnId == handoff.TriggerId));
     }
 
     private async Task AssertDialogueGenerationRejectedAsync(HttpResponseMessage response, string? expectedDetails = null)
@@ -910,9 +912,45 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     private async Task<int> GetHandoffAttemptsAsync()
     {
         await using var scope = _factory.Services.CreateAsyncScope();
-        return await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().SessionNarrativeHandoffs
-            .Select(handoff => handoff.AttemptCount)
+        return await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().SessionExecutions
+            .Where(execution => execution.Kind == SessionExecutionKinds.ModuleHandoff)
+            .Select(execution => execution.AttemptCount)
             .SingleAsync();
+    }
+
+    private async Task WaitForHandoffStatusAsync(string expectedStatus)
+    {
+        using var timeout = new CancellationTokenSource(AsyncSignalTimeout);
+        while (true)
+        {
+            await using var scope = _factory.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var status = await db.SessionExecutions.AsNoTracking()
+                .Where(execution => execution.Kind == SessionExecutionKinds.ModuleHandoff)
+                .Select(execution => execution.Status)
+                .SingleOrDefaultAsync(timeout.Token);
+            if (status == expectedStatus) return;
+            await Task.Delay(50, timeout.Token);
+        }
+    }
+
+    private async Task AssertHandoffArtifactAndAttemptMetadataAsync()
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var execution = await db.SessionExecutions.SingleAsync(item => item.Kind == SessionExecutionKinds.ModuleHandoff);
+        var attempt = await db.SessionExecutionAttempts.SingleAsync(item => item.ExecutionId == execution.Id);
+        var artifact = await db.SessionArtifacts.SingleAsync(item => item.ExecutionId == execution.Id);
+        Assert.Equal("succeeded", attempt.Status);
+        Assert.Equal("test-provider", attempt.Provider);
+        Assert.Equal("test-model", attempt.Model);
+        Assert.Equal("response-1", attempt.ProviderRequestId);
+        Assert.Equal(12, attempt.InputTokens);
+        Assert.Equal(8, attempt.OutputTokens);
+        Assert.Equal("stop", attempt.FinishReason);
+        Assert.Equal(attempt.Id, artifact.AttemptId);
+        Assert.Equal("committed", artifact.Status);
+        Assert.Equal("narrative-text", artifact.Kind);
     }
 
     private async Task<int> CountNarrativeTurnsAsync()
@@ -958,6 +996,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     {
         public List<NarrativeHandoffRequest> Requests { get; } = [];
         public bool Fail { get; set; }
+        public int FailuresRemaining { get; set; }
         public Func<Task>? OnGenerate { get; set; }
         public bool Pause { get; set; }
         public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -1008,6 +1047,11 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         {
             if (OnGenerate is not null) await OnGenerate();
             lock (Requests) Requests.Add(request);
+            if (FailuresRemaining > 0)
+            {
+                FailuresRemaining--;
+                throw new HttpRequestException("transient test failure");
+            }
             if (Fail) throw new NarrativeGenerationException("test failure");
             if (Pause)
             {

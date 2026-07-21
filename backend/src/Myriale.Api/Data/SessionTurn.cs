@@ -68,7 +68,6 @@ public sealed class SessionTurn
     public ModuleExecution? ModuleExecution { get; set; }
     public SessionTurn? SourceModuleTurn { get; set; }
     public SessionTurn? NarrativeTurn { get; set; }
-    public SessionNarrativeHandoff? NarrativeHandoff { get; set; }
     public SessionPlayerInput? PlayerInput { get; set; }
     public ICollection<SessionNarrativeSignal> NarrativeSignals { get; set; } = [];
 }

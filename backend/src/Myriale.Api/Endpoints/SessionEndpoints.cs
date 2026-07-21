@@ -429,9 +429,11 @@ public static class SessionEndpoints
             return Results.Json(result.Error, statusCode: result.StatusCode);
 
         var turn = await db.SessionTurns.AsNoTracking()
-            .Include(item => item.NarrativeHandoff)
             .SingleAsync(item => item.Id == result.SessionTurnId && item.SessionId == sessionId, cancellationToken);
-        var response = ToModuleTurnResponse(turn, result.Response);
+        var response = ToModuleTurnResponse(
+            turn,
+            result.Response,
+            await ToHandoffResponseAsync(turn, db, cancellationToken));
         return Results.Created($"/api/sessions/{sessionId}/turns/{turn.Id}", response);
     }
 
@@ -446,7 +448,6 @@ public static class SessionEndpoints
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
         var turn = await db.SessionTurns.AsNoTracking()
-            .Include(item => item.NarrativeHandoff)
             .Include(item => item.PlayerInput)
             .Include(item => item.NarrativeSignals)
             .SingleOrDefaultAsync(item => item.Id == turnId && item.SessionId == sessionId && item.Session.OwnerId == ownerId, cancellationToken);
@@ -484,7 +485,6 @@ public static class SessionEndpoints
         CancellationToken cancellationToken)
     {
         var stored = await db.SessionTurns.AsNoTracking()
-            .Include(item => item.NarrativeHandoff)
             .Include(item => item.PlayerInput)
             .Include(item => item.NarrativeSignals)
             .Where(item => item.SessionId == sessionId)
@@ -563,8 +563,11 @@ public static class SessionEndpoints
             null,
             turn.CreatedAt);
 
-    private static SessionTurnResponse ToModuleTurnResponse(SessionTurn turn, ModuleExecutionResponse execution) =>
-        new(turn.Id, turn.Position, turn.PreviousTurnId, turn.Kind, execution, null, ToHandoffResponse(turn), turn.CreatedAt);
+    private static SessionTurnResponse ToModuleTurnResponse(
+        SessionTurn turn,
+        ModuleExecutionResponse execution,
+        NarrativeHandoffStatusResponse? handoff) =>
+        new(turn.Id, turn.Position, turn.PreviousTurnId, turn.Kind, execution, null, handoff, turn.CreatedAt);
 
     private static async Task<SessionTurnResponse?> ToTurnResponseAsync(
         SessionTurn turn,
@@ -607,17 +610,33 @@ public static class SessionEndpoints
             .SingleOrDefaultAsync(cancellationToken);
         if (executionId is null) return null;
         var execution = await executions.GetAsync(ownerId, executionId, cancellationToken);
-        return execution.Response is null ? null : ToModuleTurnResponse(turn, execution.Response);
+        return execution.Response is null
+            ? null
+            : ToModuleTurnResponse(turn, execution.Response, await ToHandoffResponseAsync(turn, db, cancellationToken));
     }
 
-    private static NarrativeHandoffStatusResponse? ToHandoffResponse(SessionTurn turn) =>
-        turn.NarrativeHandoff is null
-            ? null
-            : new NarrativeHandoffStatusResponse(
-                turn.NarrativeHandoff.Status,
-                turn.NarrativeHandoff.LastErrorCode,
-                turn.NarrativeHandoff.LastErrorMessage,
-                turn.NarrativeHandoff.UpdatedAt);
+    private static async Task<NarrativeHandoffStatusResponse?> ToHandoffResponseAsync(
+        SessionTurn turn,
+        ApplicationDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var execution = await db.SessionExecutions.AsNoTracking()
+            .Where(item => item.Kind == SessionExecutionKinds.ModuleHandoff && item.TriggerId == turn.Id)
+            .Select(item => new { item.Status, item.ErrorCode, item.UserErrorMessage, item.CreatedAt, item.CompletedAt, item.NextAttemptAt })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (execution is null) return null;
+        var status = execution.Status switch
+        {
+            SessionExecutionStatuses.Succeeded => "completed",
+            SessionExecutionStatuses.Failed or SessionExecutionStatuses.Superseded or SessionExecutionStatuses.Cancelled => "failed",
+            _ => "pending",
+        };
+        return new NarrativeHandoffStatusResponse(
+            status,
+            execution.ErrorCode,
+            execution.UserErrorMessage,
+            execution.CompletedAt ?? execution.NextAttemptAt ?? execution.CreatedAt);
+    }
 
     private static string NewSessionId() => $"SES-{Guid.NewGuid():N}".ToUpperInvariant();
 }
