@@ -19,8 +19,13 @@ public sealed class NarrativeExecutionHandler(
 
     public async Task<SessionExecutionHandlerResult> ExecuteAsync(SessionExecutionContext workerContext, CancellationToken cancellationToken)
     {
-        var execution = await db.SessionExecutions.AsNoTracking().SingleOrDefaultAsync(item => item.Id == workerContext.ExecutionId, cancellationToken);
-        if (execution is null || execution.Status != SessionExecutionStatuses.Running || execution.LeaseToken != workerContext.LeaseToken)
+        var execution = await db.SessionExecutions.AsNoTracking().SingleOrDefaultAsync(
+            item => item.Id == workerContext.ExecutionId
+                && item.Status == SessionExecutionStatuses.Running
+                && item.LeaseToken == workerContext.LeaseToken
+                && item.Revision == workerContext.Revision,
+            cancellationToken);
+        if (execution is null)
             return new(false, false, "lease_lost", "生成処理の所有権が失われました。");
         var input = await db.SessionPlayerInputs.AsNoTracking().SingleAsync(item => item.Id == execution.TriggerId, cancellationToken);
         var session = await db.Sessions.AsNoTracking().Include(item => item.State).Include(item => item.HeadTurn)
@@ -61,36 +66,71 @@ public sealed class NarrativeExecutionHandler(
         if (generation.Metadata.OutputTokens is not null) SessionExecutionTelemetry.ProviderOutputTokens.Record(generation.Metadata.OutputTokens.Value, SessionExecutionTelemetry.Tags(execution.Kind, execution.Status, generation.Metadata.Provider, generation.Metadata.Model));
 
         db.ChangeTracker.Clear();
-        var current = await db.SessionExecutions.Include(item => item.Session).ThenInclude(sessionItem => sessionItem.HeadTurn)
-            .SingleAsync(item => item.Id == execution.Id, cancellationToken);
-        if (current.Status != SessionExecutionStatuses.Running || current.LeaseToken != workerContext.LeaseToken)
+        await using var publishTransaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var current = await LoadFencedForPublishAsync(workerContext, cancellationToken);
+        if (current is null)
+        {
+            await publishTransaction.RollbackAsync(CancellationToken.None);
             return new(false, false, "lease_lost", "生成処理の所有権が失われました。");
+        }
+        await db.Entry(current).Reference(item => item.Session).Query().Include(item => item.HeadTurn).LoadAsync(cancellationToken);
         if (!string.Equals(current.Session.HeadTurnId, current.AcceptedHeadTurnId, StringComparison.Ordinal))
+        {
+            await publishTransaction.RollbackAsync(CancellationToken.None);
             return new(false, false, "session_advanced", "Sessionが先へ進んだため、この結果は適用されませんでした。", SessionExecutionStatuses.Superseded);
+        }
         var alreadyPublished = await db.SessionTurns.AsNoTracking().SingleOrDefaultAsync(turn => turn.PlayerInputId == input.Id, cancellationToken);
-        if (alreadyPublished is not null) return new(true);
+        if (alreadyPublished is not null)
+        {
+            await publishTransaction.RollbackAsync(CancellationToken.None);
+            return new(true);
+        }
 
         var now = DateTimeOffset.UtcNow;
         var artifact = new SessionArtifact
         {
-            Id = $"ART-{Guid.NewGuid():N}".ToUpperInvariant(), SessionId = current.SessionId, ExecutionId = current.Id,
-            AttemptId = workerContext.AttemptId, Kind = "narrative-text", Status = "committed", ContentType = "application/json",
-            ContentJson = JsonSerializer.Serialize(generation.Value), MetadataJson = JsonSerializer.Serialize(new { generation.Metadata.Provider, generation.Metadata.Model, generation.Metadata.ResponseId }),
+            Id = $"ART-{Guid.NewGuid():N}".ToUpperInvariant(),
+            SessionId = current.SessionId,
+            ExecutionId = current.Id,
+            AttemptId = workerContext.AttemptId,
+            Kind = "narrative-text",
+            Status = "committed",
+            ContentType = "application/json",
+            ContentJson = JsonSerializer.Serialize(generation.Value),
+            MetadataJson = JsonSerializer.Serialize(new { generation.Metadata.Provider, generation.Metadata.Model, generation.Metadata.ResponseId }),
             Checksum = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(generation.Value.Body))).ToLowerInvariant(),
-            CreatedAt = now, ValidatedAt = now, CommittedAt = now,
+            CreatedAt = now,
+            ValidatedAt = now,
+            CommittedAt = now,
         };
         var turn = new SessionTurn
         {
-            Id = $"TRN-{Guid.NewGuid():N}".ToUpperInvariant(), SessionId = current.SessionId, PreviousTurnId = current.AcceptedHeadTurnId,
-            Position = (current.Session.HeadTurn?.Position ?? 0) + 1, Kind = "narrative", DialogueSchemaVersion = generation.Value.SchemaVersion,
-            ContextSchemaVersion = context.Diagnostics.SchemaVersion, ContextComponentIdsJson = JsonSerializer.Serialize(context.Diagnostics.ComponentIds),
-            ContextSizeBytes = context.Diagnostics.SizeBytes, ContextHash = context.Diagnostics.Hash, PromptVersion = prompt.Version,
-            DialogueTurnType = generation.Value.TurnType, Heading = generation.Value.Heading, NarrativeBody = generation.Value.Body,
-            Interpretation = current.Session.InterpretationEnabled ? generation.Value.Interpretation : null, AiProvider = generation.Metadata.Provider,
-            AiModel = generation.Metadata.Model, AiResponseId = generation.Metadata.ResponseId, AiInputTokens = generation.Metadata.InputTokens,
-            AiOutputTokens = generation.Metadata.OutputTokens, AiLatencyMilliseconds = generation.Metadata.LatencyMilliseconds,
-            AiAttemptCount = generation.Metadata.AttemptCount, AiFinishReason = generation.Metadata.FinishReason, PlayerInputId = input.Id,
-            SourceSessionRevision = current.Session.State?.Revision ?? 0, CreatedAt = now,
+            Id = $"TRN-{Guid.NewGuid():N}".ToUpperInvariant(),
+            SessionId = current.SessionId,
+            PreviousTurnId = current.AcceptedHeadTurnId,
+            Position = (current.Session.HeadTurn?.Position ?? 0) + 1,
+            Kind = "narrative",
+            DialogueSchemaVersion = generation.Value.SchemaVersion,
+            ContextSchemaVersion = context.Diagnostics.SchemaVersion,
+            ContextComponentIdsJson = JsonSerializer.Serialize(context.Diagnostics.ComponentIds),
+            ContextSizeBytes = context.Diagnostics.SizeBytes,
+            ContextHash = context.Diagnostics.Hash,
+            PromptVersion = prompt.Version,
+            DialogueTurnType = generation.Value.TurnType,
+            Heading = generation.Value.Heading,
+            NarrativeBody = generation.Value.Body,
+            Interpretation = current.Session.InterpretationEnabled ? generation.Value.Interpretation : null,
+            AiProvider = generation.Metadata.Provider,
+            AiModel = generation.Metadata.Model,
+            AiResponseId = generation.Metadata.ResponseId,
+            AiInputTokens = generation.Metadata.InputTokens,
+            AiOutputTokens = generation.Metadata.OutputTokens,
+            AiLatencyMilliseconds = generation.Metadata.LatencyMilliseconds,
+            AiAttemptCount = generation.Metadata.AttemptCount,
+            AiFinishReason = generation.Metadata.FinishReason,
+            PlayerInputId = input.Id,
+            SourceSessionRevision = current.Session.State?.Revision ?? 0,
+            CreatedAt = now,
         };
         current.Session.HeadTurnId = turn.Id;
         current.Session.HeadTurn = turn;
@@ -102,9 +142,14 @@ public sealed class NarrativeExecutionHandler(
         attempt.Provider = generation.Metadata.Provider; attempt.Model = generation.Metadata.Model; attempt.ProviderRequestId = generation.Metadata.ResponseId;
         attempt.LatencyMilliseconds = generation.Metadata.LatencyMilliseconds; attempt.InputTokens = generation.Metadata.InputTokens; attempt.OutputTokens = generation.Metadata.OutputTokens;
         attempt.FinishReason = generation.Metadata.FinishReason; attempt.PromptVersion = prompt.Version; attempt.ContextHash = context.Diagnostics.Hash; attempt.ContextSizeBytes = context.Diagnostics.SizeBytes;
-        try { await db.SaveChangesAsync(cancellationToken); }
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            await publishTransaction.CommitAsync(cancellationToken);
+        }
         catch (DbUpdateException)
         {
+            await publishTransaction.RollbackAsync(CancellationToken.None);
             db.ChangeTracker.Clear();
             if (await db.SessionTurns.AsNoTracking().AnyAsync(item => item.PlayerInputId == input.Id, cancellationToken)) return new(true);
             return new(false, false, "session_advanced", "Sessionが先へ進んだため、この結果は適用されませんでした。", SessionExecutionStatuses.Superseded);
@@ -114,6 +159,31 @@ public sealed class NarrativeExecutionHandler(
         SessionExecutionTelemetry.ArtifactSize.Record(System.Text.Encoding.UTF8.GetByteCount(generation.Value.Body), SessionExecutionTelemetry.Tags(current.Kind, current.Status));
         await progression.EnsureNarrativeTurnAsync(session.OwnerId, turn.Id, cancellationToken);
         return new(true);
+    }
+
+    private Task<SessionExecution?> LoadFencedForPublishAsync(
+        SessionExecutionContext workerContext,
+        CancellationToken cancellationToken)
+    {
+        if (db.Database.IsNpgsql())
+        {
+            return db.SessionExecutions.FromSqlInterpolated($$"""
+                SELECT *
+                FROM "SessionExecutions"
+                WHERE "Id" = {{workerContext.ExecutionId}}
+                  AND "Status" = {{SessionExecutionStatuses.Running}}
+                  AND "LeaseToken" = {{workerContext.LeaseToken}}
+                  AND "Revision" = {{workerContext.Revision}}
+                FOR UPDATE
+                """).SingleOrDefaultAsync(cancellationToken);
+        }
+
+        return db.SessionExecutions.SingleOrDefaultAsync(
+            item => item.Id == workerContext.ExecutionId
+                && item.Status == SessionExecutionStatuses.Running
+                && item.LeaseToken == workerContext.LeaseToken
+                && item.Revision == workerContext.Revision,
+            cancellationToken);
     }
 
     private async Task RecordFailureDiagnosticsAsync(string attemptId, Exception exception, string code, bool retryable, CancellationToken cancellationToken)

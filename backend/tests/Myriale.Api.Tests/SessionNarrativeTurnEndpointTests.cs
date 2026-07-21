@@ -176,6 +176,25 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task NarrativeTurnCompatibilityEndpointReturnsAcceptedInputAndExecution()
+    {
+        var client = await AuthenticatedClientAsync("dialogue-async-compatibility@example.test");
+        var sessionId = await CreateSessionAsync(client);
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/narrative-turns",
+            new { requestId = "dialogue-async", input = "銀の鍵を掲げる" });
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        Assert.StartsWith("/api/session-executions/", response.Headers.Location?.OriginalString);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("dialogue-async", body.GetProperty("input").GetProperty("requestId").GetString());
+        Assert.Equal("銀の鍵を掲げる", body.GetProperty("input").GetProperty("text").GetString());
+        Assert.Equal("narrative", body.GetProperty("execution").GetProperty("kind").GetString());
+        Assert.Equal(body.GetProperty("input").GetProperty("id").GetString(), body.GetProperty("execution").GetProperty("triggerId").GetString());
+    }
+
+    [Fact]
     public async Task NarrativeTurnPersistsPlayerInputAndReplaysIdempotently()
     {
         var client = await AuthenticatedClientAsync("dialogue-persist@example.test");
@@ -534,7 +553,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var sessionId = await CreateSessionAsync(owner);
         var body = new { requestId = "dialogue-private", input = "扉を調べる" };
         using var created = await owner.PostAsJsonAsync($"/api/sessions/{sessionId}/narrative-turns", body);
-        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        Assert.Equal(HttpStatusCode.Accepted, created.StatusCode);
 
         using var replay = await intruder.PostAsJsonAsync($"/api/sessions/{sessionId}/narrative-turns", body);
         Assert.Equal(HttpStatusCode.NotFound, replay.StatusCode);

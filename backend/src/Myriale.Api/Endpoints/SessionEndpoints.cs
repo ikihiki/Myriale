@@ -31,7 +31,7 @@ public static class SessionEndpoints
             .WithSummary("Durably accepts player input and queues narrative generation.");
         group.MapPost("/{sessionId}/narrative-turns", CreateNarrativeTurnAsync)
             .WithName("CreateSessionNarrativeTurn")
-            .WithSummary("Compatibility endpoint for synchronous narrative clients.");
+            .WithSummary("Compatibility alias that durably accepts input and queues narrative generation.");
         group.MapPost("/{sessionId}/module-turns", CreateModuleTurnAsync)
             .WithName("CreateSessionModuleTurn")
             .WithSummary("Creates one session turn and its module execution atomically.");
@@ -262,8 +262,11 @@ public static class SessionEndpoints
         {
             return Results.Ok(ToResponse(session, turns, pendingInputs) with
             {
-                Inputs = inputResponses, Executions = executionResponses, Artifacts = artifactResponses,
-                Activity = activity, NoteProposals = proposalResponses,
+                Inputs = inputResponses,
+                Executions = executionResponses,
+                Artifacts = artifactResponses,
+                Activity = activity,
+                NoteProposals = proposalResponses,
             });
         }
         catch (JsonException)
@@ -353,6 +356,36 @@ public static class SessionEndpoints
     {
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
+        return await AcceptInputCoreAsync(ownerId, sessionId, request, inputs, environment, cancellationToken);
+    }
+
+    private static async Task<IResult> CreateNarrativeTurnAsync(
+        string sessionId,
+        CreateNarrativeTurnRequest request,
+        ClaimsPrincipal principal,
+        SessionInputService inputs,
+        IHostEnvironment environment,
+        CancellationToken cancellationToken)
+    {
+        var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
+        return await AcceptInputCoreAsync(
+            ownerId,
+            sessionId,
+            new CreateSessionInputRequest(request.RequestId, request.Input, request.InteractionType),
+            inputs,
+            environment,
+            cancellationToken);
+    }
+
+    private static async Task<IResult> AcceptInputCoreAsync(
+        string ownerId,
+        string sessionId,
+        CreateSessionInputRequest request,
+        SessionInputService inputs,
+        IHostEnvironment environment,
+        CancellationToken cancellationToken)
+    {
         using var activity = SessionExecutionTelemetry.ActivitySource.StartActivity("session.input.accept");
         var result = await inputs.AcceptAsync(ownerId, sessionId, request, cancellationToken);
         if (result.Input is null || result.Execution is null)
@@ -364,52 +397,6 @@ public static class SessionEndpoints
             SessionExecutionProjection.ToResponse(result.Input),
             SessionExecutionProjection.ToResponse(result.Execution, environment.IsDevelopment()));
         return Results.Accepted($"/api/session-executions/{result.Execution.Id}", response);
-    }
-
-    private static async Task<IResult> CreateNarrativeTurnAsync(
-        string sessionId,
-        CreateNarrativeTurnRequest request,
-        ClaimsPrincipal principal,
-        SessionNarrativeTurnService narratives,
-        ApplicationDbContext db,
-        CancellationToken cancellationToken)
-    {
-        var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
-        var result = await narratives.CreateAsync(ownerId, sessionId, request, cancellationToken);
-        if (result.Turn is null)
-            return Results.Json(new SessionErrorResponse(result.Code!, result.Message!, result.Details), statusCode: result.StatusCode);
-        var playerInput = result.Turn.PlayerInputId is null
-            ? null
-            : await db.SessionPlayerInputs.AsNoTracking()
-                .Where(item => item.Id == result.Turn.PlayerInputId)
-                .Select(item => new { item.Text, item.AcceptedAfterTurnId })
-                .SingleOrDefaultAsync(cancellationToken);
-        var signals = await db.SessionNarrativeSignals.AsNoTracking()
-            .Where(item => item.NarrativeTurnId == result.Turn.Id)
-            .OrderBy(item => item.Code)
-            .Select(item => item.Code)
-            .ToListAsync(cancellationToken);
-        return Results.Ok(new SessionTurnResponse(
-            result.Turn.Id,
-            result.Turn.Position,
-            result.Turn.PreviousTurnId,
-            result.Turn.Kind,
-            null,
-            new NarrativeTurnResponse(
-                null,
-                result.Turn.SourceSessionRevision,
-                result.Turn.NarrativeBody!,
-                result.Turn.PlayerInputId,
-                playerInput?.Text,
-                playerInput?.AcceptedAfterTurnId,
-                signals,
-                result.Turn.Interpretation,
-                result.Turn.DialogueSchemaVersion,
-                result.Turn.DialogueTurnType,
-                result.Turn.Heading),
-            null,
-            result.Turn.CreatedAt));
     }
 
     private static async Task<IResult> CreateModuleTurnAsync(
@@ -456,26 +443,40 @@ public static class SessionEndpoints
         return response is null ? Results.NotFound() : Results.Ok(response);
     }
 
-    private static Task<List<SessionPendingPlayerInputResponse>> LoadPendingInputsAsync(
+    private static async Task<List<SessionPendingPlayerInputResponse>> LoadPendingInputsAsync(
         string sessionId,
         ApplicationDbContext db,
-        CancellationToken cancellationToken) =>
-        db.SessionPendingPlayerInputs.AsNoTracking()
-            .Where(input => input.SessionId == sessionId)
-            .OrderBy(input => input.Id)
-            .Select(input => new SessionPendingPlayerInputResponse(
-                input.Id,
-                input.RequestId,
-                input.Text,
-                input.InteractionType,
-                input.AcceptedAfterTurnId,
-                input.Status,
-                input.IsRetryable,
-                input.ErrorCode,
-                input.ErrorMessage,
-                input.AttemptCount,
-                input.UpdatedAt))
+        CancellationToken cancellationToken)
+    {
+        var inputs = await db.SessionPlayerInputs.AsNoTracking()
+            .Where(input => input.SessionId == sessionId && input.NarrativeTurn == null)
+            .OrderBy(input => input.CreatedAt)
             .ToListAsync(cancellationToken);
+        if (inputs.Count == 0) return [];
+        var inputIds = inputs.Select(input => input.Id).ToArray();
+        var executions = await db.SessionExecutions.AsNoTracking()
+            .Where(execution => execution.SessionId == sessionId && inputIds.Contains(execution.TriggerId))
+            .ToDictionaryAsync(execution => execution.TriggerId, cancellationToken);
+        return inputs
+            .Where(input => executions.ContainsKey(input.Id))
+            .Select(input =>
+            {
+                var execution = executions[input.Id];
+                return new SessionPendingPlayerInputResponse(
+                    input.Id,
+                    input.RequestId,
+                    input.Text,
+                    input.InteractionType,
+                    input.AcceptedAfterTurnId,
+                    execution.Status,
+                    execution.IsRetryable,
+                    execution.ErrorCode,
+                    execution.UserErrorMessage,
+                    execution.AttemptCount,
+                    execution.CompletedAt ?? execution.NextAttemptAt ?? execution.StartedAt ?? execution.QueuedAt);
+            })
+            .ToList();
+    }
 
     private static async Task<IReadOnlyList<SessionTurnResponse>> LoadTurnsAsync(
         string ownerId,

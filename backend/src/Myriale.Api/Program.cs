@@ -26,7 +26,7 @@ builder.Services.AddOptions<AiProviderOptions>()
         && options.LeaseRecoveryIntervalSeconds > 0, "AI quota and recovery limits must be positive.")
     .ValidateOnStart();
 builder.Services.AddScoped<IAiCredentialStore, DataProtectionAiCredentialStore>();
-builder.Services.AddHostedService<AiLeaseRecoveryWorker>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<OpenAiCompatibleTextProvider>();
 builder.Services.AddScoped<IAiTextProvider>(services => services.GetRequiredService<OpenAiCompatibleTextProvider>());
 builder.Services.AddScoped<MockAiNarrativeGenerator>();
@@ -38,6 +38,7 @@ builder.Services.AddScoped<INarrativeGenerator>(services =>
 builder.Services.AddScoped<IActionRecommendationGenerator>(services => (IActionRecommendationGenerator)services.GetRequiredService<INarrativeGenerator>());
 builder.Services.AddScoped<SessionScenarioProgressionService>();
 builder.Services.AddScoped<SessionInputService>();
+builder.Services.AddScoped<ISessionExecutionQueue, SessionExecutionQueue>();
 builder.Services.AddScoped<ISessionExecutionHandler, NarrativeExecutionHandler>();
 builder.Services.AddScoped<ISessionExecutionHandler, ModuleHandoffExecutionHandler>();
 builder.Services.AddHostedService<SessionExecutionWorker>();
@@ -67,7 +68,6 @@ builder.Services.AddSingleton<INarrativeRecentTurnSelector, NarrativeRecentTurnS
 builder.Services.AddSingleton<INarrativeTokenEstimator, Utf8NarrativeTokenEstimator>();
 builder.Services.AddSingleton<INarrativePromptBuilder, NarrativePromptBuilder>();
 builder.Services.AddScoped<INarrativeContextBuilder, NarrativeContextBuilder>();
-builder.Services.AddScoped<SessionNarrativeTurnService>();
 builder.Services.AddSingleton<IHomeDashboardService, DemoHomeDashboardService>();
 builder.Services.Configure<ModulePackageOptions>(builder.Configuration.GetSection(ModulePackageOptions.SectionName));
 builder.Services.Configure<ModuleRuntimeOptions>(builder.Configuration.GetSection(ModuleRuntimeOptions.SectionName));

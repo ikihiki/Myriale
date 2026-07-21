@@ -23,6 +23,12 @@ public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProv
             return SessionInputAcceptanceResult.Error(400, "unsupported_output", "現在リクエストできる生成結果はnarrativeだけです。");
 
         var payloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{interactionType}\n{text}"))).ToLowerInvariant();
+
+        // Resolve the owner boundary before looking up an idempotent replay. Otherwise a caller
+        // who knows another Session ID and RequestId can distinguish or retrieve that owner's work.
+        var session = await db.Sessions.SingleOrDefaultAsync(item => item.Id == sessionId && item.OwnerId == ownerId, cancellationToken);
+        if (session is null) return SessionInputAcceptanceResult.Error(404, "session_not_found", "Sessionが見つかりません。");
+
         var replayInput = await db.SessionPlayerInputs.AsNoTracking().SingleOrDefaultAsync(input => input.SessionId == sessionId && input.RequestId == request.RequestId, cancellationToken);
         if (replayInput is not null)
         {
@@ -31,26 +37,49 @@ public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProv
             return SessionInputAcceptanceResult.Success(replayInput, replayExecution, replay: true);
         }
 
-        var session = await db.Sessions.SingleOrDefaultAsync(item => item.Id == sessionId && item.OwnerId == ownerId, cancellationToken);
-        if (session is null) return SessionInputAcceptanceResult.Error(404, "session_not_found", "Sessionが見つかりません。");
         if (session.Status != "active") return SessionInputAcceptanceResult.Error(409, "session_not_active", "Sessionは入力を受け付けていません。");
         var cutoff = DateTimeOffset.UtcNow.AddMinutes(-1);
-        if (await db.SessionPlayerInputs.CountAsync(input => input.SessionId == sessionId && input.CreatedAt >= cutoff, cancellationToken) >= aiOptions.Value.SessionRequestsPerMinute)
+        var recentInputCount = db.Database.IsNpgsql()
+            ? await db.SessionPlayerInputs.CountAsync(input => input.SessionId == sessionId && input.CreatedAt >= cutoff, cancellationToken)
+            : (await db.SessionPlayerInputs.AsNoTracking()
+                .Where(input => input.SessionId == sessionId)
+                .Select(input => input.CreatedAt)
+                .ToListAsync(cancellationToken))
+                .Count(createdAt => createdAt >= cutoff);
+        if (recentInputCount >= aiOptions.Value.SessionRequestsPerMinute)
             return SessionInputAcceptanceResult.Error(429, "session_rate_limited", "SessionのAI入力上限に達しました。しばらく待って再試行してください。");
 
         var now = DateTimeOffset.UtcNow;
         var input = new SessionPlayerInput
         {
-            Id = $"INP-{Guid.NewGuid():N}".ToUpperInvariant(), SessionId = sessionId, RequestId = request.RequestId,
-            Text = text, InteractionType = interactionType, PayloadHash = payloadHash, AcceptedAfterTurnId = session.HeadTurnId,
-            AcceptedSessionRevision = session.Revision, CreatedBy = ownerId, SupersedesInputId = request.SupersedesInputId, CreatedAt = now,
+            Id = $"INP-{Guid.NewGuid():N}".ToUpperInvariant(),
+            SessionId = sessionId,
+            RequestId = request.RequestId,
+            Text = text,
+            InteractionType = interactionType,
+            PayloadHash = payloadHash,
+            AcceptedAfterTurnId = session.HeadTurnId,
+            AcceptedSessionRevision = session.Revision,
+            CreatedBy = ownerId,
+            SupersedesInputId = request.SupersedesInputId,
+            CreatedAt = now,
         };
         var execution = new SessionExecution
         {
-            Id = $"EXE-{Guid.NewGuid():N}".ToUpperInvariant(), SessionId = sessionId, Kind = SessionExecutionKinds.Narrative,
-            TriggerType = "player-input", TriggerId = input.Id, Status = SessionExecutionStatuses.Queued, Revision = 0,
-            IdempotencyKey = request.RequestId, PayloadHash = payloadHash, AcceptedHeadTurnId = session.HeadTurnId,
-            AcceptedSessionRevision = session.Revision, MaxAttempts = Math.Max(1, aiOptions.Value.MaxAttempts), CreatedAt = now, QueuedAt = now,
+            Id = $"EXE-{Guid.NewGuid():N}".ToUpperInvariant(),
+            SessionId = sessionId,
+            Kind = SessionExecutionKinds.Narrative,
+            TriggerType = "player-input",
+            TriggerId = input.Id,
+            Status = SessionExecutionStatuses.Queued,
+            Revision = 0,
+            IdempotencyKey = request.RequestId,
+            PayloadHash = payloadHash,
+            AcceptedHeadTurnId = session.HeadTurnId,
+            AcceptedSessionRevision = session.Revision,
+            MaxAttempts = Math.Max(1, aiOptions.Value.MaxAttempts),
+            CreatedAt = now,
+            QueuedAt = now,
             TraceParent = Activity.Current?.Id,
         };
         session.Revision++;

@@ -13,9 +13,14 @@ public interface ISessionExecutionHandler
     Task<SessionExecutionHandlerResult> ExecuteAsync(SessionExecutionContext context, CancellationToken cancellationToken);
 }
 
-public sealed class SessionExecutionWorker(IServiceScopeFactory scopeFactory, ILogger<SessionExecutionWorker> logger) : BackgroundService
+public sealed class SessionExecutionWorker(
+    IServiceScopeFactory scopeFactory,
+    TimeProvider timeProvider,
+    ILogger<SessionExecutionWorker> logger) : BackgroundService
 {
-    private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(2);
+    internal const int ClaimBatchSize = 8;
+    internal static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(2);
+    internal static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan IdleDelay = TimeSpan.FromMilliseconds(250);
     private readonly string workerId = $"worker-{Environment.MachineName}-{Guid.NewGuid():N}";
 
@@ -25,104 +30,122 @@ public sealed class SessionExecutionWorker(IServiceScopeFactory scopeFactory, IL
         {
             try
             {
-                var claimed = await ClaimAsync(stoppingToken);
-                if (claimed is null) { await Task.Delay(IdleDelay, stoppingToken); continue; }
-                await RunAsync(claimed.Value, stoppingToken);
+                var claims = await ClaimAsync(stoppingToken);
+                if (claims.Count == 0)
+                {
+                    await Task.Delay(IdleDelay, timeProvider, stoppingToken);
+                    continue;
+                }
+                await Task.WhenAll(claims.Select(claim => RunAsync(claim, stoppingToken)));
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
             catch (Exception exception)
             {
                 logger.LogError(exception, "Session execution worker loop failed.");
-                await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(1), timeProvider, stoppingToken);
             }
         }
     }
 
-    private async Task<(string ExecutionId, string LeaseToken, long Revision, string AttemptId, int AttemptNumber)?> ClaimAsync(CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<SessionExecutionClaim>> ClaimAsync(CancellationToken cancellationToken)
     {
         await using var scope = scopeFactory.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var now = DateTimeOffset.UtcNow;
-        // SQLite cannot translate DateTimeOffset ordering/comparison. Keep the bounded status
-        // predicate in SQL and evaluate due/expired timestamps in memory; PostgreSQL remains indexed.
-        var candidates = await db.SessionExecutions
-            .Where(execution => execution.DismissedAt == null
-                && (execution.Status == SessionExecutionStatuses.Queued
-                    || execution.Status == SessionExecutionStatuses.RetryWait
-                    || execution.Status == SessionExecutionStatuses.Running))
-            .OrderByDescending(execution => execution.Priority)
-            .Take(32)
-            .ToListAsync(cancellationToken);
-        var candidate = candidates
-            .Where(execution => execution.Status == SessionExecutionStatuses.Queued
-                || execution.Status == SessionExecutionStatuses.RetryWait && execution.NextAttemptAt <= now
-                || execution.Status == SessionExecutionStatuses.Running && execution.LeaseExpiresAt <= now)
-            .OrderByDescending(execution => execution.Priority)
-            .ThenBy(execution => execution.QueuedAt)
-            .FirstOrDefault();
-        if (candidate is null) return null;
-        if (candidate.Status == SessionExecutionStatuses.Running) SessionExecutionTelemetry.LeaseExpired.Add(1, SessionExecutionTelemetry.Tags(candidate.Kind, candidate.Status));
-        if (candidate.Status == SessionExecutionStatuses.RetryWait) SessionExecutionStateMachine.Transition(candidate, SessionExecutionStatuses.Queued);
-        var token = $"LET-{Guid.NewGuid():N}".ToUpperInvariant();
-        SessionExecutionStateMachine.Transition(candidate, SessionExecutionStatuses.Running);
-        candidate.LeaseOwner = workerId;
-        candidate.LeaseToken = token;
-        candidate.LeaseExpiresAt = now.Add(LeaseDuration);
-        candidate.StartedAt ??= now;
-        candidate.AttemptCount++;
-        candidate.NextAttemptAt = null;
-        candidate.ErrorCode = null;
-        candidate.UserErrorMessage = null;
-        var attempt = new SessionExecutionAttempt
-        {
-            Id = $"ATT-{Guid.NewGuid():N}".ToUpperInvariant(), ExecutionId = candidate.Id, AttemptNumber = candidate.AttemptCount,
-            Status = "running", WorkerId = workerId, StartedAt = now,
-        };
-        db.SessionExecutionAttempts.Add(attempt);
-        try { await db.SaveChangesAsync(cancellationToken); }
-        catch (DbUpdateConcurrencyException) { return null; }
-        SessionExecutionTelemetry.Started.Add(1, SessionExecutionTelemetry.Tags(candidate.Kind, candidate.Status));
-        SessionExecutionTelemetry.QueueDuration.Record((now - candidate.QueuedAt).TotalSeconds, SessionExecutionTelemetry.Tags(candidate.Kind, candidate.Status));
-        return (candidate.Id, token, candidate.Revision, attempt.Id, attempt.AttemptNumber);
+        var queue = scope.ServiceProvider.GetRequiredService<ISessionExecutionQueue>();
+        return await queue.ClaimAsync(workerId, ClaimBatchSize, LeaseDuration, cancellationToken);
     }
 
-    private async Task RunAsync((string ExecutionId, string LeaseToken, long Revision, string AttemptId, int AttemptNumber) claim, CancellationToken cancellationToken)
+    private async Task RunAsync(SessionExecutionClaim claim, CancellationToken stoppingToken)
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var execution = await db.SessionExecutions.AsNoTracking().SingleAsync(item => item.Id == claim.ExecutionId, cancellationToken);
+        var execution = await db.SessionExecutions.AsNoTracking().SingleOrDefaultAsync(
+            item => item.Id == claim.ExecutionId && item.LeaseToken == claim.LeaseToken && item.Revision == claim.Revision,
+            stoppingToken);
+        if (execution is null) return;
+
         using var activity = StartActivity(execution, claim.AttemptNumber);
         using var logScope = logger.BeginScope(new Dictionary<string, object?>
         {
-            ["SessionId"] = execution.SessionId, ["ExecutionId"] = execution.Id, ["AttemptId"] = claim.AttemptId,
-            ["TraceId"] = activity?.TraceId.ToString(), ["SpanId"] = activity?.SpanId.ToString(),
+            ["SessionId"] = execution.SessionId,
+            ["ExecutionId"] = execution.Id,
+            ["AttemptId"] = claim.AttemptId,
+            ["TraceId"] = activity?.TraceId.ToString(),
+            ["SpanId"] = activity?.SpanId.ToString(),
         });
-        var handler = scope.ServiceProvider.GetServices<ISessionExecutionHandler>().SingleOrDefault(item => item.Kind == execution.Kind);
+        using var executionCancellation = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+        var heartbeat = HeartbeatAsync(claim, executionCancellation, stoppingToken);
         SessionExecutionHandlerResult result;
-        if (handler is null)
-            result = new(false, false, "handler_not_configured", "この生成処理はまだ構成されていません。");
-        else
+        try
         {
-            try { result = await handler.ExecuteAsync(new(claim.ExecutionId, claim.LeaseToken, claim.Revision, claim.AttemptId, claim.AttemptNumber), cancellationToken); }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { return; }
-            catch (Exception exception)
+            var handler = scope.ServiceProvider.GetServices<ISessionExecutionHandler>().SingleOrDefault(item => item.Kind == execution.Kind);
+            if (handler is null)
+                result = new(false, false, "handler_not_configured", "この生成処理はまだ構成されていません。");
+            else
             {
-                activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
-                logger.LogWarning(exception, "Session execution handler failed. Kind={Kind}", execution.Kind);
-                result = new(false, true, "execution_failed", "生成処理に失敗しました。入力内容は保存されています。");
+                try
+                {
+                    result = await handler.ExecuteAsync(
+                        new(claim.ExecutionId, claim.LeaseToken, claim.Revision, claim.AttemptId, claim.AttemptNumber),
+                        executionCancellation.Token);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
+                catch (OperationCanceledException) when (executionCancellation.IsCancellationRequested)
+                {
+                    return; // A failed heartbeat means this worker no longer owns the lease.
+                }
+                catch (Exception exception)
+                {
+                    activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
+                    logger.LogWarning(exception, "Session execution handler failed. Kind={Kind}", execution.Kind);
+                    result = new(false, true, "execution_failed", "生成処理に失敗しました。入力内容は保存されています。");
+                }
             }
         }
-        await FinishAsync(claim, result, activity, cancellationToken);
+        finally
+        {
+            executionCancellation.Cancel();
+            try { await heartbeat; }
+            catch (OperationCanceledException) { }
+        }
+        await FinishAsync(claim, result, activity, stoppingToken);
     }
 
-    private async Task FinishAsync((string ExecutionId, string LeaseToken, long Revision, string AttemptId, int AttemptNumber) claim, SessionExecutionHandlerResult result, Activity? activity, CancellationToken cancellationToken)
+    private async Task HeartbeatAsync(
+        SessionExecutionClaim claim,
+        CancellationTokenSource executionCancellation,
+        CancellationToken stoppingToken)
+    {
+        while (!executionCancellation.IsCancellationRequested)
+        {
+            await Task.Delay(HeartbeatInterval, timeProvider, executionCancellation.Token);
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var queue = scope.ServiceProvider.GetRequiredService<ISessionExecutionQueue>();
+            if (!await queue.HeartbeatAsync(claim, LeaseDuration, stoppingToken))
+            {
+                executionCancellation.Cancel();
+                return;
+            }
+        }
+    }
+
+    private async Task FinishAsync(
+        SessionExecutionClaim claim,
+        SessionExecutionHandlerResult result,
+        Activity? activity,
+        CancellationToken cancellationToken)
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var execution = await db.SessionExecutions.Include(item => item.Attempts).SingleOrDefaultAsync(item => item.Id == claim.ExecutionId, cancellationToken);
-        if (execution is null || execution.LeaseToken != claim.LeaseToken || execution.Status is not (SessionExecutionStatuses.Running or SessionExecutionStatuses.CancelRequested)) return;
-        var attempt = execution.Attempts.Single(item => item.Id == claim.AttemptId);
-        var now = DateTimeOffset.UtcNow;
+        var execution = await db.SessionExecutions.Include(item => item.Attempts).SingleOrDefaultAsync(
+            item => item.Id == claim.ExecutionId
+                && item.LeaseToken == claim.LeaseToken
+                && item.Revision == claim.Revision
+                && (item.Status == SessionExecutionStatuses.Running || item.Status == SessionExecutionStatuses.CancelRequested),
+            cancellationToken);
+        if (execution is null) return;
+        var attempt = execution.Attempts.SingleOrDefault(item => item.Id == claim.AttemptId);
+        if (attempt is null) return;
+        var now = timeProvider.GetUtcNow();
         attempt.CompletedAt = now;
         attempt.TraceId = activity?.TraceId.ToString();
         attempt.SpanId = activity?.SpanId.ToString();
@@ -162,7 +185,8 @@ public sealed class SessionExecutionWorker(IServiceScopeFactory scopeFactory, IL
             attempt.Status = "failed"; execution.CompletedAt = now; execution.IsRetryable = result.Retryable; execution.ErrorCode = result.ErrorCode; execution.UserErrorMessage = result.UserMessage;
             SessionExecutionTelemetry.Failed.Add(1, SessionExecutionTelemetry.Tags(execution.Kind, execution.Status, errorCode: result.ErrorCode));
         }
-        await db.SaveChangesAsync(cancellationToken);
+        try { await db.SaveChangesAsync(cancellationToken); }
+        catch (DbUpdateConcurrencyException) { return; }
         SessionExecutionTelemetry.AttemptDuration.Record((now - attempt.StartedAt).TotalSeconds, SessionExecutionTelemetry.Tags(execution.Kind, execution.Status));
         if (execution.StartedAt is not null && SessionExecutionStatuses.IsTerminal(execution.Status))
             SessionExecutionTelemetry.Duration.Record((now - execution.StartedAt.Value).TotalSeconds, SessionExecutionTelemetry.Tags(execution.Kind, execution.Status));
