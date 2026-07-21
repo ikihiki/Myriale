@@ -57,7 +57,7 @@ public sealed class AiProviderOptions
     public string Model { get; set; } = "gpt-4.1-mini";
     public string? BaseUrl { get; set; }
     public string? ApiKey { get; set; }
-    public int TimeoutSeconds { get; set; } = 30;
+    public int TimeoutSeconds { get; set; } = 300;
     public int MaxOutputTokens { get; set; } = 1200;
     public double Temperature { get; set; } = 0.4;
     public int MaxAttempts { get; set; } = 2;
