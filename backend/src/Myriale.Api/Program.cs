@@ -41,7 +41,23 @@ builder.Services.AddScoped<SessionInputService>();
 builder.Services.AddScoped<ISessionExecutionHandler, NarrativeExecutionHandler>();
 builder.Services.AddScoped<ISessionExecutionHandler, ModuleHandoffExecutionHandler>();
 builder.Services.AddHostedService<SessionExecutionWorker>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddOptions<SessionExecutionMetricsOptions>()
+    .Bind(builder.Configuration.GetSection(SessionExecutionMetricsOptions.SectionName))
+    .Validate(options => options.SampleIntervalSeconds > 0 && options.StuckAfterSeconds > 0, "Session execution metric intervals must be positive.")
+    .ValidateOnStart();
+builder.Services.AddSingleton<SessionExecutionMetricSnapshot>();
+builder.Services.AddSingleton<SessionExecutionObservableMetrics>();
+builder.Services.AddSingleton<SessionExecutionMetricsSampler>();
+builder.Services.AddHostedService(services => services.GetRequiredService<SessionExecutionMetricsSampler>());
+builder.Services.AddOptions<SessionImageOptions>()
+    .Bind(builder.Configuration.GetSection(SessionImageOptions.SectionName))
+    .Validate(options => options.MaxBytes > 0 && options.MaxWidth > 0 && options.MaxHeight > 0
+        && options.ReconciliationIntervalMinutes > 0 && options.OrphanGraceMinutes >= 0, "Session image limits must be valid.")
+    .ValidateOnStart();
 builder.Services.AddSingleton<ISessionObjectStorage, FileSessionObjectStorage>();
+builder.Services.AddSingleton<SessionImageValidator>();
+builder.Services.AddScoped<SessionArtifactReconciler>();
 builder.Services.AddHostedService<SessionArtifactRetentionWorker>();
 builder.Services.AddOptions<NarrativeContextOptions>()
     .Bind(builder.Configuration.GetSection(NarrativeContextOptions.SectionName))
@@ -142,6 +158,7 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+_ = app.Services.GetRequiredService<SessionExecutionObservableMetrics>();
 
 if (app.Environment.IsDevelopment())
 {
@@ -158,6 +175,14 @@ using (var scope = app.Services.CreateScope())
 
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
     await AccountSeedData.SeedAsync(userManager, app.Configuration);
+    if (app.Configuration.GetValue<bool>("SessionArtifactFixture:Enabled")
+        && (!isTestHost || app.Configuration.GetValue<bool>("SessionArtifactFixture:EnableInTestHost")))
+    {
+        await SessionArtifactFixtureSeedData.SeedAsync(
+            db,
+            scope.ServiceProvider.GetRequiredService<ISessionObjectStorage>(),
+            app.Configuration);
+    }
 }
 
 app.UseCors("MyrialeFrontend");

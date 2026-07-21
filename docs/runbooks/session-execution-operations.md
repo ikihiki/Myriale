@@ -2,7 +2,7 @@
 
 ## Queue or worker outage
 
-1. Check `myriale.session.execution.queue_depth`, `running`, `retry_wait`, and oldest queued age in the Aspire Dashboard/collector.
+1. Check `myriale.session.execution.queue_depth`, `running`, `retry_wait`, `oldest_queued_age`, and `stuck` in the Aspire Dashboard/collector. Gauges are cached database samples; the default refresh is 15 seconds (`SessionExecutionMetrics:SampleIntervalSeconds`) and stuck age is 600 seconds (`SessionExecutionMetrics:StuckAfterSeconds`).
 2. Search logs for structured `SessionId`, `ExecutionId`, `AttemptId`, trace ID, claim, retry, recovery, and publish decisions. Never paste player input or provider credentials into incidents.
 3. Verify API health and that `SessionExecutionWorker` is running. Restarting is safe: queued rows remain durable and expired running leases are reclaimable.
 4. Confirm the oldest running leases expire and are reclaimed once. Repeated lease expiry indicates a provider timeout, worker crash, or too-short lease.
@@ -24,7 +24,9 @@
 
 ## Trace and diagnostics
 
-In Development, expand `開発者向け詳細`, copy the trace ID, and search the Aspire Dashboard. Correlate `session.input.accept`, `session.execution.run`, `ai.provider.request`, artifact persistence, and Turn publication. Production responses intentionally omit exception/lease/provider excerpts; use redacted telemetry instead.
+In Development, expand `開発者向け詳細`, copy the trace ID, and search the Aspire Dashboard. Correlate `session.input.accept`, `session.execution.run`, `ai.provider.request`, `session.artifact.validate`, `session.artifact.persist`, `session.artifact.reconcile`, and Turn publication. Production responses intentionally omit exception/lease/provider excerpts; use redacted telemetry instead.
+
+Set `OTEL_EXPORTER_OTLP_ENDPOINT` to export traces, metrics, and logs. Verify resource fields `service.name`, `service.version`, `deployment.environment.name`, and (when supplied through `GIT_COMMIT_SHA`, `SOURCE_VERSION`, or `OpenTelemetry:Resource:GitCommitSha`) `vcs.ref.head.revision`. Configure head sampling with `OpenTelemetry:Tracing:Sampler` (`always-on`, `always-off`, or `parent-based-ratio`) and `OpenTelemetry:Tracing:Ratio`; use collector configuration for tail sampling.
 
 Audit telemetry/log output for forbidden data: player text, full prompt/Narrative, credentials, Authorization/Cookie headers, raw provider response, Data Protection payload, and private Module state. Metric dimensions must never include Session/Input/Execution IDs or email.
 
@@ -32,9 +34,10 @@ Audit telemetry/log output for forbidden data: player text, full prompt/Narrativ
 
 - Note proposals do not update canon until apply/edit-apply succeeds with the expected revision. A revision conflict requires re-review.
 - Image failure is partial success and must not remove Narrative.
-- Verify MIME type, object size, dimensions, checksum, and moderation metadata before attaching an image.
+- Attach an existing image Execution/Attempt through authenticated `POST /api/session-artifacts/images/attach`. The endpoint accepts PNG only and verifies signature, configured `SessionImages` byte/dimension limits, SHA-256 checksum, and `ModerationDecision=approved` before committing storage and database rows.
 - The authorized media endpoint must return 404 for another owner.
-- Investigate objects without `SessionImage` rows and rows whose objects are missing. Remove expired objects through the retention worker; do not store binary/base64 in execution rows.
+- `SessionArtifactRetentionWorker` lists storage every `SessionImages:ReconciliationIntervalMinutes`, removes rows/objects past `RetainUntil`, and deletes unreferenced objects only after `SessionImages:OrphanGraceMinutes`. Search `session.artifact.reconcile` logs for `ExpiredDeleted`, `OrphansDeleted`, and `MissingObjects`; investigate missing objects before repairing or removing their database rows.
+- Development uses the deterministic note + one-pixel PNG Session fixture when `SessionArtifactFixture:Enabled=true`. Test hosts opt in with `SessionArtifactFixture:EnableInTestHost=true`. Disable the fixture outside development/demo environments.
 
 ## Migration and rollback
 

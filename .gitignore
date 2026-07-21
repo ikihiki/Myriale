@@ -8,5 +8,6 @@ playwright-report/
 **/bin/
 **/obj/
 TestResults/
+**/.session-artifacts/
 *.user
 *.rsuser

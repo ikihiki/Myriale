@@ -201,4 +201,31 @@ public sealed record SessionNoteProposalResponse(
 
 public sealed record ReviewSessionNoteProposalRequest(long ExpectedNoteRevision, string? Title = null, string? Body = null);
 
+public sealed class AttachSessionImageRequest
+{
+    public required IFormFile File { get; init; }
+    public required string SessionId { get; init; }
+    public required string ExecutionId { get; init; }
+    public required string AttemptId { get; init; }
+    public required string Checksum { get; init; }
+    public required string ModerationDecision { get; init; }
+    public string? ModerationMetadataJson { get; init; }
+    public string? SourceTurnId { get; init; }
+    public string? SourceInputId { get; init; }
+    public DateTimeOffset? RetainUntil { get; init; }
+}
+
+public sealed record SessionImageAttachmentResponse(
+    string ImageId,
+    string ArtifactId,
+    string MediaUrl,
+    string ContentType,
+    long SizeBytes,
+    int Width,
+    int Height,
+    string Checksum,
+    string ModerationMetadataJson,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? RetainUntil);
+
 public sealed record SessionErrorResponse(string Code, string Message, string? Details = null);
