@@ -437,11 +437,13 @@ ISessionExecutionHandler
 - `NarrativeExecutionHandler`
 - `ModuleHandoffExecutionHandler`
 
-後続handler:
+将来の拡張候補:
 
 - `NoteProposalExecutionHandler`
 - `ImageExecutionHandler`
 - `SummaryExecutionHandler`
+
+この計画では`NoteProposalExecutionHandler`と`ImageExecutionHandler`の実AI呼び出し本体を実装しない。共通interfaceとKind dispatchが将来の追加を妨げないことだけを保証する。
 
 ### 既存workerとの関係
 
@@ -545,6 +547,52 @@ AIサービスから時間内に応答がありませんでした。入力内容
 - system prompt
 - 完全なProvider response
 - production環境のstack trace
+
+### Environment別のExecution詳細表示
+
+Productionでは、Player向けに正規化されたstatus、error code、安全なmessage、retry/cancel capabilityだけを返す。Developmentでは原因調査を容易にするため、ExecutionとErrorの詳細データをAPIおよびUIの展開可能な診断欄へ表示する。
+
+Developmentで表示する項目:
+
+- Execution ID、Attempt ID、Session ID、Trigger/Input/Turn ID
+- Kind、status、revision、attempt number、retryability
+- queued、started、completed、next retry、lease expiryの各timestamp
+- lease owner、lease tokenの安全な識別子、fencing revision
+- Provider、model、Provider request/response ID
+- latency、input/output token、finish reason
+- error code、error category、例外型、inner exception chain
+- timeout値、HTTP status、reason phrase、transport error category
+- JSON path、line、byte positionなどschema/deserialize診断
+- redaction済みProvider response excerpt
+- correlation ID、trace ID、span ID
+- prompt/contextのversion、hash、size、component ID。完全なprompt本文は既定で表示しない。
+
+Development UI:
+
+- Execution cardに`開発者向け詳細`の折りたたみ領域を追加する。
+- JSONまたはdefinition listで値を確認でき、IDとtrace IDをcopyできるようにする。
+- running状態でもlease、attempt、開始時刻、経過時間を確認できるようにする。
+- failed状態では例外chainとredaction済みresponse excerptを表示する。
+- Development詳細が存在しても、通常のPlayer向けmessageとRetry/Cancel操作を先に表示する。
+
+Productionで非表示にする項目:
+
+- stack traceと例外chain
+- lease owner/tokenとworker内部情報
+- raw Provider responseおよびresponse excerpt
+- prompt/context内容
+- internal endpoint、DB診断、JSON parser位置
+- trace以外の内部相関情報
+
+全環境で表示・返却禁止:
+
+- credential、API key、Authorization/Cookie header
+- secret store pathの値
+- Data Protection payload
+- redaction前のProvider response
+- private Module State
+
+Development判定はServer側の`IHostEnvironment.IsDevelopment()`を正本とする。クライアントからのquery、header、local storageだけで詳細表示を有効化できないようにする。Development専用fieldはoptional contractとし、Productionでは`null`またはfield omissionを保証する。
 
 ### Accessibility
 
@@ -656,6 +704,8 @@ SessionImage
 - [ ] Execution取得、retry、cancel、dismiss endpointを追加する。
 - [ ] Session responseにExecutionsとordered activity projectionを追加する。
 - [ ] Development/Productionで安全なerror details policyを適用する。
+- [ ] DevelopmentではExecution、Attempt、lease、Provider、例外chain、redaction済みresponse excerpt、trace/span IDを返す診断contractを追加する。
+- [ ] ProductionではDevelopment専用fieldが`null`または省略されることを保証する。
 - [ ] OpenAPI contractとfrontend typeを更新する。
 
 ### フェーズ3完了条件
@@ -663,6 +713,8 @@ SessionImage
 - [ ] NarrativeとModule Handoffが同じstatus modelで表現できる。
 - [ ] queued、running、retry-wait、failed、cancelled、supersededをAPIから区別できる。
 - [ ] attemptごとのProvider診断を取得できる。
+- [ ] Development UIでExecution状態、Attempt、例外、trace/span IDの詳細を確認できる。
+- [ ] Production UI/APIへDevelopment専用診断が露出しない。
 - [ ] failure/cancelがSession Turnを作らない。
 
 ## フェーズ4: NarrativeをBackground Workerへ移行
@@ -676,6 +728,12 @@ SessionImage
 - [ ] automatic durable retryとdead-letter相当のterminal failureを実装する。
 - [ ] worker shutdown/restart後のrecoveryをテストする。
 - [ ] late completion、duplicate callback、二重worker完了をテストする。
+
+- [ ] Session Execution用`ActivitySource`、`Meter`、logging scopeを追加する。
+- [ ] APIからworker、Provider、Artifact、Turn publishまでtrace contextまたはspan linkを引き継ぐ。
+- [ ] queue、duration、retry、failure、lease expiry、Provider token/latencyのmetricsを追加する。
+- [ ] OTLP exportとAspire Dashboardでtrace、metric、logを確認する。
+- [ ] telemetryにPlayer Input、prompt、credential、private Module Stateが含まれないことをテストする。
 
 ### フェーズ4完了条件
 
@@ -699,38 +757,48 @@ SessionImage
 - [ ] Module OutcomeはNarrative失敗時にもrollbackされない。
 - [ ] superseded handoffがlate Turnを追加しない。
 
-## フェーズ6: ノート変更案
+## フェーズ6: ノート変更案のdomain・Execution・UI基盤
+
+このフェーズではノート生成のAI Provider呼び出し本体を実装しない。`note-proposal`を共通Executionで表現できるdomain model、API contract、review UI、テストfixtureまでを対象とする。
 
 - [ ] `SessionNote`と`SessionNoteRevision`を実装する。
-- [ ] `note-proposal` Execution handlerを追加する。
+- [ ] `note-proposal` Execution kind、status projection、capabilityを追加する。
 - [ ] `note-patch` Artifact schemaを追加する。
 - [ ] source Turnと根拠を必須にする。
 - [ ] Apply、Edit then Apply、Reject、Snooze endpointを追加する。
 - [ ] note revision conflictを検出する。
 - [ ] Session画面の通知と差分review UIを実装する。
+- [ ] test fixtureまたはseed dataでqueued、running、failed、succeededの表示と操作を検証する。
+- [ ] `NoteProposalExecutionHandler`、Prompt Builder、Provider adapter呼び出しは実装しない。
 
 ### フェーズ6完了条件
 
-- [ ] AI生成案が自動的にCanonを上書きしない。
-- [ ] ユーザーが差分と根拠を確認して適用できる。
-- [ ] note generation failureがNarrative Turnへ影響しない。
+- [ ] ノート変更案をExecution/Artifact/API/UIで表現できる。
+- [ ] 変更案が自動的にCanonを上書きしない。
+- [ ] ユーザーがfixtureまたは既存Artifactの差分と根拠を確認して適用できる。
+- [ ] note-proposal Execution failureがNarrative Turnへ影響しない。
+- [ ] 実AIへノート生成requestを送信する経路が追加されていない。
 
-## フェーズ7: 画像Artifact
+## フェーズ7: 画像Artifactのdomain・Execution・UI基盤
+
+このフェーズでは画像生成のAI Provider呼び出し本体を実装しない。`image`を共通Executionで表現し、保存済みまたはfixtureのArtifactをSessionへ添付・表示できる基盤までを対象とする。
 
 - [ ] object storage abstractionを追加する。
 - [ ] `SessionImage`entityとmedia endpointを追加する。
-- [ ] `image` Execution handlerを追加する。
-- [ ] Provider job IDとprogressをAttemptへ保存する。
+- [ ] `image` Execution kind、status projection、capabilityを追加する。
 - [ ] Narrative Turnへのimage attachment表示を追加する。
-- [ ] 画像だけretry/cancelできるUIを追加する。
-- [ ] MIME type、size、dimensions、checksum、moderation結果を検証する。
+- [ ] 画像Executionのretry/cancel capabilityに応じたUIを追加する。
+- [ ] 保存済みArtifactのMIME type、size、dimensions、checksum、moderation metadataを検証する。
 - [ ] orphan object cleanupとretentionを実装する。
+- [ ] test fixtureまたはseed dataでqueued、running、failed、succeeded、partial successを検証する。
+- [ ] `ImageExecutionHandler`、画像Prompt Builder、Provider job作成・polling・streamingは実装しない。
 
 ### フェーズ7完了条件
 
-- [ ] Narrative成功後に画像生成を独立して継続できる。
-- [ ] 画像失敗でNarrativeが消えない。
-- [ ] reload後も画像の生成状態と完成Artifactが復元される。
+- [ ] 画像ExecutionとArtifactをSession API/UIで表現できる。
+- [ ] 画像Execution失敗でNarrativeが消えない。
+- [ ] reload後もfixtureまたは保存済み画像のExecution状態とArtifactが復元される。
+- [ ] 実AIへ画像生成requestを送信する経路が追加されていない。
 
 ## テスト計画
 
@@ -746,6 +814,17 @@ SessionImage
 - [ ] cancelとsuccessの競合結果が決定的になる。
 - [ ] Session headが進んだExecutionはsupersededになる。
 
+### Telemetry
+
+- [ ] Input受付からNarrative Turn publishまで同じtraceまたはspan linkで追跡できる。
+- [ ] retryごとに独立Attempt spanが作成され、同じExecutionへ関連付く。
+- [ ] success、failed、cancelled、superseded、lease-expiredでspan statusと属性が正しい。
+- [ ] counter、histogram、observable gaugeが重複計上されない。
+- [ ] metric labelにSession ID、Execution ID、Player Inputが含まれない。
+- [ ] telemetry export失敗がdomain処理を失敗させない。
+- [ ] Development API/UIに表示するtrace IDとexportされたtraceが一致する。
+- [ ] Production telemetryにsecret、prompt全文、Provider response全文が含まれない。
+
 ### API
 
 - [ ] Input POSTがInputとqueued Executionを返す。
@@ -753,6 +832,8 @@ SessionImage
 - [ ] GET Executionが全statusとcapabilityを返す。
 - [ ] retry/cancel/dismissがidempotentである。
 - [ ] 別ユーザーのExecutionを取得・操作できない。
+- [ ] Development responseにExecution/Attempt/lease/Provider/例外chain/trace IDの診断詳細が含まれる。
+- [ ] Development error detailsがredaction済みで、credentialや完全なpromptを含まない。
 - [ ] Production responseにstack traceやsecretが含まれない。
 
 ### Worker
@@ -762,7 +843,7 @@ SessionImage
 - [ ] worker restart後にlease expiryから復旧する。
 - [ ] Provider timeout後のlate responseをpublishしない。
 - [ ] duplicate callbackを一度だけcommitする。
-- [ ] Narrative成功・画像失敗をpartial successとして扱える。
+- [ ] fixtureまたは保存済みArtifactを使い、Narrative成功・画像Execution失敗をpartial successとして扱える。
 
 ### Frontend
 
@@ -775,6 +856,8 @@ SessionImage
 - [ ] reload後にactive executionを復元する。
 - [ ] 複数active executionを表示できる。
 - [ ] pollingがterminal stateで停止する。
+- [ ] Development UIだけが`開発者向け詳細`を表示し、Execution、Attempt、例外chain、trace/span IDを確認できる。
+- [ ] Production UIにはDevelopment専用診断欄が表示されない。
 - [ ] screen readerへ状態変更を過剰でなく通知する。
 
 ### E2E
@@ -784,18 +867,148 @@ SessionImage
 - [ ] Player Input → running → cancel-requested → cancelled。
 - [ ] worker停止 → lease expiry → worker再開 → success。
 - [ ] Session advance中のlate completion → superseded。
-- [ ] Narrative success → image failure → image-only retry → attachment success。
-- [ ] Narrative success → note proposal → edit/apply → Note Revision作成。
+- [ ] fixtureによるNarrative success → image Execution failure → retry capability表示。実画像AI呼び出しは行わない。
+- [ ] fixtureまたは保存済みArtifactによるNarrative success → note proposal → edit/apply → Note Revision作成。実ノートAI呼び出しは行わない。
 
-## Observabilityと運用
+## OpenTelemetry、Observabilityと運用
 
-- Execution ID、Attempt ID、Session ID、Input/Turn IDをstructured logへ含める。
-- queue depth、oldest queued age、running count、retry-wait count、failure rateをmetrics化する。
-- Kind、Provider、model、error code別の成功率とlatencyを確認できるようにする。
+既存`Myriale.ServiceDefaults`のOpenTelemetry基盤を拡張し、Session Executionのtrace、metric、structured logをOTLP経由で送信できるようにする。ローカルAspire DashboardとForge環境のcollector/exporterの両方で確認できる構成にする。
+
+### Tracing
+
+専用`ActivitySource`を追加し、以下のspanを作成する。
+
+```text
+session.input.accept
+session.execution.enqueue
+session.execution.claim
+session.execution.run
+session.execution.attempt
+ai.provider.request
+session.artifact.validate
+session.artifact.persist
+session.turn.publish
+session.execution.retry.schedule
+session.execution.cancel
+session.execution.recover-lease
+```
+
+要件:
+
+- API受付spanからworker処理へW3C trace contextを引き継ぐ。
+- HTTP request終了後も、Executionに保存したtrace parentまたはlinkを使って非同期処理の因果関係を追跡できるようにする。
+- retry Attemptは個別spanとし、親Execution spanまたはspan linkで同じExecutionへ関連付ける。
+- Provider HTTP instrumentationとMyriale独自の`ai.provider.request`spanを重複計上しないよう責務を分ける。
+- exception発生時はspan statusをErrorにし、正規化error codeとretryabilityを記録する。
+- cancellation、superseded、lease expiryを通常のfailureと区別する。
+
+低cardinality属性:
+
+```text
+myriale.execution.kind
+myriale.execution.status
+myriale.execution.attempt_number
+myriale.execution.retryable
+myriale.artifact.kind
+myriale.turn.kind
+ai.provider.name
+ai.model.name
+error.type
+http.response.status_code
+```
+
+高cardinality IDはtrace/span上の属性またはlog scopeには含めてもよいが、metric labelには使用しない。
+
+```text
+myriale.session.id
+myriale.execution.id
+myriale.execution.attempt.id
+myriale.input.id
+myriale.turn.id
+ai.response.id
+```
+
+禁止属性:
+
+- Player Input本文
+- Narrative全文
+- prompt全文
+- credential、Authorization header
+- redaction前のProvider response
+- private Module State
+
+### Metrics
+
+専用`Meter`を追加し、以下を計測する。
+
+Counters:
+
+```text
+myriale.session.execution.enqueued
+myriale.session.execution.started
+myriale.session.execution.completed
+myriale.session.execution.failed
+myriale.session.execution.retried
+myriale.session.execution.cancelled
+myriale.session.execution.superseded
+myriale.session.execution.lease_expired
+myriale.session.artifact.committed
+myriale.session.turn.published
+```
+
+Histograms:
+
+```text
+myriale.session.execution.queue_duration
+myriale.session.execution.duration
+myriale.session.execution.attempt_duration
+myriale.session.execution.retry_delay
+myriale.ai.provider.duration
+myriale.ai.provider.input_tokens
+myriale.ai.provider.output_tokens
+myriale.artifact.size
+```
+
+Observable gauges:
+
+```text
+myriale.session.execution.queue_depth
+myriale.session.execution.running
+myriale.session.execution.retry_wait
+myriale.session.execution.oldest_queued_age
+myriale.session.execution.stuck
+```
+
+要件:
+
+- metric labelはKind、status、Provider、model、error codeなどboundedな値に限定する。
+- Session ID、Execution ID、email、Player Inputをmetric labelへ入れない。
+- DB queryをgauge callbackごとに乱発せず、background samplerまたはcached snapshotを使う。
+- queue depth、oldest queued age、failure rate、lease expiry、retry exhaustionにalert可能な値を提供する。
+
+### Structured loggingと相関
+
+- Execution ID、Attempt ID、Session ID、Input/Turn ID、trace ID、span IDをlogging scopeへ含める。
+- enqueue、claim、retry schedule、cancel request、lease recovery、publish decisionを構造化eventとして記録する。
+- Provider failureはstatus、reason、request ID、正規化error code、redaction済みexcerptを記録する。
+- Development UIの診断欄からtrace IDをcopyし、Aspire Dashboardまたは接続済みtelemetry backendで検索できるようにする。
+- OpenTelemetry logging exporterを有効化しても、既存console logと二重にsecretを出さないredaction boundaryを共有する。
+
+### Configurationとexport
+
+- `OTEL_EXPORTER_OTLP_ENDPOINT`が設定された環境ではtrace、metric、logをOTLPへexportする。
+- service name、service version、deployment environment、git commit SHAをresource attributeとして設定する。
+- local AspireではDashboardでAPIとworkerの分散traceを確認する。
+- exporter障害でSession処理を失敗させない。
+- sampling policyをconfiguration化し、Developmentは詳細、Productionはhead/base samplingまたはtail samplingを選択可能にする。
+- Productionでerror spanを調査できる一方、機微データを送信しないことをintegration testで確認する。
+
+### 運用
+
 - lease expiry、stuck running、retry exhaustion、orphan Artifactを検知する。
-- 管理画面ではPlayer向けmessageとは別にAttempt diagnosticsを表示する。
-- secret、完全なprompt、個人情報を含むPlayer Inputを不用意にmetrics labelへ入れない。
-- AttemptとArtifactのretention policyを定義する。
+- 管理画面ではPlayer向けmessageとは別にAttempt diagnosticsとtrace linkを表示する。
+- Attempt、Artifact、telemetryのretention policyを定義する。
+- dashboard/runbookにqueue停滞、Provider障害、worker停止、publish競合の確認手順を記載する。
 
 ## Migration方針
 
@@ -815,10 +1028,23 @@ Migration中の必須条件:
 - failed pending inputを失わない。
 - rollback時に旧read pathへ戻せる期間を設ける。
 
+## 計画ファイルのライフサイクル
+
+この文書は実装中だけ保持する一時的なTODOである。
+
+- 全対象フェーズの実装、migration、テスト、telemetry検証、browser検証が完了するまでは削除しない。
+- 完了した設計判断のうち将来も必要な内容は、削除前に`docs/architecture/`、ユーザーストーリー、運用runbook、コードコメントへ移す。
+- 未完了項目、既知の制約、後続課題が残る場合は、この文書を削除せず該当checkboxとblockerを更新する。
+- 画像・ノートAI Provider呼び出し本体は今回の非目標なので、それらが未実装であることだけを理由に計画完了を妨げない。
+- この計画で対象とした実装と検証がすべて完了した最後の変更で、`docs/todos/session-execution-and-artifacts.md`を削除する。
+- 計画ファイル削除後も、architecture文書とテストがInput、Execution、Artifact、Turnの境界を正本として説明・保証する状態にする。
+
 ## 非目標
 
-初期実装では以下を必須にしない。
+本計画では以下を実装対象にしない。
 
+- ノート生成のPrompt Builder、Provider adapter、Execution handlerなど、実AI呼び出し本体。
+- 画像生成のPrompt Builder、Provider job作成・polling・streaming、Execution handlerなど、実AI呼び出し本体。
 - Temporal、Durable Functionsなど外部workflow engineの導入。
 - WebSocketまたはSignalRによるリアルタイム配信。
 - token単位のNarrative streaming。
@@ -855,4 +1081,9 @@ Migration中の必須条件:
 - [ ] 成功した成果物だけが型ごとのdomain modelへpublishされる。
 - [ ] UIがExecution statusとcapabilityに基づいてRetry、Cancel、Details、Dismissを切り替える。
 - [ ] errorは対象Input/Turnの近くに持続表示され、次に可能な操作を示す。
+- [ ] OpenTelemetryのtrace、metric、structured logがAPI、worker、Provider、publishを相関できる。
+- [ ] DevelopmentではExecutionとErrorの詳細データをUIで確認でき、Productionでは非表示である。
+- [ ] ノート・画像のExecution/Artifact/UI基盤は実装されているが、実AI呼び出し本体は追加されていない。
+- [ ] 完了した恒久的設計をarchitecture文書とテストへ移している。
 - [ ] accessibility、authorization、secret redaction、observability、retentionが検証されている。
+- [ ] 最終作業として`docs/todos/session-execution-and-artifacts.md`を削除している。
