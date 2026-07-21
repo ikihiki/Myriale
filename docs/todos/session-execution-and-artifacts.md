@@ -8,6 +8,25 @@ Narrative生成失敗時にもPlayer Inputを失わず、失敗を物語上のTu
 
 この文書は実装計画である。Sessionの不変イベントとmutable stateの原則は`docs/architecture/session-events.md`、対話体験は`docs/user-stories/session-play-dialogue-user-stories.md`、ノート生成体験は`docs/user-stories/session-notes-auto-generation-user-stories.md`を正本とする。
 
+## 2026-07-21 実装状況とblocker
+
+このbranchでは、共通`SessionExecution`/Attempt/Artifact、受付時Input transaction、Narrative worker、Execution API、ordered activity、Development診断/Production omission、OpenTelemetry ActivitySource/Meter、Note/Image domainとreview/media/storage基盤、frontend component分離/polling/status/Storybook fixture、EF migration baseline、architecture/runbook、unit/build/browser検証までを実装した。
+
+ただし、以下のin-scope項目が未完了のため、このTODOは削除しない。
+
+- 旧`SessionPendingPlayerInput`と`SessionNarrativeHandoff`の完全backfill/cutover/delete。互換処理が残り、Module handoffは共通Executionへshadow enqueueした上で旧serviceも使用している。
+- 旧`POST .../narrative-turns`は互換用のrequest-bound Provider経路を残している。新`POST .../inputs`とfrontendはworker経路を使用するが、全write pathのcutoverが未完了。
+- PostgreSQL `FOR UPDATE SKIP LOCKED` claim、heartbeat、bounded batch、DB fencing revisionの厳密な比較、worker shutdown/restart/late completionのPostgreSQL integration test。
+- 既存legacy databaseからのInput/Execution/Attempt/Artifact backfill migration。追加したPostgreSQL migrationは保持型startupへ切り替えるcurrent-model baselineであり、SQLiteは非破壊`EnsureCreated`のままである。
+- Module handoffの旧table/service削除とExecution endpointへのretry完全統一。
+- queue depth/running/retry-wait/oldest/stuck observable gaugeとcached sampler、service resource attributes/sampling configuration。
+- Input API、worker retry/cancel/auth/duplicate publish、note revision/media authorization/retentionを通した完全なAPI/E2E/integration test。現状は既存backend regression、追加unit、frontend unit、Storybook build、既存Playwrightを通している。
+- note/imageの永続seed fixture、image attach時のMIME/size/dimensions/checksum/moderation validation endpoint、orphan object reconciliationのintegration test。
+- 新Execution storyを対象にしたPlaywright specと、Aspire Dashboard上でexport済みtrace/metric/logを検索してUI trace IDと一致させる検証。Aspire起動とStorybook browser snapshot/Production omissionまでは確認済み。
+- repositoryにはlint設定がないため、lint passは未検証。typecheck、build、test、`dotnet format --verify-no-changes`を代替gateとして実行した。
+
+実AIを呼ぶNote/Image handler/providerは非目標のままであり、追加していない。
+
 ## 設計原則
 
 > Input is a fact. Execution is a process. Artifact is a result. Turn is published canon.
