@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Myriale.Api.Data;
 
 namespace Myriale.Api.Services;
@@ -21,6 +22,9 @@ internal static class SessionExecutionCompletion
 
         attempt.Status = "succeeded";
         attempt.CompletedAt = completedAt;
+        attempt.TraceId = Activity.Current?.TraceId.ToString();
+        attempt.SpanId = Activity.Current?.SpanId.ToString();
+        attempt.CorrelationId = Activity.Current?.TraceId.ToString();
         attempt.ErrorCode = null;
         attempt.Retryable = false;
     }

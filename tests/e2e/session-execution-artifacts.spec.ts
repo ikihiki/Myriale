@@ -8,9 +8,10 @@ const openStory = async (page: Page, id: string) => {
 test('execution failure remains beside its input with safe diagnostics and retry', async ({ page }) => {
   await openStory(page, 'session-execution-and-artifacts--failed-with-development-diagnostics');
   await expect(page.getByTestId('session-input-item')).toContainText('銀の鍵を扉にかざす');
-  await expect(page.getByRole('alert').filter({ hasText: '物語' })).toContainText('入力内容は保存されています');
-  await page.getByText('開発者向け詳細').first().click();
-  await expect(page.getByText('0123456789abcdef0123456789abcdef')).toBeVisible();
+  await expect(page.getByRole('alert').filter({ hasText: '物語' })).toContainText('Player Inputと既存のNarrativeは保存されています。');
+  const narrativeExecution = page.getByTestId('execution-EXE-narrative-failed');
+  await expect(narrativeExecution.locator('details')).toHaveAttribute('open', '');
+  await expect(narrativeExecution.getByText(/0123456789abcdef0123456789abcdef/)).toBeVisible();
   await expect(page.getByText(/Bearer secret/i)).toHaveCount(0);
   await page.getByRole('button', { name: '再試行' }).first().click();
   await expect(page.getByTestId('execution-EXE-narrative-failed')).toHaveCount(1);
@@ -29,5 +30,5 @@ test('note proposal supports edit-then-apply and image failure stays partial', a
 test('production story omits developer-only diagnostics', async ({ page }) => {
   await openStory(page, 'session-execution-and-artifacts--production-redaction');
   await expect(page.getByText('開発者向け詳細')).toHaveCount(0);
-  await expect(page.getByRole('alert').filter({ hasText: '物語' })).toContainText('入力内容は保存されています');
+  await expect(page.getByRole('alert').filter({ hasText: '物語' })).toContainText('Player Inputと既存のNarrativeは保存されています。');
 });

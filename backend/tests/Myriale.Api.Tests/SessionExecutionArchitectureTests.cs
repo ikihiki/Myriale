@@ -65,7 +65,15 @@ public sealed class SessionExecutionArchitectureTests
 
     private static SessionExecution Execution(string status) => new()
     {
-        Id = "EXE-1", SessionId = "SES-1", Kind = SessionExecutionKinds.Narrative, TriggerType = "player-input", TriggerId = "INP-1",
-        Status = status, IdempotencyKey = "request-1", PayloadHash = new string('a', 64), CreatedAt = DateTimeOffset.UtcNow, QueuedAt = DateTimeOffset.UtcNow,
+        Id = "EXE-1",
+        SessionId = "SES-1",
+        Kind = SessionExecutionKinds.Narrative,
+        TriggerType = "player-input",
+        TriggerId = "INP-1",
+        Status = status,
+        IdempotencyKey = "request-1",
+        PayloadHash = new string('a', 64),
+        CreatedAt = DateTimeOffset.UtcNow,
+        QueuedAt = DateTimeOffset.UtcNow,
     };
 }

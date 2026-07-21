@@ -78,6 +78,10 @@ public sealed class PostgresSessionExecutionIntegrationTests
         Assert.NotEqual(first.LeaseToken, reclaimed.LeaseToken);
         Assert.True(reclaimed.Revision > first.Revision);
         Assert.False(await reclaimQueue.HeartbeatAsync(first, TimeSpan.FromMinutes(2), CancellationToken.None));
+        var expiredAttempt = await reclaimDb.SessionExecutionAttempts.SingleAsync(item => item.Id == first.AttemptId);
+        Assert.Equal("expired", expiredAttempt.Status);
+        Assert.Equal("lease_expired", expiredAttempt.ErrorCode);
+        Assert.NotNull(expiredAttempt.CompletedAt);
     }
 
     [PostgresFact]
@@ -192,8 +196,11 @@ public sealed class PostgresSessionExecutionIntegrationTests
         Assert.True(await database.Db.SessionArtifacts.AnyAsync(item => item.ExecutionId == handoff.Id && item.Kind == "narrative-text"));
     }
 
-    private static async Task<bool> RelationExistsAsync(ApplicationDbContext db, string name) =>
-        await db.Database.SqlQueryRaw<bool>($"SELECT to_regclass('\"{name}\"') IS NOT NULL AS \"Value\"").SingleAsync();
+    private static async Task<bool> RelationExistsAsync(ApplicationDbContext db, string name)
+    {
+        var relation = $"\"{name}\"";
+        return await db.Database.SqlQuery<bool>($"SELECT to_regclass({relation}) IS NOT NULL AS \"Value\"").SingleAsync();
+    }
 
     private static async Task SeedSessionAsync(ApplicationDbContext db, string sessionId, DateTimeOffset now)
     {
