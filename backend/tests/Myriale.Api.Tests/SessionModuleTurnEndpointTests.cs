@@ -225,9 +225,14 @@ public sealed class SessionModuleTurnEndpointTests : IDisposable
             action = new { mode = "delay-complete", milliseconds = 250 },
             randomValueCount = 0,
         };
-        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            client.PostAsJsonAsync($"/api/module-executions/{executionId}/dispatch", body, cancellation.Token));
+        using var cancellation = new CancellationTokenSource();
+        var pendingRequest = client.PostAsJsonAsync(
+            $"/api/module-executions/{executionId}/dispatch",
+            body,
+            cancellation.Token);
+        await WaitForPendingRequestAsync("stale-effect-complete");
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pendingRequest);
 
         await using (var scope = _factory.Services.CreateAsyncScope())
         {
