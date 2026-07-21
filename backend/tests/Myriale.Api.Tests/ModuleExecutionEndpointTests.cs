@@ -200,11 +200,13 @@ public sealed class ModuleExecutionEndpointTests : IDisposable
     {
         var client = await AuthenticatedClientAsync("recovery@example.test");
         var id = await CreateExecutionAsync(client, "recovery-init");
-        var body = DispatchBody("recover-dispatch", 0, new { mode = "delay", milliseconds = 250 }, 4);
-        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+        var body = DispatchBody("recover-dispatch", 0, new { mode = "delay", milliseconds = 5_000 }, 4);
+        using var cancellation = new CancellationTokenSource();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            client.PostAsJsonAsync($"/api/module-executions/{id}/dispatch", body, cancellation.Token));
+        var pendingRequest = client.PostAsJsonAsync($"/api/module-executions/{id}/dispatch", body, cancellation.Token);
+        await WaitForPendingRequestAsync("recover-dispatch");
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pendingRequest);
 
         await using (var scope = _factory.Services.CreateAsyncScope())
         {
