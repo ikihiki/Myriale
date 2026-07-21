@@ -13,12 +13,13 @@ import {
   hasActiveSessionExecutions,
   mutateSessionExecution,
   recommendNextAction,
+  reviewSessionNoteProposal,
   type NarrativeInteractionType,
   type NarrativeTurnApiResponse,
   type SessionApiError,
   type SessionApiResponse,
 } from './sessionPlayApi';
-import { SessionActivityFeed } from './SessionActivityFeed';
+import { SessionActivityFeed, type NoteReviewRequest } from './SessionActivityFeed';
 import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeToggle, MyrialeSelect } from '../../ui/MyrialeRadix';
 import { useAppNavigation } from '../../shared/nav';
 
@@ -247,6 +248,7 @@ function ServerSessionPage({ sessionId }: { sessionId: string }) {
   const appNavigate = useAppNavigation();
   const accountSession = useAccountSession();
   const chromeAccount = toAppChromeAccount(accountSession.user);
+  const pollGeneration = useRef(0);
   const [session, setSession] = useState<SessionApiResponse | null>(null);
   const [error, setError] = useState('');
   const [requiresLogin, setRequiresLogin] = useState(false);
@@ -280,10 +282,17 @@ function ServerSessionPage({ sessionId }: { sessionId: string }) {
 
   useEffect(() => {
     if (!session || !hasActiveSessionExecutions(session)) return;
+    const abort = new AbortController();
     const interval = window.setInterval(() => {
-      void getSession(sessionId).then(setSession).catch(() => undefined);
+      const generation = ++pollGeneration.current;
+      void getSession(sessionId, undefined, abort.signal).then((next) => {
+        if (generation !== pollGeneration.current) return;
+        setSession((current) => !current || next.revision >= current.revision ? next : current);
+      }).catch((reason: SessionApiError) => {
+        if (reason.name !== 'AbortError') setError(reason.message);
+      });
     }, 750);
-    return () => window.clearInterval(interval);
+    return () => { window.clearInterval(interval); abort.abort(); };
   }, [session, sessionId]);
 
   if (!session) {
@@ -511,6 +520,20 @@ function SessionDialogueSection({
       setNotice(action === 'retry' ? '同じExecution slotで再試行を開始しました。' : action === 'cancel' ? 'キャンセルを要求しました。' : 'Execution詳細を閉じました。');
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Executionを更新できませんでした。');
+    }
+  };
+
+  const handleNoteReview = async (artifactId: string, action: 'apply' | 'edit-apply' | 'reject' | 'snooze', request: NoteReviewRequest) => {
+    if (!serverSession) return;
+    try {
+      const updated = await reviewSessionNoteProposal(artifactId, action, request);
+      onSessionChange?.({
+        ...serverSession,
+        noteProposals: (serverSession.noteProposals ?? []).map((item) => item.artifactId === artifactId ? updated : item),
+      });
+      setNotice(action === 'apply' || action === 'edit-apply' ? 'ノート変更案を適用し、Revisionを作成しました。' : action === 'reject' ? 'ノート変更案を却下しました。' : 'ノート変更案を後で確認できるよう保留しました。');
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'ノート変更案を更新できませんでした。');
     }
   };
 
@@ -828,7 +851,7 @@ function SessionDialogueSection({
         )}
 
         {serverSession ? (
-          <SessionActivityFeed session={serverSession} onExecutionAction={(id, action) => void handleExecutionAction(id, action)} />
+          <SessionActivityFeed session={serverSession} onExecutionAction={(id, action) => void handleExecutionAction(id, action)} onNoteReview={(id, action, request) => void handleNoteReview(id, action, request)} />
         ) : (
         <section className="dialogue-log" aria-label="対話ログ" data-testid="dialogue-log">
           {turns.map((turn) => {

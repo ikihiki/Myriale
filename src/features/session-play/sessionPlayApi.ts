@@ -171,6 +171,22 @@ export async function mutateSessionExecution(
   return response.json() as Promise<SessionExecutionApiResponse>;
 }
 
+export async function reviewSessionNoteProposal(
+  artifactId: string,
+  action: 'apply' | 'edit-apply' | 'reject' | 'snooze',
+  request: { expectedNoteRevision: number; title?: string; body?: string },
+  baseUrl = getSessionApiBaseUrl(),
+): Promise<SessionNoteProposalApiResponse> {
+  if (!baseUrl) throw sessionApiError('Session APIが設定されていません。', 503, 'session_api_unavailable');
+  const apiRoot = baseUrl.replace(/\/sessions$/, '');
+  const response = await fetch(`${apiRoot}/session-artifacts/note-proposals/${encodeURIComponent(artifactId)}/${action}`, {
+    method: 'POST', credentials: 'include', headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) throw await toSessionApiError(response, 'ノート変更案を更新できませんでした。');
+  return response.json() as Promise<SessionNoteProposalApiResponse>;
+}
+
 export const hasActiveSessionExecutions = (session: SessionApiResponse) =>
   Boolean(session.executions?.some((execution) => ['queued', 'running', 'retry-wait', 'cancel-requested'].includes(execution.status)));
 

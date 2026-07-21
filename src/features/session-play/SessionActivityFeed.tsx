@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { NarrativeTurnApiResponse, SessionApiResponse, SessionExecutionApiResponse, SessionNoteProposalApiResponse } from './sessionPlayApi';
 
 const statusCopy: Record<string, string> = {
@@ -35,14 +36,19 @@ export function SessionExecutionItem({ execution, onAction }: { execution: Sessi
     </article>
   );
 }
-export function NoteProposalItem({ proposal, onReview }: { proposal: SessionNoteProposalApiResponse; onReview?: (id: string, action: 'apply' | 'edit-apply' | 'reject' | 'snooze') => void }) {
-  return <article className="note-proposal-item" data-testid="note-proposal-item"><strong>ノート変更案: {proposal.proposedTitle}</strong><div className="note-proposal-diff"><del>{proposal.beforeBody || '（新規ノート）'}</del><ins>{proposal.proposedBody}</ins></div><p>根拠: {proposal.rationale}</p>{proposal.status === 'pending' && <div className="button-row"><button onClick={() => onReview?.(proposal.artifactId, 'apply')}>適用</button><button onClick={() => onReview?.(proposal.artifactId, 'edit-apply')}>編集して適用</button><button onClick={() => onReview?.(proposal.artifactId, 'reject')}>却下</button><button onClick={() => onReview?.(proposal.artifactId, 'snooze')}>後で</button></div>}</article>;
+export type NoteReviewRequest = { expectedNoteRevision: number; title?: string; body?: string };
+export function NoteProposalItem({ proposal, onReview }: { proposal: SessionNoteProposalApiResponse; onReview?: (id: string, action: 'apply' | 'edit-apply' | 'reject' | 'snooze', request: NoteReviewRequest) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState(proposal.proposedTitle);
+  const [body, setBody] = useState(proposal.proposedBody);
+  const request = { expectedNoteRevision: proposal.expectedNoteRevision };
+  return <article className="note-proposal-item" data-testid="note-proposal-item"><strong>ノート変更案: {proposal.proposedTitle}</strong><div className="note-proposal-diff"><del>{proposal.beforeBody || '（新規ノート）'}</del><ins>{proposal.proposedBody}</ins></div><p>根拠: {proposal.rationale}</p>{editing && <fieldset aria-label="ノート変更案を編集"><label>タイトル<input value={title} onChange={(event) => setTitle(event.target.value)} /></label><label>本文<textarea value={body} onChange={(event) => setBody(event.target.value)} /></label><div className="button-row"><button onClick={() => onReview?.(proposal.artifactId, 'edit-apply', { ...request, title, body })}>編集内容を適用</button><button onClick={() => setEditing(false)}>編集をやめる</button></div></fieldset>}{proposal.status === 'pending' && !editing && <div className="button-row"><button onClick={() => onReview?.(proposal.artifactId, 'apply', request)}>適用</button><button onClick={() => setEditing(true)}>編集して適用</button><button onClick={() => onReview?.(proposal.artifactId, 'reject', request)}>却下</button><button onClick={() => onReview?.(proposal.artifactId, 'snooze', request)}>後で</button></div>}</article>;
 }
 export function ImageArtifactItem({ mediaUrl, contentType }: { mediaUrl?: string | null; contentType: string }) {
   return <figure className="image-artifact-item" data-testid="image-artifact-item">{mediaUrl ? <img src={mediaUrl} alt="生成された場面" loading="lazy" /> : <div role="img" aria-label="画像Artifactのプレビュー">画像プレビュー</div>}<figcaption>{contentType} / Narrativeとは独立した任意成果物</figcaption></figure>;
 }
 
-export function SessionActivityFeed({ session, onExecutionAction, onNoteReview }: { session: SessionApiResponse; onExecutionAction?: (id: string, action: 'retry' | 'cancel' | 'dismiss') => void; onNoteReview?: (id: string, action: 'apply' | 'edit-apply' | 'reject' | 'snooze') => void }) {
+export function SessionActivityFeed({ session, onExecutionAction, onNoteReview }: { session: SessionApiResponse; onExecutionAction?: (id: string, action: 'retry' | 'cancel' | 'dismiss') => void; onNoteReview?: (id: string, action: 'apply' | 'edit-apply' | 'reject' | 'snooze', request: NoteReviewRequest) => void }) {
   const inputs = new Map((session.inputs ?? []).map((item) => [item.id, item]));
   const executions = new Map((session.executions ?? []).map((item) => [item.id, item]));
   const turns = new Map(session.turns.map((item) => [item.id, item]));
