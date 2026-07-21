@@ -10,22 +10,19 @@ Narrative生成失敗時にもPlayer Inputを失わず、失敗を物語上のTu
 
 ## 2026-07-21 実装状況とblocker
 
-このbranchでは、共通`SessionExecution`/Attempt/Artifact、受付時Input transaction、Narrative worker、Execution API、ordered activity、Development診断/Production omission、OpenTelemetry ActivitySource/Meter、Note/Image domainとreview/media/storage基盤、frontend component分離/polling/status/Storybook fixture、EF migration baseline、architecture/runbook、unit/build/browser検証までを実装した。
+このbranchでは、共通`SessionExecution`/Attempt/Artifact、受付時Input transaction、全Narrative write pathの`202 Accepted` worker cutover、Module handoffの共通Execution化と旧service/table削除migration、PostgreSQL `FOR UPDATE SKIP LOCKED` claim、bounded batch、heartbeat、lease token/revision fencing、Execution API、ordered activity、Development診断/Production omission、cached observable gauges、resource attributes/sampling、Note/Imageの永続fixture・review・validated attach・media・orphan/retention reconciliation、frontend note edit/apply/poll reconciliation、Storybook interaction、専用Playwright spec、architecture/runbookまで実装した。Note/Imageの実AI呼び出しは追加していない。
 
-ただし、以下のin-scope項目が未完了のため、このTODOは削除しない。
+`dotnet test backend/Myriale.slnx --no-build`、`npm test`、frontend build、Storybook build、全Playwright、`dotnet format --verify-no-changes`は成功し、Storybook上のExecution inline failure/Development diagnostics/Production omissionをbrowser screenshotでも確認した。
 
-- 旧`SessionPendingPlayerInput`と`SessionNarrativeHandoff`の完全backfill/cutover/delete。互換処理が残り、Module handoffは共通Executionへshadow enqueueした上で旧serviceも使用している。
-- 旧`POST .../narrative-turns`は互換用のrequest-bound Provider経路を残している。新`POST .../inputs`とfrontendはworker経路を使用するが、全write pathのcutoverが未完了。
-- PostgreSQL `FOR UPDATE SKIP LOCKED` claim、heartbeat、bounded batch、DB fencing revisionの厳密な比較、worker shutdown/restart/late completionのPostgreSQL integration test。
-- 既存legacy databaseからのInput/Execution/Attempt/Artifact backfill migration。追加したPostgreSQL migrationは保持型startupへ切り替えるcurrent-model baselineであり、SQLiteは非破壊`EnsureCreated`のままである。
-- Module handoffの旧table/service削除とExecution endpointへのretry完全統一。
-- queue depth/running/retry-wait/oldest/stuck observable gaugeとcached sampler、service resource attributes/sampling configuration。
-- Input API、worker retry/cancel/auth/duplicate publish、note revision/media authorization/retentionを通した完全なAPI/E2E/integration test。現状は既存backend regression、追加unit、frontend unit、Storybook build、既存Playwrightを通している。
-- note/imageの永続seed fixture、image attach時のMIME/size/dimensions/checksum/moderation validation endpoint、orphan object reconciliationのintegration test。
-- 新Execution storyを対象にしたPlaywright specと、Aspire Dashboard上でexport済みtrace/metric/logを検索してUI trace IDと一致させる検証。Aspire起動とStorybook browser snapshot/Production omissionまでは確認済み。
-- repositoryにはlint設定がないため、lint passは未検証。typecheck、build、test、`dotnet format --verify-no-changes`を代替gateとして実行した。
+ただし、以下の外部依存を含むin-scope検証とmigrationが未完了のため、このTODOは削除しない。
 
-実AIを呼ぶNote/Image handler/providerは非目標のままであり、追加していない。
+- このworkspaceではDocker daemon、`psql`、接続可能なPostgreSQLが提供されていない。したがって、実PostgreSQL上の`SKIP LOCKED`競合、heartbeat中の非再claim、expired lease reclaim、stale token/revision拒否、worker shutdown/restart、late completion、cancel/publish順序、migration upgradeをintegration testできていない。SQLite fallbackのqueue/fencing testは成功しているが代替にはしない。
+- 旧`SessionPendingPlayerInput`はproduction read/writeから外れたが、既存legacy PostgreSQL rowを`SessionPlayerInput`/Execution/Attempt/Artifactへbackfillしてtableをdropするmigrationを、安全な実DB fixtureに対して検証できていないためentity/schema互換を残している。
+- `SessionNarrativeHandoffs` drop migrationは生成済みだが、既存legacy database内のhandoff rowをmodule-handoff Executionへbackfillするupgrade testがない。実データを失う可能性があるため、migration完了とは扱わない。
+- Aspire Dashboard自体とOTLP endpointは起動したが、`myriale-api`と`myriale-mock-ai` processが起動直後に`Finished`となり、Dashboard screenshotでもAPIが停止していることを確認した。このため、UIのtrace IDとexport済みtrace/metric/logの一致、API→worker→Provider→publishのlive相関を検証できていない。
+- repositoryにはlint設定がないためlintは実行不能。typecheck/build/test/formatを利用可能なgateとして実行した。
+
+上記のPostgreSQL migration/integration testとlive Aspire telemetry相関が成功するまで、全体完了checkboxと計画ファイル削除条件は満たさない。
 
 ## 設計原則
 
