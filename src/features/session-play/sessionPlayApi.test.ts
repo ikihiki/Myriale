@@ -101,14 +101,20 @@ describe('sessionPlayApi', () => {
     }));
   });
 
-  it('exposes the server error code so the same narrative request can be retried', async () => {
+  it('exposes the server error code and Development diagnostics so the same narrative request can be retried', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response({
-      code: 'narrative_generation_failed',
+      code: 'schema_failure',
       message: 'Narrativeの生成に失敗しました。',
+      details: 'AiProviderException: invalid structured output -> JsonException: missing heading',
     }, 503)));
 
     await expect(createNarrativeTurn('SES-1', '扉を調べる', 'narrative-1', '/api/sessions'))
-      .rejects.toMatchObject({ status: 503, code: 'narrative_generation_failed' });
+      .rejects.toMatchObject({
+        status: 503,
+        code: 'schema_failure',
+        details: 'AiProviderException: invalid structured output -> JsonException: missing heading',
+        message: expect.stringContaining('JsonException: missing heading'),
+      });
   });
 
   it('sends an explicit clarification interaction type', async () => {

@@ -90,4 +90,4 @@ public sealed record SessionResponse(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
-public sealed record SessionErrorResponse(string Code, string Message);
+public sealed record SessionErrorResponse(string Code, string Message, string? Details = null);

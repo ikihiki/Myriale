@@ -55,6 +55,7 @@ export type SessionApiResponse = {
 export type SessionApiError = Error & {
   status?: number;
   code?: string;
+  details?: string;
 };
 
 export function getSessionApiBaseUrl() {
@@ -130,13 +131,15 @@ export async function createNarrativeTurn(
 }
 
 async function toSessionApiError(response: Response, fallback: string): Promise<SessionApiError> {
-  const payload = await response.json().catch(() => null) as { code?: string; message?: string } | null;
-  return sessionApiError(payload?.message ?? fallback, response.status, payload?.code);
+  const payload = await response.json().catch(() => null) as { code?: string; message?: string; details?: string } | null;
+  const message = payload?.details ? `${payload.message ?? fallback}\n${payload.details}` : payload?.message ?? fallback;
+  return sessionApiError(message, response.status, payload?.code, payload?.details);
 }
 
-function sessionApiError(message: string, status?: number, code?: string): SessionApiError {
+function sessionApiError(message: string, status?: number, code?: string, details?: string): SessionApiError {
   const error = new Error(message) as SessionApiError;
   error.status = status;
   error.code = code;
+  error.details = details;
   return error;
 }

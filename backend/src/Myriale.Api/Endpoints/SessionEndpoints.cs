@@ -259,6 +259,7 @@ public static class SessionEndpoints
         ApplicationDbContext db,
         INarrativeRecentTurnSelector recentTurnSelector,
         IActionRecommendationGenerator recommendations,
+        IHostEnvironment environment,
         CancellationToken cancellationToken)
     {
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -310,10 +311,13 @@ public static class SessionEndpoints
                 cancellationToken);
             return Results.Ok(result);
         }
-        catch (NarrativeGenerationException)
+        catch (Exception exception) when (exception is NarrativeGenerationException or AiProviderException or JsonException or HttpRequestException or OperationCanceledException)
         {
             return Results.Json(
-                new SessionErrorResponse("action_recommendation_failed", "次の行動案を生成できませんでした。"),
+                new SessionErrorResponse(
+                    "action_recommendation_failed",
+                    "次の行動案を生成できませんでした。",
+                    DevelopmentErrorDetails.From(environment, exception)),
                 statusCode: StatusCodes.Status503ServiceUnavailable);
         }
     }
@@ -330,7 +334,7 @@ public static class SessionEndpoints
         if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
         var result = await narratives.CreateAsync(ownerId, sessionId, request, cancellationToken);
         if (result.Turn is null)
-            return Results.Json(new SessionErrorResponse(result.Code!, result.Message!), statusCode: result.StatusCode);
+            return Results.Json(new SessionErrorResponse(result.Code!, result.Message!, result.Details), statusCode: result.StatusCode);
         var playerInput = result.Turn.PlayerInputId is null
             ? null
             : await db.SessionPlayerInputs.AsNoTracking()

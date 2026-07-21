@@ -426,7 +426,9 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
             });
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
-        Assert.Equal("schema_failure", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+        var error = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("schema_failure", error.GetProperty("code").GetString());
+        Assert.Contains("Exception", error.GetProperty("details").GetString(), StringComparison.Ordinal);
         Assert.Equal(0, await CountNarrativeTurnsAsync());
         await using (var scope = _factory.Services.CreateAsyncScope())
         {
@@ -806,7 +808,9 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     private async Task AssertDialogueGenerationRejectedAsync(HttpResponseMessage response)
     {
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
-        Assert.Equal("schema_failure", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+        var error = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("schema_failure", error.GetProperty("code").GetString());
+        Assert.Contains("Exception", error.GetProperty("details").GetString(), StringComparison.Ordinal);
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var pending = await db.SessionPendingPlayerInputs.AsNoTracking().SingleAsync();

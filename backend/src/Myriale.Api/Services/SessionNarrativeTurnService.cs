@@ -15,6 +15,7 @@ public sealed class SessionNarrativeTurnService(
     INarrativeGenerator generator,
     SessionScenarioProgressionService progression,
     IOptions<AiProviderOptions> aiOptions,
+    IHostEnvironment environment,
     ILogger<SessionNarrativeTurnService> logger)
 {
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(2);
@@ -224,8 +225,10 @@ public sealed class SessionNarrativeTurnService(
                 retryable,
                 exception.GetType().Name,
                 exception.InnerException?.GetType().Name);
-            await MarkFailedAsync(pendingInput.Id, leaseId, code, "Narrativeの生成に失敗しました。", retryable, CancellationToken.None);
-            return SessionNarrativeTurnResult.Error(code == AiProviderErrorCodes.RateLimited ? 429 : 503, code, "Narrativeの生成に失敗しました。");
+            const string message = "Narrativeの生成に失敗しました。";
+            var details = DevelopmentErrorDetails.From(environment, exception);
+            await MarkFailedAsync(pendingInput.Id, leaseId, code, details is null ? message : $"{message} {details}", retryable, CancellationToken.None);
+            return SessionNarrativeTurnResult.Error(code == AiProviderErrorCodes.RateLimited ? 429 : 503, code, message, details);
         }
 
         db.ChangeTracker.Clear();
@@ -485,8 +488,8 @@ public sealed class SessionNarrativeTurnService(
                 .SetProperty(input => input.UpdatedAt, DateTimeOffset.UtcNow), CancellationToken.None);
 }
 
-public sealed record SessionNarrativeTurnResult(int StatusCode, SessionTurn? Turn, string? Code, string? Message)
+public sealed record SessionNarrativeTurnResult(int StatusCode, SessionTurn? Turn, string? Code, string? Message, string? Details)
 {
-    public static SessionNarrativeTurnResult Success(SessionTurn turn) => new(200, turn, null, null);
-    public static SessionNarrativeTurnResult Error(int statusCode, string code, string message) => new(statusCode, null, code, message);
+    public static SessionNarrativeTurnResult Success(SessionTurn turn) => new(200, turn, null, null, null);
+    public static SessionNarrativeTurnResult Error(int statusCode, string code, string message, string? details = null) => new(statusCode, null, code, message, details);
 }

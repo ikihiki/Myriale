@@ -51,7 +51,7 @@ public static class AiAdminEndpoints
         return Results.NoContent();
     }
 
-    private static async Task<IResult> TestAsync(string provider, IAiCredentialStore store, IAiTextProvider textProvider, ApplicationDbContext db, IConfiguration configuration, CancellationToken cancellationToken)
+    private static async Task<IResult> TestAsync(string provider, IAiCredentialStore store, IAiTextProvider textProvider, ApplicationDbContext db, IConfiguration configuration, IHostEnvironment environment, CancellationToken cancellationToken)
     {
         provider = Normalize(provider);
         if (provider is not ("openai" or "runpod")) return Results.NotFound();
@@ -78,7 +78,10 @@ public static class AiAdminEndpoints
             await db.SaveChangesAsync(CancellationToken.None);
             var status = exception.Code == AiProviderErrorCodes.RateLimited ? 429
                 : exception.Code is AiProviderErrorCodes.InvalidCredential or AiProviderErrorCodes.ModelNotFound ? 400 : 503;
-            return Results.Problem(statusCode: status, title: exception.Code, detail: "AI Providerとの疎通確認に失敗しました。");
+            return Results.Problem(
+                statusCode: status,
+                title: exception.Code,
+                detail: DevelopmentErrorDetails.Message(environment, "AI Providerとの疎通確認に失敗しました。", exception));
         }
     }
 

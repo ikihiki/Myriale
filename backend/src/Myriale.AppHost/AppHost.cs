@@ -60,6 +60,9 @@ if (isPublishMode)
             $"{imagePrefix}/myriale-api",
             sourceSha)
         .WithDockerfile("../../", "src/Myriale.Api/Dockerfile")
+        // Temporary: expose Development-only diagnostics in preview environments while AI integration is stabilized.
+        .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
+        .WithEnvironment("DOTNET_ENVIRONMENT", "Development")
         .WithEnvironment("MockAi__BaseUrl", mockAi.GetEndpoint("http"))
         .WithEnvironment("SeedAccount__Enabled", "true")
         .WithEnvironment("SeedAccount__DisplayName", "霧野しおり")
@@ -131,6 +134,9 @@ else
 
     var api = builder.AddProject<Projects.Myriale_Api>("myriale-api")
         .WithReference(mockAi)
+        // Temporary: keep local Aspire and published preview behavior aligned for AI diagnostics.
+        .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
+        .WithEnvironment("DOTNET_ENVIRONMENT", "Development")
         .WithEnvironment("MockAi__BaseUrl", mockAi.GetEndpoint("http"))
         .WaitFor(mockAi)
         .WithExternalHttpEndpoints();

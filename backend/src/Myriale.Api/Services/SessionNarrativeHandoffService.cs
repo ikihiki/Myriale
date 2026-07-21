@@ -9,6 +9,7 @@ namespace Myriale.Api.Services;
 public sealed class SessionNarrativeHandoffService(
     ApplicationDbContext db,
     INarrativeGenerator generator,
+    IHostEnvironment environment,
     ILogger<SessionNarrativeHandoffService> logger)
 {
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(2);
@@ -120,7 +121,7 @@ public sealed class SessionNarrativeHandoffService(
                 executionId,
                 leaseId,
                 code,
-                "Narrativeの生成に失敗しました。",
+                DevelopmentErrorDetails.Message(environment, "Narrativeの生成に失敗しました。", exception),
                 retryable,
                 CancellationToken.None);
             return;
