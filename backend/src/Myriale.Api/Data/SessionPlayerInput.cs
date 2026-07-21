@@ -25,6 +25,14 @@ public sealed class SessionPlayerInput
     [MaxLength(40)]
     public string? AcceptedAfterTurnId { get; set; }
 
+    public long AcceptedSessionRevision { get; set; }
+
+    [Required, MaxLength(450)]
+    public string CreatedBy { get; set; } = string.Empty;
+
+    [MaxLength(40)]
+    public string? SupersedesInputId { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public Session Session { get; set; } = null!;

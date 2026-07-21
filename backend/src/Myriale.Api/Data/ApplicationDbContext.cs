@@ -20,6 +20,13 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<SessionNarrativeHandoff> SessionNarrativeHandoffs => Set<SessionNarrativeHandoff>();
     public DbSet<SessionPlayerInput> SessionPlayerInputs => Set<SessionPlayerInput>();
     public DbSet<SessionPendingPlayerInput> SessionPendingPlayerInputs => Set<SessionPendingPlayerInput>();
+    public DbSet<SessionExecution> SessionExecutions => Set<SessionExecution>();
+    public DbSet<SessionExecutionAttempt> SessionExecutionAttempts => Set<SessionExecutionAttempt>();
+    public DbSet<SessionArtifact> SessionArtifacts => Set<SessionArtifact>();
+    public DbSet<SessionNote> SessionNotes => Set<SessionNote>();
+    public DbSet<SessionNoteRevision> SessionNoteRevisions => Set<SessionNoteRevision>();
+    public DbSet<SessionNoteProposal> SessionNoteProposals => Set<SessionNoteProposal>();
+    public DbSet<SessionImage> SessionImages => Set<SessionImage>();
     public DbSet<ModuleExecution> ModuleExecutions => Set<ModuleExecution>();
     public DbSet<ModuleExecutionRequest> ModuleExecutionRequests => Set<ModuleExecutionRequest>();
     public DbSet<ModuleOutcomeApplication> ModuleOutcomeApplications => Set<ModuleOutcomeApplication>();
@@ -222,6 +229,69 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .HasOne(turn => turn.Session)
             .WithMany(session => session.Turns)
             .HasForeignKey(turn => turn.SessionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionExecution>()
+            .Property(execution => execution.Revision)
+            .IsConcurrencyToken();
+        builder.Entity<SessionExecution>()
+            .HasIndex(execution => new { execution.SessionId, execution.IdempotencyKey })
+            .IsUnique();
+        builder.Entity<SessionExecution>()
+            .HasIndex(execution => new { execution.Status, execution.NextAttemptAt, execution.Priority, execution.QueuedAt });
+        builder.Entity<SessionExecution>()
+            .HasOne(execution => execution.Session)
+            .WithMany(session => session.Executions)
+            .HasForeignKey(execution => execution.SessionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionExecutionAttempt>()
+            .HasIndex(attempt => new { attempt.ExecutionId, attempt.AttemptNumber })
+            .IsUnique();
+        builder.Entity<SessionExecutionAttempt>()
+            .HasOne(attempt => attempt.Execution)
+            .WithMany(execution => execution.Attempts)
+            .HasForeignKey(attempt => attempt.ExecutionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionArtifact>()
+            .HasIndex(artifact => new { artifact.ExecutionId, artifact.Kind })
+            .IsUnique();
+        builder.Entity<SessionArtifact>()
+            .HasOne(artifact => artifact.Execution)
+            .WithMany(execution => execution.Artifacts)
+            .HasForeignKey(artifact => artifact.ExecutionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionArtifact>()
+            .HasOne(artifact => artifact.Attempt)
+            .WithMany()
+            .HasForeignKey(artifact => artifact.AttemptId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<SessionNote>()
+            .Property(note => note.Revision)
+            .IsConcurrencyToken();
+        builder.Entity<SessionNote>()
+            .HasOne(note => note.Session)
+            .WithMany(session => session.Notes)
+            .HasForeignKey(note => note.SessionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionNoteRevision>()
+            .HasIndex(revision => new { revision.NoteId, revision.Revision })
+            .IsUnique();
+        builder.Entity<SessionNoteRevision>()
+            .HasOne(revision => revision.Note)
+            .WithMany(note => note.Revisions)
+            .HasForeignKey(revision => revision.NoteId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionNoteProposal>()
+            .HasOne(proposal => proposal.Artifact)
+            .WithOne()
+            .HasForeignKey<SessionNoteProposal>(proposal => proposal.ArtifactId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionImage>()
+            .HasIndex(image => image.ArtifactId)
+            .IsUnique();
+        builder.Entity<SessionImage>()
+            .HasOne(image => image.Artifact)
+            .WithOne()
+            .HasForeignKey<SessionImage>(image => image.ArtifactId)
             .OnDelete(DeleteBehavior.Cascade);
         builder.Entity<ModuleExecution>()
             .HasIndex(execution => execution.SessionTurnId)

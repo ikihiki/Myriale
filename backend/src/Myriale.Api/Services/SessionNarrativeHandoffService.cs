@@ -31,6 +31,17 @@ public sealed class SessionNarrativeHandoffService(
             .Include(turn => turn.Session).ThenInclude(session => session.State)
             .SingleAsync(turn => turn.Id == execution.SessionTurnId, cancellationToken);
         var now = DateTimeOffset.UtcNow;
+        if (!await db.SessionExecutions.AnyAsync(item => item.SessionId == source.SessionId && item.IdempotencyKey == $"module-handoff:{execution.Id}", cancellationToken))
+        {
+            db.SessionExecutions.Add(new SessionExecution
+            {
+                Id = $"EXE-{Guid.NewGuid():N}".ToUpperInvariant(), SessionId = source.SessionId,
+                Kind = SessionExecutionKinds.ModuleHandoff, TriggerType = "module-outcome", TriggerId = source.Id,
+                Status = SessionExecutionStatuses.Queued, Revision = 0, IdempotencyKey = $"module-handoff:{execution.Id}",
+                PayloadHash = execution.Id.PadRight(64, '0')[..64], AcceptedHeadTurnId = source.Id,
+                AcceptedSessionRevision = source.Session.Revision, CreatedAt = now, QueuedAt = now,
+            });
+        }
         db.SessionNarrativeHandoffs.Add(new SessionNarrativeHandoff
         {
             SourceModuleTurnId = source.Id,

@@ -26,9 +26,12 @@ public static class SessionEndpoints
         group.MapPost("/{sessionId}/action-recommendation", RecommendActionAsync)
             .WithName("RecommendSessionAction")
             .WithSummary("Returns an AI-generated suggestion for the next player action without advancing the session.");
+        group.MapPost("/{sessionId}/inputs", AcceptInputAsync)
+            .WithName("AcceptSessionInput")
+            .WithSummary("Durably accepts player input and queues narrative generation.");
         group.MapPost("/{sessionId}/narrative-turns", CreateNarrativeTurnAsync)
             .WithName("CreateSessionNarrativeTurn")
-            .WithSummary("Persists one player input and generated narrative turn atomically.");
+            .WithSummary("Compatibility endpoint for synchronous narrative clients.");
         group.MapPost("/{sessionId}/module-turns", CreateModuleTurnAsync)
             .WithName("CreateSessionModuleTurn")
             .WithSummary("Creates one session turn and its module execution atomically.");
@@ -228,6 +231,7 @@ public static class SessionEndpoints
         ClaimsPrincipal principal,
         ApplicationDbContext db,
         IModuleExecutionService executions,
+        IHostEnvironment environment,
         CancellationToken cancellationToken)
     {
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -241,9 +245,26 @@ public static class SessionEndpoints
 
         var turns = await LoadTurnsAsync(ownerId, sessionId, db, executions, cancellationToken);
         var pendingInputs = await LoadPendingInputsAsync(sessionId, db, cancellationToken);
+        var inputs = (await db.SessionPlayerInputs.AsNoTracking().Where(item => item.SessionId == sessionId).ToListAsync(cancellationToken)).OrderBy(item => item.CreatedAt).ToList();
+        var storedExecutions = (await db.SessionExecutions.AsNoTracking().Include(item => item.Attempts).Where(item => item.SessionId == sessionId).ToListAsync(cancellationToken)).OrderBy(item => item.CreatedAt).ToList();
+        var artifacts = (await db.SessionArtifacts.AsNoTracking().Where(item => item.SessionId == sessionId && item.Status == "committed").ToListAsync(cancellationToken)).OrderBy(item => item.CreatedAt).ToList();
+        var images = await db.SessionImages.AsNoTracking().Where(item => item.SessionId == sessionId).ToDictionaryAsync(item => item.ArtifactId, cancellationToken);
+        var proposals = (await db.SessionNoteProposals.AsNoTracking().Where(item => item.SessionId == sessionId).ToListAsync(cancellationToken)).OrderBy(item => item.CreatedAt).ToList();
+        var inputResponses = inputs.Select(SessionExecutionProjection.ToResponse).ToList();
+        var executionResponses = storedExecutions.Select(item => SessionExecutionProjection.ToResponse(item, environment.IsDevelopment())).ToList();
+        var artifactResponses = artifacts.Select(item => new SessionArtifactResponse(
+            item.Id, item.ExecutionId, item.Kind, item.Status, item.ContentType,
+            images.TryGetValue(item.Id, out var image) ? $"/api/session-artifacts/media/{image.Id}" : null,
+            item.MetadataJson, item.CreatedAt, item.CommittedAt)).ToList();
+        var activity = BuildActivity(turns, inputs, storedExecutions, artifacts);
+        var proposalResponses = proposals.Select(item => new SessionNoteProposalResponse(item.ArtifactId, item.SourceTurnId, item.NoteId, item.ExpectedNoteRevision, item.ProposedTitle, item.BeforeBody, item.ProposedBody, item.Rationale, item.Status, item.CreatedAt)).ToList();
         try
         {
-            return Results.Ok(ToResponse(session, turns, pendingInputs));
+            return Results.Ok(ToResponse(session, turns, pendingInputs) with
+            {
+                Inputs = inputResponses, Executions = executionResponses, Artifacts = artifactResponses,
+                Activity = activity, NoteProposals = proposalResponses,
+            });
         }
         catch (JsonException)
         {
@@ -320,6 +341,29 @@ public static class SessionEndpoints
                     DevelopmentErrorDetails.From(environment, exception)),
                 statusCode: StatusCodes.Status503ServiceUnavailable);
         }
+    }
+
+    private static async Task<IResult> AcceptInputAsync(
+        string sessionId,
+        CreateSessionInputRequest request,
+        ClaimsPrincipal principal,
+        SessionInputService inputs,
+        IHostEnvironment environment,
+        CancellationToken cancellationToken)
+    {
+        var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
+        using var activity = SessionExecutionTelemetry.ActivitySource.StartActivity("session.input.accept");
+        var result = await inputs.AcceptAsync(ownerId, sessionId, request, cancellationToken);
+        if (result.Input is null || result.Execution is null)
+            return Results.Json(new SessionErrorResponse(result.Code!, result.Message!), statusCode: result.StatusCode);
+        activity?.SetTag("myriale.session.id", sessionId);
+        activity?.SetTag("myriale.input.id", result.Input.Id);
+        activity?.SetTag("myriale.execution.id", result.Execution.Id);
+        var response = new SessionInputAcceptedResponse(
+            SessionExecutionProjection.ToResponse(result.Input),
+            SessionExecutionProjection.ToResponse(result.Execution, environment.IsDevelopment()));
+        return Results.Accepted($"/api/session-executions/{result.Execution.Id}", response);
     }
 
     private static async Task<IResult> CreateNarrativeTurnAsync(
@@ -453,6 +497,21 @@ public static class SessionEndpoints
             if (response is not null) responses.Add(response);
         }
         return responses;
+    }
+
+    private static IReadOnlyList<SessionActivityResponse> BuildActivity(
+        IReadOnlyList<SessionTurnResponse> turns,
+        IReadOnlyList<SessionPlayerInput> inputs,
+        IReadOnlyList<SessionExecution> executions,
+        IReadOnlyList<SessionArtifact> artifacts)
+    {
+        var rows = new List<(DateTimeOffset At, int Rank, string Type, string Id, string? CausalId)>();
+        rows.AddRange(turns.Select(turn => (turn.CreatedAt, 4, "turn", turn.Id, turn.Narrative?.PlayerInputId ?? turn.Narrative?.SourceModuleTurnId)));
+        rows.AddRange(inputs.Select(input => (input.CreatedAt, 1, "input", input.Id, input.AcceptedAfterTurnId)));
+        rows.AddRange(executions.Select(execution => (execution.CreatedAt, 2, "execution", execution.Id, (string?)execution.TriggerId)));
+        rows.AddRange(artifacts.Select(artifact => (artifact.CreatedAt, 3, "artifact", artifact.Id, (string?)artifact.ExecutionId)));
+        return rows.OrderBy(row => row.At).ThenBy(row => row.Rank).ThenBy(row => row.Id, StringComparer.Ordinal)
+            .Select((row, index) => new SessionActivityResponse(row.Type, row.Id, index + 1, row.CausalId)).ToList();
     }
 
     private static SessionResponse ToResponse(

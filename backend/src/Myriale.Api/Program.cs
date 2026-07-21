@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Myriale.Api.Data;
 using Myriale.Api.Endpoints;
 using Myriale.Api.Modules;
@@ -37,6 +38,12 @@ builder.Services.AddScoped<INarrativeGenerator>(services =>
 builder.Services.AddScoped<IActionRecommendationGenerator>(services => (IActionRecommendationGenerator)services.GetRequiredService<INarrativeGenerator>());
 builder.Services.AddScoped<SessionNarrativeHandoffService>();
 builder.Services.AddScoped<SessionScenarioProgressionService>();
+builder.Services.AddScoped<SessionInputService>();
+builder.Services.AddScoped<ISessionExecutionHandler, NarrativeExecutionHandler>();
+builder.Services.AddScoped<ISessionExecutionHandler, ModuleHandoffExecutionHandler>();
+builder.Services.AddHostedService<SessionExecutionWorker>();
+builder.Services.AddSingleton<ISessionObjectStorage, FileSessionObjectStorage>();
+builder.Services.AddHostedService<SessionArtifactRetentionWorker>();
 builder.Services.AddOptions<NarrativeContextOptions>()
     .Bind(builder.Configuration.GetSection(NarrativeContextOptions.SectionName))
     .Validate(options => options.RecentTurnsTokenBudget >= 0, "RecentTurnsTokenBudget must not be negative.")
@@ -69,11 +76,15 @@ builder.Services.AddHttpClient("MockAi", client =>
     client.BaseAddress = new Uri(builder.Configuration["MockAi:BaseUrl"] ?? "https+http://myriale-mock-ai");
 });
 
+var isTestHost = string.Equals(System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name, "testhost", StringComparison.OrdinalIgnoreCase);
 var accountConnectionString = builder.Configuration.GetConnectionString("MyrialeAccounts")
-    ?? ExternalPostgresConnectionString.Resolve(builder.Configuration)
+    ?? (isTestHost ? null : ExternalPostgresConnectionString.Resolve(builder.Configuration))
     ?? "Data Source=myriale-accounts.db";
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
+    // The retained migration baseline is provider-neutral; SQLite and PostgreSQL add different
+    // provider annotations that can otherwise trigger a false pending-model warning at startup.
+    options.ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
     if (IsPostgresConnectionString(accountConnectionString))
     {
         options.UseNpgsql(accountConnectionString);
@@ -142,19 +153,8 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-    if (db.Database.IsNpgsql())
-    {
-        db.Database.ExecuteSqlRaw("""
-            DROP SCHEMA IF EXISTS public CASCADE;
-            CREATE SCHEMA public AUTHORIZATION CURRENT_USER;
-            """);
-    }
-    else
-    {
-        db.Database.EnsureDeleted();
-    }
-
-    db.Database.EnsureCreated();
+    if (db.Database.IsNpgsql()) await db.Database.MigrateAsync();
+    else await db.Database.EnsureCreatedAsync();
     await ScenarioSeedData.SeedAsync(db);
 
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
@@ -172,6 +172,8 @@ app.MapScenarioEndpoints();
 app.MapScenarioAiEndpoints();
 app.MapModuleAdminEndpoints();
 app.MapSessionEndpoints();
+app.MapSessionExecutionEndpoints();
+app.MapSessionArtifactEndpoints();
 app.MapModuleExecutionEndpoints();
 app.MapModuleUiEndpoints();
 app.MapAiAdminEndpoints();
