@@ -54,6 +54,10 @@ public sealed class ModuleHandoffExecutionHandler(
             if (string.IsNullOrWhiteSpace(generation.Value) || generation.Value.Length > 20_000)
                 throw new NarrativeGenerationException("Narrative provider returned an invalid body.");
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception exception) when (exception is NarrativeGenerationException or AiProviderException or HttpRequestException or JsonException or OperationCanceledException)
         {
             var providerError = exception as AiProviderException;
@@ -72,24 +76,38 @@ public sealed class ModuleHandoffExecutionHandler(
         if (generation.Metadata.OutputTokens is not null) SessionExecutionTelemetry.ProviderOutputTokens.Record(generation.Metadata.OutputTokens.Value, SessionExecutionTelemetry.Tags(execution.Kind, execution.Status, generation.Metadata.Provider, generation.Metadata.Model));
 
         db.ChangeTracker.Clear();
-        var current = await db.SessionExecutions
-            .Include(item => item.Session).ThenInclude(session => session.HeadTurn)
-            .Include(item => item.Session).ThenInclude(session => session.State)
-            .SingleAsync(item => item.Id == execution.Id, cancellationToken);
-        if (current.Status != SessionExecutionStatuses.Running
-            || current.LeaseToken != workerContext.LeaseToken
-            || current.Revision != workerContext.Revision)
+        await using var publishTransaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var current = await LoadFencedForPublishAsync(workerContext, cancellationToken);
+        if (current is null)
+        {
+            await publishTransaction.RollbackAsync(CancellationToken.None);
             return LeaseLost();
+        }
+        await db.Entry(current).Reference(item => item.Session).Query()
+            .Include(session => session.HeadTurn)
+            .Include(session => session.State)
+            .LoadAsync(cancellationToken);
         source = await LoadSourceAsync(current.TriggerId, cancellationToken);
         causalError = ValidateCausality(current, source);
-        if (causalError is not null) return causalError;
+        if (causalError is not null)
+        {
+            await publishTransaction.RollbackAsync(CancellationToken.None);
+            return causalError;
+        }
 
         var alreadyPublished = await db.SessionTurns.AsNoTracking()
             .SingleOrDefaultAsync(turn => turn.SourceModuleTurnId == source!.Id, cancellationToken);
-        if (alreadyPublished is not null) return new(true);
+        var attempt = await db.SessionExecutionAttempts.SingleAsync(item => item.Id == workerContext.AttemptId, cancellationToken);
+        var now = DateTimeOffset.UtcNow;
+        if (alreadyPublished is not null)
+        {
+            SessionExecutionCompletion.MarkPublished(current, attempt, now);
+            await db.SaveChangesAsync(cancellationToken);
+            await publishTransaction.CommitAsync(cancellationToken);
+            return new(true);
+        }
 
         var sourceStateRevision = ResolveSourceStateRevision(source!);
-        var now = DateTimeOffset.UtcNow;
         var artifact = new SessionArtifact
         {
             Id = $"ART-{Guid.NewGuid():N}".ToUpperInvariant(),
@@ -135,7 +153,6 @@ public sealed class ModuleHandoffExecutionHandler(
         current.Session.UpdatedAt = now;
         db.SessionArtifacts.Add(artifact);
         db.SessionTurns.Add(turn);
-        var attempt = await db.SessionExecutionAttempts.SingleAsync(item => item.Id == workerContext.AttemptId, cancellationToken);
         attempt.Provider = generation.Metadata.Provider;
         attempt.Model = generation.Metadata.Model;
         attempt.ProviderRequestId = generation.Metadata.ResponseId;
@@ -143,15 +160,18 @@ public sealed class ModuleHandoffExecutionHandler(
         attempt.InputTokens = generation.Metadata.InputTokens;
         attempt.OutputTokens = generation.Metadata.OutputTokens;
         attempt.FinishReason = generation.Metadata.FinishReason;
+        SessionExecutionCompletion.MarkPublished(current, attempt, now);
         try
         {
             await db.SaveChangesAsync(cancellationToken);
+            await publishTransaction.CommitAsync(cancellationToken);
         }
         catch (DbUpdateException)
         {
+            await publishTransaction.RollbackAsync(CancellationToken.None);
             db.ChangeTracker.Clear();
             if (await db.SessionTurns.AsNoTracking().AnyAsync(item => item.SourceModuleTurnId == source.Id, cancellationToken))
-                return new(true);
+                return await CompleteExistingPublicationAsync(workerContext, cancellationToken);
             return Superseded();
         }
 
@@ -159,6 +179,50 @@ public sealed class ModuleHandoffExecutionHandler(
         SessionExecutionTelemetry.TurnPublished.Add(1, SessionExecutionTelemetry.Tags(current.Kind, current.Status));
         SessionExecutionTelemetry.ArtifactSize.Record(Encoding.UTF8.GetByteCount(generation.Value), SessionExecutionTelemetry.Tags(current.Kind, current.Status));
         return new(true);
+    }
+
+    private async Task<SessionExecutionHandlerResult> CompleteExistingPublicationAsync(
+        SessionExecutionContext workerContext,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var execution = await LoadFencedForPublishAsync(workerContext, cancellationToken);
+        if (execution is null)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            return LeaseLost();
+        }
+
+        var attempt = await db.SessionExecutionAttempts.SingleAsync(item => item.Id == workerContext.AttemptId, cancellationToken);
+        SessionExecutionCompletion.MarkPublished(execution, attempt, DateTimeOffset.UtcNow);
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return new(true);
+    }
+
+    private Task<SessionExecution?> LoadFencedForPublishAsync(
+        SessionExecutionContext workerContext,
+        CancellationToken cancellationToken)
+    {
+        if (db.Database.IsNpgsql())
+        {
+            return db.SessionExecutions.FromSqlInterpolated($$"""
+                SELECT *
+                FROM "SessionExecutions"
+                WHERE "Id" = {{workerContext.ExecutionId}}
+                  AND "Status" = {{SessionExecutionStatuses.Running}}
+                  AND "LeaseToken" = {{workerContext.LeaseToken}}
+                  AND "Revision" = {{workerContext.Revision}}
+                FOR UPDATE
+                """).SingleOrDefaultAsync(cancellationToken);
+        }
+
+        return db.SessionExecutions.SingleOrDefaultAsync(
+            item => item.Id == workerContext.ExecutionId
+                && item.Status == SessionExecutionStatuses.Running
+                && item.LeaseToken == workerContext.LeaseToken
+                && item.Revision == workerContext.Revision,
+            cancellationToken);
     }
 
     private Task<SessionTurn?> LoadSourceAsync(string sourceTurnId, CancellationToken cancellationToken) =>

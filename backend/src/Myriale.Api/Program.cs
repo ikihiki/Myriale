@@ -39,6 +39,7 @@ builder.Services.AddScoped<IActionRecommendationGenerator>(services => (IActionR
 builder.Services.AddScoped<SessionScenarioProgressionService>();
 builder.Services.AddScoped<SessionInputService>();
 builder.Services.AddScoped<ISessionExecutionQueue, SessionExecutionQueue>();
+builder.Services.AddScoped<SessionExecutionFinalizer>();
 builder.Services.AddScoped<ISessionExecutionHandler, NarrativeExecutionHandler>();
 builder.Services.AddScoped<ISessionExecutionHandler, ModuleHandoffExecutionHandler>();
 builder.Services.AddHostedService<SessionExecutionWorker>();

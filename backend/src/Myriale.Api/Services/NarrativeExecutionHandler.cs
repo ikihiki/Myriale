@@ -50,6 +50,10 @@ public sealed class NarrativeExecutionHandler(
             ValidateGeneratedResult(generation.Value, generation.Metadata, input.InteractionType, session.InterpretationEnabled);
             ValidateSignals(generation.Value.Signals, generation.Metadata, context.AllowedSignals);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception exception) when (exception is NarrativeGenerationException or AiProviderException or HttpRequestException or JsonException or OperationCanceledException)
         {
             var providerError = exception as AiProviderException;
@@ -86,13 +90,16 @@ public sealed class NarrativeExecutionHandler(
             return new(false, false, "session_advanced", "Sessionが先へ進んだため、この結果は適用されませんでした。", SessionExecutionStatuses.Superseded);
         }
         var alreadyPublished = await db.SessionTurns.AsNoTracking().SingleOrDefaultAsync(turn => turn.PlayerInputId == input.Id, cancellationToken);
+        var attempt = await db.SessionExecutionAttempts.SingleAsync(item => item.Id == workerContext.AttemptId, cancellationToken);
+        var now = DateTimeOffset.UtcNow;
         if (alreadyPublished is not null)
         {
-            await publishTransaction.RollbackAsync(CancellationToken.None);
+            SessionExecutionCompletion.MarkPublished(current, attempt, now);
+            await db.SaveChangesAsync(cancellationToken);
+            await publishTransaction.CommitAsync(cancellationToken);
             return new(true);
         }
 
-        var now = DateTimeOffset.UtcNow;
         var artifact = new SessionArtifact
         {
             Id = $"ART-{Guid.NewGuid():N}".ToUpperInvariant(),
@@ -188,10 +195,10 @@ public sealed class NarrativeExecutionHandler(
             current.Session.Progress.Revision++;
             current.Session.Progress.UpdatedAt = now;
         }
-        var attempt = await db.SessionExecutionAttempts.SingleAsync(item => item.Id == workerContext.AttemptId, cancellationToken);
         attempt.Provider = generation.Metadata.Provider; attempt.Model = generation.Metadata.Model; attempt.ProviderRequestId = generation.Metadata.ResponseId;
         attempt.LatencyMilliseconds = generation.Metadata.LatencyMilliseconds; attempt.InputTokens = generation.Metadata.InputTokens; attempt.OutputTokens = generation.Metadata.OutputTokens;
         attempt.FinishReason = generation.Metadata.FinishReason; attempt.PromptVersion = prompt.Version; attempt.ContextHash = context.Diagnostics.Hash; attempt.ContextSizeBytes = context.Diagnostics.SizeBytes;
+        SessionExecutionCompletion.MarkPublished(current, attempt, now);
         try
         {
             await db.SaveChangesAsync(cancellationToken);
@@ -201,13 +208,33 @@ public sealed class NarrativeExecutionHandler(
         {
             await publishTransaction.RollbackAsync(CancellationToken.None);
             db.ChangeTracker.Clear();
-            if (await db.SessionTurns.AsNoTracking().AnyAsync(item => item.PlayerInputId == input.Id, cancellationToken)) return new(true);
+            if (await db.SessionTurns.AsNoTracking().AnyAsync(item => item.PlayerInputId == input.Id, cancellationToken))
+                return await CompleteExistingPublicationAsync(workerContext, cancellationToken);
             return new(false, false, "session_advanced", "Sessionが先へ進んだため、この結果は適用されませんでした。", SessionExecutionStatuses.Superseded);
         }
         SessionExecutionTelemetry.ArtifactCommitted.Add(1, SessionExecutionTelemetry.Tags(current.Kind, current.Status));
         SessionExecutionTelemetry.TurnPublished.Add(1, SessionExecutionTelemetry.Tags(current.Kind, current.Status));
         SessionExecutionTelemetry.ArtifactSize.Record(System.Text.Encoding.UTF8.GetByteCount(generation.Value.Body), SessionExecutionTelemetry.Tags(current.Kind, current.Status));
         await progression.EnsureNarrativeTurnAsync(session.OwnerId, turn.Id, cancellationToken);
+        return new(true);
+    }
+
+    private async Task<SessionExecutionHandlerResult> CompleteExistingPublicationAsync(
+        SessionExecutionContext workerContext,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var execution = await LoadFencedForPublishAsync(workerContext, cancellationToken);
+        if (execution is null)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            return new(false, false, "lease_lost", "生成処理の所有権が失われました。");
+        }
+
+        var attempt = await db.SessionExecutionAttempts.SingleAsync(item => item.Id == workerContext.AttemptId, cancellationToken);
+        SessionExecutionCompletion.MarkPublished(execution, attempt, DateTimeOffset.UtcNow);
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return new(true);
     }
 

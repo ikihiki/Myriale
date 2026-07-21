@@ -44,24 +44,59 @@ public static class SessionExecutionEndpoints
     private static async Task<IResult> CancelAsync(string executionId, ClaimsPrincipal principal, ApplicationDbContext db, IHostEnvironment environment, CancellationToken cancellationToken)
     {
         var owner = principal.FindFirstValue(ClaimTypes.NameIdentifier); if (owner is null) return Results.Unauthorized();
-        var execution = await db.SessionExecutions.Include(item => item.Attempts).SingleOrDefaultAsync(item => item.Id == executionId && item.Session.OwnerId == owner, cancellationToken);
-        if (execution is null) return Results.NotFound();
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var execution = await LoadForUpdateAsync(executionId, db, cancellationToken);
+        if (execution is null)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            return Results.NotFound();
+        }
+        await db.Entry(execution).Reference(item => item.Session).LoadAsync(cancellationToken);
+        await db.Entry(execution).Collection(item => item.Attempts).LoadAsync(cancellationToken);
+        if (execution.Session.OwnerId != owner)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            return Results.NotFound();
+        }
         if (execution.Status is SessionExecutionStatuses.Cancelled or SessionExecutionStatuses.Succeeded or SessionExecutionStatuses.Failed or SessionExecutionStatuses.Superseded)
+        {
+            await transaction.CommitAsync(cancellationToken);
             return Results.Ok(SessionExecutionProjection.ToResponse(execution, environment.IsDevelopment()));
+        }
+        var now = DateTimeOffset.UtcNow;
         if (execution.Status == SessionExecutionStatuses.Queued || execution.Status == SessionExecutionStatuses.RetryWait)
         {
             SessionExecutionStateMachine.Transition(execution, SessionExecutionStatuses.CancelRequested);
-            execution.CancelRequestedAt = DateTimeOffset.UtcNow;
+            execution.CancelRequestedAt = now;
             SessionExecutionStateMachine.Transition(execution, SessionExecutionStatuses.Cancelled);
-            execution.CompletedAt = DateTimeOffset.UtcNow; execution.LeaseToken = null; execution.LeaseOwner = null; execution.LeaseExpiresAt = null;
+            execution.CompletedAt = now; execution.LeaseToken = null; execution.LeaseOwner = null; execution.LeaseExpiresAt = null;
         }
         else if (execution.Status == SessionExecutionStatuses.Running)
         {
             SessionExecutionStateMachine.Transition(execution, SessionExecutionStatuses.CancelRequested);
-            execution.CancelRequestedAt = DateTimeOffset.UtcNow;
+            execution.CancelRequestedAt = now;
         }
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return Results.Ok(SessionExecutionProjection.ToResponse(execution, environment.IsDevelopment()));
+    }
+
+    private static Task<SessionExecution?> LoadForUpdateAsync(
+        string executionId,
+        ApplicationDbContext db,
+        CancellationToken cancellationToken)
+    {
+        if (db.Database.IsNpgsql())
+        {
+            return db.SessionExecutions.FromSqlInterpolated($$"""
+                SELECT *
+                FROM "SessionExecutions"
+                WHERE "Id" = {{executionId}}
+                FOR UPDATE
+                """).SingleOrDefaultAsync(cancellationToken);
+        }
+
+        return db.SessionExecutions.SingleOrDefaultAsync(item => item.Id == executionId, cancellationToken);
     }
 
     private static async Task<IResult> DismissAsync(string executionId, ClaimsPrincipal principal, ApplicationDbContext db, IHostEnvironment environment, CancellationToken cancellationToken)

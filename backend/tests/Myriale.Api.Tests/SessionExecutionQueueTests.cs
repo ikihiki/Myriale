@@ -79,13 +79,74 @@ public sealed class SessionExecutionQueueTests
             StartedAt = now.AddMinutes(-5),
         });
         await fixture.Db.SaveChangesAsync();
+        var staleClaim = new SessionExecutionClaim(expired.Id, "LET-OLD", 4, "ATT-OLD", 1);
 
         var claim = Assert.Single(await fixture.Queue.ClaimAsync("worker-new", 1, TimeSpan.FromMinutes(2), CancellationToken.None));
 
         Assert.Equal(5, claim.Revision);
         Assert.NotEqual("LET-OLD", claim.LeaseToken);
         Assert.Equal(2, claim.AttemptNumber);
-        Assert.False(await fixture.Queue.HeartbeatAsync(claim with { LeaseToken = "LET-OLD", Revision = 4 }, TimeSpan.FromMinutes(2), CancellationToken.None));
+        var attempts = await fixture.Db.SessionExecutionAttempts.OrderBy(item => item.AttemptNumber).ToListAsync();
+        Assert.Equal("expired", attempts[0].Status);
+        Assert.Equal(now, attempts[0].CompletedAt);
+        Assert.Equal("lease_expired", attempts[0].ErrorCode);
+        Assert.True(attempts[0].Retryable);
+        Assert.Equal("running", attempts[1].Status);
+        Assert.False(await fixture.Queue.HeartbeatAsync(staleClaim, TimeSpan.FromMinutes(2), CancellationToken.None));
+
+        await new SessionExecutionFinalizer(fixture.Db, fixture.Time).FinishAsync(staleClaim, new(true), activity: null, CancellationToken.None);
+        fixture.Db.ChangeTracker.Clear();
+        var current = await fixture.Db.SessionExecutions.SingleAsync();
+        Assert.Equal(SessionExecutionStatuses.Running, current.Status);
+        Assert.Equal(claim.Revision, current.Revision);
+        Assert.Equal(claim.LeaseToken, current.LeaseToken);
+    }
+
+    [Fact]
+    public async Task FinalizerClosesCancelRequestedAttemptDespiteCancellationRevision()
+    {
+        var now = new DateTimeOffset(2026, 7, 21, 12, 0, 0, TimeSpan.Zero);
+        await using var fixture = await QueueFixture.CreateAsync(now);
+        var execution = Execution("EXE-1", SessionExecutionStatuses.Running, 0, now.AddMinutes(-1));
+        execution.Revision = 1;
+        execution.LeaseOwner = "worker-test";
+        execution.LeaseToken = "LET-CURRENT";
+        execution.LeaseExpiresAt = now.AddMinutes(2);
+        execution.AttemptCount = 1;
+        execution.StartedAt = now.AddMinutes(-1);
+        var attempt = new SessionExecutionAttempt
+        {
+            Id = "ATT-1",
+            ExecutionId = execution.Id,
+            AttemptNumber = 1,
+            Status = "running",
+            WorkerId = "worker-test",
+            StartedAt = now.AddMinutes(-1),
+        };
+        fixture.Db.SessionExecutions.Add(execution);
+        fixture.Db.SessionExecutionAttempts.Add(attempt);
+        await fixture.Db.SaveChangesAsync();
+        var claim = new SessionExecutionClaim(execution.Id, execution.LeaseToken, execution.Revision, attempt.Id, attempt.AttemptNumber);
+
+        SessionExecutionStateMachine.Transition(execution, SessionExecutionStatuses.CancelRequested);
+        execution.CancelRequestedAt = now;
+        await fixture.Db.SaveChangesAsync();
+        Assert.False(await fixture.Queue.HeartbeatAsync(claim, TimeSpan.FromMinutes(2), CancellationToken.None));
+        await new SessionExecutionFinalizer(fixture.Db, fixture.Time).FinishAsync(
+            claim,
+            new(false, false, "execution_cancelled", "cancelled"),
+            activity: null,
+            CancellationToken.None);
+
+        fixture.Db.ChangeTracker.Clear();
+        execution = await fixture.Db.SessionExecutions.SingleAsync();
+        attempt = await fixture.Db.SessionExecutionAttempts.SingleAsync();
+        Assert.Equal(SessionExecutionStatuses.Cancelled, execution.Status);
+        Assert.Equal(3, execution.Revision);
+        Assert.Equal(now, execution.CompletedAt);
+        Assert.Null(execution.LeaseToken);
+        Assert.Equal("cancelled", attempt.Status);
+        Assert.Equal(now, attempt.CompletedAt);
     }
 
     private static SessionExecution Execution(string id, string status, int priority, DateTimeOffset queuedAt, DateTimeOffset? nextAttemptAt = null) => new()

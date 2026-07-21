@@ -52,7 +52,19 @@ public sealed class SessionExecutionQueue(ApplicationDbContext db, TimeProvider 
         foreach (var execution in candidates)
         {
             if (execution.Status == SessionExecutionStatuses.Running)
+            {
                 SessionExecutionTelemetry.LeaseExpired.Add(1, SessionExecutionTelemetry.Tags(execution.Kind, execution.Status));
+                var expiredAttempts = await db.SessionExecutionAttempts
+                    .Where(attempt => attempt.ExecutionId == execution.Id && attempt.Status == "running")
+                    .ToListAsync(cancellationToken);
+                foreach (var expiredAttempt in expiredAttempts)
+                {
+                    expiredAttempt.Status = "expired";
+                    expiredAttempt.CompletedAt = now;
+                    expiredAttempt.ErrorCode = "lease_expired";
+                    expiredAttempt.Retryable = true;
+                }
+            }
             var token = $"LET-{Guid.NewGuid():N}".ToUpperInvariant();
             SessionExecutionStateMachine.Transition(execution, SessionExecutionStatuses.Running);
             execution.LeaseOwner = workerId;
