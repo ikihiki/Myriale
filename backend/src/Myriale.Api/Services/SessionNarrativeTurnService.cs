@@ -201,8 +201,8 @@ public sealed class SessionNarrativeTurnService(
                 cancellationToken);
             generated = generation.Value;
             generationMetadata = generation.Metadata;
-            ValidateGeneratedResult(generated, interactionType, claimed.Session.InterpretationEnabled);
-            ValidateSignals(generated.Signals, providerAllowedSignals);
+            ValidateGeneratedResult(generated, generationMetadata, interactionType, claimed.Session.InterpretationEnabled);
+            ValidateSignals(generated.Signals, generationMetadata, providerAllowedSignals);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -413,48 +413,99 @@ public sealed class SessionNarrativeTurnService(
 
     private static bool SameTurn(string? left, string? right) => string.Equals(left, right, StringComparison.Ordinal);
 
-    private static void ValidateGeneratedResult(
+    private void ValidateGeneratedResult(
         NarrativeDialogueResult result,
+        AiGenerationMetadata metadata,
         string interactionType,
         bool interpretationRequired)
     {
+        var violations = new List<string>();
+        if (!string.Equals(result.SchemaVersion, NarrativeDialogueSchema.Version, StringComparison.Ordinal))
+            violations.Add($"schemaVersion expected={NarrativeDialogueSchema.Version} actual={result.SchemaVersion}");
+        if (!NarrativeDialogueSchema.TurnTypes.Contains(result.TurnType))
+            violations.Add($"turnType unsupported actual={result.TurnType}");
+        var expectedTurnTypes = interactionType == NarrativeInteractionTypes.Clarification
+            ? "clarification"
+            : "action-result|npc-reply";
         var turnTypeMatchesInteraction = interactionType switch
         {
             NarrativeInteractionTypes.Clarification => result.TurnType == "clarification",
             NarrativeInteractionTypes.Dialogue => result.TurnType is "action-result" or "npc-reply",
             _ => false,
         };
-        if (!string.Equals(result.SchemaVersion, NarrativeDialogueSchema.Version, StringComparison.Ordinal)
-            || !NarrativeDialogueSchema.TurnTypes.Contains(result.TurnType)
-            || !turnTypeMatchesInteraction
-            || string.IsNullOrWhiteSpace(result.Heading)
-            || result.Heading.Length > 120
-            || string.IsNullOrWhiteSpace(result.Body)
-            || result.Body.Length > 20_000
-            || result.Signals is null
-            || (result.TurnType == "clarification" && result.Signals.Count > 0)
-            || (interpretationRequired && string.IsNullOrWhiteSpace(result.Interpretation))
-            || result.Interpretation?.Length > 500)
-            throw new NarrativeGenerationException("Narrative provider returned an invalid dialogue result.");
+        if (!turnTypeMatchesInteraction)
+            violations.Add($"turnType mismatch interactionType={interactionType} expected={expectedTurnTypes} actual={result.TurnType}");
+        if (string.IsNullOrWhiteSpace(result.Heading)) violations.Add("heading is empty");
+        else if (result.Heading.Length > 120) violations.Add($"heading length={result.Heading.Length} max=120");
+        if (string.IsNullOrWhiteSpace(result.Body)) violations.Add("body is empty");
+        else if (result.Body.Length > 20_000) violations.Add($"body length={result.Body.Length} max=20000");
+        if (result.Signals is null) violations.Add("signals is null");
+        else if (result.TurnType == "clarification" && result.Signals.Count > 0)
+            violations.Add($"clarification returned signals count={result.Signals.Count}");
+        if (interpretationRequired && string.IsNullOrWhiteSpace(result.Interpretation))
+            violations.Add("interpretation is required but empty");
+        if (result.Interpretation?.Length > 500)
+            violations.Add($"interpretation length={result.Interpretation.Length} max=500");
+
+        if (violations.Count == 0) return;
+        var reason = string.Join("; ", violations);
+        logger.LogWarning(
+            "AI Provider dialogue failed semantic validation. Provider={Provider} Model={Model} ResponseId={ResponseId} InteractionType={InteractionType} InterpretationRequired={InterpretationRequired} TurnType={TurnType} HeadingLength={HeadingLength} BodyLength={BodyLength} SignalCount={SignalCount} InterpretationLength={InterpretationLength} Violations={Violations}",
+            metadata.Provider,
+            metadata.Model,
+            metadata.ResponseId,
+            interactionType,
+            interpretationRequired,
+            result.TurnType,
+            result.Heading?.Length ?? 0,
+            result.Body?.Length ?? 0,
+            result.Signals?.Count,
+            result.Interpretation?.Length,
+            reason);
+        throw new NarrativeGenerationException($"Narrative provider returned an invalid dialogue result: {reason}");
     }
 
-    private static void ValidateSignals(
+    private void ValidateSignals(
         IReadOnlyList<NarrativeProgressionSignal> signals,
+        AiGenerationMetadata metadata,
         IReadOnlyList<NarrativeAllowedSignal> allowedSignals)
     {
-        if (signals.Count > 1) throw new NarrativeGenerationException("Narrative provider returned too many progression signals.");
+        if (signals.Count > 1)
+        {
+            logger.LogWarning(
+                "AI Provider returned too many progression signals. Provider={Provider} Model={Model} ResponseId={ResponseId} SignalCount={SignalCount} AllowedSignalCount={AllowedSignalCount}",
+                metadata.Provider, metadata.Model, metadata.ResponseId, signals.Count, allowedSignals.Count);
+            throw new NarrativeGenerationException($"Narrative provider returned too many progression signals: count={signals.Count}, max=1.");
+        }
         var allowedCodes = allowedSignals.Select(signal => signal.Code).ToHashSet(StringComparer.Ordinal);
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var signal in signals)
         {
-            if (string.IsNullOrWhiteSpace(signal.Code)
-                || signal.Code.Length > 80
-                || string.IsNullOrWhiteSpace(signal.Evidence)
-                || signal.Evidence.Length > 500
-                || signal.Code.Any(character => !(char.IsLower(character) || char.IsDigit(character) || character == '-'))
-                || !seen.Add(signal.Code)
-                || !allowedCodes.Contains(signal.Code))
-                throw new NarrativeGenerationException("Narrative provider returned an invalid progression signal.");
+            var violations = new List<string>();
+            if (string.IsNullOrWhiteSpace(signal.Code)) violations.Add("code is empty");
+            else
+            {
+                if (signal.Code.Length > 80) violations.Add($"code length={signal.Code.Length} max=80");
+                if (signal.Code.Any(character => !(char.IsLower(character) || char.IsDigit(character) || character == '-')))
+                    violations.Add("code contains invalid characters");
+                if (!seen.Add(signal.Code)) violations.Add($"code is duplicated code={signal.Code}");
+                if (!allowedCodes.Contains(signal.Code)) violations.Add($"code is not allowed code={signal.Code}");
+            }
+            if (string.IsNullOrWhiteSpace(signal.Evidence)) violations.Add("evidence is empty");
+            else if (signal.Evidence.Length > 500) violations.Add($"evidence length={signal.Evidence.Length} max=500");
+            if (violations.Count == 0) continue;
+
+            var reason = string.Join("; ", violations);
+            logger.LogWarning(
+                "AI Provider progression signal failed validation. Provider={Provider} Model={Model} ResponseId={ResponseId} SignalCode={SignalCode} EvidenceLength={EvidenceLength} AllowedCodes={AllowedCodes} Violations={Violations}",
+                metadata.Provider,
+                metadata.Model,
+                metadata.ResponseId,
+                signal.Code,
+                signal.Evidence?.Length ?? 0,
+                string.Join(',', allowedCodes),
+                reason);
+            throw new NarrativeGenerationException($"Narrative provider returned an invalid progression signal: {reason}");
         }
     }
 

@@ -359,7 +359,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
             $"/api/sessions/{sessionId}/narrative-turns",
             new { requestId = "dialogue-wrong-schema", input = "銀の鍵を掲げる" });
 
-        await AssertDialogueGenerationRejectedAsync(response);
+        await AssertDialogueGenerationRejectedAsync(response, "schemaVersion expected=narrative-dialogue.v8 actual=narrative-dialogue.v999");
     }
 
     [Fact]
@@ -373,7 +373,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
             $"/api/sessions/{sessionId}/narrative-turns",
             new { requestId = "dialogue-empty-body", input = "銀の鍵を掲げる" });
 
-        await AssertDialogueGenerationRejectedAsync(response);
+        await AssertDialogueGenerationRejectedAsync(response, "body is empty");
     }
 
     [Fact]
@@ -805,12 +805,14 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         Assert.Equal(2, session.GetProperty("turns").GetArrayLength());
     }
 
-    private async Task AssertDialogueGenerationRejectedAsync(HttpResponseMessage response)
+    private async Task AssertDialogueGenerationRejectedAsync(HttpResponseMessage response, string? expectedDetails = null)
     {
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         var error = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("schema_failure", error.GetProperty("code").GetString());
-        Assert.Contains("Exception", error.GetProperty("details").GetString(), StringComparison.Ordinal);
+        var details = error.GetProperty("details").GetString();
+        Assert.Contains("Exception", details, StringComparison.Ordinal);
+        if (expectedDetails is not null) Assert.Contains(expectedDetails, details, StringComparison.Ordinal);
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var pending = await db.SessionPendingPlayerInputs.AsNoTracking().SingleAsync();
