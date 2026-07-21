@@ -12,7 +12,7 @@ Narrative生成失敗時にもPlayer Inputを失わず、失敗を物語上のTu
 
 このbranchでは、共通`SessionExecution`/Attempt/Artifact、受付時Input transaction、全Narrative write pathの`202 Accepted` worker cutover、Module handoffの共通Execution化と旧service/table削除migration、PostgreSQL `FOR UPDATE SKIP LOCKED` claim、bounded batch、heartbeat、lease token/revision fencing、Execution API、ordered activity、Development診断/Production omission、cached observable gauges、resource attributes/sampling、Note/Imageの永続fixture・review・validated attach・media・orphan/retention reconciliation、frontend note edit/apply/poll reconciliation、Storybook interaction、専用Playwright spec、architecture/runbookまで実装した。Note/Imageの実AI呼び出しは追加していない。
 
-`dotnet test backend/Myriale.slnx --no-build`、`npm test`、frontend build、Storybook build、全Playwright、`dotnet format --verify-no-changes`は成功し、Storybook上のExecution inline failure/Development diagnostics/Production omissionをbrowser screenshotでも確認した。
+追加したtargeted backend test、`npm test`、frontend build、Storybook build、専用Playwrightを含む全Playwrightは成功し、Storybook上のExecution inline failure/Development diagnostics/Production omissionをbrowser screenshotでも確認した。一方、full backend suiteは134件中108件成功・26件失敗であり、旧同期`narrative-turns`の`200`/request-bound errorを期待するtestの非同期contract移行と、Module handoff統合後の一部`500` regression修正が残る。したがってfull validation gateは未達である。
 
 ただし、以下の外部依存を含むin-scope検証とmigrationが未完了のため、このTODOは削除しない。
 
