@@ -1,4 +1,4 @@
-import{j as i}from"./jsx-runtime-BO8uF4Og.js";import{r as p}from"./index-D4H_InIO.js";import{w as u,e as m}from"./index-DwFX8Wt9.js";import{M as x}from"./ModuleUiHost-Bo0AQgho.js";/* empty css               */const c=`
+import{j as i}from"./jsx-runtime-BO8uF4Og.js";import{r as p}from"./index-D4H_InIO.js";import{w as u,e as m}from"./index-C4S39nCK.js";import{M as x}from"./ModuleUiHost-Bo0AQgho.js";/* empty css               */const c=`
 customElements.define('myriale-test-counter', class extends HTMLElement {
  constructor(){super();this.attachShadow({mode:'open'});this.state={revision:0,viewState:{count:0},availableActions:[]};this.addEventListener('myriale:state',e=>{this.state=e.detail;this.render()})}
  connectedCallback(){this.render()}
