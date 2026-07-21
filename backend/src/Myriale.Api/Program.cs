@@ -169,7 +169,11 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-    if (db.Database.IsNpgsql()) await db.Database.MigrateAsync();
+    if (db.Database.IsNpgsql())
+    {
+        await LegacyPostgresSchemaAdopter.AdoptAsync(db);
+        await db.Database.MigrateAsync();
+    }
     else await db.Database.EnsureCreatedAsync();
     await ScenarioSeedData.SeedAsync(db);
 

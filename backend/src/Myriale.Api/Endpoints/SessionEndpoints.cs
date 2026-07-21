@@ -448,10 +448,12 @@ public static class SessionEndpoints
         ApplicationDbContext db,
         CancellationToken cancellationToken)
     {
-        var inputs = await db.SessionPlayerInputs.AsNoTracking()
-            .Where(input => input.SessionId == sessionId && input.NarrativeTurn == null)
+        var inputs = (await db.SessionPlayerInputs.AsNoTracking()
+                .Where(input => input.SessionId == sessionId && input.NarrativeTurn == null)
+                .ToListAsync(cancellationToken))
             .OrderBy(input => input.CreatedAt)
-            .ToListAsync(cancellationToken);
+            .ThenBy(input => input.Id, StringComparer.Ordinal)
+            .ToList();
         if (inputs.Count == 0) return [];
         var inputIds = inputs.Select(input => input.Id).ToArray();
         var executions = await db.SessionExecutions.AsNoTracking()

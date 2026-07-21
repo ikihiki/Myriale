@@ -54,13 +54,11 @@ public static class Extensions
     public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
         var resource = CreateResourceBuilder(builder);
-        var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
         builder.Logging.AddOpenTelemetry(logging =>
         {
             logging.IncludeFormattedMessage = true;
             logging.IncludeScopes = true;
             logging.SetResourceBuilder(resource);
-            if (useOtlpExporter) logging.AddOtlpExporter();
         });
 
         builder.Services.AddOpenTelemetry()

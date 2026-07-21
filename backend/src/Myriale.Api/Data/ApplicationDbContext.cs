@@ -18,7 +18,6 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<SessionNarrativeSignal> SessionNarrativeSignals => Set<SessionNarrativeSignal>();
     public DbSet<SessionProgressionTransitionReceipt> SessionProgressionTransitionReceipts => Set<SessionProgressionTransitionReceipt>();
     public DbSet<SessionPlayerInput> SessionPlayerInputs => Set<SessionPlayerInput>();
-    public DbSet<SessionPendingPlayerInput> SessionPendingPlayerInputs => Set<SessionPendingPlayerInput>();
     public DbSet<SessionExecution> SessionExecutions => Set<SessionExecution>();
     public DbSet<SessionExecutionAttempt> SessionExecutionAttempts => Set<SessionExecutionAttempt>();
     public DbSet<SessionArtifact> SessionArtifacts => Set<SessionArtifact>();
@@ -155,22 +154,6 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         builder.Entity<SessionTurn>()
             .HasIndex(turn => new { turn.SessionId, turn.Position })
             .IsUnique();
-        builder.Entity<SessionPendingPlayerInput>()
-            .Property(input => input.Revision)
-            .IsConcurrencyToken();
-        builder.Entity<SessionPendingPlayerInput>()
-            .HasIndex(input => new { input.SessionId, input.RequestId })
-            .IsUnique();
-        builder.Entity<SessionPendingPlayerInput>()
-            .HasOne(input => input.Session)
-            .WithMany(session => session.PendingPlayerInputs)
-            .HasForeignKey(input => input.SessionId)
-            .OnDelete(DeleteBehavior.Cascade);
-        builder.Entity<SessionPendingPlayerInput>()
-            .HasOne(input => input.AcceptedAfterTurn)
-            .WithMany()
-            .HasForeignKey(input => input.AcceptedAfterTurnId)
-            .OnDelete(DeleteBehavior.Restrict);
         builder.Entity<SessionPlayerInput>()
             .HasIndex(input => new { input.SessionId, input.RequestId })
             .IsUnique();

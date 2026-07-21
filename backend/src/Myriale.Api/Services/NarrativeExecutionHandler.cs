@@ -47,6 +47,8 @@ public sealed class NarrativeExecutionHandler(
                 context.CurrentProgressionNode, context.AllowedSignals, session.InterpretationEnabled), cancellationToken);
             if (string.IsNullOrWhiteSpace(generation.Value.Body) || generation.Value.Body.Length > 20_000)
                 throw new NarrativeGenerationException("Narrative provider returned an invalid body.");
+            ValidateGeneratedResult(generation.Value, generation.Metadata, input.InteractionType, session.InterpretationEnabled);
+            ValidateSignals(generation.Value.Signals, generation.Metadata, context.AllowedSignals);
         }
         catch (Exception exception) when (exception is NarrativeGenerationException or AiProviderException or HttpRequestException or JsonException or OperationCanceledException)
         {
@@ -73,7 +75,11 @@ public sealed class NarrativeExecutionHandler(
             await publishTransaction.RollbackAsync(CancellationToken.None);
             return new(false, false, "lease_lost", "生成処理の所有権が失われました。");
         }
-        await db.Entry(current).Reference(item => item.Session).Query().Include(item => item.HeadTurn).LoadAsync(cancellationToken);
+        await db.Entry(current).Reference(item => item.Session).Query()
+            .Include(item => item.HeadTurn)
+            .Include(item => item.State)
+            .Include(item => item.Progress)
+            .LoadAsync(cancellationToken);
         if (!string.Equals(current.Session.HeadTurnId, current.AcceptedHeadTurnId, StringComparison.Ordinal))
         {
             await publishTransaction.RollbackAsync(CancellationToken.None);
@@ -138,6 +144,50 @@ public sealed class NarrativeExecutionHandler(
         current.Session.UpdatedAt = now;
         db.SessionArtifacts.Add(artifact);
         db.SessionTurns.Add(turn);
+        foreach (var generatedSignal in generation.Value.Signals)
+        {
+            var signal = new SessionNarrativeSignal
+            {
+                Id = $"NSG-{Guid.NewGuid():N}".ToUpperInvariant(),
+                SessionId = current.SessionId,
+                NarrativeTurnId = turn.Id,
+                Code = generatedSignal.Code,
+                Evidence = generatedSignal.Evidence.Trim(),
+                CreatedAt = now,
+            };
+            db.SessionNarrativeSignals.Add(signal);
+            if (current.Session.Progress is null) continue;
+            var transition = await db.ScenarioProgressionTransitions.AsNoTracking()
+                .SingleOrDefaultAsync(item => item.SourceNodeId == current.Session.Progress.CurrentNodeId
+                    && item.SignalCode == generatedSignal.Code, cancellationToken);
+            if (transition is null) continue;
+            var snapshot = await db.SessionProgressionModuleSnapshots.AsNoTracking()
+                .SingleOrDefaultAsync(item => item.SessionId == current.SessionId && item.TransitionId == transition.Id, cancellationToken);
+            db.SessionProgressionTransitionReceipts.Add(new SessionProgressionTransitionReceipt
+            {
+                Id = $"PTR-{Guid.NewGuid():N}".ToUpperInvariant(),
+                SessionId = current.SessionId,
+                SourceSignalId = signal.Id,
+                TransitionId = transition.Id,
+                FromNodeId = transition.SourceNodeId,
+                ToNodeId = transition.TargetNodeId,
+                Status = snapshot is null ? "waiting-configuration" : "pending",
+                ModuleId = snapshot?.ModuleId,
+                ModuleVersion = snapshot?.ModuleVersion,
+                ModuleDigest = snapshot?.ModuleDigest,
+                ModuleConfigurationJson = snapshot?.ConfigurationJson,
+                ModuleContextJson = snapshot?.ContextJson,
+                ModuleRandomValueCount = snapshot?.RandomValueCount ?? 0,
+                Revision = 0,
+                AttemptCount = 0,
+                IsRetryable = snapshot is not null,
+                CreatedAt = now,
+                UpdatedAt = now,
+            });
+            current.Session.Progress.CurrentNodeId = transition.TargetNodeId;
+            current.Session.Progress.Revision++;
+            current.Session.Progress.UpdatedAt = now;
+        }
         var attempt = await db.SessionExecutionAttempts.SingleAsync(item => item.Id == workerContext.AttemptId, cancellationToken);
         attempt.Provider = generation.Metadata.Provider; attempt.Model = generation.Metadata.Model; attempt.ProviderRequestId = generation.Metadata.ResponseId;
         attempt.LatencyMilliseconds = generation.Metadata.LatencyMilliseconds; attempt.InputTokens = generation.Metadata.InputTokens; attempt.OutputTokens = generation.Metadata.OutputTokens;
@@ -184,6 +234,87 @@ public sealed class NarrativeExecutionHandler(
                 && item.LeaseToken == workerContext.LeaseToken
                 && item.Revision == workerContext.Revision,
             cancellationToken);
+    }
+
+    private void ValidateGeneratedResult(
+        NarrativeDialogueResult result,
+        AiGenerationMetadata metadata,
+        string interactionType,
+        bool interpretationRequired)
+    {
+        var violations = new List<string>();
+        if (!string.Equals(result.SchemaVersion, NarrativeDialogueSchema.Version, StringComparison.Ordinal))
+            violations.Add($"schemaVersion expected={NarrativeDialogueSchema.Version} actual={result.SchemaVersion}");
+        if (!NarrativeDialogueSchema.TurnTypes.Contains(result.TurnType))
+            violations.Add($"turnType unsupported actual={result.TurnType}");
+        var expectedTurnTypes = interactionType == NarrativeInteractionTypes.Clarification
+            ? "clarification"
+            : "action-result|npc-reply";
+        var turnTypeMatchesInteraction = interactionType switch
+        {
+            NarrativeInteractionTypes.Clarification => result.TurnType == "clarification",
+            NarrativeInteractionTypes.Dialogue => result.TurnType is "action-result" or "npc-reply",
+            _ => false,
+        };
+        if (!turnTypeMatchesInteraction)
+            violations.Add($"turnType mismatch interactionType={interactionType} expected={expectedTurnTypes} actual={result.TurnType}");
+        if (string.IsNullOrWhiteSpace(result.Heading)) violations.Add("heading is empty");
+        else if (result.Heading.Length > 120) violations.Add($"heading length={result.Heading.Length} max=120");
+        if (string.IsNullOrWhiteSpace(result.Body)) violations.Add("body is empty");
+        else if (result.Body.Length > 20_000) violations.Add($"body length={result.Body.Length} max=20000");
+        if (result.Signals is null) violations.Add("signals is null");
+        else if (result.TurnType == "clarification" && result.Signals.Count > 0)
+            violations.Add($"clarification returned signals count={result.Signals.Count}");
+        if (interpretationRequired && string.IsNullOrWhiteSpace(result.Interpretation))
+            violations.Add("interpretation is required but empty");
+        if (result.Interpretation?.Length > 500)
+            violations.Add($"interpretation length={result.Interpretation.Length} max=500");
+
+        if (violations.Count == 0) return;
+        var reason = string.Join("; ", violations);
+        logger.LogWarning(
+            "AI Provider dialogue failed semantic validation. Provider={Provider} Model={Model} ResponseId={ResponseId} InteractionType={InteractionType} InterpretationRequired={InterpretationRequired} TurnType={TurnType} Violations={Violations}",
+            metadata.Provider, metadata.Model, metadata.ResponseId, interactionType, interpretationRequired, result.TurnType, reason);
+        throw new NarrativeGenerationException($"Narrative provider returned an invalid dialogue result: {reason}");
+    }
+
+    private void ValidateSignals(
+        IReadOnlyList<NarrativeProgressionSignal> signals,
+        AiGenerationMetadata metadata,
+        IReadOnlyList<NarrativeAllowedSignal> allowedSignals)
+    {
+        if (signals.Count > 1)
+        {
+            logger.LogWarning(
+                "AI Provider returned too many progression signals. Provider={Provider} Model={Model} ResponseId={ResponseId} SignalCount={SignalCount}",
+                metadata.Provider, metadata.Model, metadata.ResponseId, signals.Count);
+            throw new NarrativeGenerationException($"Narrative provider returned too many progression signals: count={signals.Count}, max=1.");
+        }
+
+        var allowedCodes = allowedSignals.Select(signal => signal.Code).ToHashSet(StringComparer.Ordinal);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var signal in signals)
+        {
+            var violations = new List<string>();
+            if (string.IsNullOrWhiteSpace(signal.Code)) violations.Add("code is empty");
+            else
+            {
+                if (signal.Code.Length > 80) violations.Add($"code length={signal.Code.Length} max=80");
+                if (signal.Code.Any(character => !(char.IsLower(character) || char.IsDigit(character) || character == '-')))
+                    violations.Add("code contains invalid characters");
+                if (!seen.Add(signal.Code)) violations.Add($"code is duplicated code={signal.Code}");
+                if (!allowedCodes.Contains(signal.Code)) violations.Add($"code is not allowed code={signal.Code}");
+            }
+            if (string.IsNullOrWhiteSpace(signal.Evidence)) violations.Add("evidence is empty");
+            else if (signal.Evidence.Length > 500) violations.Add($"evidence length={signal.Evidence.Length} max=500");
+            if (violations.Count == 0) continue;
+
+            var reason = string.Join("; ", violations);
+            logger.LogWarning(
+                "AI Provider progression signal failed validation. Provider={Provider} Model={Model} ResponseId={ResponseId} SignalCode={SignalCode} Violations={Violations}",
+                metadata.Provider, metadata.Model, metadata.ResponseId, signal.Code, reason);
+            throw new NarrativeGenerationException($"Narrative provider returned an invalid progression signal: {reason}");
+        }
     }
 
     private async Task RecordFailureDiagnosticsAsync(string attemptId, Exception exception, string code, bool retryable, CancellationToken cancellationToken)
