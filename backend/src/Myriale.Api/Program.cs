@@ -58,7 +58,12 @@ builder.Services.AddSingleton<ModuleRuntimeInvocationGate>();
 builder.Services.AddScoped<SessionOutcomeEffectService>();
 builder.Services.AddScoped<IModuleExecutionService, ModuleExecutionService>();
 builder.Services.AddScoped<IModuleUiResourceService, ModuleUiResourceService>();
-builder.Services.AddHttpClient("OpenAiCompatible");
+#pragma warning disable EXTEXP0001 // RemoveAllResilienceHandlers is currently marked experimental.
+builder.Services.AddHttpClient("OpenAiCompatible")
+    // AI requests own their timeout and retry policy so long-running inference is not cut off by
+    // the service-default resilience handler's 10-second attempt timeout.
+    .RemoveAllResilienceHandlers();
+#pragma warning restore EXTEXP0001
 builder.Services.AddHttpClient("MockAi", client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["MockAi:BaseUrl"] ?? "https+http://myriale-mock-ai");
