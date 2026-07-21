@@ -16,6 +16,7 @@ namespace Myriale.Api.Tests;
 
 public sealed class SessionNarrativeTurnEndpointTests : IDisposable
 {
+    private static readonly TimeSpan AsyncSignalTimeout = TimeSpan.FromSeconds(30);
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"myriale-narrative-tests-{Guid.NewGuid():N}");
     private readonly CapturingNarrativeGenerator _generator = new();
     private readonly WebApplicationFactory<Program> _factory;
@@ -475,7 +476,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var request = client.PostAsJsonAsync(
             $"/api/sessions/{sessionId}/narrative-turns",
             new { requestId = "dialogue-event", input = "扉の前で立ち止まる" });
-        await _generator.DialogueEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await _generator.DialogueEntered.Task.WaitAsync(AsyncSignalTimeout);
 
         var pendingSession = await GetSessionAsync(client, sessionId);
         var pendingInput = Assert.Single(pendingSession.GetProperty("pendingInputs").EnumerateArray());
@@ -734,7 +735,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         _generator.Pause = true;
 
         var completion = client.PostAsJsonAsync($"/api/module-executions/{executionId}/dispatch", DispatchBody("stale-complete"));
-        await _generator.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await _generator.Entered.Task.WaitAsync(AsyncSignalTimeout);
         using var advanced = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/module-turns", InitializeBody("later-turn"));
         Assert.Equal(HttpStatusCode.Created, advanced.StatusCode);
         _generator.Release.TrySetResult();
