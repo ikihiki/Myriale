@@ -71,8 +71,13 @@ public sealed class NarrativeExecutionHandler(
         catch (Exception exception) when (exception is NarrativeGenerationException or AiProviderException or HttpRequestException or JsonException or OperationCanceledException)
         {
             var providerError = exception as AiProviderException;
-            var code = providerError?.Code ?? (exception is OperationCanceledException ? AiProviderErrorCodes.Timeout : AiProviderErrorCodes.SchemaFailure);
+            var code = providerError?.Code
+                ?? (exception is NarrativeSignalValidationException ? "invalid_signal"
+                    : exception is OperationCanceledException ? AiProviderErrorCodes.Timeout
+                    : AiProviderErrorCodes.SchemaFailure);
             var retryable = providerError?.Retryable ?? exception is HttpRequestException or OperationCanceledException;
+            if (exception is NarrativeSignalValidationException)
+                SessionExecutionTelemetry.RecordInvalidSignal(execution.Kind, execution.Status);
             if (environment.IsDevelopment())
             {
                 sentPrompt = DiagnosticContent(providerError?.SentPrompt ?? sentPrompt);
@@ -329,7 +334,7 @@ public sealed class NarrativeExecutionHandler(
         else if (result.Body.Length > 20_000) violations.Add($"body length={result.Body.Length} max=20000");
         if (result.Signals is null) violations.Add("signals is null");
         else if (result.TurnType == "clarification" && result.Signals.Count > 0)
-            violations.Add($"clarification returned signals count={result.Signals.Count}");
+            throw new NarrativeSignalValidationException($"Narrative provider returned progression signals for clarification: count={result.Signals.Count}.");
         if (interpretationRequired && string.IsNullOrWhiteSpace(result.Interpretation))
             violations.Add("interpretation is required but empty");
         if (interpretationRequired && result.Interpretation is { } interpretation)
@@ -359,7 +364,7 @@ public sealed class NarrativeExecutionHandler(
             logger.LogWarning(
                 "AI Provider returned too many progression signals. Provider={Provider} Model={Model} ResponseId={ResponseId} SignalCount={SignalCount}",
                 metadata.Provider, metadata.Model, metadata.ResponseId, signals.Count);
-            throw new NarrativeGenerationException($"Narrative provider returned too many progression signals: count={signals.Count}, max=1.");
+            throw new NarrativeSignalValidationException($"Narrative provider returned too many progression signals: count={signals.Count}, max=1.");
         }
 
         var allowedCodes = allowedSignals.Select(signal => signal.Code).ToHashSet(StringComparer.Ordinal);
@@ -384,7 +389,7 @@ public sealed class NarrativeExecutionHandler(
             logger.LogWarning(
                 "AI Provider progression signal failed validation. Provider={Provider} Model={Model} ResponseId={ResponseId} SignalCode={SignalCode} Violations={Violations}",
                 metadata.Provider, metadata.Model, metadata.ResponseId, signal.Code, reason);
-            throw new NarrativeGenerationException($"Narrative provider returned an invalid progression signal: {reason}");
+            throw new NarrativeSignalValidationException($"Narrative provider returned an invalid progression signal: {reason}");
         }
     }
 

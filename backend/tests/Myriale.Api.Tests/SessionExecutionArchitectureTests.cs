@@ -1,3 +1,4 @@
+using System.Diagnostics.Metrics;
 using System.Diagnostics;
 using Myriale.Api.Data;
 using Myriale.Api.Services;
@@ -61,6 +62,46 @@ public sealed class SessionExecutionArchitectureTests
         Assert.DoesNotContain("myriale.execution.id", names);
         Assert.DoesNotContain("myriale.input.id", names);
         Assert.Equal(["myriale.execution.kind", "myriale.execution.status", "ai.provider.name", "ai.model.name", "error.type"], names);
+    }
+
+    [Fact]
+    public void ProviderMetricTagsContainOnlyBoundedOperationalDimensions()
+    {
+        TagList tags = SessionExecutionTelemetry.ProviderTags("runpod", "model-a", "failed", AiProviderErrorCodes.RateLimited);
+        var names = tags.ToArray().Select(item => item.Key).ToArray();
+        Assert.Equal(["ai.provider.name", "ai.model.name", "myriale.provider.status", "error.type"], names);
+        Assert.DoesNotContain("prompt", names);
+        Assert.DoesNotContain("response", names);
+        Assert.DoesNotContain("myriale.session.id", names);
+    }
+
+    [Fact]
+    public void SessionAdvancedAndInvalidSignalMetricsUseBoundedErrorTags()
+    {
+        var measurements = new List<(string Name, Dictionary<string, object?> Tags)>();
+        using var listener = new MeterListener();
+        listener.InstrumentPublished = (instrument, activeListener) =>
+        {
+            if (instrument.Meter.Name == SessionExecutionTelemetry.MeterName)
+                activeListener.EnableMeasurementEvents(instrument);
+        };
+        listener.SetMeasurementEventCallback<long>((instrument, _, tags, _) =>
+        {
+            if (instrument.Name is "myriale.session.execution.session_advanced" or "myriale.ai.dialogue.invalid_signal")
+                measurements.Add((instrument.Name, tags.ToArray().ToDictionary(item => item.Key, item => item.Value)));
+        });
+        listener.Start();
+
+        SessionExecutionTelemetry.RecordSessionAdvanced("narrative", "superseded");
+        SessionExecutionTelemetry.RecordInvalidSignal("narrative", "running");
+
+        Assert.Contains(measurements, measurement => measurement.Name == "myriale.session.execution.session_advanced"
+            && Equals(measurement.Tags["error.type"], "session_advanced"));
+        Assert.Contains(measurements, measurement => measurement.Name == "myriale.ai.dialogue.invalid_signal"
+            && Equals(measurement.Tags["error.type"], "invalid_signal"));
+        Assert.All(measurements, measurement => Assert.Equal(
+            ["myriale.execution.kind", "myriale.execution.status", "error.type"],
+            measurement.Tags.Keys));
     }
 
     private static SessionExecution Execution(string status) => new()

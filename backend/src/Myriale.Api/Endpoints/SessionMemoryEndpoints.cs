@@ -30,11 +30,12 @@ public static class SessionMemoryEndpoints
         if (!await db.Sessions.AsNoTracking().AnyAsync(session => session.Id == sessionId && session.OwnerId == ownerId, cancellationToken))
             return Results.NotFound();
 
-        var notes = await db.SessionNotes.AsNoTracking()
+        var notes = (await db.SessionNotes.AsNoTracking()
             .Include(note => note.TurnReferences)
             .Where(note => note.SessionId == sessionId)
+            .ToListAsync(cancellationToken))
             .OrderBy(note => note.CreatedAt)
-            .ToListAsync(cancellationToken);
+            .ToArray();
         var summaries = await db.SessionSummaries.AsNoTracking()
             .Where(summary => summary.SessionId == sessionId)
             .OrderBy(summary => summary.Version)

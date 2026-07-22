@@ -524,7 +524,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
             $"/api/sessions/{sessionId}/inputs",
             new { requestId = "dialogue-malformed-signal", text = "銀の鍵を掲げる" });
 
-        await AssertDialogueGenerationRejectedAsync(client, response);
+        await AssertDialogueGenerationRejectedAsync(client, response, expectedCode: "invalid_signal");
     }
 
     [Fact]
@@ -538,7 +538,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
             $"/api/sessions/{sessionId}/inputs",
             new { requestId = "dialogue-missing-evidence", text = "閉じた星座の扉へ進む" });
 
-        await AssertDialogueGenerationRejectedAsync(client, response);
+        await AssertDialogueGenerationRejectedAsync(client, response, expectedCode: "invalid_signal");
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         Assert.Equal(0, await db.ModuleExecutions.CountAsync());
@@ -562,7 +562,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
                 interactionType = NarrativeInteractionTypes.Clarification,
             });
 
-        await AssertDialogueGenerationRejectedAsync(client, response);
+        await AssertDialogueGenerationRejectedAsync(client, response, expectedCode: "invalid_signal");
         Assert.Equal(0, await CountNarrativeTurnsAsync());
         await using (var scope = _factory.Services.CreateAsyncScope())
         {
@@ -937,7 +937,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         using var response = await client.PostAsJsonAsync(
             $"/api/sessions/{sessionId}/inputs",
             new { requestId = "dialogue-invalid-signal", text = "扉へ進む" });
-        await AssertDialogueGenerationRejectedAsync(client, response);
+        await AssertDialogueGenerationRejectedAsync(client, response, expectedCode: "invalid_signal");
         var session = await GetSessionAsync(client, sessionId);
         Assert.Empty(session.GetProperty("turns").EnumerateArray());
         Assert.Equal("exploration", session.GetProperty("progression").GetProperty("currentNode").GetString());
