@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type ComponentType } from 'react';
 import { RouterProvider } from '@tanstack/react-router';
 import { createFetchAccountApi } from '../account/api/accountApi';
 import { AccountApiProvider } from '../account/hooks/useAccountSession';
@@ -11,6 +11,7 @@ export type MyrialeAppProps = {
   initialDb?: AppDb;
   showDebugPanel?: boolean;
   historyMode?: AppHistoryMode;
+  sessionContainer?: ComponentType<{ sessionId: string }>;
 };
 
 export function MyrialeApp({
@@ -18,11 +19,12 @@ export function MyrialeApp({
   initialDb,
   showDebugPanel = true,
   historyMode = 'memory',
+  sessionContainer,
 }: MyrialeAppProps) {
   const accountApi = useMemo(() => createFetchAccountApi(), []);
   const router = useMemo(
-    () => createAppRouter({ initialUrl, historyMode, showDebugPanel, accountApi }),
-    [accountApi, historyMode, initialUrl, showDebugPanel],
+    () => createAppRouter({ initialUrl, historyMode, showDebugPanel, accountApi, sessionContainer }),
+    [accountApi, historyMode, initialUrl, sessionContainer, showDebugPanel],
   );
   const queryClient = useMemo(() => createMyrialeQueryClient(), []);
 

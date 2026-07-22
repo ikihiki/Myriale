@@ -2,12 +2,13 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
 import { MyrialeApp } from '../app/MyrialeApp';
 import { createDemoDb } from '../app/demoData';
+import { MockSessionContainer } from './session-page/MockSessionContainer';
 import '../styles.css';
 
 const meta = {
   title: 'ユーザーストーリー/Session notes auto generation',
   component: MyrialeApp,
-  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098" initialDb={createDemoDb('notesReview')} />,
+  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098" initialDb={createDemoDb('notesReview')} sessionContainer={MockSessionContainer} />,
   parameters: {
     notes: 'ノート系ユーザーストーリーは独立画面ではなく、セッション中のサイド/全画面ノートワークスペースとして表示します。',
   },

@@ -48,7 +48,7 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 
 - [x] `SessionPage`の初期表示で`GET /api/sessions/{sessionId}`を実行する。
 - [x] ServerのTurn ID、Position、Kind、Narrative、Player Input、Module Executionを表示の正本にする。
-- [ ] hard-codedな`initialTurns`を本番経路から外し、Storybook fixtureへ分離する。
+- [x] hard-codedな`initialTurns`を本番経路から外し、Storybook fixtureへ分離する。
 - [x] API未設定時の暗黙local Narrative fallbackを本番経路から削除する。
 - [x] Session、認証、API接続に失敗した場合は成功表示へfallbackせず、明示的なerror stateを表示する。
 - [x] 画面再読み込み後に同じOpening、Player Input、Narrative、Module Turnが復元されることを確認する。
