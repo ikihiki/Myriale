@@ -10,7 +10,7 @@ import { scenarioWizardShellClass, wizardPaperClass, wizardSummaryClass } from '
 import { SessionActivityFeed } from './SessionActivityFeed';
 import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeToggle, MyrialeSelect } from '../../ui/MyrialeRadix';
 import type { NarrativeInteractionType } from './sessionPlayApi';
-import type { DialogueTurn, HeadingLink, SessionPresentationProps } from './sessionModel';
+import { sessionInfoNotice, type DialogueTurn, type HeadingLink, type SessionNotice, type SessionNoticeInput, type SessionPresentationProps } from './sessionModel';
 
 const modeLabels = {
   dialogue: { badge: '対話中', label: 'AI対話モード', summary: 'Dialogue Mode', reason: '自由入力で行動や会話を送れます。' },
@@ -45,28 +45,38 @@ const defaultProgram = {
   onReconnect: () => undefined,
 };
 
+const normalizeNotice = (notice: SessionNoticeInput): SessionNotice =>
+  typeof notice === 'string' ? sessionInfoNotice(notice) : notice;
+
+const noticeActionLabel = (action: SessionNotice['action']) => ({
+  login: 'ログインへ',
+  reload: '再読み込み',
+  'session-list': 'セッション一覧へ',
+})[action ?? 'reload'];
+
 export function SessionPresentationStatus({
   account,
-  error = '',
-  requiresLogin = false,
+  notice,
   onLogout,
   onLogin,
   onReload,
+  onSessionList,
 }: {
   account: SessionPresentationProps['account'];
-  error?: string;
-  requiresLogin?: boolean;
+  notice?: SessionNotice | null;
   onLogout?: SessionPresentationProps['onLogout'];
   onLogin?: () => void;
   onReload?: () => void;
+  onSessionList?: () => void;
 }) {
+  const action = notice?.action === 'login' ? onLogin : notice?.action === 'session-list' ? onSessionList : onReload;
   return (
     <AppChrome section="sessions" breadcrumbs={[{ label: 'Myriale', to: 'home' }, { label: 'セッション' }]} account={account} onLogout={onLogout}>
       <main className="grid min-h-[calc(100vh-118px)] place-items-center bg-[image:var(--myr-screen-background)] p-6 text-myr-ink">
-        <section className="max-w-xl rounded-myr-panel bg-myr-paper p-8 text-center shadow-myr-panel" aria-label={error ? 'Session読み込みエラー' : 'Session読み込み中'}>
-          <h1 className="font-myr-display text-4xl">{error ? 'Sessionを読み込めませんでした' : 'Sessionを読み込んでいます'}</h1>
-          <p role={error ? 'alert' : 'status'}>{error || '確定済みのTurnを取得しています。'}</p>
-          {error && <Button variant="secondary" size="lg" onClick={requiresLogin ? onLogin : onReload}>{requiresLogin ? 'ログインへ' : '再読み込み'}</Button>}
+        <section className="max-w-xl rounded-myr-panel bg-myr-paper p-8 text-center shadow-myr-panel" aria-label={notice ? 'Session読み込みエラー' : 'Session読み込み中'} data-testid="session-load-status" data-notice-kind={notice?.kind}>
+          <h1 className="font-myr-display text-4xl">{notice?.title ?? 'Sessionを読み込んでいます'}</h1>
+          <p role={notice ? 'alert' : 'status'}>{notice?.message ?? '確定済みのTurnを取得しています。'}</p>
+          {notice?.action && action && <Button variant={notice.tone === 'danger' ? 'danger' : 'secondary'} size="lg" onClick={action}>{noticeActionLabel(notice.action)}</Button>}
         </section>
       </main>
     </AppChrome>
@@ -83,13 +93,15 @@ export function SessionPresentation({
   initialInput = '',
   initialInteractionType = 'dialogue',
   initialNotice = '',
+  liveNotice = null,
   isSubmitting = false,
   isRecommending = false,
-  authenticationRequired: authenticationRequiredProp = false,
   turnDisplay,
   program = defaultProgram,
   onLogout,
   onLogin,
+  onReload,
+  onSessionList,
   onSubmit,
   onRecommend,
   onClarification,
@@ -102,8 +114,8 @@ export function SessionPresentation({
   const [interactionType, setInteractionType] = useState<NarrativeInteractionType>(initialInteractionType);
   const [selectedTurnId, setSelectedTurnId] = useState(turns.at(-1)?.id ?? 1);
   const [retryAvailable, setRetryAvailable] = useState(false);
-  const [notice, setNotice] = useState(initialNotice);
-  const [authenticationRequired, setAuthenticationRequired] = useState(authenticationRequiredProp);
+  const [noticeInput, setNotice] = useState<SessionNoticeInput>(initialNotice);
+  const notice = noticeInput ? normalizeNotice(noticeInput) : null;
   const notesMode = appStore?.db.ui.notesPanelMode ?? 'side';
   const setNotesMode = (mode: 'side' | 'full') => appStore?.dispatch({ type: 'NOTES_PANEL_MODE_CHANGED', mode });
   const [notesView, setNotesView] = useState<'hidden' | 'split' | 'full'>(notesMode === 'full' ? 'full' : 'split');
@@ -117,7 +129,7 @@ export function SessionPresentation({
   useEffect(() => {
     if (program.notice) setNotice(program.notice);
   }, [program.notice]);
-  useEffect(() => setAuthenticationRequired(authenticationRequiredProp), [authenticationRequiredProp]);
+  useEffect(() => { if (liveNotice) setNotice(liveNotice); }, [liveNotice]);
   useEffect(() => {
     const latestId = turns.at(-1)?.id;
     if (latestId != null && !turns.some((turn) => turn.id === selectedTurnId)) setSelectedTurnId(latestId);
@@ -162,8 +174,7 @@ export function SessionPresentation({
     if (!submittedInput) { setNotice('自然言語で行動や会話を入力してください。文法が不完全でも受理します。'); return; }
     const result = await onSubmit(submittedInput, interactionType);
     setNotice(result.notice);
-    setAuthenticationRequired(Boolean(result.authenticationRequired));
-    setRetryAvailable(!result.ok);
+    setRetryAvailable(!result.ok && normalizeNotice(result.notice).retryable);
     if (result.ok) { setInput(''); setInteractionType('dialogue'); }
   };
   const askClarification = async () => {
@@ -180,7 +191,6 @@ export function SessionPresentation({
     setNotice('AIが現在の状況から次の行動案を考えています。');
     const result = await onRecommend();
     setNotice(result.notice);
-    setAuthenticationRequired(Boolean(result.authenticationRequired));
     if (result.ok && result.value) { setInput(result.value); setInteractionType('dialogue'); }
   };
   const handleExecutionAction = async (executionId: string, action: 'retry' | 'cancel' | 'dismiss') => {
@@ -285,10 +295,16 @@ export function SessionPresentation({
           )}
         </div>
         {notice && (
-          <Notice className="my-4.5" data-testid="dialogue-notice">
-            <span>{notice}</span>
-            {authenticationRequired && onLogin && (
-              <Button variant="primary" size="sm" onClick={onLogin}>ログインへ</Button>
+          <Notice className="my-4.5" data-testid="dialogue-notice" data-notice-kind={notice.kind} tone={notice.tone} role={notice.tone === 'danger' ? 'alert' : 'status'}>
+            <span>{notice.title && <strong className="block">{notice.title}</strong>}{notice.message}</span>
+            {notice.action && (
+              <Button
+                variant={notice.tone === 'danger' ? 'danger' : 'secondary'}
+                size="sm"
+                onClick={notice.action === 'login' ? onLogin : notice.action === 'session-list' ? onSessionList : onReload}
+              >
+                {noticeActionLabel(notice.action)}
+              </Button>
             )}
           </Notice>
         )}
@@ -512,8 +528,8 @@ export function SessionPresentation({
         </section>
         <div className="visually-hidden" data-testid="program-log">{generatedLog}</div>
         <div className="visually-hidden" data-testid="narrative-log">{generatedLog}</div>
-        <div className="visually-hidden" data-testid="program-notice">{notice}</div>
-        <div className="visually-hidden" data-testid="mode-notice">{notice}</div>
+        <div className="visually-hidden" data-testid="program-notice">{notice?.message}</div>
+        <div className="visually-hidden" data-testid="mode-notice">{notice?.message}</div>
 
         <section className="mt-4.5 border-t border-myr-ink/18 pt-3" aria-label="デバッグパネル">
           <Button

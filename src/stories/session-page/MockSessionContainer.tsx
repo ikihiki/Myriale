@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { AppChromeAccount } from '../../account/accountPresentation';
 import { useOptionalAppStore, type TurnDisplayFlags } from '../../app/store';
-import { SessionPresentation } from '../../features/session-play/SessionPresentation';
+import { SessionPresentation, SessionPresentationStatus } from '../../features/session-play/SessionPresentation';
 import type {
   BattleAction,
   DialogueTurn,
@@ -9,8 +9,9 @@ import type {
   SessionMode,
   SessionModeFlavor,
   SessionProgramController,
+  SessionNotice,
 } from '../../features/session-play/sessionModel';
-import { clampInitialTurnCount, headingLinks, initialTurns, resultForInput } from './sessionFixtures';
+import { clampInitialTurnCount, headingLinks, initialTurns, resultForInput, sessionErrorNotices } from './sessionFixtures';
 
 const demoPlayerAccount: AppChromeAccount = {
   name: '霧野しおり',
@@ -21,7 +22,9 @@ const demoPlayerAccount: AppChromeAccount = {
 
 const programTurnDisplay: TurnDisplayFlags = { allowRewind: false, showInterpretation: false, leadTone: 'program', leadTag: 'PROGRAM' };
 
-export function MockSessionContainer({ sessionId }: { sessionId: string }) {
+export type SessionErrorScenario = 'success' | 'load-401' | 'load-404' | 'submit-409' | 'submit-429' | 'load-503' | 'submit-timeout';
+
+export function MockSessionContainer({ sessionId, scenario = 'success' }: { sessionId: string; scenario?: SessionErrorScenario }) {
   const appStore = useOptionalAppStore();
   const dbSession = appStore?.db.playSessions[sessionId];
   const initialTurnCount = clampInitialTurnCount(dbSession?.turn);
@@ -114,6 +117,31 @@ export function MockSessionContainer({ sessionId }: { sessionId: string }) {
     onProcessingError: processingError, onRecover: recover, onReconnect: reconnect,
   };
 
+  const loadNotice: SessionNotice | null = scenario === 'load-401'
+    ? sessionErrorNotices.unauthorized
+    : scenario === 'load-404'
+      ? sessionErrorNotices.notFound
+      : scenario === 'load-503'
+        ? sessionErrorNotices.serviceUnavailable
+        : null;
+  if (loadNotice) {
+    return <SessionPresentationStatus
+      account={demoPlayerAccount}
+      notice={loadNotice}
+      onLogin={() => undefined}
+      onReload={() => undefined}
+      onSessionList={() => undefined}
+    />;
+  }
+
+  const submitError = scenario === 'submit-409'
+    ? sessionErrorNotices.conflict
+    : scenario === 'submit-429'
+      ? sessionErrorNotices.rateLimited
+      : scenario === 'submit-timeout'
+        ? sessionErrorNotices.timeout
+        : null;
+
   return <SessionPresentation
     sessionId={sessionId}
     account={demoPlayerAccount}
@@ -123,7 +151,10 @@ export function MockSessionContainer({ sessionId }: { sessionId: string }) {
     initialNotice={notice}
     turnDisplay={dbSession?.turnDisplay}
     program={program}
+    onReload={() => undefined}
+    onSessionList={() => undefined}
     onSubmit={async (input) => {
+      if (submitError) return { ok: false, notice: submitError };
       const nextTurn = resultForInput(input, turns.length + 1);
       setTurns((current) => [...current, nextTurn]);
       return { ok: true, notice: 'Player Inputを行動として解釈し、結果をNarrativeとして生成しました。次の重要な進行は入力待ちです。' };

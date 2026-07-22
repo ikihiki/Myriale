@@ -55,11 +55,64 @@ export type SessionProgramController = {
   onReconnect(): void;
 };
 
+export type SessionNoticeKind =
+  | 'info'
+  | 'success'
+  | 'authentication-required'
+  | 'not-found'
+  | 'conflict'
+  | 'rate-limited'
+  | 'service-unavailable'
+  | 'timeout'
+  | 'unknown';
+
+export type SessionNoticeAction = 'login' | 'reload' | 'session-list';
+
+export type SessionNotice = {
+  kind: SessionNoticeKind;
+  title?: string;
+  message: string;
+  tone: 'info' | 'success' | 'warning' | 'danger';
+  retryable: boolean;
+  action?: SessionNoticeAction;
+};
+
+export type SessionNoticeInput = SessionNotice | string;
+
+export const sessionInfoNotice = (message: string): SessionNotice => ({
+  kind: 'info', message, tone: 'info', retryable: false,
+});
+
+export function toSessionNotice(
+  error: import('./sessionPlayApi').SessionApiError,
+  context: 'load' | 'poll' | 'submit' | 'recommend' | 'execution' | 'note-review',
+): SessionNotice {
+  if (error.code === 'request_in_progress') {
+    return { kind: 'info', title: 'Narrativeを生成中です', message: '同じ入力はすでに受理されています。重複送信せず、完了まで待つかSessionを再読み込みしてください。', tone: 'info', retryable: false, action: 'reload' };
+  }
+  const submit = context === 'submit';
+  switch (error.kind) {
+    case 'unauthorized':
+      return { kind: 'authentication-required', title: 'ログインが必要です', message: 'ログインの有効期限が切れたか、このSessionを表示する権限がありません。', tone: 'danger', retryable: false, action: 'login' };
+    case 'not-found':
+      return { kind: 'not-found', title: 'Sessionが見つかりません', message: 'Sessionが削除されたか、URLが正しくない可能性があります。', tone: 'danger', retryable: false, action: 'session-list' };
+    case 'conflict':
+      return { kind: 'conflict', title: 'Sessionの状態が更新されました', message: '最新のSession状態を読み込んでから、入力内容を確認してもう一度送信してください。', tone: 'warning', retryable: false, action: 'reload' };
+    case 'rate-limited':
+      return { kind: 'rate-limited', title: 'しばらく待ってから再試行してください', message: submit ? '短時間に送信が集中しています。入力は保持されています。' : '短時間にリクエストが集中しています。', tone: 'warning', retryable: submit };
+    case 'service-unavailable':
+      return { kind: 'service-unavailable', title: 'Sessionサービスを利用できません', message: submit ? '一時的に接続できません。入力は保持されています。' : '一時的に接続できません。しばらく待ってから再読み込みしてください。', tone: 'danger', retryable: submit, action: submit ? undefined : 'reload' };
+    case 'timeout':
+      return { kind: 'timeout', title: '応答が時間内に返りませんでした', message: submit ? '入力は保持されています。同じ内容で再試行できます。' : '通信が混み合っている可能性があります。もう一度お試しください。', tone: 'warning', retryable: submit, action: submit ? undefined : 'reload' };
+    default:
+      return { kind: 'unknown', title: '操作を完了できませんでした', message: error.message || '予期しないエラーが発生しました。', tone: 'danger', retryable: submit };
+  }
+}
+
 export type SessionCommandResult<T = undefined> = {
   ok: boolean;
-  notice: string;
+  notice: SessionNoticeInput;
   value?: T;
-  authenticationRequired?: boolean;
 };
 
 export type SessionPresentationProps = {
@@ -71,14 +124,16 @@ export type SessionPresentationProps = {
   activitySession?: SessionApiResponse;
   initialInput?: string;
   initialInteractionType?: NarrativeInteractionType;
-  initialNotice?: string;
+  initialNotice?: SessionNoticeInput;
+  liveNotice?: SessionNotice | null;
   isSubmitting?: boolean;
   isRecommending?: boolean;
-  authenticationRequired?: boolean;
   turnDisplay?: Record<number, TurnDisplayFlags>;
   program?: SessionProgramController;
   onLogout?: () => void | Promise<void>;
   onLogin?: () => void;
+  onReload?: () => void;
+  onSessionList?: () => void;
   onSubmit(input: string, interactionType: NarrativeInteractionType): Promise<SessionCommandResult>;
   onRecommend(): Promise<SessionCommandResult<string>>;
   onClarification?: () => Promise<SessionCommandResult> | SessionCommandResult;

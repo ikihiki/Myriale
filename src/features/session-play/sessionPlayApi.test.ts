@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { acceptSessionInput, createSession, getSession, mutateSessionExecution, recommendNextAction, reviewSessionNoteProposal } from './sessionPlayApi';
+import { acceptSessionInput, createSession, getSession, mutateSessionExecution, normalizeSessionApiError, recommendNextAction, reviewSessionNoteProposal } from './sessionPlayApi';
 
 const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
@@ -125,6 +125,27 @@ describe('sessionPlayApi', () => {
       method: 'POST',
       credentials: 'include',
     }));
+  });
+
+  it.each([
+    [401, 'unauthorized'],
+    [404, 'not-found'],
+    [409, 'conflict'],
+    [429, 'rate-limited'],
+    [503, 'service-unavailable'],
+  ] as const)('normalizes HTTP %s as %s', async (status, kind) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response({ code: `http_${status}`, message: 'request failed' }, status)));
+
+    await expect(getSession('SES-1', '/api/sessions')).rejects.toMatchObject({ status, kind, code: `http_${status}` });
+  });
+
+  it('normalizes request timeouts without confusing them with caller cancellation', () => {
+    const timeout = new DOMException('timed out', 'TimeoutError');
+    expect(normalizeSessionApiError(timeout, 'fallback')).toMatchObject({ kind: 'timeout', code: 'request_timeout' });
+
+    const aborted = normalizeSessionApiError(new DOMException('aborted', 'AbortError'), 'fallback');
+    expect(aborted.name).toBe('AbortError');
+    expect(aborted.kind).toBe('unknown');
   });
 
 
