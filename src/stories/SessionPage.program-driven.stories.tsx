@@ -33,6 +33,12 @@ export const USPG01ForcedModeDisablesInput: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await openDebugPanel(canvas);
+    await step('AI生成成功後のステータスを残すデバッグ設定を切り替えられる', async () => {
+      const setting = canvas.getByRole('checkbox', { name: /成功後もAI生成ステータスを表示する/ });
+      await expect(setting).not.toBeChecked();
+      await userEvent.click(setting);
+      await expect(setting).toBeChecked();
+    });
     await step('初期は余分なモード説明を表示せず、自由入力が有効', async () => {
       await expect(canvas.queryByTestId('mode-badge')).not.toBeInTheDocument();
       await expect(canvas.getByLabelText('自由に行動や会話を入力')).toBeEnabled();

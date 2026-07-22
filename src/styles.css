@@ -1297,6 +1297,35 @@ textarea { min-height: 126px; resize: vertical; }
   display: none;
 }
 
+.debug-settings-panel {
+  padding: 12px 14px;
+  border: 1px solid rgba(74, 66, 122, .2);
+  border-radius: 14px;
+  background: rgba(244, 241, 255, .72);
+}
+
+.debug-settings-panel label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.debug-settings-panel input {
+  margin-top: 3px;
+  accent-color: #6052a8;
+}
+
+.debug-settings-panel span {
+  display: grid;
+  gap: 3px;
+}
+
+.debug-settings-panel small {
+  color: #666176;
+  line-height: 1.5;
+}
+
 .debug-contract-panel {
   display: grid;
   gap: 12px;

@@ -78,6 +78,17 @@ describe('SessionActivityFeed', () => {
     expect(screen.queryByTestId('execution-EXE-narrative-succeeded')).toBeNull();
   });
 
+  it('keeps a completed execution visible when the debug display setting is enabled', () => {
+    vi.useFakeTimers();
+    const { rerender } = render(<SessionActivityFeed session={sessionActivityFixture('succeeded')} />);
+    act(() => vi.advanceTimersByTime(720));
+    expect(screen.queryByTestId('execution-EXE-narrative-succeeded')).toBeNull();
+
+    rerender(<SessionActivityFeed session={sessionActivityFixture('succeeded')} keepSucceededStatusVisible />);
+    act(() => vi.advanceTimersByTime(720));
+    expect(screen.getByTestId('execution-EXE-narrative-succeeded').textContent).toContain('生成が完了しました');
+  });
+
   it('polls only while at least one execution is active', () => {
     expect(hasActiveSessionExecutions(sessionActivityFixture('running'))).toBe(true);
     expect(hasActiveSessionExecutions(sessionActivityFixture('failed'))).toBe(false);

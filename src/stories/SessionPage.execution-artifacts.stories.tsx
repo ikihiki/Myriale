@@ -12,6 +12,10 @@ export const Running: Story = { args: { session: sessionActivityFixture('running
 export const RetryWait: Story = { args: { session: sessionActivityFixture('retry-wait'), onExecutionAction: fn() } };
 export const Cancelled: Story = { args: { session: sessionActivityFixture('cancelled'), onExecutionAction: fn() } };
 export const Succeeded: Story = { args: { session: sessionActivityFixture('succeeded'), onExecutionAction: fn() } };
+export const SucceededStatusPinnedForDebug: Story = {
+  args: { session: sessionActivityFixture('succeeded'), onExecutionAction: fn(), keepSucceededStatusVisible: true },
+};
+
 export const Superseded: Story = { args: { session: sessionActivityFixture('superseded'), onExecutionAction: fn() } };
 
 export const FailedWithDevelopmentDiagnostics: Story = {

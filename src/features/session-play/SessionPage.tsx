@@ -660,6 +660,7 @@ function SessionDialogueSection({
   } as CSSProperties;
 
   const [debugPanelOpen, setDebugPanelOpen] = useState(false);
+  const [keepSucceededExecutionStatusVisible, setKeepSucceededExecutionStatusVisible] = useState(false);
 
   const modeLabels = {
     dialogue: { badge: '対話中', label: 'AI対話モード', summary: 'Dialogue Mode', reason: '自由入力で行動や会話を送れます。' },
@@ -861,7 +862,7 @@ function SessionDialogueSection({
         )}
 
         {serverSession ? (
-          <SessionActivityFeed session={serverSession} onExecutionAction={(id, action) => void handleExecutionAction(id, action)} onNoteReview={(id, action, request) => void handleNoteReview(id, action, request)} />
+          <SessionActivityFeed session={serverSession} onExecutionAction={(id, action) => void handleExecutionAction(id, action)} onNoteReview={(id, action, request) => void handleNoteReview(id, action, request)} keepSucceededStatusVisible={keepSucceededExecutionStatusVisible} />
         ) : (
         <section className="dialogue-log" aria-label="対話ログ" data-testid="dialogue-log">
           {turns.map((turn) => {
@@ -1079,6 +1080,19 @@ function SessionDialogueSection({
             {debugPanelOpen ? 'デバッグパネルを非表示' : 'デバッグパネルを表示'}
           </button>
           <div id="session-debug-panel" className="debug-drawer-content" hidden={!debugPanelOpen}>
+            <section className="debug-settings-panel" aria-label="AI生成表示設定">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={keepSucceededExecutionStatusVisible}
+                  onChange={(event) => setKeepSucceededExecutionStatusVisible(event.target.checked)}
+                />
+                <span>
+                  <strong>成功後もAI生成ステータスを表示する</strong>
+                  <small>通常は完了後に消えるステータスメッセージを、デバッグ確認のため対話ログに残します。</small>
+                </span>
+              </label>
+            </section>
             {(sessionModeFlavor === 'program' || sessionModeFlavor === 'modeTransition') && (
               <section className="program-transition-panel" aria-label="条件によるモード遷移">
                 <div>

@@ -32,7 +32,7 @@ function ExecutionStatusLine({ execution, elapsed }: { execution: SessionExecuti
   </span>;
 }
 
-export function SessionExecutionItem({ execution, onAction }: { execution: SessionExecutionApiResponse; onAction?: (id: string, action: 'retry' | 'cancel' | 'dismiss') => void }) {
+export function SessionExecutionItem({ execution, onAction, keepSucceededStatusVisible = false }: { execution: SessionExecutionApiResponse; onAction?: (id: string, action: 'retry' | 'cancel' | 'dismiss') => void; keepSucceededStatusVisible?: boolean }) {
   const active = activeExecutionStatuses.includes(execution.status);
   const failed = execution.status === 'failed';
   const succeeded = execution.status === 'succeeded';
@@ -48,10 +48,10 @@ export function SessionExecutionItem({ execution, onAction }: { execution: Sessi
 
   useEffect(() => {
     setHidden(false);
-    if (!succeeded) return undefined;
+    if (!succeeded || keepSucceededStatusVisible) return undefined;
     const timer = window.setTimeout(() => setHidden(true), 720);
     return () => window.clearTimeout(timer);
-  }, [succeeded, execution.revision]);
+  }, [succeeded, execution.revision, keepSucceededStatusVisible]);
 
   if (hidden) return null;
   const startedAt = Date.parse(execution.startedAt ?? execution.createdAt);
@@ -98,7 +98,7 @@ export function ImageArtifactItem({ mediaUrl, contentType }: { mediaUrl?: string
   return <figure className="image-artifact-item" data-testid="image-artifact-item">{mediaUrl ? <img src={mediaUrl} alt="生成された場面" loading="lazy" /> : <div role="img" aria-label="画像Artifactのプレビュー">画像プレビュー</div>}<figcaption>{contentType} / Narrativeとは独立した任意成果物</figcaption></figure>;
 }
 
-export function SessionActivityFeed({ session, onExecutionAction, onNoteReview }: { session: SessionApiResponse; onExecutionAction?: (id: string, action: 'retry' | 'cancel' | 'dismiss') => void; onNoteReview?: (id: string, action: 'apply' | 'edit-apply' | 'reject' | 'snooze', request: NoteReviewRequest) => void }) {
+export function SessionActivityFeed({ session, onExecutionAction, onNoteReview, keepSucceededStatusVisible = false }: { session: SessionApiResponse; onExecutionAction?: (id: string, action: 'retry' | 'cancel' | 'dismiss') => void; onNoteReview?: (id: string, action: 'apply' | 'edit-apply' | 'reject' | 'snooze', request: NoteReviewRequest) => void; keepSucceededStatusVisible?: boolean }) {
   const inputs = new Map((session.inputs ?? []).map((item) => [item.id, item]));
   const executions = new Map((session.executions ?? []).map((item) => [item.id, item]));
   const turns = new Map(session.turns.map((item) => [item.id, item]));
@@ -108,7 +108,7 @@ export function SessionActivityFeed({ session, onExecutionAction, onNoteReview }
   return <section className="dialogue-log session-activity-feed" role="log" aria-label="Session activity" data-testid="session-activity-feed">
     {activity.map((item) => {
       if (item.type === 'input') { const input = inputs.get(item.id); return input ? <SessionInputItem key={`input-${item.id}`} text={input.text} /> : null; }
-      if (item.type === 'execution') { const execution = executions.get(item.id); return execution ? <SessionExecutionItem key={`execution-${item.id}`} execution={execution} onAction={onExecutionAction} /> : null; }
+      if (item.type === 'execution') { const execution = executions.get(item.id); return execution ? <SessionExecutionItem key={`execution-${item.id}`} execution={execution} onAction={onExecutionAction} keepSucceededStatusVisible={keepSucceededStatusVisible} /> : null; }
       if (item.type === 'turn') { const turn = turns.get(item.id); return turn ? <NarrativeTurnItem key={`turn-${item.id}`} turn={turn} /> : null; }
       const artifact = artifacts.get(item.id); if (!artifact) return null;
       if (artifact.kind === 'image') return <ImageArtifactItem key={`artifact-${item.id}`} mediaUrl={artifact.mediaUrl} contentType={artifact.contentType} />;
