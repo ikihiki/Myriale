@@ -6,7 +6,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createFetchScenarioApi, type ScenarioApi } from '../../app/scenarioApi';
 import { toAppChromeAccount } from '../../account/accountPresentation';
 import { useAccountSession } from '../../account/hooks/useAccountSession';
-import { createSession, getSessionApiBaseUrl, type SessionApiError } from '../session-play/sessionPlayApi';
+import { createSession, type SessionApiError } from '../session-play/sessionPlayApi';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeSelect } from '../../ui/MyrialeRadix';
 import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
@@ -320,15 +320,6 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
 
   const beginStory = async (selectedHero: string) => {
     if (!scenarioId || isBeginning) return;
-    if (!getSessionApiBaseUrl()) {
-      if (appNavigate) {
-        appNavigate('playSession');
-        return;
-      }
-      navigateToStory(STORY_IDS.playSession);
-      return;
-    }
-
     if (accountSession.status === 'anonymous') {
       setBeginError('Sessionを開始するにはログインが必要です。');
       setRequiresLogin(true);

@@ -175,14 +175,11 @@ export const USS05BeginActiveSession: Story = {
     const canvas = within(canvasElement);
     await startPreparing(canvas);
     await userEvent.click(canvas.getByRole('button', { name: '開始内容を確認' }));
-    await step('確認ダイアログの「物語を始める」でSessionをActiveにし、US-P01のプレイ画面へ合流する', async () => {
+    await step('API未設定では架空のSessionへfallbackせず、明示的なエラーを表示する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '物語を始める' }));
-      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098');
-      await expect(canvas.getByTestId('session-state')).toHaveTextContent('Active');
-      await expect(canvas.getByTestId('turn-1-narrative')).toHaveTextContent('水没した閲覧室');
-      await expect(canvas.getByTestId('turn-1-narrative')).toHaveTextContent('銀の鍵');
-      await expect(canvas.getByRole('status')).toHaveTextContent('イントロのみ');
-      await expect(canvas.queryByRole('article', { name: 'Turn 02' })).not.toBeInTheDocument();
+      await expect(canvas.getByRole('alert')).toHaveTextContent('Session APIが設定されていません');
+      await expect(canvas.getByTestId('app-url')).not.toHaveTextContent('/sessions/SES-PREP-1098');
+      await expect(canvas.queryByTestId('session-state')).not.toBeInTheDocument();
     });
   },
 };

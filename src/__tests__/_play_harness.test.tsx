@@ -13,6 +13,8 @@ import * as sessionTurnStories from '../stories/SessionTurn.stories';
 import * as sessionErrorStories from '../stories/SessionPage.errors.stories';
 import * as sessionExecutionStories from '../stories/SessionPage.execution-artifacts.stories';
 import * as myrialeAppStories from '../stories/MyrialeApp.stories';
+import * as startSessionStories from '../stories/StartSessionPage.stories';
+import * as sessionDialogueStories from '../stories/SessionPage.play-dialogue.stories';
 
 afterEach(() => cleanup());
 
@@ -33,6 +35,8 @@ const composedSessionTurn = composeStories(sessionTurnStories);
 const composedSessionErrors = composeStories(sessionErrorStories);
 const composedSessionExecutions = composeStories(sessionExecutionStories);
 const composedMyrialeApp = composeStories(myrialeAppStories);
+const composedStartSession = composeStories(startSessionStories);
+const composedSessionDialogue = composeStories(sessionDialogueStories);
 
 describe('play: MyrialeApp integrated stories', () => {
   for (const [name, Story] of Object.entries(composedMyrialeApp)) {
@@ -45,6 +49,22 @@ describe('play: MyrialeApp integrated stories', () => {
       expect(container).toBeTruthy();
     });
   }
+});
+
+describe('play: Phase 1 completion stories', () => {
+  it('does not use a local success fallback when starting a Session', async () => {
+    const Story = composedStartSession.USS05BeginActiveSession;
+    const { container } = render(<Story />);
+    await waitFor(() => expect(container.firstElementChild).not.toBeNull());
+    if (Story.play) await Story.play({ canvasElement: container });
+  });
+
+  it('does not create two Turns from a submit-button double click', async () => {
+    const Story = composedSessionDialogue.ComposerDoubleClickCreatesOneTurn;
+    const { container } = render(<Story />);
+    await waitFor(() => expect(container.firstElementChild).not.toBeNull());
+    if (Story.play) await Story.play({ canvasElement: container });
+  });
 });
 
 describe('play: UserManagementPage stories', () => {

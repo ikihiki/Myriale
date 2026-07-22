@@ -242,6 +242,40 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task ConcurrentInputResendCreatesOneInputExecutionAndNarrative()
+    {
+        var client = await AuthenticatedClientAsync("dialogue-concurrent-replay@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        var body = new { requestId = "dialogue-concurrent-replay", text = "銀の鍵を扉にかざす" };
+
+        var responses = await Task.WhenAll(
+            client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", body),
+            client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", body));
+        try
+        {
+            Assert.All(responses, response => Assert.Equal(HttpStatusCode.Accepted, response.StatusCode));
+            var accepted = await Task.WhenAll(responses.Select(response => response.Content.ReadFromJsonAsync<JsonElement>()));
+            Assert.Equal(accepted[0].GetProperty("input").GetProperty("id").GetString(), accepted[1].GetProperty("input").GetProperty("id").GetString());
+            Assert.Equal(accepted[0].GetProperty("execution").GetProperty("id").GetString(), accepted[1].GetProperty("execution").GetProperty("id").GetString());
+            await WaitForExecutionStatusAsync(
+                client,
+                accepted[0].GetProperty("execution").GetProperty("id").GetString()!,
+                SessionExecutionStatuses.Succeeded);
+        }
+        finally
+        {
+            foreach (var response in responses) response.Dispose();
+        }
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal(1, await db.SessionPlayerInputs.CountAsync(input => input.SessionId == sessionId));
+        Assert.Equal(1, await db.SessionExecutions.CountAsync(execution => execution.SessionId == sessionId && execution.Kind == SessionExecutionKinds.Narrative));
+        Assert.Equal(1, await db.SessionTurns.CountAsync(turn => turn.SessionId == sessionId && turn.PlayerInputId != null));
+        Assert.Single(_generator.DialogueRequests);
+    }
+
+    [Fact]
     public async Task NarrativeTurnPersistsPlayerInputAndReplaysIdempotently()
     {
         var client = await AuthenticatedClientAsync("dialogue-persist@example.test");
