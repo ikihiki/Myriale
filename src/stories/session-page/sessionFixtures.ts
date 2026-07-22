@@ -1,4 +1,13 @@
-import type { DialogueTurn, HeadingLink } from '../../features/session-play/sessionModel';
+import type { DialogueTurn, HeadingLink, SessionNotice } from '../../features/session-play/sessionModel';
+
+export const sessionErrorNotices = {
+  unauthorized: { kind: 'authentication-required', title: 'ログインが必要です', message: 'ログインの有効期限が切れたか、このSessionを表示する権限がありません。', tone: 'danger', retryable: false, action: 'login' },
+  notFound: { kind: 'not-found', title: 'Sessionが見つかりません', message: 'Sessionが削除されたか、URLが正しくない可能性があります。', tone: 'danger', retryable: false, action: 'session-list' },
+  conflict: { kind: 'conflict', title: 'Sessionの状態が更新されました', message: '最新のSession状態を読み込んでから、入力内容を確認してもう一度送信してください。', tone: 'warning', retryable: false, action: 'reload' },
+  rateLimited: { kind: 'rate-limited', title: 'しばらく待ってから再試行してください', message: '短時間に送信が集中しています。入力は保持されています。', tone: 'warning', retryable: true },
+  serviceUnavailable: { kind: 'service-unavailable', title: 'Sessionサービスを利用できません', message: '一時的に接続できません。しばらく待ってから再読み込みしてください。', tone: 'danger', retryable: false, action: 'reload' },
+  timeout: { kind: 'timeout', title: '応答が時間内に返りませんでした', message: '入力は保持されています。同じ内容で再試行できます。', tone: 'warning', retryable: true },
+} satisfies Record<string, SessionNotice>;
 
 export const initialTurns: DialogueTurn[] = [
   {

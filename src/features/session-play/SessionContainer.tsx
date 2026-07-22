@@ -3,7 +3,7 @@ import { toAppChromeAccount } from '../../account/accountPresentation';
 import { useAccountSession } from '../../account/hooks/useAccountSession';
 import { useAppNavigation } from '../../shared/nav';
 import { SessionPresentation, SessionPresentationStatus } from './SessionPresentation';
-import { toDialogueTurn, type SessionCommandResult } from './sessionModel';
+import { sessionInfoNotice, toDialogueTurn, toSessionNotice, type SessionCommandResult, type SessionNotice } from './sessionModel';
 import {
   acceptSessionInput,
   getSession,
@@ -12,6 +12,7 @@ import {
   recommendNextAction,
   reviewSessionNoteProposal,
   type NarrativeInteractionType,
+  normalizeSessionApiError,
   type SessionApiError,
   type SessionApiResponse,
 } from './sessionPlayApi';
@@ -23,13 +24,15 @@ export function SessionContainer({ sessionId = 'SES-PREP-1098' }: { sessionId?: 
   const chromeAccount = toAppChromeAccount(accountSession.user);
   const pollGeneration = useRef(0);
   const [session, setSession] = useState<SessionApiResponse | null>(null);
-  const [error, setError] = useState('');
-  const [requiresLogin, setRequiresLogin] = useState(false);
+  const [loadNotice, setLoadNotice] = useState<SessionNotice | null>(null);
+  const [liveNotice, setLiveNotice] = useState<SessionNotice | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRecommending, setIsRecommending] = useState(false);
   const draftRequest = useRef<{ input: string; requestId: string; interactionType: NarrativeInteractionType } | null>(null);
 
   const goToLogin = () => appNavigate?.('login');
+  const goToSessionList = () => appNavigate?.('scenarioList');
+  const reload = () => window.location.reload();
   const logout = async () => {
     await accountSession.api.logout();
     accountSession.clearUser();
@@ -39,19 +42,15 @@ export function SessionContainer({ sessionId = 'SES-PREP-1098' }: { sessionId?: 
   useEffect(() => {
     const abort = new AbortController();
     setSession(null);
-    setError('');
-    setRequiresLogin(false);
+    setLoadNotice(null);
+    setLiveNotice(null);
     void getSession(sessionId, undefined, abort.signal)
       .then(setSession)
       .catch((reason: SessionApiError) => {
         if (reason.name === 'AbortError') return;
-        if (reason.status === 401) {
-          accountSession.clearUser();
-          setRequiresLogin(true);
-          setError('Sessionを表示するにはログインが必要です。');
-          return;
-        }
-        setError(reason.message);
+        const error = normalizeSessionApiError(reason, 'Sessionを読み込めませんでした。');
+        if (error.kind === 'unauthorized') accountSession.clearUser();
+        setLoadNotice(toSessionNotice(error, 'load'));
       });
     return () => abort.abort();
   }, [accountSession.clearUser, sessionId]);
@@ -65,7 +64,7 @@ export function SessionContainer({ sessionId = 'SES-PREP-1098' }: { sessionId?: 
         if (generation !== pollGeneration.current) return;
         setSession((current) => !current || next.revision >= current.revision ? next : current);
       }).catch((reason: SessionApiError) => {
-        if (reason.name !== 'AbortError') setError(reason.message);
+        if (reason.name !== 'AbortError') setLiveNotice(toSessionNotice(normalizeSessionApiError(reason, 'Sessionを更新できませんでした。'), 'poll'));
       });
     }, 750);
     return () => { window.clearInterval(interval); abort.abort(); };
@@ -74,16 +73,16 @@ export function SessionContainer({ sessionId = 'SES-PREP-1098' }: { sessionId?: 
   if (!session) {
     return <SessionPresentationStatus
       account={chromeAccount}
-      error={error}
-      requiresLogin={requiresLogin}
+      notice={loadNotice}
       onLogout={logout}
       onLogin={goToLogin}
-      onReload={() => window.location.reload()}
+      onReload={reload}
+      onSessionList={goToSessionList}
     />;
   }
 
   const submit = async (input: string, interactionType: NarrativeInteractionType): Promise<SessionCommandResult> => {
-    if (isSubmitting) return { ok: false, notice: 'Narrativeを生成中です。' };
+    if (isSubmitting) return { ok: false, notice: sessionInfoNotice('Narrativeを生成中です。') };
     const reusable = draftRequest.current?.input === input && draftRequest.current.interactionType === interactionType
       ? draftRequest.current
       : null;
@@ -103,33 +102,24 @@ export function SessionContainer({ sessionId = 'SES-PREP-1098' }: { sessionId?: 
       });
       draftRequest.current = null;
       return { ok: true, notice: 'Player Inputを保存し、Narrative生成を開始しました。ブラウザを閉じても処理は継続します。' };
-    } catch (error) {
-      const apiError = error as SessionApiError;
-      const authenticationRequired = apiError.status === 401;
-      if (authenticationRequired) accountSession.clearUser();
-      const prefix = apiError.code === 'request_in_progress'
-        ? '同じ入力のNarrative生成が進行中です。'
-        : authenticationRequired
-          ? 'ログインが必要です。'
-          : apiError.status === 409
-            ? 'Sessionの状態が変わったため、この入力を確定できませんでした。'
-            : '';
-      return { ok: false, authenticationRequired, notice: `${prefix}${error instanceof Error ? error.message : 'Narrativeの生成に失敗しました。'} 入力を保持して同じRequest IDで再試行できます。` };
+    } catch (reason) {
+      const error = normalizeSessionApiError(reason, 'Narrativeの生成に失敗しました。');
+      if (error.kind === 'unauthorized') accountSession.clearUser();
+      return { ok: false, notice: toSessionNotice(error, 'submit') };
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const recommend = async (): Promise<SessionCommandResult<string>> => {
-    if (isRecommending || isSubmitting) return { ok: false, notice: '別のAI処理が進行中です。' };
+    if (isRecommending || isSubmitting) return { ok: false, notice: sessionInfoNotice('別のAI処理が進行中です。') };
     setIsRecommending(true);
     try {
       return { ok: true, value: await recommendNextAction(sessionId), notice: 'AIの提案を入力欄へ設定しました。内容を編集してから送信できます。' };
-    } catch (error) {
-      const apiError = error as SessionApiError;
-      const authenticationRequired = apiError.status === 401;
-      if (authenticationRequired) accountSession.clearUser();
-      return { ok: false, authenticationRequired, notice: error instanceof Error ? error.message : '次の行動案を生成できませんでした。' };
+    } catch (reason) {
+      const error = normalizeSessionApiError(reason, '次の行動案を生成できませんでした。');
+      if (error.kind === 'unauthorized') accountSession.clearUser();
+      return { ok: false, notice: toSessionNotice(error, 'recommend') };
     } finally {
       setIsRecommending(false);
     }
@@ -150,8 +140,8 @@ export function SessionContainer({ sessionId = 'SES-PREP-1098' }: { sessionId?: 
         setSession({ ...session, executions: (session.executions ?? []).map((item) => item.id === executionId ? updated : item) });
       }
       return { ok: true, notice: action === 'retry' ? '同じ入力で再試行を開始しました。' : action === 'cancel' ? 'キャンセルを要求しました。' : '入力を取り消しました。' };
-    } catch (error) {
-      return { ok: false, notice: error instanceof Error ? error.message : 'Executionを更新できませんでした。' };
+    } catch (reason) {
+      return { ok: false, notice: toSessionNotice(normalizeSessionApiError(reason, 'Executionを更新できませんでした。'), 'execution') };
     }
   };
 
@@ -160,8 +150,8 @@ export function SessionContainer({ sessionId = 'SES-PREP-1098' }: { sessionId?: 
       const updated = await reviewSessionNoteProposal(artifactId, action, request);
       setSession({ ...session, noteProposals: (session.noteProposals ?? []).map((item) => item.artifactId === artifactId ? updated : item) });
       return { ok: true, notice: action === 'apply' || action === 'edit-apply' ? 'ノート変更案を適用し、Revisionを作成しました。' : action === 'reject' ? 'ノート変更案を却下しました。' : 'ノート変更案を後で確認できるよう保留しました。' };
-    } catch (error) {
-      return { ok: false, notice: error instanceof Error ? error.message : 'ノート変更案を更新できませんでした。' };
+    } catch (reason) {
+      return { ok: false, notice: toSessionNotice(normalizeSessionApiError(reason, 'ノート変更案を更新できませんでした。'), 'note-review') };
     }
   };
 
@@ -176,10 +166,13 @@ export function SessionContainer({ sessionId = 'SES-PREP-1098' }: { sessionId?: 
     initialInput={resumableInput?.input}
     initialInteractionType={resumableInput?.interactionType}
     initialNotice={resumableInput?.errorMessage ?? (resumableInput ? '未完了のPlayer Inputを復元しました。同じRequest IDで再試行できます。' : 'Serverに保存された確定済みTurnを表示しています。')}
+    liveNotice={liveNotice}
     isSubmitting={isSubmitting}
     isRecommending={isRecommending}
     onLogout={logout}
     onLogin={goToLogin}
+    onReload={reload}
+    onSessionList={goToSessionList}
     onSubmit={submit}
     onRecommend={recommend}
     onExecutionAction={executionAction}

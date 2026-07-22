@@ -59,7 +59,7 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 - [x] draft本文を変更した場合だけ新しい`RequestId`を発行する。
 - [x] 送信中は入力欄と送信ボタンを適切にlockし、二重送信を防止する。
 - [x] 成功後だけ入力欄をclearし、Session GETまたはmutation responseからServer状態へ同期する。
-- [ ] 401、404、409、429、503、timeoutを区別したUIを表示する。
+- [x] 401、404、409、429、503、timeoutを区別したUIを表示する。
 - [x] `request_in_progress`では同じ入力を重複作成せず、待機または再取得できるようにする。
 - [x] retryableな生成失敗には明示的な「再試行」操作を表示する。
 - [x] acceptedだが未完了のPlayer Inputとwork statusをSession APIから確認・再開できる契約を追加する。

@@ -10,6 +10,7 @@ import * as scenarioRegistrationStories from '../stories/ScenarioRegistrationPag
 import * as editScenarioStories from '../stories/EditScenarioPage.stories';
 import * as programDrivenStories from '../stories/SessionPage.program-driven.stories';
 import * as sessionTurnStories from '../stories/SessionTurn.stories';
+import * as sessionErrorStories from '../stories/SessionPage.errors.stories';
 import * as sessionExecutionStories from '../stories/SessionPage.execution-artifacts.stories';
 import * as myrialeAppStories from '../stories/MyrialeApp.stories';
 
@@ -29,6 +30,7 @@ const composedEditScenario = composeStories(editScenarioStories);
 const composedProgramDriven = composeStories(programDrivenStories);
 const composedSessionTurn = composeStories(sessionTurnStories);
 
+const composedSessionErrors = composeStories(sessionErrorStories);
 const composedSessionExecutions = composeStories(sessionExecutionStories);
 const composedMyrialeApp = composeStories(myrialeAppStories);
 
@@ -131,6 +133,17 @@ describe('play: SessionPage program-driven stories', () => {
       if (Story.play) {
         await Story.play({ canvasElement: container });
       }
+      expect(container).toBeTruthy();
+    });
+  }
+});
+
+describe('play: Session error-state stories', () => {
+  for (const [name, Story] of Object.entries(composedSessionErrors)) {
+    it(name, async () => {
+      const { container } = render(<Story />);
+      await waitFor(() => expect(container.firstElementChild).not.toBeNull());
+      if (Story.play) await Story.play({ canvasElement: container });
       expect(container).toBeTruthy();
     });
   }

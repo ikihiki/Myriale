@@ -96,11 +96,16 @@ export type SessionApiResponse = {
   updatedAt: string;
 };
 
+export type SessionApiErrorKind = 'unauthorized' | 'not-found' | 'conflict' | 'rate-limited' | 'service-unavailable' | 'timeout' | 'unknown';
+
 export type SessionApiError = Error & {
   status?: number;
   code?: string;
   details?: string;
+  kind: SessionApiErrorKind;
 };
+
+const SESSION_REQUEST_TIMEOUT_MS = 15_000;
 
 export function getSessionApiBaseUrl() {
   const configured = import.meta.env.VITE_MYRIAL_API_BASE_URL?.trim();
@@ -116,7 +121,7 @@ export async function createSession(
   selectedHero?: string,
 ): Promise<SessionApiResponse> {
   if (!baseUrl) throw sessionApiError('Session APIが設定されていません。', 503, 'session_api_unavailable');
-  const response = await fetch(`${baseUrl}/`, {
+  const response = await sessionFetch(`${baseUrl}/`, {
     method: 'POST',
     credentials: 'include',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
@@ -132,7 +137,7 @@ export async function getSession(
   signal?: AbortSignal,
 ): Promise<SessionApiResponse> {
   if (!baseUrl) throw sessionApiError('Session APIが設定されていません。', 503, 'session_api_unavailable');
-  const response = await fetch(`${baseUrl}/${encodeURIComponent(sessionId)}`, {
+  const response = await sessionFetch(`${baseUrl}/${encodeURIComponent(sessionId)}`, {
     credentials: 'include',
     headers: { Accept: 'application/json' },
     signal,
@@ -150,7 +155,7 @@ export async function acceptSessionInput(
   supersedesInputId?: string,
 ): Promise<SessionInputAcceptedApiResponse> {
   if (!baseUrl) throw sessionApiError('Session APIが設定されていません。', 503, 'session_api_unavailable');
-  const response = await fetch(`${baseUrl}/${encodeURIComponent(sessionId)}/inputs`, {
+  const response = await sessionFetch(`${baseUrl}/${encodeURIComponent(sessionId)}/inputs`, {
     method: 'POST', credentials: 'include', headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify({ requestId, text, interactionType, requestedOutputs: ['narrative'], supersedesInputId }),
   });
@@ -165,7 +170,7 @@ export async function mutateSessionExecution(
 ): Promise<SessionExecutionApiResponse> {
   if (!baseUrl) throw sessionApiError('Session APIが設定されていません。', 503, 'session_api_unavailable');
   const apiRoot = baseUrl.replace(/\/sessions$/, '');
-  const response = await fetch(`${apiRoot}/session-executions/${encodeURIComponent(executionId)}/${action}`, {
+  const response = await sessionFetch(`${apiRoot}/session-executions/${encodeURIComponent(executionId)}/${action}`, {
     method: 'POST', credentials: 'include', headers: { Accept: 'application/json' },
   });
   if (!response.ok) throw await toSessionApiError(response, 'Executionを更新できませんでした。');
@@ -180,7 +185,7 @@ export async function reviewSessionNoteProposal(
 ): Promise<SessionNoteProposalApiResponse> {
   if (!baseUrl) throw sessionApiError('Session APIが設定されていません。', 503, 'session_api_unavailable');
   const apiRoot = baseUrl.replace(/\/sessions$/, '');
-  const response = await fetch(`${apiRoot}/session-artifacts/note-proposals/${encodeURIComponent(artifactId)}/${action}`, {
+  const response = await sessionFetch(`${apiRoot}/session-artifacts/note-proposals/${encodeURIComponent(artifactId)}/${action}`, {
     method: 'POST', credentials: 'include', headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
   });
@@ -196,7 +201,7 @@ export async function recommendNextAction(
   baseUrl = getSessionApiBaseUrl(),
 ): Promise<string> {
   if (!baseUrl) throw sessionApiError('Session APIが設定されていません。', 503, 'session_api_unavailable');
-  const response = await fetch(`${baseUrl}/${encodeURIComponent(sessionId)}/action-recommendation`, {
+  const response = await sessionFetch(`${baseUrl}/${encodeURIComponent(sessionId)}/action-recommendation`, {
     method: 'POST',
     credentials: 'include',
     headers: { Accept: 'application/json' },
@@ -212,10 +217,47 @@ async function toSessionApiError(response: Response, fallback: string): Promise<
   return sessionApiError(message, response.status, payload?.code, payload?.details);
 }
 
-function sessionApiError(message: string, status?: number, code?: string, details?: string): SessionApiError {
+function errorKindForStatus(status?: number): SessionApiErrorKind {
+  if (status === 401) return 'unauthorized';
+  if (status === 404) return 'not-found';
+  if (status === 409) return 'conflict';
+  if (status === 429) return 'rate-limited';
+  if (status === 503) return 'service-unavailable';
+  return 'unknown';
+}
+
+export function normalizeSessionApiError(reason: unknown, fallback: string): SessionApiError {
+  if (reason && typeof reason === 'object' && 'kind' in reason) return reason as SessionApiError;
+  if (reason instanceof DOMException && reason.name === 'AbortError') {
+    const error = sessionApiError(reason.message, undefined, 'request_aborted');
+    error.name = 'AbortError';
+    return error;
+  }
+  if (reason instanceof DOMException && reason.name === 'TimeoutError') {
+    return sessionApiError('Session APIから時間内に応答がありませんでした。', undefined, 'request_timeout', undefined, 'timeout');
+  }
+  if (reason instanceof Error && reason.name === 'TimeoutError') {
+    return sessionApiError('Session APIから時間内に応答がありませんでした。', undefined, 'request_timeout', undefined, 'timeout');
+  }
+  return sessionApiError(reason instanceof Error ? reason.message : fallback, undefined, 'network_error');
+}
+
+async function sessionFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const timeoutSignal = AbortSignal.timeout(SESSION_REQUEST_TIMEOUT_MS);
+  const signal = init.signal ? AbortSignal.any([init.signal, timeoutSignal]) : timeoutSignal;
+  try {
+    return await fetch(input, { ...init, signal });
+  } catch (reason) {
+    if (init.signal?.aborted) throw reason;
+    throw normalizeSessionApiError(reason, 'Session APIへ接続できませんでした。');
+  }
+}
+
+function sessionApiError(message: string, status?: number, code?: string, details?: string, kind = errorKindForStatus(status)): SessionApiError {
   const error = new Error(message) as SessionApiError;
   error.status = status;
   error.code = code;
   error.details = details;
+  error.kind = kind;
   return error;
 }
