@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Button as SharedButton } from '../../components/ui';
+import { Button as SharedButton, navigationRecipe } from '../../components/ui';
 import type { AccountState, NavItem } from '../types';
 import { Button } from './Button';
 import { DeskBrand } from './DeskBrand';
@@ -22,8 +22,6 @@ export function AppFrame({
   children: ReactNode;
   aside?: ReactNode;
 }) {
-  const navButtonClassName = 'cursor-pointer rounded-full border border-transparent bg-[rgba(255,250,240,.08)] px-3.5 py-3 text-left font-bold text-myr-cream transition-colors duration-150 hover:bg-[rgba(255,250,240,.16)]';
-
   return (
     <div className={`grid min-h-screen gap-[18px] p-[18px] max-[1080px]:grid-cols-1 ${aside ? 'grid-cols-[248px_minmax(0,1fr)_minmax(260px,320px)]' : 'grid-cols-[248px_minmax(0,1fr)]'}`}>
       <aside
@@ -44,7 +42,7 @@ export function AppFrame({
             return (
               <SharedButton
                 key={item.id}
-                className={`${navButtonClassName} ${isActive ? 'border-[var(--ember)] bg-myr-paper text-[var(--void)] hover:bg-myr-paper' : ''}`}
+                className={navigationRecipe({ role: 'railItem', density: 'account', active: isActive })}
                 aria-current={isActive ? 'page' : undefined}
                 onClick={() => onNavigate(item.id)}
               >

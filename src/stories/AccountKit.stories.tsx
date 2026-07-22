@@ -327,7 +327,9 @@ export const AppFrameComponent: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await expect(canvas.getByRole('button', { name: 'プロフィール' })).toHaveAttribute('aria-current', 'page');
     await userEvent.click(canvas.getByRole('button', { name: 'セキュリティ' }));
+    await expect(canvas.getByRole('button', { name: 'セキュリティ' })).toHaveAttribute('aria-current', 'page');
     await expect(canvas.getByTestId('frame-active')).toHaveTextContent('security');
     await expect(canvas.getByTestId('frame-aside')).toHaveTextContent('security');
   },

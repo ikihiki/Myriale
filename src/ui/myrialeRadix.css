@@ -153,23 +153,6 @@
   background: rgba(255, 250, 240, 0.62);
 }
 
-.myr-ui-tabs-trigger {
-  padding: 9px 14px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--myr-ui-ink-soft);
-  font: inherit;
-  font-size: var(--myr-text-ui-sm);
-  font-weight: 850;
-  cursor: pointer;
-}
-
-.myr-ui-tabs-trigger[data-state='active'] {
-  background: var(--myr-ui-ink);
-  color: #fff;
-}
-
 .myr-ui-menu :where([role='separator']),
 .myr-ui-menu [data-radix-dropdown-menu-separator] {
   height: 1px;
@@ -288,7 +271,7 @@
   transition: transform 0.2s ease;
 }
 
-:where(.myr-ui-icon-button, .myr-ui-select-trigger, .myr-ui-tabs-trigger, .myr-ui-select-item, .myr-ui-menu-item, .myr-ui-checkbox, .myr-ui-radio, .myr-ui-toggle):focus-visible {
+:where(.myr-ui-icon-button, .myr-ui-select-trigger, .myr-ui-select-item, .myr-ui-menu-item, .myr-ui-checkbox, .myr-ui-radio, .myr-ui-toggle):focus-visible {
   outline: 2px solid var(--myr-ui-iris);
   outline-offset: 2px;
 }

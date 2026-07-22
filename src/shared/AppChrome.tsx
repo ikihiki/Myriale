@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { Button } from '../components/ui';
+import { breadcrumbLinkClassName, Button, navigationRecipe } from '../components/ui';
 import {
   MyrialeMenuContent,
   MyrialeMenuItem,
@@ -82,11 +82,8 @@ const accountLinks: NavLink[] = [
 ];
 
 const focusRingClassName = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-myr-iris focus-visible:rounded-md';
-const sectionButtonClassName = `inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-transparent bg-transparent px-3.5 py-[9px] text-sm font-bold text-[rgba(255,246,231,.86)] transition-[background,color] duration-150 ease-[ease] hover:bg-[rgba(255,246,231,.1)] hover:text-myr-cream motion-reduce:transition-none ${focusRingClassName}`;
-const activeSectionButtonClassName = `inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-myr-ember bg-myr-paper px-3.5 py-[9px] text-sm font-bold text-myr-void transition-[background,color] duration-150 ease-[ease] motion-reduce:transition-none ${focusRingClassName}`;
 const accountTriggerClassName = `inline-flex cursor-pointer items-center gap-2.5 rounded-full border border-[rgba(255,246,231,.18)] bg-[rgba(255,246,231,.06)] py-[5px] pr-2.5 pl-1.5 text-myr-cream transition-[background] duration-150 ease-[ease] hover:bg-[rgba(255,246,231,.14)] motion-reduce:transition-none ${focusRingClassName}`;
 const activeAccountTriggerClassName = `inline-flex cursor-pointer items-center gap-2.5 rounded-full border border-myr-ember bg-[rgba(255,246,231,.06)] py-[5px] pr-2.5 pl-1.5 text-myr-cream transition-[background] duration-150 ease-[ease] hover:bg-[rgba(255,246,231,.14)] motion-reduce:transition-none ${focusRingClassName}`;
-const menuItemClassName = '!grid !w-full !cursor-pointer !gap-0.5 !rounded-myr-control !bg-transparent !px-3 !py-[9px] !text-left !text-myr-ink hover:!bg-[rgba(124,92,255,.1)] data-[highlighted]:!bg-[rgba(124,92,255,.1)]';
 const caretClassName = 'text-myr-caption opacity-70';
 
 export type Crumb = { label: string; to?: StoryKey };
@@ -152,7 +149,7 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
                     <MyrialeMenuTrigger asChild>
                       <Button
                         type="button"
-                        className={isActive ? activeSectionButtonClassName : sectionButtonClassName}
+                        className={navigationRecipe({ role: 'appChromeItem', active: isActive })}
                         aria-current={isActive ? 'page' : undefined}
                       >
                         {item.label}
@@ -161,7 +158,7 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
                     </MyrialeMenuTrigger>
                     <MyrialeMenuContent className="!min-w-[230px]" align="start" aria-label={`${item.label}メニュー`}>
                       {item.links.map((link) => (
-                        <MyrialeMenuItem key={link.to} className={menuItemClassName} onSelect={() => go(link.to)}>
+                        <MyrialeMenuItem key={link.to} className={navigationRecipe({ role: 'menuItem' })} onSelect={() => go(link.to)}>
                           <span className="text-sm font-bold">{link.label}</span>
                           {link.hint && <small className="text-xs text-myr-ink-subtle">{link.hint}</small>}
                         </MyrialeMenuItem>
@@ -201,12 +198,12 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
                     <small className="break-all text-xs text-myr-ink-subtle">{account.email}</small>
                   </div>
                   {accountLinks.map((link) => (
-                    <MyrialeMenuItem key={link.to} className={menuItemClassName} onSelect={() => go(link.to)}>
+                    <MyrialeMenuItem key={link.to} className={navigationRecipe({ role: 'menuItem' })} onSelect={() => go(link.to)}>
                       <span className="text-sm font-bold">{link.label}</span>
                     </MyrialeMenuItem>
                   ))}
                   <MyrialeMenuItem
-                    className={`${menuItemClassName} !mt-1 !rounded-t-none !rounded-b-[10px] !border-t !border-[rgba(36,27,47,.12)] !text-[#b8453f] hover:!bg-[rgba(184,69,63,.1)] data-[highlighted]:!bg-[rgba(184,69,63,.1)]`}
+                    className={navigationRecipe({ role: 'menuItem', danger: true })}
                     onSelect={() => { void (onLogout ? onLogout() : go('login')); }}
                   >
                     <span className="text-sm font-bold">ログアウト</span>
@@ -241,13 +238,13 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
               return (
                 <li className="inline-flex items-center gap-2" key={`${crumb.label}-${index}`}>
                   {isLast || !crumb.to ? (
-                    <span className={isLast ? 'font-bold text-myr-cream' : 'text-[rgba(255,246,231,.62)]'} aria-current={isLast ? 'page' : undefined}>
+                    <span className={navigationRecipe({ role: 'breadcrumb', current: isLast })} aria-current={isLast ? 'page' : undefined}>
                       {crumb.label}
                     </span>
                   ) : (
                     <Button
                       type="button"
-                      className={`cursor-pointer border-0 bg-transparent p-0 font-[inherit] text-[rgba(255,246,231,.7)] hover:text-myr-cream hover:underline ${focusRingClassName}`}
+                      className={`${navigationRecipe({ role: 'breadcrumb' })} ${breadcrumbLinkClassName}`}
                       onClick={() => go(crumb.to as StoryKey)}
                     >
                       {crumb.label}

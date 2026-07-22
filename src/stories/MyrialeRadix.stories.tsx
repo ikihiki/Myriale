@@ -366,10 +366,17 @@ export const TabsComponent: Story = {
       </MyrialeTabsContent>
     </MyrialeTabsRoot>
   ),
-  play: async ({ canvasElement }) => {
+  play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('tab', { name: '検証' }));
-    await expect(canvas.getByText(/Storybook play/)).toBeVisible();
+    await step('クリックでタブを切り替える', async () => {
+      await userEvent.click(canvas.getByRole('tab', { name: '検証' }));
+      await expect(canvas.getByText(/Storybook play/)).toBeVisible();
+    });
+    await step('矢印キーでRadixのroving focusと選択を保つ', async () => {
+      await userEvent.keyboard('{ArrowLeft}');
+      await expect(canvas.getByRole('tab', { name: 'トークン' })).toHaveAttribute('data-state', 'active');
+      await expect(canvas.getByText(/`--paper`/)).toBeVisible();
+    });
   },
 };
 

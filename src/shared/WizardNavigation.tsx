@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { Button } from '../components/ui';
+import { Button, navigationRecipe } from '../components/ui';
 import './WizardNavigation.css';
 
 export type WizardNavigationItem = {
@@ -80,7 +80,7 @@ export function WizardNavigation({
               const active = activeId === item.id;
               return (
                 <Button
-                  className={`grid w-full cursor-pointer gap-px rounded-myr-control border-0 bg-transparent px-[9px] py-2 text-left text-[#f4eedf] ${active ? 'bg-[rgba(217,164,65,0.14)] shadow-[inset_3px_0_0_#d9a441] [&_small]:text-[#dce7f2]' : ''} [&_small]:overflow-hidden [&_small]:text-ellipsis [&_small]:whitespace-nowrap [&_small]:text-[10px] [&_small]:leading-[1.2] [&_small]:text-[#bfc8d5] [&_span]:text-xs [&_span]:font-black [&_span]:leading-[1.2] [&_span]:text-myr-gold disabled:cursor-not-allowed disabled:opacity-40`.trim()}
+                  className={navigationRecipe({ role: 'railItem', density: 'wizard', active })}
                   key={item.id}
                   onClick={() => onSelect(item.id)}
                   aria-label={item.ariaLabel}
