@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Input, Textarea } from './components/ui';
+import { actionRowClassName, Button, Input, Textarea } from './components/ui';
 import { useOptionalAppStore } from './app/store';
 import { MyrialeDialogContent, MyrialeDialogRoot } from './ui/MyrialeRadix';
 
@@ -175,7 +175,7 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
           <section className={`${mode === 'side' ? 'hidden' : 'grid'} mt-2 gap-1 border-t border-myr-ink/16 pt-2`} aria-label="ノートContext">
             <div className="grid grid-cols-[112px_minmax(0,1fr)_auto] items-center gap-2 px-0.5 py-1 text-xs text-myr-slate-muted"><strong>Canon Notes</strong><span data-testid="canon-count">{canonNotes.length}件</span></div>
             <div className="grid grid-cols-[112px_minmax(0,1fr)_auto] items-center gap-2 px-0.5 py-1 text-xs text-myr-slate-muted"><strong>Context</strong><span data-testid="context-stack">{contextSummary}</span></div>
-            <div className="grid grid-cols-[112px_minmax(0,1fr)_minmax(220px,auto)] items-center gap-2 border-t border-dashed border-myr-ink/14 px-0.5 pt-2 pb-1 text-xs text-myr-slate-muted"><strong>整合性</strong><span data-testid="consistency-issue">{issue}</span><div className="button-row"><Button variant="ghost" size="sm" onClick={() => setNotice('ノート更新として確定しました。')}>ノートを更新</Button><Button variant="ghost" size="sm" onClick={() => setNotice('AI出力側を修正し、Canonは変更しません。')}>AI出力を修正</Button><Button variant="ghost" size="sm" onClick={() => setNotice('噂として保持しました。AIには断定させません。')}>噂として保持</Button></div></div>
+            <div className="grid grid-cols-[112px_minmax(0,1fr)_minmax(220px,auto)] items-center gap-2 border-t border-dashed border-myr-ink/14 px-0.5 pt-2 pb-1 text-xs text-myr-slate-muted"><strong>整合性</strong><span data-testid="consistency-issue">{issue}</span><div className={actionRowClassName}><Button variant="ghost" size="sm" onClick={() => setNotice('ノート更新として確定しました。')}>ノートを更新</Button><Button variant="ghost" size="sm" onClick={() => setNotice('AI出力側を修正し、Canonは変更しません。')}>AI出力を修正</Button><Button variant="ghost" size="sm" onClick={() => setNotice('噂として保持しました。AIには断定させません。')}>噂として保持</Button></div></div>
           </section>
         </div>
       </div>

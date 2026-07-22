@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Input, Notice, Textarea } from './components/ui';
+import { actionRowClassName, Button, Input, Notice, Textarea } from './components/ui';
 import { MyrialeDialogContent, MyrialeDialogRoot } from './ui/MyrialeRadix';
 
 type Panel = 'cast' | 'locations' | 'beats' | 'secrets' | 'events' | 'debug' | 'test';
@@ -215,7 +215,7 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
       {panel === 'debug' && (
         <section className={panelClassName} aria-label="進行デバッグ">
           <div className="grid gap-2.5 rounded-2xl border border-myr-ink/14 bg-[rgba(250,249,255,.7)] p-3.5" aria-label="補正操作">
-            <div className="button-row">
+            <div className={actionRowClassName}>
               <Button variant="secondary" size="sm" onClick={() => runCorrection('reroute')}>誘導イベントを生成</Button>
               <Button variant="secondary" size="sm" onClick={() => runCorrection('clue')}>補完イベントを生成</Button>
               <Button variant="primary" size="sm" onClick={() => runCorrection('forced')}>条件付き強制イベントを発火</Button>
@@ -230,7 +230,7 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
       {panel === 'test' && (
         <section className={panelClassName} aria-label="テスト実行">
           <label>テスト開始地点<Input aria-label="テスト開始地点" value={testStart} onChange={(event) => setTestStart(event.target.value)} /></label>
-          <div className="button-row"><Button variant="primary" size="sm" onClick={startTest}>この地点からテスト開始</Button></div>
+          <div className={actionRowClassName}><Button variant="primary" size="sm" onClick={startTest}>この地点からテスト開始</Button></div>
         </section>
       )}
     </>

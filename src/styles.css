@@ -13,54 +13,6 @@
 * { box-sizing: border-box; }
 body { margin: 0; background: #211b28; color: var(--ink); font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
 
-/* Shared primitives retained for legacy kicker, text buttons, and choice rows. */
-.kicker { margin:0 0 8px; text-transform: uppercase; letter-spacing: .16em; font-size: 12px; color: var(--myr-color-ink-subtle); font-weight: 800; }
-.text-button { margin-top: 10px; color: #7054dd; background: transparent; padding: 10px 0; font-weight: 900; }
-
-.primary, .choice-row button { border-radius: 999px; padding: 11px 16px; background: var(--ink); color: white; }
-.choice-row { display:grid; gap: 8px; }
-.choice-row button { text-align:left; background: rgba(255,250,240,.14); border: 1px solid rgba(255,250,240,.2); }
-.empty { color: #cfc4db; }
-
-.forge-section {
-  margin: 16px 0;
-  padding: 20px;
-  border: 1px solid rgba(23, 21, 31, .16);
-  border-radius: 24px;
-  background: rgba(255, 255, 255, .62);
-}
-
-.forge-section h2 {
-  margin-top: 0;
-  font-family: Georgia, 'Times New Roman', serif;
-  letter-spacing: var(--myr-tracking-display);
-}
-
-.forge-section label {
-  display: grid;
-  gap: 7px;
-  margin: 12px 0;
-  font-weight: 900;
-}
-
-.forge-section select {
-  width: 100%;
-  border: 1px solid rgba(23, 21, 31, .18);
-  border-radius: 16px;
-  padding: 12px 14px;
-  background: var(--myr-color-paper-bright);
-  color: #17151f;
-}
-
-.button-row { display: flex; flex-wrap: wrap; gap: 10px; }
-.forge-section button {
-  border-radius: 999px;
-  padding: 11px 15px;
-  background: var(--myr-color-plum);
-  color: var(--myr-color-paper);
-}
-.forge-section .primary { background: var(--myr-color-gold); color: #17151f; font-weight: 900; }
-
 .visually-hidden {
   position: absolute !important;
   width: 1px !important;

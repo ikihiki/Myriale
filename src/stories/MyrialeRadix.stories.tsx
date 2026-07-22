@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
-import { Button as UiButton } from '../components/ui';
+import { actionRowClassName, Button as UiButton, textRecipe } from '../components/ui';
 import { Button } from '../account/AccountKit';
 import {
   MyrialeCheckbox,
@@ -56,7 +56,7 @@ export const DialogSelectTabsAndMenu: Story = {
     return (
       <div style={{ display: 'grid', gap: 22 }}>
         <header>
-          <p className="kicker">Radix pilot</p>
+          <p className={`mb-2 ${textRecipe('eyebrow')}`}>Radix pilot</p>
           <h1 style={{ margin: 0, fontFamily: 'Georgia, serif', letterSpacing: '-0.04em' }}>
             霧の紙片を崩さず、振る舞いだけを借りる
           </h1>
@@ -65,7 +65,7 @@ export const DialogSelectTabsAndMenu: Story = {
           </p>
         </header>
 
-        <div className="button-row">
+        <div className={actionRowClassName}>
           <MyrialeDialogRoot>
             <MyrialeDialogTrigger asChild>
               <Button variant="primary">契約書プレビューを開く</Button>
@@ -215,7 +215,7 @@ export const DialogRoles: Story = {
   render: () => (
     <div className="grid gap-4">
       <p className="section-lead">default 540px、wide 620px、editor 760pxとwarning toneを同じDialog APIで確認します。</p>
-      <div className="button-row">
+      <div className={actionRowClassName}>
         <MyrialeDialogRoot>
           <MyrialeDialogTrigger asChild><UiButton variant="ghost">Defaultを開く</UiButton></MyrialeDialogTrigger>
           <MyrialeDialogContent

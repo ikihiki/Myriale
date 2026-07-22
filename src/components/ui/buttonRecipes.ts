@@ -37,6 +37,8 @@ export const buttonSizeClassNames: Record<ButtonSize, string> = {
   iconMd: 'size-[34px] shrink-0 p-0 text-base',
 };
 
+export const actionRowClassName = 'flex flex-wrap gap-2.5';
+
 export function buttonRecipe({
   variant,
   size = variant === 'icon' ? 'iconMd' : 'md',

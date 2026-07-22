@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { toAppChromeAccount, type AppChromeAccount } from '../../account/accountPresentation';
-import { Button, Notice, Textarea } from '../../components/ui';
+import { actionRowClassName, Button, Notice, textRecipe, Textarea } from '../../components/ui';
 import { useAccountSession } from '../../account/hooks/useAccountSession';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { useOptionalAppStore, type TurnDisplayFlags } from '../../app/store';
@@ -843,7 +843,7 @@ function SessionDialogueSection({
       />
 
       <main className={`${wizardPaperClass} min-w-0 ${notesView === 'full' ? 'hidden' : ''} ${notesView === 'hidden' ? 'col-[2/-1] max-myr-workspace:col-start-1' : ''}`} aria-label="AI対話モード">
-        <p className="kicker">Session play / AI dialogue mode</p>
+        <p className={`mb-2 ${textRecipe('eyebrow')}`}>Session play / AI dialogue mode</p>
         <div className="mb-2.5 flex justify-end gap-2" aria-label="ノート表示切り替え">
           {notesView === 'hidden' ? (
             <Button variant="primary" size="sm" onClick={() => setNotesViewMode(isNarrowViewport ? 'full' : 'split')}>ノートを表示</Button>
@@ -1038,7 +1038,7 @@ function SessionDialogueSection({
           {sessionMode === 'battle' && (
             <div className={programPanelClass} data-testid="active-battle-turn">
               <p data-testid="battle-turn-lead">Battle Turn {battle.turn}</p>
-              <div role="group" aria-label={sessionModeFlavor === 'modeTransition' ? 'バトルターン行動' : 'バトル行動'} className="button-row">
+              <div role="group" aria-label={sessionModeFlavor === 'modeTransition' ? 'バトルターン行動' : 'バトル行動'} className={actionRowClassName}>
                 {(['攻撃', '防御', 'スキル', '逃走'] as const).map((action) => <Button key={action} variant="secondary" size="sm" onClick={() => resolveBattleAction(action)}>{action}</Button>)}
               </div>
               <Button variant="secondary" size="sm" onClick={completeProgramMode}>AI対話へ戻る</Button>
@@ -1125,7 +1125,7 @@ function SessionDialogueSection({
                     options={['ランダム', '1', '2', '3', '4', '5', '6'].map((value) => ({ value, label: value }))}
                   />
                 )}
-                <div className="button-row">
+                <div className={actionRowClassName}>
                   <Button variant="secondary" size="sm" onClick={() => startBattleFromCondition('バトルを開始')}>バトルを開始</Button>
                   <Button className="visually-hidden" onClick={() => startBattleFromCondition('バトル開始')}>バトル開始</Button>
                   <Button variant="primary" size="sm" onClick={() => startRollFromCondition('判定を開始')}>判定を開始</Button>
