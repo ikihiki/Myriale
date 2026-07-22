@@ -29,6 +29,8 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<OpenAiCompatibleTextProvider>();
 builder.Services.AddScoped<IAiTextProvider>(services => services.GetRequiredService<OpenAiCompatibleTextProvider>());
 builder.Services.AddScoped<MockAiNarrativeGenerator>();
+builder.Services.AddSingleton<NarrativeProviderRequestBudgeter>();
+builder.Services.AddSingleton<NarrativeBodyQualityGuard>();
 builder.Services.AddScoped<ProviderNarrativeGenerator>();
 builder.Services.AddScoped<INarrativeGenerator>(services =>
     string.Equals(builder.Configuration["AiProvider:Provider"], "mock", StringComparison.OrdinalIgnoreCase)
@@ -62,7 +64,8 @@ builder.Services.AddScoped<SessionArtifactReconciler>();
 builder.Services.AddHostedService<SessionArtifactRetentionWorker>();
 builder.Services.AddOptions<NarrativeContextOptions>()
     .Bind(builder.Configuration.GetSection(NarrativeContextOptions.SectionName))
-    .Validate(options => options.RecentTurnsTokenBudget >= 0 && options.MemoryTokenBudget >= 0
+    .Validate(options => options.FinalProviderRequestTokenBudget > 0
+        && options.RecentTurnsTokenBudget >= 0 && options.MemoryTokenBudget >= 0
         && options.MaxLorebookEntries >= 0 && options.SummaryIntervalTurns > 0,
         "Narrative context budgets and summary interval must be valid.")
     .ValidateOnStart();

@@ -1,0 +1,52 @@
+name: Real Provider Production Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      repetitions:
+        description: Provider evaluation repetitions per case (minimum 3)
+        required: false
+        default: "3"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    environment: real-provider-evaluation
+    env:
+      AI_EVAL_ENABLED: "true"
+      AI_EVAL_SESSION_LOOP_ENABLED: "true"
+      AI_EVAL_REPETITIONS: ${{ inputs.repetitions }}
+      AI_EVAL_WARMUP_ATTEMPTS: ${{ vars.AI_EVAL_WARMUP_ATTEMPTS || '3' }}
+      AI_EVAL_WARMUP_TIMEOUT_SECONDS: ${{ vars.AI_EVAL_WARMUP_TIMEOUT_SECONDS || '600' }}
+      AI_EVAL_WARMUP_BACKOFF_SECONDS: ${{ vars.AI_EVAL_WARMUP_BACKOFF_SECONDS || '15' }}
+      AI_PROVIDER: ${{ vars.AI_PROVIDER || 'runpod' }}
+      AI_MODEL: ${{ vars.AI_MODEL || 'qwen3-30b-a3b' }}
+      AI_API_KEY: ${{ secrets.AI_API_KEY }}
+      AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
+      AI_EVAL_REPORT_PATH: ${{ github.workspace }}/TestResults/ai-provider-evaluation.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Verify required protected secrets are available
+        shell: bash
+        run: |
+          test -n "$AI_API_KEY" || { echo 'The protected AI_API_KEY secret is required.' >&2; exit 1; }
+          test -n "$AI_BASE_URL" || { echo 'The protected AI_BASE_URL secret is required.' >&2; exit 1; }
+      - run: dotnet restore backend/Myriale.slnx
+      - name: Run production approval gate and Session API loop
+        run: dotnet test backend/tests/Myriale.Api.Tests/Myriale.Api.Tests.csproj --configuration Release --no-restore --filter 'Category=RealProviderEvaluation'
+      - name: Upload sanitized evaluation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanitized-real-provider-evaluation
+          path: TestResults/ai-provider-evaluation.json
+          if-no-files-found: warn
+          retention-days: 14

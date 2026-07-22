@@ -21,6 +21,7 @@ public static class SessionExecutionTelemetry
     public static readonly Counter<long> InvalidSignal = Meter.CreateCounter<long>("myriale.ai.dialogue.invalid_signal");
     public static readonly Counter<long> ProviderRequests = Meter.CreateCounter<long>("myriale.ai.provider.requests");
     public static readonly Counter<long> ProviderRetries = Meter.CreateCounter<long>("myriale.ai.provider.retries");
+    public static readonly Counter<long> SafeFallbacks = Meter.CreateCounter<long>("myriale.ai.dialogue.safe_fallbacks");
     public static readonly Counter<long> ArtifactCommitted = Meter.CreateCounter<long>("myriale.session.artifact.committed");
     public static readonly Counter<long> TurnPublished = Meter.CreateCounter<long>("myriale.session.turn.published");
     public static readonly Histogram<double> QueueDuration = Meter.CreateHistogram<double>("myriale.session.execution.queue_duration", "s");

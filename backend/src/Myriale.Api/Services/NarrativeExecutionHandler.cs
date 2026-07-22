@@ -37,6 +37,7 @@ public sealed class NarrativeExecutionHandler(
         NarrativeDialogueContext context;
         NarrativePromptInstructions prompt;
         NarrativeGeneration<NarrativeDialogueResult> generation;
+        IReadOnlyList<ValidatedNarrativeProgressionSignal> validatedSignals;
         string? sentPrompt = null;
         string? receivedResult = null;
         string? validationResult = null;
@@ -59,10 +60,22 @@ public sealed class NarrativeExecutionHandler(
             if (string.IsNullOrWhiteSpace(generation.Value.Body) || generation.Value.Body.Length > 20_000)
                 throw new NarrativeGenerationException("Narrative provider returned an invalid body.");
             ValidateGeneratedResult(generation.Value, generation.Metadata, input.InteractionType, session.InterpretationEnabled);
-            ValidateSignals(generation.Value.Signals, generation.Metadata, context.AllowedSignals);
-            ValidateForbiddenNarrativeFacts(generation.Value.Body, generation.Metadata, context.PriorModuleOutcomes);
+            validatedSignals = NarrativeSemanticGuard.ValidateProgressionSignals(
+                generation.Value.Signals,
+                context.AllowedSignals,
+                input.Text,
+                context.SessionState,
+                context.CurrentProgressionNode);
+            ValidateForbiddenNarrativeFacts(
+                string.Join('\n', new[] { generation.Value.Heading, generation.Value.Body, generation.Value.Interpretation ?? string.Empty }),
+                generation.Metadata,
+                context.PriorModuleOutcomes);
             if (environment.IsDevelopment())
-                validationResult = JsonSerializer.Serialize(new { status = "passed", checks = new[] { "dialogue-contract", "public-interpretation", "progression-signals", "forbidden-narrative-facts" } });
+                validationResult = JsonSerializer.Serialize(new
+                {
+                    status = generation.Metadata.FinishReason == "safe_fallback" ? "safe_fallback" : "passed",
+                    checks = new[] { "dialogue-contract", "body-quality", "public-interpretation", "progression-signals", "forbidden-narrative-facts" },
+                });
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -91,8 +104,16 @@ public sealed class NarrativeExecutionHandler(
             return new(false, retryable, code);
         }
 
+        var committedDialogue = generation.Value with
+        {
+            Signals = validatedSignals
+                .Select(signal => new NarrativeProgressionSignal(signal.Code, signal.ServerEvidence))
+                .ToArray(),
+        };
+
         providerActivity?.SetTag("ai.provider.name", generation.Metadata.Provider);
         providerActivity?.SetTag("ai.model.name", generation.Metadata.Model);
+        providerActivity?.SetTag("myriale.provider.status", generation.Metadata.FinishReason == "safe_fallback" ? "safe_fallback" : "completed");
         SessionExecutionTelemetry.ProviderDuration.Record(generation.Metadata.LatencyMilliseconds, SessionExecutionTelemetry.Tags(execution.Kind, execution.Status, generation.Metadata.Provider, generation.Metadata.Model));
         if (generation.Metadata.InputTokens is not null) SessionExecutionTelemetry.ProviderInputTokens.Record(generation.Metadata.InputTokens.Value, SessionExecutionTelemetry.Tags(execution.Kind, execution.Status, generation.Metadata.Provider, generation.Metadata.Model));
         if (generation.Metadata.OutputTokens is not null) SessionExecutionTelemetry.ProviderOutputTokens.Record(generation.Metadata.OutputTokens.Value, SessionExecutionTelemetry.Tags(execution.Kind, execution.Status, generation.Metadata.Provider, generation.Metadata.Model));
@@ -135,8 +156,8 @@ public sealed class NarrativeExecutionHandler(
             Kind = "narrative-text",
             Status = "committed",
             ContentType = "application/json",
-            ContentJson = JsonSerializer.Serialize(generation.Value),
-            MetadataJson = JsonSerializer.Serialize(new { generation.Metadata.Provider, generation.Metadata.Model, generation.Metadata.ResponseId }),
+            ContentJson = JsonSerializer.Serialize(committedDialogue),
+            MetadataJson = JsonSerializer.Serialize(new { generation.Metadata.Provider, generation.Metadata.Model, generation.Metadata.ResponseId, generation.Metadata.FinishReason }),
             Checksum = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(generation.Value.Body))).ToLowerInvariant(),
             CreatedAt = now,
             ValidatedAt = now,
@@ -187,7 +208,7 @@ public sealed class NarrativeExecutionHandler(
                 Turn = turn,
             });
         }
-        foreach (var generatedSignal in generation.Value.Signals)
+        foreach (var generatedSignal in validatedSignals)
         {
             var signal = new SessionNarrativeSignal
             {
@@ -195,7 +216,7 @@ public sealed class NarrativeExecutionHandler(
                 SessionId = current.SessionId,
                 NarrativeTurnId = turn.Id,
                 Code = generatedSignal.Code,
-                Evidence = generatedSignal.Evidence.Trim(),
+                Evidence = generatedSignal.ServerEvidence,
                 CreatedAt = now,
             };
             db.SessionNarrativeSignals.Add(signal);
@@ -354,64 +375,22 @@ public sealed class NarrativeExecutionHandler(
         throw new NarrativeGenerationException($"Narrative provider returned an invalid dialogue result: {reason}");
     }
 
-    private void ValidateSignals(
-        IReadOnlyList<NarrativeProgressionSignal> signals,
-        AiGenerationMetadata metadata,
-        IReadOnlyList<NarrativeAllowedSignal> allowedSignals)
-    {
-        if (signals.Count > 1)
-        {
-            logger.LogWarning(
-                "AI Provider returned too many progression signals. Provider={Provider} Model={Model} ResponseId={ResponseId} SignalCount={SignalCount}",
-                metadata.Provider, metadata.Model, metadata.ResponseId, signals.Count);
-            throw new NarrativeSignalValidationException($"Narrative provider returned too many progression signals: count={signals.Count}, max=1.");
-        }
-
-        var allowedCodes = allowedSignals.Select(signal => signal.Code).ToHashSet(StringComparer.Ordinal);
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var signal in signals)
-        {
-            var violations = new List<string>();
-            if (string.IsNullOrWhiteSpace(signal.Code)) violations.Add("code is empty");
-            else
-            {
-                if (signal.Code.Length > 80) violations.Add($"code length={signal.Code.Length} max=80");
-                if (signal.Code.Any(character => !(char.IsLower(character) || char.IsDigit(character) || character == '-')))
-                    violations.Add("code contains invalid characters");
-                if (!seen.Add(signal.Code)) violations.Add($"code is duplicated code={signal.Code}");
-                if (!allowedCodes.Contains(signal.Code)) violations.Add($"code is not allowed code={signal.Code}");
-            }
-            if (string.IsNullOrWhiteSpace(signal.Evidence)) violations.Add("evidence is empty");
-            else if (signal.Evidence.Length > 500) violations.Add($"evidence length={signal.Evidence.Length} max=500");
-            if (violations.Count == 0) continue;
-
-            var reason = string.Join("; ", violations);
-            logger.LogWarning(
-                "AI Provider progression signal failed validation. Provider={Provider} Model={Model} ResponseId={ResponseId} SignalCode={SignalCode} Violations={Violations}",
-                metadata.Provider, metadata.Model, metadata.ResponseId, signal.Code, reason);
-            throw new NarrativeSignalValidationException($"Narrative provider returned an invalid progression signal: {reason}");
-        }
-    }
-
     private void ValidateForbiddenNarrativeFacts(
         string body,
         AiGenerationMetadata metadata,
         IReadOnlyList<NarrativePriorModuleOutcomeInput> priorModuleOutcomes)
     {
-        var matchedFacts = priorModuleOutcomes
-            .SelectMany(outcome => outcome.ForbiddenNarrativeFacts)
-            .Select(fact => fact.Trim())
-            .Where(fact => fact.Length > 0 && body.Contains(fact, StringComparison.OrdinalIgnoreCase))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        if (matchedFacts.Length == 0) return;
+        var matchedFacts = NarrativeSemanticGuard.MatchForbiddenFacts(
+            body,
+            priorModuleOutcomes.SelectMany(outcome => outcome.ForbiddenNarrativeFacts));
+        if (matchedFacts.Count == 0) return;
 
         logger.LogWarning(
             "AI Provider narrative matched forbidden facts. Provider={Provider} Model={Model} ResponseId={ResponseId} MatchCount={MatchCount}",
-            metadata.Provider, metadata.Model, metadata.ResponseId, matchedFacts.Length);
+            metadata.Provider, metadata.Model, metadata.ResponseId, matchedFacts.Count);
         throw new AiProviderException(
             AiProviderErrorCodes.ContentRejected,
-            $"Narrative provider returned content matching {matchedFacts.Length} forbidden narrative fact(s).",
+            $"Narrative provider returned content matching {matchedFacts.Count} forbidden narrative fact(s).",
             false);
     }
 

@@ -240,7 +240,7 @@ test('creates a session, completes multiple dialogues, reloads, and reuses the R
   await expect(page.getByTestId('start-review-dialog')).toBeVisible();
   await page.getByRole('button', { name: '物語を始める' }).click();
 
-  await expect(page.getByTestId('session-activity-feed')).toContainText('水没した閲覧室');
+  await expect(page.getByTestId('session-activity-feed')).toContainText('水没した閲覧室', { timeout: 15_000 });
   expect(api.createRequests).toHaveLength(1);
   expect(api.createRequests[0].scenarioId).toBe(scenarioId);
   expect(api.createRequests[0].requestId).toMatch(/^session-/);

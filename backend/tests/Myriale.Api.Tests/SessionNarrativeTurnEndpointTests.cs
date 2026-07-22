@@ -250,7 +250,7 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
         await WaitForHandoffStatusAsync(SessionExecutionStatuses.Succeeded);
         var narrativeTurnsBefore = await CountNarrativeTurnsAsync();
-        _generator.DialogueBody = "Do not invent another outcome.";
+        _generator.DialogueBody = "A different result was fabricated.";
 
         using var response = await client.PostAsJsonAsync(
             $"/api/sessions/{sessionId}/inputs",
@@ -626,6 +626,36 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task AllowedSignalWithFabricatedProviderEvidenceIsRejectedWithoutAnyCommit()
+    {
+        var client = await AuthenticatedClientAsync("dialogue-false-signal-evidence@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        _generator.DialogueSignals =
+        [
+            new NarrativeProgressionSignal(
+                "constellation-door-reached",
+                "The model claims the player reached the constellation door."),
+        ];
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/inputs",
+            new { requestId = "dialogue-false-signal-evidence", text = "閉じた星座の扉を遠くから見るだけ" });
+
+        await AssertDialogueGenerationRejectedAsync(client, response, expectedCode: "invalid_signal");
+        var session = await GetSessionAsync(client, sessionId);
+        Assert.Empty(session.GetProperty("turns").EnumerateArray());
+        Assert.Equal("exploration", session.GetProperty("progression").GetProperty("currentNode").GetString());
+        Assert.Equal(0, session.GetProperty("progression").GetProperty("revision").GetInt64());
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var execution = await db.SessionExecutions.SingleAsync(item => item.Kind == SessionExecutionKinds.Narrative);
+        Assert.Equal(0, await db.SessionArtifacts.CountAsync(item => item.ExecutionId == execution.Id));
+        Assert.Equal(0, await db.SessionNarrativeSignals.CountAsync());
+        Assert.Equal(0, await db.SessionProgressionTransitionReceipts.CountAsync());
+    }
+
+    [Fact]
     public async Task ClarificationWithProgressionSignalIsRejected()
     {
         var client = await AuthenticatedClientAsync("clarification-signal@example.test");
@@ -929,7 +959,10 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var storedSignal = await db.SessionNarrativeSignals.SingleAsync();
-        Assert.Equal("Player input provides evidence for this signal.", storedSignal.Evidence);
+        Assert.Equal("server-rule:constellation-door-reached;state-revision:0;node:exploration", storedSignal.Evidence);
+        var artifact = await db.SessionArtifacts.SingleAsync(item => item.Kind == "narrative-text");
+        Assert.Contains(storedSignal.Evidence, artifact.ContentJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("Player input provides evidence for this signal.", artifact.ContentJson, StringComparison.Ordinal);
         Assert.Equal(1, await db.SessionProgressionTransitionReceipts.CountAsync());
     }
 
@@ -1227,8 +1260,11 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
 
         using var created = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/memory/lorebook", new
         {
-            kind = "item", displayName = "銀の鍵", aliases = new[] { "星鍵" },
-            content = "Turn 1で取得した重要item。", canonStatus = "canon",
+            kind = "item",
+            displayName = "銀の鍵",
+            aliases = new[] { "星鍵" },
+            content = "Turn 1で取得した重要item。",
+            canonStatus = "canon",
         });
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var createdJson = await created.Content.ReadFromJsonAsync<JsonElement>();
@@ -1239,8 +1275,12 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
 
         using var updated = await client.PutAsJsonAsync($"/api/sessions/{sessionId}/memory/lorebook/{noteId}", new
         {
-            kind = "item", displayName = "銀の鍵", aliases = new[] { "星鍵", "水鏡の鍵" },
-            content = "扉を開くまでは消費されない。", canonStatus = "rumor", expectedRevision = 1,
+            kind = "item",
+            displayName = "銀の鍵",
+            aliases = new[] { "星鍵", "水鏡の鍵" },
+            content = "扉を開くまでは消費されない。",
+            canonStatus = "rumor",
+            expectedRevision = 1,
         });
         Assert.True(updated.IsSuccessStatusCode, await updated.Content.ReadAsStringAsync());
         var updatedJson = await updated.Content.ReadFromJsonAsync<JsonElement>();
@@ -1298,23 +1338,42 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var now = DateTimeOffset.UtcNow;
         var opening = new SessionTurn
         {
-            Id = "TRN-LONG-01", SessionId = sessionId, Position = 1, Kind = "narrative",
-            DialogueTurnType = "opening", NarrativeBody = "20 Turn前に銀の鍵を取得した。", CreatedAt = now,
+            Id = "TRN-LONG-01",
+            SessionId = sessionId,
+            Position = 1,
+            Kind = "narrative",
+            DialogueTurnType = "opening",
+            NarrativeBody = "20 Turn前に銀の鍵を取得した。",
+            CreatedAt = now,
         };
         db.SessionTurns.Add(opening);
         db.SessionNotes.Add(new SessionNote
         {
-            Id = "LOR-OLD-KEY", SessionId = sessionId, Kind = "item", Title = "20 Turn前の銀の鍵", AliasesJson = "[]",
-            Body = "Openingで取得し、まだ消費されていない。", CanonStatus = "canon", FirstTurnId = opening.Id,
-            UpdateSource = "user", Revision = 1, CreatedAt = now, UpdatedAt = now,
+            Id = "LOR-OLD-KEY",
+            SessionId = sessionId,
+            Kind = "item",
+            Title = "20 Turn前の銀の鍵",
+            AliasesJson = "[]",
+            Body = "Openingで取得し、まだ消費されていない。",
+            CanonStatus = "canon",
+            FirstTurnId = opening.Id,
+            UpdateSource = "user",
+            Revision = 1,
+            CreatedAt = now,
+            UpdatedAt = now,
         });
         var previousId = opening.Id;
         for (var position = 2; position <= 20; position++)
         {
             var turn = new SessionTurn
             {
-                Id = $"TRN-LONG-{position:00}", SessionId = sessionId, PreviousTurnId = previousId, Position = position,
-                Kind = "narrative", NarrativeBody = position == 20 ? "銀の鍵を持ったまま鐘楼へ到着した。" : $"長期Sessionの出来事 {position}", CreatedAt = now.AddMinutes(position),
+                Id = $"TRN-LONG-{position:00}",
+                SessionId = sessionId,
+                PreviousTurnId = previousId,
+                Position = position,
+                Kind = "narrative",
+                NarrativeBody = position == 20 ? "銀の鍵を持ったまま鐘楼へ到着した。" : $"長期Sessionの出来事 {position}",
+                CreatedAt = now.AddMinutes(position),
             };
             db.SessionTurns.Add(turn);
             previousId = turn.Id;
