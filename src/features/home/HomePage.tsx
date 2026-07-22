@@ -8,6 +8,7 @@ import {
   type HomeDashboardLoadState,
 } from '../../app/homeDashboardApi';
 import { createDemoDb, useOptionalAppStore, type AppDb, type PlaySessionRecord, type ScenarioRecord } from '../../app/store';
+import './homePage.css';
 
 type HomeAccount = {
   name: string;
@@ -40,6 +41,20 @@ type HomeDashboardViewModel = {
 
 const fallbackDb = createDemoDb('resumableSession');
 const crumbs: Crumb[] = [{ label: 'Myriale' }, { label: 'ホーム' }];
+
+const homeButtonMotionClassName = 'transition-[transform,box-shadow,background] duration-[160ms] ease-[ease] hover:-translate-y-px hover:shadow-[0_10px_24px_rgba(18,16,25,.16)] motion-reduce:transition-none motion-reduce:hover:translate-y-0';
+const homeDarkButtonClassName = `border border-[rgba(36,27,47,.14)] rounded-full bg-[rgba(36,27,47,.92)] px-4 py-[11px] text-[#fffaf0] ${homeButtonMotionClassName}`;
+const homePrimaryButtonClassName = `border border-[rgba(36,27,47,.14)] rounded-full bg-[#d9a441] px-4 py-[11px] font-black text-[#1d1725] ${homeButtonMotionClassName}`;
+const homeTextButtonClassName = `mt-[10px] border border-[rgba(36,27,47,.14)] rounded-full bg-transparent px-4 py-[11px] font-black text-[#6f4fd8] shadow-none ${homeButtonMotionClassName}`;
+
+const homePanelClassName = 'grid gap-[18px] rounded-[28px] border border-[rgba(220,231,242,.54)] bg-[radial-gradient(circle_at_10%_0%,rgba(124,92,255,.10),transparent_30%),linear-gradient(135deg,rgba(255,250,240,.97),rgba(255,248,232,.90))] p-[clamp(18px,3vw,26px)] shadow-[0_24px_80px_rgba(18,16,25,.18)] max-[720px]:rounded-[20px] max-[720px]:p-[18px]';
+const homeSectionHeadClassName = 'flex flex-wrap items-center justify-between gap-[14px]';
+const homeCardClassName = 'home-card relative grid min-h-[230px] content-start gap-[10px] overflow-hidden rounded-[22px] border border-[rgba(36,27,47,.12)] bg-[rgba(255,254,249,.82)] p-[18px]';
+const homeCardLabelClassName = 'text-[11px] font-black tracking-[.08em] text-[#6f4fd8] uppercase';
+const homeCardTitleClassName = "m-0 font-['Yu_Mincho','Hiragino_Mincho_ProN',Georgia,serif] text-[25px] leading-[1.08] tracking-[-.04em]";
+const homeCardCopyClassName = 'm-0 leading-[1.58] text-[#566072]';
+const homeCardMetaClassName = 'leading-[1.45] text-[#6d587a]';
+const homeCardActionsClassName = 'mt-2 flex flex-wrap items-center gap-[10px] self-end max-[720px]:[&>button]:w-full';
 
 export function HomePage() {
   const store = useOptionalAppStore();
@@ -103,108 +118,125 @@ export function HomePage() {
 
   return (
     <AppChrome section="home" breadcrumbs={crumbs} account={vm.account}>
-      <main className="home-dashboard" aria-label="Myrialeトップページ">
-        <section className="home-hero" aria-label="トップページの主要操作">
-          <div className="home-hero-copy">
-            <p className="kicker">Myriale top</p>
-            <h1>物語の机を、今日の続きに整える。</h1>
-            <p>
+      <main className="grid gap-[18px] p-[18px] text-[#241b2f] max-[720px]:p-[10px]" aria-label="Myrialeトップページ">
+        <section
+          className="home-hero relative grid min-h-[340px] grid-cols-[minmax(0,1fr)_minmax(220px,320px)] items-stretch gap-[clamp(18px,5vw,52px)] overflow-hidden rounded-[32px] border border-[rgba(220,231,242,.54)] bg-[linear-gradient(90deg,rgba(25,20,33,.80)_1px,transparent_1px)_0_0/46px_46px,linear-gradient(0deg,rgba(25,20,33,.08)_1px,transparent_1px)_0_0/46px_46px,radial-gradient(circle_at_78%_20%,rgba(124,92,255,.30),transparent_28%),radial-gradient(circle_at_15%_12%,rgba(217,164,65,.20),transparent_30%),linear-gradient(135deg,#fffaf0_0%,#efe3c6_48%,#dce7f2_100%)] p-[clamp(26px,5vw,58px)] shadow-[0_24px_80px_rgba(18,16,25,.18)] max-[820px]:grid-cols-1 max-[720px]:rounded-[20px] max-[720px]:p-[18px]"
+          aria-label="トップページの主要操作"
+        >
+          <div className="relative z-[1] grid max-w-[780px] content-center gap-4">
+            <p className="kicker m-0 max-w-[700px] text-[16px] leading-[1.85] text-[#4c5262]">Myriale top</p>
+            <h1 className="m-0 max-w-[740px] font-['Yu_Mincho','Hiragino_Mincho_ProN',Georgia,serif] text-[clamp(42px,7vw,88px)] leading-[.96] tracking-[-.08em]">
+              物語の机を、今日の続きに整える。
+            </h1>
+            <p className="m-0 max-w-[700px] text-[16px] leading-[1.85] text-[#4c5262]">
               中断したセッション、今すぐ遊べるシナリオ、書きかけの構想をひとつの入口に集約しました。
               読む、遊ぶ、作る。次の一手をここから始めます。
             </p>
             {loadState.status !== 'idle' && (
-              <p className="home-data-source" data-testid="home-data-source">
+              <p
+                className="m-0 inline-flex w-fit max-w-[700px] rounded-full border border-[rgba(111,79,216,.22)] bg-[rgba(255,250,240,.72)] px-3 py-2 text-[13px] font-extrabold leading-[1.85] text-[#5c4772]"
+                data-testid="home-data-source"
+              >
                 {loadState.status === 'loading' && 'APIからホーム情報を読み込んでいます。'}
                 {loadState.status === 'loaded' && 'APIのホーム情報を表示しています。'}
                 {loadState.status === 'error' && `APIに接続できないためデモ情報を表示しています。${loadState.message}`}
               </p>
             )}
-            <div className="home-actions" aria-label="トップページの主要導線">
-              <button className="primary" onClick={() => go('scenarioList')} data-testid="home-search-scenarios">
+            <div className="mt-2 flex flex-wrap items-center gap-[10px] max-[720px]:[&>button]:w-full" aria-label="トップページの主要導線">
+              <button className={homePrimaryButtonClassName} onClick={() => go('scenarioList')} data-testid="home-search-scenarios">
                 シナリオを検索して開始
               </button>
-              <button onClick={() => go('scenarioRegister')} data-testid="home-create-scenario">
+              <button className={homeDarkButtonClassName} onClick={() => go('scenarioRegister')} data-testid="home-create-scenario">
                 シナリオを新規作成
               </button>
             </div>
           </div>
-          <aside className="home-quick-ledger" aria-label="現在の活動概要">
-            <span>Desk ledger</span>
-            <strong>{vm.resumableSessions.length}</strong>
-            <small>再開できるセッション</small>
-            <dl>
-              <div>
-                <dt>進行中</dt>
-                <dd>{vm.activeSessionCount}</dd>
+          <aside
+            className="relative z-[1] grid min-h-[230px] self-center gap-[10px] rounded-3xl border border-[rgba(36,27,47,.16)] bg-[linear-gradient(180deg,rgba(25,20,33,.94),rgba(36,27,47,.88)),#191421] p-5 text-[#fffaf0] max-[820px]:min-h-0"
+            aria-label="現在の活動概要"
+          >
+            <span className="text-[11px] font-black tracking-[.18em] text-[#c6b7d9] uppercase">Desk ledger</span>
+            <strong className="font-[Georgia,'Times_New_Roman',serif] text-[clamp(72px,10vw,120px)] leading-[.85] text-[#d9a441]">
+              {vm.resumableSessions.length}
+            </strong>
+            <small className="font-extrabold text-[#f4eedf]">再開できるセッション</small>
+            <dl className="mt-auto mb-0 grid gap-2">
+              <div className="flex justify-between gap-3 border-t border-[rgba(244,238,223,.16)] pt-[10px]">
+                <dt className="m-0 text-[#c6b7d9]">進行中</dt>
+                <dd className="m-0 font-black text-[#d9a441]">{vm.activeSessionCount}</dd>
               </div>
-              <div>
-                <dt>公開シナリオ</dt>
-                <dd>{vm.publishedScenarioCount}</dd>
+              <div className="flex justify-between gap-3 border-t border-[rgba(244,238,223,.16)] pt-[10px]">
+                <dt className="m-0 text-[#c6b7d9]">公開シナリオ</dt>
+                <dd className="m-0 font-black text-[#d9a441]">{vm.publishedScenarioCount}</dd>
               </div>
             </dl>
           </aside>
         </section>
 
-        <section className="home-panel home-sessions" aria-label="中断しているセッション">
-          <div className="home-section-head">
-            <div>
-              <p className="kicker">Continue</p>
-              <h2>中断しているセッション</h2>
+        <section className={homePanelClassName} aria-label="中断しているセッション">
+          <div className={homeSectionHeadClassName}>
+            <div className="grid gap-0.5">
+              <p className="kicker m-0">Continue</p>
+              <h2 className="m-0 font-['Yu_Mincho','Hiragino_Mincho_ProN',Georgia,serif] text-[clamp(28px,4vw,44px)] tracking-[-.06em]">
+                中断しているセッション
+              </h2>
             </div>
-            <button type="button" className="text-button" onClick={() => go('resumeSession')}>
+            <button type="button" className={homeTextButtonClassName} onClick={() => go('resumeSession')}>
               すべて見る
             </button>
           </div>
 
-          <div className="home-card-grid">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-[14px]">
             {vm.resumableSessions.length > 0 ? (
               vm.resumableSessions.map((session) => (
-                <article className="home-card session-card" key={session.id} data-testid={`home-session-${session.id}`}>
-                  <span>{session.stateLabel} / {session.turnLabel}</span>
-                  <h3>{session.scenarioTitle}</h3>
-                  <p>{session.summary}</p>
-                  <small>{session.hero}</small>
-                  <div className="home-card-actions">
-                    <button className="primary" onClick={() => go(session.destination)}>
+                <article className={homeCardClassName} key={session.id} data-testid={`home-session-${session.id}`}>
+                  <span className={homeCardLabelClassName}>{session.stateLabel} / {session.turnLabel}</span>
+                  <h3 className={homeCardTitleClassName}>{session.scenarioTitle}</h3>
+                  <p className={homeCardCopyClassName}>{session.summary}</p>
+                  <small className={homeCardMetaClassName}>{session.hero}</small>
+                  <div className={homeCardActionsClassName}>
+                    <button className={homePrimaryButtonClassName} onClick={() => go(session.destination)}>
                       {session.resumeLabel}
                     </button>
                   </div>
                 </article>
               ))
             ) : (
-              <article className="home-card empty-card">
-                <span>Ready</span>
-                <h3>再開待ちのセッションはありません</h3>
-                <p>シナリオを選んで、新しい物語の準備を始められます。</p>
-                <div className="home-card-actions">
-                  <button className="primary" onClick={() => go('startSession')}>シナリオを探す</button>
+              <article className={`${homeCardClassName} border-dashed bg-[rgba(220,231,242,.36)]`}>
+                <span className={homeCardLabelClassName}>Ready</span>
+                <h3 className={homeCardTitleClassName}>再開待ちのセッションはありません</h3>
+                <p className={homeCardCopyClassName}>シナリオを選んで、新しい物語の準備を始められます。</p>
+                <div className={homeCardActionsClassName}>
+                  <button className={homePrimaryButtonClassName} onClick={() => go('startSession')}>シナリオを探す</button>
                 </div>
               </article>
             )}
           </div>
         </section>
 
-        <section className="home-panel home-recommended" aria-label="おすすめのシナリオ">
-          <div className="home-section-head">
-            <div>
-              <p className="kicker">Recommended</p>
-              <h2>おすすめのシナリオ</h2>
+        <section className={homePanelClassName} aria-label="おすすめのシナリオ">
+          <div className={homeSectionHeadClassName}>
+            <div className="grid gap-0.5">
+              <p className="kicker m-0">Recommended</p>
+              <h2 className="m-0 font-['Yu_Mincho','Hiragino_Mincho_ProN',Georgia,serif] text-[clamp(28px,4vw,44px)] tracking-[-.06em]">
+                おすすめのシナリオ
+              </h2>
             </div>
-            <button type="button" className="text-button" onClick={() => go('startSession')}>
+            <button type="button" className={homeTextButtonClassName} onClick={() => go('startSession')}>
               検索画面へ
             </button>
           </div>
 
-          <div className="home-card-grid recommended-grid">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-[14px]">
             {vm.recommendedScenarios.map((scenario) => (
-              <article className="home-card scenario-card" key={scenario.id} data-testid={`home-scenario-${scenario.id}`}>
-                <span>{scenario.visibilityLabel} / {scenario.id}</span>
-                <h3>{scenario.title}</h3>
-                <p>{scenario.summary ?? scenario.genre}</p>
-                <small>{scenario.updatedLabel}</small>
-                <div className="home-card-actions">
-                  <button className="primary" onClick={() => startRecommendedScenario(scenario)}>このシナリオで開始</button>
-                  <button onClick={() => go('scenarioEdit')}>詳細を編集</button>
+              <article className={homeCardClassName} key={scenario.id} data-testid={`home-scenario-${scenario.id}`}>
+                <span className={homeCardLabelClassName}>{scenario.visibilityLabel} / {scenario.id}</span>
+                <h3 className={homeCardTitleClassName}>{scenario.title}</h3>
+                <p className={homeCardCopyClassName}>{scenario.summary ?? scenario.genre}</p>
+                <small className={homeCardMetaClassName}>{scenario.updatedLabel}</small>
+                <div className={homeCardActionsClassName}>
+                  <button className={homePrimaryButtonClassName} onClick={() => startRecommendedScenario(scenario)}>このシナリオで開始</button>
+                  <button className={homeDarkButtonClassName} onClick={() => go('scenarioEdit')}>詳細を編集</button>
                 </div>
               </article>
             ))}
