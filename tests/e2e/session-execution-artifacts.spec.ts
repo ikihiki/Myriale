@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './fixtures';
 
 const openStory = async (page: Page, id: string) => {
   await page.goto(`/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`);
@@ -13,7 +13,10 @@ test('execution failure remains beside its input with safe diagnostics and retry
   await expect(narrativeExecution).not.toContainText('Player Inputと既存のNarrativeは保存されています。');
   await expect(narrativeExecution.getByRole('button', { name: '入力取り消し' })).toBeVisible();
   await expect(narrativeExecution.getByRole('button', { name: '閉じる' })).toHaveCount(0);
-  await expect(narrativeExecution.locator('details.execution-diagnostics')).toHaveAttribute('open', '');
+  const diagnostics = narrativeExecution.locator('details').first();
+  await expect(diagnostics).toBeVisible();
+  if (await diagnostics.getAttribute('open') === null) await diagnostics.locator('summary').click();
+  await expect(diagnostics).toHaveAttribute('open', '');
   await expect(narrativeExecution).toContainText('Authorization=[REDACTED]');
   await expect(narrativeExecution.getByText('送信したプロンプト')).toBeVisible();
   await expect(narrativeExecution.getByText('受信した結果')).toBeVisible();

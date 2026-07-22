@@ -9,11 +9,17 @@
 
 ## Provider outage and retry exhaustion
 
-- Group failures by bounded error code/provider/model, not Session ID.
-- Transient timeout/rate-limit/transport failures enter `retry-wait` with bounded exponential delay and jitter.
-- Permanent validation/configuration errors fail immediately.
-- After maximum attempts, the Execution remains `failed` beside its Input. Operators or players may retry only when capability says so.
-- Never convert provider failure text into a Session Turn.
+1. Confirm the outage from `myriale.ai.provider.requests` grouped only by `myriale.provider.status`, `error.type`, `ai.provider.name`, and `ai.model.name`. Correlate spikes in `timeout`, `rate_limited`, `provider_unavailable`, and `schema_failure` with `myriale.ai.provider.retries`, latency, and token histograms. Do not add Session, Input, Execution, prompt, or response content as metric dimensions.
+2. Check the configured provider status page and the bounded structured logs. For 429, honor `Retry-After` and reduce traffic before retrying. For provider 5xx/timeouts, allow the bounded provider retry and durable Execution retry policies to run; do not repeatedly trigger manual retries during an active incident.
+3. If failures are sustained, disable new real-provider traffic or switch `AiProvider:Provider` to the approved fallback, then restart through the normal deployment path. Never put credentials in configuration committed to Git, incident chat, command history, or screenshots.
+4. Verify recovery with a connection probe or the opt-in sanitized evaluation below before restoring normal traffic. Confirm the success counter recovers and queue age declines. A cold provider may require several minutes before the first successful response.
+5. Permanent validation/configuration errors fail immediately. After maximum attempts, the Execution remains `failed` beside its Input; operators or players may retry only when capability says so. Never convert provider failure text into a Session Turn.
+
+### Opt-in real-provider evaluation
+
+The normal test suite never requires a real provider. Run the evaluation only in a dedicated secret-enabled environment by setting `AI_EVAL_ENABLED=true` together with `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY`, and, when required, `AI_BASE_URL`. `AI_EVAL_TIMEOUT_SECONDS` defaults to 900 seconds for cold starts, `AI_EVAL_REPETITIONS` defaults to 3, and `AI_EVAL_PROVIDER_ATTEMPTS` defaults to 2. Optional `AI_EVAL_CASES` selects comma-separated case IDs, `AI_EVAL_MIN_SCHEMA_SUCCESS_RATE` controls the failure threshold, and `AI_EVAL_REPORT_PATH` selects the JSON output path. The Runpod adapter disables Qwen3 thinking so hidden reasoning does not consume the structured-output completion budget; this improves compatibility but does not waive the schema-success gate.
+
+Run only the evaluation category with `dotnet test backend/tests/Myriale.Api.Tests/Myriale.Api.Tests.csproj --filter Category=RealProviderEvaluation`. The JSON report contains case IDs, provider/model, prompt/context/dialogue versions, execution time, repetitions, schema/quality/signal rates, latency, attempts, and token totals. It intentionally excludes API keys, base URLs, player text, prompts, narrative output, provider response bodies, and request/response IDs. Treat even this sanitized report as operational data and apply the environment's normal retention and access controls.
 
 ## Publish conflict or late completion
 

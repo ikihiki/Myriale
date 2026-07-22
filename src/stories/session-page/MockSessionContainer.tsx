@@ -24,12 +24,22 @@ const programTurnDisplay: TurnDisplayFlags = { allowRewind: false, showInterpret
 
 export type SessionErrorScenario = 'success' | 'load-401' | 'load-404' | 'submit-409' | 'submit-429' | 'load-503' | 'submit-timeout';
 
-export function MockSessionContainer({ sessionId, scenario = 'success', submissionDelayMs = 0 }: { sessionId: string; scenario?: SessionErrorScenario; submissionDelayMs?: number }) {
+export function MockSessionContainer({
+  sessionId,
+  scenario = 'success',
+  submissionDelayMs = 0,
+  initiallySubmitting = false,
+}: {
+  sessionId: string;
+  scenario?: SessionErrorScenario;
+  submissionDelayMs?: number;
+  initiallySubmitting?: boolean;
+}) {
   const appStore = useOptionalAppStore();
   const dbSession = appStore?.db.playSessions[sessionId];
   const initialTurnCount = clampInitialTurnCount(dbSession?.turn);
   const [turns, setTurns] = useState<DialogueTurn[]>(initialTurns.slice(0, initialTurnCount));
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(initiallySubmitting);
   const submitInFlight = useRef(false);
   const [sessionMode, setSessionMode] = useState<SessionMode>('dialogue');
   const [sessionModeFlavor] = useState<SessionModeFlavor>(appStore?.db.ui.sessionView ?? 'dialogue');

@@ -142,6 +142,7 @@ public sealed class OpenAiCompatibleTextProvider(
             {
                 last = exception;
                 var delay = exception.RetryAfter ?? TimeSpan.FromMilliseconds(Math.Max(0, options.InitialBackoffMilliseconds) * Math.Pow(2, attempt - 1));
+                SessionExecutionTelemetry.ProviderRetries.Add(1, SessionExecutionTelemetry.ProviderTags(provider, options.Model, "retry", exception.Code));
                 logger.LogWarning(
                     exception,
                     "AI Provider request attempt failed and will be retried. Provider={Provider} Model={Model} Schema={SchemaName} Attempt={Attempt} MaxAttempts={MaxAttempts} ErrorCode={ErrorCode} RetryDelayMilliseconds={RetryDelayMilliseconds}",
@@ -164,15 +165,15 @@ public sealed class OpenAiCompatibleTextProvider(
         var endpoint = new Uri(new Uri(ResolveBaseUrl(provider, options.BaseUrl)), "chat/completions");
         using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
-        request.Content = new StringContent(JsonSerializer.Serialize(new
+        var payload = new Dictionary<string, object?>
         {
-            model = options.Model,
-            messages = input.Messages.Select(message => new { role = message.Role.Value, content = message.Text }),
-            temperature = options.Temperature,
-            max_tokens = options.MaxOutputTokens,
+            ["model"] = options.Model,
+            ["messages"] = input.Messages.Select(message => new { role = message.Role.Value, content = message.Text }),
+            ["temperature"] = options.Temperature,
+            ["max_tokens"] = options.MaxOutputTokens,
             // Microsoft.Extensions.AI owns the provider-neutral messages and response format. This adapter owns
             // the final OpenAI-compatible wire shape so OpenAI and Runpod vLLM receive the same strict contract.
-            response_format = new
+            ["response_format"] = new
             {
                 type = "json_schema",
                 json_schema = new
@@ -183,7 +184,12 @@ public sealed class OpenAiCompatibleTextProvider(
                         ?? throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "Structured output schema is required.", false))
                 }
             }
-        }, Json), Encoding.UTF8, "application/json");
+        };
+        // Qwen3 spends its completion budget on hidden reasoning unless thinking is explicitly disabled.
+        // Runpod's vLLM OpenAI-compatible endpoint accepts this model-specific chat-template option.
+        if (provider == "runpod" && options.Model.Contains("qwen3", StringComparison.OrdinalIgnoreCase))
+            payload["chat_template_kwargs"] = new { enable_thinking = false };
+        request.Content = new StringContent(JsonSerializer.Serialize(payload, Json), Encoding.UTF8, "application/json");
         var stopwatch = Stopwatch.StartNew();
         try
         {
@@ -222,13 +228,20 @@ public sealed class OpenAiCompatibleTextProvider(
                 if (usage.TryGetProperty("prompt_tokens", out var promptTokens)) inputTokens = promptTokens.GetInt32();
                 if (usage.TryGetProperty("completion_tokens", out var completionTokens)) outputTokens = completionTokens.GetInt32();
             }
+            SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider, options.Model, "succeeded"));
             return new AiTextResponse(text, new(provider, options.Model, root.TryGetProperty("id", out var id) ? id.GetString() : null, inputTokens, outputTokens, stopwatch.ElapsedMilliseconds, attempt, finishReason));
+        }
+        catch (AiProviderException exception)
+        {
+            SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider, options.Model, "failed", exception.Code));
+            throw;
         }
         catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
             logger.LogWarning(exception,
                 "AI Provider request timed out. Provider={Provider} Model={Model} Schema={SchemaName} Endpoint={Endpoint} Attempt={Attempt} TimeoutSeconds={TimeoutSeconds}",
                 provider, options.Model, input.ResponseFormat.SchemaName, endpoint.GetLeftPart(UriPartial.Path), attempt, options.TimeoutSeconds);
+            SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider, options.Model, "failed", AiProviderErrorCodes.Timeout));
             throw new AiProviderException(AiProviderErrorCodes.Timeout, "AI Provider request timed out.", true, null, exception);
         }
         catch (HttpRequestException exception)
@@ -236,6 +249,7 @@ public sealed class OpenAiCompatibleTextProvider(
             logger.LogWarning(exception,
                 "AI Provider transport failed. Provider={Provider} Model={Model} Schema={SchemaName} Endpoint={Endpoint} Attempt={Attempt} HttpRequestError={HttpRequestError} StatusCode={StatusCode}",
                 provider, options.Model, input.ResponseFormat.SchemaName, endpoint.GetLeftPart(UriPartial.Path), attempt, exception.HttpRequestError, exception.StatusCode is null ? null : (int)exception.StatusCode);
+            SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider, options.Model, "failed", AiProviderErrorCodes.ProviderUnavailable));
             throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "AI Provider is unavailable.", true, null, exception);
         }
         catch (Exception exception) when (exception is JsonException or KeyNotFoundException or InvalidOperationException)
@@ -243,6 +257,7 @@ public sealed class OpenAiCompatibleTextProvider(
             logger.LogWarning(exception,
                 "AI Provider response envelope was invalid. Provider={Provider} Model={Model} Schema={SchemaName} Endpoint={Endpoint} Attempt={Attempt} ExceptionType={ExceptionType}",
                 provider, options.Model, input.ResponseFormat.SchemaName, endpoint.GetLeftPart(UriPartial.Path), attempt, exception.GetType().Name);
+            SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider, options.Model, "failed", AiProviderErrorCodes.SchemaFailure));
             throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "AI Provider returned an invalid response envelope.", false, null, exception);
         }
     }

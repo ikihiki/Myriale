@@ -73,4 +73,6 @@ public sealed class MockAiNarrativeGenerator(IHttpClientFactory httpClientFactor
     private static AiGenerationMetadata MockMetadata() => new("mock", "deterministic", null, null, null, 0, 1, "stop");
 }
 
-public sealed class NarrativeGenerationException(string message, Exception? innerException = null) : Exception(message, innerException);
+public class NarrativeGenerationException(string message, Exception? innerException = null) : Exception(message, innerException);
+
+public sealed class NarrativeSignalValidationException(string message) : NarrativeGenerationException(message);

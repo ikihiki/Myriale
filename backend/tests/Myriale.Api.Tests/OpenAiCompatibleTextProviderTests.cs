@@ -1,3 +1,4 @@
+using System.Diagnostics.Metrics;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -24,6 +25,7 @@ public sealed class OpenAiCompatibleTextProviderTests
 
         Assert.Contains("\"type\":\"json_schema\"", handler.LastBody, StringComparison.Ordinal);
         Assert.Contains("\"strict\":true", handler.LastBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("chat_template_kwargs", handler.LastBody, StringComparison.Ordinal);
         Assert.Equal("resp-1", result.Metadata.ResponseId);
         Assert.Equal(11, result.Metadata.InputTokens);
         Assert.Equal(4, result.Metadata.OutputTokens);
@@ -64,6 +66,7 @@ public sealed class OpenAiCompatibleTextProviderTests
         Assert.Equal("https://api.runpod.ai/v2/real-endpoint/openai/v1/chat/completions", handler.LastUri?.ToString());
         using var body = JsonDocument.Parse(handler.LastBody);
         Assert.Equal("Qwen/Qwen3-8B", body.RootElement.GetProperty("model").GetString());
+        Assert.False(body.RootElement.GetProperty("chat_template_kwargs").GetProperty("enable_thinking").GetBoolean());
     }
 
     [Fact]
@@ -129,6 +132,48 @@ public sealed class OpenAiCompatibleTextProviderTests
         var exception = await Assert.ThrowsAsync<AiProviderException>(() => Create(handler, maxAttempts: 1).GenerateAsync(Request(), default));
         Assert.Equal(code, exception.Code);
         Assert.Equal(retryable, exception.Retryable);
+    }
+
+    [Fact]
+    public async Task Generate_EmitsBoundedProviderFailureAndRetryTelemetry()
+    {
+        var measurements = new List<(string Name, Dictionary<string, object?> Tags)>();
+        using var listener = new MeterListener();
+        listener.InstrumentPublished = (instrument, activeListener) =>
+        {
+            if (instrument.Meter.Name == SessionExecutionTelemetry.MeterName)
+                activeListener.EnableMeasurementEvents(instrument);
+        };
+        listener.SetMeasurementEventCallback<long>((instrument, _, tags, _) =>
+        {
+            if (instrument.Name is "myriale.ai.provider.requests" or "myriale.ai.provider.retries")
+                measurements.Add((instrument.Name, tags.ToArray().ToDictionary(item => item.Key, item => item.Value)));
+        });
+        listener.Start();
+
+        var rateLimited = new HttpResponseMessage(HttpStatusCode.TooManyRequests)
+        {
+            Content = new StringContent("{\"error\":\"rate limited\"}")
+        };
+        rateLimited.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.Zero);
+        var handler = new QueueHandler(rateLimited, new HttpResponseMessage(HttpStatusCode.InternalServerError)
+        {
+            Content = new StringContent("{\"error\":\"provider unavailable\"}")
+        });
+
+        await Assert.ThrowsAsync<AiProviderException>(() => Create(handler).GenerateAsync(Request(), default));
+
+        Assert.Contains(measurements, measurement => measurement.Name == "myriale.ai.provider.retries"
+            && Equals(measurement.Tags["error.type"], AiProviderErrorCodes.RateLimited));
+        Assert.Contains(measurements, measurement => measurement.Name == "myriale.ai.provider.requests"
+            && Equals(measurement.Tags["myriale.provider.status"], "failed")
+            && Equals(measurement.Tags["error.type"], AiProviderErrorCodes.ProviderUnavailable));
+        Assert.All(measurements, measurement =>
+        {
+            Assert.DoesNotContain("prompt", measurement.Tags.Keys);
+            Assert.DoesNotContain("response", measurement.Tags.Keys);
+            Assert.DoesNotContain("myriale.session.id", measurement.Tags.Keys);
+        });
     }
 
     [Fact]

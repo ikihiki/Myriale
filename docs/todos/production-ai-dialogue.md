@@ -280,46 +280,46 @@ model: <vLLM model name>
 
 ### 自動契約テスト
 
-- [ ] Context要素の順序、version、token budgetを検証する。
-- [ ] Scenario、Session flags、Recent Turnsが正しくProvider requestへ入ることを検証する。
-- [ ] private State、configuration、乱数、receipt、secretがrequestへ入らないことを検証する。
-- [ ] clarificationでsignalが拒否されることを検証する。
-- [ ] Module Public FactsとForbidden Factsが後続Contextへ入ることを検証する。
-- [ ] 同一Request IDのretryで同じPlayer Inputと最大1件のNarrative Turnだけが存在することを検証する。
-- [ ] Session advance中の生成結果がcommitされないことを検証する。
+- [x] Context要素の順序、version、token budgetを検証する。
+- [x] Scenario、Session flags、Recent Turnsが正しくProvider requestへ入ることを検証する。
+- [x] private State、configuration、乱数、receipt、secretがrequestへ入らないことを検証する。
+- [x] clarificationでsignalが拒否されることを検証する。
+- [x] Module Public FactsとForbidden Factsが後続Contextへ入ることを検証する。
+- [x] 同一Request IDのretryで同じPlayer Inputと最大1件のNarrative Turnだけが存在することを検証する。
+- [x] Session advance中の生成結果がcommitされないことを検証する。
 
 ### 会話品質評価
 
-- [ ] NPC一貫性の固定会話ケースを用意する。
-- [ ] Scenario Canon違反を拒否する固定会話ケースを用意する。
-- [ ] Player代理行動をしない固定会話ケースを用意する。
-- [ ] clarificationが物語を進めない固定会話ケースを用意する。
-- [ ] 長期記憶を確認する20 Turn以上のケースを用意する。
-- [ ] Module Outcome後の確定事項を維持するケースを用意する。
-- [ ] signalのpositive/counter exampleを用いた誤発火テストを用意する。
+- [x] NPC一貫性の固定会話ケースを用意する。
+- [x] Scenario Canon違反を拒否する固定会話ケースを用意する。
+- [x] Player代理行動をしない固定会話ケースを用意する。
+- [x] clarificationが物語を進めない固定会話ケースを用意する。
+- [x] 長期記憶を確認する20 Turn以上のケースを用意する。
+- [x] Module Outcome後の確定事項を維持するケースを用意する。
+- [x] signalのpositive/counter exampleを用いた誤発火テストを用意する。
 
 ### 実Provider評価
 
-- [ ] 実Provider評価はAPI keyがある専用環境だけで実行する。
-- [ ] model、prompt version、context version、実行日時を記録する。
-- [ ] 非決定性を考慮し、必要なケースは複数回評価する。
-- [ ] token usage、latency、schema成功率、signal誤発火率を集計する。
-- [ ] 通常CIで実行するMock契約テストと、任意の実Provider評価を分離する。
+- [x] 実Provider評価はAPI keyがある専用環境だけで実行する。
+- [x] model、prompt version、context version、実行日時を記録する。
+- [x] 非決定性を考慮し、必要なケースは複数回評価する。
+- [x] token usage、latency、schema成功率、signal誤発火率を集計する。
+- [x] 通常CIで実行するMock契約テストと、任意の実Provider評価を分離する。
 
 ### UIとE2E
 
-- [ ] Storybookでloading、retryable error、non-retryable error、resume、clarificationを再現する。
-- [ ] Session作成から複数回対話、再読み込み、retryまでのE2Eを追加する。
-- [ ] browser-toolのsnapshot、screenshot、または明示的assertionで実画面を確認する。
-- [ ] network request上で同一retryが同じRequest IDを使用することを確認する。
+- [x] Storybookでloading、retryable error、non-retryable error、resume、clarificationを再現する。
+- [x] Session作成から複数回対話、再読み込み、retryまでのE2Eを追加する。
+- [x] browser-toolのsnapshot、screenshot、または明示的assertionで実画面を確認する。
+- [x] network request上で同一retryが同じRequest IDを使用することを確認する。
 
 ### 運用監視
 
-- [ ] generation成功率、timeout、429、provider 5xx、schema失敗を計測する。
-- [ ] retry回数、lease期限切れ、Session advanced、不正signalを計測する。
-- [ ] model別のtoken usageとlatencyを計測する。
-- [ ] Player本文を含めない標準telemetryと、権限制御された診断手段を分離する。
-- [ ] Provider停止時の運用手順とPlayer向け表示を文書化する。
+- [x] generation成功率、timeout、429、provider 5xx、schema失敗を計測する。
+- [x] retry回数、lease期限切れ、Session advanced、不正signalを計測する。
+- [x] model別のtoken usageとlatencyを計測する。
+- [x] Player本文を含めない標準telemetryと、権限制御された診断手段を分離する。
+- [x] Provider停止時の運用手順とPlayer向け表示を文書化する。
 
 ## 推奨PR分割
 

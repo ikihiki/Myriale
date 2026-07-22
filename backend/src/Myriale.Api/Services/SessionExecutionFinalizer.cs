@@ -40,6 +40,8 @@ public sealed class SessionExecutionFinalizer(ApplicationDbContext db, TimeProvi
             SessionExecutionStateMachine.Transition(execution, SessionExecutionStatuses.Superseded);
             attempt.Status = "superseded"; execution.CompletedAt = now; execution.IsRetryable = false; execution.ErrorCode = result.ErrorCode; execution.UserErrorMessage = result.UserMessage;
             SessionExecutionTelemetry.Superseded.Add(1, SessionExecutionTelemetry.Tags(execution.Kind, execution.Status));
+            if (string.Equals(result.ErrorCode, "session_advanced", StringComparison.Ordinal))
+                SessionExecutionTelemetry.RecordSessionAdvanced(execution.Kind, execution.Status);
         }
         else if (result.Succeeded)
         {
