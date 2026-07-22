@@ -646,7 +646,7 @@ export function SessionPresentation({
               {isNarrowViewport ? '閉じる' : 'ターン画面に戻る'}
             </Button>
           </div>
-          <SessionNotesWorkspace mode="full" />
+          <SessionNotesWorkspace mode="full" sessionId={sessionId} />
         </section>
       )}
 
@@ -669,7 +669,7 @@ export function SessionPresentation({
             <Button variant="secondary" size="sm" onClick={() => setNotesViewMode('hidden')}>ノートを非表示</Button>
             <Button variant="primary" size="sm" onClick={() => setNotesViewMode('full')}>全画面表示</Button>
           </div>
-          <SessionNotesWorkspace mode="side" />
+          <SessionNotesWorkspace mode="side" sessionId={sessionId} />
         </SummaryInset>
       )}
     </div>

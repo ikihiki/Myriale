@@ -9,7 +9,7 @@ public interface INarrativePromptBuilder
 
 public sealed class NarrativePromptBuilder : INarrativePromptBuilder
 {
-    public const string Version = "narrative-prompt.v2";
+    public const string Version = "narrative-prompt.v3";
 
     public NarrativePromptInstructions Build(NarrativeDialogueContext context, string interactionType)
     {
@@ -24,6 +24,7 @@ public sealed class NarrativePromptBuilder : INarrativePromptBuilder
             "Player Inputにない移動、契約、戦闘開始、重要item消費、その他の重要な選択をPlayerの代わりに確定しない。調べる・確認するという入力は、開ける、入る、移動する、消費する、契約する、戦闘を始める許可ではない。",
             "Scenario LoreとRecent TurnsにあるNPCの名前、別名、立場、口調、経歴、知識を維持し、NPCが知らない情報や公開条件を満たしていない秘密を話させない。",
             "Scenario、Session flags、進行node、Module Outcomeのcode、Public Facts、Emitted Events、Narrative HintsをCanonとして維持する。",
+            "Memory内でCANONと明示された情報だけを確定事項として扱う。RUMORは可能性・伝聞として表現し、事実として断定しない。未確定candidateはユーザー承認までCanonに昇格させない。",
             "Forbidden Narrative Factsを本文で成立させず、矛盾する事実を作らない。",
             "行動結果または現在状況を描写した後、次の重要な決定をPlayerへ返す。",
             "inputInterpretationはPlayerへ公開する行動種別と入力要約だけを200文字以内の1行で返す。思考過程、内部推論、分析手順、判断理由、chain-of-thoughtを含めない。",

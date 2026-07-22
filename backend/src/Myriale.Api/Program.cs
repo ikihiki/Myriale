@@ -62,11 +62,14 @@ builder.Services.AddScoped<SessionArtifactReconciler>();
 builder.Services.AddHostedService<SessionArtifactRetentionWorker>();
 builder.Services.AddOptions<NarrativeContextOptions>()
     .Bind(builder.Configuration.GetSection(NarrativeContextOptions.SectionName))
-    .Validate(options => options.RecentTurnsTokenBudget >= 0, "RecentTurnsTokenBudget must not be negative.")
+    .Validate(options => options.RecentTurnsTokenBudget >= 0 && options.MemoryTokenBudget >= 0
+        && options.MaxLorebookEntries >= 0 && options.SummaryIntervalTurns > 0,
+        "Narrative context budgets and summary interval must be valid.")
     .ValidateOnStart();
 builder.Services.AddSingleton<INarrativeRecentTurnSelector, NarrativeRecentTurnSelector>();
 builder.Services.AddSingleton<INarrativeTokenEstimator, Utf8NarrativeTokenEstimator>();
 builder.Services.AddSingleton<INarrativePromptBuilder, NarrativePromptBuilder>();
+builder.Services.AddScoped<SessionSummaryService>();
 builder.Services.AddScoped<INarrativeContextBuilder, NarrativeContextBuilder>();
 builder.Services.AddSingleton<IHomeDashboardService, DemoHomeDashboardService>();
 builder.Services.Configure<ModulePackageOptions>(builder.Configuration.GetSection(ModulePackageOptions.SectionName));
@@ -216,6 +219,7 @@ app.MapScenarioAiEndpoints();
 app.MapModuleAdminEndpoints();
 app.MapSessionEndpoints();
 app.MapSessionExecutionEndpoints();
+app.MapSessionMemoryEndpoints();
 app.MapSessionArtifactEndpoints();
 app.MapModuleExecutionEndpoints();
 app.MapModuleUiEndpoints();

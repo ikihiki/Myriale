@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Myriale.Api.Modules.Runtime;
 using Myriale.ModuleSdk;
 using Myriale.Api.Contracts;
@@ -10,12 +11,14 @@ namespace Myriale.Api.Services;
 
 public sealed class NarrativeContextBuilder(
     ApplicationDbContext db,
-    INarrativeRecentTurnSelector recentTurnSelector) : INarrativeContextBuilder
+    INarrativeRecentTurnSelector recentTurnSelector,
+    IOptions<NarrativeContextOptions> options) : INarrativeContextBuilder
 {
     public async Task<NarrativeDialogueContext> BuildDialogueAsync(
         string ownerId,
         string sessionId,
         string interactionType,
+        string playerInput,
         CancellationToken cancellationToken)
     {
         var session = await db.Sessions.AsNoTracking()
@@ -82,7 +85,7 @@ public sealed class NarrativeContextBuilder(
             session.SelectedHero,
             session.Scenario.Opening);
         var sessionState = new NarrativeSessionStateInput(session.State.Revision, flags);
-        var memory = new NarrativeSessionMemoryInput(null, []);
+        var memory = await LoadMemoryAsync(sessionId, playerInput, recentTurns, session.Progress?.CurrentNode.Code, cancellationToken);
         var componentIds = new List<string> { "scenario", "session-state", "memory" };
         if (recentTurns.Count > 0) componentIds.Add("recent-turns");
         if (priorModuleOutcomes.Count > 0) componentIds.Add("module-outcomes");
@@ -114,6 +117,78 @@ public sealed class NarrativeContextBuilder(
             session.Progress?.CurrentNode.Code,
             allowedSignals);
     }
+
+    private async Task<NarrativeSessionMemoryInput> LoadMemoryAsync(
+        string sessionId,
+        string playerInput,
+        IReadOnlyList<NarrativeDialogueTurnInput> recentTurns,
+        string? progressionNode,
+        CancellationToken cancellationToken)
+    {
+        var memoryBudget = options.Value.MemoryTokenBudget;
+        if (memoryBudget <= 0) return new NarrativeSessionMemoryInput(null, []);
+
+        var summary = await db.SessionSummaries.AsNoTracking()
+            .Where(item => item.SessionId == sessionId)
+            .OrderByDescending(item => item.Version)
+            .FirstOrDefaultAsync(cancellationToken);
+        var summaryText = summary?.Body;
+        var usedTokens = EstimateTokens(summaryText);
+        if (usedTokens > memoryBudget)
+        {
+            var maxChars = Math.Max(0, memoryBudget * 4);
+            summaryText = summaryText is null ? null : summaryText[..Math.Min(summaryText.Length, maxChars)];
+            usedTokens = EstimateTokens(summaryText);
+        }
+
+        var query = string.Join('\n', new[]
+        {
+            playerInput,
+            progressionNode ?? string.Empty,
+            summary?.CurrentLocation ?? string.Empty,
+            recentTurns.LastOrDefault()?.PlayerInput ?? string.Empty,
+            recentTurns.LastOrDefault()?.Narrative ?? string.Empty,
+        });
+        var notes = await db.SessionNotes.AsNoTracking()
+            .Where(note => note.SessionId == sessionId && note.CanonStatus != "unconfirmed")
+            .ToListAsync(cancellationToken);
+        var ranked = notes
+            .Select(note => new { Note = note, Score = RelevanceScore(note, query) })
+            .OrderByDescending(item => item.Score)
+            .ThenBy(item => item.Note.CanonStatus == "canon" ? 0 : 1)
+            .ThenByDescending(item => item.Note.UpdatedAt)
+            .Take(options.Value.MaxLorebookEntries);
+        var selected = new List<NarrativeLorebookEntryInput>();
+        foreach (var item in ranked)
+        {
+            var aliases = JsonSerializer.Deserialize<IReadOnlyList<string>>(item.Note.AliasesJson) ?? [];
+            var statusRule = item.Note.CanonStatus == "rumor"
+                ? "RUMOR — possibility only; never assert as established fact"
+                : "CANON — established fact";
+            var text = $"[{statusRule}] {item.Note.Title} ({string.Join(", ", aliases)}): {item.Note.Body}";
+            var cost = EstimateTokens(text);
+            if (cost > memoryBudget - usedTokens) continue;
+            selected.Add(new NarrativeLorebookEntryInput(item.Note.Id, text, item.Note.CanonStatus, item.Note.Kind));
+            usedTokens += cost;
+        }
+        return new NarrativeSessionMemoryInput(summaryText, selected);
+    }
+
+    private static int RelevanceScore(SessionNote note, string query)
+    {
+        var score = note.CanonStatus == "canon" ? 10 : 0;
+        if (query.Contains(note.Title, StringComparison.OrdinalIgnoreCase)) score += 100;
+        var aliases = JsonSerializer.Deserialize<IReadOnlyList<string>>(note.AliasesJson) ?? [];
+        score += aliases.Count(alias => query.Contains(alias, StringComparison.OrdinalIgnoreCase)) * 60;
+        var terms = query.Split([' ', '\n', '\r', '\t', '、', '。', '「', '」'], StringSplitOptions.RemoveEmptyEntries)
+            .Where(term => term.Length >= 2).Distinct(StringComparer.OrdinalIgnoreCase);
+        score += terms.Count(term => note.Body.Contains(term, StringComparison.OrdinalIgnoreCase)) * 5;
+        return score;
+    }
+
+    private static int EstimateTokens(string? text) => string.IsNullOrEmpty(text)
+        ? 0
+        : Math.Max(1, (System.Text.Encoding.UTF8.GetByteCount(text) + 3) / 4);
 
     private async Task<IReadOnlyList<NarrativeAllowedSignal>> LoadAllowedSignalsAsync(
         SessionProgressState? progress,

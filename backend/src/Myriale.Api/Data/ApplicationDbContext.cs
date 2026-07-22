@@ -24,6 +24,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<SessionNote> SessionNotes => Set<SessionNote>();
     public DbSet<SessionNoteRevision> SessionNoteRevisions => Set<SessionNoteRevision>();
     public DbSet<SessionNoteProposal> SessionNoteProposals => Set<SessionNoteProposal>();
+    public DbSet<SessionSummary> SessionSummaries => Set<SessionSummary>();
+    public DbSet<SessionTurnLorebookReference> SessionTurnLorebookReferences => Set<SessionTurnLorebookReference>();
     public DbSet<SessionImage> SessionImages => Set<SessionImage>();
     public DbSet<ModuleExecution> ModuleExecutions => Set<ModuleExecution>();
     public DbSet<ModuleExecutionRequest> ModuleExecutionRequests => Set<ModuleExecutionRequest>();
@@ -255,6 +257,26 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .HasOne(proposal => proposal.Artifact)
             .WithOne()
             .HasForeignKey<SessionNoteProposal>(proposal => proposal.ArtifactId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionSummary>()
+            .HasIndex(summary => new { summary.SessionId, summary.Version })
+            .IsUnique();
+        builder.Entity<SessionSummary>()
+            .HasOne(summary => summary.Session)
+            .WithMany(session => session.Summaries)
+            .HasForeignKey(summary => summary.SessionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionTurnLorebookReference>()
+            .HasKey(reference => new { reference.TurnId, reference.NoteId });
+        builder.Entity<SessionTurnLorebookReference>()
+            .HasOne(reference => reference.Turn)
+            .WithMany(turn => turn.LorebookReferences)
+            .HasForeignKey(reference => reference.TurnId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionTurnLorebookReference>()
+            .HasOne(reference => reference.Note)
+            .WithMany(note => note.TurnReferences)
+            .HasForeignKey(reference => reference.NoteId)
             .OnDelete(DeleteBehavior.Cascade);
         builder.Entity<SessionImage>()
             .HasIndex(image => image.ArtifactId)

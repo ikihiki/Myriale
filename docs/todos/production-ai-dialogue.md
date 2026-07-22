@@ -248,33 +248,33 @@ model: <vLLM model name>
 
 ### Lorebook永続化
 
-- [ ] 現在client-onlyのSession Notesをbackend entity/APIへ接続する。
-- [ ] Person、Location、Item、Organization、Ruleの基本種別を定義する。
-- [ ] 表示名、別名、内容、Canon status、初出Turn、更新元Turnを保存する。
-- [ ] Canon、未確定、噂を区別する。
-- [ ] AIによる追加・更新はcandidateとして保存し、ユーザー承認なしにCanon化しない。
-- [ ] Narrative Turnごとに参照したLorebook entry IDを記録する。
+- [x] 現在client-onlyのSession Notesをbackend entity/APIへ接続する。
+- [x] Person、Location、Item、Organization、Ruleの基本種別を定義する。
+- [x] 表示名、別名、内容、Canon status、初出Turn、更新元Turnを保存する。
+- [x] Canon、未確定、噂を区別する。
+- [x] AIによる追加・更新はcandidateとして保存し、ユーザー承認なしにCanon化しない。
+- [x] Narrative Turnごとに参照したLorebook entry IDを記録する。
 
 ### Session/Chapter Summary
 
-- [ ] 一定Turn数またはChapter境界で圧縮Summaryを生成する。
-- [ ] Summaryに元Turn範囲、version、生成時刻、確定度を持たせる。
-- [ ] Summaryに現在地、登場人物、目的、手がかり、所持状態、Module結果を含める。
-- [ ] Summary生成が既存Canonを書き換えないよう検証する。
-- [ ] Summary生成失敗が通常対話Turnをrollbackしないよう処理境界を分離する。
+- [x] 一定Turn数またはChapter境界で圧縮Summaryを生成する。
+- [x] Summaryに元Turn範囲、version、生成時刻、確定度を持たせる。
+- [x] Summaryに現在地、登場人物、目的、手がかり、所持状態、Module結果を含める。
+- [x] Summary生成が既存Canonを書き換えないよう検証する。
+- [x] Summary生成失敗が通常対話Turnをrollbackしないよう処理境界を分離する。
 
 ### Context retrieval
 
-- [ ] 全Lorebookを毎回送らず、Player Input、直近Turn、現在地、進行nodeから関連entryを選ぶ。
-- [ ] Scenario Lore、Canon Lorebook、Session State、Summary、Recent Turnsの優先順位を実装する。
-- [ ] token budget超過時のdrop/圧縮順序を定義する。
-- [ ] AIが参照したCanonをPlayerまたはauthor向けdebug UIで確認できるようにする。
+- [x] 全Lorebookを毎回送らず、Player Input、直近Turn、現在地、進行nodeから関連entryを選ぶ。
+- [x] Scenario Lore、Canon Lorebook、Session State、Summary、Recent Turnsの優先順位を実装する。
+- [x] token budget超過時のdrop/圧縮順序を定義する。
+- [x] AIが参照したCanonをPlayerまたはauthor向けdebug UIで確認できるようにする。
 
 ### フェーズ5完了条件
 
-- [ ] 20 Turn以上前の重要な確定事項をSummary/Lorebookから再構築できる。
-- [ ] Canonと噂を区別し、噂を事実として断定しない。
-- [ ] Context token量を制限しながら長期Sessionの整合性を維持できる。
+- [x] 20 Turn以上前の重要な確定事項をSummary/Lorebookから再構築できる。
+- [x] Canonと噂を区別し、噂を事実として断定しない。
+- [x] Context token量を制限しながら長期Sessionの整合性を維持できる。
 
 ## フェーズ6: 品質評価、監視、運用
 

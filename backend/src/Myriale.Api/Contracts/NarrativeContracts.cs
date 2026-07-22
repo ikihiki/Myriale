@@ -44,7 +44,11 @@ public static class NarrativeContextSchema
     public const string Version = "narrative-context.v2";
 }
 
-public sealed record NarrativeLorebookEntryInput(string Id, string Text);
+public sealed record NarrativeLorebookEntryInput(
+    string Id,
+    string Text,
+    string CanonStatus = "canon",
+    string Kind = "rule");
 public sealed record NarrativeSessionMemoryInput(
     string? Summary,
     IReadOnlyList<NarrativeLorebookEntryInput> Lorebook);
