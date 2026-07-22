@@ -1,1 +1,0 @@
-.wizard-navigation-summary{list-style:none}.wizard-navigation-summary::-webkit-details-marker{display:none}@media(max-width:1120px){.wizard-navigation-summary:after{content:"開く"}.wizard-navigation details[open] .wizard-navigation-summary:after{content:"閉じる"}.wizard-navigation:not(:has(details[open])){max-height:none;overflow:visible}}
