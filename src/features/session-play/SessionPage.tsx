@@ -651,7 +651,7 @@ function SessionDialogueSection({
   ]);
 
   const [notesRailWidth, setNotesRailWidth] = useState(340);
-  const sessionPageClassName = `${scenarioWizardShellClass} min-h-[calc(100vh-118px)] [grid-template-columns:190px_minmax(520px,1fr)_minmax(300px,var(--notes-rail-width,340px))] max-[1120px]:grid-cols-1`;
+  const sessionPageClassName = `${scenarioWizardShellClass} min-h-[calc(100vh-118px)] min-w-0 max-w-full grid-cols-[190px_minmax(0,1fr)_minmax(300px,var(--notes-rail-width,340px))] max-[1120px]:grid-cols-1`;
   const sessionPageStyle = {
     '--notes-rail-width': `${notesRailWidth}px`,
   } as CSSProperties;
@@ -843,7 +843,7 @@ function SessionDialogueSection({
         markerValue={<span data-testid="session-state">{dbSession?.state ?? 'Active'}</span>}
       />
 
-      <main className={`${wizardPaperClass} ${notesView === 'full' ? 'hidden' : ''} ${notesView === 'hidden' ? 'col-[2/-1] max-[1120px]:col-start-1' : ''}`} aria-label="AI対話モード">
+      <main className={`${wizardPaperClass} min-w-0 ${notesView === 'full' ? 'hidden' : ''} ${notesView === 'hidden' ? 'col-[2/-1] max-[1120px]:col-start-1' : ''}`} aria-label="AI対話モード">
         <p className="kicker">Session play / AI dialogue mode</p>
         <div className="mb-2.5 flex justify-end gap-2 [&_button]:rounded-full [&_button]:bg-[#2b2940] [&_button]:px-3 [&_button]:py-2 [&_button]:text-xs [&_button]:font-black [&_button]:text-[#fffaf0]" aria-label="ノート表示切り替え">
           {notesView === 'hidden' ? (
@@ -867,7 +867,7 @@ function SessionDialogueSection({
         {serverSession ? (
           <SessionActivityFeed session={serverSession} onExecutionAction={(id, action) => void handleExecutionAction(id, action)} onNoteReview={(id, action, request) => void handleNoteReview(id, action, request)} keepSucceededStatusVisible={keepSucceededExecutionStatusVisible} />
         ) : (
-        <section className="dialogue-log" aria-label="対話ログ" data-testid="dialogue-log">
+        <section className="grid max-h-[48vh] gap-2.5 overflow-auto pr-1.5" aria-label="対話ログ" data-testid="dialogue-log">
           {turns.map((turn) => {
             const display = displayForTurn(turn);
             const leadTone = display.leadTone ?? 'player';
@@ -904,7 +904,7 @@ function SessionDialogueSection({
                         text: turn.playerInput,
                         actions: canShowInterpretation ? (
                           <MyrialeToggle
-                            className="interpretation-toggle"
+                            className="!justify-self-start !rounded-full !border !border-[#7c5cff]/30 !bg-white/55 !px-2.5 !py-1 !text-[11px] !font-extrabold !text-[#6044d4] data-[state=on]:!bg-[#7c5cff]/16 data-[state=on]:!text-[#4a32b0]"
                             pressed={showInterpretationFor.includes(turn.id)}
                             aria-label={`Turn ${String(turn.id).padStart(2, '0')}の入力解釈を${showInterpretationFor.includes(turn.id) ? '隠す' : '見る'}`}
                             onPressedChange={() => toggleInterpretation(turn)}
@@ -914,8 +914,8 @@ function SessionDialogueSection({
                         ) : undefined,
                         detail:
                           canShowInterpretation && showInterpretationFor.includes(turn.id) ? (
-                            <p className="interpretation" data-testid={`turn-${turn.id}-interpretation`}>
-                              <span className="interpretation-glyph" aria-hidden="true">⚙</span>
+                            <p className="m-0 flex max-w-none items-baseline gap-2 rounded-xl bg-[#d9a441]/18 px-3 py-2.5 text-[13px] font-semibold text-[#4b3a20]" data-testid={`turn-${turn.id}-interpretation`}>
+                              <span className="shrink-0 text-[#b07a16]" aria-hidden="true">⚙</span>
                               {turn.interpretation}
                             </p>
                           ) : undefined,
@@ -930,7 +930,7 @@ function SessionDialogueSection({
 
         {pendingRewindId != null && (
           <MyrialeDialogRoot open onOpenChange={(open) => { if (!open) setPendingRewindId(null); }}>
-            <MyrialeDialogContent title="巻き戻し確認" className="rewind-dialog" portal={false} data-testid="rewind-dialog">
+            <MyrialeDialogContent title="巻き戻し確認" className="rewind-dialog !my-3 !rounded-[18px] !border !border-[#b84a4a]/32 !bg-[rgba(255,238,220,.86)] !p-3.5 [&_p]:max-w-none [&_p]:text-[#5a3d3d] [&_button]:rounded-full [&_button]:bg-[#2b2940] [&_button]:px-3 [&_button]:py-2 [&_button]:text-xs [&_button]:text-[#fffaf0] [&_.primary]:!bg-[#d9a441] [&_.primary]:!font-black [&_.primary]:!text-[#17151f]" portal={false} data-testid="rewind-dialog">
               <strong>Turn {String(pendingRewindId).padStart(2, '0')}まで戻りますか？</strong>
               <p>指定ターン以降のログ、挿絵生成などの非同期処理を無効化またはキャンセルします。</p>
               <div className="button-row">
@@ -1072,27 +1072,28 @@ function SessionDialogueSection({
         <div className="visually-hidden" data-testid="program-notice">{notice}</div>
         <div className="visually-hidden" data-testid="mode-notice">{notice}</div>
 
-        <section className="debug-drawer" aria-label="デバッグパネル">
+        <section className="mt-[18px] border-t border-myr-ink/18 pt-3" aria-label="デバッグパネル">
           <button
             type="button"
-            className="debug-drawer-toggle"
+            className="rounded-full bg-[#2b2940]/90 px-3 py-2 text-xs font-black text-[#fffaf0]"
             aria-expanded={debugPanelOpen}
             aria-controls="session-debug-panel"
             onClick={() => setDebugPanelOpen((open) => !open)}
           >
             {debugPanelOpen ? 'デバッグパネルを非表示' : 'デバッグパネルを表示'}
           </button>
-          <div id="session-debug-panel" className="debug-drawer-content" hidden={!debugPanelOpen}>
-            <section className="debug-settings-panel" aria-label="AI生成表示設定">
-              <label>
+          <div id="session-debug-panel" className="mt-3 grid gap-3" hidden={!debugPanelOpen}>
+            <section className="rounded-[14px] border border-[#4a427a]/20 bg-[#f4f1ff]/72 px-3.5 py-3" aria-label="AI生成表示設定">
+              <label className="flex cursor-pointer items-start gap-2.5">
                 <input
+                  className="mt-[3px] accent-[#6052a8]"
                   type="checkbox"
                   checked={keepSucceededExecutionStatusVisible}
                   onChange={(event) => setKeepSucceededExecutionStatusVisible(event.target.checked)}
                 />
-                <span>
+                <span className="grid gap-[3px]">
                   <strong>成功後もAI生成ステータスを表示する</strong>
-                  <small>通常は完了後に消えるステータスメッセージを、デバッグ確認のため対話ログに残します。</small>
+                  <small className="leading-normal text-[#666176]">通常は完了後に消えるステータスメッセージを、デバッグ確認のため対話ログに残します。</small>
                 </span>
               </label>
             </section>
@@ -1121,7 +1122,7 @@ function SessionDialogueSection({
               </section>
             )}
 
-            <section className="debug-contract-panel" aria-label="Play contract">
+            <section className="grid gap-3 rounded-2xl border border-myr-ink/14 bg-[rgba(255,254,249,.68)] px-3.5 py-3 [&>h2]:m-0 [&>h2]:font-myr-display [&>h2]:text-xl [&>article]:rounded-xl [&>article]:border [&>article]:border-myr-ink/10 [&>article]:bg-white/56 [&>article]:px-3 [&>article]:py-2.5 [&_table]:w-full [&_table]:border-collapse [&_td]:border-t [&_td]:border-myr-ink/10 [&_td]:px-1.5 [&_td]:py-1" aria-label="Play contract">
               <h2>Play contract</h2>
               <article data-testid="mode-contract-summary">
                 <h3>入力モード</h3>

@@ -62,15 +62,33 @@ export type SessionTurnProps = {
   articleRef?: (node: HTMLElement | null) => void;
 };
 
+const leadClass: Record<TurnLeadTone, string> = {
+  player: 'rounded-[14px] bg-[linear-gradient(135deg,rgba(124,92,255,.12),rgba(124,92,255,.04))] px-3.5 py-3 font-bold text-[#2c2540]',
+  program: 'rounded-[10px] bg-myr-ink/6 px-2.5 py-2 font-mono text-xs leading-normal text-[#2b2940]',
+};
+
+const leadTagClass: Record<TurnLeadTone, string> = {
+  player: 'text-base leading-[1.4] text-[#7c5cff]',
+  program: 'inline-block rounded-full bg-[#2b2940] px-2 py-px align-middle text-[10px] font-black tracking-[.1em] text-[#fffaf0]',
+};
+
+const variantClass: Record<string, string> = {
+  '': '',
+  'turn-battle': 'border-l-[3px] border-l-[#b84a4a]',
+  'turn-roll': 'border-l-[3px] border-l-[#7054dd]',
+  'turn-event': 'border-l-[3px] border-l-[#c77d16]',
+  'turn-dialogue': 'border-l-[3px] border-l-[#4a845c]',
+};
+
 function TurnLeadBlock({ lead }: { lead: TurnLead }) {
   return (
-    <div className={`session-turn-lead lead-${lead.tone}`} data-testid={lead.testId}>
-      <p className="session-turn-lead-line">
-        <span className={`session-turn-lead-tag tag-${lead.tone}`} aria-hidden="true">{lead.tag}</span>
+    <div className={`grid max-w-none gap-2 ${leadClass[lead.tone]}`} data-testid={lead.testId}>
+      <p className="m-0 flex max-w-none items-baseline gap-2.5">
+        <span className={`shrink-0 ${leadTagClass[lead.tone]}`} aria-hidden="true">{lead.tag}</span>
         {lead.srLabel && <span className="sr-only">{lead.srLabel}</span>}
-        <span className="session-turn-lead-text">{lead.text}</span>
+        <span className="flex-auto">{lead.text}</span>
       </p>
-      {lead.actions && <div className="session-turn-lead-actions">{lead.actions}</div>}
+      {lead.actions && <div className="flex flex-wrap gap-2">{lead.actions}</div>}
       {lead.detail}
     </div>
   );
@@ -89,8 +107,8 @@ export function SessionTurn({
   articleRef,
 }: SessionTurnProps) {
   const narrativeBlock = (
-    <p className="session-turn-narrative" data-testid={narrativeTestId}>
-      {narrativeTag && <span className="session-turn-narrative-tag" aria-hidden="true">{narrativeTag}</span>}
+    <p className="m-0 max-w-none leading-[1.65] text-[#303644]" data-testid={narrativeTestId}>
+      {narrativeTag && <span className="mr-2 inline-block rounded-full bg-[#d9a441] px-2 py-px align-middle text-[10px] font-black tracking-[.1em] text-[#17151f]" aria-hidden="true">{narrativeTag}</span>}
       {narrative}
     </p>
   );
@@ -99,7 +117,7 @@ export function SessionTurn({
 
   return (
     <article
-      className={`session-turn group ${selected ? 'selected' : ''} ${variantClassName}`.trim()}
+      className={`session-turn group grid gap-2 rounded-[18px] border border-myr-ink/14 bg-[rgba(255,254,249,.68)] p-3.5 ${selected ? '!border-[#b84a4a] !shadow-[inset_4px_0_0_#b84a4a]' : ''} ${variantClass[variantClassName] ?? variantClassName}`.trim()}
       aria-label={ariaLabel}
       data-testid={testId}
       ref={articleRef}

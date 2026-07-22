@@ -182,10 +182,10 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
       {editingNote && (
         <MyrialeDialogRoot open onOpenChange={(open) => { if (!open) closeNote(); }}>
           <MyrialeDialogContent title="ノート編集" className="wire-dialog note-edit-dialog" portal={false} data-testid="note-edit-dialog">
-            <header className="wire-dialog-head note-edit-head">
+            <header className="flex items-center justify-between gap-4">
               <div><span>{editingNote.kind === 'person' ? '人物ノート' : '場所ノート'}</span><h2>{editingNote.name}</h2><p>{editingNote.firstTurn} 初出 / 確定度: <b>{editingNote.certainty}</b></p></div>
             </header>
-            <div className="lorebook-fields">
+            <div className="grid grid-cols-2 gap-2.5 max-[1120px]:grid-cols-1 [&_label]:grid [&_label]:gap-[5px] [&_label]:text-xs [&_label]:font-black [&_label]:text-[#4f5767] [&_textarea]:min-h-24">
               <label>表示名<input aria-label="表示名" value={editingNote.name} onChange={(event) => updateNote(editingNote.id, { name: event.target.value })} /></label>
               <label>別名<input aria-label="別名" value={editingNote.aliases} onChange={(event) => updateNote(editingNote.id, { aliases: event.target.value })} /></label>
               <label>外見・種別・詳細<textarea aria-label="外見・種別・詳細" value={editingNote.details} onChange={(event) => updateNote(editingNote.id, { details: event.target.value })} /></label>
