@@ -54,7 +54,9 @@ public sealed class NarrativeContextBuilder(
                 var outcome = JsonSerializer.Deserialize<ModuleOutcome>(json, moduleJson)
                     ?? throw new JsonException("Stored module outcome is empty.");
                 return new NarrativePriorModuleOutcomeInput(
+                    outcome.Code,
                     outcome.PublicFacts,
+                    outcome.EmittedEvents,
                     outcome.NarrativeHints,
                     outcome.ForbiddenNarrativeFacts);
             }).ToArray();

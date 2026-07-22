@@ -146,7 +146,9 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
 
         var request = Assert.Single(_generator.DialogueRequests);
         var outcome = Assert.Single(request.PriorModuleOutcomes);
+        Assert.Equal("complete", outcome.Code);
         Assert.Equal("The module completed.", Assert.Single(outcome.PublicFacts).Text);
+        Assert.Equal("completed", Assert.Single(outcome.EmittedEvents).Type);
         Assert.NotEmpty(outcome.NarrativeHints);
         Assert.NotEmpty(outcome.ForbiddenNarrativeFacts);
         var projected = JsonSerializer.Serialize(request.PriorModuleOutcomes);
@@ -155,7 +157,6 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         Assert.DoesNotContain("stateJson", projected, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("random", projected, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("effects", projected, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("emittedEvents", projected, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

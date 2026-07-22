@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
@@ -166,7 +168,9 @@ public sealed record MockLorebookEntry(string Id, string Text);
 public sealed record MockSessionMemory(string? Summary, IReadOnlyList<MockLorebookEntry> Lorebook);
 
 public sealed record MockPriorModuleOutcome(
+    string Code,
     IReadOnlyList<MockNarrativeFact> PublicFacts,
+    IReadOnlyList<MockNarrativeEvent> EmittedEvents,
     IReadOnlyList<string> NarrativeHints,
     IReadOnlyList<string> ForbiddenNarrativeFacts);
 
@@ -208,6 +212,7 @@ public sealed record MockNarrativeOutcome(
     IReadOnlyList<string> ForbiddenNarrativeFacts);
 
 public sealed record MockNarrativeFact(string Type, string Text);
+public sealed record MockNarrativeEvent(string Type, JsonElement Payload);
 public sealed record MockNarrativeSessionState(long Revision, IReadOnlyDictionary<string, bool> Flags);
 public sealed record MockNarrativeHandoffResponse(string Body);
 
