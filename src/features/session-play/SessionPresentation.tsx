@@ -296,7 +296,7 @@ export function SessionPresentation({
         </div>
         {notice && (
           <Notice
-            className="sticky top-[126px] z-40 my-4.5 flex items-start gap-3 drop-shadow-[0_12px_18px_rgba(18,16,25,.28)] backdrop-blur-md"
+            className="sticky top-[126px] z-[60] my-4.5 flex items-start gap-3 drop-shadow-[0_12px_18px_rgba(18,16,25,.28)] backdrop-blur-md"
             data-testid="dialogue-notice"
             data-notice-kind={notice.kind}
             tone={notice.tone}

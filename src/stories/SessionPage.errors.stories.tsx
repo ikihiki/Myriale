@@ -56,6 +56,7 @@ export const Conflict409: Story = {
     await expect(notice).toHaveAttribute('data-notice-kind', 'conflict');
     await expect(notice.classList).toContain('sticky');
     await expect(notice.classList).toContain('top-[126px]');
+    await expect(notice.classList).toContain('z-[60]');
     await expect(input).toHaveValue('銀の鍵を扉にかざす');
     await expect(canvas.getByRole('button', { name: '再読み込み' })).toBeVisible();
     await expect(canvas.getByRole('button', { name: '行動を送る' })).toBeVisible();
