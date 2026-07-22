@@ -1,18 +1,58 @@
+using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Myriale.Api.Contracts;
 using Myriale.Api.Services;
+using Myriale.ModuleSdk;
 
 namespace Myriale.Api.Tests;
 
 public sealed class RealProviderNarrativeEvaluationTests
 {
+    private const int MinimumRepetitions = 3;
+    private const double MinimumSchemaSuccessRate = 0.95;
+    private const double MinimumQualitySuccessRate = 0.90;
+    private const double MinimumSignalAccuracyRate = 0.95;
+    private const double MinimumPerCaseSuccessRate = 2d / 3d;
     private static readonly JsonSerializerOptions ReportJson = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
     [Fact]
+    public void ProductionGateHasFixedCoverageAndRejectsNormalizedForbiddenParaphrases()
+    {
+        Assert.Equal(3, MinimumRepetitions);
+        Assert.Equal(0.95, MinimumSchemaSuccessRate);
+        Assert.Equal(0.90, MinimumQualitySuccessRate);
+        Assert.Equal(0.95, MinimumSignalAccuracyRate);
+        var cases = CreateCases();
+        Assert.Equal(
+            ["player-agency", "clarification", "lore-and-npc-voice", "session-state", "module-authority", "forbidden-paraphrase", "long-npc-reply", "signal-negative", "signal-positive"],
+            cases.Select(item => item.Id).ToArray());
+
+        var forbiddenCase = cases.Single(item => item.Id == "forbidden-paraphrase");
+        var failures = EvaluateQuality(forbiddenCase, new NarrativeDialogueResult(
+            NarrativeDialogueSchema.Version,
+            "action-result",
+            "鍵の所在",
+            "司書・リラが、銀の鍵を持ち去ったと伝えられる。",
+            [],
+            null));
+        Assert.Contains("forbidden:2", failures);
+
+        var negativeSignalCase = cases.Single(item => item.Id == "signal-negative");
+        failures = EvaluateQuality(negativeSignalCase, new NarrativeDialogueResult(
+            NarrativeDialogueSchema.Version,
+            "action-result",
+            "遠望",
+            "Playerは星座の扉から離れた場所で、遠くから静かに観察を続けている。",
+            [new NarrativeProgressionSignal("constellation-door-reached", "到達した")],
+            null));
+        Assert.Contains("signal:unexpected", failures);
+    }
+
+    [Fact]
     [Trait("Category", "RealProviderEvaluation")]
-    public async Task EvaluateSanitizedDialogueQualityWhenExplicitlyEnabled()
+    public async Task ProductionApprovalGateWhenExplicitlyEnabled()
     {
         if (!IsEnabled(Environment.GetEnvironmentVariable("AI_EVAL_ENABLED"))) return;
 
@@ -23,9 +63,8 @@ public sealed class RealProviderNarrativeEvaluationTests
         var baseUrl = Environment.GetEnvironmentVariable("AI_BASE_URL");
         if (providerName == "runpod") Assert.False(string.IsNullOrWhiteSpace(baseUrl), "AI_BASE_URL is required for runpod evaluation.");
 
-        var repetitions = ReadBoundedInt("AI_EVAL_REPETITIONS", 3, 1, 10);
+        var repetitions = ReadBoundedIntWithFloor("AI_EVAL_REPETITIONS", MinimumRepetitions, MinimumRepetitions, 10);
         var timeoutSeconds = ReadBoundedInt("AI_EVAL_TIMEOUT_SECONDS", 900, 30, 3600);
-        var minimumSchemaSuccessRate = ReadBoundedDouble("AI_EVAL_MIN_SCHEMA_SUCCESS_RATE", 0.8, 0, 1);
         var options = Options.Create(new AiProviderOptions
         {
             Provider = providerName,
@@ -49,7 +88,9 @@ public sealed class RealProviderNarrativeEvaluationTests
             new NarrativeProviderRequestBudgeter(Options.Create(new NarrativeContextOptions())),
             NullLogger<ProviderNarrativeGenerator>.Instance);
 
-        var cases = FilterCases(CreateCases(), Environment.GetEnvironmentVariable("AI_EVAL_CASES"));
+        Assert.True(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("AI_EVAL_CASES")),
+            "The production approval gate must run every required evaluation case; AI_EVAL_CASES is not supported.");
+        var cases = CreateCases();
         var runs = new List<EvaluationRun>();
         foreach (var evaluationCase in cases)
         {
@@ -59,22 +100,13 @@ public sealed class RealProviderNarrativeEvaluationTests
                 try
                 {
                     var result = await generator.GenerateDialogueAsync(evaluationCase.Request, timeout.Token);
-                    var signalFalsePositive = evaluationCase.ExpectedSignalCode is null && result.Value.Signals.Count > 0;
-                    var signalFalseNegative = evaluationCase.ExpectedSignalCode is { } expectedSignal
-                        && !result.Value.Signals.Any(signal => string.Equals(signal.Code, expectedSignal, StringComparison.Ordinal));
-                    var qualityPassed = evaluationCase.RequiredBodyPhrases.All(phrase => result.Value.Body.Contains(phrase, StringComparison.OrdinalIgnoreCase))
-                        && evaluationCase.ForbiddenBodyPhrases.All(phrase => !result.Value.Body.Contains(phrase, StringComparison.OrdinalIgnoreCase))
-                        && !signalFalsePositive
-                        && !signalFalseNegative;
+                    var failures = EvaluateQuality(evaluationCase, result.Value);
                     runs.Add(new(
                         evaluationCase.Id,
                         repetition,
                         true,
-                        qualityPassed,
-                        signalFalsePositive,
-                        signalFalseNegative,
-                        null,
-                        null,
+                        failures.Count == 0,
+                        failures,
                         result.Metadata.LatencyMilliseconds,
                         result.Metadata.InputTokens,
                         result.Metadata.OutputTokens,
@@ -82,15 +114,16 @@ public sealed class RealProviderNarrativeEvaluationTests
                 }
                 catch (AiProviderException exception)
                 {
-                    runs.Add(new(evaluationCase.Id, repetition, false, false, false, false, exception.Code, exception.Message, null, null, null, null));
+                    runs.Add(new(evaluationCase.Id, repetition, false, false, [$"provider:{exception.Code}"], null, null, null, null));
                 }
                 catch (OperationCanceledException)
                 {
-                    runs.Add(new(evaluationCase.Id, repetition, false, false, false, false, AiProviderErrorCodes.Timeout, "AI Provider request timed out.", null, null, null, null));
+                    runs.Add(new(evaluationCase.Id, repetition, false, false, ["provider:timeout"], null, null, null, null));
                 }
             }
         }
 
+        var signalRuns = runs.Where(run => cases.Single(item => item.Id == run.CaseId).SignalExpectation != SignalExpectation.NotApplicable).ToArray();
         var report = new EvaluationReport(
             DateTimeOffset.UtcNow,
             providerName,
@@ -106,12 +139,19 @@ public sealed class RealProviderNarrativeEvaluationTests
                 Rate(runs.Count(run => run.SchemaSucceeded), runs.Count),
                 runs.Count(run => run.QualityPassed),
                 Rate(runs.Count(run => run.QualityPassed), runs.Count),
-                runs.Count(run => run.SignalFalsePositive),
-                runs.Count(run => run.SignalFalseNegative),
-                Rate(runs.Count(run => run.SignalFalsePositive || run.SignalFalseNegative), runs.Count),
+                signalRuns.Length,
+                signalRuns.Count(run => run.QualityFailures.All(failure => !failure.StartsWith("signal:", StringComparison.Ordinal))),
+                Rate(signalRuns.Count(run => run.QualityFailures.All(failure => !failure.StartsWith("signal:", StringComparison.Ordinal))), signalRuns.Length),
                 runs.Where(run => run.LatencyMilliseconds is not null).Select(run => run.LatencyMilliseconds!.Value).DefaultIfEmpty().Average(),
                 runs.Sum(run => run.InputTokens ?? 0),
                 runs.Sum(run => run.OutputTokens ?? 0)),
+            cases.Select(evaluationCase => new EvaluationCaseSummary(
+                evaluationCase.Id,
+                runs.Count(run => run.CaseId == evaluationCase.Id),
+                runs.Count(run => run.CaseId == evaluationCase.Id && run.SchemaSucceeded),
+                Rate(runs.Count(run => run.CaseId == evaluationCase.Id && run.SchemaSucceeded), repetitions),
+                runs.Count(run => run.CaseId == evaluationCase.Id && run.QualityPassed),
+                Rate(runs.Count(run => run.CaseId == evaluationCase.Id && run.QualityPassed), repetitions))).ToArray(),
             runs);
 
         var reportPath = Environment.GetEnvironmentVariable("AI_EVAL_REPORT_PATH")
@@ -120,44 +160,96 @@ public sealed class RealProviderNarrativeEvaluationTests
         if (directory is not null) Directory.CreateDirectory(directory);
         await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(report, ReportJson));
 
-        Assert.True(report.Summary.SchemaSuccessRate >= minimumSchemaSuccessRate,
-            $"Real-provider schema success rate {report.Summary.SchemaSuccessRate:P1} was below {minimumSchemaSuccessRate:P1}. See the sanitized JSON report.");
+        Assert.True(report.Summary.SchemaSuccessRate >= MinimumSchemaSuccessRate,
+            $"Schema success {report.Summary.SchemaSuccessRate:P1} was below the fixed production floor {MinimumSchemaSuccessRate:P0}. See the sanitized report.");
+        Assert.True(report.Summary.QualitySuccessRate >= MinimumQualitySuccessRate,
+            $"Quality success {report.Summary.QualitySuccessRate:P1} was below the fixed production floor {MinimumQualitySuccessRate:P0}. See the sanitized report.");
+        Assert.True(report.Summary.SignalAccuracyRate >= MinimumSignalAccuracyRate,
+            $"Signal accuracy {report.Summary.SignalAccuracyRate:P1} was below the fixed production floor {MinimumSignalAccuracyRate:P0}. See the sanitized report.");
+        Assert.All(report.Cases, item => Assert.True(item.SchemaSuccessRate >= MinimumPerCaseSuccessRate,
+            $"Case {item.CaseId} schema success {item.SchemaSuccessRate:P1} was below the fixed per-case floor {MinimumPerCaseSuccessRate:P0}."));
+        Assert.All(report.Cases, item => Assert.True(item.QualitySuccessRate >= MinimumPerCaseSuccessRate,
+            $"Case {item.CaseId} quality success {item.QualitySuccessRate:P1} was below the fixed per-case floor {MinimumPerCaseSuccessRate:P0}."));
     }
 
-    private static IReadOnlyList<EvaluationCase> CreateCases() =>
-    [
-        new("player-agency", CreateRequest(
-            NarrativeInteractionTypes.Dialogue,
-            "閉じた扉を調べる。扉を開けたり中へ入ったりはしない。"),
-            [], ["扉を開けて中へ入った", "鍵を消費した"], null),
-        new("clarification-no-advance", CreateRequest(
-            NarrativeInteractionTypes.Clarification,
-            "今わかっている状況だけを確認したい。"),
-            [], ["扉を開けた", "次の部屋へ進んだ"], null),
-        new("signal-negative", CreateRequest(
-            NarrativeInteractionTypes.Dialogue,
-            "星座の扉にはまだ近づかず、遠くから眺める。"),
-            [], [], null),
-        new("signal-positive", CreateRequest(
-            NarrativeInteractionTypes.Dialogue,
-            "閉じた星座の扉の前まで進み、扉に到達した。"),
-            [], [], "constellation-door-reached"),
-    ];
-
-    private static IReadOnlyList<EvaluationCase> FilterCases(IReadOnlyList<EvaluationCase> cases, string? configuredCaseIds)
+    private static IReadOnlyList<EvaluationCase> CreateCases()
     {
-        if (string.IsNullOrWhiteSpace(configuredCaseIds)) return cases;
-        var selected = configuredCaseIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var filtered = cases.Where(evaluationCase => selected.Contains(evaluationCase.Id)).ToArray();
-        if (filtered.Length == 0) throw new InvalidOperationException("AI_EVAL_CASES did not match a known evaluation case.");
-        return filtered;
+        using var sealedPayload = JsonDocument.Parse("""{"sealed":true}""");
+        var sealedOutcome = new NarrativePriorModuleOutcomeInput(
+            "seal-completed",
+            [new ModuleFact("state", "星座の門は青い封印で閉ざされた。")],
+            [new ModuleEvent("sealed", sealedPayload.RootElement.Clone())],
+            ["青い封印が残っていることを描写する。"],
+            ["星座の門の封印が消える。", "封印した影が復活する。"]);
+        var forbiddenOutcome = new NarrativePriorModuleOutcomeInput(
+            "key-accounted-for",
+            [new ModuleFact("inventory", "銀の鍵はPlayerが保持している。")],
+            [],
+            ["銀の鍵の所在をPlayerの管理下として扱う。"],
+            ["司書リラが銀の鍵を盗んだ。"]);
+
+        return
+        [
+            new("player-agency", CreateRequest(NarrativeInteractionTypes.Dialogue, "閉じた扉を調べる。扉を開けたり中へ入ったりはしない。"),
+                null, 40, [], [["扉", "開", "入"], ["鍵", "消費"]], SignalExpectation.None, null),
+            new("clarification", CreateRequest(NarrativeInteractionTypes.Clarification, "今わかっている状況だけを確認したい。新しい行動はしない。"),
+                "clarification", 30, [], [["次", "進"], ["扉", "開"]], SignalExpectation.None, null),
+            new("lore-and-npc-voice", CreateRequest(NarrativeInteractionTypes.Dialogue, "司書リラに魔法灯について尋ねる。"),
+                "npc-reply", 50, [["リラ"], ["青", "灯"], ["ござい"]], [["赤", "灯"]], SignalExpectation.None, null),
+            new("session-state", CreateRequest(NarrativeInteractionTypes.Dialogue, "扉の現在の状態を観察する。", flags: new Dictionary<string, bool> { ["door-open"] = false }),
+                null, 40, [["閉"]], [["開", "扉"]], SignalExpectation.None, null),
+            new("module-authority", CreateRequest(NarrativeInteractionTypes.Dialogue, "封印した星座の門を振り返る。", outcomes: [sealedOutcome]),
+                null, 50, [["封印"], ["青"]], [["封印", "消"], ["影", "復活"]], SignalExpectation.None, null),
+            new("forbidden-paraphrase", CreateRequest(NarrativeInteractionTypes.Dialogue, "銀の鍵の所在を確認する。", outcomes: [forbiddenOutcome]),
+                null, 40, [["鍵"]], [["リラ", "鍵", "盗"], ["司書", "鍵", "持ち去"]], SignalExpectation.None, null),
+            new("long-npc-reply", CreateRequest(NarrativeInteractionTypes.Dialogue, "司書リラに、この書庫の歴史と青い魔法灯の役割を、丁寧な口調で詳しく説明してもらう。"),
+                "npc-reply", 240, [["リラ"], ["青", "灯"], ["ござい"]], [["赤", "灯"]], SignalExpectation.None, null),
+            new("signal-negative", CreateRequest(NarrativeInteractionTypes.Dialogue, "星座の扉にはまだ近づかず、遠くから眺める。"),
+                null, 30, [], [], SignalExpectation.None, "constellation-door-reached"),
+            new("signal-positive", CreateRequest(NarrativeInteractionTypes.Dialogue, "閉じた星座の扉の前まで進み、扉に到達した。"),
+                null, 30, [], [], SignalExpectation.Required, "constellation-door-reached"),
+        ];
     }
 
-    private static NarrativeDialogueRequest CreateRequest(string interactionType, string playerInput)
+    private static IReadOnlyList<string> EvaluateQuality(EvaluationCase evaluationCase, NarrativeDialogueResult result)
+    {
+        var failures = new List<string>();
+        var normalized = Normalize(result.Body);
+        if (evaluationCase.ExpectedTurnType is not null && result.TurnType != evaluationCase.ExpectedTurnType) failures.Add("turn-type");
+        if (result.Body.Trim().Length < evaluationCase.MinimumBodyLength) failures.Add("body-length");
+        for (var index = 0; index < evaluationCase.RequiredConceptGroups.Count; index++)
+            if (!ContainsAll(normalized, evaluationCase.RequiredConceptGroups[index])) failures.Add($"required:{index + 1}");
+        for (var index = 0; index < evaluationCase.ForbiddenConceptGroups.Count; index++)
+            if (ContainsAll(normalized, evaluationCase.ForbiddenConceptGroups[index])) failures.Add($"forbidden:{index + 1}");
+
+        var hasExpectedSignal = evaluationCase.SignalCode is not null
+            && result.Signals.Any(signal => string.Equals(signal.Code, evaluationCase.SignalCode, StringComparison.Ordinal));
+        if (evaluationCase.SignalExpectation == SignalExpectation.Required && !hasExpectedSignal) failures.Add("signal:missing");
+        if (evaluationCase.SignalExpectation == SignalExpectation.None && result.Signals.Count > 0) failures.Add("signal:unexpected");
+        if (result.Signals.Any(signal => evaluationCase.Request.AllowedSignals.All(allowed => allowed.Code != signal.Code))) failures.Add("signal:unknown");
+        return failures;
+    }
+
+    private static string Normalize(string value)
+    {
+        var builder = new StringBuilder(value.Length);
+        foreach (var rune in value.Normalize(NormalizationForm.FormKC).EnumerateRunes())
+            if (Rune.IsLetterOrDigit(rune)) builder.Append(rune.ToString().ToLowerInvariant());
+        return builder.ToString();
+    }
+
+    private static bool ContainsAll(string normalized, IReadOnlyList<string> concepts) =>
+        concepts.All(concept => normalized.Contains(Normalize(concept), StringComparison.Ordinal));
+
+    private static NarrativeDialogueRequest CreateRequest(
+        string interactionType,
+        string playerInput,
+        IReadOnlyDictionary<string, bool>? flags = null,
+        IReadOnlyList<NarrativePriorModuleOutcomeInput>? outcomes = null)
     {
         var context = new NarrativeDialogueContext(
             NarrativeContextSchema.Version,
-            new NarrativeContextDiagnostics(NarrativeContextSchema.Version, ["scenario", "session-state", "recent-turns"], 512, new string('a', 64)),
+            new NarrativeContextDiagnostics(NarrativeContextSchema.Version, ["scenario", "session-state", "memory", "recent-turns", "module-outcomes", "progression"], 1024, new string('a', 64)),
             new NarrativeScenarioInput(
                 "星喰いの地下図書館",
                 "閉ざされた地下図書館を慎重に探索する。",
@@ -167,10 +259,10 @@ public sealed class RealProviderNarrativeEvaluationTests
                 "Guided",
                 "探索者",
                 "水没した閲覧室にいる。"),
-            [new NarrativeDialogueTurnInput("ここはどこ？", "司書リラは『地下図書館でございます』と答えた。")],
-            new NarrativeSessionMemoryInput(null, []),
-            [],
-            new NarrativeSessionStateInput(1, new Dictionary<string, bool> { ["door-open"] = false }),
+            [new NarrativeDialogueTurnInput("ここはどこ？", "司書リラは『地下図書館でございます。青い魔法灯が足元を照らしております』と答えた。")],
+            new NarrativeSessionMemoryInput("Playerは慎重に探索し、銀の鍵を自分で保持している。", [new NarrativeLorebookEntryInput("lamp", "魔法灯の光は必ず青い。")]),
+            outcomes ?? [],
+            new NarrativeSessionStateInput(4, flags ?? new Dictionary<string, bool> { ["door-open"] = false, ["player-has-silver-key"] = true }),
             "exploration",
             [new NarrativeAllowedSignal("constellation-door-reached", "Playerが閉じた星座の扉へ実際に到達したとき。")]);
         var prompt = new NarrativePromptBuilder().Build(context, interactionType);
@@ -197,10 +289,8 @@ public sealed class RealProviderNarrativeEvaluationTests
         : throw new InvalidOperationException($"{name} is required when AI_EVAL_ENABLED is true.");
     private static int ReadBoundedInt(string name, int fallback, int minimum, int maximum) =>
         int.TryParse(Environment.GetEnvironmentVariable(name), out var value) ? Math.Clamp(value, minimum, maximum) : fallback;
-    private static double ReadBoundedDouble(string name, double fallback, double minimum, double maximum) =>
-        double.TryParse(Environment.GetEnvironmentVariable(name), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value)
-            ? Math.Clamp(value, minimum, maximum)
-            : fallback;
+    private static int ReadBoundedIntWithFloor(string name, int fallback, int floor, int maximum) =>
+        int.TryParse(Environment.GetEnvironmentVariable(name), out var value) ? Math.Clamp(value, floor, maximum) : fallback;
     private static double Rate(int numerator, int denominator) => denominator == 0 ? 0 : (double)numerator / denominator;
 
     private sealed class SingleClientFactory(HttpClient client) : IHttpClientFactory
@@ -216,21 +306,22 @@ public sealed class RealProviderNarrativeEvaluationTests
         public string Mask(string secret) => throw new NotSupportedException();
     }
 
+    private enum SignalExpectation { NotApplicable, None, Required }
     private sealed record EvaluationCase(
         string Id,
         NarrativeDialogueRequest Request,
-        IReadOnlyList<string> RequiredBodyPhrases,
-        IReadOnlyList<string> ForbiddenBodyPhrases,
-        string? ExpectedSignalCode);
+        string? ExpectedTurnType,
+        int MinimumBodyLength,
+        IReadOnlyList<IReadOnlyList<string>> RequiredConceptGroups,
+        IReadOnlyList<IReadOnlyList<string>> ForbiddenConceptGroups,
+        SignalExpectation SignalExpectation,
+        string? SignalCode);
     private sealed record EvaluationRun(
         string CaseId,
         int Repetition,
         bool SchemaSucceeded,
         bool QualityPassed,
-        bool SignalFalsePositive,
-        bool SignalFalseNegative,
-        string? ErrorCode,
-        string? FailureDetail,
+        IReadOnlyList<string> QualityFailures,
         long? LatencyMilliseconds,
         int? InputTokens,
         int? OutputTokens,
@@ -239,14 +330,21 @@ public sealed class RealProviderNarrativeEvaluationTests
         int Runs,
         int SchemaSuccesses,
         double SchemaSuccessRate,
-        int QualityPasses,
-        double QualityPassRate,
-        int SignalFalsePositives,
-        int SignalFalseNegatives,
-        double SignalMisfireRate,
+        int QualitySuccesses,
+        double QualitySuccessRate,
+        int SignalRuns,
+        int SignalAccurateRuns,
+        double SignalAccuracyRate,
         double AverageLatencyMilliseconds,
         int InputTokens,
         int OutputTokens);
+    private sealed record EvaluationCaseSummary(
+        string CaseId,
+        int Runs,
+        int SchemaSuccesses,
+        double SchemaSuccessRate,
+        int QualitySuccesses,
+        double QualitySuccessRate);
     private sealed record EvaluationReport(
         DateTimeOffset ExecutedAt,
         string Provider,
@@ -257,5 +355,6 @@ public sealed class RealProviderNarrativeEvaluationTests
         int Repetitions,
         int TimeoutSeconds,
         EvaluationSummary Summary,
+        IReadOnlyList<EvaluationCaseSummary> Cases,
         IReadOnlyList<EvaluationRun> Runs);
 }
