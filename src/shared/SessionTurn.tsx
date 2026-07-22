@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { surfaceRecipe, textRecipe } from '../components/ui';
+import { Label, TurnCard } from '../components/ui';
 
 /**
  * SessionTurn — the shared turn-display component used by every session-play
@@ -108,17 +108,18 @@ export function SessionTurn({
   articleRef,
 }: SessionTurnProps) {
   const narrativeBlock = (
-    <p className={`m-0 max-w-none ${textRecipe('body')} !leading-[1.65] !text-[#303644]`} data-testid={narrativeTestId}>
+    <Label as="p" textRole="body" className="m-0 max-w-none !leading-[1.65] !text-[#303644]" data-testid={narrativeTestId}>
       {narrativeTag && <span className="mr-2 inline-block rounded-full bg-myr-gold px-2 py-px align-middle text-myr-micro font-black tracking-[.1em] text-[#17151f]" aria-hidden="true">{narrativeTag}</span>}
       {narrative}
-    </p>
+    </Label>
   );
 
   const leadBlock = lead ? <TurnLeadBlock lead={lead} /> : null;
 
   return (
-    <article
-      className={`${surfaceRecipe({ role: 'card', variant: 'turn' })} ${selected ? '!border-myr-ruby !shadow-[inset_4px_0_0_#b84a4a]' : ''} ${variantClass[variantClassName] ?? variantClassName}`.trim()}
+    <TurnCard
+      as="article"
+      className={`${selected ? '!border-myr-ruby !shadow-[inset_4px_0_0_#b84a4a]' : ''} ${variantClass[variantClassName] ?? variantClassName}`.trim()}
       aria-label={ariaLabel}
       data-testid={testId}
       ref={articleRef}
@@ -133,6 +134,6 @@ export function SessionTurn({
           </div>
         </div>
       )}
-    </article>
+    </TurnCard>
   );
 }

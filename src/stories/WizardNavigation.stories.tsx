@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
+import { Label } from '../components/ui';
 import { expect, userEvent, within } from '@storybook/test';
 import { WizardNavigation } from '../shared/WizardNavigation';
 import { scenarioWizardShellClass, wizardKickerClass, wizardPaperClass, wizardProgressClass } from '../shared/scenarioWizardStyles';
@@ -16,7 +17,7 @@ const meta: Meta = {
       <div className={`${scenarioWizardShellClass} !min-h-105 !w-[min(980px,92vw)]`}>
         <Story />
         <main className={wizardPaperClass} aria-label="Story本文">
-          <p className={wizardKickerClass}>Wizard navigation sample</p>
+          <Label as="p" textRole="eyebrow" className={wizardKickerClass}>Wizard navigation sample</Label>
           <div className={wizardProgressClass} aria-label="サンプル進捗">
             <span>02</span>
             <strong>本文領域</strong>
@@ -72,7 +73,7 @@ export const NarrowCollapsed: Story = {
       <div className={`${scenarioWizardShellClass} !min-h-105 !w-90`}>
         <Story />
         <main className={wizardPaperClass} aria-label="狭幅Story本文">
-          <p className={wizardKickerClass}>Compact layout</p>
+          <Label as="p" textRole="eyebrow" className={wizardKickerClass}>Compact layout</Label>
           <div className={wizardProgressClass} aria-label="狭幅進捗">
             <span>02</span>
             <strong>本文を優先</strong>

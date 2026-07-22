@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Button, Input, Textarea, surfaceRecipe, textRecipe } from '../../components/ui';
+import { ArchiveCard, Button, Input, Label, PageCanvas, PageShell, Textarea } from '../../components/ui';
 import { useRouter } from '@tanstack/react-router';
 import { useForm, useStore } from '@tanstack/react-form';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -25,7 +25,7 @@ function ReadOnlyProtagonistFields({ value, testId }: { value: string; testId: s
 
   return (
     <div className="grid gap-4" data-testid={testId}>
-      <label className={`grid gap-2 ${textRecipe('label')}`}>
+      <Label as="label" textRole="label" className="grid gap-2">
         名前
         <Input
           variant="underline"
@@ -34,8 +34,8 @@ function ReadOnlyProtagonistFields({ value, testId }: { value: string; testId: s
           readOnly
           value={protagonist.name}
         />
-      </label>
-      <label className={`grid gap-2 ${textRecipe('label')}`}>
+      </Label>
+      <Label as="label" textRole="label" className="grid gap-2">
         プロフィール
         <Textarea
           className="!min-h-28 !rounded-myr-card !border-myr-ink/15 !px-3 !py-3 !text-base !leading-7 !shadow-none"
@@ -44,7 +44,7 @@ function ReadOnlyProtagonistFields({ value, testId }: { value: string; testId: s
           readOnly
           value={protagonist.profile}
         />
-      </label>
+      </Label>
     </div>
   );
 }
@@ -128,9 +128,9 @@ function ProtagonistForm({
     <>
       <section className="border-t border-myr-ink/20 py-7 md:py-9" aria-label="主人公確定">
         <div className="mb-6">
-          <p className={`mb-2 ${textRecipe('eyebrowData')}`}>
+          <Label as="p" textRole="eyebrowData" className="mb-2">
             Protagonist
-          </p>
+          </Label>
         </div>
 
         <form
@@ -171,7 +171,7 @@ function ProtagonistForm({
             <div className="grid gap-4">
               <form.Field name="createdName">
                 {(field) => (
-                  <label className={`grid gap-2 ${textRecipe('label')}`}>
+                  <Label as="label" textRole="label" className="grid gap-2">
                     名前
                     <Input
                       variant="underline"
@@ -180,12 +180,12 @@ function ProtagonistForm({
                       onBlur={field.handleBlur}
                       onChange={(event) => field.handleChange(event.target.value)}
                     />
-                  </label>
+                  </Label>
                 )}
               </form.Field>
               <form.Field name="createdProfile">
                 {(field) => (
-                  <label className={`grid gap-2 ${textRecipe('label')}`}>
+                  <Label as="label" textRole="label" className="grid gap-2">
                     プロフィール
                     <Textarea
                       className="!min-h-36 !rounded-myr-card !border-myr-ink/20 !bg-white/55 !px-3 !py-3 !text-base !leading-7"
@@ -194,7 +194,7 @@ function ProtagonistForm({
                       onBlur={field.handleBlur}
                       onChange={(event) => field.handleChange(event.target.value)}
                     />
-                  </label>
+                  </Label>
                 )}
               </form.Field>
               <div className="flex flex-wrap items-center gap-3">
@@ -264,9 +264,9 @@ function ProtagonistForm({
           )}
         >
           {beginError && <p className="m-0 mb-4 text-sm font-bold text-myr-ruby" role="alert">{beginError}</p>}
-          <article className={`${surfaceRecipe({ role: 'card', variant: 'archive' })} !bg-white/65`} data-testid="start-summary">
-            <span className={`${textRecipe('eyebrowData')} !tracking-[0.08em]`}>Session snapshot</span>
-            <h2 className={`my-2 ${textRecipe('section')} !text-3xl`}>{scenario.title}</h2>
+          <ArchiveCard as="article" className="!bg-white/65" data-testid="start-summary">
+            <Label textRole="eyebrowData" className="!tracking-[0.08em]">Session snapshot</Label>
+            <Label as="h2" textRole="section" className="my-2 !text-3xl">{scenario.title}</Label>
             <p className="my-2 text-sm text-myr-slate">Scenario: {scenario.title}</p>
             {canConfigureInterpretation && (
               <p className="my-2 text-sm text-myr-slate">
@@ -274,7 +274,7 @@ function ProtagonistForm({
               </p>
             )}
             <p className="my-2 text-sm text-myr-slate">主人公: {heroForSummary}</p>
-          </article>
+          </ArchiveCard>
         </MyrialeDialogContent>
       </MyrialeDialogRoot>
     </>
@@ -394,25 +394,21 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
 
   return (
     <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={chromeAccount} onLogout={logout}>
-      <div
-        data-myriale-theme="archive"
-        className={surfaceRecipe({ role: 'canvas' })}
-      >
-        <main
-          className={surfaceRecipe({ role: 'shell', width: 'focused' })}
-          aria-label="セッション開始アプリ画面"
-        >
+      <PageCanvas data-myriale-theme="archive">
+        <PageShell width="focused" aria-label="セッション開始アプリ画面">
           <header className="mb-6 flex flex-col items-start justify-between gap-4 border-b border-myr-ink/15 pb-5 md:flex-row">
             <div>
-              <p className={`mb-2 ${textRecipe('eyebrow')}`}>
+              <Label as="p" textRole="eyebrow" className="mb-2">
                 Session Start / Scenario to play
-              </p>
-              <h1
-                className={`m-0 max-w-myr-section ${textRecipe('display')}`}
+              </Label>
+              <Label
+                as="h1"
+                textRole="display"
+                className="m-0 max-w-myr-section"
                 data-testid="selected-scenario-title"
               >
                 {selectedScenario.title}
-              </h1>
+              </Label>
             </div>
             <Button variant="text" onClick={backToScenarioList}>
               シナリオ一覧へ戻る
@@ -424,9 +420,9 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
             aria-label="イントロと主人公選択"
           >
             <section className="relative py-7 md:py-9" aria-label="イントロNarrative">
-              <p className={`mb-3 ${textRecipe('eyebrowData')}`}>
+              <Label as="p" textRole="eyebrowData" className="mb-3">
                 Opening narrative
-              </p>
+              </Label>
               <article className="relative pr-4 before:pointer-events-none before:absolute before:-top-8 before:right-0 before:font-myr-display before:text-8xl before:text-myr-iris/10 before:content-['✦']" data-testid="intro-narrative">
                 <p className="relative z-10 m-0 max-w-200 font-myr-display text-[clamp(1.25rem,2.5vw,1.75rem)] leading-[1.65] tracking-[-0.025em]">
                   {selectedScenario.opening}
@@ -447,8 +443,8 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
               onInterpretationEnabledChange={setInterpretationEnabled}
             />
           </section>
-        </main>
-      </div>
+        </PageShell>
+      </PageCanvas>
     </AppChrome>
   );
 }

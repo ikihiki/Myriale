@@ -9,5 +9,25 @@ export { Field, fieldDescriptionId, type FieldProps } from './Field';
 export { Input, type InputProps } from './Input';
 export { Textarea, type TextareaProps } from './Textarea';
 export type { InputVariant, TextareaVariant } from './controlRecipes';
-export { surfaceRecipe, canvasSurfaceClassName, shellSurfaceClassNames, panelSurfaceClassNames, cardSurfaceClassNames, insetSurfaceClassNames, darkSurfaceClassNames, type SurfaceRecipeOptions, type SurfaceRole, type SurfaceVariant, type SurfaceWidth } from './surfaceRecipes';
-export { textRecipe, textRoleClassNames, type TextRole } from './textRecipes';
+export { Label, type LabelProps, type TextRole } from './Label';
+export {
+  AccountCard,
+  AccountFlushCard,
+  AccountInset,
+  AccountPanel,
+  ArchiveCard,
+  Card,
+  DarkPanel,
+  HomeCard,
+  HomePanel,
+  Inset,
+  PageCanvas,
+  PageShell,
+  Panel,
+  SummaryCard,
+  SummaryDarkPanel,
+  SummaryInset,
+  TurnCard,
+  type PageShellProps,
+  type SurfaceProps,
+} from './Surfaces';

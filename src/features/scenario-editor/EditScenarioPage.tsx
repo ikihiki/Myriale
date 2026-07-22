@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Input, Notice, Textarea } from '../../components/ui';
+import { Button, Input, Label, Notice, SummaryInset, Textarea } from '../../components/ui';
 import { ScenarioProgressControls } from '../../ScenarioProgressControls';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
@@ -248,7 +248,7 @@ export function EditScenarioPage() {
         />
 
         <main className={wizardPaperClass} aria-label="シナリオ編集アプリ画面">
-          <p className={wizardKickerClass}>Scenario edit / Improve and publish</p>
+          <Label as="p" textRole="eyebrow" className={wizardKickerClass}>Scenario edit / Improve and publish</Label>
           <Notice className={wizardNoticeClass} data-testid="edit-notice">{notice}</Notice>
 
           {view === 'list' && (
@@ -383,7 +383,7 @@ export function EditScenarioPage() {
           )}
         </main>
 
-        <aside className={wizardSummaryClass} aria-label="編集サマリー">
+        <SummaryInset as="aside" className={wizardSummaryClass} aria-label="編集サマリー">
           <h2>編集状態</h2>
           {view === 'edit' && draft && (
             <article className="border border-dashed border-[rgba(112,84,221,0.4)] !bg-[rgba(245,243,255,0.6)]" aria-label="確認と反映">
@@ -451,7 +451,7 @@ export function EditScenarioPage() {
               <p>シナリオを選ぶと編集履歴が表示されます。</p>
             )}
           </article>
-        </aside>
+        </SummaryInset>
       </div>
     </AppChrome>
   );

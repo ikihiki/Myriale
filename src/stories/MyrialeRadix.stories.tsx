@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
-import { actionRowClassName, Button as UiButton, textRecipe } from '../components/ui';
+import { actionRowClassName, Button as UiButton, Label } from '../components/ui';
 import { Button } from '../account/AccountKit';
 import {
   MyrialeCheckbox,
@@ -56,7 +56,7 @@ export const DialogSelectTabsAndMenu: Story = {
     return (
       <div style={{ display: 'grid', gap: 22 }}>
         <header>
-          <p className={`mb-2 ${textRecipe('eyebrow')}`}>Radix pilot</p>
+          <Label as="p" textRole="eyebrow" className="mb-2">Radix pilot</Label>
           <h1 style={{ margin: 0, fontFamily: 'Georgia, serif', letterSpacing: '-0.04em' }}>
             霧の紙片を崩さず、振る舞いだけを借りる
           </h1>

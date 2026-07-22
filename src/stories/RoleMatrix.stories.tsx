@@ -4,19 +4,23 @@ import {
   Badge,
   breadcrumbLinkClassName,
   Button,
+  Card,
+  DarkPanel,
+  Inset,
+  Label,
   navigationRecipe,
   Notice,
-  surfaceRecipe,
-  textRecipe,
+  PageCanvas,
+  PageShell,
+  Panel,
   type BadgeTone,
   type NoticeTone,
   type NoticeVariant,
-  type SurfaceWidth,
   type TextRole,
 } from '../components/ui';
 import { MyrialeTabsContent, MyrialeTabsList, MyrialeTabsRoot } from '../ui/MyrialeRadix';
 
-const widths: SurfaceWidth[] = ['content', 'focused', 'chrome', 'reading'];
+const widths = ['content', 'focused', 'chrome', 'reading'] as const;
 const textRoles: TextRole[] = [
   'display',
   'section',
@@ -44,38 +48,38 @@ type Story = StoryObj;
 export const SurfacesAndTypography: Story = {
   name: 'Surface × typography roles',
   render: () => (
-    <div data-myriale-theme="archive" className={surfaceRecipe({ role: 'canvas' })} aria-label="Role matrix canvas">
-      <main className={`${surfaceRecipe({ role: 'shell', width: 'content' })} !min-h-0`} aria-label="Role matrix shell">
-        <p className={textRecipe('eyebrow')}>UI foundation / Role matrix</p>
-        <h1 className={textRecipe('display')}>物語の面と文字の役割</h1>
+    <PageCanvas data-myriale-theme="archive" aria-label="Role matrix canvas">
+      <PageShell width="content" className="!min-h-0" aria-label="Role matrix shell">
+        <Label as="p" textRole="eyebrow">UI foundation / Role matrix</Label>
+        <Label as="h1" textRole="display">物語の面と文字の役割</Label>
 
         <section className="mt-8 grid gap-4" aria-labelledby="surface-heading">
-          <h2 id="surface-heading" className={textRecipe('section')}>Surface roles</h2>
+          <Label as="h2" textRole="section" id="surface-heading">Surface roles</Label>
           <div className="grid gap-3 md:grid-cols-2">
-            <article className={surfaceRecipe({ role: 'panel' })} aria-label="Panel surface"><strong>panel</strong></article>
-            <article className={surfaceRecipe({ role: 'card' })} aria-label="Card surface"><strong>card</strong></article>
-            <article className={surfaceRecipe({ role: 'inset' })} aria-label="Inset surface"><strong>inset</strong></article>
-            <article className={surfaceRecipe({ role: 'dark' })} aria-label="Dark surface"><strong>dark</strong></article>
+            <Panel as="article" aria-label="Panel surface"><strong>panel</strong></Panel>
+            <Card as="article" aria-label="Card surface"><strong>card</strong></Card>
+            <Inset as="article" aria-label="Inset surface"><strong>inset</strong></Inset>
+            <DarkPanel as="article" aria-label="Dark surface"><strong>dark</strong></DarkPanel>
           </div>
           <div className="grid gap-2" aria-label="Shell width variants">
             {widths.map((width) => (
-              <div className={`${surfaceRecipe({ role: 'shell', width })} !min-h-0 !w-full !p-3`} data-width={width} key={width}>
-                <span className={textRecipe('data')}>{width}</span>
-              </div>
+              <PageShell as="div" width={width} className="!min-h-0 !w-full !p-3" data-width={width} key={width}>
+                <Label textRole="data">{width}</Label>
+              </PageShell>
             ))}
           </div>
         </section>
 
         <section className="mt-8 grid gap-3" aria-labelledby="type-heading">
-          <h2 id="type-heading" className={textRecipe('section')}>Typography roles</h2>
+          <Label as="h2" textRole="section" id="type-heading">Typography roles</Label>
           {textRoles.map((role) => (
-            <p className={textRecipe(role)} data-text-role={role} key={role}>
+            <Label as="p" textRole={role} data-text-role={role} key={role}>
               {role} — 星喰いの地下図書館
-            </p>
+            </Label>
           ))}
         </section>
-      </main>
-    </div>
+      </PageShell>
+    </PageCanvas>
   ),
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
@@ -106,13 +110,13 @@ export const SurfacesAndTypography: Story = {
 export const StatusAndFeedback: Story = {
   name: 'Status × feedback roles',
   render: () => (
-    <div data-myriale-theme="archive" className={surfaceRecipe({ role: 'canvas' })}>
-      <main className={`${surfaceRecipe({ role: 'shell', width: 'reading' })} !min-h-0`} aria-labelledby="status-feedback-heading">
-        <p className={textRecipe('eyebrow')}>UI foundation / Status and feedback</p>
-        <h1 id="status-feedback-heading" className={textRecipe('display')}>状態とフィードバック</h1>
+    <PageCanvas data-myriale-theme="archive">
+      <PageShell width="reading" className="!min-h-0" aria-labelledby="status-feedback-heading">
+        <Label as="p" textRole="eyebrow">UI foundation / Status and feedback</Label>
+        <Label as="h1" textRole="display" id="status-feedback-heading">状態とフィードバック</Label>
         {noticeVariants.map((variant) => (
           <section className="mt-7 grid gap-3" aria-labelledby={`notice-${variant}`} key={variant}>
-            <h2 id={`notice-${variant}`} className={textRecipe('section')}>Notice / {variant}</h2>
+            <Label as="h2" textRole="section" id={`notice-${variant}`}>Notice / {variant}</Label>
             {noticeTones.map((tone) => (
               <Notice key={tone} variant={variant} tone={tone} aria-label={`${variant} ${tone} notice`}>
                 {tone}: 操作の結果と次の行動を伝えます。
@@ -121,14 +125,14 @@ export const StatusAndFeedback: Story = {
           </section>
         ))}
         <section className="mt-7 grid gap-3" aria-labelledby="badge-heading">
-          <h2 id="badge-heading" className={textRecipe('section')}>Badge tones / dots</h2>
+          <Label as="h2" textRole="section" id="badge-heading">Badge tones / dots</Label>
           <div className="flex flex-wrap gap-2">
             {badgeTones.map((tone) => <Badge key={tone} tone={tone} dot aria-label={`${tone} badge`}>{tone}</Badge>)}
           </div>
           <Badge tone="success" aria-label="badge without dot">dotなし</Badge>
         </section>
-      </main>
-    </div>
+      </PageShell>
+    </PageCanvas>
   ),
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
@@ -155,13 +159,13 @@ export const StatusAndFeedback: Story = {
 export const NavigationRoles: Story = {
   name: 'Navigation roles',
   render: () => (
-    <div data-myriale-theme="archive" className={surfaceRecipe({ role: 'canvas' })}>
-      <main className={`${surfaceRecipe({ role: 'shell', width: 'content' })} !min-h-0`} aria-labelledby="navigation-role-heading">
-        <p className={textRecipe('eyebrow')}>UI foundation / Navigation</p>
-        <h1 id="navigation-role-heading" className={textRecipe('display')}>移動の役割</h1>
+    <PageCanvas data-myriale-theme="archive">
+      <PageShell width="content" className="!min-h-0" aria-labelledby="navigation-role-heading">
+        <Label as="p" textRole="eyebrow">UI foundation / Navigation</Label>
+        <Label as="h1" textRole="display" id="navigation-role-heading">移動の役割</Label>
 
         <section className="mt-8 grid gap-3" aria-labelledby="chrome-role-heading">
-          <h2 id="chrome-role-heading" className={textRecipe('section')}>App chrome / menu / breadcrumb</h2>
+          <Label as="h2" textRole="section" id="chrome-role-heading">App chrome / menu / breadcrumb</Label>
           <div className="grid gap-4 rounded-myr-card bg-[linear-gradient(180deg,#201b2d,#17151f)] p-5 text-myr-cream">
             <nav className="flex flex-wrap gap-2" aria-label="App chrome recipe sample">
               <Button className={navigationRecipe({ role: 'appChromeItem', active: true })} aria-current="page">ライブラリ</Button>
@@ -180,7 +184,7 @@ export const NavigationRoles: Story = {
         </section>
 
         <section className="mt-8 grid gap-3" aria-labelledby="rail-role-heading">
-          <h2 id="rail-role-heading" className={textRecipe('section')}>Rail density</h2>
+          <Label as="h2" textRole="section" id="rail-role-heading">Rail density</Label>
           <div className="grid gap-4 md:grid-cols-2">
             <nav className="grid gap-1 rounded-myr-card bg-[linear-gradient(180deg,#201b2d,#17151f)] p-3" aria-label="Wizard rail recipe sample">
               <Button className={navigationRecipe({ role: 'railItem', density: 'wizard' })}><span>01 / 表紙</span><small>最小入力</small></Button>
@@ -194,7 +198,7 @@ export const NavigationRoles: Story = {
         </section>
 
         <section className="mt-8 grid gap-3" aria-labelledby="tab-role-heading">
-          <h2 id="tab-role-heading" className={textRecipe('section')}>Radix tab item</h2>
+          <Label as="h2" textRole="section" id="tab-role-heading">Radix tab item</Label>
           <MyrialeTabsRoot defaultValue="overview">
             <MyrialeTabsList ariaLabel="Navigation role tabs" items={[
               { value: 'overview', label: '概要' },
@@ -206,8 +210,8 @@ export const NavigationRoles: Story = {
             <MyrialeTabsContent value="testing" className="myr-ui-note-card mt-3">検証パネル</MyrialeTabsContent>
           </MyrialeTabsRoot>
         </section>
-      </main>
-    </div>
+      </PageShell>
+    </PageCanvas>
   ),
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);

@@ -1,5 +1,3 @@
-import { surfaceRecipe, textRecipe } from '../components/ui';
-
 export const scenarioWizardShellClass = [
   'grid min-h-screen grid-cols-[168px_minmax(560px,1fr)_minmax(260px,300px)] items-start gap-3 p-3.5 text-[#17151f]',
   'bg-[radial-gradient(circle_at_12%_18%,rgba(124,92,255,0.2),transparent_24%),radial-gradient(circle_at_92%_8%,rgba(217,164,65,0.24),transparent_20%),linear-gradient(135deg,#17151f_0%,#283244_46%,#dce7f2_100%)]',
@@ -12,7 +10,7 @@ export const wizardPaperClass = [
   'shadow-[0_24px_80px_rgba(23,21,31,0.22)] max-myr-workspace:min-h-0',
 ].join(' ');
 
-export const wizardKickerClass = `mb-1 ${textRecipe('eyebrow')} !text-myr-micro !tracking-[0.14em] !text-[#6d587a]`;
+export const wizardKickerClass = 'mb-1 !text-myr-micro !tracking-[0.14em] !text-[#6d587a]';
 export const wizardNoticeClass = 'my-2.5 !rounded-xl !px-2.75 !py-2 !text-myr-ui-sm';
 export const wizardButtonRowClass = 'mt-2 flex flex-wrap gap-1.75';
 
@@ -38,7 +36,6 @@ export const wizardProgressClass = [
 export const wizardActionsClass = 'flex max-w-none justify-between gap-3 border-t border-[rgba(23,21,31,0.18)] pt-3';
 
 export const wizardSummaryClass = [
-  surfaceRecipe({ role: 'inset', variant: 'summary' }),
   '[&_h2]:m-0 [&_h2]:font-serif [&_h2]:text-lg [&_h2]:tracking-[-0.04em]',
   '[&_label]:my-1.5 [&_label]:grid [&_label]:gap-1 [&_label]:text-myr-caption [&_label]:font-black',
   '[&_select]:w-full [&_select]:rounded-myr-control [&_select]:border [&_select]:border-[rgba(23,21,31,0.18)] [&_select]:bg-[#fffef9] [&_select]:px-2.5 [&_select]:py-2 [&_select]:text-xs [&_select]:text-[#17151f]',

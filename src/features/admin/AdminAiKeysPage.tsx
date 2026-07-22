@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Badge, Button, Input, Notice, surfaceRecipe, textRecipe } from '../../components/ui';
+import { Badge, Button, Inset, Input, Label, Notice, PageCanvas, PageShell, Panel } from '../../components/ui';
 import { toAppChromeAccount } from '../../account/accountPresentation';
 import { createFetchAdminAiApi, type AdminAiApiError, type AiProviderKey } from '../../account/api/adminAiApi';
 import { useAccountSession } from '../../account/hooks/useAccountSession';
@@ -98,13 +98,13 @@ export function AdminAiKeysPage() {
 
   return (
     <AppChrome section="operations" breadcrumbs={crumbs} account={account}>
-      <div data-myriale-theme="archive" className={surfaceRecipe({ role: 'canvas' })}>
-        <main className={surfaceRecipe({ role: 'shell', width: 'content' })} aria-label="AI Provider管理">
-          <p className={`mb-2 ${textRecipe('eyebrow')}`}>Operations / AI providers</p>
+      <PageCanvas data-myriale-theme="archive">
+        <PageShell width="content" aria-label="AI Provider管理">
+          <Label as="p" textRole="eyebrow" className="mb-2">Operations / AI providers</Label>
           <header className="mb-6 flex flex-col items-start justify-between gap-4 border-b border-myr-ink/15 pb-5 md:flex-row md:items-end">
             <div>
-              <h1 className={`m-0 max-w-myr-section ${textRecipe('display')}`}>物語を動かすAIを、ここで整える。</h1>
-              <p className={`mt-4 max-w-myr-form ${textRecipe('bodySm')} !leading-7`}><strong className="text-myr-ink">OpenAIとRunpodの接続状態を管理します。</strong> Vaultから注入された設定はそのまま表示し、管理画面で同じキーを再登録せずに疎通確認できます。</p>
+              <Label as="h1" textRole="display" className="m-0 max-w-myr-section">物語を動かすAIを、ここで整える。</Label>
+              <Label as="p" textRole="bodySm" className="mt-4 max-w-myr-form !leading-7"><strong className="text-myr-ink">OpenAIとRunpodの接続状態を管理します。</strong> Vaultから注入された設定はそのまま表示し、管理画面で同じキーを再登録せずに疎通確認できます。</Label>
             </div>
             <Badge className="px-4 py-2 font-myr-mono">{keys.filter((key) => key.configured).length} / {keys.length} configured</Badge>
           </header>
@@ -114,35 +114,35 @@ export function AdminAiKeysPage() {
           </Notice>
 
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
-            <section className={surfaceRecipe({ role: 'panel' })} aria-labelledby="provider-registration-heading">
-              <p className={`mb-2 ${textRecipe('eyebrowData')}`}>Credential override</p>
-              <h2 id="provider-registration-heading" className={`m-0 ${textRecipe('section')}`}>管理画面からキーを登録</h2>
+            <Panel as="section" aria-labelledby="provider-registration-heading">
+              <Label as="p" textRole="eyebrowData" className="mb-2">Credential override</Label>
+              <Label as="h2" textRole="section" id="provider-registration-heading" className="m-0">管理画面からキーを登録</Label>
               <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <label className={`grid gap-2 ${textRecipe('label')}`}>Provider
+                <Label as="label" textRole="label" className="grid gap-2">Provider
                   <select className="!rounded-myr-card !border !border-myr-ink/15 !bg-myr-paper-bright !px-3 !py-3 !text-base !text-myr-ink" value={provider} onChange={(event) => changeProvider(event.target.value)}>
                     <option value="runpod">Runpod</option>
                     <option value="openai">OpenAI</option>
                   </select>
-                </label>
-                <label className={`grid gap-2 ${textRecipe('label')}`}>表示名
+                </Label>
+                <Label as="label" textRole="label" className="grid gap-2">表示名
                   <Input aria-label="表示名" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
-                </label>
+                </Label>
               </div>
               <label className="mt-4 grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">APIキー
                 <Input aria-label="APIキー" type="password" value={secret} onChange={(event) => setSecret(event.target.value)} placeholder={provider === 'runpod' ? 'rpa_...' : 'sk-...'} />
               </label>
               <p className="mt-3 text-xs leading-5 text-myr-slate">Vaultまたは環境変数で設定済みの場合、ここで同じキーを再登録する必要はありません。</p>
               <Button variant="secondary" className="mt-4" onClick={() => void save()} disabled={busy || !secret.trim()}>キーを保存</Button>
-            </section>
+            </Panel>
 
-            <aside className={surfaceRecipe({ role: 'inset' })} aria-label="設定の優先順位">
-              <p className={`mb-2 ${textRecipe('eyebrowData')}`}>Resolution order</p>
-              <h2 className={`m-0 ${textRecipe('section')}`}>設定の優先順位</h2>
+            <Inset as="aside" aria-label="設定の優先順位">
+              <Label as="p" textRole="eyebrowData" className="mb-2">Resolution order</Label>
+              <Label as="h2" textRole="section" className="m-0">設定の優先順位</Label>
               <ol className="mt-5 grid gap-4 p-0">
                 <li className="grid grid-cols-[2rem_1fr] gap-3"><span className="grid h-8 w-8 place-items-center rounded-full bg-myr-ink font-myr-mono text-xs font-black text-myr-paper">1</span><div><strong className="block">Vault / 環境変数</strong><span className="text-sm leading-6 text-myr-slate">デプロイ時に注入された設定を最優先で使用します。</span></div></li>
                 <li className="grid grid-cols-[2rem_1fr] gap-3"><span className="grid h-8 w-8 place-items-center rounded-full bg-myr-ink font-myr-mono text-xs font-black text-myr-paper">2</span><div><strong className="block">管理画面</strong><span className="text-sm leading-6 text-myr-slate">環境設定がないProviderでは暗号化してDBへ保存します。</span></div></li>
               </ol>
-            </aside>
+            </Inset>
           </div>
 
           <section className="mt-4 overflow-hidden rounded-myr-card border border-myr-ink/15 bg-myr-paper/80 shadow-myr-card" aria-label="AIキー一覧">
@@ -161,8 +161,8 @@ export function AdminAiKeysPage() {
               </table>
             </div>
           </section>
-        </main>
-      </div>
+        </PageShell>
+      </PageCanvas>
     </AppChrome>
   );
 }

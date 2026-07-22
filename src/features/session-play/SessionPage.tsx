@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { toAppChromeAccount, type AppChromeAccount } from '../../account/accountPresentation';
-import { actionRowClassName, Button, Notice, textRecipe, Textarea } from '../../components/ui';
+import { actionRowClassName, Button, Label, Notice, SummaryInset, Textarea } from '../../components/ui';
+import { ArrowUpIcon, CloseIcon, LightbulbIcon, RotateBackIcon, SparkleIcon } from '../../components/icons';
 import { useAccountSession } from '../../account/hooks/useAccountSession';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { useOptionalAppStore, type TurnDisplayFlags } from '../../app/store';
@@ -24,46 +25,6 @@ import {
 import { SessionActivityFeed, type NoteReviewRequest } from './SessionActivityFeed';
 import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeToggle, MyrialeSelect } from '../../ui/MyrialeRadix';
 import { useAppNavigation } from '../../shared/nav';
-
-function ArrowUpIcon() {
-  return (
-    <svg className="size-4.5 fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path d="M10 15V5m0 0L6 9m4-4 4 4" />
-    </svg>
-  );
-}
-
-function RotateBackIcon() {
-  return (
-    <svg className="size-4.5 fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path d="M6.5 6.5H3.75V3.75M4.2 6.2a7 7 0 1 1-.75 6.85" />
-    </svg>
-  );
-}
-
-function SparkleIcon() {
-  return (
-    <svg className="size-4.5 fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path d="M10 2.75c.45 2.65 1.85 4.05 4.5 4.5-2.65.45-4.05 1.85-4.5 4.5-.45-2.65-1.85-4.05-4.5-4.5 2.65-.45 4.05-1.85 4.5-4.5ZM15.25 12.5c.22 1.35.9 2.03 2.25 2.25-1.35.22-2.03.9-2.25 2.25-.22-1.35-.9-2.03-2.25-2.25 1.35-.22 2.03-.9 2.25-2.25Z" />
-    </svg>
-  );
-}
-
-function LightbulbIcon() {
-  return (
-    <svg className="size-4.5 fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path d="M6.5 12.25c-1.1-.95-1.75-2.25-1.75-3.75a5.25 5.25 0 0 1 10.5 0c0 1.5-.65 2.8-1.75 3.75-.75.65-1 1.2-1 2H7.5c0-.8-.25-1.35-1-2ZM7.5 17h5M8 14.25h4" />
-    </svg>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg className="size-4.5 fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-      <path d="m6 6 8 8m0-8-8 8" />
-    </svg>
-  );
-}
 
 type TurnKind = 'action' | 'clarification' | 'rewound';
 
@@ -669,9 +630,9 @@ function SessionDialogueSection({
   } satisfies Record<typeof sessionMode, { badge: string; label: string; summary: string; reason: string }>;
   const modeMeta = modeLabels[sessionMode];
   const forcedMode = sessionMode !== 'dialogue';
-  const programPanelClass = 'mt-3 grid gap-2.5 rounded-2xl border border-myr-ink/14 bg-[rgba(250,249,255,.7)] p-3.5';
+  const programPanelClass = 'mt-3 grid gap-3 rounded-2xl border border-myr-ink/14 bg-myr-session-program-panel p-4';
   const modeBadgeClass = {
-    dialogue: 'bg-[#4a845c]', battle: 'bg-myr-ruby', roll: 'bg-[#7054dd]', event: 'bg-[#c77d16]', recovering: 'bg-myr-plum',
+    dialogue: 'bg-myr-session-mode-dialogue', battle: 'bg-myr-ruby', roll: 'bg-myr-session-mode-roll', event: 'bg-myr-session-mode-event', recovering: 'bg-myr-plum',
   }[sessionMode];
   const defaultTurnDisplay: TurnDisplayFlags = { allowRewind: true, showInterpretation: true, leadTone: 'player', leadTag: '⟶' };
   const programTurnDisplay: TurnDisplayFlags = { allowRewind: false, showInterpretation: false, leadTone: 'program', leadTag: 'PROGRAM' };
@@ -843,7 +804,7 @@ function SessionDialogueSection({
       />
 
       <main className={`${wizardPaperClass} min-w-0 ${notesView === 'full' ? 'hidden' : ''} ${notesView === 'hidden' ? 'col-[2/-1] max-myr-workspace:col-start-1' : ''}`} aria-label="AI対話モード">
-        <p className={`mb-2 ${textRecipe('eyebrow')}`}>Session play / AI dialogue mode</p>
+        <Label as="p" textRole="eyebrow" className="mb-2">Session play / AI dialogue mode</Label>
         <div className="mb-2.5 flex justify-end gap-2" aria-label="ノート表示切り替え">
           {notesView === 'hidden' ? (
             <Button variant="primary" size="sm" onClick={() => setNotesViewMode(isNarrowViewport ? 'full' : 'split')}>ノートを表示</Button>
@@ -866,7 +827,7 @@ function SessionDialogueSection({
         {serverSession ? (
           <SessionActivityFeed session={serverSession} onExecutionAction={(id, action) => void handleExecutionAction(id, action)} onNoteReview={(id, action, request) => void handleNoteReview(id, action, request)} keepSucceededStatusVisible={keepSucceededExecutionStatusVisible} />
         ) : (
-        <section className="grid max-h-[48vh] gap-2.5 overflow-auto pr-1.5" aria-label="対話ログ" data-testid="dialogue-log">
+        <section className="grid max-h-[48vh] gap-3 overflow-auto pr-2" aria-label="対話ログ" data-testid="dialogue-log">
           {turns.map((turn) => {
             const display = displayForTurn(turn);
             const leadTone = display.leadTone ?? 'player';
@@ -904,7 +865,7 @@ function SessionDialogueSection({
                         text: turn.playerInput,
                         actions: canShowInterpretation ? (
                           <MyrialeToggle
-                            className="!justify-self-start !rounded-full !border !border-myr-iris/30 !bg-white/55 !px-2.5 !py-1 !text-myr-caption !font-extrabold !text-[#6044d4] data-[state=on]:!bg-myr-iris/16 data-[state=on]:!text-[#4a32b0]"
+                            className="!justify-self-start !rounded-full !border !border-myr-iris/30 !bg-myr-session-control/55 !px-3 !py-1 !text-myr-caption !font-extrabold !text-[#6044d4] data-[state=on]:!bg-myr-iris/16 data-[state=on]:!text-[#4a32b0]"
                             pressed={showInterpretationFor.includes(turn.id)}
                             aria-label={`Turn ${String(turn.id).padStart(2, '0')}の入力解釈を${showInterpretationFor.includes(turn.id) ? '隠す' : '見る'}`}
                             onPressedChange={() => toggleInterpretation(turn)}
@@ -914,7 +875,7 @@ function SessionDialogueSection({
                         ) : undefined,
                         detail:
                           canShowInterpretation && showInterpretationFor.includes(turn.id) ? (
-                            <p className="m-0 flex max-w-none items-baseline gap-2 rounded-xl bg-myr-gold/18 px-3 py-2.5 text-myr-ui-sm font-semibold text-[#4b3a20]" data-testid={`turn-${turn.id}-interpretation`}>
+                            <p className="m-0 flex max-w-none items-baseline gap-2 rounded-xl bg-myr-gold/18 px-3 py-3 text-myr-ui-sm font-semibold text-[#4b3a20]" data-testid={`turn-${turn.id}-interpretation`}>
                               <span className="shrink-0 text-[#b07a16]" aria-hidden="true">⚙</span>
                               {turn.interpretation}
                             </p>
@@ -935,7 +896,7 @@ function SessionDialogueSection({
               tone="warning"
               portal={false}
               data-testid="rewind-dialog"
-              bodyClassName="grid gap-2 [&_p]:m-0 [&_p]:max-w-none"
+              bodyClassName="grid gap-2"
               footer={(
                 <>
                   <Button variant="danger" size="sm" onClick={confirmRewind}>巻き戻しを確定</Button>
@@ -944,16 +905,16 @@ function SessionDialogueSection({
               )}
             >
               <strong>Turn {String(pendingRewindId).padStart(2, '0')}まで戻りますか？</strong>
-              <p>指定ターン以降のログ、挿絵生成などの非同期処理を無効化またはキャンセルします。</p>
+              <p className="m-0 max-w-none">指定ターン以降のログ、挿絵生成などの非同期処理を無効化またはキャンセルします。</p>
             </MyrialeDialogContent>
           </MyrialeDialogRoot>
         )}
 
-        <section className="mx-auto mt-4 mb-1 w-full max-w-myr-reading justify-self-stretch px-2.5 max-sm:px-0" aria-label="自然言語入力">
+        <section className="mx-auto mt-4 mb-1 w-full max-w-myr-reading justify-self-stretch px-3 max-sm:px-0" aria-label="自然言語入力">
           {forcedMode && (
             <>
               <div className="mb-2 flex flex-wrap items-center gap-3 rounded-2xl border border-myr-ink/16 bg-myr-paper/80 px-4 py-3 text-myr-ui-sm" aria-label="現在の入力モード">
-                <span className={`shrink-0 rounded-full px-3.5 py-1 text-myr-ui-sm font-black tracking-myr-label text-myr-paper ${modeBadgeClass}`} data-testid="mode-badge">{modeMeta.badge}</span>
+                <span className={`shrink-0 rounded-full px-4 py-1 text-myr-ui-sm font-black tracking-myr-label text-myr-paper ${modeBadgeClass}`} data-testid="mode-badge">{modeMeta.badge}</span>
                 <span data-testid="session-mode-state">{modeMeta.label}</span>
                 <span>{modeMeta.summary}</span>
               </div>
@@ -961,7 +922,7 @@ function SessionDialogueSection({
               <p className="text-myr-ui-sm text-myr-ink-soft" data-testid="mode-reason">{modeMeta.reason}</p>
             </>
           )}
-          <div className="overflow-hidden rounded-[26px] border border-myr-ink/15 bg-[rgba(255,254,249,0.96)] shadow-[0_10px_30px_rgba(34,29,48,0.11),0_1px_2px_rgba(34,29,48,0.08)] transition-[border-color,box-shadow] duration-150 focus-within:border-myr-iris/45 focus-within:shadow-[0_12px_34px_rgba(34,29,48,0.14),0_0_0_3px_rgba(124,92,255,0.09)] max-sm:rounded-myr-panel motion-reduce:transition-none">
+          <div className="overflow-hidden rounded-[26px] border border-myr-ink/15 bg-myr-session-composer shadow-[0_10px_30px_rgba(34,29,48,0.11),0_1px_2px_rgba(34,29,48,0.08)] transition-[border-color,box-shadow] duration-150 focus-within:border-myr-iris/45 focus-within:shadow-[0_12px_34px_rgba(34,29,48,0.14),0_0_0_3px_rgba(124,92,255,0.09)] max-sm:rounded-myr-panel motion-reduce:transition-none">
             <Textarea
               variant="composer"
               aria-label="自由に行動や会話を入力"
@@ -982,8 +943,8 @@ function SessionDialogueSection({
             />
 
             {sessionMode === 'dialogue' && (
-              <div className="flex items-center justify-between gap-3 px-2 pt-1.25 pb-2 pl-2.5">
-                <div className="flex items-center gap-0.5" aria-label="入力補助">
+              <div className="flex items-center justify-between gap-3 px-2 pt-1 pb-2 pl-3">
+                <div className="flex items-center gap-1" aria-label="入力補助">
                   <Button
                     variant="icon"
                     size="iconMd"
@@ -1027,7 +988,7 @@ function SessionDialogueSection({
                   title={draftRequest ? '同じ入力を再試行' : '行動を送る'}
                 >
                   {isSubmitting
-                    ? <span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white motion-reduce:animate-[spin_1.4s_linear_infinite]" aria-hidden="true" />
+                    ? <span className="size-3.5 animate-spin rounded-full border-2 border-myr-session-control/40 border-t-myr-session-control motion-reduce:animate-[spin_1.4s_linear_infinite]" aria-hidden="true" />
                     : <ArrowUpIcon />}
                 </Button>
               </div>
@@ -1097,22 +1058,22 @@ function SessionDialogueSection({
             {debugPanelOpen ? 'デバッグパネルを非表示' : 'デバッグパネルを表示'}
           </Button>
           <div id="session-debug-panel" className="mt-3 grid gap-3" hidden={!debugPanelOpen}>
-            <section className="rounded-[14px] border border-[#4a427a]/20 bg-[#f4f1ff]/72 px-3.5 py-3" aria-label="AI生成表示設定">
-              <label className="flex cursor-pointer items-start gap-2.5">
+            <section className="rounded-[14px] border border-[#4a427a]/20 bg-myr-session-debug/72 px-4 py-3" aria-label="AI生成表示設定">
+              <label className="flex cursor-pointer items-start gap-3">
                 <input
                   className="mt-0.75 size-4 shrink-0 accent-[#6052a8]"
                   type="checkbox"
                   checked={keepSucceededExecutionStatusVisible}
                   onChange={(event) => setKeepSucceededExecutionStatusVisible(event.target.checked)}
                 />
-                <span className="grid gap-0.75">
+                <span className="grid gap-1">
                   <strong>成功後もAI生成ステータスを表示する</strong>
                   <small className="leading-normal text-[#666176]">通常は完了後に消えるステータスメッセージを、デバッグ確認のため対話ログに残します。</small>
                 </span>
               </label>
             </section>
             {(sessionModeFlavor === 'program' || sessionModeFlavor === 'modeTransition') && (
-              <section className="my-3.5 grid gap-2.5 rounded-2xl border border-myr-gold/35 bg-myr-paper/70 px-3.5 py-3" aria-label="条件によるモード遷移">
+              <section className="my-3.5 grid gap-3 rounded-2xl border border-myr-gold/35 bg-myr-paper/70 px-4 py-3" aria-label="条件によるモード遷移">
                 <div>
                   <strong>プログラム主導シーン確認</strong>
                   <p className="mt-1 text-myr-ui-sm text-myr-slate">条件成立時に入力UIだけを切り替え、結果は同じ対話ログに追加されます。</p>
@@ -1136,38 +1097,38 @@ function SessionDialogueSection({
               </section>
             )}
 
-            <section className="grid gap-3 rounded-2xl border border-myr-ink/14 bg-[rgba(255,254,249,.68)] px-3.5 py-3 [&>h2]:m-0 [&>h2]:font-myr-display [&>h2]:text-xl [&>article]:rounded-xl [&>article]:border [&>article]:border-myr-ink/10 [&>article]:bg-white/56 [&>article]:px-3 [&>article]:py-2.5 [&_table]:w-full [&_table]:border-collapse [&_td]:border-t [&_td]:border-myr-ink/10 [&_td]:px-1.5 [&_td]:py-1" aria-label="Play contract">
-              <h2>Play contract</h2>
-              <article data-testid="mode-contract-summary">
+            <section className="grid gap-3 rounded-2xl border border-myr-ink/14 bg-myr-session-turn px-4 py-3" aria-label="Play contract">
+              <h2 className="m-0 font-myr-display text-xl">Play contract</h2>
+              <article className="rounded-xl border border-myr-ink/10 bg-myr-session-control/56 px-3 py-3" data-testid="mode-contract-summary">
                 <h3>入力モード</h3>
-                <p data-testid="summary-mode">{modeMeta.summary}</p>
+                <p className="m-0 max-w-none" data-testid="summary-mode">{modeMeta.summary}</p>
                 <p className="visually-hidden" data-testid="summary-battle">敵HP {battle.enemyHp} / 自HP {battle.playerHp}</p>
                 <p className="visually-hidden" data-testid="summary-roll">{rollResult ? `d6=${rollResult.value}（${rollResult.success ? '成功' : '失敗'}）` : '判定未実行'}</p>
-                <p data-testid="summary-rewind">{forcedMode ? '終了後に可能' : 'いつでも可能'}</p>
-                <p data-testid="pending-action">{pendingAction}</p>
-                <p data-testid="last-confirmed">{lastConfirmed}</p>
+                <p className="m-0 max-w-none" data-testid="summary-rewind">{forcedMode ? '終了後に可能' : 'いつでも可能'}</p>
+                <p className="m-0 max-w-none" data-testid="pending-action">{pendingAction}</p>
+                <p className="m-0 max-w-none" data-testid="last-confirmed">{lastConfirmed}</p>
                 <p className="visually-hidden" data-testid="recovery-point">{recoveryPoint ?? '未選択'}</p>
-                <table aria-label="モード遷移ログ">
+                <table className="w-full border-collapse" aria-label="モード遷移ログ">
                   <tbody>
                     {transitionRows.map((row) => (
-                      <tr key={row.id}><td>{row.at}</td><td>{row.from}</td><td>{row.to}</td><td>{row.reason}</td></tr>
+                      <tr key={row.id}><td className="border-t border-myr-ink/10 px-2 py-1">{row.at}</td><td className="border-t border-myr-ink/10 px-2 py-1">{row.from}</td><td className="border-t border-myr-ink/10 px-2 py-1">{row.to}</td><td className="border-t border-myr-ink/10 px-2 py-1">{row.reason}</td></tr>
                     ))}
                   </tbody>
                 </table>
               </article>
-              <article data-testid="active-turn-summary">
+              <article className="rounded-xl border border-myr-ink/10 bg-myr-session-control/56 px-3 py-3" data-testid="active-turn-summary">
                 <h3>選択中のTurn</h3>
-                <p>{String(selectedTurn.id).padStart(2, '0')} / {selectedTurn.turnTitle}</p>
-                <p>{selectedTurn.kind === 'clarification' ? '補足説明: 物語状態は変化しない' : '行動結果: Narrativeとして表示'}</p>
+                <p className="m-0 max-w-none">{String(selectedTurn.id).padStart(2, '0')} / {selectedTurn.turnTitle}</p>
+                <p className="m-0 max-w-none">{selectedTurn.kind === 'clarification' ? '補足説明: 物語状態は変化しない' : '行動結果: Narrativeとして表示'}</p>
               </article>
-              <article data-testid="active-heading-summary">
+              <article className="rounded-xl border border-myr-ink/10 bg-myr-session-control/56 px-3 py-3" data-testid="active-heading-summary">
                 <h3>現在のAI見出し</h3>
-                <p>{activeHeading ? `${activeHeading.title}（Turn ${String(activeHeading.startTurnId).padStart(2, '0')}から）` : '見出し未生成'}</p>
-                <p>見出しリンクはTurn一覧ではなく、AIが場面の切り替わりに付けた索引です。</p>
+                <p className="m-0 max-w-none">{activeHeading ? `${activeHeading.title}（Turn ${String(activeHeading.startTurnId).padStart(2, '0')}から）` : '見出し未生成'}</p>
+                <p className="m-0 max-w-none">見出しリンクはTurn一覧ではなく、AIが場面の切り替わりに付けた索引です。</p>
               </article>
-              <article>
+              <article className="rounded-xl border border-myr-ink/10 bg-myr-session-control/56 px-3 py-3">
                 <h3>制約</h3>
-                <p>ReadOnlyの見出しリンク、直前削除、任意ターン巻き戻し、入力待ちを見える化します。</p>
+                <p className="m-0 max-w-none">ReadOnlyの見出しリンク、直前削除、任意ターン巻き戻し、入力待ちを見える化します。</p>
               </article>
             </section>
           </div>
@@ -1176,7 +1137,7 @@ function SessionDialogueSection({
 
       {notesView === 'full' && (
         <section className="col-[2/-1] z-2 grid min-h-[calc(100vh-150px)] grid-rows-[auto_minmax(0,1fr)] rounded-myr-panel border border-myr-ink/16 bg-myr-paper-bright p-myr-card-inset shadow-[0_24px_70px_rgba(18,16,25,.16)] max-myr-workspace:col-start-1" aria-label="ノート集中表示" data-testid="session-notes-focus">
-          <div className="mb-2.5 flex items-center justify-end gap-2.5" aria-label="ノート表示設定">
+          <div className="mb-2.5 flex items-center justify-end gap-3" aria-label="ノート表示設定">
             <Button variant="secondary" size="sm" onClick={() => setNotesViewMode('hidden')}>ノートを非表示</Button>
             <Button variant="primary" size="sm" onClick={() => setNotesViewMode(isNarrowViewport ? 'hidden' : 'split')}>
               {isNarrowViewport ? '閉じる' : 'ターン画面に戻る'}
@@ -1187,8 +1148,8 @@ function SessionDialogueSection({
       )}
 
       {notesView === 'split' && (
-        <aside className={`${wizardSummaryClass} grid h-[calc(100vh-150px)] min-h-0 min-w-75 w-[var(--notes-rail-width,340px)] grid-rows-[auto_minmax(0,1fr)] self-stretch overflow-hidden`} aria-label="セッションノート">
-          <div className="mb-2.5 flex items-center justify-end gap-2.5" aria-label="ノート表示設定">
+        <SummaryInset as="aside" className={`${wizardSummaryClass} grid h-[calc(100vh-150px)] min-h-0 min-w-75 w-[var(--notes-rail-width,340px)] grid-rows-[auto_minmax(0,1fr)] self-stretch overflow-hidden`} aria-label="セッションノート">
+          <div className="mb-2.5 flex items-center justify-end gap-3" aria-label="ノート表示設定">
             <label className="flex items-center gap-2 text-myr-caption font-black text-myr-slate-muted">
               表示比率
               <input
@@ -1206,7 +1167,7 @@ function SessionDialogueSection({
             <Button variant="primary" size="sm" onClick={() => setNotesViewMode('full')}>全画面表示</Button>
           </div>
           <SessionNotesWorkspace mode="side" />
-        </aside>
+        </SummaryInset>
       )}
     </div>
     </AppChrome>

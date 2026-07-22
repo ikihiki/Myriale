@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, surfaceRecipe, textRecipe } from '../../components/ui';
+import { Button, DarkPanel, HomeCard, HomePanel, Label } from '../../components/ui';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { useAppNavigation, type StoryKey } from '../../shared/nav';
 import {
@@ -44,12 +44,7 @@ const fallbackDb = createDemoDb('resumableSession');
 const crumbs: Crumb[] = [{ label: 'Myriale' }, { label: 'ホーム' }];
 
 
-const homePanelClassName = surfaceRecipe({ role: 'panel', variant: 'home' });
 const homeSectionHeadClassName = 'flex flex-wrap items-center justify-between gap-3.5';
-const homeCardClassName = surfaceRecipe({ role: 'card', variant: 'home' });
-const homeCardLabelClassName = `${textRecipe('eyebrowData')} !tracking-[.08em] !text-[#6f4fd8]`;
-const homeCardTitleClassName = `m-0 ${textRecipe('sectionEditorial')} !text-[25px] !leading-[1.08] !tracking-myr-display`;
-const homeCardCopyClassName = `m-0 ${textRecipe('body')} !leading-[1.58]`;
 const homeCardMetaClassName = 'leading-[1.45] text-myr-ink-subtle';
 const homeCardActionsClassName = 'mt-2 flex flex-wrap items-center gap-2.5 self-end max-myr-home-compact:[&>button]:w-full';
 
@@ -148,8 +143,9 @@ export function HomePage() {
               </Button>
             </div>
           </div>
-          <aside
-            className={`relative z-1 grid min-h-57.5 self-center gap-2.5 ${surfaceRecipe({ role: 'dark' })} max-myr-home-stack:min-h-0`}
+          <DarkPanel
+            as="aside"
+            className="relative z-1 grid min-h-57.5 self-center gap-2.5 max-myr-home-stack:min-h-0"
             aria-label="現在の活動概要"
           >
             <span className="text-myr-caption font-black tracking-[.18em] text-[#c6b7d9] uppercase">Desk ledger</span>
@@ -167,16 +163,16 @@ export function HomePage() {
                 <dd className="m-0 font-black text-myr-gold">{vm.publishedScenarioCount}</dd>
               </div>
             </dl>
-          </aside>
+          </DarkPanel>
         </section>
 
-        <section className={homePanelClassName} aria-label="中断しているセッション">
+        <HomePanel as="section" aria-label="中断しているセッション">
           <div className={homeSectionHeadClassName}>
             <div className="grid gap-0.5">
               <p className="kicker m-0">Continue</p>
-              <h2 className={`m-0 ${textRecipe('sectionEditorial')}`}>
+              <Label as="h2" textRole="sectionEditorial" className="m-0">
                 中断しているセッション
-              </h2>
+              </Label>
             </div>
             <Button type="button" variant="text" className="mt-2.5" onClick={() => go('resumeSession')}>
               すべて見る
@@ -186,38 +182,38 @@ export function HomePage() {
           <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-3.5">
             {vm.resumableSessions.length > 0 ? (
               vm.resumableSessions.map((session) => (
-                <article className={homeCardClassName} key={session.id} data-testid={`home-session-${session.id}`}>
-                  <span className={homeCardLabelClassName}>{session.stateLabel} / {session.turnLabel}</span>
-                  <h3 className={homeCardTitleClassName}>{session.scenarioTitle}</h3>
-                  <p className={homeCardCopyClassName}>{session.summary}</p>
+                <HomeCard as="article" key={session.id} data-testid={`home-session-${session.id}`}>
+                  <Label textRole="eyebrowData" className="!tracking-[.08em] !text-[#6f4fd8]">{session.stateLabel} / {session.turnLabel}</Label>
+                  <Label as="h3" textRole="sectionEditorial" className="m-0 !text-[25px] !leading-[1.08] !tracking-myr-display">{session.scenarioTitle}</Label>
+                  <Label as="p" textRole="body" className="m-0 !leading-[1.58]">{session.summary}</Label>
                   <small className={homeCardMetaClassName}>{session.hero}</small>
                   <div className={homeCardActionsClassName}>
                     <Button variant="primary" onClick={() => go(session.destination)}>
                       {session.resumeLabel}
                     </Button>
                   </div>
-                </article>
+                </HomeCard>
               ))
             ) : (
-              <article className={`${homeCardClassName} border-dashed bg-[rgba(220,231,242,.36)]`}>
-                <span className={homeCardLabelClassName}>Ready</span>
-                <h3 className={homeCardTitleClassName}>再開待ちのセッションはありません</h3>
-                <p className={homeCardCopyClassName}>シナリオを選んで、新しい物語の準備を始められます。</p>
+              <HomeCard as="article" className="border-dashed bg-[rgba(220,231,242,.36)]">
+                <Label textRole="eyebrowData" className="!tracking-[.08em] !text-[#6f4fd8]">Ready</Label>
+                <Label as="h3" textRole="sectionEditorial" className="m-0 !text-[25px] !leading-[1.08] !tracking-myr-display">再開待ちのセッションはありません</Label>
+                <Label as="p" textRole="body" className="m-0 !leading-[1.58]">シナリオを選んで、新しい物語の準備を始められます。</Label>
                 <div className={homeCardActionsClassName}>
                   <Button variant="primary" onClick={() => go('startSession')}>シナリオを探す</Button>
                 </div>
-              </article>
+              </HomeCard>
             )}
           </div>
-        </section>
+        </HomePanel>
 
-        <section className={homePanelClassName} aria-label="おすすめのシナリオ">
+        <HomePanel as="section" aria-label="おすすめのシナリオ">
           <div className={homeSectionHeadClassName}>
             <div className="grid gap-0.5">
               <p className="kicker m-0">Recommended</p>
-              <h2 className={`m-0 ${textRecipe('sectionEditorial')}`}>
+              <Label as="h2" textRole="sectionEditorial" className="m-0">
                 おすすめのシナリオ
-              </h2>
+              </Label>
             </div>
             <Button type="button" variant="text" className="mt-2.5" onClick={() => go('startSession')}>
               検索画面へ
@@ -226,19 +222,19 @@ export function HomePage() {
 
           <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-3.5">
             {vm.recommendedScenarios.map((scenario) => (
-              <article className={homeCardClassName} key={scenario.id} data-testid={`home-scenario-${scenario.id}`}>
-                <span className={homeCardLabelClassName}>{scenario.visibilityLabel} / {scenario.id}</span>
-                <h3 className={homeCardTitleClassName}>{scenario.title}</h3>
-                <p className={homeCardCopyClassName}>{scenario.summary ?? scenario.genre}</p>
+              <HomeCard as="article" key={scenario.id} data-testid={`home-scenario-${scenario.id}`}>
+                <Label textRole="eyebrowData" className="!tracking-[.08em] !text-[#6f4fd8]">{scenario.visibilityLabel} / {scenario.id}</Label>
+                <Label as="h3" textRole="sectionEditorial" className="m-0 !text-[25px] !leading-[1.08] !tracking-myr-display">{scenario.title}</Label>
+                <Label as="p" textRole="body" className="m-0 !leading-[1.58]">{scenario.summary ?? scenario.genre}</Label>
                 <small className={homeCardMetaClassName}>{scenario.updatedLabel}</small>
                 <div className={homeCardActionsClassName}>
                   <Button variant="primary" onClick={() => startRecommendedScenario(scenario)}>このシナリオで開始</Button>
                   <Button variant="secondary" onClick={() => go('scenarioEdit')}>詳細を編集</Button>
                 </div>
-              </article>
+              </HomeCard>
             ))}
           </div>
-        </section>
+        </HomePanel>
       </main>
     </AppChrome>
   );

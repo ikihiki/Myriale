@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Button, Notice, surfaceRecipe } from '../../components/ui';
+import { Button, Card, Label, Notice, SummaryCard, SummaryInset } from '../../components/ui';
 import { WizardNavigation } from '../../shared/WizardNavigation';
 import { scenarioWizardShellClass, wizardButtonRowClass, wizardKickerClass, wizardNoticeClass, wizardPanelClass, wizardPaperClass, wizardSummaryClass } from '../../shared/scenarioWizardStyles';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
@@ -152,7 +152,7 @@ const suspendedSessions: SuspendedSession[] = [
 ];
 
 const playerAccount = { name: '霧野しおり', email: 'reader@myriale.example', initials: '霧野', role: 'プレイヤー' };
-const resumeCardClassName = `${surfaceRecipe({ role: 'card' })} my-3 [&>span]:text-myr-caption [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-myr-ruby [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-4.5 [&_ul]:text-myr-ink-soft`;
+const resumeCardClassName = 'my-3 [&>span]:text-myr-caption [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-myr-ruby [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-4.5 [&_ul]:text-myr-ink-soft';
 
 export function SessionResumePage() {
   const appNavigate = useAppNavigation();
@@ -253,7 +253,7 @@ export function SessionResumePage() {
         />
 
         <main className={wizardPaperClass} aria-label="セッション再開アプリ画面">
-          <p className={wizardKickerClass}>Session resume / Continue your story</p>
+          <Label as="p" textRole="eyebrow" className={wizardKickerClass}>Session resume / Continue your story</Label>
           <Notice className={wizardNoticeClass} data-testid="resume-notice">
             {notice}
           </Notice>
@@ -266,7 +266,7 @@ export function SessionResumePage() {
               </p>
               <div className="mt-3.5 grid gap-3" data-testid="session-list">
                 {activeSessions.map((session) => (
-                  <article
+                  <Card as="article"
                     className={resumeCardClassName}
                     key={session.id}
                     data-testid={`session-card-${session.id}`}
@@ -282,10 +282,10 @@ export function SessionResumePage() {
                     <Button variant="primary" size="sm" onClick={openActiveSession}>
                       {session.scenarioTitle}のプレイ画面へ
                     </Button>
-                  </article>
+                  </Card>
                 ))}
                 {suspendedSessions.map((session) => (
-                  <article
+                  <Card as="article"
                     className={resumeCardClassName}
                     key={session.id}
                     data-testid={`session-card-${session.id}`}
@@ -303,7 +303,7 @@ export function SessionResumePage() {
                     <Button variant="primary" size="sm" onClick={() => selectSession(session)}>
                       {session.scenarioTitle}を再開
                     </Button>
-                  </article>
+                  </Card>
                 ))}
               </div>
             </section>
@@ -316,10 +316,10 @@ export function SessionResumePage() {
                 AI要約のあらすじ、進行度、復元されるAIコンテキスト、中断中の変更点を見てから再開できます。
               </p>
 
-              <article className={resumeCardClassName} data-testid="recap">
+              <Card as="article" className={resumeCardClassName} data-testid="recap">
                 <h2>これまでのあらすじ（AI要約）</h2>
                 <p>{selected.recap}</p>
-              </article>
+              </Card>
 
               <dl className="my-3 grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3 [&_div]:rounded-2xl [&_div]:border [&_div]:border-myr-line-soft [&_div]:bg-myr-paper-glass [&_div]:px-3.5 [&_div]:py-3 [&_dt]:m-0 [&_dt]:text-xs [&_dt]:font-extrabold [&_dt]:tracking-myr-label [&_dt]:text-myr-ink-subtle [&_dd]:mb-0 [&_dd]:mt-1.5 [&_dd]:font-serif [&_dd]:text-[22px] [&_dd]:tracking-[-0.02em]" data-testid="progress">
                 <div>
@@ -336,7 +336,7 @@ export function SessionResumePage() {
                 </div>
               </dl>
 
-              <article className={resumeCardClassName} data-testid="context">
+              <Card as="article" className={resumeCardClassName} data-testid="context">
                 <h2>復元されるAIコンテキスト</h2>
                 <p>食い違いを防ぐため、再開時に以下の文脈を復元します。</p>
                 <ul>
@@ -344,7 +344,7 @@ export function SessionResumePage() {
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
-              </article>
+              </Card>
 
               <article
                 className={`my-3 rounded-myr-card border p-4 [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-4.5 [&_ul]:text-myr-ink-soft ${selected.changes.length === 0 ? 'border-[rgba(74,132,92,0.32)] bg-[rgba(232,245,233,0.8)]' : 'border-[rgba(184,74,74,0.3)] bg-[rgba(255,240,224,0.8)]'}`}
@@ -382,10 +382,10 @@ export function SessionResumePage() {
                 <strong>ReadOnlyモードで表示しています。</strong>
                 再開せずに、これまでの全Turn（Turn 1〜{turnCountOf(selected)}）を読み返せます。入力欄は無く、Session状態はSuspendedのまま変化しません。
               </p>
-              <article className={resumeCardClassName} data-testid="recap">
+              <Card as="article" className={resumeCardClassName} data-testid="recap">
                 <h2>これまでのあらすじ（AI要約）</h2>
                 <p>{selected.recap}</p>
-              </article>
+              </Card>
               <div
                 className="my-3.5 grid max-h-90 gap-2.5 overflow-y-auto p-1"
                 aria-label={`全Turnログ（Turn 1〜${turnCountOf(selected)}）`}
@@ -424,29 +424,29 @@ export function SessionResumePage() {
           )}
         </main>
 
-        <aside className={wizardSummaryClass} aria-label="セッション状態サマリー">
+        <SummaryInset as="aside" className={wizardSummaryClass} aria-label="セッション状態サマリー">
           <h2>Session</h2>
-          <article className={surfaceRecipe({ role: 'card', variant: 'summary' })}>
+          <SummaryCard as="article">
             <h3>状態</h3>
             <p data-testid="summary-state">{sessionState}</p>
             <p>{selected ? selected.id : '未選択'}</p>
-          </article>
-          <article className={surfaceRecipe({ role: 'card', variant: 'summary' })}>
+          </SummaryCard>
+          <SummaryCard as="article">
             <h3>Scenario</h3>
             <p data-testid="summary-scenario">{selected ? selected.scenarioTitle : '一覧から選択してください'}</p>
             <p>{selected ? selected.genre : ''}</p>
-          </article>
-          <article className={surfaceRecipe({ role: 'card', variant: 'summary' })}>
+          </SummaryCard>
+          <SummaryCard as="article">
             <h3>進行度</h3>
             <p data-testid="summary-progress">
               {selected ? `Turn ${turnCountOf(selected)} / ${selected.playtime}` : '—'}
             </p>
-          </article>
-          <article className={surfaceRecipe({ role: 'card', variant: 'summary' })}>
+          </SummaryCard>
+          <SummaryCard as="article">
             <h3>主人公</h3>
             <p>{selected ? selected.hero : '—'}</p>
-          </article>
-        </aside>
+          </SummaryCard>
+        </SummaryInset>
       </div>
     </AppChrome>
   );

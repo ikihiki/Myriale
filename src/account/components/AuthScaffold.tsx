@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { surfaceRecipe } from '../../components/ui';
+import { AccountInset, AccountPanel } from '../../components/ui';
 import { DeskBrand } from './DeskBrand';
 import { SectionHead } from './SectionHead';
 
@@ -22,10 +22,7 @@ export function AuthScaffold({
 }) {
   return (
     <div className="grid grid-cols-[minmax(360px,480px)_minmax(0,360px)] items-start justify-center gap-4.5 px-5.5 py-myr-page-fluid-y max-myr-account:grid-cols-[minmax(0,480px)]">
-      <main
-        className={`${surfaceRecipe({ role: 'panel', variant: 'account' })} [&_.desk-brand]:mb-5.5`}
-        aria-label={ariaLabel}
-      >
+      <AccountPanel as="main" className="[&_.desk-brand]:mb-5.5" aria-label={ariaLabel}>
         <DeskBrand />
         <SectionHead kicker={kicker} title={title} lead={lead} />
         {children}
@@ -34,14 +31,15 @@ export function AuthScaffold({
             {footer}
           </div>
         )}
-      </main>
+      </AccountPanel>
       {context && (
-        <aside
-          className={`${surfaceRecipe({ role: 'inset', variant: 'account' })} [&_.identity-seal]:mt-1 [&_.identity-seal]:mb-4.5 [&_h3]:mt-0 [&_h3]:mb-3.5 [&_h3]:font-[Georgia,serif] [&_h3]:text-2xl [&_li]:my-3 [&_li]:leading-6 [&_li]:text-[#5f506c] [&_ol]:m-0 [&_ol]:pl-4.5 [&_ul]:m-0 [&_ul]:pl-4.5`}
+        <AccountInset
+          as="aside"
+          className="[&_.identity-seal]:mt-1 [&_.identity-seal]:mb-4.5 [&_h3]:mt-0 [&_h3]:mb-3.5 [&_h3]:font-[Georgia,serif] [&_h3]:text-2xl [&_li]:my-3 [&_li]:leading-6 [&_li]:text-[#5f506c] [&_ol]:m-0 [&_ol]:pl-4.5 [&_ul]:m-0 [&_ul]:pl-4.5"
           aria-label="補足情報"
         >
           {context}
-        </aside>
+        </AccountInset>
       )}
     </div>
   );

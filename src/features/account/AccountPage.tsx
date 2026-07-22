@@ -1,5 +1,5 @@
 import { FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
-import { Badge, Button as SharedButton, surfaceRecipe, textRecipe } from '../../components/ui';
+import { AccountCard, AccountFlushCard, AccountPanel, Badge, Button as SharedButton, Label } from '../../components/ui';
 import {
   AppFrame,
   AuthScaffold,
@@ -40,10 +40,7 @@ type Notice = { tone?: NoticeTone; message: string } | null;
 
 const protectedViews = new Set<AccountView>(['profile', 'profile-edit', 'security', 'export', 'withdraw']);
 
-const accountCardClassName = surfaceRecipe({ role: 'card', variant: 'account' });
-const accountFlushCardClassName = surfaceRecipe({ role: 'card', variant: 'accountFlush' });
 const accountActionRowClassName = 'mt-1.5 flex flex-wrap items-center gap-2.5';
-const accountCardHeadingClassName = `m-0 mb-3.5 ${textRecipe('sectionEditorial')} !text-[22px] !tracking-[-.02em]`;
 const providerTableHeadClassName = 'border-b border-myr-line-strong bg-[rgba(124,92,255,.06)] px-4 py-3 text-left text-myr-caption font-extrabold tracking-[.1em] text-myr-account-ink-soft uppercase';
 const providerTableCellClassName = 'border-b border-myr-line px-4 py-3.25 align-middle';
 const operationsNavButtonClassName = 'cursor-pointer rounded-full border border-transparent bg-[rgba(255,250,240,.08)] px-3.5 py-3 text-left font-bold text-myr-cream transition-colors duration-150 hover:bg-[rgba(255,250,240,.16)]';
@@ -202,7 +199,7 @@ function ResetPasswordPage({ api, onLogin }: { api: AccountApi; onLogin: () => v
 }
 
 function ProtectedAccountFrame({ view, user, status, onNavigate, onLogout, children }: { view: AccountView; user: AccountUser | null; status: string; onNavigate: (view: AccountView) => void; onLogout: () => void; children: ReactNode }) {
-  if (status === 'unknown') return <div className="grid grid-cols-[minmax(360px,480px)] justify-center px-5.5 py-myr-page-fluid-y"><main className={surfaceRecipe({ role: 'panel', variant: 'account' })} aria-busy="true">認証状態を確認しています…</main></div>;
+  if (status === 'unknown') return <div className="grid grid-cols-[minmax(360px,480px)] justify-center px-5.5 py-myr-page-fluid-y"><AccountPanel as="main" aria-busy="true">認証状態を確認しています…</AccountPanel></div>;
   if (!user) return <AuthScaffold ariaLabel="ログインが必要" kicker="Account" title="ログインが必要です" lead="この画面を表示するにはログインしてください。"><Button variant="primary" onClick={() => onNavigate('login')}>ログインへ</Button></AuthScaffold>;
   return (
     <AppFrame
@@ -219,7 +216,7 @@ function ProtectedAccountFrame({ view, user, status, onNavigate, onLogout, child
 }
 
 function ProfileView({ user, onEdit }: { user: AccountUser; onEdit: () => void }) {
-  return <section className={accountCardClassName} role="region" aria-label="プロフィール"><SectionHead kicker="US-UM08" title="プロフィール" lead="Identity に保存されたアカウント情報です。" /><DefinitionList items={[{ term: 'User ID', value: <span data-testid="issued-user-id">{user.id}</span> }, { term: '表示名', value: user.displayName }, { term: 'メール', value: user.email }, { term: '状態', value: user.state === 'active' ? '有効' : user.state }, { term: '自己紹介', value: user.bio || '未設定' }]} /><div className={accountActionRowClassName}><Button variant="primary" onClick={onEdit}>プロフィールを編集する</Button></div></section>;
+  return <AccountCard as="section" role="region" aria-label="プロフィール"><SectionHead kicker="US-UM08" title="プロフィール" lead="Identity に保存されたアカウント情報です。" /><DefinitionList items={[{ term: 'User ID', value: <span data-testid="issued-user-id">{user.id}</span> }, { term: '表示名', value: user.displayName }, { term: 'メール', value: user.email }, { term: '状態', value: user.state === 'active' ? '有効' : user.state }, { term: '自己紹介', value: user.bio || '未設定' }]} /><div className={accountActionRowClassName}><Button variant="primary" onClick={onEdit}>プロフィールを編集する</Button></div></AccountCard>;
 }
 
 function EditProfileView({ api, user, onSaved }: { api: AccountApi; user: AccountUser; onSaved: (user: AccountUser) => void }) {
@@ -231,15 +228,15 @@ function EditProfileView({ api, user, onSaved }: { api: AccountApi; user: Accoun
     setError(null);
     try { onSaved(await api.updateProfile({ displayName, bio })); } catch (caught) { setError(caught as AccountApiError); }
   };
-  return <section className={accountCardClassName} role="region" aria-label="プロフィール編集"><SectionHead kicker="US-UM09" title="プロフィール編集" lead="表示名と自己紹介を更新します。" />{error && <NoticeBanner tone="danger" testId="um-notice">{error.message}</NoticeBanner>}<form onSubmit={submit}><TextField label="表示名" value={displayName} onChange={setDisplayName} error={firstFieldError(error, 'displayName')} /><TextAreaField label="自己紹介" value={bio} onChange={setBio} error={firstFieldError(error, 'bio')} /><div className={accountActionRowClassName}><Button type="submit" variant="primary">保存する</Button></div></form></section>;
+  return <AccountCard as="section" role="region" aria-label="プロフィール編集"><SectionHead kicker="US-UM09" title="プロフィール編集" lead="表示名と自己紹介を更新します。" />{error && <NoticeBanner tone="danger" testId="um-notice">{error.message}</NoticeBanner>}<form onSubmit={submit}><TextField label="表示名" value={displayName} onChange={setDisplayName} error={firstFieldError(error, 'displayName')} /><TextAreaField label="自己紹介" value={bio} onChange={setBio} error={firstFieldError(error, 'bio')} /><div className={accountActionRowClassName}><Button type="submit" variant="primary">保存する</Button></div></form></AccountCard>;
 }
 
 function SecurityView() {
-  return <section className={accountCardClassName} role="region" aria-label="セキュリティ"><SectionHead kicker="Security" title="セキュリティ設定" lead="パスワード、ログイン履歴、外部ログイン連携の土台です。" /><NoticeBanner tone="warning">MVPでは ASP.NET Core Identity の cookie セッションとパスワード認証を利用しています。OAuth と他端末ログアウトは Phase 2 で接続します。</NoticeBanner></section>;
+  return <AccountCard as="section" role="region" aria-label="セキュリティ"><SectionHead kicker="Security" title="セキュリティ設定" lead="パスワード、ログイン履歴、外部ログイン連携の土台です。" /><NoticeBanner tone="warning">MVPでは ASP.NET Core Identity の cookie セッションとパスワード認証を利用しています。OAuth と他端末ログアウトは Phase 2 で接続します。</NoticeBanner></AccountCard>;
 }
 
 function ExportView() {
-  return <section className={accountCardClassName} role="region" aria-label="データ書き出し"><SectionHead kicker="Phase 3" title="データ書き出し" lead="エクスポートジョブとダウンロードは後続フェーズで実装します。" /></section>;
+  return <AccountCard as="section" role="region" aria-label="データ書き出し"><SectionHead kicker="Phase 3" title="データ書き出し" lead="エクスポートジョブとダウンロードは後続フェーズで実装します。" /></AccountCard>;
 }
 
 function WithdrawView({ api, user, onWithdrawn }: { api: AccountApi; user: AccountUser; onWithdrawn: () => void }) {
@@ -251,7 +248,7 @@ function WithdrawView({ api, user, onWithdrawn }: { api: AccountApi; user: Accou
     setError(null);
     try { await api.withdraw({ confirmation }); onWithdrawn(); } catch (caught) { setError(caught as AccountApiError); }
   };
-  return <section className={`${accountCardClassName} border-[rgba(184,69,63,.4)] bg-[linear-gradient(180deg,rgba(255,250,240,.94),#fdeeec)] [&_h2]:text-[var(--seal)]`} role="region" aria-label="退会"><SectionHead kicker="US-UM11" title="退会" lead="アカウントを soft delete し、Identity セッションをサインアウトします。" />{error && <NoticeBanner tone="danger" testId="um-notice">{error.message}</NoticeBanner>}<label className="my-3 flex items-start gap-2.5 text-sm"><input className="mt-0.5 size-4.5 shrink-0 accent-myr-iris" type="checkbox" checked={understood} onChange={(event) => setUnderstood(event.target.checked)} />退会の注意事項を理解しました</label><TextField label="確認のため登録メールアドレスを入力" value={confirmation} onChange={setConfirmation} error={firstFieldError(error, 'confirmation')} testId="withdraw-confirmation" /><div className={accountActionRowClassName}><Button variant="danger" disabled={!canDelete} onClick={submit}>アカウントを削除する</Button></div></section>;
+  return <AccountCard as="section" className="border-[rgba(184,69,63,.4)] bg-[linear-gradient(180deg,rgba(255,250,240,.94),#fdeeec)] [&_h2]:text-[var(--seal)]" role="region" aria-label="退会"><SectionHead kicker="US-UM11" title="退会" lead="アカウントを soft delete し、Identity セッションをサインアウトします。" />{error && <NoticeBanner tone="danger" testId="um-notice">{error.message}</NoticeBanner>}<label className="my-3 flex items-start gap-2.5 text-sm"><input className="mt-0.5 size-4.5 shrink-0 accent-myr-iris" type="checkbox" checked={understood} onChange={(event) => setUnderstood(event.target.checked)} />退会の注意事項を理解しました</label><TextField label="確認のため登録メールアドレスを入力" value={confirmation} onChange={setConfirmation} error={firstFieldError(error, 'confirmation')} testId="withdraw-confirmation" /><div className={accountActionRowClassName}><Button variant="danger" disabled={!canDelete} onClick={submit}>アカウントを削除する</Button></div></AccountCard>;
 }
 
 function RoadmapAuthPage({ title, lead, onLogin }: { title: string; lead: string; onLogin: () => void }) {
@@ -264,7 +261,7 @@ function OperationsPage({ view, onNavigate }: { view: AccountView; onNavigate: (
 }
 
 function RoadmapOperationsView({ title }: { title: string }) {
-  return <section className={accountCardClassName} role="region" aria-label={title}><SectionHead kicker="Phase 2/3" title={title} lead="管理者機能は Identity roles/claims と認可 policy を決めてから接続します。" /><NoticeBanner tone="warning">MVPではAIキー管理とシナリオ作成補助AIのモック接続を先に実装しています。</NoticeBanner></section>;
+  return <AccountCard as="section" role="region" aria-label={title}><SectionHead kicker="Phase 2/3" title={title} lead="管理者機能は Identity roles/claims と認可 policy を決めてから接続します。" /><NoticeBanner tone="warning">MVPではAIキー管理とシナリオ作成補助AIのモック接続を先に実装しています。</NoticeBanner></AccountCard>;
 }
 
 function AdminAiKeysView() {
@@ -312,12 +309,12 @@ function AdminAiKeysView() {
     try { await api.deleteKey(target); await reload(); setNotice('管理画面で保存したAIキーを削除しました。'); } catch (caught) { setError(caught as AdminAiApiError); } finally { setBusy(false); }
   };
 
-  return <section className={accountCardClassName} role="region" aria-label="AIキー管理">
+  return <AccountCard as="section" role="region" aria-label="AIキー管理">
     <SectionHead kicker="Admin / AI Providers" title="AI Provider管理" lead="OpenAIまたはRunpodの接続状態を確認し、必要に応じてAPIキーを登録します。" />
     <NoticeBanner tone={error ? 'danger' : 'info'} testId="ai-key-notice">{error?.message ?? notice}</NoticeBanner>
     <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
-      <div className={accountCardClassName}>
-        <h2 className={accountCardHeadingClassName}>管理画面からキーを登録</h2>
+      <AccountCard>
+        <Label as="h2" textRole="sectionEditorial" className="m-0 mb-3.5 !text-[22px] !tracking-[-.02em]">管理画面からキーを登録</Label>
         <div className="my-4 grid gap-1.75">
           <label className="text-myr-ui-sm font-extrabold text-[#4a4357]" htmlFor="ai-provider">Provider</label>
           <select className="w-full rounded-2xl border border-myr-line bg-myr-paper-bright px-3.5 py-3 text-myr-ink" id="ai-provider" value={provider} onChange={(event) => changeProvider(event.target.value)}>
@@ -330,9 +327,9 @@ function AdminAiKeysView() {
         <TextField label="APIキー" value={secret} onChange={setSecret} placeholder={provider === 'runpod' ? 'rpa_...' : 'sk-...'} error={firstAdminAiFieldError(error, 'secret')} />
         <p className="m-0 text-xs leading-normal text-myr-account-ink-soft">Vaultまたは環境変数で設定済みの場合、ここで同じキーを再登録する必要はありません。</p>
         <div className={accountActionRowClassName}><Button variant="primary" onClick={save} disabled={busy || !secret.trim()}>キーを保存</Button></div>
-      </div>
-      <div className={accountCardClassName}>
-        <h2 className={accountCardHeadingClassName}>設定の優先順位</h2>
+      </AccountCard>
+      <AccountCard>
+        <Label as="h2" textRole="sectionEditorial" className="m-0 mb-3.5 !text-[22px] !tracking-[-.02em]">設定の優先順位</Label>
         <ol className="m-0 mb-4 grid list-none gap-3.5 p-0">
           <li className="grid grid-cols-[30px_1fr] items-start gap-x-2.5 gap-y-0.5">
             <span className="row-span-2 grid size-7 place-items-center rounded-full bg-myr-ink font-mono text-xs font-extrabold text-white">1</span>
@@ -346,9 +343,9 @@ function AdminAiKeysView() {
           </li>
         </ol>
         <p className="text-myr-account-ink-soft">「使用中」は現在Narrative生成に選択されているProviderです。</p>
-      </div>
+      </AccountCard>
     </div>
-    <div className={`${accountFlushCardClassName} mt-4 overflow-x-auto`}>
+    <AccountFlushCard className="mt-4 overflow-x-auto">
       <table className="w-full min-w-160 border-collapse text-sm" aria-label="AIキー一覧">
         <thead><tr><th className={providerTableHeadClassName}>Provider</th><th className={providerTableHeadClassName}>接続設定</th><th className={providerTableHeadClassName}>キー</th><th className={providerTableHeadClassName}>検証状態</th><th className={providerTableHeadClassName}>操作</th></tr></thead>
         <tbody>{keys.map((key) => (
@@ -361,8 +358,8 @@ function AdminAiKeysView() {
           </tr>
         ))}</tbody>
       </table>
-    </div>
-  </section>;
+    </AccountFlushCard>
+  </AccountCard>;
 }
 
 function AuthHints() {

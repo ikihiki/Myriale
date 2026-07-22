@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Button, Input, Notice, Textarea, surfaceRecipe } from '../../components/ui';
+import { Button, Input, Label, Notice, SummaryCard, SummaryInset, Textarea } from '../../components/ui';
 import { ScenarioProgressControls } from '../../ScenarioProgressControls';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { WizardNavigation } from '../../shared/WizardNavigation';
@@ -247,7 +247,7 @@ export function ScenarioRegistrationPage({ api }: { api?: ScenarioApi } = {}) {
       />
 
       <main className={wizardPaperClass} aria-label="シナリオ登録ウィザード">
-        <p className={wizardKickerClass}>Scenario Forge / Wizard registration</p>
+        <Label as="p" textRole="eyebrow" className={wizardKickerClass}>Scenario Forge / Wizard registration</Label>
         <Notice className={wizardNoticeClass} tone={saveError ? 'danger' : 'info'} data-testid="scenario-notice">{notice}</Notice>
 
         <div className={wizardProgressClass} aria-label="ウィザード進捗">
@@ -353,7 +353,7 @@ export function ScenarioRegistrationPage({ api }: { api?: ScenarioApi } = {}) {
         </nav>
       </main>
 
-      <aside className={wizardSummaryClass} aria-label="入力サマリー">
+      <SummaryInset as="aside" className={wizardSummaryClass} aria-label="入力サマリー">
         <h2>サマリー</h2>
         <MyrialeSelect
           label="相談先AI"
@@ -365,16 +365,16 @@ export function ScenarioRegistrationPage({ api }: { api?: ScenarioApi } = {}) {
             { value: 'ルール確認AI', label: 'ルール確認AI' },
           ]}
         />
-        <article className={surfaceRecipe({ role: 'card', variant: 'summary' })}><h3>表紙</h3><p>{title || 'タイトル未入力'}</p><p>{summary || '概要は空でも保存できます'}</p></article>
-        <article className={surfaceRecipe({ role: 'card', variant: 'summary' })}><h3>この登録でAIが読む契約</h3><p>Genre: {genre}</p><p>Tone: {tone}</p><p>Lore: {lore.split('\n').filter(Boolean).length}項目</p><p>AI裁量: {aiFreedom}</p></article>
+        <SummaryCard as="article"><h3>表紙</h3><p>{title || 'タイトル未入力'}</p><p>{summary || '概要は空でも保存できます'}</p></SummaryCard>
+        <SummaryCard as="article"><h3>この登録でAIが読む契約</h3><p>Genre: {genre}</p><p>Tone: {tone}</p><p>Lore: {lore.split('\n').filter(Boolean).length}項目</p><p>AI裁量: {aiFreedom}</p></SummaryCard>
         {activeStep.startsWith('as') && (
-          <article className={surfaceRecipe({ role: 'card', variant: 'summary' })} data-testid="advanced-summary"><h3>進行制御</h3><p>{currentStep.label}</p><p>{currentStep.help}</p></article>
+          <SummaryCard as="article" data-testid="advanced-summary"><h3>進行制御</h3><p>{currentStep.label}</p><p>{currentStep.help}</p></SummaryCard>
         )}
-        <article className={surfaceRecipe({ role: 'card', variant: 'summary' })}><h3>主人公と第一場面</h3><p>{hero}</p><p>{opening}</p></article>
-        <article className={surfaceRecipe({ role: 'card', variant: 'summary' })}><h3>挿絵</h3><p>{illustrationStyle}</p><p>NG: {negative}</p></article>
-        <article className={surfaceRecipe({ role: 'card', variant: 'summary' })} data-testid="ai-suggestion"><h3>提案候補</h3><p>{suggestion}</p></article>
-        <article className={surfaceRecipe({ role: 'card', variant: 'summary' })} data-testid="illustration-preview"><h3>挿絵プレビュー</h3><p>{preview}</p></article>
-      </aside>
+        <SummaryCard as="article"><h3>主人公と第一場面</h3><p>{hero}</p><p>{opening}</p></SummaryCard>
+        <SummaryCard as="article"><h3>挿絵</h3><p>{illustrationStyle}</p><p>NG: {negative}</p></SummaryCard>
+        <SummaryCard as="article" data-testid="ai-suggestion"><h3>提案候補</h3><p>{suggestion}</p></SummaryCard>
+        <SummaryCard as="article" data-testid="illustration-preview"><h3>挿絵プレビュー</h3><p>{preview}</p></SummaryCard>
+      </SummaryInset>
     </div>
     </AppChrome>
   );
