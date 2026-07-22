@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Button } from '../../components/ui';
 import type { ModuleExecution, ModuleExecutionApi, ModuleRuntimeUiDescriptor } from '../api/moduleExecutionApi';
 import { canDispatch, isModuleUiInbound, MODULE_UI_PROTOCOL, MODULE_UI_VERSION } from './protocol';
 import { createModuleFrameDocument } from './moduleFrameDocument';
@@ -122,6 +123,6 @@ export function ModuleUiHost({ execution, descriptor, api, onExecution, classNam
     <div className="flex items-center gap-2 bg-[#d6b26c] px-5 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-[#17202a]"><span aria-hidden="true">◇</span> sandbox · verified package · direct fetch blocked</div>
     <iframe className="block min-h-[180px] w-full border-0 bg-[#101720] transition-[height] duration-200 ease-[ease] motion-reduce:transition-none" key={frameKey} ref={iframeRef} title="Module runtime" sandbox="allow-scripts" srcDoc={createModuleFrameDocument(execution.id, window.location.origin, nonce, capability)} onLoad={() => void connect()} style={{ height }} />
     {phase === 'loading' && <div className={overlayClassName}>モジュール画面を封入しています…</div>}
-    {phase === 'error' && <div className={`${overlayClassName} text-[#f4d6ca]`}><strong>モジュール画面を開けません</strong><span>{error}</span><button className="justify-self-center cursor-pointer rounded-full border border-[#d6b26c] bg-transparent px-4 py-2 text-[#f0cc84]" type="button" onClick={reload}>再読込</button></div>}
+    {phase === 'error' && <div className={`${overlayClassName} text-[#f4d6ca]`}><strong>モジュール画面を開けません</strong><span>{error}</span><Button className="justify-self-center cursor-pointer rounded-full border border-[#d6b26c] bg-transparent px-4 py-2 text-[#f0cc84]" type="button" onClick={reload}>再読込</Button></div>}
   </section>;
 }

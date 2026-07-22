@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Input, Textarea } from './components/ui';
+import { Button, Input, Textarea } from './components/ui';
 import { MyrialeDialogContent, MyrialeDialogRoot } from './ui/MyrialeRadix';
 
 type Panel = 'cast' | 'locations' | 'beats' | 'secrets' | 'events' | 'debug' | 'test';
@@ -158,7 +158,7 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
     <>
       {panel === 'cast' && (
         <section className={panelClassName} aria-label="Cast候補">
-          <button className="primary" onClick={() => setDialog('cast')}>新規Cast</button>
+          <Button className="primary" onClick={() => setDialog('cast')}>新規Cast</Button>
           <table className="wire-table" aria-label="Cast候補テーブル">
             <thead><tr><th>人物名</th><th>役割・秘密</th><th>登場条件・生成ルール</th></tr></thead>
             <tbody>{casts.map((item) => <tr key={item.name}><td>{item.name}</td><td>{item.role}</td><td>{item.rule}</td></tr>)}</tbody>
@@ -168,7 +168,7 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
 
       {panel === 'locations' && (
         <section className={panelClassName} aria-label="Location候補">
-          <button className="primary" onClick={() => setDialog('location')}>新規Location</button>
+          <Button className="primary" onClick={() => setDialog('location')}>新規Location</Button>
           <table className="wire-table" aria-label="Location候補テーブル">
             <thead><tr><th>場所名</th><th>条件</th></tr></thead>
             <tbody>{locations.map((item) => <tr key={item.name}><td>{item.name}</td><td>{item.rule}</td></tr>)}</tbody>
@@ -178,7 +178,7 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
 
       {panel === 'beats' && (
         <section className={panelClassName} aria-label="ChapterとBeat">
-          <button className="primary" onClick={() => setDialog('beat')}>新規Beat</button>
+          <Button className="primary" onClick={() => setDialog('beat')}>新規Beat</Button>
           <table className="wire-table" aria-label="Beatテーブル">
             <thead><tr><th>Chapter</th><th>Beat</th><th>Entry / Exit</th><th>禁止事項</th></tr></thead>
             <tbody>{beats.map((item) => <tr key={`${item.chapter}-${item.beat}`}><td>{item.chapter}</td><td>{item.beat}</td><td>Entry: {item.entry}<br />Exit: {item.exit}</td><td>{item.forbidden}</td></tr>)}</tbody>
@@ -188,7 +188,7 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
 
       {panel === 'secrets' && (
         <section className={panelClassName} aria-label="HiddenBrief">
-          <button className="primary" onClick={() => setDialog('secret')}>新規HiddenBrief</button>
+          <Button className="primary" onClick={() => setDialog('secret')}>新規HiddenBrief</Button>
           <table className="wire-table" aria-label="HiddenBriefテーブル">
             <thead><tr><th>秘密</th><th>HiddenBrief</th><th>公開条件</th></tr></thead>
             <tbody>{secrets.map((item) => <tr key={item.title}><td>{item.title}</td><td>{item.hiddenBrief}</td><td>{item.revealCondition}</td></tr>)}</tbody>
@@ -198,7 +198,7 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
 
       {panel === 'events' && (
         <section className={panelClassName} aria-label="強制イベント">
-          <button className="primary" onClick={() => setDialog('event')}>新規強制イベント</button>
+          <Button className="primary" onClick={() => setDialog('event')}>新規強制イベント</Button>
           <table className="wire-table" aria-label="強制イベントテーブル">
             <thead><tr><th>イベント名</th><th>トリガー条件</th><th>内容</th></tr></thead>
             <tbody>{events.map((item) => <tr key={item.title}><td>{item.title}</td><td>{item.trigger}</td><td>{item.body}</td></tr>)}</tbody>
@@ -210,10 +210,10 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
         <section className={panelClassName} aria-label="進行デバッグ">
           <div className="grid gap-2.5 rounded-2xl border border-myr-ink/14 bg-[rgba(250,249,255,.7)] p-3.5" aria-label="補正操作">
             <div className="button-row">
-              <button className={controlButtonClass} onClick={() => runCorrection('reroute')}>誘導イベントを生成</button>
-              <button className={controlButtonClass} onClick={() => runCorrection('clue')}>補完イベントを生成</button>
-              <button className={primaryControlButtonClass} onClick={() => runCorrection('forced')}>条件付き強制イベントを発火</button>
-              <button className={controlButtonClass} onClick={refreshDebug}>参照情報を更新</button>
+              <Button className={controlButtonClass} onClick={() => runCorrection('reroute')}>誘導イベントを生成</Button>
+              <Button className={controlButtonClass} onClick={() => runCorrection('clue')}>補完イベントを生成</Button>
+              <Button className={primaryControlButtonClass} onClick={() => runCorrection('forced')}>条件付き強制イベントを発火</Button>
+              <Button className={controlButtonClass} onClick={refreshDebug}>参照情報を更新</Button>
             </div>
             <p className="m-0 text-xs text-myr-ink-subtle" data-testid="correction-state">補正状態: {correction}</p>
           </div>
@@ -224,7 +224,7 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
       {panel === 'test' && (
         <section className={panelClassName} aria-label="テスト実行">
           <label>テスト開始地点<Input aria-label="テスト開始地点" value={testStart} onChange={(event) => setTestStart(event.target.value)} /></label>
-          <div className="button-row"><button className="primary" onClick={startTest}>この地点からテスト開始</button></div>
+          <div className="button-row"><Button className="primary" onClick={startTest}>この地点からテスト開始</Button></div>
         </section>
       )}
     </>
@@ -237,7 +237,7 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
           <label>人物名<Input aria-label="人物名" value={castName} onChange={(event) => setCastName(event.target.value)} /></label>
           <label>役割・性格・秘密<Textarea aria-label="人物の役割と秘密" value={castRole} onChange={(event) => setCastRole(event.target.value)} /></label>
           <label>登場条件・生成ルール<Textarea aria-label="人物の登場条件" value={castRule} onChange={(event) => setCastRule(event.target.value)} /></label>
-          <div className="button-row"><button onClick={() => setDialog(null)}>キャンセル</button><button className="primary" onClick={saveCast}>Castを登録</button></div>
+          <div className="button-row"><Button onClick={() => setDialog(null)}>キャンセル</Button><Button className="primary" onClick={saveCast}>Castを登録</Button></div>
         </FieldDialog>
       )}
 
@@ -245,7 +245,7 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
         <FieldDialog title="Locationを追加" onClose={() => setDialog(null)}>
           <label>場所名<Input aria-label="場所名" value={locationName} onChange={(event) => setLocationName(event.target.value)} /></label>
           <label>場所の条件<Textarea aria-label="場所の条件" value={locationRule} onChange={(event) => setLocationRule(event.target.value)} /></label>
-          <div className="button-row"><button onClick={() => setDialog(null)}>キャンセル</button><button className="primary" onClick={saveLocation}>Locationを登録</button></div>
+          <div className="button-row"><Button onClick={() => setDialog(null)}>キャンセル</Button><Button className="primary" onClick={saveLocation}>Locationを登録</Button></div>
         </FieldDialog>
       )}
 
@@ -256,7 +256,7 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
           <label>Entry条件<Textarea aria-label="Entry条件" value={entry} onChange={(event) => setEntry(event.target.value)} /></label>
           <label>Exit条件<Textarea aria-label="Exit条件" value={exit} onChange={(event) => setExit(event.target.value)} /></label>
           <label>このBeatの禁止事項<Textarea aria-label="禁止事項" value={forbidden} onChange={(event) => setForbidden(event.target.value)} /></label>
-          <div className="button-row"><button onClick={() => setDialog(null)}>キャンセル</button><button className="primary" onClick={lockBeat}>Beatを固定</button></div>
+          <div className="button-row"><Button onClick={() => setDialog(null)}>キャンセル</Button><Button className="primary" onClick={lockBeat}>Beatを固定</Button></div>
         </FieldDialog>
       )}
 
@@ -265,7 +265,7 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
           <label>秘密の名前<Input aria-label="秘密の名前" value={secretTitle} onChange={(event) => setSecretTitle(event.target.value)} /></label>
           <label>HiddenBrief<Textarea aria-label="HiddenBrief" value={hiddenBrief} onChange={(event) => setHiddenBrief(event.target.value)} /></label>
           <label>公開条件<Textarea aria-label="公開条件" value={revealCondition} onChange={(event) => setRevealCondition(event.target.value)} /></label>
-          <div className="button-row"><button onClick={() => setDialog(null)}>キャンセル</button><button className="primary" onClick={saveSecret}>非公開情報を保存</button></div>
+          <div className="button-row"><Button onClick={() => setDialog(null)}>キャンセル</Button><Button className="primary" onClick={saveSecret}>非公開情報を保存</Button></div>
         </FieldDialog>
       )}
 
@@ -274,7 +274,7 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
           <label>イベント名<Input aria-label="イベント名" value={eventTitle} onChange={(event) => setEventTitle(event.target.value)} /></label>
           <label>トリガー条件<Textarea aria-label="トリガー条件" value={eventTrigger} onChange={(event) => setEventTrigger(event.target.value)} /></label>
           <label>イベント内容<Textarea aria-label="イベント内容" value={eventBody} onChange={(event) => setEventBody(event.target.value)} /></label>
-          <div className="button-row"><button onClick={() => setDialog(null)}>キャンセル</button><button className="primary" onClick={saveEvent}>強制イベントを登録</button></div>
+          <div className="button-row"><Button onClick={() => setDialog(null)}>キャンセル</Button><Button className="primary" onClick={saveEvent}>強制イベントを登録</Button></div>
         </FieldDialog>
       )}
     </>

@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes } from 'react';
+import { Button as SharedButton } from '../../components/ui';
 
 type ButtonVariant = 'primary' | 'ghost' | 'danger' | 'text';
 
@@ -17,5 +18,5 @@ export function Button({
   type = 'button',
   ...props
 }: { variant?: ButtonVariant } & ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button type={type} className={`${baseClassName} ${variantClassNames[variant]} ${className}`.trim()} {...props} />;
+  return <SharedButton type={type} className={`${baseClassName} ${variantClassNames[variant]} ${className}`.trim()} {...props} />;
 }

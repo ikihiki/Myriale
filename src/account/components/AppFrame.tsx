@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Button as SharedButton } from '../../components/ui';
 import type { AccountState, NavItem } from '../types';
 import { Button } from './Button';
 import { DeskBrand } from './DeskBrand';
@@ -41,14 +42,14 @@ export function AppFrame({
           {nav.map((item) => {
             const isActive = active === item.id;
             return (
-              <button
+              <SharedButton
                 key={item.id}
                 className={`${navButtonClassName} ${isActive ? 'border-[var(--ember)] bg-myr-paper text-[var(--void)] hover:bg-myr-paper' : ''}`}
                 aria-current={isActive ? 'page' : undefined}
                 onClick={() => onNavigate(item.id)}
               >
                 {item.label}
-              </button>
+              </SharedButton>
             );
           })}
         </nav>

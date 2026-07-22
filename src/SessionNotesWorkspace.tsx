@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Input, Textarea } from './components/ui';
+import { Button, Input, Textarea } from './components/ui';
 import { useOptionalAppStore } from './app/store';
 import { MyrialeDialogContent, MyrialeDialogRoot } from './ui/MyrialeRadix';
 
@@ -152,10 +152,10 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
           <div className={`grid items-end gap-2 border-b border-myr-ink/12 pb-1.5 ${mode === 'side' ? 'grid-cols-1' : 'grid-cols-[minmax(220px,1fr)_auto]'}`}>
             <label className="grid gap-1.5 text-xs font-black text-myr-slate-muted">ノート検索<Input className="min-h-[30px] px-2 py-1.5 text-myr-ui-sm" aria-label="ノート検索" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="人物・場所名で検索" /></label>
             <div className={`flex flex-wrap gap-[5px] ${mode === 'side' ? 'justify-start' : 'justify-end'} [&_button]:rounded-full [&_button]:px-2 [&_button]:py-1 [&_button]:text-myr-caption`} aria-label="ノート操作">
-              <button onClick={() => createNote('person')}>人物追加</button>
-              <button onClick={() => createNote('location')}>場所追加</button>
-              <button onClick={rebuildContext}>Context再構築</button>
-              <button onClick={checkConsistency}>整合性チェック</button>
+              <Button onClick={() => createNote('person')}>人物追加</Button>
+              <Button onClick={() => createNote('location')}>場所追加</Button>
+              <Button onClick={rebuildContext}>Context再構築</Button>
+              <Button onClick={checkConsistency}>整合性チェック</Button>
             </div>
           </div>
 
@@ -168,14 +168,14 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
               <strong>{note.name}</strong>
               <small className={`${mode === 'side' ? 'hidden' : 'block'} overflow-hidden text-ellipsis whitespace-nowrap text-myr-ink-subtle`}>{note.aliases} · {note.firstTurn}</small>
               <p className={`${mode === 'side' ? 'hidden' : 'block'} m-0 overflow-hidden text-ellipsis whitespace-nowrap text-myr-slate`}>{note.details}</p>
-              <button className="rounded-full px-2 py-1 text-myr-caption" onClick={() => openNote(note.id)} aria-label={`${note.name}を編集`}>編集</button>
+              <Button className="rounded-full px-2 py-1 text-myr-caption" onClick={() => openNote(note.id)} aria-label={`${note.name}を編集`}>編集</Button>
             </article>
           ))}
 
           <section className={`${mode === 'side' ? 'hidden' : 'grid'} mt-2 gap-1 border-t border-myr-ink/16 pt-2`} aria-label="ノートContext">
             <div className="grid grid-cols-[112px_minmax(0,1fr)_auto] items-center gap-2 px-0.5 py-1 text-xs text-myr-slate-muted"><strong>Canon Notes</strong><span data-testid="canon-count">{canonNotes.length}件</span></div>
             <div className="grid grid-cols-[112px_minmax(0,1fr)_auto] items-center gap-2 px-0.5 py-1 text-xs text-myr-slate-muted"><strong>Context</strong><span data-testid="context-stack">{contextSummary}</span></div>
-            <div className="grid grid-cols-[112px_minmax(0,1fr)_minmax(220px,auto)] items-center gap-2 border-t border-dashed border-myr-ink/14 px-0.5 pt-2 pb-1 text-xs text-myr-slate-muted [&_button]:rounded-full [&_button]:px-2 [&_button]:py-1 [&_button]:text-myr-caption"><strong>整合性</strong><span data-testid="consistency-issue">{issue}</span><div className="button-row"><button onClick={() => setNotice('ノート更新として確定しました。')}>ノートを更新</button><button onClick={() => setNotice('AI出力側を修正し、Canonは変更しません。')}>AI出力を修正</button><button onClick={() => setNotice('噂として保持しました。AIには断定させません。')}>噂として保持</button></div></div>
+            <div className="grid grid-cols-[112px_minmax(0,1fr)_minmax(220px,auto)] items-center gap-2 border-t border-dashed border-myr-ink/14 px-0.5 pt-2 pb-1 text-xs text-myr-slate-muted [&_button]:rounded-full [&_button]:px-2 [&_button]:py-1 [&_button]:text-myr-caption"><strong>整合性</strong><span data-testid="consistency-issue">{issue}</span><div className="button-row"><Button onClick={() => setNotice('ノート更新として確定しました。')}>ノートを更新</Button><Button onClick={() => setNotice('AI出力側を修正し、Canonは変更しません。')}>AI出力を修正</Button><Button onClick={() => setNotice('噂として保持しました。AIには断定させません。')}>噂として保持</Button></div></div>
           </section>
         </div>
       </div>
@@ -194,7 +194,7 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
               <label>関係性または施設<Textarea aria-label="関係性または施設" value={editingNote.relationsOrFacilities} onChange={(event) => updateNote(editingNote.id, { relationsOrFacilities: event.target.value })} /></label>
               <label>現在状態または禁則<Textarea aria-label="現在状態または禁則" value={editingNote.stateOrRules} onChange={(event) => updateNote(editingNote.id, { stateOrRules: event.target.value })} /></label>
             </div>
-            <div className="button-row"><button className="primary" onClick={() => markCertainty(editingNote.id, 'Canon')}>Canonにする</button><button onClick={() => markCertainty(editingNote.id, '未確定')}>未確定にする</button><button onClick={() => markCertainty(editingNote.id, '噂')}>噂にする</button><button onClick={closeNote}>閉じる</button></div>
+            <div className="button-row"><Button className="primary" onClick={() => markCertainty(editingNote.id, 'Canon')}>Canonにする</Button><Button onClick={() => markCertainty(editingNote.id, '未確定')}>未確定にする</Button><Button onClick={() => markCertainty(editingNote.id, '噂')}>噂にする</Button><Button onClick={closeNote}>閉じる</Button></div>
           </MyrialeDialogContent>
         </MyrialeDialogRoot>
       )}

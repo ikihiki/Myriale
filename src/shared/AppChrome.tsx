@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react';
+import { Button } from '../components/ui';
 import {
   MyrialeMenuContent,
   MyrialeMenuItem,
@@ -127,7 +128,7 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
     <div className="min-h-screen [&_*]:box-border">
       <div className="sticky top-0 z-50 border-b border-[rgba(255,246,231,.14)] bg-[linear-gradient(120deg,rgba(18,16,25,.97),rgba(38,31,54,.97))] font-myr-body text-myr-cream shadow-[0_10px_30px_rgba(18,16,25,.28)] backdrop-blur-md">
         <div className="mx-auto flex max-w-[1320px] items-center gap-4 px-5 py-2.5 max-[860px]:flex-wrap max-[860px]:gap-x-3 max-[860px]:gap-y-2">
-          <button
+          <Button
             type="button"
             className={`inline-flex cursor-pointer items-center gap-2.5 rounded-xl border-0 bg-transparent py-1 pr-2 pl-1 text-myr-cream hover:bg-[rgba(255,246,231,.08)] ${focusRingClassName}`}
             aria-label="Myriale ホームへ"
@@ -140,7 +141,7 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
               霧
             </span>
             <span className="font-myr-display text-xl tracking-[.02em] max-[860px]:hidden">Myriale</span>
-          </button>
+          </Button>
 
           <nav className="ml-2 flex gap-1" aria-label="主要セクション">
             {sections.map((item) => {
@@ -149,14 +150,14 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
                 <MyrialeMenuRoot key={item.id} modal={false}>
                   <div className="relative">
                     <MyrialeMenuTrigger asChild>
-                      <button
+                      <Button
                         type="button"
                         className={isActive ? activeSectionButtonClassName : sectionButtonClassName}
                         aria-current={isActive ? 'page' : undefined}
                       >
                         {item.label}
                         <span className={caretClassName} aria-hidden="true">⌄</span>
-                      </button>
+                      </Button>
                     </MyrialeMenuTrigger>
                     <MyrialeMenuContent className="!min-w-[230px]" align="start" aria-label={`${item.label}メニュー`}>
                       {item.links.map((link) => (
@@ -176,7 +177,7 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
             {account ? (
               <MyrialeMenuRoot modal={false}>
                 <MyrialeMenuTrigger asChild>
-                  <button
+                  <Button
                     type="button"
                     className={section === 'account' ? activeAccountTriggerClassName : accountTriggerClassName}
                     aria-label={`アカウントメニュー: ${account.name}`}
@@ -192,7 +193,7 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
                       <small className="text-myr-caption text-[rgba(255,246,231,.6)]">{account.role ?? account.email}</small>
                     </span>
                     <span className={caretClassName} aria-hidden="true">⌄</span>
-                  </button>
+                  </Button>
                 </MyrialeMenuTrigger>
                 <MyrialeMenuContent className="!min-w-[250px]" aria-label="アカウントメニュー">
                   <div className="mb-1.5 border-b border-[rgba(36,27,47,.12)] px-3 pt-2 pb-2.5">
@@ -214,20 +215,20 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
               </MyrialeMenuRoot>
             ) : (
               <div className="flex items-center gap-2">
-                <button
+                <Button
                   type="button"
                   className={`cursor-pointer rounded-full border-0 bg-transparent px-3 py-2 font-bold text-myr-cream hover:bg-[rgba(255,246,231,.1)] ${focusRingClassName}`}
                   onClick={() => go('login')}
                 >
                   ログイン
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   className={`cursor-pointer rounded-full border border-myr-ember bg-myr-paper px-4 py-2 font-extrabold text-myr-void hover:bg-white ${focusRingClassName}`}
                   onClick={() => go('register')}
                 >
                   新規登録
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -244,13 +245,13 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
                       {crumb.label}
                     </span>
                   ) : (
-                    <button
+                    <Button
                       type="button"
                       className={`cursor-pointer border-0 bg-transparent p-0 font-[inherit] text-[rgba(255,246,231,.7)] hover:text-myr-cream hover:underline ${focusRingClassName}`}
                       onClick={() => go(crumb.to as StoryKey)}
                     >
                       {crumb.label}
-                    </button>
+                    </Button>
                   )}
                   {!isLast && <span className="text-[rgba(255,246,231,.3)]" aria-hidden="true">/</span>}
                 </li>

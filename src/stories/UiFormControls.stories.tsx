@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
-import { Input, Textarea } from '../components/ui';
+import { Button, Input, Textarea } from '../components/ui';
 
 const meta: Meta = {
   title: 'コンポーネント/Form Controls',
@@ -58,6 +58,50 @@ export const Variants: Story = {
       await expect(textarea).toHaveValue('一行目\n二行目');
       await userEvent.tab();
       await expect(textarea).not.toHaveFocus();
+    });
+  },
+};
+
+export const ButtonCompatibility: Story = {
+  name: 'Button compatibility / form semantics',
+  render: function Render() {
+    const [status, setStatus] = useState('未操作');
+    return (
+      <div className="grid gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={() => setStatus('plain clicked')}>Plain button</Button>
+          <Button className="rounded-full bg-myr-ink px-5 py-2.5 font-extrabold text-myr-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-myr-iris" onClick={() => setStatus('custom clicked')}>Custom button</Button>
+          <Button disabled>Disabled button</Button>
+        </div>
+        <form className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end" onSubmit={(event) => { event.preventDefault(); setStatus('form submitted'); }}>
+          <label className="grid min-w-0 gap-1.5 text-xs font-black">Form value<Input name="title" defaultValue="星喰いの図書館" /></label>
+          <Button className="justify-self-start rounded-full bg-myr-gold px-5 py-3 font-black text-myr-ink">Submit without type</Button>
+        </form>
+        <output aria-live="polite">状態: {status}</output>
+      </div>
+    );
+  },
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await step('互換ベースと無効状態を公開する', async () => {
+      await expect(canvas.getByRole('button', { name: 'Plain button' })).toHaveClass('cursor-pointer', 'border-0', '[font:inherit]');
+      await expect(canvas.getByRole('button', { name: 'Disabled button' })).toBeDisabled();
+      await expect(canvas.getByRole('button', { name: 'Disabled button' })).toHaveClass('disabled:cursor-not-allowed');
+    });
+    await step('キーボードフォーカスと操作を保つ', async () => {
+      const plain = canvas.getByRole('button', { name: 'Plain button' });
+      plain.focus();
+      await expect(plain).toHaveFocus();
+      await userEvent.keyboard('{Enter}');
+      await expect(canvas.getByText('状態: plain clicked')).toBeInTheDocument();
+      await userEvent.tab();
+      await expect(canvas.getByRole('button', { name: 'Custom button' })).toHaveFocus();
+    });
+    await step('type未指定のボタンはフォームを送信する', async () => {
+      const submit = canvas.getByRole('button', { name: 'Submit without type' });
+      await expect(submit).not.toHaveAttribute('type');
+      await userEvent.click(submit);
+      await expect(canvas.getByText('状態: form submitted')).toBeInTheDocument();
     });
   },
 };

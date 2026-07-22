@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Button } from '../../components/ui';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { useAppNavigation, type StoryKey } from '../../shared/nav';
 import {
@@ -143,12 +144,12 @@ export function HomePage() {
               </p>
             )}
             <div className="mt-2 flex flex-wrap items-center gap-[10px] max-[720px]:[&>button]:w-full" aria-label="トップページの主要導線">
-              <button className={homePrimaryButtonClassName} onClick={() => go('scenarioList')} data-testid="home-search-scenarios">
+              <Button className={homePrimaryButtonClassName} onClick={() => go('scenarioList')} data-testid="home-search-scenarios">
                 シナリオを検索して開始
-              </button>
-              <button className={homeDarkButtonClassName} onClick={() => go('scenarioRegister')} data-testid="home-create-scenario">
+              </Button>
+              <Button className={homeDarkButtonClassName} onClick={() => go('scenarioRegister')} data-testid="home-create-scenario">
                 シナリオを新規作成
-              </button>
+              </Button>
             </div>
           </div>
           <aside
@@ -181,9 +182,9 @@ export function HomePage() {
                 中断しているセッション
               </h2>
             </div>
-            <button type="button" className={homeTextButtonClassName} onClick={() => go('resumeSession')}>
+            <Button type="button" className={homeTextButtonClassName} onClick={() => go('resumeSession')}>
               すべて見る
-            </button>
+            </Button>
           </div>
 
           <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-[14px]">
@@ -195,9 +196,9 @@ export function HomePage() {
                   <p className={homeCardCopyClassName}>{session.summary}</p>
                   <small className={homeCardMetaClassName}>{session.hero}</small>
                   <div className={homeCardActionsClassName}>
-                    <button className={homePrimaryButtonClassName} onClick={() => go(session.destination)}>
+                    <Button className={homePrimaryButtonClassName} onClick={() => go(session.destination)}>
                       {session.resumeLabel}
-                    </button>
+                    </Button>
                   </div>
                 </article>
               ))
@@ -207,7 +208,7 @@ export function HomePage() {
                 <h3 className={homeCardTitleClassName}>再開待ちのセッションはありません</h3>
                 <p className={homeCardCopyClassName}>シナリオを選んで、新しい物語の準備を始められます。</p>
                 <div className={homeCardActionsClassName}>
-                  <button className={homePrimaryButtonClassName} onClick={() => go('startSession')}>シナリオを探す</button>
+                  <Button className={homePrimaryButtonClassName} onClick={() => go('startSession')}>シナリオを探す</Button>
                 </div>
               </article>
             )}
@@ -222,9 +223,9 @@ export function HomePage() {
                 おすすめのシナリオ
               </h2>
             </div>
-            <button type="button" className={homeTextButtonClassName} onClick={() => go('startSession')}>
+            <Button type="button" className={homeTextButtonClassName} onClick={() => go('startSession')}>
               検索画面へ
-            </button>
+            </Button>
           </div>
 
           <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-[14px]">
@@ -235,8 +236,8 @@ export function HomePage() {
                 <p className={homeCardCopyClassName}>{scenario.summary ?? scenario.genre}</p>
                 <small className={homeCardMetaClassName}>{scenario.updatedLabel}</small>
                 <div className={homeCardActionsClassName}>
-                  <button className={homePrimaryButtonClassName} onClick={() => startRecommendedScenario(scenario)}>このシナリオで開始</button>
-                  <button className={homeDarkButtonClassName} onClick={() => go('scenarioEdit')}>詳細を編集</button>
+                  <Button className={homePrimaryButtonClassName} onClick={() => startRecommendedScenario(scenario)}>このシナリオで開始</Button>
+                  <Button className={homeDarkButtonClassName} onClick={() => go('scenarioEdit')}>詳細を編集</Button>
                 </div>
               </article>
             ))}

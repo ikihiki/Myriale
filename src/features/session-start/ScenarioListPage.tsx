@@ -1,4 +1,5 @@
 import { useAppStore } from '../../app/store';
+import { Button } from '../../components/ui';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
 import { toScenarioSummary } from './scenarioPresentation';
@@ -55,12 +56,12 @@ export function ScenarioListPage() {
                   選択するとイントロと主人公選択をすぐに表示します。
                 </p>
               </div>
-              <button
+              <Button
                 className="!rounded-full !bg-myr-ink !px-4 !py-2.5 !text-sm !font-extrabold !text-myr-paper shadow-myr-card transition hover:!-translate-y-0.5 hover:!bg-myr-iris focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
                 onClick={openRegistration}
               >
                 新しいシナリオを登録
-              </button>
+              </Button>
             </div>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3" data-testid="scenario-list">
               {scenarios.map((scenario) => (
@@ -77,12 +78,12 @@ export function ScenarioListPage() {
                   </h2>
                   <p className="m-0 text-sm font-bold text-myr-slate">{scenario.genre} / {scenario.tone}</p>
                   <p className="mt-3 mb-5 flex-1 text-sm leading-6 text-myr-slate">{scenario.lore}</p>
-                  <button
+                  <Button
                     className="!rounded-full !bg-myr-gold !px-4 !py-2.5 !text-sm !font-black !text-myr-void transition group-hover:!bg-myr-ink group-hover:!text-myr-paper focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
                     onClick={() => startScenario(scenario.id)}
                   >
                     {scenario.title}で開始
-                  </button>
+                  </Button>
                 </article>
               ))}
             </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Input, Textarea } from '../../components/ui';
+import { Button, Input, Textarea } from '../../components/ui';
 import { ScenarioProgressControls } from '../../ScenarioProgressControls';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
@@ -244,7 +244,7 @@ export function EditScenarioPage() {
           }}
           markerLabel="ScenarioId"
           markerValue={draft ? draft.id : '未選択'}
-          action={view === 'edit' ? <button className="text-button" onClick={backToList}>シナリオ一覧へ戻る</button> : undefined}
+          action={view === 'edit' ? <Button className="text-button" onClick={backToList}>シナリオ一覧へ戻る</Button> : undefined}
         />
 
         <main className={wizardPaperClass} aria-label="シナリオ編集アプリ画面">
@@ -267,7 +267,7 @@ export function EditScenarioPage() {
                     <p className="text-myr-ui-sm font-extrabold !text-myr-ink-subtle">
                       進行中セッション: {scenario.activeSessions}件 ・ 最終編集: {scenario.history[0]?.at ?? '—'}
                     </p>
-                    <button className="primary" onClick={() => startEditing(scenario)}>編集</button>
+                    <Button className="primary" onClick={() => startEditing(scenario)}>編集</Button>
                   </article>
                 ))}
               </div>
@@ -390,13 +390,13 @@ export function EditScenarioPage() {
               <h3>確認 → 反映</h3>
               <p>AIチェックとテストプレイで品質を確認してから、下書き保存・公開できます。AIは補助に限定され、確定は常に作者が行います。</p>
               <div className={wizardButtonRowClass}>
-                <button onClick={runAiCheck} data-testid="ai-check-button">AIにチェック</button>
-                <button onClick={runPreview} data-testid="preview-button">プレビュー（テストプレイ）</button>
-                <button onClick={openTestPlay}>本番相当のテストプレイへ</button>
+                <Button onClick={runAiCheck} data-testid="ai-check-button">AIにチェック</Button>
+                <Button onClick={runPreview} data-testid="preview-button">プレビュー（テストプレイ）</Button>
+                <Button onClick={openTestPlay}>本番相当のテストプレイへ</Button>
               </div>
               <div className={wizardButtonRowClass}>
-                <button onClick={saveDraft} data-testid="save-button">下書き保存</button>
-                <button className="primary" onClick={publish} data-testid="publish-button">公開して反映</button>
+                <Button onClick={saveDraft} data-testid="save-button">下書き保存</Button>
+                <Button className="primary" onClick={publish} data-testid="publish-button">公開して反映</Button>
               </div>
               <div className="mt-1.5 grid max-w-60 gap-1.5 font-extrabold">
                 <MyrialeSelect
