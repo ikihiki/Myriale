@@ -90,7 +90,7 @@ export const IdentitySealStates: Story = {
 export const StatusBadges: Story = {
   name: 'StatusBadge — アカウント状態のラベル',
   render: () => (
-    <div className="pill-row">
+    <div className="flex flex-wrap gap-2">
       {allStates.map((state) => (
         <StatusBadge key={state} state={state} />
       ))}
@@ -106,7 +106,7 @@ export const StatusBadges: Story = {
 export const Buttons: Story = {
   name: 'Button — variant 一覧',
   render: () => (
-    <div className="button-row">
+    <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
       <Button variant="primary">主要操作</Button>
       <Button variant="ghost">副操作</Button>
       <Button variant="danger">危険な操作</Button>
@@ -259,7 +259,7 @@ export const AdminUserTable: Story = {
   decorators: [
     (Story) => (
       <div className="account-kit" style={{ minHeight: 'auto', padding: 22 }}>
-        <div className="reg-card flush">
+        <div className="overflow-hidden rounded-[28px] border border-[var(--line)] bg-[rgba(255,250,240,.9)] shadow-[var(--shadow)]">
           <Story />
         </div>
       </div>

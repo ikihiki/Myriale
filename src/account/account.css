@@ -61,8 +61,6 @@
   border-radius: 4px;
 }
 
-.button-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; align-items: center; }
-
 /* Intentional Account Kit color override for the shared Radix progress indicator. */
 .strength-meter .myr-ui-progress-indicator { background: var(--seal); transition: transform 0.2s ease, background 0.2s ease; }
 .strength-meter[data-strength='2'] .myr-ui-progress-indicator { background: var(--ember); }
@@ -80,42 +78,6 @@
   letter-spacing: 0.12em;
 }
 .or-divider::before, .or-divider::after { content: ''; height: 1px; background: var(--line); }
-
-/* ---- Cards / panels (cream vellum, matches .panel / .login-card) ---- */
-.reg-card {
-  padding: 22px;
-  border: 1px solid var(--line);
-  border-radius: 28px;
-  background: rgba(255, 250, 240, 0.9);
-  box-shadow: var(--shadow);
-}
-.reg-card.flush { padding: 0; overflow: hidden; }
-.reg-card h2 { margin: 0 0 14px; font-family: Georgia, 'Times New Roman', serif; font-size: 22px; letter-spacing: -0.02em; }
-.reg-card h3 { margin: 0 0 6px; font-size: 14px; }
-.card-grid { display: grid; gap: 16px; }
-.card-grid.two { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
-
-.provider-priority { display: grid; gap: 14px; margin: 0 0 16px; padding: 0; list-style: none; counter-reset: priority; }
-.provider-priority li { display: grid; grid-template-columns: 30px 1fr; gap: 2px 10px; align-items: start; }
-.provider-priority li::before { grid-row: 1 / 3; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--ink); color: #fff; font: 800 12px/1 ui-monospace, monospace; counter-increment: priority; content: counter(priority); }
-.provider-priority span { color: var(--ink-soft); font-size: 13px; line-height: 1.5; }
-.provider-table-wrap { margin-top: 16px; overflow-x: auto; }
-.provider-id { display: block; margin-top: 3px; color: var(--ink-soft); font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
-.provider-badges { display: flex; flex-wrap: wrap; gap: 6px; }
-.provider-badge,
-.provider-status { display: inline-flex; align-items: center; width: max-content; padding: 5px 9px; border-radius: 999px; background: rgba(36, 27, 47, 0.08); color: var(--ink-soft); font-size: 11px; font-weight: 800; white-space: nowrap; }
-.provider-badge.active { background: var(--ink); color: #fff; }
-.provider-badge.environment { background: rgba(124, 92, 255, 0.14); color: var(--iris-deep); }
-.provider-badge.database { background: rgba(217, 164, 65, 0.2); color: #72520f; }
-.provider-status.valid { background: rgba(47, 111, 87, 0.14); color: var(--verde); }
-
-/* ---- Misc layout helpers ---- */
-.inline-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-.muted { color: var(--ink-soft); }
-.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 14px; }
-.toolbar .field { margin: 0; }
-.toolbar .grow { flex: 1 1 220px; }
-.pill-row { display: flex; flex-wrap: wrap; gap: 8px; }
 
 @media (prefers-reduced-motion: reduce) {
   .account-kit * { transition: none !important; }

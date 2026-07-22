@@ -40,7 +40,12 @@ type Notice = { tone?: NoticeTone; message: string } | null;
 const protectedViews = new Set<AccountView>(['profile', 'profile-edit', 'security', 'export', 'withdraw']);
 
 const accountCardClassName = "rounded-[28px] border border-[var(--line)] bg-[rgba(255,250,240,.9)] p-[22px] shadow-[var(--shadow)]";
+const accountFlushCardClassName = "overflow-hidden rounded-[28px] border border-[var(--line)] bg-[rgba(255,250,240,.9)] shadow-[var(--shadow)]";
 const accountActionRowClassName = 'mt-1.5 flex flex-wrap items-center gap-2.5';
+const accountCardHeadingClassName = "m-0 mb-3.5 font-[Georgia,'Times_New_Roman',serif] text-[22px] tracking-[-.02em]";
+const providerTableHeadClassName = 'border-b border-[var(--line-strong)] bg-[rgba(124,92,255,.06)] px-4 py-3 text-left text-[11px] font-extrabold tracking-[.1em] text-[var(--ink-soft)] uppercase';
+const providerTableCellClassName = 'border-b border-[var(--line)] px-4 py-[13px] align-middle';
+const providerBadgeClassName = 'inline-flex w-max items-center whitespace-nowrap rounded-full bg-[rgba(36,27,47,.08)] px-[9px] py-[5px] text-[11px] font-extrabold text-[var(--ink-soft)]';
 const operationsNavButtonClassName = 'cursor-pointer rounded-full border border-transparent bg-[rgba(255,250,240,.08)] px-3.5 py-3 text-left font-bold text-[#fff6e7] transition-colors duration-150 hover:bg-[rgba(255,250,240,.16)]';
 
 export function AccountPage({
@@ -259,7 +264,7 @@ function OperationsPage({ view, onNavigate }: { view: AccountView; onNavigate: (
 }
 
 function RoadmapOperationsView({ title }: { title: string }) {
-  return <section className="reg-card" role="region" aria-label={title}><SectionHead kicker="Phase 2/3" title={title} lead="管理者機能は Identity roles/claims と認可 policy を決めてから接続します。" /><NoticeBanner tone="warning">MVPではAIキー管理とシナリオ作成補助AIのモック接続を先に実装しています。</NoticeBanner></section>;
+  return <section className={accountCardClassName} role="region" aria-label={title}><SectionHead kicker="Phase 2/3" title={title} lead="管理者機能は Identity roles/claims と認可 policy を決めてから接続します。" /><NoticeBanner tone="warning">MVPではAIキー管理とシナリオ作成補助AIのモック接続を先に実装しています。</NoticeBanner></section>;
 }
 
 function AdminAiKeysView() {
@@ -307,13 +312,56 @@ function AdminAiKeysView() {
     try { await api.deleteKey(target); await reload(); setNotice('管理画面で保存したAIキーを削除しました。'); } catch (caught) { setError(caught as AdminAiApiError); } finally { setBusy(false); }
   };
 
-  return <section className="reg-card" role="region" aria-label="AIキー管理"><SectionHead kicker="Admin / AI Providers" title="AI Provider管理" lead="OpenAIまたはRunpodの接続状態を確認し、必要に応じてAPIキーを登録します。" />
+  return <section className={accountCardClassName} role="region" aria-label="AIキー管理">
+    <SectionHead kicker="Admin / AI Providers" title="AI Provider管理" lead="OpenAIまたはRunpodの接続状態を確認し、必要に応じてAPIキーを登録します。" />
     <NoticeBanner tone={error ? 'danger' : 'info'} testId="ai-key-notice">{error?.message ?? notice}</NoticeBanner>
-    <div className="card-grid two">
-      <div className="reg-card"><h2>管理画面からキーを登録</h2><div className="field"><label htmlFor="ai-provider">Provider</label><select id="ai-provider" value={provider} onChange={(event) => changeProvider(event.target.value)}><option value="runpod">Runpod</option><option value="openai">OpenAI</option></select>{firstAdminAiFieldError(error, 'provider') && <p className="field-error">{firstAdminAiFieldError(error, 'provider')}</p>}</div><TextField label="表示名" value={displayName} onChange={setDisplayName} error={firstAdminAiFieldError(error, 'displayName')} /><TextField label="APIキー" value={secret} onChange={setSecret} placeholder={provider === 'runpod' ? 'rpa_...' : 'sk-...'} error={firstAdminAiFieldError(error, 'secret')} /><p className="field-help">Vaultまたは環境変数で設定済みの場合、ここで同じキーを再登録する必要はありません。</p><div className={accountActionRowClassName}><Button variant="primary" onClick={save} disabled={busy || !secret.trim()}>キーを保存</Button></div></div>
-      <div className="reg-card"><h2>設定の優先順位</h2><ol className="provider-priority"><li><strong>Vault / 環境変数</strong><span>デプロイ時に注入された設定を最優先で使用します。</span></li><li><strong>管理画面</strong><span>環境設定がないProviderでは暗号化してDBへ保存します。</span></li></ol><p className="muted">「使用中」は現在Narrative生成に選択されているProviderです。</p></div>
+    <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
+      <div className={accountCardClassName}>
+        <h2 className={accountCardHeadingClassName}>管理画面からキーを登録</h2>
+        <div className="my-4 grid gap-[7px]">
+          <label className="text-[13px] font-extrabold text-[#4a4357]" htmlFor="ai-provider">Provider</label>
+          <select className="w-full rounded-2xl border border-[var(--line)] bg-[#fffef9] px-3.5 py-3 text-[var(--ink)]" id="ai-provider" value={provider} onChange={(event) => changeProvider(event.target.value)}>
+            <option value="runpod">Runpod</option>
+            <option value="openai">OpenAI</option>
+          </select>
+          {firstAdminAiFieldError(error, 'provider') && <p className="m-0 text-xs font-bold text-[var(--seal)]">{firstAdminAiFieldError(error, 'provider')}</p>}
+        </div>
+        <TextField label="表示名" value={displayName} onChange={setDisplayName} error={firstAdminAiFieldError(error, 'displayName')} />
+        <TextField label="APIキー" value={secret} onChange={setSecret} placeholder={provider === 'runpod' ? 'rpa_...' : 'sk-...'} error={firstAdminAiFieldError(error, 'secret')} />
+        <p className="m-0 text-xs leading-normal text-[var(--ink-soft)]">Vaultまたは環境変数で設定済みの場合、ここで同じキーを再登録する必要はありません。</p>
+        <div className={accountActionRowClassName}><Button variant="primary" onClick={save} disabled={busy || !secret.trim()}>キーを保存</Button></div>
+      </div>
+      <div className={accountCardClassName}>
+        <h2 className={accountCardHeadingClassName}>設定の優先順位</h2>
+        <ol className="m-0 mb-4 grid list-none gap-3.5 p-0">
+          <li className="grid grid-cols-[30px_1fr] items-start gap-x-2.5 gap-y-0.5">
+            <span className="row-span-2 grid size-7 place-items-center rounded-full bg-[var(--ink)] font-mono text-xs font-extrabold text-white">1</span>
+            <strong>Vault / 環境変数</strong>
+            <span className="text-[13px] leading-normal text-[var(--ink-soft)]">デプロイ時に注入された設定を最優先で使用します。</span>
+          </li>
+          <li className="grid grid-cols-[30px_1fr] items-start gap-x-2.5 gap-y-0.5">
+            <span className="row-span-2 grid size-7 place-items-center rounded-full bg-[var(--ink)] font-mono text-xs font-extrabold text-white">2</span>
+            <strong>管理画面</strong>
+            <span className="text-[13px] leading-normal text-[var(--ink-soft)]">環境設定がないProviderでは暗号化してDBへ保存します。</span>
+          </li>
+        </ol>
+        <p className="text-[var(--ink-soft)]">「使用中」は現在Narrative生成に選択されているProviderです。</p>
+      </div>
     </div>
-    <div className="reg-card flush provider-table-wrap"><table className="user-table" aria-label="AIキー一覧"><thead><tr><th>Provider</th><th>接続設定</th><th>キー</th><th>検証状態</th><th>操作</th></tr></thead><tbody>{keys.map((key) => <tr key={key.provider} data-testid={'ai-key-row-' + key.provider}><td><strong>{key.displayName}</strong><span className="provider-id">{key.provider}</span></td><td><div className="provider-badges">{key.active && <span className="provider-badge active">使用中</span>}<span className={`provider-badge ${key.credentialSource}`}>{key.credentialSource === 'environment' ? 'Vault / 環境変数' : key.credentialSource === 'database' ? '管理画面' : '未設定'}</span></div></td><td>{key.maskedKey}</td><td><span className={`provider-status ${key.status}`}>{key.status === 'valid' ? '接続済み' : key.status === 'untested' ? '未検証' : key.status}</span></td><td><div className="inline-actions"><Button onClick={() => void test(key.provider)} disabled={busy || !key.configured}>接続テスト</Button>{key.credentialSource === 'database' && <Button variant="danger" onClick={() => void remove(key.provider)} disabled={busy}>削除</Button>}</div></td></tr>)}</tbody></table></div>
+    <div className={`${accountFlushCardClassName} mt-4 overflow-x-auto`}>
+      <table className="w-full min-w-[640px] border-collapse text-sm" aria-label="AIキー一覧">
+        <thead><tr><th className={providerTableHeadClassName}>Provider</th><th className={providerTableHeadClassName}>接続設定</th><th className={providerTableHeadClassName}>キー</th><th className={providerTableHeadClassName}>検証状態</th><th className={providerTableHeadClassName}>操作</th></tr></thead>
+        <tbody>{keys.map((key) => (
+          <tr key={key.provider} data-testid={'ai-key-row-' + key.provider}>
+            <td className={providerTableCellClassName}><strong className="block">{key.displayName}</strong><span className="mt-[3px] block font-mono text-xs leading-[1.4] text-[var(--ink-soft)]">{key.provider}</span></td>
+            <td className={providerTableCellClassName}><div className="flex flex-wrap gap-1.5">{key.active && <span className={`${providerBadgeClassName} bg-[var(--ink)] text-white`}>使用中</span>}<span className={`${providerBadgeClassName} ${key.credentialSource === 'environment' ? 'bg-[rgba(124,92,255,.14)] text-[var(--iris-deep)]' : key.credentialSource === 'database' ? 'bg-[rgba(217,164,65,.2)] text-[#72520f]' : ''}`}>{key.credentialSource === 'environment' ? 'Vault / 環境変数' : key.credentialSource === 'database' ? '管理画面' : '未設定'}</span></div></td>
+            <td className={providerTableCellClassName}>{key.maskedKey}</td>
+            <td className={providerTableCellClassName}><span className={`${providerBadgeClassName} ${key.status === 'valid' ? 'bg-[rgba(47,111,87,.14)] text-[var(--verde)]' : ''}`}>{key.status === 'valid' ? '接続済み' : key.status === 'untested' ? '未検証' : key.status}</span></td>
+            <td className={providerTableCellClassName}><div className="flex flex-wrap items-center gap-3"><Button onClick={() => void test(key.provider)} disabled={busy || !key.configured}>接続テスト</Button>{key.credentialSource === 'database' && <Button variant="danger" onClick={() => void remove(key.provider)} disabled={busy}>削除</Button>}</div></td>
+          </tr>
+        ))}</tbody>
+      </table>
+    </div>
   </section>;
 }
 
