@@ -6,6 +6,8 @@ using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
 
+const string PostgresClusterName = "myriale-postgres-schema-v2";
+
 var builder = DistributedApplication.CreateBuilder(args);
 var isPublishMode = builder.ExecutionContext.IsPublishMode;
 var configuration = builder.Configuration;
@@ -96,12 +98,12 @@ if (isPublishMode)
             {
                 SecretKeyRef = new SecretKeySelectorV1
                 {
-                    Name = "myriale-postgres-app",
+                    Name = $"{PostgresClusterName}-app",
                     Key = "uri"
                 }
             }
         });
-        kubernetesResource.AdditionalResources.Add(new CloudNativePgCluster());
+        kubernetesResource.AdditionalResources.Add(new CloudNativePgCluster(PostgresClusterName));
     });
 
     var frontend = builder.AddContainer(
@@ -290,10 +292,10 @@ internal sealed class ExternalSecretRemoteReference
 
 internal sealed class CloudNativePgCluster : BaseKubernetesResource
 {
-    public CloudNativePgCluster()
+    public CloudNativePgCluster(string name)
         : base("postgresql.cnpg.io/v1", "Cluster")
     {
-        Metadata.Name = "myriale-postgres";
+        Metadata.Name = name;
         Spec = new CloudNativePgClusterSpec
         {
             Instances = 1,
