@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { AppChromeAccount } from '../../account/accountPresentation';
 import { useOptionalAppStore, type TurnDisplayFlags } from '../../app/store';
-import { SessionPage } from '../../features/session-play/SessionPage';
+import { SessionPresentation } from '../../features/session-play/SessionPresentation';
 import type {
   BattleAction,
   DialogueTurn,
@@ -9,8 +9,8 @@ import type {
   SessionMode,
   SessionModeFlavor,
   SessionProgramController,
-} from '../../features/session-play/sessionPageModel';
-import { clampInitialTurnCount, headingLinks, initialTurns, resultForInput } from './sessionPageFixtures';
+} from '../../features/session-play/sessionModel';
+import { clampInitialTurnCount, headingLinks, initialTurns, resultForInput } from './sessionFixtures';
 
 const demoPlayerAccount: AppChromeAccount = {
   name: '霧野しおり',
@@ -21,7 +21,7 @@ const demoPlayerAccount: AppChromeAccount = {
 
 const programTurnDisplay: TurnDisplayFlags = { allowRewind: false, showInterpretation: false, leadTone: 'program', leadTag: 'PROGRAM' };
 
-export function MockSessionPageContainer({ sessionId }: { sessionId: string }) {
+export function MockSessionContainer({ sessionId }: { sessionId: string }) {
   const appStore = useOptionalAppStore();
   const dbSession = appStore?.db.playSessions[sessionId];
   const initialTurnCount = clampInitialTurnCount(dbSession?.turn);
@@ -114,7 +114,7 @@ export function MockSessionPageContainer({ sessionId }: { sessionId: string }) {
     onProcessingError: processingError, onRecover: recover, onReconnect: reconnect,
   };
 
-  return <SessionPage
+  return <SessionPresentation
     sessionId={sessionId}
     account={demoPlayerAccount}
     turns={turns}

@@ -10,7 +10,7 @@ import { scenarioWizardShellClass, wizardPaperClass, wizardSummaryClass } from '
 import { SessionActivityFeed } from './SessionActivityFeed';
 import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeToggle, MyrialeSelect } from '../../ui/MyrialeRadix';
 import type { NarrativeInteractionType } from './sessionPlayApi';
-import type { DialogueTurn, HeadingLink, SessionPagePresentationProps } from './sessionPageModel';
+import type { DialogueTurn, HeadingLink, SessionPresentationProps } from './sessionModel';
 
 const modeLabels = {
   dialogue: { badge: '対話中', label: 'AI対話モード', summary: 'Dialogue Mode', reason: '自由入力で行動や会話を送れます。' },
@@ -45,7 +45,7 @@ const defaultProgram = {
   onReconnect: () => undefined,
 };
 
-export function SessionPageStatus({
+export function SessionPresentationStatus({
   account,
   error = '',
   requiresLogin = false,
@@ -53,10 +53,10 @@ export function SessionPageStatus({
   onLogin,
   onReload,
 }: {
-  account: SessionPagePresentationProps['account'];
+  account: SessionPresentationProps['account'];
   error?: string;
   requiresLogin?: boolean;
-  onLogout?: SessionPagePresentationProps['onLogout'];
+  onLogout?: SessionPresentationProps['onLogout'];
   onLogin?: () => void;
   onReload?: () => void;
 }) {
@@ -73,7 +73,7 @@ export function SessionPageStatus({
   );
 }
 
-export function SessionPage({
+export function SessionPresentation({
   sessionId,
   account,
   turns,
@@ -96,7 +96,7 @@ export function SessionPage({
   onExecutionAction,
   onNoteReview,
   onRewind,
-}: SessionPagePresentationProps) {
+}: SessionPresentationProps) {
   const appStore = useOptionalAppStore();
   const [input, setInput] = useState(initialInput);
   const [interactionType, setInteractionType] = useState<NarrativeInteractionType>(initialInteractionType);
@@ -188,7 +188,7 @@ export function SessionPage({
     const result = await onExecutionAction(executionId, action);
     setNotice(result.notice);
   };
-  const handleNoteReview = async (...args: Parameters<NonNullable<SessionPagePresentationProps['onNoteReview']>>) => {
+  const handleNoteReview = async (...args: Parameters<NonNullable<SessionPresentationProps['onNoteReview']>>) => {
     if (!onNoteReview) return;
     const result = await onNoteReview(...args);
     setNotice(result.notice);

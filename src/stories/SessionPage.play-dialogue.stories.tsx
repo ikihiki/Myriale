@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
 import { MyrialeApp } from '../app/MyrialeApp';
 import { createDemoDb } from '../app/demoData';
-import { MockSessionPageContainer } from './session-page/MockSessionPageContainer';
+import { MockSessionContainer } from './session-page/MockSessionContainer';
 import '../styles.css';
 
 const createProgressedPlayDb = () => {
@@ -23,7 +23,7 @@ const createProgressedPlayDb = () => {
 const meta = {
   title: 'ユーザーストーリー/Session play dialogue',
   component: MyrialeApp,
-  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098" initialDb={createProgressedPlayDb()} sessionPageContainer={MockSessionPageContainer} />,
+  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098" initialDb={createProgressedPlayDb()} sessionContainer={MockSessionContainer} />,
   parameters: {
     notes: 'docs/user-stories/session-play-dialogue-user-stories.md の各ユーザーストーリーを、Storybook Interactions の step と expect で操作説明できるアプリ画面にしたものです。',
   },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toDialogueTurn } from './sessionPageModel';
+import { toDialogueTurn } from './sessionModel';
 
 const baseTurn = {
   id: 'TRN-1',

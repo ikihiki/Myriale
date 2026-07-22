@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { toAppChromeAccount } from '../../account/accountPresentation';
 import { useAccountSession } from '../../account/hooks/useAccountSession';
 import { useAppNavigation } from '../../shared/nav';
-import { SessionPage, SessionPageStatus } from './SessionPage';
-import { toDialogueTurn, type SessionCommandResult } from './sessionPageModel';
+import { SessionPresentation, SessionPresentationStatus } from './SessionPresentation';
+import { toDialogueTurn, type SessionCommandResult } from './sessionModel';
 import {
   acceptSessionInput,
   getSession,
@@ -17,7 +17,7 @@ import {
 } from './sessionPlayApi';
 import type { NoteReviewRequest } from './SessionActivityFeed';
 
-export function SessionPageContainer({ sessionId = 'SES-PREP-1098' }: { sessionId?: string } = {}) {
+export function SessionContainer({ sessionId = 'SES-PREP-1098' }: { sessionId?: string } = {}) {
   const appNavigate = useAppNavigation();
   const accountSession = useAccountSession();
   const chromeAccount = toAppChromeAccount(accountSession.user);
@@ -72,7 +72,7 @@ export function SessionPageContainer({ sessionId = 'SES-PREP-1098' }: { sessionI
   }, [session, sessionId]);
 
   if (!session) {
-    return <SessionPageStatus
+    return <SessionPresentationStatus
       account={chromeAccount}
       error={error}
       requiresLogin={requiresLogin}
@@ -166,7 +166,7 @@ export function SessionPageContainer({ sessionId = 'SES-PREP-1098' }: { sessionI
   };
 
   const resumableInput = session.pendingInputs.at(-1);
-  return <SessionPage
+  return <SessionPresentation
     sessionId={sessionId}
     account={chromeAccount}
     turns={session.turns.map(toDialogueTurn)}

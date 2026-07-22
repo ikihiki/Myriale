@@ -11,11 +11,13 @@ MyrialeのすべてのPageでは、通信と画面全体の状態をContainer、
 
 各Pageは原則として次の構成にする。
 
-- `<Feature>PageContainer.tsx`: 本番Container。
-- `<Feature>Page.tsx`: Presentation component。
-- 必要に応じて`<feature>PageModel.ts`: 両者間の型、command result、pure adapter。
+- `<Feature>Container.tsx`: 本番Container。
+- `<Feature>Presentation.tsx`: Presentation component。
+- 必要に応じて`<feature>Model.ts`: 両者間の型、command result、pure adapter。
 - RouteはContainerを描画し、Presentationを直接描画しない。
 - StorybookやtestでContainerを差し替える場合はcomponent injectionを使う。fixture modeを表すflagを本番componentへ追加しない。
+
+命名は必ず`<Feature>Container`と`<Feature>Presentation`を使用する。`PageContainer`や、Presentationだけを`<Feature>Page`と呼ぶ命名は使用しない。
 
 既存Pageを変更するときも、通信と表示が混在している場合はこの境界へ段階的に寄せる。新規Pageでは最初からこの構成を採用する。
 
@@ -63,7 +65,7 @@ Presentationから`fetch`、API client、Provider通信を直接呼ばない。P
 
 - PageのfixtureとMock Containerは`src/stories/`以下のPage専用directoryへ置く。
 - 本番範囲の`src/features`、`src/app`、`src/routes`、`src/router.tsx`へhard-coded fixture response、fixture mode flag、デモ用simulationを置かない。
-- Storybookでは`Mock<Feature>PageContainer`などのStory専用Containerを作り、本番Containerの境界で差し替える。
+- Storybookでは`Mock<Feature>Container`などのStory専用Containerを作り、本番Containerの境界で差し替える。
 - Mock Containerがfixture、mutation結果、error、retry、画面全体の状態遷移を管理する。
 - Storyは可能な限り本番Presentationと本番route compositionを使い、通信境界のContainerだけをmockする。
 - fixtureは決定論的に保ち、Storybookの`play` functionとtest harnessで同じ結果を再現できるようにする。
@@ -72,9 +74,9 @@ Presentationから`fetch`、API client、Provider通信を直接呼ばない。P
 
 ## Naming examples
 
-- `SessionPageContainer` / `SessionPage` / `sessionPageModel`
-- `ScenarioRegistrationPageContainer` / `ScenarioRegistrationPage` / `scenarioRegistrationPageModel`
-- `MockSessionPageContainer` / `sessionPageFixtures`
+- `SessionContainer` / `SessionPresentation` / `sessionModel`
+- `ScenarioRegistrationContainer` / `ScenarioRegistrationPresentation` / `scenarioRegistrationModel`
+- `MockSessionContainer` / `sessionFixtures`
 
 名称より責務境界を優先するが、同じ規則で検索・理解できる命名を使用する。
 
@@ -92,14 +94,14 @@ Presentationから`fetch`、API client、Provider通信を直接呼ばない。P
 8. frontend tests、TypeScript typecheck、production build、Storybook buildを実行する。
 9. UI変更を含む場合はStorybookをブラウザで開き、主要なsuccess、error、操作flowを確認する。
 
-## SessionPage reference implementation
+## Session reference implementation
 
 現在の参照実装は次の構成である。
 
-- `src/features/session-play/SessionPageContainer.tsx`
-- `src/features/session-play/SessionPage.tsx`
-- `src/features/session-play/sessionPageModel.ts`
-- `src/stories/session-page/MockSessionPageContainer.tsx`
-- `src/stories/session-page/sessionPageFixtures.ts`
+- `src/features/session-play/SessionContainer.tsx`
+- `src/features/session-play/SessionPresentation.tsx`
+- `src/features/session-play/sessionModel.ts`
+- `src/stories/session-page/MockSessionContainer.tsx`
+- `src/stories/session-page/sessionFixtures.ts`
 
 他のPageへ適用するときは、この具体例を参考にしつつ、そのPageのdomainに合わせてcontractを設計する。

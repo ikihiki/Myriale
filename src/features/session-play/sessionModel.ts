@@ -62,7 +62,7 @@ export type SessionCommandResult<T = undefined> = {
   authenticationRequired?: boolean;
 };
 
-export type SessionPagePresentationProps = {
+export type SessionPresentationProps = {
   sessionId: string;
   account: AppChromeAccount | null;
   turns: DialogueTurn[];

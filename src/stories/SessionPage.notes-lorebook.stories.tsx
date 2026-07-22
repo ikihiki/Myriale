@@ -2,13 +2,13 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
 import { MyrialeApp } from '../app/MyrialeApp';
 import { createDemoDb } from '../app/demoData';
-import { MockSessionPageContainer } from './session-page/MockSessionPageContainer';
+import { MockSessionContainer } from './session-page/MockSessionContainer';
 import '../styles.css';
 
 const meta = {
   title: 'ユーザーストーリー/Session notes Lorebook',
   component: MyrialeApp,
-  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098" initialDb={createDemoDb('lorebook')} sessionPageContainer={MockSessionPageContainer} />,
+  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098" initialDb={createDemoDb('lorebook')} sessionContainer={MockSessionContainer} />,
   parameters: {
     notes: 'Lorebook系ユーザーストーリーは独立画面ではなく、セッション中のノートワークスペースとして表示します。編集はダイアログで行います。',
   },

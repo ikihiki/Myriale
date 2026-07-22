@@ -11,7 +11,7 @@ export type MyrialeAppProps = {
   initialDb?: AppDb;
   showDebugPanel?: boolean;
   historyMode?: AppHistoryMode;
-  sessionPageContainer?: ComponentType<{ sessionId: string }>;
+  sessionContainer?: ComponentType<{ sessionId: string }>;
 };
 
 export function MyrialeApp({
@@ -19,12 +19,12 @@ export function MyrialeApp({
   initialDb,
   showDebugPanel = true,
   historyMode = 'memory',
-  sessionPageContainer,
+  sessionContainer,
 }: MyrialeAppProps) {
   const accountApi = useMemo(() => createFetchAccountApi(), []);
   const router = useMemo(
-    () => createAppRouter({ initialUrl, historyMode, showDebugPanel, accountApi, sessionPageContainer }),
-    [accountApi, historyMode, initialUrl, sessionPageContainer, showDebugPanel],
+    () => createAppRouter({ initialUrl, historyMode, showDebugPanel, accountApi, sessionContainer }),
+    [accountApi, historyMode, initialUrl, sessionContainer, showDebugPanel],
   );
   const queryClient = useMemo(() => createMyrialeQueryClient(), []);
 

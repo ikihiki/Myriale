@@ -2,13 +2,13 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
 import { MyrialeApp } from '../app/MyrialeApp';
 import { createDemoDb } from '../app/demoData';
-import { MockSessionPageContainer } from './session-page/MockSessionPageContainer';
+import { MockSessionContainer } from './session-page/MockSessionContainer';
 import '../styles.css';
 
 const meta = {
   title: 'ユーザーストーリー/Mode transition and exception',
   component: MyrialeApp,
-  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098" initialDb={createDemoDb('modeTransitionSession')} sessionPageContainer={MockSessionPageContainer} />,
+  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098" initialDb={createDemoDb('modeTransitionSession')} sessionContainer={MockSessionContainer} />,
   parameters: {
     notes: 'docs/user-stories/mode-transition-and-exception-user-stories.md の各ユーザーストーリー（US-M01〜M08）を、Storybook Interactions の step と expect で操作説明できるアプリ画面にしたものです。',
   },
