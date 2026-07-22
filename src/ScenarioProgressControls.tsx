@@ -146,9 +146,11 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
   };
 
 
-  const panelClassName = 'advanced-inline-fields';
+  const panelClassName = 'grid gap-3';
+  const controlButtonClass = 'rounded-full bg-[#2b2940] px-4 py-2.5 font-extrabold text-[#fffaf0]';
+  const primaryControlButtonClass = `${controlButtonClass} !bg-[#d9a441] !text-[#17151f] !font-black`;
   const noticeNode = notice !== initialAdvancedNotice ? (
-    <div className="notice" role="status" data-testid="advanced-notice">{notice}</div>
+    <div className="my-[18px] rounded-2xl bg-[rgba(18,16,25,.86)] px-4 py-3 text-[#fff6e7]" role="status" data-testid="advanced-notice">{notice}</div>
   ) : null;
 
   const panelContent = (
@@ -205,14 +207,14 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
 
       {panel === 'debug' && (
         <section className={panelClassName} aria-label="進行デバッグ">
-          <div className="program-controls" aria-label="補正操作">
+          <div className="grid gap-2.5 rounded-2xl border border-myr-ink/14 bg-[rgba(250,249,255,.7)] p-3.5" aria-label="補正操作">
             <div className="button-row">
-              <button onClick={() => runCorrection('reroute')}>誘導イベントを生成</button>
-              <button onClick={() => runCorrection('clue')}>補完イベントを生成</button>
-              <button className="primary" onClick={() => runCorrection('forced')}>条件付き強制イベントを発火</button>
-              <button onClick={refreshDebug}>参照情報を更新</button>
+              <button className={controlButtonClass} onClick={() => runCorrection('reroute')}>誘導イベントを生成</button>
+              <button className={controlButtonClass} onClick={() => runCorrection('clue')}>補完イベントを生成</button>
+              <button className={primaryControlButtonClass} onClick={() => runCorrection('forced')}>条件付き強制イベントを発火</button>
+              <button className={controlButtonClass} onClick={refreshDebug}>参照情報を更新</button>
             </div>
-            <p className="program-hint" data-testid="correction-state">補正状態: {correction}</p>
+            <p className="m-0 text-xs text-[#6d587a]" data-testid="correction-state">補正状態: {correction}</p>
           </div>
           <p data-testid="debug-refs">{debugRefs}</p>
         </section>

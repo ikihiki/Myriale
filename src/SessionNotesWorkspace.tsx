@@ -142,15 +142,15 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
   };
 
   return (
-    <section className={`session-notes-workspace ${mode === 'side' ? 'side' : 'full'}`} aria-label={mode === 'side' ? 'セッション中ノートサイドパネル' : 'セッション中ノート全画面'} data-testid={`session-notes-${mode}`}>
+    <section className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)] gap-3" aria-label={mode === 'side' ? 'セッション中ノートサイドパネル' : 'セッション中ノート全画面'} data-testid={`session-notes-${mode}`}>
       <p className="visually-hidden" role="status" data-testid="session-notes-notice">{notice}</p>
       <p className="visually-hidden" data-testid="open-note-state">開いているノート: {openNoteId ?? 'なし'}</p>
 
-      <div className="session-notes-grid">
-        <div className="lorebook-list compact-note-list" aria-label="ノート一覧">
-          <div className="note-list-toolbar">
-            <label>ノート検索<input aria-label="ノート検索" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="人物・場所名で検索" /></label>
-            <div className="note-list-actions" aria-label="ノート操作">
+      <div className="grid h-full min-h-0 grid-cols-1 items-stretch gap-2">
+        <div className="grid min-h-0 content-start gap-1 overflow-auto" aria-label="ノート一覧">
+          <div className={`grid items-end gap-2 border-b border-myr-ink/12 pb-1.5 ${mode === 'side' ? 'grid-cols-1' : 'grid-cols-[minmax(220px,1fr)_auto]'}`}>
+            <label className="grid gap-1.5 text-xs font-black text-[#4f5767]">ノート検索<input className="min-h-[30px] px-2 py-1.5 text-[13px]" aria-label="ノート検索" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="人物・場所名で検索" /></label>
+            <div className={`flex flex-wrap gap-[5px] ${mode === 'side' ? 'justify-start' : 'justify-end'} [&_button]:rounded-full [&_button]:px-2 [&_button]:py-1 [&_button]:text-[11px]`} aria-label="ノート操作">
               <button onClick={() => createNote('person')}>人物追加</button>
               <button onClick={() => createNote('location')}>場所追加</button>
               <button onClick={rebuildContext}>Context再構築</button>
@@ -158,23 +158,23 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
             </div>
           </div>
 
-          <div className="note-list-header" role="row">
+          <div className={`${mode === 'side' ? 'hidden' : 'grid'} grid-cols-[92px_minmax(120px,.8fr)_minmax(140px,1fr)_minmax(180px,1.4fr)_54px] items-center gap-2 px-1.5 py-1 text-[10px] font-black tracking-[.06em] text-[#6d587a] uppercase`} role="row">
             <span>種別</span><span>名前</span><span>別名・初出</span><span>要点</span><span>操作</span>
           </div>
           {filteredNotes.map((note) => (
-            <article key={note.id} className="note-notification note-list-row" aria-label={`${note.name}のノート概要`}>
-              <span>{note.kind === 'person' ? '人物' : '場所'} / {note.certainty}</span>
+            <article key={note.id} className={`grid items-center border-b border-myr-ink/8 px-1.5 py-[5px] text-left text-myr-ink ${mode === 'side' ? 'grid-cols-[74px_minmax(90px,1fr)_44px] gap-[5px]' : 'grid-cols-[92px_minmax(120px,.8fr)_minmax(140px,1fr)_minmax(180px,1.4fr)_54px] gap-2'}`} aria-label={`${note.name}のノート概要`}>
+              <span className="text-[10px] font-black tracking-[.04em] text-[#7054dd]">{note.kind === 'person' ? '人物' : '場所'} / {note.certainty}</span>
               <strong>{note.name}</strong>
-              <small>{note.aliases} · {note.firstTurn}</small>
-              <p>{note.details}</p>
-              <button onClick={() => openNote(note.id)} aria-label={`${note.name}を編集`}>編集</button>
+              <small className={`${mode === 'side' ? 'hidden' : 'block'} overflow-hidden text-ellipsis whitespace-nowrap text-[#6d587a]`}>{note.aliases} · {note.firstTurn}</small>
+              <p className={`${mode === 'side' ? 'hidden' : 'block'} m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[#566072]`}>{note.details}</p>
+              <button className="rounded-full px-2 py-1 text-[11px]" onClick={() => openNote(note.id)} aria-label={`${note.name}を編集`}>編集</button>
             </article>
           ))}
 
-          <section className="notes-context-panel" aria-label="ノートContext">
-            <div className="notes-context-line"><strong>Canon Notes</strong><span data-testid="canon-count">{canonNotes.length}件</span></div>
-            <div className="notes-context-line"><strong>Context</strong><span data-testid="context-stack">{contextSummary}</span></div>
-            <div className="notes-consistency-line"><strong>整合性</strong><span data-testid="consistency-issue">{issue}</span><div className="button-row"><button onClick={() => setNotice('ノート更新として確定しました。')}>ノートを更新</button><button onClick={() => setNotice('AI出力側を修正し、Canonは変更しません。')}>AI出力を修正</button><button onClick={() => setNotice('噂として保持しました。AIには断定させません。')}>噂として保持</button></div></div>
+          <section className={`${mode === 'side' ? 'hidden' : 'grid'} mt-2 gap-1 border-t border-myr-ink/16 pt-2`} aria-label="ノートContext">
+            <div className="grid grid-cols-[112px_minmax(0,1fr)_auto] items-center gap-2 px-0.5 py-1 text-xs text-[#4f5767]"><strong>Canon Notes</strong><span data-testid="canon-count">{canonNotes.length}件</span></div>
+            <div className="grid grid-cols-[112px_minmax(0,1fr)_auto] items-center gap-2 px-0.5 py-1 text-xs text-[#4f5767]"><strong>Context</strong><span data-testid="context-stack">{contextSummary}</span></div>
+            <div className="grid grid-cols-[112px_minmax(0,1fr)_minmax(220px,auto)] items-center gap-2 border-t border-dashed border-myr-ink/14 px-0.5 pt-2 pb-1 text-xs text-[#4f5767] [&_button]:rounded-full [&_button]:px-2 [&_button]:py-1 [&_button]:text-[11px]"><strong>整合性</strong><span data-testid="consistency-issue">{issue}</span><div className="button-row"><button onClick={() => setNotice('ノート更新として確定しました。')}>ノートを更新</button><button onClick={() => setNotice('AI出力側を修正し、Canonは変更しません。')}>AI出力を修正</button><button onClick={() => setNotice('噂として保持しました。AIには断定させません。')}>噂として保持</button></div></div>
           </section>
         </div>
       </div>

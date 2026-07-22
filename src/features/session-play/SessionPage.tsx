@@ -651,12 +651,7 @@ function SessionDialogueSection({
   ]);
 
   const [notesRailWidth, setNotesRailWidth] = useState(340);
-  const sessionPageClassName = [
-    scenarioWizardShellClass,
-    'session-play-page',
-    notesView === 'hidden' ? 'notes-hidden' : '',
-    notesView === 'full' ? 'notes-fullscreen' : '',
-  ].filter(Boolean).join(' ');
+  const sessionPageClassName = `${scenarioWizardShellClass} min-h-[calc(100vh-118px)] [grid-template-columns:190px_minmax(520px,1fr)_minmax(300px,var(--notes-rail-width,340px))] max-[1120px]:grid-cols-1`;
   const sessionPageStyle = {
     '--notes-rail-width': `${notesRailWidth}px`,
   } as CSSProperties;
@@ -673,6 +668,12 @@ function SessionDialogueSection({
   } satisfies Record<typeof sessionMode, { badge: string; label: string; summary: string; reason: string }>;
   const modeMeta = modeLabels[sessionMode];
   const forcedMode = sessionMode !== 'dialogue';
+  const compactControlButtonClass = 'rounded-full bg-[#2b2940] px-3 py-2 text-xs font-black text-[#fffaf0]';
+  const primaryControlButtonClass = `${compactControlButtonClass} !bg-[#d9a441] !text-[#17151f]`;
+  const programPanelClass = 'mt-3 grid gap-2.5 rounded-2xl border border-myr-ink/14 bg-[rgba(250,249,255,.7)] p-3.5';
+  const modeBadgeClass = {
+    dialogue: 'bg-[#4a845c]', battle: 'bg-[#b84a4a]', roll: 'bg-[#7054dd]', event: 'bg-[#c77d16]', recovering: 'bg-[#2b2940]',
+  }[sessionMode];
   const defaultTurnDisplay: TurnDisplayFlags = { allowRewind: true, showInterpretation: true, leadTone: 'player', leadTag: '⟶' };
   const programTurnDisplay: TurnDisplayFlags = { allowRewind: false, showInterpretation: false, leadTone: 'program', leadTag: 'PROGRAM' };
   const displayForTurn = (turn: DialogueTurn): TurnDisplayFlags => ({
@@ -842,15 +843,15 @@ function SessionDialogueSection({
         markerValue={<span data-testid="session-state">{dbSession?.state ?? 'Active'}</span>}
       />
 
-      <main className={`${wizardPaperClass} forge-paper`} aria-label="AI対話モード">
+      <main className={`${wizardPaperClass} ${notesView === 'full' ? 'hidden' : ''} ${notesView === 'hidden' ? 'col-[2/-1] max-[1120px]:col-start-1' : ''}`} aria-label="AI対話モード">
         <p className="kicker">Session play / AI dialogue mode</p>
-        <div className="turn-notes-toolbar" aria-label="ノート表示切り替え">
+        <div className="mb-2.5 flex justify-end gap-2 [&_button]:rounded-full [&_button]:bg-[#2b2940] [&_button]:px-3 [&_button]:py-2 [&_button]:text-xs [&_button]:font-black [&_button]:text-[#fffaf0]" aria-label="ノート表示切り替え">
           {notesView === 'hidden' ? (
-            <button className="primary" onClick={() => setNotesViewMode(isNarrowViewport ? 'full' : 'split')}>ノートを表示</button>
+            <button className={primaryControlButtonClass} onClick={() => setNotesViewMode(isNarrowViewport ? 'full' : 'split')}>ノートを表示</button>
           ) : (
             <>
               <button onClick={() => setNotesViewMode('hidden')}>ノートを非表示</button>
-              <button className="primary" onClick={() => setNotesViewMode('full')}>ノートを全画面表示</button>
+              <button className={primaryControlButtonClass} onClick={() => setNotesViewMode('full')}>ノートを全画面表示</button>
             </>
           )}
         </div>
@@ -943,13 +944,13 @@ function SessionDialogueSection({
         <section className="mx-auto mt-4 w-full max-w-[720px] justify-self-stretch px-2.5 pb-1 max-sm:px-0" aria-label="自然言語入力">
           {forcedMode && (
             <>
-              <div className="mode-strip" aria-label="現在の入力モード">
-                <span className="mode-badge" data-testid="mode-badge">{modeMeta.badge}</span>
+              <div className="mb-2 flex flex-wrap items-center gap-3 rounded-2xl border border-myr-ink/16 bg-myr-paper/80 px-4 py-3 text-[13px]" aria-label="現在の入力モード">
+                <span className={`shrink-0 rounded-full px-3.5 py-1 text-[13px] font-black tracking-[.04em] text-[#fffaf0] ${modeBadgeClass}`} data-testid="mode-badge">{modeMeta.badge}</span>
                 <span data-testid="session-mode-state">{modeMeta.label}</span>
                 <span>{modeMeta.summary}</span>
               </div>
-              <p data-testid="input-disabled-reason">{modeMeta.reason} 終了後に可能。</p>
-              <p data-testid="mode-reason">{modeMeta.reason}</p>
+              <p className="font-bold text-[#b84a4a]" data-testid="input-disabled-reason">{modeMeta.reason} 終了後に可能。</p>
+              <p className="text-[13px] text-[#4f4658]" data-testid="mode-reason">{modeMeta.reason}</p>
             </>
           )}
           <div className="overflow-hidden rounded-[26px] border border-myr-ink/15 bg-[rgba(255,254,249,0.96)] shadow-[0_10px_30px_rgba(34,29,48,0.11),0_1px_2px_rgba(34,29,48,0.08)] transition-[border-color,box-shadow] duration-150 focus-within:border-myr-iris/45 focus-within:shadow-[0_12px_34px_rgba(34,29,48,0.14),0_0_0_3px_rgba(124,92,255,0.09)] max-sm:rounded-[22px] motion-reduce:transition-none">
@@ -1022,7 +1023,7 @@ function SessionDialogueSection({
 
 
           {sessionMode === 'battle' && (
-            <div className="program-input-panel" data-testid="active-battle-turn">
+            <div className={programPanelClass} data-testid="active-battle-turn">
               <p data-testid="battle-turn-lead">Battle Turn {battle.turn}</p>
               <div role="group" aria-label={sessionModeFlavor === 'modeTransition' ? 'バトルターン行動' : 'バトル行動'} className="button-row">
                 {(['攻撃', '防御', 'スキル', '逃走'] as const).map((action) => <button key={action} onClick={() => resolveBattleAction(action)}>{action}</button>)}
@@ -1034,7 +1035,7 @@ function SessionDialogueSection({
           )}
 
           {sessionMode === 'roll' && (
-            <div className="program-input-panel">
+            <div className={programPanelClass}>
               <MyrialeSelect
                 label="ダイス固定値"
                 value={fixedRoll}
@@ -1049,7 +1050,7 @@ function SessionDialogueSection({
           )}
 
           {sessionMode === 'event' && (
-            <div className="program-input-panel">
+            <div className={programPanelClass}>
               <p data-testid="event-lock">中断・分岐はできません</p>
               <p data-testid="current-objective">崩落イベント</p>
               <p data-testid="processing-detail">順番に再生</p>
@@ -1060,7 +1061,7 @@ function SessionDialogueSection({
           )}
 
           {sessionMode === 'recovering' && (
-            <div className="program-input-panel">
+            <div className={programPanelClass}>
               <button onClick={() => recoverFromPoint('lastConfirmed')}>最後に確定した地点から再開</button>
               <button onClick={() => recoverFromPoint('safePoint')}>安全なセーフポイントから再開</button>
             </div>
@@ -1096,10 +1097,10 @@ function SessionDialogueSection({
               </label>
             </section>
             {(sessionModeFlavor === 'program' || sessionModeFlavor === 'modeTransition') && (
-              <section className="program-transition-panel" aria-label="条件によるモード遷移">
+              <section className="my-3.5 grid gap-2.5 rounded-2xl border border-[#d9a441]/35 bg-[#fffaf0]/70 px-3.5 py-3" aria-label="条件によるモード遷移">
                 <div>
                   <strong>プログラム主導シーン確認</strong>
-                  <p>条件成立時に入力UIだけを切り替え、結果は同じ対話ログに追加されます。</p>
+                  <p className="mt-1 text-[13px] text-[#566072]">条件成立時に入力UIだけを切り替え、結果は同じ対話ログに追加されます。</p>
                 </div>
                 {sessionMode !== 'roll' && (
                   <MyrialeSelect
@@ -1159,10 +1160,10 @@ function SessionDialogueSection({
       </main>
 
       {notesView === 'full' && (
-        <section className="session-notes-focus" aria-label="ノート集中表示" data-testid="session-notes-focus">
-          <div className="notes-panel-toolbar" aria-label="ノート表示設定">
+        <section className="col-[2/-1] z-[2] grid min-h-[calc(100vh-150px)] grid-rows-[auto_minmax(0,1fr)] rounded-[22px] border border-myr-ink/16 bg-[#fffef9] p-[18px] shadow-[0_24px_70px_rgba(18,16,25,.16)] max-[1120px]:col-start-1" aria-label="ノート集中表示" data-testid="session-notes-focus">
+          <div className="mb-2.5 flex items-center justify-end gap-2.5 [&_button]:rounded-full [&_button]:bg-[#2b2940] [&_button]:px-[11px] [&_button]:py-[7px] [&_button]:text-[11px] [&_button]:font-black [&_button]:text-[#fffaf0]" aria-label="ノート表示設定">
             <button onClick={() => setNotesViewMode('hidden')}>ノートを非表示</button>
-            <button className="primary" onClick={() => setNotesViewMode(isNarrowViewport ? 'hidden' : 'split')}>
+            <button className={primaryControlButtonClass} onClick={() => setNotesViewMode(isNarrowViewport ? 'hidden' : 'split')}>
               {isNarrowViewport ? '閉じる' : 'ターン画面に戻る'}
             </button>
           </div>
@@ -1171,12 +1172,13 @@ function SessionDialogueSection({
       )}
 
       {notesView === 'split' && (
-        <aside className={`${wizardSummaryClass} session-notes-rail`} aria-label="セッションノート">
-          <div className="notes-panel-toolbar" aria-label="ノート表示設定">
-            <label>
+        <aside className={`${wizardSummaryClass} grid h-[calc(100vh-150px)] min-h-0 min-w-[300px] w-[var(--notes-rail-width,340px)] grid-rows-[auto_minmax(0,1fr)] self-stretch overflow-hidden`} aria-label="セッションノート">
+          <div className="mb-2.5 flex items-center justify-end gap-2.5 [&_button]:rounded-full [&_button]:bg-[#2b2940] [&_button]:px-[11px] [&_button]:py-[7px] [&_button]:text-[11px] [&_button]:font-black [&_button]:text-[#fffaf0]" aria-label="ノート表示設定">
+            <label className="flex items-center gap-2 text-[11px] font-black text-[#4f5767]">
               表示比率
               <input
                 aria-label="ノート表示比率"
+                className="w-[min(160px,32vw)] accent-[#d9a441]"
                 type="range"
                 min="300"
                 max="640"
@@ -1186,7 +1188,7 @@ function SessionDialogueSection({
               />
             </label>
             <button onClick={() => setNotesViewMode('hidden')}>ノートを非表示</button>
-            <button className="primary" onClick={() => setNotesViewMode('full')}>全画面表示</button>
+            <button className={primaryControlButtonClass} onClick={() => setNotesViewMode('full')}>全画面表示</button>
           </div>
           <SessionNotesWorkspace mode="side" />
         </aside>
