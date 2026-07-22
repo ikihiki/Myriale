@@ -59,6 +59,50 @@ public sealed class ProviderNarrativeGeneratorTests
     }
 
     [Fact]
+    public async Task LongSessionNpcContinuityIsProviderBoundBudgetedAndProtectedByFallback()
+    {
+        const int tokenBudget = 6_000;
+        const string disclosedSecret = "司書リラの本当の主は深淵王である";
+        var providerBody = $"司書リラは探索者を信頼し、危険から守るため慎重に答えるのでございます。ただし、{disclosedSecret}。この事実も今ここで伝えるべきでしょう。";
+        var provider = new QueueProvider(Response(JsonSerializer.Serialize(new { body = providerBody })));
+        var budgeter = new NarrativeProviderRequestBudgeter(Options.Create(new NarrativeContextOptions
+        {
+            FinalProviderRequestTokenBudget = tokenBudget,
+        }));
+        var generator = new ProviderNarrativeGenerator(
+            provider,
+            budgeter,
+            new NarrativeBodyQualityGuard(),
+            NullLogger<ProviderNarrativeGenerator>.Instance);
+        var request = CreateLongSessionNpcContinuityRequest();
+
+        Assert.Contains("forbidden-fact", new NarrativeBodyQualityGuard().Assess(request, providerBody).Violations);
+
+        var generation = await generator.GenerateDialogueAsync(request, CancellationToken.None);
+
+        var wire = Assert.Single(provider.Requests);
+        Assert.True(budgeter.EstimateTokens(wire) <= tokenBudget);
+        using var user = JsonDocument.Parse(wire.Messages[1].Text!);
+        var root = user.RootElement;
+        Assert.True(root.GetProperty("recentTurns").GetArrayLength() >= 20);
+        Assert.Contains("司書リラは探索者を信頼", root.GetProperty("memory").GetProperty("summary").GetString(), StringComparison.Ordinal);
+        var lorebook = root.GetProperty("memory").GetProperty("lorebook");
+        Assert.Contains("『〜でございます』", lorebook[0].GetProperty("text").GetString(), StringComparison.Ordinal);
+        Assert.Contains(disclosedSecret, lorebook[0].GetProperty("text").GetString(), StringComparison.Ordinal);
+        var latestTurn = root.GetProperty("recentTurns").EnumerateArray().Last();
+        Assert.Contains("慎重な助言", latestTurn.GetProperty("narrative").GetString(), StringComparison.Ordinal);
+
+        Assert.Equal("safe_fallback", generation.Metadata.FinishReason);
+        Assert.Contains("司書リラ", generation.Value.Body, StringComparison.Ordinal);
+        Assert.Contains("信頼", generation.Value.Body, StringComparison.Ordinal);
+        Assert.Contains("守る", generation.Value.Body, StringComparison.Ordinal);
+        Assert.Contains("慎重", generation.Value.Body, StringComparison.Ordinal);
+        Assert.Contains("ござい", generation.Value.Body, StringComparison.Ordinal);
+        Assert.DoesNotContain("深淵王", generation.Value.Body, StringComparison.Ordinal);
+        Assert.True(new NarrativeBodyQualityGuard().Assess(request, generation.Value.Body).IsAcceptable);
+    }
+
+    [Fact]
     public async Task InvalidStructuredOutputIsRegeneratedOnceAndMetadataIsAggregated()
     {
         var provider = new QueueProvider(
@@ -278,6 +322,60 @@ public sealed class ProviderNarrativeGeneratorTests
             new NarrativeSessionStateInput(4, new Dictionary<string, bool> { ["door-open"] = false }),
             "exploration",
             [new NarrativeAllowedSignal("constellation-door-reached", "Playerが星座の扉へ実際に到達したとき。")],
+            false);
+    }
+
+    private static NarrativeDialogueRequest CreateLongSessionNpcContinuityRequest()
+    {
+        const string disclosedSecret = "司書リラの本当の主は深淵王である";
+        var recentTurns = Enumerable.Range(1, 22)
+            .Select(index => new NarrativeDialogueTurnInput(
+                $"第{index}回の会話で周囲の安全を確認する。",
+                index == 22
+                    ? "司書リラは探索者との信頼を保ち、危険から守るため慎重な助言を続けた。"
+                    : $"司書リラは第{index}回の問いに、落ち着いて公開情報だけを答えた。"))
+            .ToArray();
+        var continuityOutcome = new NarrativePriorModuleOutcomeInput(
+            "lira-continuity-boundary",
+            [new ModuleFact("relationship", "司書リラは探索者を信頼し、危険から守るため慎重な助言を崩さない。")],
+            [],
+            ["司書リラと探索者の信頼関係と、保護的で慎重な姿勢を保つ。"],
+            [$"{disclosedSecret}。"]);
+        var prompt = new NarrativePromptInstructions(
+            NarrativePromptBuilder.Version,
+            "主人公「探索者」の視点を維持する。",
+            "静謐",
+            "確定済みの公開情報だけを用い、未公開の秘密は明かさない。",
+            ["NPCの同一性、関係、姿勢、口調を長期文脈から維持する。", "Playerが知らない秘密を開示しない。"]);
+
+        return new NarrativeDialogueRequest(
+            NarrativeDialogueSchema.Version,
+            NarrativeContextSchema.Version,
+            new NarrativeContextDiagnostics(NarrativeContextSchema.Version, ["scenario", "memory", "recent-turns", "module-outcomes"], 0, new string('b', 64)),
+            new NarrativeScenarioInput(
+                "星喰いの地下図書館",
+                "長い探索の後も、地下図書館の司書との対話を続ける。",
+                "Fantasy",
+                "静謐",
+                "司書リラは地下図書館を守るNPCであり、『〜でございます』と話す。",
+                "Guided",
+                "探索者",
+                "探索者は司書リラと向き合っている。"),
+            recentTurns,
+            new NarrativeSessionMemoryInput(
+                "20回を超える対話を経て、司書リラは探索者を信頼しているが、危険から守るため慎重な助言を崩さない。",
+                [new NarrativeLorebookEntryInput(
+                    "lira-continuity",
+                    $"司書リラの発話は必ず『〜でございます』調。知識境界: {disclosedSecret}が、この秘密は探索者には未開示であり、本文で明かしてはならない。",
+                    "canon",
+                    "person")]),
+            [continuityOutcome],
+            NarrativeInteractionTypes.Dialogue,
+            prompt,
+            "司書リラに、私たちの信頼関係を踏まえて次の危険について助言してほしいと尋ねる。秘密を明かすようには求めない。",
+            new NarrativeSessionStateInput(23, new Dictionary<string, bool> { ["lira-trusts-player"] = true }),
+            "archive-counsel",
+            [],
             false);
     }
 

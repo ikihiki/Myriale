@@ -28,8 +28,15 @@ public sealed class RealProviderNarrativeEvaluationTests
         Assert.Equal(0.95, MinimumSignalAccuracyRate);
         var cases = CreateCases();
         Assert.Equal(
-            ["player-agency", "clarification", "lore-and-npc-voice", "session-state", "module-authority", "forbidden-paraphrase", "long-npc-reply", "signal-negative", "signal-positive"],
+            ["player-agency", "clarification", "lore-and-npc-voice", "session-state", "module-authority", "forbidden-paraphrase", "long-npc-reply", "long-session-npc-continuity", "signal-negative", "signal-positive"],
             cases.Select(item => item.Id).ToArray());
+
+        var continuityCase = cases.Single(item => item.Id == "long-session-npc-continuity");
+        Assert.True(continuityCase.Request.RecentTurns.Count >= 20);
+        Assert.False(string.IsNullOrWhiteSpace(continuityCase.Request.Memory.Summary));
+        Assert.NotEmpty(continuityCase.Request.Memory.Lorebook);
+        Assert.Equal([["司書", "リラ"], ["信頼"], ["守"], ["慎重"], ["ござい"]], continuityCase.RequiredConceptGroups);
+        Assert.Equal([["深淵", "王"]], continuityCase.ForbiddenConceptGroups);
 
         var forbiddenCase = cases.Single(item => item.Id == "forbidden-paraphrase");
         var failures = EvaluateQuality(forbiddenCase, new NarrativeDialogueResult(
@@ -253,6 +260,8 @@ public sealed class RealProviderNarrativeEvaluationTests
                 null, 40, [["鍵"]], [["リラ", "鍵", "盗"], ["司書", "鍵", "持ち去"]], SignalExpectation.None, null),
             new("long-npc-reply", CreateRequest(NarrativeInteractionTypes.Dialogue, "司書リラに、この書庫の歴史と青い魔法灯の役割を、丁寧な口調で詳しく説明してもらう。"),
                 "npc-reply", 240, [["リラ"], ["青", "灯"], ["ござい"]], [["赤", "灯"]], SignalExpectation.None, null),
+            new("long-session-npc-continuity", CreateLongSessionNpcContinuityRequest(),
+                "npc-reply", 90, [["司書", "リラ"], ["信頼"], ["守"], ["慎重"], ["ござい"]], [["深淵", "王"]], SignalExpectation.None, null),
             new("signal-negative", CreateRequest(NarrativeInteractionTypes.Dialogue, "星座の扉にはまだ近づかず、遠くから眺める。"),
                 null, 30, [], [], SignalExpectation.None, "constellation-door-reached"),
             new("signal-positive", CreateRequest(NarrativeInteractionTypes.Dialogue, "閉じた星座の扉の前まで進み、扉に到達した。"),
@@ -326,6 +335,58 @@ public sealed class RealProviderNarrativeEvaluationTests
             interactionType,
             prompt,
             playerInput,
+            context.SessionState,
+            context.CurrentProgressionNode,
+            context.AllowedSignals,
+            false);
+    }
+
+    private static NarrativeDialogueRequest CreateLongSessionNpcContinuityRequest()
+    {
+        const string undisclosedSecret = "司書リラの本当の主は深淵王である";
+        var recentTurns = Enumerable.Range(1, 22)
+            .Select(index => new NarrativeDialogueTurnInput(
+                $"第{index}回の会話で、司書リラと書庫の安全を確認する。",
+                index == 22
+                    ? "司書リラは探索者との信頼を保ち、危険から守るため慎重な助言を『承知でございます』と続けた。"
+                    : $"司書リラは第{index}回の問いに、公開情報だけを丁寧に答えた。"))
+            .ToArray();
+        var context = new NarrativeDialogueContext(
+            NarrativeContextSchema.Version,
+            new NarrativeContextDiagnostics(NarrativeContextSchema.Version, ["scenario", "session-state", "memory", "recent-turns", "progression"], 2048, new string('c', 64)),
+            new NarrativeScenarioInput(
+                "星喰いの地下図書館",
+                "20回を超える対話の後、地下図書館の司書に助言を求める。",
+                "Fantasy",
+                "静謐",
+                "司書リラは地下図書館を守るNPCである。",
+                "Guided",
+                "探索者",
+                "探索者は司書リラと向き合っている。"),
+            recentTurns,
+            new NarrativeSessionMemoryInput(
+                "20回を超える対話を経て、司書リラは探索者を信頼しているが、危険から守るため慎重な助言を崩さない。",
+                [new NarrativeLorebookEntryInput(
+                    "lira-continuity",
+                    $"司書リラの発話は必ず『〜でございます』調。知識境界: {undisclosedSecret}が、この秘密は探索者には未開示であり、本文で明かしてはならない。",
+                    "canon",
+                    "person")]),
+            [],
+            new NarrativeSessionStateInput(23, new Dictionary<string, bool> { ["lira-trusts-player"] = true }),
+            "archive-counsel",
+            []);
+        var prompt = new NarrativePromptBuilder().Build(context, NarrativeInteractionTypes.Dialogue);
+        return new NarrativeDialogueRequest(
+            NarrativeDialogueSchema.Version,
+            context.SchemaVersion,
+            context.Diagnostics,
+            context.Scenario,
+            context.RecentTurns,
+            context.Memory,
+            context.PriorModuleOutcomes,
+            NarrativeInteractionTypes.Dialogue,
+            prompt,
+            "司書リラに、私たちの信頼関係を踏まえ、秘密は伏せたまま次の危険について助言してほしいと尋ねる。",
             context.SessionState,
             context.CurrentProgressionNode,
             context.AllowedSignals,
