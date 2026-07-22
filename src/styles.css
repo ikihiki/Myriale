@@ -1260,18 +1260,6 @@ textarea { min-height: 126px; resize: vertical; }
 
 .interpretation-glyph { flex: 0 0 auto; color: #b07a16; }
 
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
 .debug-drawer {
   margin-top: 18px;
   border-top: 1px solid rgba(23, 21, 31, .18);
