@@ -85,6 +85,16 @@ export const DirectOpenPlaySession: Story = {
   },
 };
 
+export const NetworkBackedSessionLifecycle: Story = {
+  name: 'E2E: API経由のSession作成と対話',
+  args: { initialUrl: '/scenarios', initialDb: createDemoDb('activeSession') },
+};
+
+export const NetworkBackedSessionReload: Story = {
+  name: 'E2E: API経由のSession再読み込み',
+  args: { initialUrl: '/sessions/SES-E2E-0001', initialDb: createDemoDb('activeSession') },
+};
+
 export const DirectOpenLorebook: Story = {
   name: 'URL直開き: セッション中のLorebook管理',
   args: { initialUrl: '/sessions/SES-PREP-1098', initialDb: createDemoDb('lorebook'), sessionContainer: MockSessionContainer },
