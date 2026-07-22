@@ -21,7 +21,7 @@ export function AuthScaffold({
   footer?: ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[minmax(360px,480px)_minmax(0,360px)] items-start justify-center gap-4.5 px-5.5 py-[clamp(20px,5vh,56px)] max-myr-account:grid-cols-[minmax(0,480px)]">
+    <div className="grid grid-cols-[minmax(360px,480px)_minmax(0,360px)] items-start justify-center gap-4.5 px-5.5 py-myr-page-fluid-y max-myr-account:grid-cols-[minmax(0,480px)]">
       <main
         className={`${surfaceRecipe({ role: 'panel', variant: 'account' })} [&_.desk-brand]:mb-5.5`}
         aria-label={ariaLabel}

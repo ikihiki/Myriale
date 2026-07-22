@@ -22,7 +22,7 @@ export const shellSurfaceClassNames: Record<SurfaceWidth, string> = {
 
 export const panelSurfaceClassNames = {
   default: 'rounded-myr-card border border-myr-ink/15 bg-myr-paper/75 p-5 shadow-myr-card',
-  home: 'grid gap-4.5 rounded-myr-shell border border-[rgba(220,231,242,.54)] bg-[radial-gradient(circle_at_10%_0%,rgba(124,92,255,.10),transparent_30%),linear-gradient(135deg,rgba(255,250,240,.97),rgba(255,248,232,.90))] p-[clamp(18px,3vw,26px)] shadow-[0_24px_80px_rgba(18,16,25,.18)] max-myr-home-compact:rounded-[20px] max-myr-home-compact:p-4.5',
+  home: 'grid gap-4.5 rounded-myr-shell border border-[rgba(220,231,242,.54)] bg-[radial-gradient(circle_at_10%_0%,rgba(124,92,255,.10),transparent_30%),linear-gradient(135deg,rgba(255,250,240,.97),rgba(255,248,232,.90))] p-myr-surface-fluid shadow-[0_24px_80px_rgba(18,16,25,.18)] max-myr-home-compact:rounded-[20px] max-myr-home-compact:p-4.5',
   account: 'rounded-myr-shell border border-myr-line bg-[rgba(255,250,240,.92)] p-7.5 shadow-myr-surface',
 } as const;
 

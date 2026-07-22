@@ -202,7 +202,7 @@ function ResetPasswordPage({ api, onLogin }: { api: AccountApi; onLogin: () => v
 }
 
 function ProtectedAccountFrame({ view, user, status, onNavigate, onLogout, children }: { view: AccountView; user: AccountUser | null; status: string; onNavigate: (view: AccountView) => void; onLogout: () => void; children: ReactNode }) {
-  if (status === 'unknown') return <div className="grid grid-cols-[minmax(360px,480px)] justify-center px-5.5 py-[clamp(20px,5vh,56px)]"><main className={surfaceRecipe({ role: 'panel', variant: 'account' })} aria-busy="true">認証状態を確認しています…</main></div>;
+  if (status === 'unknown') return <div className="grid grid-cols-[minmax(360px,480px)] justify-center px-5.5 py-myr-page-fluid-y"><main className={surfaceRecipe({ role: 'panel', variant: 'account' })} aria-busy="true">認証状態を確認しています…</main></div>;
   if (!user) return <AuthScaffold ariaLabel="ログインが必要" kicker="Account" title="ログインが必要です" lead="この画面を表示するにはログインしてください。"><Button variant="primary" onClick={() => onNavigate('login')}>ログインへ</Button></AuthScaffold>;
   return (
     <AppFrame

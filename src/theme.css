@@ -40,6 +40,14 @@
   --spacing-myr-composer-min: var(--myr-spacing-composer-min);
   --spacing-myr-composer-max: var(--myr-spacing-composer-max);
   --spacing-myr-module-preview-min: var(--myr-spacing-module-preview-min);
+  --spacing-myr-surface-fluid: clamp(1.125rem, 3vw, 1.625rem);
+  --spacing-myr-page-fluid-y: clamp(1.25rem, 5vh, 3.5rem);
+  --spacing-myr-module-page: clamp(1.5rem, 5vw, 4.25rem);
+  --spacing-myr-home-hero-gap: clamp(1.125rem, 5vw, 3.25rem);
+  --spacing-myr-home-hero-inset: clamp(1.625rem, 5vw, 3.625rem);
+  --spacing-myr-devbar-y: 0.55rem;
+  --spacing-myr-devcode-x: 0.65rem;
+  --spacing-myr-devcode-y: 0.2rem;
   --container-myr-chrome: 82.5rem;
   --container-myr-content: 73.75rem;
   --container-myr-focused: 65rem;
