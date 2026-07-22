@@ -12,6 +12,13 @@
 - Notification: ユーザーに提示する更新通知
 - Turn: 対話ログの単位
 
+実装境界
+- AI生成状態は `SessionExecution(kind=note-proposal)` で表す。
+- 提案内容は `SessionArtifact(kind=note-patch)` と `SessionNoteProposal` に保存し、source Turnと根拠を必須にする。
+- Apply/Edit then Applyはexpected Note revisionを検証し、`SessionNoteRevision`をappendする。
+- Reject/SnoozeはCanonを変更しない。
+- この基盤にはfixtureとreview UIを含むが、ノート用Prompt Builder、Provider adapter、AI Execution handlerは含まない。
+
 ---
 
 ## US-AN01: AIが重要情報を検出したらノートを自動作成してほしい

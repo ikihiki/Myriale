@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { ArchiveCard, Button, Input, Label, PageCanvas, PageShell, Textarea } from '../../components/ui';
 import { useRouter } from '@tanstack/react-router';
 import { useForm, useStore } from '@tanstack/react-form';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -24,26 +25,26 @@ function ReadOnlyProtagonistFields({ value, testId }: { value: string; testId: s
 
   return (
     <div className="grid gap-4" data-testid={testId}>
-      <label className="grid gap-2 text-xs font-black tracking-[0.04em] text-myr-slate">
+      <Label as="label" textRole="label" className="grid gap-2">
         名前
-        <input
-          className="!cursor-not-allowed !rounded-none !border-x-0 !border-t-0 !border-b-2 !border-myr-ink/15 !bg-myr-vellum/35 !px-3 !py-2.5 !text-base !text-myr-slate !shadow-none"
+        <Input
+          variant="underline"
           aria-label="主人公の名前"
           aria-readonly="true"
           readOnly
           value={protagonist.name}
         />
-      </label>
-      <label className="grid gap-2 text-xs font-black tracking-[0.04em] text-myr-slate">
+      </Label>
+      <Label as="label" textRole="label" className="grid gap-2">
         プロフィール
-        <textarea
-          className="!min-h-28 !cursor-not-allowed !rounded-myr-card !border !border-myr-ink/15 !bg-myr-vellum/35 !px-3 !py-3 !text-base !leading-7 !text-myr-slate !shadow-none"
+        <Textarea
+          className="!min-h-28 !rounded-myr-card !border-myr-ink/15 !px-3 !py-3 !text-base !leading-7 !shadow-none"
           aria-label="主人公プロフィール"
           aria-readonly="true"
           readOnly
           value={protagonist.profile}
         />
-      </label>
+      </Label>
     </div>
   );
 }
@@ -127,9 +128,9 @@ function ProtagonistForm({
     <>
       <section className="border-t border-myr-ink/20 py-7 md:py-9" aria-label="主人公確定">
         <div className="mb-6">
-          <p className="mb-2 font-myr-mono text-[0.6875rem] font-black tracking-[0.14em] text-myr-ruby uppercase">
+          <Label as="p" textRole="eyebrowData" className="mb-2">
             Protagonist
-          </p>
+          </Label>
         </div>
 
         <form
@@ -170,41 +171,42 @@ function ProtagonistForm({
             <div className="grid gap-4">
               <form.Field name="createdName">
                 {(field) => (
-                  <label className="grid gap-2 text-xs font-black tracking-[0.04em] text-myr-slate">
+                  <Label as="label" textRole="label" className="grid gap-2">
                     名前
-                    <input
-                      className="!rounded-none !border-x-0 !border-t-0 !border-b-2 !border-myr-ink/20 !bg-white/45 !px-3 !py-2.5 !text-base !text-myr-ink focus:!border-myr-iris focus:!outline-none"
+                    <Input
+                      variant="underline"
                       aria-label="主人公の名前"
                       value={field.state.value}
                       onBlur={field.handleBlur}
                       onChange={(event) => field.handleChange(event.target.value)}
                     />
-                  </label>
+                  </Label>
                 )}
               </form.Field>
               <form.Field name="createdProfile">
                 {(field) => (
-                  <label className="grid gap-2 text-xs font-black tracking-[0.04em] text-myr-slate">
+                  <Label as="label" textRole="label" className="grid gap-2">
                     プロフィール
-                    <textarea
-                      className="!min-h-36 !rounded-myr-card !border !border-myr-ink/20 !bg-white/55 !px-3 !py-3 !text-base !leading-7 !text-myr-ink focus:!border-myr-iris focus:!outline-none"
+                    <Textarea
+                      className="!min-h-36 !rounded-myr-card !border-myr-ink/20 !bg-white/55 !px-3 !py-3 !text-base !leading-7"
                       aria-label="主人公プロフィール"
                       value={field.state.value}
                       onBlur={field.handleBlur}
                       onChange={(event) => field.handleChange(event.target.value)}
                     />
-                  </label>
+                  </Label>
                 )}
               </form.Field>
               <div className="flex flex-wrap items-center gap-3">
-                <button
+                <Button
                   type="button"
-                  className="!rounded-full !bg-myr-vellum !px-4 !py-2.5 !text-xs !font-black !text-myr-ink hover:!bg-myr-mist focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
+                  variant="ghost"
+                  size="sm"
                   onClick={generateAiHero}
                   disabled={heroRecommendation.isPending}
                 >
                   {heroRecommendation.isPending ? 'AIが主人公を推薦しています…' : 'AIに主人公を生成してもらう'}
-                </button>
+                </Button>
                 {aiSuggestion && <p className="m-0 text-xs font-bold text-myr-iris" role="status">{aiSuggestion}</p>}
               </div>
             </div>
@@ -230,12 +232,9 @@ function ProtagonistForm({
           )}
 
           <div className="mt-7 flex justify-end border-t border-myr-ink/15 pt-5">
-            <button
-              type="submit"
-              className="!rounded-full !bg-myr-gold !px-5 !py-3 !text-sm !font-black !text-myr-void shadow-myr-card transition hover:!-translate-y-0.5 hover:!bg-myr-ink hover:!text-myr-paper focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
-            >
+            <Button type="submit" variant="primary" size="lg" className="shadow-myr-card">
               開始内容を確認
-            </button>
+            </Button>
           </div>
         </form>
       </section>
@@ -244,40 +243,30 @@ function ProtagonistForm({
         <MyrialeDialogContent
           title="開始前の最終確認"
           description="Scenarioと主人公を確認してから物語を開始します。"
-          className="!w-[min(620px,calc(100vw-32px))] !border-myr-ink/20 !bg-myr-paper !text-myr-ink"
+          size="wide"
           portal={false}
           data-testid="start-review-dialog"
           footer={(
             <>
-              <button
-                className="!rounded-full !bg-myr-vellum !px-4 !py-2.5 !font-extrabold !text-myr-ink hover:!bg-myr-mist"
-                onClick={() => setReviewOpen(false)}
-              >
+              <Button variant="ghost" onClick={() => setReviewOpen(false)}>
                 主人公選択を修正
-              </button>
+              </Button>
               {requiresLogin ? (
-                <button
-                  className="!rounded-full !bg-myr-ink !px-4 !py-2.5 !font-extrabold !text-myr-paper hover:!bg-myr-iris"
-                  onClick={onLogin}
-                >
+                <Button variant="secondary" onClick={onLogin}>
                   ログインへ
-                </button>
+                </Button>
               ) : (
-                <button
-                  className="!rounded-full !bg-myr-ink !px-4 !py-2.5 !font-extrabold !text-myr-paper hover:!bg-myr-iris"
-                  onClick={() => void beginStory()}
-                  disabled={isBeginning}
-                >
+                <Button variant="secondary" onClick={() => void beginStory()} disabled={isBeginning}>
                   {isBeginning ? 'Sessionを作成しています…' : '物語を始める'}
-                </button>
+                </Button>
               )}
             </>
           )}
         >
           {beginError && <p className="m-0 mb-4 text-sm font-bold text-myr-ruby" role="alert">{beginError}</p>}
-          <article className="rounded-myr-card border border-myr-ink/15 bg-white/65 p-4 shadow-myr-card" data-testid="start-summary">
-            <span className="font-myr-mono text-[0.6875rem] font-black tracking-[0.08em] text-myr-ruby uppercase">Session snapshot</span>
-            <h2 className="my-2 font-myr-display text-3xl leading-none tracking-[-0.04em]">{scenario.title}</h2>
+          <ArchiveCard as="article" className="!bg-white/65" data-testid="start-summary">
+            <Label textRole="eyebrowData" className="!tracking-[0.08em]">Session snapshot</Label>
+            <Label as="h2" textRole="section" className="my-2 !text-3xl">{scenario.title}</Label>
             <p className="my-2 text-sm text-myr-slate">Scenario: {scenario.title}</p>
             {canConfigureInterpretation && (
               <p className="my-2 text-sm text-myr-slate">
@@ -285,7 +274,7 @@ function ProtagonistForm({
               </p>
             )}
             <p className="my-2 text-sm text-myr-slate">主人公: {heroForSummary}</p>
-          </article>
+          </ArchiveCard>
         </MyrialeDialogContent>
       </MyrialeDialogRoot>
     </>
@@ -394,9 +383,9 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
                   ? scenarioQuery.error.message
                   : '指定されたシナリオが見つかりません。シナリオ一覧から選び直してください。'}
             </p>
-            <button className="!rounded-full !bg-myr-ink !px-5 !py-3 !font-black !text-myr-paper" onClick={backToScenarioList}>
+            <Button variant="secondary" size="lg" onClick={backToScenarioList}>
               シナリオ一覧へ
-            </button>
+            </Button>
           </section>
         </main>
       </AppChrome>
@@ -405,44 +394,37 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
 
   return (
     <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={chromeAccount} onLogout={logout}>
-      <div
-        data-myriale-theme="archive"
-        className="min-h-[calc(100vh-118px)] bg-[image:var(--myr-screen-background)] p-3 font-myr-body text-myr-ink md:p-5"
-      >
-        <main
-          className="mx-auto grid min-h-[calc(100vh-158px)] max-w-[1040px] content-start rounded-myr-panel border border-white/40 bg-[image:var(--myr-paper-background)] [background-size:26px_100%,auto] p-5 shadow-myr-panel md:p-8"
-          aria-label="セッション開始アプリ画面"
-        >
+      <PageCanvas data-myriale-theme="archive">
+        <PageShell width="focused" aria-label="セッション開始アプリ画面">
           <header className="mb-6 flex flex-col items-start justify-between gap-4 border-b border-myr-ink/15 pb-5 md:flex-row">
             <div>
-              <p className="mb-2 text-[0.6875rem] font-extrabold tracking-[0.16em] text-[#6d587a] uppercase">
+              <Label as="p" textRole="eyebrow" className="mb-2">
                 Session Start / Scenario to play
-              </p>
-              <h1
-                className="m-0 max-w-[820px] font-myr-display text-[clamp(2.25rem,5vw,4.75rem)] leading-[0.95] tracking-[-0.055em]"
+              </Label>
+              <Label
+                as="h1"
+                textRole="display"
+                className="m-0 max-w-myr-section"
                 data-testid="selected-scenario-title"
               >
                 {selectedScenario.title}
-              </h1>
+              </Label>
             </div>
-            <button
-              className="!rounded-full !bg-transparent !px-0 !py-2 !text-sm !font-black !text-myr-iris underline decoration-myr-iris/30 underline-offset-4 hover:!text-myr-ruby focus-visible:!outline-2 focus-visible:!outline-offset-4 focus-visible:!outline-myr-iris"
-              onClick={backToScenarioList}
-            >
+            <Button variant="text" onClick={backToScenarioList}>
               シナリオ一覧へ戻る
-            </button>
+            </Button>
           </header>
 
           <section
-            className="overflow-hidden rounded-myr-card bg-white/45 px-5 shadow-myr-card md:px-8 [&_.myr-ui-field]:mb-5 [&_.myr-ui-field>label]:!text-xs [&_.myr-ui-field>label]:!font-black [&_.myr-ui-field>label]:!tracking-[0.04em] [&_.myr-ui-field>label]:!text-myr-slate [&_.myr-ui-select-trigger]:!rounded-none [&_.myr-ui-select-trigger]:!border-x-0 [&_.myr-ui-select-trigger]:!border-t-0 [&_.myr-ui-select-trigger]:!border-b-2 [&_.myr-ui-select-trigger]:!border-myr-ink/20 [&_.myr-ui-select-trigger]:!bg-white/45"
+            className="overflow-hidden rounded-myr-card bg-white/45 px-5 shadow-myr-card md:px-8 [&_.myr-ui-field]:mb-5 [&_.myr-ui-field>label]:!text-xs [&_.myr-ui-field>label]:!font-black [&_.myr-ui-field>label]:!tracking-myr-label [&_.myr-ui-field>label]:!text-myr-slate [&_.myr-ui-select-trigger]:!rounded-none [&_.myr-ui-select-trigger]:!border-x-0 [&_.myr-ui-select-trigger]:!border-t-0 [&_.myr-ui-select-trigger]:!border-b-2 [&_.myr-ui-select-trigger]:!border-myr-ink/20 [&_.myr-ui-select-trigger]:!bg-white/45"
             aria-label="イントロと主人公選択"
           >
             <section className="relative py-7 md:py-9" aria-label="イントロNarrative">
-              <p className="mb-3 font-myr-mono text-[0.6875rem] font-black tracking-[0.14em] text-myr-ruby uppercase">
+              <Label as="p" textRole="eyebrowData" className="mb-3">
                 Opening narrative
-              </p>
+              </Label>
               <article className="relative pr-4 before:pointer-events-none before:absolute before:-top-8 before:right-0 before:font-myr-display before:text-8xl before:text-myr-iris/10 before:content-['✦']" data-testid="intro-narrative">
-                <p className="relative z-10 m-0 max-w-[800px] font-myr-display text-[clamp(1.25rem,2.5vw,1.75rem)] leading-[1.65] tracking-[-0.025em]">
+                <p className="relative z-10 m-0 max-w-200 font-myr-display text-[clamp(1.25rem,2.5vw,1.75rem)] leading-[1.65] tracking-[-0.025em]">
                   {selectedScenario.opening}
                 </p>
               </article>
@@ -461,8 +443,8 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
               onInterpretationEnabledChange={setInterpretationEnabled}
             />
           </section>
-        </main>
-      </div>
+        </PageShell>
+      </PageCanvas>
     </AppChrome>
   );
 }

@@ -1,9 +1,6 @@
 import type { ReactNode } from 'react';
+import { Notice, type NoticeTone } from '../../components/ui';
 
-export function NoticeBanner({ children, tone = 'info', testId = 'um-notice' }: { children: ReactNode; tone?: 'info' | 'success' | 'warning' | 'danger'; testId?: string }) {
-  return (
-    <div className={`um-notice tone-${tone}`} role="status" data-testid={testId}>
-      {children}
-    </div>
-  );
+export function NoticeBanner({ children, tone = 'info', testId = 'um-notice' }: { children: ReactNode; tone?: NoticeTone; testId?: string }) {
+  return <Notice tone={tone} className="mb-4.5" data-testid={testId}>{children}</Notice>;
 }

@@ -58,6 +58,21 @@ describe('TanStack app routing', () => {
     expect(router.state.location.pathname).toBe('/scenarios');
   });
 
+  it('redirects the legacy AI key URL to /admin', async () => {
+    const router = createAppRouter({ initialUrl: '/account/admin/ai-keys' });
+    await router.load();
+
+    expect(router.state.location.pathname).toBe('/admin');
+  });
+
+  it('matches the canonical AI Provider admin route', async () => {
+    const router = createAppRouter({ initialUrl: '/admin' });
+    await router.load();
+
+    expect(router.state.location.pathname).toBe('/admin');
+    expect(router.state.matches[router.state.matches.length - 1]?.routeId).toBe('/admin');
+  });
+
   it('matches the home route and renders the root not-found fallback for unknown URLs', async () => {
     const homeRouter = createAppRouter({ initialUrl: '/' });
     await homeRouter.load();
@@ -70,7 +85,7 @@ describe('TanStack app routing', () => {
 
   it('maps shared navigation keys to router paths and validated search strings', () => {
     expect(appPathForStoryKey('sessionNotesLorebook')).toBe('/sessions/SES-PREP-1098');
-    expect(appPathForStoryKey('adminAiKeys')).toBe('/account/admin/ai-keys');
+    expect(appPathForStoryKey('adminAiKeys')).toBe('/admin');
     expect(appHrefForStoryKey('startSession', { query: { scenarioId: 'SCN-001' } })).toBe('/sessions/start?scenarioId=SCN-001');
   });
 });

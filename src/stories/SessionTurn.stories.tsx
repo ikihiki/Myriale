@@ -17,10 +17,9 @@ import '../styles.css';
 /** ログ風の枠で1つ以上のターンを囲む共通デコレーター。 */
 const inLog = (children: ReactNode) => (
   <div
-    className="scenario-forge session-play-page"
-    style={{ display: 'block', padding: 16, background: '#efe6d2' }}
+    className="block bg-[#efe6d2] p-4"
   >
-    <div className="dialogue-log" style={{ maxHeight: 'none', display: 'grid', gap: 10 }}>
+    <div className="grid gap-2.5">
       {children}
     </div>
   </div>
@@ -116,14 +115,14 @@ export const Playground: StoryObj<PlaygroundArgs> = {
                 text: args.leadText,
                 actions:
                   args.leadTone === 'player' && args.showInterpretation ? (
-                    <MyrialeToggle className="interpretation-toggle" pressed>
+                    <MyrialeToggle className="!justify-self-start !rounded-full !border !border-myr-iris/30 !bg-white/55 !px-2.5 !py-1 !text-myr-caption !font-extrabold !text-[#6044d4] data-[state=on]:!bg-myr-iris/16 data-[state=on]:!text-[#4a32b0]" pressed>
                       ⌄ 解釈を隠す
                     </MyrialeToggle>
                   ) : undefined,
                 detail:
                   args.leadTone === 'player' && args.showInterpretation ? (
-                    <p className="interpretation">
-                      <span className="interpretation-glyph" aria-hidden="true">⚙</span>
+                    <p className="m-0 flex max-w-none items-baseline gap-2 rounded-xl bg-myr-gold/18 px-3 py-2.5 text-myr-ui-sm font-semibold text-[#4b3a20]">
+                      <span className="shrink-0 text-[#b07a16]" aria-hidden="true">⚙</span>
                       {args.interpretationText}
                     </p>
                   ) : undefined,
@@ -153,13 +152,13 @@ export const Samples: StoryObj = {
             srLabel: 'プレイヤーの入力: ',
             text: '懐の銀の鍵を取り出して刻印を見る',
             actions: (
-              <MyrialeToggle className="interpretation-toggle" pressed>
+              <MyrialeToggle className="!justify-self-start !rounded-full !border !border-myr-iris/30 !bg-white/55 !px-2.5 !py-1 !text-myr-caption !font-extrabold !text-[#6044d4] data-[state=on]:!bg-myr-iris/16 data-[state=on]:!text-[#4a32b0]" pressed>
                 ⌄ 解釈を隠す
               </MyrialeToggle>
             ),
             detail: (
-              <p className="interpretation">
-                <span className="interpretation-glyph" aria-hidden="true">⚙</span>
+              <p className="m-0 flex max-w-none items-baseline gap-2 rounded-xl bg-myr-gold/18 px-3 py-2.5 text-myr-ui-sm font-semibold text-[#4b3a20]">
+                <span className="shrink-0 text-[#b07a16]" aria-hidden="true">⚙</span>
                 所持品確認として解釈しました。目的は銀の鍵の由来と使い道を知ることです。
               </p>
             ),

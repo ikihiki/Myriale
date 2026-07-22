@@ -22,12 +22,12 @@ function RootLayout() {
 
   return (
     <AppNavigationProvider navigate={navigate}>
-      <div className="myriale-app" data-testid="myriale-app" data-current-url={currentUrl}>
+      <div className="min-h-screen bg-[#ece7dc]" data-testid="myriale-app" data-current-url={currentUrl}>
         {showDebugPanel && (
-          <div className="app-url-console" aria-label="アプリURLとデモDB状態">
+          <div className="sticky top-0 z-50 flex items-center gap-3 border-b border-[rgba(46,36,25,0.16)] bg-[rgba(255,252,244,0.95)] px-4 py-myr-devbar-y font-sans text-[0.85rem] leading-[1.4] text-[#382d23] backdrop-blur-[10px]" aria-label="アプリURLとデモDB状態">
             <strong>App URL</strong>
-            <code data-testid="app-url">{currentUrl}</code>
-            <span data-testid="app-db-summary">
+            <code className="rounded-full border border-[rgba(81,63,43,0.22)] bg-myr-paper px-myr-devcode-x py-myr-devcode-y text-[#7b3f16]" data-testid="app-url">{currentUrl}</code>
+            <span className="ml-auto text-[#6f6254]" data-testid="app-db-summary">
               scenarios {Object.keys(db.scenarios).length} / sessions {Object.keys(db.playSessions).length} / route {location.pathname}
               {db.ui.selectedSessionId && db.playSessions[db.ui.selectedSessionId]
                 ? ` / turns ${db.playSessions[db.ui.selectedSessionId].turn}`
@@ -36,7 +36,7 @@ function RootLayout() {
             </span>
           </div>
         )}
-        <div key={currentUrl} className="myriale-screen-host">
+        <div key={currentUrl} className="min-h-[calc(100vh-2.4rem)]">
           <Outlet />
         </div>
       </div>

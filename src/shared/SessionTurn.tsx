@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Label, TurnCard } from '../components/ui';
 
 /**
  * SessionTurn — the shared turn-display component used by every session-play
@@ -62,15 +63,33 @@ export type SessionTurnProps = {
   articleRef?: (node: HTMLElement | null) => void;
 };
 
+const leadClass: Record<TurnLeadTone, string> = {
+  player: 'rounded-[14px] bg-[linear-gradient(135deg,rgba(124,92,255,.12),rgba(124,92,255,.04))] px-3.5 py-3 font-bold text-[#2c2540]',
+  program: 'rounded-myr-control bg-myr-ink/6 px-2.5 py-2 font-mono text-xs leading-normal text-myr-plum',
+};
+
+const leadTagClass: Record<TurnLeadTone, string> = {
+  player: 'text-base leading-[1.4] text-myr-iris',
+  program: 'inline-block rounded-full bg-myr-plum px-2 py-px align-middle text-myr-micro font-black tracking-[.1em] text-myr-paper',
+};
+
+const variantClass: Record<string, string> = {
+  '': '',
+  'turn-battle': 'border-l-3 border-l-myr-ruby',
+  'turn-roll': 'border-l-3 border-l-[#7054dd]',
+  'turn-event': 'border-l-3 border-l-[#c77d16]',
+  'turn-dialogue': 'border-l-3 border-l-[#4a845c]',
+};
+
 function TurnLeadBlock({ lead }: { lead: TurnLead }) {
   return (
-    <div className={`session-turn-lead lead-${lead.tone}`} data-testid={lead.testId}>
-      <p className="session-turn-lead-line">
-        <span className={`session-turn-lead-tag tag-${lead.tone}`} aria-hidden="true">{lead.tag}</span>
+    <div className={`grid max-w-none gap-2 ${leadClass[lead.tone]}`} data-testid={lead.testId}>
+      <p className="m-0 flex max-w-none items-baseline gap-2.5">
+        <span className={`shrink-0 ${leadTagClass[lead.tone]}`} aria-hidden="true">{lead.tag}</span>
         {lead.srLabel && <span className="sr-only">{lead.srLabel}</span>}
-        <span className="session-turn-lead-text">{lead.text}</span>
+        <span className="flex-auto">{lead.text}</span>
       </p>
-      {lead.actions && <div className="session-turn-lead-actions">{lead.actions}</div>}
+      {lead.actions && <div className="flex flex-wrap gap-2">{lead.actions}</div>}
       {lead.detail}
     </div>
   );
@@ -89,17 +108,18 @@ export function SessionTurn({
   articleRef,
 }: SessionTurnProps) {
   const narrativeBlock = (
-    <p className="session-turn-narrative" data-testid={narrativeTestId}>
-      {narrativeTag && <span className="session-turn-narrative-tag" aria-hidden="true">{narrativeTag}</span>}
+    <Label as="p" textRole="body" className="m-0 max-w-none !leading-[1.65] !text-[#303644]" data-testid={narrativeTestId}>
+      {narrativeTag && <span className="mr-2 inline-block rounded-full bg-myr-gold px-2 py-px align-middle text-myr-micro font-black tracking-[.1em] text-[#17151f]" aria-hidden="true">{narrativeTag}</span>}
       {narrative}
-    </p>
+    </Label>
   );
 
   const leadBlock = lead ? <TurnLeadBlock lead={lead} /> : null;
 
   return (
-    <article
-      className={`session-turn group ${selected ? 'selected' : ''} ${variantClassName}`.trim()}
+    <TurnCard
+      as="article"
+      className={`${selected ? '!border-myr-ruby !shadow-[inset_4px_0_0_#b84a4a]' : ''} ${variantClass[variantClassName] ?? variantClassName}`.trim()}
       aria-label={ariaLabel}
       data-testid={testId}
       ref={articleRef}
@@ -108,12 +128,12 @@ export function SessionTurn({
       {leadBlock}
       {narrativeBlock}
       {headingActions && (
-        <div className="mt-[-2px] flex min-h-[30px] justify-start">
+        <div className="-mt-0.5 flex min-h-myr-control-compact justify-start">
           <div className="flex gap-1 opacity-40 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 max-sm:opacity-100 motion-reduce:transition-none">
             {headingActions}
           </div>
         </div>
       )}
-    </article>
+    </TurnCard>
   );
 }

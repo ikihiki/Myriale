@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Button, DarkPanel, HomeCard, HomePanel, Label } from '../../components/ui';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { useAppNavigation, type StoryKey } from '../../shared/nav';
 import {
@@ -8,6 +9,7 @@ import {
   type HomeDashboardLoadState,
 } from '../../app/homeDashboardApi';
 import { createDemoDb, useOptionalAppStore, type AppDb, type PlaySessionRecord, type ScenarioRecord } from '../../app/store';
+import './homePage.css';
 
 type HomeAccount = {
   name: string;
@@ -40,6 +42,11 @@ type HomeDashboardViewModel = {
 
 const fallbackDb = createDemoDb('resumableSession');
 const crumbs: Crumb[] = [{ label: 'Myriale' }, { label: 'ホーム' }];
+
+
+const homeSectionHeadClassName = 'flex flex-wrap items-center justify-between gap-3.5';
+const homeCardMetaClassName = 'leading-[1.45] text-myr-ink-subtle';
+const homeCardActionsClassName = 'mt-2 flex flex-wrap items-center gap-2.5 self-end max-myr-home-compact:[&>button]:w-full';
 
 export function HomePage() {
   const store = useOptionalAppStore();
@@ -103,113 +110,131 @@ export function HomePage() {
 
   return (
     <AppChrome section="home" breadcrumbs={crumbs} account={vm.account}>
-      <main className="home-dashboard" aria-label="Myrialeトップページ">
-        <section className="home-hero" aria-label="トップページの主要操作">
-          <div className="home-hero-copy">
-            <p className="kicker">Myriale top</p>
-            <h1>物語の机を、今日の続きに整える。</h1>
-            <p>
+      <main className="grid gap-4.5 p-4.5 text-[#241b2f] max-myr-home-compact:p-2.5" aria-label="Myrialeトップページ">
+        <section
+          className="home-hero relative grid min-h-85 grid-cols-[minmax(0,1fr)_minmax(220px,320px)] items-stretch gap-myr-home-hero-gap overflow-hidden rounded-[32px] border border-[rgba(220,231,242,.54)] bg-[linear-gradient(90deg,rgba(25,20,33,.80)_1px,transparent_1px)_0_0/46px_46px,linear-gradient(0deg,rgba(25,20,33,.08)_1px,transparent_1px)_0_0/46px_46px,radial-gradient(circle_at_78%_20%,rgba(124,92,255,.30),transparent_28%),radial-gradient(circle_at_15%_12%,rgba(217,164,65,.20),transparent_30%),linear-gradient(135deg,#fffaf0_0%,#efe3c6_48%,#dce7f2_100%)] p-myr-home-hero-inset shadow-[0_24px_80px_rgba(18,16,25,.18)] max-myr-home-stack:grid-cols-1 max-myr-home-compact:rounded-[20px] max-myr-home-compact:p-4.5"
+          aria-label="トップページの主要操作"
+        >
+          <div className="relative z-1 grid max-w-195 content-center gap-4">
+            <p className="kicker m-0 max-w-myr-form text-base leading-[1.85] text-[#4c5262]">Myriale top</p>
+            <h1 className="m-0 max-w-185 font-['Yu_Mincho','Hiragino_Mincho_ProN',Georgia,serif] text-[clamp(42px,7vw,88px)] leading-[.96] tracking-[-.08em]">
+              物語の机を、今日の続きに整える。
+            </h1>
+            <p className="m-0 max-w-myr-form text-base leading-[1.85] text-[#4c5262]">
               中断したセッション、今すぐ遊べるシナリオ、書きかけの構想をひとつの入口に集約しました。
               読む、遊ぶ、作る。次の一手をここから始めます。
             </p>
             {loadState.status !== 'idle' && (
-              <p className="home-data-source" data-testid="home-data-source">
+              <p
+                className="m-0 inline-flex w-fit max-w-myr-form rounded-full border border-[rgba(111,79,216,.22)] bg-[rgba(255,250,240,.72)] px-3 py-2 text-myr-ui-sm font-extrabold leading-[1.85] text-[#5c4772]"
+                data-testid="home-data-source"
+              >
                 {loadState.status === 'loading' && 'APIからホーム情報を読み込んでいます。'}
                 {loadState.status === 'loaded' && 'APIのホーム情報を表示しています。'}
                 {loadState.status === 'error' && `APIに接続できないためデモ情報を表示しています。${loadState.message}`}
               </p>
             )}
-            <div className="home-actions" aria-label="トップページの主要導線">
-              <button className="primary" onClick={() => go('scenarioList')} data-testid="home-search-scenarios">
+            <div className="mt-2 flex flex-wrap items-center gap-2.5 max-myr-home-compact:[&>button]:w-full" aria-label="トップページの主要導線">
+              <Button variant="primary" onClick={() => go('scenarioList')} data-testid="home-search-scenarios">
                 シナリオを検索して開始
-              </button>
-              <button onClick={() => go('scenarioRegister')} data-testid="home-create-scenario">
+              </Button>
+              <Button variant="secondary" onClick={() => go('scenarioRegister')} data-testid="home-create-scenario">
                 シナリオを新規作成
-              </button>
+              </Button>
             </div>
           </div>
-          <aside className="home-quick-ledger" aria-label="現在の活動概要">
-            <span>Desk ledger</span>
-            <strong>{vm.resumableSessions.length}</strong>
-            <small>再開できるセッション</small>
-            <dl>
-              <div>
-                <dt>進行中</dt>
-                <dd>{vm.activeSessionCount}</dd>
+          <DarkPanel
+            as="aside"
+            className="relative z-1 grid min-h-57.5 self-center gap-2.5 max-myr-home-stack:min-h-0"
+            aria-label="現在の活動概要"
+          >
+            <span className="text-myr-caption font-black tracking-[.18em] text-[#c6b7d9] uppercase">Desk ledger</span>
+            <strong className="font-[Georgia,'Times_New_Roman',serif] text-[clamp(72px,10vw,120px)] leading-[.85] text-myr-gold">
+              {vm.resumableSessions.length}
+            </strong>
+            <small className="font-extrabold text-[#f4eedf]">再開できるセッション</small>
+            <dl className="mt-auto mb-0 grid gap-2">
+              <div className="flex justify-between gap-3 border-t border-[rgba(244,238,223,.16)] pt-2.5">
+                <dt className="m-0 text-[#c6b7d9]">進行中</dt>
+                <dd className="m-0 font-black text-myr-gold">{vm.activeSessionCount}</dd>
               </div>
-              <div>
-                <dt>公開シナリオ</dt>
-                <dd>{vm.publishedScenarioCount}</dd>
+              <div className="flex justify-between gap-3 border-t border-[rgba(244,238,223,.16)] pt-2.5">
+                <dt className="m-0 text-[#c6b7d9]">公開シナリオ</dt>
+                <dd className="m-0 font-black text-myr-gold">{vm.publishedScenarioCount}</dd>
               </div>
             </dl>
-          </aside>
+          </DarkPanel>
         </section>
 
-        <section className="home-panel home-sessions" aria-label="中断しているセッション">
-          <div className="home-section-head">
-            <div>
-              <p className="kicker">Continue</p>
-              <h2>中断しているセッション</h2>
+        <HomePanel as="section" aria-label="中断しているセッション">
+          <div className={homeSectionHeadClassName}>
+            <div className="grid gap-0.5">
+              <p className="kicker m-0">Continue</p>
+              <Label as="h2" textRole="sectionEditorial" className="m-0">
+                中断しているセッション
+              </Label>
             </div>
-            <button type="button" className="text-button" onClick={() => go('resumeSession')}>
+            <Button type="button" variant="text" className="mt-2.5" onClick={() => go('resumeSession')}>
               すべて見る
-            </button>
+            </Button>
           </div>
 
-          <div className="home-card-grid">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-3.5">
             {vm.resumableSessions.length > 0 ? (
               vm.resumableSessions.map((session) => (
-                <article className="home-card session-card" key={session.id} data-testid={`home-session-${session.id}`}>
-                  <span>{session.stateLabel} / {session.turnLabel}</span>
-                  <h3>{session.scenarioTitle}</h3>
-                  <p>{session.summary}</p>
-                  <small>{session.hero}</small>
-                  <div className="home-card-actions">
-                    <button className="primary" onClick={() => go(session.destination)}>
+                <HomeCard as="article" key={session.id} data-testid={`home-session-${session.id}`}>
+                  <Label textRole="eyebrowData" className="!tracking-[.08em] !text-[#6f4fd8]">{session.stateLabel} / {session.turnLabel}</Label>
+                  <Label as="h3" textRole="sectionEditorial" className="m-0 !text-[25px] !leading-[1.08] !tracking-myr-display">{session.scenarioTitle}</Label>
+                  <Label as="p" textRole="body" className="m-0 !leading-[1.58]">{session.summary}</Label>
+                  <small className={homeCardMetaClassName}>{session.hero}</small>
+                  <div className={homeCardActionsClassName}>
+                    <Button variant="primary" onClick={() => go(session.destination)}>
                       {session.resumeLabel}
-                    </button>
+                    </Button>
                   </div>
-                </article>
+                </HomeCard>
               ))
             ) : (
-              <article className="home-card empty-card">
-                <span>Ready</span>
-                <h3>再開待ちのセッションはありません</h3>
-                <p>シナリオを選んで、新しい物語の準備を始められます。</p>
-                <div className="home-card-actions">
-                  <button className="primary" onClick={() => go('startSession')}>シナリオを探す</button>
+              <HomeCard as="article" className="border-dashed bg-[rgba(220,231,242,.36)]">
+                <Label textRole="eyebrowData" className="!tracking-[.08em] !text-[#6f4fd8]">Ready</Label>
+                <Label as="h3" textRole="sectionEditorial" className="m-0 !text-[25px] !leading-[1.08] !tracking-myr-display">再開待ちのセッションはありません</Label>
+                <Label as="p" textRole="body" className="m-0 !leading-[1.58]">シナリオを選んで、新しい物語の準備を始められます。</Label>
+                <div className={homeCardActionsClassName}>
+                  <Button variant="primary" onClick={() => go('startSession')}>シナリオを探す</Button>
                 </div>
-              </article>
+              </HomeCard>
             )}
           </div>
-        </section>
+        </HomePanel>
 
-        <section className="home-panel home-recommended" aria-label="おすすめのシナリオ">
-          <div className="home-section-head">
-            <div>
-              <p className="kicker">Recommended</p>
-              <h2>おすすめのシナリオ</h2>
+        <HomePanel as="section" aria-label="おすすめのシナリオ">
+          <div className={homeSectionHeadClassName}>
+            <div className="grid gap-0.5">
+              <p className="kicker m-0">Recommended</p>
+              <Label as="h2" textRole="sectionEditorial" className="m-0">
+                おすすめのシナリオ
+              </Label>
             </div>
-            <button type="button" className="text-button" onClick={() => go('startSession')}>
+            <Button type="button" variant="text" className="mt-2.5" onClick={() => go('startSession')}>
               検索画面へ
-            </button>
+            </Button>
           </div>
 
-          <div className="home-card-grid recommended-grid">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-3.5">
             {vm.recommendedScenarios.map((scenario) => (
-              <article className="home-card scenario-card" key={scenario.id} data-testid={`home-scenario-${scenario.id}`}>
-                <span>{scenario.visibilityLabel} / {scenario.id}</span>
-                <h3>{scenario.title}</h3>
-                <p>{scenario.summary ?? scenario.genre}</p>
-                <small>{scenario.updatedLabel}</small>
-                <div className="home-card-actions">
-                  <button className="primary" onClick={() => startRecommendedScenario(scenario)}>このシナリオで開始</button>
-                  <button onClick={() => go('scenarioEdit')}>詳細を編集</button>
+              <HomeCard as="article" key={scenario.id} data-testid={`home-scenario-${scenario.id}`}>
+                <Label textRole="eyebrowData" className="!tracking-[.08em] !text-[#6f4fd8]">{scenario.visibilityLabel} / {scenario.id}</Label>
+                <Label as="h3" textRole="sectionEditorial" className="m-0 !text-[25px] !leading-[1.08] !tracking-myr-display">{scenario.title}</Label>
+                <Label as="p" textRole="body" className="m-0 !leading-[1.58]">{scenario.summary ?? scenario.genre}</Label>
+                <small className={homeCardMetaClassName}>{scenario.updatedLabel}</small>
+                <div className={homeCardActionsClassName}>
+                  <Button variant="primary" onClick={() => startRecommendedScenario(scenario)}>このシナリオで開始</Button>
+                  <Button variant="secondary" onClick={() => go('scenarioEdit')}>詳細を編集</Button>
                 </div>
-              </article>
+              </HomeCard>
             ))}
           </div>
-        </section>
+        </HomePanel>
       </main>
     </AppChrome>
   );

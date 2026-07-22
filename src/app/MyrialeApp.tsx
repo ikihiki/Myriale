@@ -5,7 +5,6 @@ import { AccountApiProvider } from '../account/hooks/useAccountSession';
 import { createAppRouter, type AppHistoryMode } from '../router';
 import { AppStoreProvider, type AppDb } from './store';
 import { createMyrialeQueryClient, MyrialeQueryProvider } from './queryClient';
-import './myrialeApp.css';
 
 export type MyrialeAppProps = {
   initialUrl?: string;

@@ -14,7 +14,7 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 
 - [x] Player InputをSession所有の不変イベントとして永続化する。
 - [x] 同一`RequestId`のreplayとpayload不一致を検出する。
-- [x] 未完了のPlayer InputとAI生成のlease、retry、errorを`SessionPendingPlayerInput`で管理し、完了時に確定Inputへ変換してPending rowを削除する。
+- [x] Player Inputを受付時に確定し、AI生成のlease、retry、errorを`SessionExecution`と`SessionExecutionAttempt`で管理する。
 - [x] Narrative Turnを`Session.HeadTurnId`のcompare-and-swap境界で一度だけ追加する。
 - [x] AIが返した進行signalをhost側のallowlistで検証する。
 - [x] Narrative Turn、signal、進行receiptを同一transactionで保存する。
@@ -143,47 +143,69 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 
 ### Provider abstraction
 
-- [ ] Narrative固有のContext/Prompt構築と外部Provider通信を分離する。
-- [ ] `IAiTextProvider`または同等のProvider非依存interfaceを定義する。
-- [ ] Mock Providerを決定論的な開発・テスト用実装として残す。
-- [ ] 最初の実ProviderとしてOpenAI adapterを実装する。
-- [ ] JSON Schemaに従うstructured outputを使用する。
-- [ ] Provider、model、timeout、output token上限、生成設定をconfiguration化する。
-- [ ] Provider SDKやAPIの例外をMyriale共通error codeへ正規化する。
+- [x] Narrative固有のContext/Prompt構築と外部Provider通信を分離する。
+- [x] `IAiTextProvider`または同等のProvider非依存interfaceを定義する。
+- [x] `Microsoft.Extensions.AI`の`ChatMessage`と`ChatResponseFormatJson`をProvider非依存契約に使用する。
+- [x] Mock Providerを決定論的な開発・テスト用実装として残す。
+- [x] 最初の実ProviderとしてOpenAI adapterを実装する。
+- [x] JSON Schemaに従うstructured outputを使用する。
+- [x] Provider、model、timeout、output token上限、生成設定をconfiguration化する。
+- [x] Provider SDKやAPIの例外をMyriale共通error codeへ正規化する。
 
 ### Secretと管理権限
 
-- [ ] AI Provider Key管理Endpointに明示的な管理者authorization policyを設定する。
-- [ ] Provider secretを平文DB保存しない方式へ変更する。
-- [ ] 環境変数、secret store、ASP.NET Core Data Protection、外部secret managerの採用方針を決定する。
-- [ ] secretをAPI response、application log、prompt診断、telemetryへ出さない。
-- [ ] AI Keyのtest操作を実Providerへの最小疎通確認に置き換える。
-- [ ] `valid`、`invalid-credential`、`rate-limited`、`model-not-found`、`provider-unavailable`を区別する。
+- [x] AI Provider Key管理Endpointに明示的な管理者authorization policyを設定する。
+- [x] Provider secretを平文DB保存しない方式へ変更する。
+- [x] 環境変数、secret store、ASP.NET Core Data Protection、外部secret managerの採用方針を決定する。
+- [x] secretをAPI response、application log、prompt診断、telemetryへ出さない。
+- [x] AI Keyのtest操作を実Providerへの最小疎通確認に置き換える。
+- [x] `valid`、`invalid-credential`、`rate-limited`、`model-not-found`、`provider-unavailable`を区別する。
+
+採用方針:
+
+- 実行環境の環境変数またはsecret storeを第一選択とし、管理APIから保存するcredentialはASP.NET Core Data Protectionで暗号化する。
+- 本番のData Protection key ringは再起動・複数instance間で共有できる永続storeへ置き、可能なら外部secret managerへ移行する。
+- RunpodはvLLM等のOpenAI互換workerで`/openai/v1/chat/completions`とstrict `json_schema`を提供するendpointを対象とする。独自`runsync`契約は初期版の対象外とする。
+
+Forgeデプロイでは`forge/apps/myriale/ai`のVault KVレコードをExternal Secretsで`myriale-ai-provider`へ同期し、API Pod起動時に`AiProvider__Provider`、`AiProvider__ApiKey`、`AiProvider__BaseUrl`、`AiProvider__Model`として注入する。環境変数のcredentialは管理APIでDB保存したcredentialより優先する。
+
+Vault KVの形式:
+
+```yaml
+provider: runpod
+apiKey: <Runpod API key>
+baseUrl: https://api.runpod.ai/v2/<endpoint-id>/openai/v1
+model: <vLLM model name>
+```
 
 ### Provider resilience
 
-- [ ] timeout、429、provider 5xx、invalid credential、schema failure、content rejectionを区別する。
-- [ ] retry可能errorに指数backoffと最大試行回数を設定する。
-- [ ] Providerの`Retry-After`を尊重する。
-- [ ] provider failoverを初期リリースに含めるか対象外にするか決定する。
-- [ ] 同期HTTP request内で待つ方式からbackground workerへ移行する必要性を評価する。
-- [ ] abandonedまたは期限切れleaseを回収するworker/triggerを用意する。
-- [ ] 同じPlayer Inputのretryで別のNarrative Turnが生成されないことを確認する。
+- [x] timeout、429、provider 5xx、invalid credential、schema failure、content rejectionを区別する。
+- [x] retry可能errorに指数backoffと最大試行回数を設定する。
+- [x] Providerの`Retry-After`を尊重する。
+- [x] provider failoverを初期リリースに含めるか対象外にするか決定する。
+- [x] 同期HTTP request内で待つ方式からbackground workerへ移行する必要性を評価する。
+
+  - 初期リリースは既存の同期方式を維持する。lease/CAS/replay境界を保ったまま、timeoutを短く制限する。負荷・待ち時間の観測後にbackground worker化を再評価する。
+  - Provider failoverは初期リリース対象外。OpenAIとRunpodは同一OpenAI-compatible adapterで明示的に切り替え、1 request内では単一providerだけを使用する。
+  - `Microsoft.Extensions.AI`はmessage/structured-output abstractionに使用し、OpenAI-compatible wire adapter側でattempt/backoff/Retry-Afterを管理する。共通HttpClient resilienceはunsafe methodを自動retryしない。
+- [x] abandonedまたは期限切れleaseを回収するworker/triggerを用意する。
+- [x] 同じPlayer Inputのretryで別のNarrative Turnが生成されないことを確認する。
 
 ### Usageと診断
 
-- [ ] Provider、model、prompt version、context versionを記録する。
-- [ ] input/output token数、応答時間、attempt count、終了理由を記録する。
-- [ ] Provider response IDを安全な診断情報として保持する。
-- [ ] Player本文や秘密情報を通常logへそのまま出さない。
-- [ ] コスト上限、Session単位rate limit、ユーザー単位rate limitを設定する。
+- [x] Provider、model、prompt version、context versionを記録する。
+- [x] input/output token数、応答時間、attempt count、終了理由を記録する。
+- [x] Provider response IDを安全な診断情報として保持する。
+- [x] Player本文や秘密情報を通常logへそのまま出さない。
+- [x] token利用量によるSession上限、Session単位rate limit、ユーザー単位rate limitを設定する。
 
 ### フェーズ3完了条件
 
-- [ ] 管理者が実Providerを設定・検証できる。
-- [ ] API keyがbrowserやlogへ露出しない。
-- [ ] 実Providerがschema準拠Narrativeを返し、Session Turnとして保存される。
-- [ ] Provider障害時にPlayer Inputが失われず、同じrequestで再試行できる。
+- [x] 管理者が実Providerを設定・検証できる。
+- [x] API keyがbrowserやlogへ露出しない。
+- [x] 実Providerがschema準拠Narrativeを返し、Session Turnとして保存される。
+- [x] Provider障害時にPlayer Inputが失われず、同じrequestで再試行できる。
 
 ## フェーズ4: 会話品質と確定事項の保護
 

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Button } from '../../components/ui';
 import type { ModuleExecution, ModuleExecutionApi, ModuleRuntimeUiDescriptor } from '../api/moduleExecutionApi';
 import { canDispatch, isModuleUiInbound, MODULE_UI_PROTOCOL, MODULE_UI_VERSION } from './protocol';
 import { createModuleFrameDocument } from './moduleFrameDocument';
-import './moduleUiHost.css';
 
-type Props = { execution: ModuleExecution; descriptor: ModuleRuntimeUiDescriptor; api: ModuleExecutionApi; onExecution: (execution: ModuleExecution) => void };
-export function ModuleUiHost({ execution, descriptor, api, onExecution }: Props) {
+type Props = { execution: ModuleExecution; descriptor: ModuleRuntimeUiDescriptor; api: ModuleExecutionApi; onExecution: (execution: ModuleExecution) => void; className?: string };
+export function ModuleUiHost({ execution, descriptor, api, onExecution, className = '' }: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const portRef = useRef<MessagePort>();
   const resourceAbortRef = useRef<AbortController>();
@@ -117,11 +117,12 @@ export function ModuleUiHost({ execution, descriptor, api, onExecution }: Props)
     loadedRef.current = false;
     setFrameKey((value) => value + 1);
   };
-  return <section className="module-ui-vessel" data-phase={phase}>
-    <header><div><span className="module-ui-kicker">Isolated module surface</span><strong>{descriptor.package.moduleId}</strong></div><span className="module-ui-revision">REV {execution.revision.toString().padStart(2, '0')}</span></header>
-    <div className="module-ui-seal"><span aria-hidden="true">◇</span> sandbox · verified package · direct fetch blocked</div>
-    <iframe key={frameKey} ref={iframeRef} title="Module runtime" sandbox="allow-scripts" srcDoc={createModuleFrameDocument(execution.id, window.location.origin, nonce, capability)} onLoad={() => void connect()} style={{ height }} />
-    {phase === 'loading' && <div className="module-ui-overlay">モジュール画面を封入しています…</div>}
-    {phase === 'error' && <div className="module-ui-overlay error"><strong>モジュール画面を開けません</strong><span>{error}</span><button type="button" onClick={reload}>再読込</button></div>}
+  const overlayClassName = 'absolute inset-x-0 bottom-0 top-22 grid place-content-center gap-2.5 bg-[rgba(16,23,32,0.91)] text-center text-[#c4d0d6]';
+  return <section className={`relative overflow-hidden rounded-myr-card border border-[#53687a] bg-[#101720] text-[#edf4f4] shadow-[0_24px_70px_rgba(24,35,50,0.2)] ${className}`} data-phase={phase}>
+    <header className="flex items-center justify-between border-b border-[#415263] bg-[linear-gradient(100deg,#162331,#101720)] px-5 py-4"><div className="grid gap-0.5"><span className="font-mono text-myr-micro font-semibold uppercase leading-[1.2] tracking-[0.16em] text-[#9fb1bd]">Isolated module surface</span><strong className="text-myr-control">{descriptor.package.moduleId}</strong></div><span className="rounded-full border border-[#7c6947] px-2.25 py-1.25 font-mono text-myr-caption font-bold text-[#e3bd75]">REV {execution.revision.toString().padStart(2, '0')}</span></header>
+    <div className="flex items-center gap-2 bg-[#d6b26c] px-5 py-2 font-mono text-myr-micro font-bold uppercase tracking-[0.06em] text-[#17202a]"><span aria-hidden="true">◇</span> sandbox · verified package · direct fetch blocked</div>
+    <iframe className="block min-h-myr-module-preview-min w-full border-0 bg-[#101720] transition-[height] duration-200 ease-[ease] motion-reduce:transition-none" key={frameKey} ref={iframeRef} title="Module runtime" sandbox="allow-scripts" srcDoc={createModuleFrameDocument(execution.id, window.location.origin, nonce, capability)} onLoad={() => void connect()} style={{ height }} />
+    {phase === 'loading' && <div className={overlayClassName}>モジュール画面を封入しています…</div>}
+    {phase === 'error' && <div className={`${overlayClassName} text-[#f4d6ca]`}><strong>モジュール画面を開けません</strong><span>{error}</span><Button variant="ghost" surface="dark" size="sm" className="justify-self-center" type="button" onClick={reload}>再読込</Button></div>}
   </section>;
 }

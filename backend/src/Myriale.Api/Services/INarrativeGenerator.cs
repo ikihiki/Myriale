@@ -11,6 +11,6 @@ public interface IActionRecommendationGenerator
 
 public interface INarrativeGenerator
 {
-    Task<string> GenerateAsync(NarrativeHandoffRequest request, CancellationToken cancellationToken);
-    Task<NarrativeDialogueResult> GenerateDialogueAsync(NarrativeDialogueRequest request, CancellationToken cancellationToken);
+    Task<NarrativeGeneration<string>> GenerateAsync(NarrativeHandoffRequest request, CancellationToken cancellationToken);
+    Task<NarrativeGeneration<NarrativeDialogueResult>> GenerateDialogueAsync(NarrativeDialogueRequest request, CancellationToken cancellationToken);
 }

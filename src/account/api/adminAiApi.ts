@@ -3,6 +3,8 @@ export type AiProviderKey = {
   displayName: string;
   configured: boolean;
   maskedKey: string;
+  credentialSource: 'environment' | 'database' | 'none';
+  active: boolean;
   status: string;
   updatedAt: string;
   lastValidatedAt?: string | null;
@@ -49,18 +51,19 @@ export function createFetchAdminAiApi(baseUrl = getAdminAiApiBaseUrl()): AdminAi
 
 export function createDemoAdminAiApi(): AdminAiApi {
   let keys: AiProviderKey[] = [
-    { provider: 'mock-text', displayName: 'Aspire Mock Text AI', configured: true, maskedKey: '••••••••demo', status: 'mock-validated', updatedAt: new Date().toISOString(), lastValidatedAt: new Date().toISOString() },
+    { provider: 'openai', displayName: 'OpenAI', configured: false, maskedKey: '未設定', credentialSource: 'none', active: false, status: 'untested', updatedAt: new Date(0).toISOString(), lastValidatedAt: null },
+    { provider: 'runpod', displayName: 'Runpod Serverless', configured: true, maskedKey: '••••••••demo', credentialSource: 'environment', active: true, status: 'valid', updatedAt: new Date().toISOString(), lastValidatedAt: new Date().toISOString() },
   ];
   return {
     async listKeys() { return keys; },
     async saveKey(provider, payload) {
-      const key: AiProviderKey = { provider, displayName: payload.displayName, configured: true, maskedKey: `••••••••${payload.secret.slice(-4) || 'mock'}`, status: 'saved', updatedAt: new Date().toISOString(), lastValidatedAt: null };
+      const key: AiProviderKey = { provider, displayName: payload.displayName, configured: true, maskedKey: `••••••••${payload.secret.slice(-4) || 'key'}`, credentialSource: 'database', active: false, status: 'saved', updatedAt: new Date().toISOString(), lastValidatedAt: null };
       keys = [key, ...keys.filter((item) => item.provider !== provider)];
       return key;
     },
     async deleteKey(provider) { keys = keys.filter((item) => item.provider !== provider); },
     async testKey(provider) {
-      keys = keys.map((item) => item.provider === provider ? { ...item, status: 'mock-validated', lastValidatedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : item);
+      keys = keys.map((item) => item.provider === provider ? { ...item, status: 'valid', lastValidatedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : item);
       const key = keys.find((item) => item.provider === provider);
       if (!key) throw demoError('AIキーが見つかりません。', 404);
       return key;
@@ -73,9 +76,10 @@ export function firstAdminAiFieldError(error: unknown, field: string) {
 }
 
 async function toError(response: Response): Promise<AdminAiApiError> {
-  let body: { message?: string; errors?: Record<string, string[]> } | null = null;
+  let body: { message?: string; title?: string; detail?: string; errors?: Record<string, string[]> } | null = null;
   try { body = await response.json(); } catch { body = null; }
-  const error = new Error(body?.message ?? `Admin AI API returned ${response.status}.`) as AdminAiApiError;
+  const problem = body?.detail && body?.title ? `${body.detail}（${body.title}）` : body?.detail ?? body?.title;
+  const error = new Error(body?.message ?? problem ?? `Admin AI API returned ${response.status}.`) as AdminAiApiError;
   error.status = response.status;
   error.errors = body?.errors;
   return error;

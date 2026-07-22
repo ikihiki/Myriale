@@ -24,7 +24,8 @@ public sealed class MockAiNarrativeGeneratorTests
             }
             """);
 
-        var result = await generator.GenerateDialogueAsync(CreateRequest(), default);
+        var generation = await generator.GenerateDialogueAsync(CreateRequest(), default);
+        var result = generation.Value;
 
         Assert.Equal(NarrativeDialogueSchema.Version, result.SchemaVersion);
         Assert.Equal("action-result", result.TurnType);

@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
+import { Button, Card, Label, Notice, SummaryCard, SummaryInset } from '../../components/ui';
 import { WizardNavigation } from '../../shared/WizardNavigation';
+import { scenarioWizardShellClass, wizardButtonRowClass, wizardKickerClass, wizardNoticeClass, wizardPanelClass, wizardPaperClass, wizardSummaryClass } from '../../shared/scenarioWizardStyles';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { useOptionalAppStore } from '../../app/store';
 import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
@@ -150,6 +152,7 @@ const suspendedSessions: SuspendedSession[] = [
 ];
 
 const playerAccount = { name: '霧野しおり', email: 'reader@myriale.example', initials: '霧野', role: 'プレイヤー' };
+const resumeCardClassName = 'my-3 [&>span]:text-myr-caption [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-myr-ruby [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-4.5 [&_ul]:text-myr-ink-soft';
 
 export function SessionResumePage() {
   const appNavigate = useAppNavigation();
@@ -228,7 +231,7 @@ export function SessionResumePage() {
 
   return (
     <AppChrome section="sessions" breadcrumbs={resumeCrumbs} account={playerAccount}>
-      <div className="scenario-forge scenario-forge-wizard session-resume-page">
+      <div className={scenarioWizardShellClass}>
         <WizardNavigation
           title="Suspended Sessions"
           ariaLabel="中断中セッション"
@@ -249,22 +252,22 @@ export function SessionResumePage() {
           markerValue={<span data-testid="session-state">{sessionState}</span>}
         />
 
-        <main className="forge-paper wizard-paper" aria-label="セッション再開アプリ画面">
-          <p className="kicker">Session resume / Continue your story</p>
-          <div className="notice" role="status" data-testid="resume-notice">
+        <main className={wizardPaperClass} aria-label="セッション再開アプリ画面">
+          <Label as="p" textRole="eyebrow" className={wizardKickerClass}>Session resume / Continue your story</Label>
+          <Notice className={wizardNoticeClass} data-testid="resume-notice">
             {notice}
-          </div>
+          </Notice>
 
           {view === 'list' && (
-            <section className="wizard-panel" aria-label="中断中のセッション">
+            <section className={wizardPanelClass} aria-label="中断中のセッション">
               <p>
                 <strong>保存済みSessionの状態を確認できます。</strong>
                 中断したSessionはあらすじを確認して再開でき、進行中のSessionはそのままプレイ画面へ戻れます。
               </p>
-              <div className="resume-card-list" data-testid="session-list">
+              <div className="mt-3.5 grid gap-3" data-testid="session-list">
                 {activeSessions.map((session) => (
-                  <article
-                    className="resume-card"
+                  <Card as="article"
+                    className={resumeCardClassName}
                     key={session.id}
                     data-testid={`session-card-${session.id}`}
                   >
@@ -273,17 +276,17 @@ export function SessionResumePage() {
                     <p>
                       {session.genre} / 主人公: {session.hero}
                     </p>
-                    <p className="resume-progress">
+                    <p className="text-myr-ui-sm font-extrabold !text-myr-ink-subtle">
                       進行度: Turn {session.turn} ・ 現在プレイ中
                     </p>
-                    <button className="primary" onClick={openActiveSession}>
+                    <Button variant="primary" size="sm" onClick={openActiveSession}>
                       {session.scenarioTitle}のプレイ画面へ
-                    </button>
-                  </article>
+                    </Button>
+                  </Card>
                 ))}
                 {suspendedSessions.map((session) => (
-                  <article
-                    className="resume-card"
+                  <Card as="article"
+                    className={resumeCardClassName}
                     key={session.id}
                     data-testid={`session-card-${session.id}`}
                   >
@@ -294,31 +297,31 @@ export function SessionResumePage() {
                     <p>
                       {session.genre} / 主人公: {session.hero}
                     </p>
-                    <p className="resume-progress">
+                    <p className="text-myr-ui-sm font-extrabold !text-myr-ink-subtle">
                       進行度: Turn {turnCountOf(session)} ・ プレイ時間 {session.playtime} ・ 最終プレイ {session.lastPlayed}
                     </p>
-                    <button className="primary" onClick={() => selectSession(session)}>
+                    <Button variant="primary" size="sm" onClick={() => selectSession(session)}>
                       {session.scenarioTitle}を再開
-                    </button>
-                  </article>
+                    </Button>
+                  </Card>
                 ))}
               </div>
             </section>
           )}
 
           {selected && view === 'confirm' && (
-            <section className="wizard-panel" aria-label="再開前の確認">
+            <section className={wizardPanelClass} aria-label="再開前の確認">
               <p>
                 <strong>再開前にこれまでの状況と注意点を確認します。</strong>
                 AI要約のあらすじ、進行度、復元されるAIコンテキスト、中断中の変更点を見てから再開できます。
               </p>
 
-              <article className="resume-card" data-testid="recap">
+              <Card as="article" className={resumeCardClassName} data-testid="recap">
                 <h2>これまでのあらすじ（AI要約）</h2>
                 <p>{selected.recap}</p>
-              </article>
+              </Card>
 
-              <dl className="resume-progress-grid" data-testid="progress">
+              <dl className="my-3 grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3 [&_div]:rounded-2xl [&_div]:border [&_div]:border-myr-line-soft [&_div]:bg-myr-paper-glass [&_div]:px-3.5 [&_div]:py-3 [&_dt]:m-0 [&_dt]:text-xs [&_dt]:font-extrabold [&_dt]:tracking-myr-label [&_dt]:text-myr-ink-subtle [&_dd]:mb-0 [&_dd]:mt-1.5 [&_dd]:font-serif [&_dd]:text-[22px] [&_dd]:tracking-[-0.02em]" data-testid="progress">
                 <div>
                   <dt>進行度（ターン数）</dt>
                   <dd>Turn {turnCountOf(selected)}</dd>
@@ -333,7 +336,7 @@ export function SessionResumePage() {
                 </div>
               </dl>
 
-              <article className="resume-card" data-testid="context">
+              <Card as="article" className={resumeCardClassName} data-testid="context">
                 <h2>復元されるAIコンテキスト</h2>
                 <p>食い違いを防ぐため、再開時に以下の文脈を復元します。</p>
                 <ul>
@@ -341,10 +344,10 @@ export function SessionResumePage() {
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
-              </article>
+              </Card>
 
               <article
-                className={`resume-card resume-changes ${selected.changes.length === 0 ? 'no-change' : ''}`}
+                className={`my-3 rounded-myr-card border p-4 [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-4.5 [&_ul]:text-myr-ink-soft ${selected.changes.length === 0 ? 'border-[rgba(74,132,92,0.32)] bg-[rgba(232,245,233,0.8)]' : 'border-[rgba(184,74,74,0.3)] bg-[rgba(255,240,224,0.8)]'}`}
                 data-testid="changes"
               >
                 <h2>再開前の注意点</h2>
@@ -361,89 +364,89 @@ export function SessionResumePage() {
                 )}
               </article>
 
-              <div className="button-row">
-                <button onClick={backToList}>一覧へ戻る</button>
-                <button onClick={viewReadOnly} data-testid="readonly-button">
+              <div className={wizardButtonRowClass}>
+                <Button variant="secondary" size="sm" onClick={backToList}>一覧へ戻る</Button>
+                <Button variant="secondary" size="sm" onClick={viewReadOnly} data-testid="readonly-button">
                   再開せずに読み返す（ReadOnly）
-                </button>
-                <button className="primary" onClick={resumeSession} data-testid="resume-button">
+                </Button>
+                <Button variant="primary" size="sm" onClick={resumeSession} data-testid="resume-button">
                   確認したので再開する（プレイ画面へ）
-                </button>
+                </Button>
               </div>
             </section>
           )}
 
           {selected && view === 'readonly' && (
-            <section className="wizard-panel" aria-label="ReadOnly閲覧">
+            <section className={wizardPanelClass} aria-label="ReadOnly閲覧">
               <p>
                 <strong>ReadOnlyモードで表示しています。</strong>
                 再開せずに、これまでの全Turn（Turn 1〜{turnCountOf(selected)}）を読み返せます。入力欄は無く、Session状態はSuspendedのまま変化しません。
               </p>
-              <article className="resume-card" data-testid="recap">
+              <Card as="article" className={resumeCardClassName} data-testid="recap">
                 <h2>これまでのあらすじ（AI要約）</h2>
                 <p>{selected.recap}</p>
-              </article>
+              </Card>
               <div
-                className="resume-restored-log readonly"
+                className="my-3.5 grid max-h-90 gap-2.5 overflow-y-auto p-1"
                 aria-label={`全Turnログ（Turn 1〜${turnCountOf(selected)}）`}
                 data-testid="restored-log"
               >
                 {selected.turns.map((turn) => (
                   <article
-                    className={`resume-turn ${turn.id === turnCountOf(selected) ? 'latest' : ''}`}
+                    className={`rounded-2xl border px-4 py-3.5 ${turn.id === turnCountOf(selected) ? 'border-myr-gold bg-[rgba(255,247,230,0.92)] shadow-[0_0_0_1px_rgba(217,164,65,0.4)]' : 'border-myr-line-soft bg-myr-paper-glass'}`}
                     key={turn.id}
                     aria-label={`Turn ${String(turn.id).padStart(2, '0')}`}
                     data-testid={`restored-turn-${turn.id}`}
                   >
-                    <div className="resume-turn-heading">
+                    <div className="flex flex-wrap items-baseline gap-2.5 [&_h3]:m-0 [&_h3]:font-serif [&_h3]:text-lg [&_h3]:tracking-[-0.02em] [&>span]:text-myr-caption [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.12em] [&>span]:text-[#7054dd]">
                       <span>Turn {String(turn.id).padStart(2, '0')}</span>
                       <h3>{turn.turnTitle}</h3>
                     </div>
                     {turn.playerInput && (
-                      <p className="resume-turn-input">
+                      <p className="mb-1.5 mt-2 text-myr-ui-sm font-extrabold !text-myr-ink-subtle">
                         <span className="sr-only">プレイヤーの入力: </span>⟶ {turn.playerInput}
                       </p>
                     )}
-                    <p className="resume-turn-narrative">{turn.narrative}</p>
+                    <p className="m-0 leading-[1.7] !text-myr-ink-soft">{turn.narrative}</p>
                   </article>
                 ))}
               </div>
-              <p className="readonly-note" data-testid="readonly-note">
+              <p className="mt-2.5 rounded-xl bg-[rgba(43,41,64,0.08)] px-3 py-2 text-myr-ui-sm font-extrabold !text-myr-ink-soft" data-testid="readonly-note">
                 ReadOnly: 選択肢や入力は無効です。再開すると続きから操作できます。
               </p>
-              <div className="button-row">
-                <button onClick={() => selectSession(selected)}>再開の確認へ戻る</button>
-                <button className="primary" onClick={resumeSession} data-testid="resume-button">
+              <div className={wizardButtonRowClass}>
+                <Button variant="secondary" size="sm" onClick={() => selectSession(selected)}>再開の確認へ戻る</Button>
+                <Button variant="primary" size="sm" onClick={resumeSession} data-testid="resume-button">
                   読み返したので再開する（プレイ画面へ）
-                </button>
+                </Button>
               </div>
             </section>
           )}
         </main>
 
-        <aside className="ai-bookmark wizard-summary" aria-label="セッション状態サマリー">
+        <SummaryInset as="aside" className={wizardSummaryClass} aria-label="セッション状態サマリー">
           <h2>Session</h2>
-          <article>
+          <SummaryCard as="article">
             <h3>状態</h3>
             <p data-testid="summary-state">{sessionState}</p>
             <p>{selected ? selected.id : '未選択'}</p>
-          </article>
-          <article>
+          </SummaryCard>
+          <SummaryCard as="article">
             <h3>Scenario</h3>
             <p data-testid="summary-scenario">{selected ? selected.scenarioTitle : '一覧から選択してください'}</p>
             <p>{selected ? selected.genre : ''}</p>
-          </article>
-          <article>
+          </SummaryCard>
+          <SummaryCard as="article">
             <h3>進行度</h3>
             <p data-testid="summary-progress">
               {selected ? `Turn ${turnCountOf(selected)} / ${selected.playtime}` : '—'}
             </p>
-          </article>
-          <article>
+          </SummaryCard>
+          <SummaryCard as="article">
             <h3>主人公</h3>
             <p>{selected ? selected.hero : '—'}</p>
-          </article>
-        </aside>
+          </SummaryCard>
+        </SummaryInset>
       </div>
     </AppChrome>
   );

@@ -9,7 +9,10 @@
 - Session: 現在進行中のプレイ単位  
 - Narrative: AIが生成する物語の語り  
 - Player Input: プレイヤーが入力する自然言語  
-- Turn: Narrative と Player Input を1単位とした進行単位  
+- Input: Serverが受け付けたプレイヤー入力の不変な事実
+- Execution: Narrative生成のqueued/running/retry/failed/cancelled状態
+- Artifact: 生成・検証された成果物
+- Turn: 成功したNarrativeまたはModule結果だけを公開した正式な進行単位
 - AI: 語り手・世界・NPCを兼ねる存在  
 
 ---
@@ -85,6 +88,16 @@ So that 世界がどう反応したか分かる
 補足  
 - AIは常にプレイヤーの行動を肯定するとは限らない  
 - 状態・確率・物語整合性を考慮する  
+
+### 非同期生成と失敗時の期待
+
+- Player Inputは送信受付直後に独立した履歴要素として表示・保存される。
+- 直後のExecution slotがqueued、running、retry-wait、cancel-requested、failed、cancelled、succeeded、supersededを表す。
+- 失敗してもInputは消えず、失敗をNarrative Turnとして描画しない。
+- Retryは同じExecution slotを更新し、入力編集は新しいInput/Executionを作り旧処理をsupersededにする。
+- ブラウザを閉じても処理は継続し、再訪時に全active/failed Executionを因果位置へ復元する。
+- inline errorは保存済みであることと次の操作（Retry、Edit、Details、Dismiss）を示す。
+- Narrative成功後の画像・ノート失敗はpartial successであり、Narrativeを取り消さない。
 
 ---
 

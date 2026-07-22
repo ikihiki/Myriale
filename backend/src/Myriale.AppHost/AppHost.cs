@@ -6,6 +6,8 @@ using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
 
+const string PostgresClusterName = "myriale-postgres-schema-v2";
+
 var builder = DistributedApplication.CreateBuilder(args);
 var isPublishMode = builder.ExecutionContext.IsPublishMode;
 var configuration = builder.Configuration;
@@ -60,6 +62,9 @@ if (isPublishMode)
             $"{imagePrefix}/myriale-api",
             sourceSha)
         .WithDockerfile("../../", "src/Myriale.Api/Dockerfile")
+        // Temporary: expose Development-only diagnostics in preview environments while AI integration is stabilized.
+        .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
+        .WithEnvironment("DOTNET_ENVIRONMENT", "Development")
         .WithEnvironment("MockAi__BaseUrl", mockAi.GetEndpoint("http"))
         .WithEnvironment("SeedAccount__Enabled", "true")
         .WithEnvironment("SeedAccount__DisplayName", "霧野しおり")
@@ -73,28 +78,33 @@ if (isPublishMode)
     {
         api.WithReference(postgres);
     }
-    else
+
+    api.PublishAsKubernetesService(kubernetesResource =>
     {
-        api.PublishAsKubernetesService(kubernetesResource =>
+        var apiContainer = kubernetesResource.Workload?.PodTemplate.Spec.Containers
+            .Single(container => container.Name == "myriale-api")
+            ?? throw new InvalidOperationException("The Myriale API container was not generated.");
+        AddSecretEnvironment(apiContainer, "AiProvider__Provider", "provider");
+        AddSecretEnvironment(apiContainer, "AiProvider__ApiKey", "apiKey");
+        AddSecretEnvironment(apiContainer, "AiProvider__BaseUrl", "baseUrl");
+        AddSecretEnvironment(apiContainer, "AiProvider__Model", "model");
+        kubernetesResource.AdditionalResources.Add(new MyrialeAiProviderExternalSecret());
+
+        if (postgres is not null) return;
+        apiContainer.Env.Add(new EnvVarV1
         {
-            var apiContainer = kubernetesResource.Workload?.PodTemplate.Spec.Containers
-                .Single(container => container.Name == "myriale-api")
-                ?? throw new InvalidOperationException("The Myriale API container was not generated.");
-            apiContainer.Env.Add(new EnvVarV1
+            Name = "POSTGRES_URL",
+            ValueFrom = new EnvVarSourceV1
             {
-                Name = "POSTGRES_URL",
-                ValueFrom = new EnvVarSourceV1
+                SecretKeyRef = new SecretKeySelectorV1
                 {
-                    SecretKeyRef = new SecretKeySelectorV1
-                    {
-                        Name = "myriale-postgres-app",
-                        Key = "uri"
-                    }
+                    Name = $"{PostgresClusterName}-app",
+                    Key = "uri"
                 }
-            });
-            kubernetesResource.AdditionalResources.Add(new CloudNativePgCluster());
+            }
         });
-    }
+        kubernetesResource.AdditionalResources.Add(new CloudNativePgCluster(PostgresClusterName));
+    });
 
     var frontend = builder.AddContainer(
             "myriale-frontend",
@@ -126,6 +136,9 @@ else
 
     var api = builder.AddProject<Projects.Myriale_Api>("myriale-api")
         .WithReference(mockAi)
+        // Temporary: keep local Aspire and published preview behavior aligned for AI diagnostics.
+        .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
+        .WithEnvironment("DOTNET_ENVIRONMENT", "Development")
         .WithEnvironment("MockAi__BaseUrl", mockAi.GetEndpoint("http"))
         .WaitFor(mockAi)
         .WithExternalHttpEndpoints();
@@ -152,6 +165,22 @@ else
 
 builder.Build().Run();
 
+static void AddSecretEnvironment(ContainerV1 container, string environmentName, string secretKey)
+{
+    container.Env.Add(new EnvVarV1
+    {
+        Name = environmentName,
+        ValueFrom = new EnvVarSourceV1
+        {
+            SecretKeyRef = new SecretKeySelectorV1
+            {
+                Name = "myriale-ai-provider",
+                Key = secretKey
+            }
+        }
+    });
+}
+
 static IResourceBuilder<IResourceWithConnectionString>? CreatePostgresResource(
     IDistributedApplicationBuilder builder,
     string? connectionString)
@@ -165,12 +194,108 @@ static IResourceBuilder<IResourceWithConnectionString>? CreatePostgresResource(
     return builder.AddConnectionString("MyrialeAccounts", "ConnectionStrings__MyrialeAccounts");
 }
 
+internal sealed class MyrialeAiProviderExternalSecret : BaseKubernetesResource
+{
+    public MyrialeAiProviderExternalSecret()
+        : base("external-secrets.io/v1", "ExternalSecret")
+    {
+        Metadata.Name = "myriale-ai-provider";
+        Spec = new ExternalSecretSpec
+        {
+            RefreshInterval = "5m",
+            SecretStoreRef = new ExternalSecretStoreReference
+            {
+                Name = "secret-store",
+                Kind = "ClusterSecretStore"
+            },
+            Target = new ExternalSecretTarget
+            {
+                Name = "myriale-ai-provider",
+                CreationPolicy = "Owner"
+            },
+            Data =
+            [
+                ExternalSecretData.FromVault("provider", "provider"),
+                ExternalSecretData.FromVault("apiKey", "apiKey"),
+                ExternalSecretData.FromVault("baseUrl", "baseUrl"),
+                ExternalSecretData.FromVault("model", "model")
+            ]
+        };
+    }
+
+    [YamlMember(Alias = "spec")]
+    public ExternalSecretSpec Spec { get; }
+}
+
+internal sealed class ExternalSecretSpec
+{
+    [YamlMember(Alias = "refreshInterval")]
+    public string RefreshInterval { get; init; } = "5m";
+
+    [YamlMember(Alias = "secretStoreRef")]
+    public ExternalSecretStoreReference SecretStoreRef { get; init; } = new();
+
+    [YamlMember(Alias = "target")]
+    public ExternalSecretTarget Target { get; init; } = new();
+
+    [YamlMember(Alias = "data")]
+    public List<ExternalSecretData> Data { get; init; } = [];
+}
+
+internal sealed class ExternalSecretStoreReference
+{
+    [YamlMember(Alias = "name")]
+    public string Name { get; init; } = string.Empty;
+
+    [YamlMember(Alias = "kind")]
+    public string Kind { get; init; } = string.Empty;
+}
+
+internal sealed class ExternalSecretTarget
+{
+    [YamlMember(Alias = "name")]
+    public string Name { get; init; } = string.Empty;
+
+    [YamlMember(Alias = "creationPolicy")]
+    public string CreationPolicy { get; init; } = "Owner";
+}
+
+internal sealed class ExternalSecretData
+{
+    private const string DefaultVaultKey = "{{ default `forge/apps/myriale/ai` (get (default (dict) .Values.forge) `aiVaultKey`) }}";
+
+    [YamlMember(Alias = "secretKey")]
+    public string SecretKey { get; init; } = string.Empty;
+
+    [YamlMember(Alias = "remoteRef")]
+    public ExternalSecretRemoteReference RemoteRef { get; init; } = new();
+
+    public static ExternalSecretData FromVault(string secretKey, string property) => new()
+    {
+        SecretKey = secretKey,
+        RemoteRef = new ExternalSecretRemoteReference
+        {
+            Key = new HelmTemplateValue(DefaultVaultKey),
+            Property = property
+        }
+    };
+}
+
+internal sealed class ExternalSecretRemoteReference
+{
+    [YamlMember(Alias = "key")]
+    public HelmTemplateValue Key { get; init; } = new("");
+
+    [YamlMember(Alias = "property")]
+    public string Property { get; init; } = string.Empty;
+}
+
 internal sealed class CloudNativePgCluster : BaseKubernetesResource
 {
-    public CloudNativePgCluster()
+    public CloudNativePgCluster(string name)
         : base("postgresql.cnpg.io/v1", "Cluster")
     {
-        Metadata.Name = "myriale-postgres";
+        Metadata.Name = name;
         Spec = new CloudNativePgClusterSpec
         {
             Instances = 1,

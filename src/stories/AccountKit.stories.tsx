@@ -90,7 +90,7 @@ export const IdentitySealStates: Story = {
 export const StatusBadges: Story = {
   name: 'StatusBadge — アカウント状態のラベル',
   render: () => (
-    <div className="pill-row">
+    <div className="flex flex-wrap gap-2">
       {allStates.map((state) => (
         <StatusBadge key={state} state={state} />
       ))}
@@ -106,7 +106,7 @@ export const StatusBadges: Story = {
 export const Buttons: Story = {
   name: 'Button — variant 一覧',
   render: () => (
-    <div className="button-row">
+    <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
       <Button variant="primary">主要操作</Button>
       <Button variant="ghost">副操作</Button>
       <Button variant="danger">危険な操作</Button>
@@ -259,7 +259,7 @@ export const AdminUserTable: Story = {
   decorators: [
     (Story) => (
       <div className="account-kit" style={{ minHeight: 'auto', padding: 22 }}>
-        <div className="reg-card flush">
+        <div className="overflow-hidden rounded-myr-shell border border-myr-line bg-[rgba(255,250,240,.9)] shadow-myr-surface">
           <Story />
         </div>
       </div>
@@ -318,7 +318,7 @@ export const AppFrameComponent: Story = {
         user={{ name: '霧野しおり', email: 'shiori@example.com', state: 'active', initials: '霧' }}
         aside={<DefinitionList items={[{ term: '現在', value: active }]} testId="frame-aside" />}
       >
-        <section className="reg-card" aria-label="AppFrame本文">
+        <section className="rounded-myr-shell border border-myr-line bg-[rgba(255,250,240,.9)] p-myr-section-inset shadow-myr-surface" aria-label="AppFrame本文">
           <SectionHead kicker="Account" title="AppFrame本文" lead="ナビゲーションと本文領域を1つの枠にまとめます。" />
           <p data-testid="frame-active">active: {active}</p>
         </section>
@@ -327,7 +327,9 @@ export const AppFrameComponent: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await expect(canvas.getByRole('button', { name: 'プロフィール' })).toHaveAttribute('aria-current', 'page');
     await userEvent.click(canvas.getByRole('button', { name: 'セキュリティ' }));
+    await expect(canvas.getByRole('button', { name: 'セキュリティ' })).toHaveAttribute('aria-current', 'page');
     await expect(canvas.getByTestId('frame-active')).toHaveTextContent('security');
     await expect(canvas.getByTestId('frame-aside')).toHaveTextContent('security');
   },

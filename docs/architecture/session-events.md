@@ -19,9 +19,12 @@ Mutable Session-owned state:
 
 Mutable processing state is not stored on immutable events:
 
-- `SessionPlayerInputWork`: AI generation lease, attempts, retryability, and errors.
-- `SessionNarrativeHandoff`: Module Outcome narrative-generation processing.
+- `SessionExecution`: shared Narrative, Module handoff, note proposal, image, and summary lifecycle.
+- `SessionExecutionAttempt`: append-only provider/worker attempt diagnostics.
+- `SessionArtifact`: generated result envelope before typed domain publication.
 - `SessionProgressionTransitionReceipt`: signal-to-Module processing.
+
+See `session-executions-and-artifacts.md` for leases, fencing, retry, safe diagnostics, telemetry, note/image domains, and the ordered UI projection.
 
 ## Player Input lifecycle
 
@@ -33,7 +36,7 @@ The domain state of an input is derived:
 - pending: no result Turn exists and `Session.HeadTurnId == AcceptedAfterTurnId` using null-safe equality;
 - stale: no result Turn exists and the two head IDs differ.
 
-Operational failure and retry information belongs to `SessionPlayerInputWork`, not to the Player Input event.
+Operational failure and retry information belongs to `SessionExecution` and append-only `SessionExecutionAttempt`, not to the Player Input event. A failed, cancelled, or superseded Execution never creates a Session Turn.
 
 ## Turn ordering
 

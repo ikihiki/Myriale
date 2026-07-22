@@ -13,6 +13,9 @@ public sealed class AiProviderKey
 
     public string Secret { get; set; } = string.Empty;
 
+    [MaxLength(16)]
+    public string SecretHint { get; set; } = string.Empty;
+
     [MaxLength(40)]
     public string Status { get; set; } = "untested";
 
