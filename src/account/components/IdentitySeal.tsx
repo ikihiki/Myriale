@@ -1,6 +1,21 @@
 import type { AccountState } from '../types';
 import { stateMeta } from '../stateMeta';
 
+type IdentitySize = 'sm' | 'md';
+
+const sizeClassNames: Record<IdentitySize, string> = {
+  sm: 'size-11 text-[15px]',
+  md: 'size-[72px] text-2xl',
+};
+
+const stateClassNames: Record<AccountState, string> = {
+  active: '[background:radial-gradient(circle_at_32%_26%,rgba(255,255,255,.5),transparent_44%),conic-gradient(from_180deg,var(--verde),var(--mist),#7fd2ad,var(--verde))] text-[#0f2a1f]',
+  unverified: '[background:radial-gradient(circle_at_32%_26%,rgba(255,255,255,.5),transparent_44%),conic-gradient(from_180deg,var(--ember),var(--amber),#ffd9a8,var(--ember))]',
+  pending: '[background:radial-gradient(circle_at_32%_26%,rgba(255,255,255,.5),transparent_44%),conic-gradient(from_180deg,var(--ember),var(--amber),#ffd9a8,var(--ember))]',
+  suspended: '[background:radial-gradient(circle_at_32%_26%,rgba(255,255,255,.4),transparent_44%),conic-gradient(from_180deg,var(--seal),#e08a86,var(--seal))] text-white',
+  deleted: '[background:radial-gradient(circle_at_32%_26%,rgba(255,255,255,.2),transparent_44%),#6c6577] text-[#efe9ee] grayscale-[.4]',
+};
+
 export function IdentitySeal({
   state = 'active',
   initials,
@@ -10,14 +25,14 @@ export function IdentitySeal({
   state?: AccountState;
   initials: string;
   caption?: string;
-  size?: 'sm' | 'md';
+  size?: IdentitySize;
 }) {
   return (
-    <div className={`identity-seal identity-${state} identity-${size}`}>
-      <span className="identity-seal-mark" role="img" aria-label={`Myriale 会員之證 / ${stateMeta[state].label}`}>
+    <div className="inline-grid justify-items-center gap-1.5 text-center">
+      <span className={`grid place-items-center rounded-[46%_54%_50%_50%/52%_48%_52%_48%] font-[Georgia,serif] font-extrabold shadow-[inset_0_0_0_2px_rgba(255,255,255,.3),0_6px_16px_rgba(18,16,25,.26)] ${sizeClassNames[size]} ${stateClassNames[state]}`} role="img" aria-label={`Myriale 会員之證 / ${stateMeta[state].label}`}>
         {initials}
       </span>
-      {caption && <small className="identity-seal-caption">{caption}</small>}
+      {caption && <small className="text-[11px] tracking-[.04em] text-[var(--ink-soft)]">{caption}</small>}
     </div>
   );
 }

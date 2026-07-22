@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { Field } from './Field';
+import { Field, fieldControlClassNames } from './Field';
 
 export function TextField({
   label,
@@ -31,7 +31,7 @@ export function TextField({
   const id = useId();
   return (
     <Field label={label} htmlFor={id} required={required} help={help} error={error}>
-      <input id={id} aria-label={label} aria-invalid={error ? true : undefined} type={type} value={value} placeholder={placeholder} required={required} autoComplete={autoComplete} inputMode={inputMode} name={name} data-testid={testId} onChange={(event) => onChange(event.target.value)} />
+      <input className={fieldControlClassNames[error ? 'error' : 'default']} id={id} aria-label={label} aria-invalid={error ? true : undefined} type={type} value={value} placeholder={placeholder} required={required} autoComplete={autoComplete} inputMode={inputMode} name={name} data-testid={testId} onChange={(event) => onChange(event.target.value)} />
     </Field>
   );
 }
