@@ -6,7 +6,6 @@ import {
   MyrialeMenuTrigger,
 } from '../ui/MyrialeRadix';
 import { STORY_IDS, navigateToStory, useAppNavigation, type StoryKey } from './nav';
-import './appChrome.css';
 
 /**
  * AppChrome — the real product's global navigation.
@@ -81,6 +80,14 @@ const accountLinks: NavLink[] = [
   { label: '退会', to: 'withdraw' },
 ];
 
+const focusRingClassName = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-myr-iris focus-visible:rounded-md';
+const sectionButtonClassName = `inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-transparent bg-transparent px-3.5 py-[9px] text-sm font-bold text-[rgba(255,246,231,.86)] transition-[background,color] duration-150 ease-[ease] hover:bg-[rgba(255,246,231,.1)] hover:text-[#fff6e7] motion-reduce:transition-none ${focusRingClassName}`;
+const activeSectionButtonClassName = `inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-myr-ember bg-myr-paper px-3.5 py-[9px] text-sm font-bold text-myr-void transition-[background,color] duration-150 ease-[ease] motion-reduce:transition-none ${focusRingClassName}`;
+const accountTriggerClassName = `inline-flex cursor-pointer items-center gap-2.5 rounded-full border border-[rgba(255,246,231,.18)] bg-[rgba(255,246,231,.06)] py-[5px] pr-2.5 pl-1.5 text-[#fff6e7] transition-[background] duration-150 ease-[ease] hover:bg-[rgba(255,246,231,.14)] motion-reduce:transition-none ${focusRingClassName}`;
+const activeAccountTriggerClassName = `inline-flex cursor-pointer items-center gap-2.5 rounded-full border border-myr-ember bg-[rgba(255,246,231,.06)] py-[5px] pr-2.5 pl-1.5 text-[#fff6e7] transition-[background] duration-150 ease-[ease] hover:bg-[rgba(255,246,231,.14)] motion-reduce:transition-none ${focusRingClassName}`;
+const menuItemClassName = '!grid !w-full !cursor-pointer !gap-0.5 !rounded-[10px] !bg-transparent !px-3 !py-[9px] !text-left !text-myr-ink hover:!bg-[rgba(124,92,255,.1)] data-[highlighted]:!bg-[rgba(124,92,255,.1)]';
+const caretClassName = 'text-[11px] opacity-70';
+
 export type Crumb = { label: string; to?: StoryKey };
 
 export type AppChromeProps = {
@@ -117,84 +124,108 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
   };
 
   return (
-    <div className="app-chrome">
-      <div className="app-bar">
-        <div className="app-bar-inner">
+    <div className="min-h-screen [&_*]:box-border">
+      <div className="sticky top-0 z-50 border-b border-[rgba(255,246,231,.14)] bg-[linear-gradient(120deg,rgba(18,16,25,.97),rgba(38,31,54,.97))] font-myr-body text-[#fff6e7] shadow-[0_10px_30px_rgba(18,16,25,.28)] backdrop-blur-md">
+        <div className="mx-auto flex max-w-[1320px] items-center gap-4 px-5 py-2.5 max-[860px]:flex-wrap max-[860px]:gap-x-3 max-[860px]:gap-y-2">
           <button
             type="button"
-            className="app-brand"
+            className={`inline-flex cursor-pointer items-center gap-2.5 rounded-xl border-0 bg-transparent py-1 pr-2 pl-1 text-[#fff6e7] hover:bg-[rgba(255,246,231,.08)] ${focusRingClassName}`}
             aria-label="Myriale ホームへ"
             onClick={() => go('home')}
           >
-            <span className="app-brand-sigil" aria-hidden="true">霧</span>
-            <span className="app-brand-name">Myriale</span>
+            <span
+              className="grid size-9 place-items-center rounded-full border border-[rgba(255,255,255,.28)] bg-[conic-gradient(from_180deg,var(--myr-color-iris),var(--myr-color-ember),var(--myr-color-mist),var(--myr-color-iris))] font-['Shippori_Mincho',Georgia,serif] text-lg font-black text-[#17121d]"
+              aria-hidden="true"
+            >
+              霧
+            </span>
+            <span className="font-myr-display text-xl tracking-[.02em] max-[860px]:hidden">Myriale</span>
           </button>
 
-          <nav className="app-sections" aria-label="主要セクション">
-            {sections.map((item) => (
-              <MyrialeMenuRoot key={item.id} modal={false}>
-                <div className="app-section">
-                  <MyrialeMenuTrigger asChild>
-                    <button
-                      type="button"
-                      className={`app-section-button ${section === item.id ? 'active' : ''}`.trim()}
-                      aria-current={section === item.id ? 'page' : undefined}
-                    >
-                      {item.label}
-                      <span className="caret" aria-hidden="true">⌄</span>
-                    </button>
-                  </MyrialeMenuTrigger>
-                  <MyrialeMenuContent className="app-chrome-menu" align="start" aria-label={`${item.label}メニュー`}>
-                    {item.links.map((link) => (
-                      <MyrialeMenuItem key={link.to} className="app-menu-item" onSelect={() => go(link.to)}>
-                        <span className="app-menu-label">{link.label}</span>
-                        {link.hint && <small className="app-menu-hint">{link.hint}</small>}
-                      </MyrialeMenuItem>
-                    ))}
-                  </MyrialeMenuContent>
-                </div>
-              </MyrialeMenuRoot>
-            ))}
+          <nav className="ml-2 flex gap-1" aria-label="主要セクション">
+            {sections.map((item) => {
+              const isActive = section === item.id;
+              return (
+                <MyrialeMenuRoot key={item.id} modal={false}>
+                  <div className="relative">
+                    <MyrialeMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className={isActive ? activeSectionButtonClassName : sectionButtonClassName}
+                        aria-current={isActive ? 'page' : undefined}
+                      >
+                        {item.label}
+                        <span className={caretClassName} aria-hidden="true">⌄</span>
+                      </button>
+                    </MyrialeMenuTrigger>
+                    <MyrialeMenuContent className="!min-w-[230px]" align="start" aria-label={`${item.label}メニュー`}>
+                      {item.links.map((link) => (
+                        <MyrialeMenuItem key={link.to} className={menuItemClassName} onSelect={() => go(link.to)}>
+                          <span className="text-sm font-bold">{link.label}</span>
+                          {link.hint && <small className="text-xs text-[#6d587a]">{link.hint}</small>}
+                        </MyrialeMenuItem>
+                      ))}
+                    </MyrialeMenuContent>
+                  </div>
+                </MyrialeMenuRoot>
+              );
+            })}
           </nav>
 
-          <div className="app-account">
+          <div className="relative ml-auto">
             {account ? (
               <MyrialeMenuRoot modal={false}>
                 <MyrialeMenuTrigger asChild>
                   <button
                     type="button"
-                    className={`account-trigger ${section === 'account' ? 'active' : ''}`.trim()}
+                    className={section === 'account' ? activeAccountTriggerClassName : accountTriggerClassName}
                     aria-label={`アカウントメニュー: ${account.name}`}
                   >
-                    <span className="account-avatar" aria-hidden="true">{account.initials}</span>
-                    <span className="account-meta">
-                      <strong>{account.name}</strong>
-                      <small>{account.role ?? account.email}</small>
+                    <span
+                      className="grid size-8 place-items-center rounded-full bg-[conic-gradient(from_180deg,var(--myr-color-iris),var(--myr-color-ember),var(--myr-color-mist),var(--myr-color-iris))] font-[Georgia,serif] text-[13px] font-extrabold text-[#17121d]"
+                      aria-hidden="true"
+                    >
+                      {account.initials}
                     </span>
-                    <span className="caret" aria-hidden="true">⌄</span>
+                    <span className="grid text-left leading-[1.15] max-[860px]:hidden">
+                      <strong className="text-[13px]">{account.name}</strong>
+                      <small className="text-[11px] text-[rgba(255,246,231,.6)]">{account.role ?? account.email}</small>
+                    </span>
+                    <span className={caretClassName} aria-hidden="true">⌄</span>
                   </button>
                 </MyrialeMenuTrigger>
-                <MyrialeMenuContent className="app-chrome-menu account-menu" aria-label="アカウントメニュー">
-                  <div className="account-menu-head">
-                    <strong>{account.name}</strong>
-                    <small>{account.email}</small>
+                <MyrialeMenuContent className="!min-w-[250px]" aria-label="アカウントメニュー">
+                  <div className="mb-1.5 border-b border-[rgba(36,27,47,.12)] px-3 pt-2 pb-2.5">
+                    <strong className="block text-sm">{account.name}</strong>
+                    <small className="break-all text-xs text-[#6d587a]">{account.email}</small>
                   </div>
                   {accountLinks.map((link) => (
-                    <MyrialeMenuItem key={link.to} className="app-menu-item" onSelect={() => go(link.to)}>
-                      <span className="app-menu-label">{link.label}</span>
+                    <MyrialeMenuItem key={link.to} className={menuItemClassName} onSelect={() => go(link.to)}>
+                      <span className="text-sm font-bold">{link.label}</span>
                     </MyrialeMenuItem>
                   ))}
-                  <MyrialeMenuItem className="app-menu-item logout" onSelect={() => { void (onLogout ? onLogout() : go('login')); }}>
-                    <span className="app-menu-label">ログアウト</span>
+                  <MyrialeMenuItem
+                    className={`${menuItemClassName} !mt-1 !rounded-t-none !rounded-b-[10px] !border-t !border-[rgba(36,27,47,.12)] !text-[#b8453f] hover:!bg-[rgba(184,69,63,.1)] data-[highlighted]:!bg-[rgba(184,69,63,.1)]`}
+                    onSelect={() => { void (onLogout ? onLogout() : go('login')); }}
+                  >
+                    <span className="text-sm font-bold">ログアウト</span>
                   </MyrialeMenuItem>
                 </MyrialeMenuContent>
               </MyrialeMenuRoot>
             ) : (
-              <div className="account-signed-out">
-                <button type="button" className="signin-link" onClick={() => go('login')}>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className={`cursor-pointer rounded-full border-0 bg-transparent px-3 py-2 font-bold text-[#fff6e7] hover:bg-[rgba(255,246,231,.1)] ${focusRingClassName}`}
+                  onClick={() => go('login')}
+                >
                   ログイン
                 </button>
-                <button type="button" className="signin-cta" onClick={() => go('register')}>
+                <button
+                  type="button"
+                  className={`cursor-pointer rounded-full border border-myr-ember bg-myr-paper px-4 py-2 font-extrabold text-myr-void hover:bg-white ${focusRingClassName}`}
+                  onClick={() => go('register')}
+                >
                   新規登録
                 </button>
               </div>
@@ -202,20 +233,26 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
           </div>
         </div>
 
-        <nav className="app-breadcrumb" aria-label="現在地">
-          <ol>
+        <nav className="border-t border-[rgba(255,246,231,.1)] bg-[rgba(18,16,25,.35)]" aria-label="現在地">
+          <ol className="mx-auto flex max-w-[1320px] list-none flex-wrap items-center gap-2 px-5 py-2 text-xs">
             {breadcrumbs.map((crumb, index) => {
               const isLast = index === breadcrumbs.length - 1;
               return (
-                <li key={`${crumb.label}-${index}`}>
+                <li className="inline-flex items-center gap-2" key={`${crumb.label}-${index}`}>
                   {isLast || !crumb.to ? (
-                    <span aria-current={isLast ? 'page' : undefined}>{crumb.label}</span>
+                    <span className={isLast ? 'font-bold text-[#fff6e7]' : 'text-[rgba(255,246,231,.62)]'} aria-current={isLast ? 'page' : undefined}>
+                      {crumb.label}
+                    </span>
                   ) : (
-                    <button type="button" className="crumb-link" onClick={() => go(crumb.to as StoryKey)}>
+                    <button
+                      type="button"
+                      className={`cursor-pointer border-0 bg-transparent p-0 font-[inherit] text-[rgba(255,246,231,.7)] hover:text-[#fff6e7] hover:underline ${focusRingClassName}`}
+                      onClick={() => go(crumb.to as StoryKey)}
+                    >
                       {crumb.label}
                     </button>
                   )}
-                  {!isLast && <span className="crumb-sep" aria-hidden="true">/</span>}
+                  {!isLast && <span className="text-[rgba(255,246,231,.3)]" aria-hidden="true">/</span>}
                 </li>
               );
             })}
@@ -223,7 +260,7 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
         </nav>
       </div>
 
-      <div className="app-canvas">{children}</div>
+      <div className="min-h-[calc(100vh-96px)]">{children}</div>
     </div>
   );
 }
