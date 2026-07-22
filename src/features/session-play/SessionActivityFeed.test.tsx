@@ -113,6 +113,24 @@ describe('SessionActivityFeed', () => {
     expect(screen.getByTestId('execution-EXE-narrative-succeeded')).not.toBeNull();
   });
 
+  it('reveals only the modeled short public input interpretation for a server-backed turn', () => {
+    const session = sessionActivityFixture('succeeded');
+    session.turns = session.turns.map((turn) => turn.id === 'TRN-2'
+      ? { ...turn, narrative: { ...turn.narrative!, interpretation: '行動: Playerは銀の鍵を掲げ、扉との対応を確認した。' } }
+      : turn);
+
+    render(<SessionActivityFeed session={session} />);
+    const summary = screen.getByText('入力の解釈');
+    expect(summary.closest('details')?.open).toBe(false);
+    fireEvent.click(summary);
+    expect(screen.getByText('行動: Playerは銀の鍵を掲げ、扉との対応を確認した。')).not.toBeNull();
+  });
+
+  it('does not add an interpretation disclosure when the server does not provide one', () => {
+    render(<SessionActivityFeed session={sessionActivityFixture('succeeded')} />);
+    expect(screen.queryByText('入力の解釈')).toBeNull();
+  });
+
   it('polls only while at least one execution is active', () => {
     expect(hasActiveSessionExecutions(sessionActivityFixture('running'))).toBe(true);
     expect(hasActiveSessionExecutions(sessionActivityFixture('failed'))).toBe(false);

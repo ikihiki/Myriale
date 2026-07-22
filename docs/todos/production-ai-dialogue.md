@@ -211,8 +211,8 @@ model: <vLLM model name>
 
 ### Player agency
 
-- [ ] Player Inputに書かれていない開錠、移動、契約、戦闘開始、重要item消費をAIが勝手に確定しないようにする。
-- [ ] 「調べる」を「開けて入る」へ拡大解釈しない評価ケースを追加する。
+- [x] Player Inputに書かれていない開錠、移動、契約、戦闘開始、重要item消費をAIが勝手に確定しないようにする。
+- [x] 「調べる」を「開けて入る」へ拡大解釈しない評価ケースを追加する。
 - [ ] 行動が不明確な場合は安全な範囲で描写するか、確認を返す。
 - [ ] AIが重要な進行後に必ず次のPlayer Inputを待つことを確認する。
 
@@ -220,15 +220,15 @@ model: <vLLM model name>
 
 - [ ] Scenario Canonとして主要NPCの名前、別名、立場、口調、知識、秘密、公開条件を表現できるようにする。
 - [ ] NPCの現在地、感情、関係性などSession固有状態を保持する方針を決定する。
-- [ ] 同一NPCがTurn間で名前、口調、経歴を理由なく変更しない評価ケースを追加する。
+- [x] 同一NPCがTurn間で名前、口調、経歴を理由なく変更しない評価ケースを追加する。
 - [ ] NPCが知らない情報や公開条件未達の秘密を話さないようにする。
 
 ### Module結果の連続性
 
-- [ ] Module Outcomeのcode、Public Facts、Emitted Events、Narrative Hintsを後続Contextへ残す。
-- [ ] Forbidden Narrative Factsをhandoff直後だけでなく後続対話でも適用する。
+- [x] Module Outcomeのcode、Public Facts、Emitted Events、Narrative Hintsを後続Contextへ残す。
+- [x] Forbidden Narrative Factsをhandoff直後だけでなく後続対話でも適用する。
 - [ ] 適用済みSession flagsとModule確定結果が矛盾した場合は生成をrejectまたは再生成する。
-- [ ] 撃破済みの敵、消費済みresource、開いた扉をAIが理由なく元へ戻さない評価ケースを追加する。
+- [x] 撃破済みの敵、消費済みresource、開いた扉をAIが理由なく元へ戻さない評価ケースを追加する。
 
 ### 出力検証
 
@@ -240,9 +240,9 @@ model: <vLLM model name>
 
 ### フェーズ4完了条件
 
-- [ ] 固定評価ケースでPlayer agency、NPC一貫性、Canon、Module結果を守れる。
-- [ ] 誤ったsignalやForbidden Factsを含む出力がSessionへcommitされない。
-- [ ] AIの内部推論を公開せず、短い入力解釈だけを表示できる。
+- [x] 固定評価ケースでPlayer agency、NPC一貫性、Canon、Module結果を守れる。
+- [x] 誤ったsignalやForbidden Factsを含む出力がSessionへcommitされない。
+- [x] AIの内部推論を公開せず、短い入力解釈だけを表示できる。
 
 ## フェーズ5: Lorebookと長期記憶
 

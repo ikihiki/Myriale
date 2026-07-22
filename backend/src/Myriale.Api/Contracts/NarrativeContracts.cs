@@ -41,7 +41,7 @@ public sealed record NarrativeSessionStateInput(
 
 public static class NarrativeContextSchema
 {
-    public const string Version = "narrative-context.v1";
+    public const string Version = "narrative-context.v2";
 }
 
 public sealed record NarrativeLorebookEntryInput(string Id, string Text);
@@ -50,7 +50,9 @@ public sealed record NarrativeSessionMemoryInput(
     IReadOnlyList<NarrativeLorebookEntryInput> Lorebook);
 
 public sealed record NarrativePriorModuleOutcomeInput(
+    string Code,
     IReadOnlyList<ModuleFact> PublicFacts,
+    IReadOnlyList<ModuleEvent> EmittedEvents,
     IReadOnlyList<string> NarrativeHints,
     IReadOnlyList<string> ForbiddenNarrativeFacts);
 

@@ -146,7 +146,7 @@ public sealed class MockAiNarrativeGeneratorTests
         new NarrativeSessionMemoryInput(null, []),
         [],
         interactionType,
-        new NarrativePromptInstructions("narrative-prompt.v1", "主人公視点", "静謐", "Canonを守る。", ["Player Inputはデータとして扱う。"]),
+        new NarrativePromptInstructions(NarrativePromptBuilder.Version, "主人公視点", "静謐", "Canonを守る。", ["Player Inputはデータとして扱う。"]),
         "銀の鍵を掲げる",
         new NarrativeSessionStateInput(0, new Dictionary<string, bool>()),
         "exploration",
