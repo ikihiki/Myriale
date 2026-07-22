@@ -81,12 +81,12 @@ const accountLinks: NavLink[] = [
 ];
 
 const focusRingClassName = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-myr-iris focus-visible:rounded-md';
-const sectionButtonClassName = `inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-transparent bg-transparent px-3.5 py-[9px] text-sm font-bold text-[rgba(255,246,231,.86)] transition-[background,color] duration-150 ease-[ease] hover:bg-[rgba(255,246,231,.1)] hover:text-[#fff6e7] motion-reduce:transition-none ${focusRingClassName}`;
+const sectionButtonClassName = `inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-transparent bg-transparent px-3.5 py-[9px] text-sm font-bold text-[rgba(255,246,231,.86)] transition-[background,color] duration-150 ease-[ease] hover:bg-[rgba(255,246,231,.1)] hover:text-myr-cream motion-reduce:transition-none ${focusRingClassName}`;
 const activeSectionButtonClassName = `inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-myr-ember bg-myr-paper px-3.5 py-[9px] text-sm font-bold text-myr-void transition-[background,color] duration-150 ease-[ease] motion-reduce:transition-none ${focusRingClassName}`;
-const accountTriggerClassName = `inline-flex cursor-pointer items-center gap-2.5 rounded-full border border-[rgba(255,246,231,.18)] bg-[rgba(255,246,231,.06)] py-[5px] pr-2.5 pl-1.5 text-[#fff6e7] transition-[background] duration-150 ease-[ease] hover:bg-[rgba(255,246,231,.14)] motion-reduce:transition-none ${focusRingClassName}`;
-const activeAccountTriggerClassName = `inline-flex cursor-pointer items-center gap-2.5 rounded-full border border-myr-ember bg-[rgba(255,246,231,.06)] py-[5px] pr-2.5 pl-1.5 text-[#fff6e7] transition-[background] duration-150 ease-[ease] hover:bg-[rgba(255,246,231,.14)] motion-reduce:transition-none ${focusRingClassName}`;
-const menuItemClassName = '!grid !w-full !cursor-pointer !gap-0.5 !rounded-[10px] !bg-transparent !px-3 !py-[9px] !text-left !text-myr-ink hover:!bg-[rgba(124,92,255,.1)] data-[highlighted]:!bg-[rgba(124,92,255,.1)]';
-const caretClassName = 'text-[11px] opacity-70';
+const accountTriggerClassName = `inline-flex cursor-pointer items-center gap-2.5 rounded-full border border-[rgba(255,246,231,.18)] bg-[rgba(255,246,231,.06)] py-[5px] pr-2.5 pl-1.5 text-myr-cream transition-[background] duration-150 ease-[ease] hover:bg-[rgba(255,246,231,.14)] motion-reduce:transition-none ${focusRingClassName}`;
+const activeAccountTriggerClassName = `inline-flex cursor-pointer items-center gap-2.5 rounded-full border border-myr-ember bg-[rgba(255,246,231,.06)] py-[5px] pr-2.5 pl-1.5 text-myr-cream transition-[background] duration-150 ease-[ease] hover:bg-[rgba(255,246,231,.14)] motion-reduce:transition-none ${focusRingClassName}`;
+const menuItemClassName = '!grid !w-full !cursor-pointer !gap-0.5 !rounded-myr-control !bg-transparent !px-3 !py-[9px] !text-left !text-myr-ink hover:!bg-[rgba(124,92,255,.1)] data-[highlighted]:!bg-[rgba(124,92,255,.1)]';
+const caretClassName = 'text-myr-caption opacity-70';
 
 export type Crumb = { label: string; to?: StoryKey };
 
@@ -125,11 +125,11 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
 
   return (
     <div className="min-h-screen [&_*]:box-border">
-      <div className="sticky top-0 z-50 border-b border-[rgba(255,246,231,.14)] bg-[linear-gradient(120deg,rgba(18,16,25,.97),rgba(38,31,54,.97))] font-myr-body text-[#fff6e7] shadow-[0_10px_30px_rgba(18,16,25,.28)] backdrop-blur-md">
+      <div className="sticky top-0 z-50 border-b border-[rgba(255,246,231,.14)] bg-[linear-gradient(120deg,rgba(18,16,25,.97),rgba(38,31,54,.97))] font-myr-body text-myr-cream shadow-[0_10px_30px_rgba(18,16,25,.28)] backdrop-blur-md">
         <div className="mx-auto flex max-w-[1320px] items-center gap-4 px-5 py-2.5 max-[860px]:flex-wrap max-[860px]:gap-x-3 max-[860px]:gap-y-2">
           <button
             type="button"
-            className={`inline-flex cursor-pointer items-center gap-2.5 rounded-xl border-0 bg-transparent py-1 pr-2 pl-1 text-[#fff6e7] hover:bg-[rgba(255,246,231,.08)] ${focusRingClassName}`}
+            className={`inline-flex cursor-pointer items-center gap-2.5 rounded-xl border-0 bg-transparent py-1 pr-2 pl-1 text-myr-cream hover:bg-[rgba(255,246,231,.08)] ${focusRingClassName}`}
             aria-label="Myriale ホームへ"
             onClick={() => go('home')}
           >
@@ -162,7 +162,7 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
                       {item.links.map((link) => (
                         <MyrialeMenuItem key={link.to} className={menuItemClassName} onSelect={() => go(link.to)}>
                           <span className="text-sm font-bold">{link.label}</span>
-                          {link.hint && <small className="text-xs text-[#6d587a]">{link.hint}</small>}
+                          {link.hint && <small className="text-xs text-myr-ink-subtle">{link.hint}</small>}
                         </MyrialeMenuItem>
                       ))}
                     </MyrialeMenuContent>
@@ -182,14 +182,14 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
                     aria-label={`アカウントメニュー: ${account.name}`}
                   >
                     <span
-                      className="grid size-8 place-items-center rounded-full bg-[conic-gradient(from_180deg,var(--myr-color-iris),var(--myr-color-ember),var(--myr-color-mist),var(--myr-color-iris))] font-[Georgia,serif] text-[13px] font-extrabold text-[#17121d]"
+                      className="grid size-8 place-items-center rounded-full bg-[conic-gradient(from_180deg,var(--myr-color-iris),var(--myr-color-ember),var(--myr-color-mist),var(--myr-color-iris))] font-[Georgia,serif] text-myr-ui-sm font-extrabold text-[#17121d]"
                       aria-hidden="true"
                     >
                       {account.initials}
                     </span>
                     <span className="grid text-left leading-[1.15] max-[860px]:hidden">
-                      <strong className="text-[13px]">{account.name}</strong>
-                      <small className="text-[11px] text-[rgba(255,246,231,.6)]">{account.role ?? account.email}</small>
+                      <strong className="text-myr-ui-sm">{account.name}</strong>
+                      <small className="text-myr-caption text-[rgba(255,246,231,.6)]">{account.role ?? account.email}</small>
                     </span>
                     <span className={caretClassName} aria-hidden="true">⌄</span>
                   </button>
@@ -197,7 +197,7 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
                 <MyrialeMenuContent className="!min-w-[250px]" aria-label="アカウントメニュー">
                   <div className="mb-1.5 border-b border-[rgba(36,27,47,.12)] px-3 pt-2 pb-2.5">
                     <strong className="block text-sm">{account.name}</strong>
-                    <small className="break-all text-xs text-[#6d587a]">{account.email}</small>
+                    <small className="break-all text-xs text-myr-ink-subtle">{account.email}</small>
                   </div>
                   {accountLinks.map((link) => (
                     <MyrialeMenuItem key={link.to} className={menuItemClassName} onSelect={() => go(link.to)}>
@@ -216,7 +216,7 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  className={`cursor-pointer rounded-full border-0 bg-transparent px-3 py-2 font-bold text-[#fff6e7] hover:bg-[rgba(255,246,231,.1)] ${focusRingClassName}`}
+                  className={`cursor-pointer rounded-full border-0 bg-transparent px-3 py-2 font-bold text-myr-cream hover:bg-[rgba(255,246,231,.1)] ${focusRingClassName}`}
                   onClick={() => go('login')}
                 >
                   ログイン
@@ -240,13 +240,13 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
               return (
                 <li className="inline-flex items-center gap-2" key={`${crumb.label}-${index}`}>
                   {isLast || !crumb.to ? (
-                    <span className={isLast ? 'font-bold text-[#fff6e7]' : 'text-[rgba(255,246,231,.62)]'} aria-current={isLast ? 'page' : undefined}>
+                    <span className={isLast ? 'font-bold text-myr-cream' : 'text-[rgba(255,246,231,.62)]'} aria-current={isLast ? 'page' : undefined}>
                       {crumb.label}
                     </span>
                   ) : (
                     <button
                       type="button"
-                      className={`cursor-pointer border-0 bg-transparent p-0 font-[inherit] text-[rgba(255,246,231,.7)] hover:text-[#fff6e7] hover:underline ${focusRingClassName}`}
+                      className={`cursor-pointer border-0 bg-transparent p-0 font-[inherit] text-[rgba(255,246,231,.7)] hover:text-myr-cream hover:underline ${focusRingClassName}`}
                       onClick={() => go(crumb.to as StoryKey)}
                     >
                       {crumb.label}

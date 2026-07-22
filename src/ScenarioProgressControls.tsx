@@ -147,10 +147,10 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
 
 
   const panelClassName = 'grid gap-3';
-  const controlButtonClass = 'rounded-full bg-[#2b2940] px-4 py-2.5 font-extrabold text-[#fffaf0]';
-  const primaryControlButtonClass = `${controlButtonClass} !bg-[#d9a441] !text-[#17151f] !font-black`;
+  const controlButtonClass = 'rounded-full bg-myr-plum px-4 py-2.5 font-extrabold text-myr-paper';
+  const primaryControlButtonClass = `${controlButtonClass} !bg-myr-gold !text-[#17151f] !font-black`;
   const noticeNode = notice !== initialAdvancedNotice ? (
-    <div className="my-[18px] rounded-2xl bg-[rgba(18,16,25,.86)] px-4 py-3 text-[#fff6e7]" role="status" data-testid="advanced-notice">{notice}</div>
+    <div className="my-[18px] rounded-2xl bg-[rgba(18,16,25,.86)] px-4 py-3 text-myr-cream" role="status" data-testid="advanced-notice">{notice}</div>
   ) : null;
 
   const panelContent = (
@@ -214,7 +214,7 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
               <button className={primaryControlButtonClass} onClick={() => runCorrection('forced')}>条件付き強制イベントを発火</button>
               <button className={controlButtonClass} onClick={refreshDebug}>参照情報を更新</button>
             </div>
-            <p className="m-0 text-xs text-[#6d587a]" data-testid="correction-state">補正状態: {correction}</p>
+            <p className="m-0 text-xs text-myr-ink-subtle" data-testid="correction-state">補正状態: {correction}</p>
           </div>
           <p data-testid="debug-refs">{debugRefs}</p>
         </section>

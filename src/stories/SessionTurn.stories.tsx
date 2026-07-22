@@ -115,13 +115,13 @@ export const Playground: StoryObj<PlaygroundArgs> = {
                 text: args.leadText,
                 actions:
                   args.leadTone === 'player' && args.showInterpretation ? (
-                    <MyrialeToggle className="!justify-self-start !rounded-full !border !border-[#7c5cff]/30 !bg-white/55 !px-2.5 !py-1 !text-[11px] !font-extrabold !text-[#6044d4] data-[state=on]:!bg-[#7c5cff]/16 data-[state=on]:!text-[#4a32b0]" pressed>
+                    <MyrialeToggle className="!justify-self-start !rounded-full !border !border-myr-iris/30 !bg-white/55 !px-2.5 !py-1 !text-myr-caption !font-extrabold !text-[#6044d4] data-[state=on]:!bg-myr-iris/16 data-[state=on]:!text-[#4a32b0]" pressed>
                       ⌄ 解釈を隠す
                     </MyrialeToggle>
                   ) : undefined,
                 detail:
                   args.leadTone === 'player' && args.showInterpretation ? (
-                    <p className="m-0 flex max-w-none items-baseline gap-2 rounded-xl bg-[#d9a441]/18 px-3 py-2.5 text-[13px] font-semibold text-[#4b3a20]">
+                    <p className="m-0 flex max-w-none items-baseline gap-2 rounded-xl bg-myr-gold/18 px-3 py-2.5 text-myr-ui-sm font-semibold text-[#4b3a20]">
                       <span className="shrink-0 text-[#b07a16]" aria-hidden="true">⚙</span>
                       {args.interpretationText}
                     </p>
@@ -152,12 +152,12 @@ export const Samples: StoryObj = {
             srLabel: 'プレイヤーの入力: ',
             text: '懐の銀の鍵を取り出して刻印を見る',
             actions: (
-              <MyrialeToggle className="!justify-self-start !rounded-full !border !border-[#7c5cff]/30 !bg-white/55 !px-2.5 !py-1 !text-[11px] !font-extrabold !text-[#6044d4] data-[state=on]:!bg-[#7c5cff]/16 data-[state=on]:!text-[#4a32b0]" pressed>
+              <MyrialeToggle className="!justify-self-start !rounded-full !border !border-myr-iris/30 !bg-white/55 !px-2.5 !py-1 !text-myr-caption !font-extrabold !text-[#6044d4] data-[state=on]:!bg-myr-iris/16 data-[state=on]:!text-[#4a32b0]" pressed>
                 ⌄ 解釈を隠す
               </MyrialeToggle>
             ),
             detail: (
-              <p className="m-0 flex max-w-none items-baseline gap-2 rounded-xl bg-[#d9a441]/18 px-3 py-2.5 text-[13px] font-semibold text-[#4b3a20]">
+              <p className="m-0 flex max-w-none items-baseline gap-2 rounded-xl bg-myr-gold/18 px-3 py-2.5 text-myr-ui-sm font-semibold text-[#4b3a20]">
                 <span className="shrink-0 text-[#b07a16]" aria-hidden="true">⚙</span>
                 所持品確認として解釈しました。目的は銀の鍵の由来と使い道を知ることです。
               </p>

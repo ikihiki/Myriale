@@ -41,7 +41,7 @@ export function ScenarioListPage() {
           className="mx-auto grid min-h-[calc(100vh-158px)] max-w-[1180px] content-start rounded-myr-panel border border-white/40 bg-[image:var(--myr-paper-background)] [background-size:26px_100%,auto] p-5 shadow-myr-panel md:p-8"
           aria-label="セッション開始前のシナリオ一覧"
         >
-          <p className="mb-2 text-[0.6875rem] font-extrabold tracking-[0.16em] text-[#6d587a] uppercase">
+          <p className="mb-2 text-myr-caption font-extrabold tracking-[0.16em] text-myr-ink-subtle uppercase">
             Session Start / Scenario library
           </p>
           <section aria-label="シナリオ一覧">
@@ -69,10 +69,10 @@ export function ScenarioListPage() {
                   data-testid={`scenario-card-${scenario.id}`}
                   key={scenario.id}
                 >
-                  <span className="font-myr-mono text-[0.6875rem] font-black tracking-[0.08em] text-myr-ruby uppercase">
+                  <span className="font-myr-mono text-myr-caption font-black tracking-[0.08em] text-myr-ruby uppercase">
                     {scenario.status} / {scenario.id}
                   </span>
-                  <h2 className="my-2 font-myr-display text-[clamp(1.5rem,2vw,2.125rem)] leading-none tracking-[-0.04em]">
+                  <h2 className="my-2 font-myr-display text-[clamp(1.5rem,2vw,2.125rem)] leading-none tracking-myr-display">
                     {scenario.title}
                   </h2>
                   <p className="m-0 text-sm font-bold text-myr-slate">{scenario.genre} / {scenario.tone}</p>

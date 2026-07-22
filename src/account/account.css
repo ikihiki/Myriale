@@ -15,21 +15,21 @@
  */
 
 .account-kit {
-  --void: #121019;
-  --ink: #241b2f;
-  --ink-soft: #5f506c;
-  --paper: #fffaf0;
-  --vellum: #efe3c6;
-  --mist: #d6e7e0;
-  --iris: #7c5cff;
+  --void: var(--myr-color-void);
+  --ink: var(--myr-color-ink);
+  --ink-soft: var(--myr-color-account-ink-soft);
+  --paper: var(--myr-color-paper);
+  --vellum: var(--myr-color-vellum);
+  --mist: var(--myr-color-mist);
+  --iris: var(--myr-color-iris);
   --iris-deep: #6044d4;
-  --ember: #ff9f68;
+  --ember: var(--myr-color-ember);
   --seal: #b8453f;
   --verde: #2f6f57;
-  --amber: #d9a441;
-  --line: rgba(36, 27, 47, 0.18);
-  --line-strong: rgba(36, 27, 47, 0.32);
-  --shadow: 0 24px 80px rgba(18, 16, 25, 0.16);
+  --amber: var(--myr-color-gold);
+  --line: var(--myr-color-line);
+  --line-strong: var(--myr-color-line-strong);
+  --shadow: var(--myr-shadow-surface);
 
   box-sizing: border-box;
   min-height: 100vh;

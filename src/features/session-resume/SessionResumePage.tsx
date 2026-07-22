@@ -265,7 +265,7 @@ export function SessionResumePage() {
               <div className="mt-3.5 grid gap-3" data-testid="session-list">
                 {activeSessions.map((session) => (
                   <article
-                    className="my-3 rounded-[18px] border border-[rgba(23,21,31,0.14)] bg-[rgba(255,254,249,0.72)] p-4 [&>span]:text-[11px] [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-[#b84a4a] [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-[-0.04em] [&_p]:max-w-none [&_p]:text-[#4f4658] [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-[18px] [&_ul]:text-[#4f4658]"
+                    className="my-3 rounded-myr-card border border-myr-line-soft bg-myr-paper-glass p-4 [&>span]:text-myr-caption [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-myr-ruby [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-[18px] [&_ul]:text-myr-ink-soft"
                     key={session.id}
                     data-testid={`session-card-${session.id}`}
                   >
@@ -274,7 +274,7 @@ export function SessionResumePage() {
                     <p>
                       {session.genre} / 主人公: {session.hero}
                     </p>
-                    <p className="text-[13px] font-extrabold !text-[#6d587a]">
+                    <p className="text-myr-ui-sm font-extrabold !text-myr-ink-subtle">
                       進行度: Turn {session.turn} ・ 現在プレイ中
                     </p>
                     <button className="primary" onClick={openActiveSession}>
@@ -284,7 +284,7 @@ export function SessionResumePage() {
                 ))}
                 {suspendedSessions.map((session) => (
                   <article
-                    className="my-3 rounded-[18px] border border-[rgba(23,21,31,0.14)] bg-[rgba(255,254,249,0.72)] p-4 [&>span]:text-[11px] [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-[#b84a4a] [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-[-0.04em] [&_p]:max-w-none [&_p]:text-[#4f4658] [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-[18px] [&_ul]:text-[#4f4658]"
+                    className="my-3 rounded-myr-card border border-myr-line-soft bg-myr-paper-glass p-4 [&>span]:text-myr-caption [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-myr-ruby [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-[18px] [&_ul]:text-myr-ink-soft"
                     key={session.id}
                     data-testid={`session-card-${session.id}`}
                   >
@@ -295,7 +295,7 @@ export function SessionResumePage() {
                     <p>
                       {session.genre} / 主人公: {session.hero}
                     </p>
-                    <p className="text-[13px] font-extrabold !text-[#6d587a]">
+                    <p className="text-myr-ui-sm font-extrabold !text-myr-ink-subtle">
                       進行度: Turn {turnCountOf(session)} ・ プレイ時間 {session.playtime} ・ 最終プレイ {session.lastPlayed}
                     </p>
                     <button className="primary" onClick={() => selectSession(session)}>
@@ -314,12 +314,12 @@ export function SessionResumePage() {
                 AI要約のあらすじ、進行度、復元されるAIコンテキスト、中断中の変更点を見てから再開できます。
               </p>
 
-              <article className="my-3 rounded-[18px] border border-[rgba(23,21,31,0.14)] bg-[rgba(255,254,249,0.72)] p-4 [&>span]:text-[11px] [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-[#b84a4a] [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-[-0.04em] [&_p]:max-w-none [&_p]:text-[#4f4658] [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-[18px] [&_ul]:text-[#4f4658]" data-testid="recap">
+              <article className="my-3 rounded-myr-card border border-myr-line-soft bg-myr-paper-glass p-4 [&>span]:text-myr-caption [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-myr-ruby [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-[18px] [&_ul]:text-myr-ink-soft" data-testid="recap">
                 <h2>これまでのあらすじ（AI要約）</h2>
                 <p>{selected.recap}</p>
               </article>
 
-              <dl className="my-3 grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3 [&_div]:rounded-2xl [&_div]:border [&_div]:border-[rgba(23,21,31,0.14)] [&_div]:bg-[rgba(255,254,249,0.72)] [&_div]:px-3.5 [&_div]:py-3 [&_dt]:m-0 [&_dt]:text-xs [&_dt]:font-extrabold [&_dt]:tracking-[0.04em] [&_dt]:text-[#6d587a] [&_dd]:mb-0 [&_dd]:mt-1.5 [&_dd]:font-serif [&_dd]:text-[22px] [&_dd]:tracking-[-0.02em]" data-testid="progress">
+              <dl className="my-3 grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3 [&_div]:rounded-2xl [&_div]:border [&_div]:border-myr-line-soft [&_div]:bg-myr-paper-glass [&_div]:px-3.5 [&_div]:py-3 [&_dt]:m-0 [&_dt]:text-xs [&_dt]:font-extrabold [&_dt]:tracking-myr-label [&_dt]:text-myr-ink-subtle [&_dd]:mb-0 [&_dd]:mt-1.5 [&_dd]:font-serif [&_dd]:text-[22px] [&_dd]:tracking-[-0.02em]" data-testid="progress">
                 <div>
                   <dt>進行度（ターン数）</dt>
                   <dd>Turn {turnCountOf(selected)}</dd>
@@ -334,7 +334,7 @@ export function SessionResumePage() {
                 </div>
               </dl>
 
-              <article className="my-3 rounded-[18px] border border-[rgba(23,21,31,0.14)] bg-[rgba(255,254,249,0.72)] p-4 [&>span]:text-[11px] [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-[#b84a4a] [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-[-0.04em] [&_p]:max-w-none [&_p]:text-[#4f4658] [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-[18px] [&_ul]:text-[#4f4658]" data-testid="context">
+              <article className="my-3 rounded-myr-card border border-myr-line-soft bg-myr-paper-glass p-4 [&>span]:text-myr-caption [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-myr-ruby [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-[18px] [&_ul]:text-myr-ink-soft" data-testid="context">
                 <h2>復元されるAIコンテキスト</h2>
                 <p>食い違いを防ぐため、再開時に以下の文脈を復元します。</p>
                 <ul>
@@ -345,7 +345,7 @@ export function SessionResumePage() {
               </article>
 
               <article
-                className={`my-3 rounded-[18px] border p-4 [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-[-0.04em] [&_p]:max-w-none [&_p]:text-[#4f4658] [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-[18px] [&_ul]:text-[#4f4658] ${selected.changes.length === 0 ? 'border-[rgba(74,132,92,0.32)] bg-[rgba(232,245,233,0.8)]' : 'border-[rgba(184,74,74,0.3)] bg-[rgba(255,240,224,0.8)]'}`}
+                className={`my-3 rounded-myr-card border p-4 [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-[18px] [&_ul]:text-myr-ink-soft ${selected.changes.length === 0 ? 'border-[rgba(74,132,92,0.32)] bg-[rgba(232,245,233,0.8)]' : 'border-[rgba(184,74,74,0.3)] bg-[rgba(255,240,224,0.8)]'}`}
                 data-testid="changes"
               >
                 <h2>再開前の注意点</h2>
@@ -380,7 +380,7 @@ export function SessionResumePage() {
                 <strong>ReadOnlyモードで表示しています。</strong>
                 再開せずに、これまでの全Turn（Turn 1〜{turnCountOf(selected)}）を読み返せます。入力欄は無く、Session状態はSuspendedのまま変化しません。
               </p>
-              <article className="my-3 rounded-[18px] border border-[rgba(23,21,31,0.14)] bg-[rgba(255,254,249,0.72)] p-4 [&>span]:text-[11px] [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-[#b84a4a] [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-[-0.04em] [&_p]:max-w-none [&_p]:text-[#4f4658] [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-[18px] [&_ul]:text-[#4f4658]" data-testid="recap">
+              <article className="my-3 rounded-myr-card border border-myr-line-soft bg-myr-paper-glass p-4 [&>span]:text-myr-caption [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-myr-ruby [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-[18px] [&_ul]:text-myr-ink-soft" data-testid="recap">
                 <h2>これまでのあらすじ（AI要約）</h2>
                 <p>{selected.recap}</p>
               </article>
@@ -391,25 +391,25 @@ export function SessionResumePage() {
               >
                 {selected.turns.map((turn) => (
                   <article
-                    className={`rounded-2xl border p-[14px_16px] ${turn.id === turnCountOf(selected) ? 'border-[#d9a441] bg-[rgba(255,247,230,0.92)] shadow-[0_0_0_1px_rgba(217,164,65,0.4)]' : 'border-[rgba(23,21,31,0.14)] bg-[rgba(255,254,249,0.72)]'}`}
+                    className={`rounded-2xl border p-[14px_16px] ${turn.id === turnCountOf(selected) ? 'border-myr-gold bg-[rgba(255,247,230,0.92)] shadow-[0_0_0_1px_rgba(217,164,65,0.4)]' : 'border-myr-line-soft bg-myr-paper-glass'}`}
                     key={turn.id}
                     aria-label={`Turn ${String(turn.id).padStart(2, '0')}`}
                     data-testid={`restored-turn-${turn.id}`}
                   >
-                    <div className="flex flex-wrap items-baseline gap-2.5 [&_h3]:m-0 [&_h3]:font-serif [&_h3]:text-lg [&_h3]:tracking-[-0.02em] [&>span]:text-[11px] [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.12em] [&>span]:text-[#7054dd]">
+                    <div className="flex flex-wrap items-baseline gap-2.5 [&_h3]:m-0 [&_h3]:font-serif [&_h3]:text-lg [&_h3]:tracking-[-0.02em] [&>span]:text-myr-caption [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.12em] [&>span]:text-[#7054dd]">
                       <span>Turn {String(turn.id).padStart(2, '0')}</span>
                       <h3>{turn.turnTitle}</h3>
                     </div>
                     {turn.playerInput && (
-                      <p className="mb-1.5 mt-2 text-[13px] font-extrabold !text-[#6d587a]">
+                      <p className="mb-1.5 mt-2 text-myr-ui-sm font-extrabold !text-myr-ink-subtle">
                         <span className="sr-only">プレイヤーの入力: </span>⟶ {turn.playerInput}
                       </p>
                     )}
-                    <p className="m-0 leading-[1.7] !text-[#4f4658]">{turn.narrative}</p>
+                    <p className="m-0 leading-[1.7] !text-myr-ink-soft">{turn.narrative}</p>
                   </article>
                 ))}
               </div>
-              <p className="mt-2.5 rounded-xl bg-[rgba(43,41,64,0.08)] px-3 py-2 text-[13px] font-extrabold !text-[#4f4658]" data-testid="readonly-note">
+              <p className="mt-2.5 rounded-xl bg-[rgba(43,41,64,0.08)] px-3 py-2 text-myr-ui-sm font-extrabold !text-myr-ink-soft" data-testid="readonly-note">
                 ReadOnly: 選択肢や入力は無効です。再開すると続きから操作できます。
               </p>
               <div className={wizardButtonRowClass}>

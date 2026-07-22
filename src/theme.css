@@ -4,7 +4,12 @@
 @theme inline {
   --color-myr-void: var(--myr-color-void);
   --color-myr-ink: var(--myr-color-ink);
+  --color-myr-ink-soft: var(--myr-color-ink-soft);
+  --color-myr-ink-subtle: var(--myr-color-ink-subtle);
   --color-myr-paper: var(--myr-color-paper);
+  --color-myr-paper-bright: var(--myr-color-paper-bright);
+  --color-myr-paper-glass: var(--myr-color-paper-glass);
+  --color-myr-cream: var(--myr-color-cream);
   --color-myr-vellum: var(--myr-color-vellum);
   --color-myr-mist: var(--myr-color-mist);
   --color-myr-iris: var(--myr-color-iris);
@@ -12,13 +17,30 @@
   --color-myr-gold: var(--myr-color-gold);
   --color-myr-ruby: var(--myr-color-ruby);
   --color-myr-slate: var(--myr-color-slate);
+  --color-myr-slate-muted: var(--myr-color-slate-muted);
+  --color-myr-plum: var(--myr-color-plum);
+  --color-myr-line-soft: var(--myr-color-line-soft);
+  --color-myr-line: var(--myr-color-line);
+  --color-myr-line-strong: var(--myr-color-line-strong);
+  --color-myr-account-ink-soft: var(--myr-color-account-ink-soft);
   --font-myr-display: var(--myr-font-display);
   --font-myr-body: var(--myr-font-body);
   --font-myr-mono: var(--myr-font-mono);
+  --text-myr-caption: var(--myr-text-caption);
+  --text-myr-ui-sm: var(--myr-text-ui-sm);
+  --tracking-myr-display: var(--myr-tracking-display);
+  --tracking-myr-label: var(--myr-tracking-label);
+  --spacing-myr-card-inset: var(--myr-spacing-card-inset);
+  --spacing-myr-section-inset: var(--myr-spacing-section-inset);
+  --spacing-myr-control-y: var(--myr-spacing-control-y);
   --shadow-myr-panel: var(--myr-shadow-panel);
   --shadow-myr-card: var(--myr-shadow-card);
+  --shadow-myr-surface: var(--myr-shadow-surface);
   --radius-myr-panel: var(--myr-radius-panel);
   --radius-myr-card: var(--myr-radius-card);
+  --radius-myr-control: var(--myr-radius-control);
+  --radius-myr-shell: var(--myr-radius-shell);
+  --breakpoint-myr-workspace: 70rem;
 }
 
 :root,
@@ -26,7 +48,12 @@
   color-scheme: light;
   --myr-color-void: #121019;
   --myr-color-ink: #241b2f;
+  --myr-color-ink-soft: #4f4658;
+  --myr-color-ink-subtle: #6d587a;
   --myr-color-paper: #fffaf0;
+  --myr-color-paper-bright: #fffef9;
+  --myr-color-paper-glass: rgba(255, 254, 249, 0.72);
+  --myr-color-cream: #fff6e7;
   --myr-color-vellum: #efe3c6;
   --myr-color-mist: #d6e7e0;
   --myr-color-iris: #7c5cff;
@@ -34,13 +61,30 @@
   --myr-color-gold: #d9a441;
   --myr-color-ruby: #b84a4a;
   --myr-color-slate: #566072;
+  --myr-color-slate-muted: #4f5767;
+  --myr-color-plum: #2b2940;
+  --myr-color-line-soft: rgba(23, 21, 31, 0.14);
+  /* Account Kit aliases retain the exact scoped values from account.css. */
+  --myr-color-account-ink-soft: #5f506c;
+  --myr-color-line: rgba(36, 27, 47, 0.18);
+  --myr-color-line-strong: rgba(36, 27, 47, 0.32);
   --myr-font-display: Georgia, 'Times New Roman', serif;
   --myr-font-body: Inter, ui-sans-serif, system-ui, sans-serif;
   --myr-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --myr-text-caption: 0.6875rem;
+  --myr-text-ui-sm: 0.8125rem;
+  --myr-tracking-display: -0.04em;
+  --myr-tracking-label: 0.04em;
+  --myr-spacing-card-inset: 1.125rem;
+  --myr-spacing-section-inset: 1.375rem;
+  --myr-spacing-control-y: 0.6875rem;
   --myr-shadow-panel: 0 24px 80px rgba(18, 16, 25, 0.22);
   --myr-shadow-card: 0 14px 32px rgba(18, 16, 25, 0.12);
+  --myr-shadow-surface: 0 24px 80px rgba(18, 16, 25, 0.16);
   --myr-radius-panel: 1.375rem;
   --myr-radius-card: 1.125rem;
+  --myr-radius-control: 0.625rem;
+  --myr-radius-shell: 1.75rem;
   --myr-screen-background:
     radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--myr-color-iris) 20%, transparent), transparent 24%),
     radial-gradient(circle at 92% 8%, color-mix(in srgb, var(--myr-color-gold) 24%, transparent), transparent 20%),

@@ -258,12 +258,12 @@ export function EditScenarioPage() {
               </p>
               <div className="mt-3.5 grid gap-3" data-testid="scenario-list">
                 {scenarioLibrary.map((scenario) => (
-                  <article className="rounded-[18px] border border-[rgba(23,21,31,0.14)] bg-[rgba(255,254,249,0.72)] p-4 [&>span]:text-[11px] [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-[#7054dd] [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-[-0.04em] [&_p]:max-w-none [&_p]:text-[#4f4658]" key={scenario.id} data-testid={`card-${scenario.id}`}>
+                  <article className="rounded-myr-card border border-myr-line-soft bg-myr-paper-glass p-4 [&>span]:text-myr-caption [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-[#7054dd] [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft" key={scenario.id} data-testid={`card-${scenario.id}`}>
                     <span>{scenario.visibility} / {scenario.id}</span>
                     <h2>{scenario.title}</h2>
                     <p>{scenario.genre} / {scenario.tone}</p>
                     <p>{scenario.summary}</p>
-                    <p className="text-[13px] font-extrabold !text-[#6d587a]">
+                    <p className="text-myr-ui-sm font-extrabold !text-myr-ink-subtle">
                       進行中セッション: {scenario.activeSessions}件 ・ 最終編集: {scenario.history[0]?.at ?? '—'}
                     </p>
                     <button className="primary" onClick={() => startEditing(scenario)}>編集</button>
@@ -338,7 +338,7 @@ export function EditScenarioPage() {
                     ]}
                   />
                   {draft.heroMode === 'select' && (
-                    <label className="my-3 grid grid-cols-[1fr_auto] items-center gap-2 text-xs font-black text-[#4f5767] [&_input]:size-4">
+                    <label className="my-3 grid grid-cols-[1fr_auto] items-center gap-2 text-xs font-black text-myr-slate-muted [&_input]:size-4">
                       <span>候補選択に加えて自由生成を許可</span>
                       <input
                         type="checkbox"
@@ -438,7 +438,7 @@ export function EditScenarioPage() {
           <article data-testid="history">
             <h3>編集履歴</h3>
             {draft ? (
-              <ol className="m-0 grid gap-2 pl-[18px] [&_li]:grid [&_li]:gap-0.5 [&_small]:text-[11px] [&_small]:font-extrabold [&_small]:tracking-[0.04em] [&_small]:text-[#6d587a]">
+              <ol className="m-0 grid gap-2 pl-[18px] [&_li]:grid [&_li]:gap-0.5 [&_small]:text-myr-caption [&_small]:font-extrabold [&_small]:tracking-myr-label [&_small]:text-myr-ink-subtle">
                 {draft.history.map((entry) => (
                   <li key={`${entry.at}-${entry.summary}`}>
                     <small>{entry.at}</small>

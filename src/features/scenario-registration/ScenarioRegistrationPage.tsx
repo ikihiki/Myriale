@@ -311,7 +311,7 @@ export function ScenarioRegistrationPage({ api }: { api?: ScenarioApi } = {}) {
               ]}
             />
             {heroMode === 'select' && (
-              <label className="my-3 grid grid-cols-[1fr_auto] items-center gap-2 text-xs font-black text-[#4f5767] [&_input]:size-4">
+              <label className="my-3 grid grid-cols-[1fr_auto] items-center gap-2 text-xs font-black text-myr-slate-muted [&_input]:size-4">
                 <span>候補選択に加えて自由生成を許可</span>
                 <input
                   type="checkbox"

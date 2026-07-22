@@ -7,7 +7,7 @@ const badgeStateClassNames: Record<AccountState, string> = {
   unverified: 'border-[rgba(217,164,65,.42)] bg-[rgba(217,164,65,.14)] text-[#7a571a]',
   pending: 'border-[rgba(217,164,65,.42)] bg-[rgba(217,164,65,.14)] text-[#7a571a]',
   suspended: 'border-[rgba(184,69,63,.42)] bg-[rgba(184,69,63,.12)] text-[#8c322c]',
-  deleted: 'border-[var(--line-strong)] bg-[#fffef9] text-[#57515f]',
+  deleted: 'border-myr-line-strong bg-myr-paper-bright text-[#57515f]',
 };
 
 const dotStateClassNames: Record<AccountState, string> = {

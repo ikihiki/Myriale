@@ -32,7 +32,7 @@ export function IdentitySeal({
       <span className={`grid place-items-center rounded-[46%_54%_50%_50%/52%_48%_52%_48%] font-[Georgia,serif] font-extrabold shadow-[inset_0_0_0_2px_rgba(255,255,255,.3),0_6px_16px_rgba(18,16,25,.26)] ${sizeClassNames[size]} ${stateClassNames[state]}`} role="img" aria-label={`Myriale 会員之證 / ${stateMeta[state].label}`}>
         {initials}
       </span>
-      {caption && <small className="text-[11px] tracking-[.04em] text-[var(--ink-soft)]">{caption}</small>}
+      {caption && <small className="text-myr-caption tracking-myr-label text-myr-account-ink-soft">{caption}</small>}
     </div>
   );
 }

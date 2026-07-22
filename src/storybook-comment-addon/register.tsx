@@ -45,7 +45,7 @@ const buttonStyle = (active = false): React.CSSProperties => ({
   padding: '9px 12px',
   cursor: 'pointer',
   fontWeight: 800,
-  color: active ? '#121019' : '#fffaf0',
+  color: active ? '#121019' : 'var(--myr-color-paper)',
   background: active ? '#ff9f68' : '#241b2f',
 });
 
@@ -89,7 +89,7 @@ const CommentPanel = () => {
     <div style={panelStyle}>
       <div>
         <h2 style={{ margin: 0 }}>コメント</h2>
-        <p style={{ margin: '4px 0 0', color: '#6d587a' }}>HTML要素を選び、Codexへ渡すレビューコメントを集めます。</p>
+        <p style={{ margin: '4px 0 0', color: 'var(--myr-color-ink-subtle)' }}>HTML要素を選び、Codexへ渡すレビューコメントを集めます。</p>
       </div>
 
       <div style={buttonRowStyle} role="group" aria-label="コメント操作モード">
@@ -100,7 +100,7 @@ const CommentPanel = () => {
           選択
         </Toggle.Root>
       </div>
-      <p style={{ margin: 0, color: '#6d587a' }}>
+      <p style={{ margin: 0, color: 'var(--myr-color-ink-subtle)' }}>
         {mode === 'select'
           ? '選択モード中はボタンや入力欄を実行せず、クリックしたHTML要素をコメント対象にします。'
           : 'インタラクティブモード中は通常操作を優先します。'}
@@ -123,7 +123,7 @@ const CommentPanel = () => {
 
       <section aria-label="コメント一覧" style={{ display: 'grid', gap: 8 }}>
         {comments.length === 0 ? (
-          <p style={{ color: '#6d587a' }}>コメントはまだありません。</p>
+          <p style={{ color: 'var(--myr-color-ink-subtle)' }}>コメントはまだありません。</p>
         ) : comments.map((comment, index) => (
           <article key={`${comment.selector}-${index}`} style={{ border: '1px solid #e3d8ef', borderRadius: 12, padding: 10 }}>
             <strong>{comment.label}</strong>

@@ -43,17 +43,17 @@ const fallbackDb = createDemoDb('resumableSession');
 const crumbs: Crumb[] = [{ label: 'Myriale' }, { label: 'ホーム' }];
 
 const homeButtonMotionClassName = 'transition-[transform,box-shadow,background] duration-[160ms] ease-[ease] hover:-translate-y-px hover:shadow-[0_10px_24px_rgba(18,16,25,.16)] motion-reduce:transition-none motion-reduce:hover:translate-y-0';
-const homeDarkButtonClassName = `border border-[rgba(36,27,47,.14)] rounded-full bg-[rgba(36,27,47,.92)] px-4 py-[11px] text-[#fffaf0] ${homeButtonMotionClassName}`;
-const homePrimaryButtonClassName = `border border-[rgba(36,27,47,.14)] rounded-full bg-[#d9a441] px-4 py-[11px] font-black text-[#1d1725] ${homeButtonMotionClassName}`;
-const homeTextButtonClassName = `mt-[10px] border border-[rgba(36,27,47,.14)] rounded-full bg-transparent px-4 py-[11px] font-black text-[#6f4fd8] shadow-none ${homeButtonMotionClassName}`;
+const homeDarkButtonClassName = `border border-[rgba(36,27,47,.14)] rounded-full bg-[rgba(36,27,47,.92)] px-4 py-myr-control-y text-myr-paper ${homeButtonMotionClassName}`;
+const homePrimaryButtonClassName = `border border-[rgba(36,27,47,.14)] rounded-full bg-myr-gold px-4 py-myr-control-y font-black text-[#1d1725] ${homeButtonMotionClassName}`;
+const homeTextButtonClassName = `mt-[10px] border border-[rgba(36,27,47,.14)] rounded-full bg-transparent px-4 py-myr-control-y font-black text-[#6f4fd8] shadow-none ${homeButtonMotionClassName}`;
 
-const homePanelClassName = 'grid gap-[18px] rounded-[28px] border border-[rgba(220,231,242,.54)] bg-[radial-gradient(circle_at_10%_0%,rgba(124,92,255,.10),transparent_30%),linear-gradient(135deg,rgba(255,250,240,.97),rgba(255,248,232,.90))] p-[clamp(18px,3vw,26px)] shadow-[0_24px_80px_rgba(18,16,25,.18)] max-[720px]:rounded-[20px] max-[720px]:p-[18px]';
+const homePanelClassName = 'grid gap-[18px] rounded-myr-shell border border-[rgba(220,231,242,.54)] bg-[radial-gradient(circle_at_10%_0%,rgba(124,92,255,.10),transparent_30%),linear-gradient(135deg,rgba(255,250,240,.97),rgba(255,248,232,.90))] p-[clamp(18px,3vw,26px)] shadow-[0_24px_80px_rgba(18,16,25,.18)] max-[720px]:rounded-[20px] max-[720px]:p-[18px]';
 const homeSectionHeadClassName = 'flex flex-wrap items-center justify-between gap-[14px]';
-const homeCardClassName = 'home-card relative grid min-h-[230px] content-start gap-[10px] overflow-hidden rounded-[22px] border border-[rgba(36,27,47,.12)] bg-[rgba(255,254,249,.82)] p-[18px]';
-const homeCardLabelClassName = 'text-[11px] font-black tracking-[.08em] text-[#6f4fd8] uppercase';
-const homeCardTitleClassName = "m-0 font-['Yu_Mincho','Hiragino_Mincho_ProN',Georgia,serif] text-[25px] leading-[1.08] tracking-[-.04em]";
-const homeCardCopyClassName = 'm-0 leading-[1.58] text-[#566072]';
-const homeCardMetaClassName = 'leading-[1.45] text-[#6d587a]';
+const homeCardClassName = 'home-card relative grid min-h-[230px] content-start gap-[10px] overflow-hidden rounded-myr-panel border border-[rgba(36,27,47,.12)] bg-[rgba(255,254,249,.82)] p-myr-card-inset';
+const homeCardLabelClassName = 'text-myr-caption font-black tracking-[.08em] text-[#6f4fd8] uppercase';
+const homeCardTitleClassName = "m-0 font-['Yu_Mincho','Hiragino_Mincho_ProN',Georgia,serif] text-[25px] leading-[1.08] tracking-myr-display";
+const homeCardCopyClassName = 'm-0 leading-[1.58] text-myr-slate';
+const homeCardMetaClassName = 'leading-[1.45] text-myr-ink-subtle';
 const homeCardActionsClassName = 'mt-2 flex flex-wrap items-center gap-[10px] self-end max-[720px]:[&>button]:w-full';
 
 export function HomePage() {
@@ -134,7 +134,7 @@ export function HomePage() {
             </p>
             {loadState.status !== 'idle' && (
               <p
-                className="m-0 inline-flex w-fit max-w-[700px] rounded-full border border-[rgba(111,79,216,.22)] bg-[rgba(255,250,240,.72)] px-3 py-2 text-[13px] font-extrabold leading-[1.85] text-[#5c4772]"
+                className="m-0 inline-flex w-fit max-w-[700px] rounded-full border border-[rgba(111,79,216,.22)] bg-[rgba(255,250,240,.72)] px-3 py-2 text-myr-ui-sm font-extrabold leading-[1.85] text-[#5c4772]"
                 data-testid="home-data-source"
               >
                 {loadState.status === 'loading' && 'APIからホーム情報を読み込んでいます。'}
@@ -152,22 +152,22 @@ export function HomePage() {
             </div>
           </div>
           <aside
-            className="relative z-[1] grid min-h-[230px] self-center gap-[10px] rounded-3xl border border-[rgba(36,27,47,.16)] bg-[linear-gradient(180deg,rgba(25,20,33,.94),rgba(36,27,47,.88)),#191421] p-5 text-[#fffaf0] max-[820px]:min-h-0"
+            className="relative z-[1] grid min-h-[230px] self-center gap-[10px] rounded-3xl border border-[rgba(36,27,47,.16)] bg-[linear-gradient(180deg,rgba(25,20,33,.94),rgba(36,27,47,.88)),#191421] p-5 text-myr-paper max-[820px]:min-h-0"
             aria-label="現在の活動概要"
           >
-            <span className="text-[11px] font-black tracking-[.18em] text-[#c6b7d9] uppercase">Desk ledger</span>
-            <strong className="font-[Georgia,'Times_New_Roman',serif] text-[clamp(72px,10vw,120px)] leading-[.85] text-[#d9a441]">
+            <span className="text-myr-caption font-black tracking-[.18em] text-[#c6b7d9] uppercase">Desk ledger</span>
+            <strong className="font-[Georgia,'Times_New_Roman',serif] text-[clamp(72px,10vw,120px)] leading-[.85] text-myr-gold">
               {vm.resumableSessions.length}
             </strong>
             <small className="font-extrabold text-[#f4eedf]">再開できるセッション</small>
             <dl className="mt-auto mb-0 grid gap-2">
               <div className="flex justify-between gap-3 border-t border-[rgba(244,238,223,.16)] pt-[10px]">
                 <dt className="m-0 text-[#c6b7d9]">進行中</dt>
-                <dd className="m-0 font-black text-[#d9a441]">{vm.activeSessionCount}</dd>
+                <dd className="m-0 font-black text-myr-gold">{vm.activeSessionCount}</dd>
               </div>
               <div className="flex justify-between gap-3 border-t border-[rgba(244,238,223,.16)] pt-[10px]">
                 <dt className="m-0 text-[#c6b7d9]">公開シナリオ</dt>
-                <dd className="m-0 font-black text-[#d9a441]">{vm.publishedScenarioCount}</dd>
+                <dd className="m-0 font-black text-myr-gold">{vm.publishedScenarioCount}</dd>
               </div>
             </dl>
           </aside>

@@ -43,11 +43,11 @@ export function PasswordField({
       {showStrength && (
         <div className="mt-2.5">
           <MyrialeProgress className="strength-meter h-1.5 overflow-hidden rounded-full bg-[rgba(36,27,47,.12)]" value={strength} max={reqs.length} data-strength={strength} aria-hidden="true" />
-          <p className="mt-1.5 mb-0 text-xs font-bold text-[var(--ink-soft)]" data-testid={testId ? `${testId}-strength` : undefined}>強度: {strengthLabel(strength, reqs.length)}</p>
+          <p className="mt-1.5 mb-0 text-xs font-bold text-myr-account-ink-soft" data-testid={testId ? `${testId}-strength` : undefined}>強度: {strengthLabel(strength, reqs.length)}</p>
         </div>
       )}
       {showChecklist && (
-        <ul className="mt-2.5 mb-0 grid list-none gap-1 p-0 text-xs text-[var(--ink-soft)]" aria-label="パスワード要件">
+        <ul className="mt-2.5 mb-0 grid list-none gap-1 p-0 text-xs text-myr-account-ink-soft" aria-label="パスワード要件">
           {reqs.map((requirement) => {
             const met = requirement.test(value);
             return <li key={requirement.id} className={met ? 'text-[var(--verde)]' : ''} data-met={met}><span className={met ? 'font-extrabold text-[var(--verde)]' : 'font-extrabold text-[#b6ada0]'} aria-hidden="true">{met ? '✓' : '○'}</span> {requirement.label}</li>;

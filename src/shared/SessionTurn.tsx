@@ -64,17 +64,17 @@ export type SessionTurnProps = {
 
 const leadClass: Record<TurnLeadTone, string> = {
   player: 'rounded-[14px] bg-[linear-gradient(135deg,rgba(124,92,255,.12),rgba(124,92,255,.04))] px-3.5 py-3 font-bold text-[#2c2540]',
-  program: 'rounded-[10px] bg-myr-ink/6 px-2.5 py-2 font-mono text-xs leading-normal text-[#2b2940]',
+  program: 'rounded-myr-control bg-myr-ink/6 px-2.5 py-2 font-mono text-xs leading-normal text-myr-plum',
 };
 
 const leadTagClass: Record<TurnLeadTone, string> = {
-  player: 'text-base leading-[1.4] text-[#7c5cff]',
-  program: 'inline-block rounded-full bg-[#2b2940] px-2 py-px align-middle text-[10px] font-black tracking-[.1em] text-[#fffaf0]',
+  player: 'text-base leading-[1.4] text-myr-iris',
+  program: 'inline-block rounded-full bg-myr-plum px-2 py-px align-middle text-[10px] font-black tracking-[.1em] text-myr-paper',
 };
 
 const variantClass: Record<string, string> = {
   '': '',
-  'turn-battle': 'border-l-[3px] border-l-[#b84a4a]',
+  'turn-battle': 'border-l-[3px] border-l-myr-ruby',
   'turn-roll': 'border-l-[3px] border-l-[#7054dd]',
   'turn-event': 'border-l-[3px] border-l-[#c77d16]',
   'turn-dialogue': 'border-l-[3px] border-l-[#4a845c]',
@@ -108,7 +108,7 @@ export function SessionTurn({
 }: SessionTurnProps) {
   const narrativeBlock = (
     <p className="m-0 max-w-none leading-[1.65] text-[#303644]" data-testid={narrativeTestId}>
-      {narrativeTag && <span className="mr-2 inline-block rounded-full bg-[#d9a441] px-2 py-px align-middle text-[10px] font-black tracking-[.1em] text-[#17151f]" aria-hidden="true">{narrativeTag}</span>}
+      {narrativeTag && <span className="mr-2 inline-block rounded-full bg-myr-gold px-2 py-px align-middle text-[10px] font-black tracking-[.1em] text-[#17151f]" aria-hidden="true">{narrativeTag}</span>}
       {narrative}
     </p>
   );
@@ -117,7 +117,7 @@ export function SessionTurn({
 
   return (
     <article
-      className={`session-turn group grid gap-2 rounded-[18px] border border-myr-ink/14 bg-[rgba(255,254,249,.68)] p-3.5 ${selected ? '!border-[#b84a4a] !shadow-[inset_4px_0_0_#b84a4a]' : ''} ${variantClass[variantClassName] ?? variantClassName}`.trim()}
+      className={`session-turn group grid gap-2 rounded-myr-card border border-myr-ink/14 bg-[rgba(255,254,249,.68)] p-3.5 ${selected ? '!border-myr-ruby !shadow-[inset_4px_0_0_#b84a4a]' : ''} ${variantClass[variantClassName] ?? variantClassName}`.trim()}
       aria-label={ariaLabel}
       data-testid={testId}
       ref={articleRef}

@@ -21,12 +21,12 @@ export function AppFrame({
   children: ReactNode;
   aside?: ReactNode;
 }) {
-  const navButtonClassName = 'cursor-pointer rounded-full border border-transparent bg-[rgba(255,250,240,.08)] px-3.5 py-3 text-left font-bold text-[#fff6e7] transition-colors duration-150 hover:bg-[rgba(255,250,240,.16)]';
+  const navButtonClassName = 'cursor-pointer rounded-full border border-transparent bg-[rgba(255,250,240,.08)] px-3.5 py-3 text-left font-bold text-myr-cream transition-colors duration-150 hover:bg-[rgba(255,250,240,.16)]';
 
   return (
     <div className={`grid min-h-screen gap-[18px] p-[18px] max-[1080px]:grid-cols-1 ${aside ? 'grid-cols-[248px_minmax(0,1fr)_minmax(260px,320px)]' : 'grid-cols-[248px_minmax(0,1fr)]'}`}>
       <aside
-        className="sticky top-[18px] grid min-h-[calc(100vh-36px)] content-start gap-[18px] self-start rounded-[18px_8px_8px_18px] bg-[linear-gradient(180deg,#201b2d,#17151f)] p-[22px] text-[#fff6e7] [&_.desk-brand_small]:text-[#c9bdd8] [&_.desk-brand_strong]:text-[#fff6e7] max-[1080px]:min-h-0 max-[1080px]:rounded-[18px]"
+        className="sticky top-[18px] grid min-h-[calc(100vh-36px)] content-start gap-[18px] self-start rounded-[18px_8px_8px_18px] bg-[linear-gradient(180deg,#201b2d,#17151f)] p-[22px] text-myr-cream [&_.desk-brand_small]:text-[#c9bdd8] [&_.desk-brand_strong]:text-myr-cream max-[1080px]:min-h-0 max-[1080px]:rounded-myr-card"
         aria-label="アカウントナビゲーション"
       >
         <DeskBrand subtitle="Account" />
@@ -34,7 +34,7 @@ export function AppFrame({
           <IdentitySeal state={user.state} initials={user.initials} size="sm" />
           <div className="min-w-0">
             <strong className="block text-sm">{user.name}</strong>
-            <small className="block break-all text-[11px] text-[#c9bdd8]">{user.email}</small>
+            <small className="block break-all text-myr-caption text-[#c9bdd8]">{user.email}</small>
           </div>
         </div>
         <nav className="grid gap-2.5" aria-label="アカウント画面切り替え">
@@ -43,7 +43,7 @@ export function AppFrame({
             return (
               <button
                 key={item.id}
-                className={`${navButtonClassName} ${isActive ? 'border-[var(--ember)] bg-[var(--paper)] text-[var(--void)] hover:bg-[var(--paper)]' : ''}`}
+                className={`${navButtonClassName} ${isActive ? 'border-[var(--ember)] bg-myr-paper text-[var(--void)] hover:bg-myr-paper' : ''}`}
                 aria-current={isActive ? 'page' : undefined}
                 onClick={() => onNavigate(item.id)}
               >
@@ -57,7 +57,7 @@ export function AppFrame({
       <main className="grid min-w-0 content-start gap-[18px] px-1.5 py-2">{children}</main>
       {aside && (
         <aside
-          className="sticky top-[18px] grid content-start gap-3.5 self-start rounded-[8px_24px_24px_8px] border border-[var(--line)] bg-[rgba(255,250,240,.9)] p-5 shadow-[var(--shadow)] [&_h2]:m-0 [&_h2]:font-[Georgia,serif] [&_h2]:text-xl max-[1080px]:static"
+          className="sticky top-[18px] grid content-start gap-3.5 self-start rounded-[8px_24px_24px_8px] border border-myr-line bg-[rgba(255,250,240,.9)] p-5 shadow-myr-surface [&_h2]:m-0 [&_h2]:font-[Georgia,serif] [&_h2]:text-xl max-[1080px]:static"
           aria-label="状態サマリー"
         >
           {aside}

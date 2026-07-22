@@ -7,7 +7,7 @@
   --iris: var(--myr-color-iris, #7c5cff);
   --ember: var(--myr-color-ember, #ff9f68);
   --line: color-mix(in srgb, var(--ink) 18%, transparent);
-  --shadow: var(--myr-shadow-panel, 0 24px 80px rgba(18, 16, 25, 0.16));
+  --shadow: var(--myr-shadow-surface, 0 24px 80px rgba(18, 16, 25, 0.16));
 }
 
 * { box-sizing: border-box; }
@@ -17,11 +17,11 @@ button { border: 0; cursor: pointer; }
 
 /* Shared primitives used across every page (kicker label, status notice,
    text/primary buttons, choice rows, and base form controls). */
-.kicker { margin:0 0 8px; text-transform: uppercase; letter-spacing: .16em; font-size: 12px; color: #6d587a; font-weight: 800; }
-.notice { margin: 18px 0; padding: 12px 16px; border-radius: 16px; background: rgba(18,16,25,.86); color: #fff6e7; }
+.kicker { margin:0 0 8px; text-transform: uppercase; letter-spacing: .16em; font-size: 12px; color: var(--myr-color-ink-subtle); font-weight: 800; }
+.notice { margin: 18px 0; padding: 12px 16px; border-radius: 16px; background: rgba(18,16,25,.86); color: var(--myr-color-cream); }
 .text-button { margin-top: 10px; color: #7054dd; background: transparent; padding: 10px 0; font-weight: 900; }
 
-input, textarea { width:100%; border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; background: #fffef9; color: var(--ink); }
+input, textarea { width:100%; border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; background: var(--myr-color-paper-bright); color: var(--ink); }
 textarea { min-height: 126px; resize: vertical; }
 .primary, .choice-row button { border-radius: 999px; padding: 11px 16px; background: var(--ink); color: white; }
 .choice-row { display:grid; gap: 8px; }
@@ -39,7 +39,7 @@ textarea { min-height: 126px; resize: vertical; }
 .forge-section h2 {
   margin-top: 0;
   font-family: Georgia, 'Times New Roman', serif;
-  letter-spacing: -.04em;
+  letter-spacing: var(--myr-tracking-display);
 }
 
 .forge-section label {
@@ -54,7 +54,7 @@ textarea { min-height: 126px; resize: vertical; }
   border: 1px solid rgba(23, 21, 31, .18);
   border-radius: 16px;
   padding: 12px 14px;
-  background: #fffef9;
+  background: var(--myr-color-paper-bright);
   color: #17151f;
 }
 
@@ -62,10 +62,10 @@ textarea { min-height: 126px; resize: vertical; }
 .forge-section button {
   border-radius: 999px;
   padding: 11px 15px;
-  background: #2b2940;
-  color: #fffaf0;
+  background: var(--myr-color-plum);
+  color: var(--myr-color-paper);
 }
-.forge-section .primary { background: #d9a441; color: #17151f; font-weight: 900; }
+.forge-section .primary { background: var(--myr-color-gold); color: #17151f; font-weight: 900; }
 
 .visually-hidden {
   position: absolute !important;
@@ -89,10 +89,10 @@ textarea { min-height: 126px; resize: vertical; }
   margin-top: 14px;
   border-collapse: collapse;
   overflow: hidden;
-  border: 1px solid rgba(23, 21, 31, .14);
+  border: 1px solid var(--myr-color-line-soft);
   border-radius: 16px;
   background: rgba(255, 254, 249, .8);
-  font-size: 13px;
+  font-size: var(--myr-text-ui-sm);
 }
 
 .wire-table th,
@@ -106,7 +106,7 @@ textarea { min-height: 126px; resize: vertical; }
 .wire-table th {
   background: rgba(43, 41, 64, .08);
   color: #2b2940;
-  font-size: 11px;
+  font-size: var(--myr-text-caption);
   letter-spacing: .06em;
   text-transform: uppercase;
 }
@@ -121,7 +121,7 @@ textarea { min-height: 126px; resize: vertical; }
   gap: 12px;
   padding: 20px;
   border: 1px solid rgba(220, 231, 242, .6);
-  border-radius: 22px;
+  border-radius: var(--myr-radius-panel);
   background: #fffaf0;
   box-shadow: 0 28px 90px rgba(18, 16, 25, .38);
 }
@@ -136,13 +136,13 @@ textarea { min-height: 126px; resize: vertical; }
 .wire-dialog h2 {
   margin: 0;
   font-family: Georgia, 'Times New Roman', serif;
-  letter-spacing: -.04em;
+  letter-spacing: var(--myr-tracking-display);
 }
 
 .wire-dialog label {
   display: grid;
   gap: 6px;
-  color: #4f5767;
+  color: var(--myr-color-slate-muted);
   font-size: 12px;
   font-weight: 900;
 }
@@ -152,7 +152,7 @@ textarea { min-height: 126px; resize: vertical; }
 .wire-dialog button {
   border-radius: 999px;
   padding: 9px 13px;
-  background: #2b2940;
-  color: #fffaf0;
+  background: var(--myr-color-plum);
+  color: var(--myr-color-paper);
 }
-.wire-dialog .primary { background: #d9a441; color: #17151f; font-weight: 900; }
+.wire-dialog .primary { background: var(--myr-color-gold); color: #17151f; font-weight: 900; }

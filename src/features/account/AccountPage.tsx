@@ -39,14 +39,14 @@ type Notice = { tone?: NoticeTone; message: string } | null;
 
 const protectedViews = new Set<AccountView>(['profile', 'profile-edit', 'security', 'export', 'withdraw']);
 
-const accountCardClassName = "rounded-[28px] border border-[var(--line)] bg-[rgba(255,250,240,.9)] p-[22px] shadow-[var(--shadow)]";
-const accountFlushCardClassName = "overflow-hidden rounded-[28px] border border-[var(--line)] bg-[rgba(255,250,240,.9)] shadow-[var(--shadow)]";
+const accountCardClassName = "rounded-myr-shell border border-myr-line bg-[rgba(255,250,240,.9)] p-myr-section-inset shadow-myr-surface";
+const accountFlushCardClassName = "overflow-hidden rounded-myr-shell border border-myr-line bg-[rgba(255,250,240,.9)] shadow-myr-surface";
 const accountActionRowClassName = 'mt-1.5 flex flex-wrap items-center gap-2.5';
 const accountCardHeadingClassName = "m-0 mb-3.5 font-[Georgia,'Times_New_Roman',serif] text-[22px] tracking-[-.02em]";
-const providerTableHeadClassName = 'border-b border-[var(--line-strong)] bg-[rgba(124,92,255,.06)] px-4 py-3 text-left text-[11px] font-extrabold tracking-[.1em] text-[var(--ink-soft)] uppercase';
-const providerTableCellClassName = 'border-b border-[var(--line)] px-4 py-[13px] align-middle';
-const providerBadgeClassName = 'inline-flex w-max items-center whitespace-nowrap rounded-full bg-[rgba(36,27,47,.08)] px-[9px] py-[5px] text-[11px] font-extrabold text-[var(--ink-soft)]';
-const operationsNavButtonClassName = 'cursor-pointer rounded-full border border-transparent bg-[rgba(255,250,240,.08)] px-3.5 py-3 text-left font-bold text-[#fff6e7] transition-colors duration-150 hover:bg-[rgba(255,250,240,.16)]';
+const providerTableHeadClassName = 'border-b border-myr-line-strong bg-[rgba(124,92,255,.06)] px-4 py-3 text-left text-myr-caption font-extrabold tracking-[.1em] text-myr-account-ink-soft uppercase';
+const providerTableCellClassName = 'border-b border-myr-line px-4 py-[13px] align-middle';
+const providerBadgeClassName = 'inline-flex w-max items-center whitespace-nowrap rounded-full bg-[rgba(36,27,47,.08)] px-[9px] py-[5px] text-myr-caption font-extrabold text-myr-account-ink-soft';
+const operationsNavButtonClassName = 'cursor-pointer rounded-full border border-transparent bg-[rgba(255,250,240,.08)] px-3.5 py-3 text-left font-bold text-myr-cream transition-colors duration-150 hover:bg-[rgba(255,250,240,.16)]';
 
 export function AccountPage({
   initialView = 'register',
@@ -202,7 +202,7 @@ function ResetPasswordPage({ api, onLogin }: { api: AccountApi; onLogin: () => v
 }
 
 function ProtectedAccountFrame({ view, user, status, onNavigate, onLogout, children }: { view: AccountView; user: AccountUser | null; status: string; onNavigate: (view: AccountView) => void; onLogout: () => void; children: ReactNode }) {
-  if (status === 'unknown') return <div className="grid grid-cols-[minmax(360px,480px)] justify-center px-[22px] py-[clamp(20px,5vh,56px)]"><main className="rounded-[28px] border border-[var(--line)] bg-[rgba(255,250,240,.92)] p-[30px] shadow-[var(--shadow)]" aria-busy="true">認証状態を確認しています…</main></div>;
+  if (status === 'unknown') return <div className="grid grid-cols-[minmax(360px,480px)] justify-center px-[22px] py-[clamp(20px,5vh,56px)]"><main className="rounded-myr-shell border border-myr-line bg-[rgba(255,250,240,.92)] p-[30px] shadow-myr-surface" aria-busy="true">認証状態を確認しています…</main></div>;
   if (!user) return <AuthScaffold ariaLabel="ログインが必要" kicker="Account" title="ログインが必要です" lead="この画面を表示するにはログインしてください。"><Button variant="primary" onClick={() => onNavigate('login')}>ログインへ</Button></AuthScaffold>;
   return (
     <AppFrame
@@ -260,7 +260,7 @@ function RoadmapAuthPage({ title, lead, onLogin }: { title: string; lead: string
 
 function OperationsPage({ view, onNavigate }: { view: AccountView; onNavigate: (view: AccountView) => void }) {
   const title = view === 'audit' ? '監査ログ' : view === 'admin-detail' ? 'ユーザー詳細' : view === 'admin-ai-keys' ? 'AIキー管理' : 'ユーザー管理';
-  return <div className="grid min-h-screen grid-cols-[248px_minmax(0,1fr)] gap-[18px] p-[18px] max-[1080px]:grid-cols-1"><aside className="sticky top-[18px] grid min-h-[calc(100vh-36px)] content-start gap-[18px] self-start rounded-[18px_8px_8px_18px] bg-[linear-gradient(180deg,#201b2d,#17151f)] p-[22px] text-[#fff6e7] max-[1080px]:min-h-0 max-[1080px]:rounded-[18px]"><SectionHead kicker="Operations" title="運用" /><nav className="grid gap-2.5"><button className={`${operationsNavButtonClassName} ${view === 'admin-list' ? 'border-[var(--ember)] bg-[var(--paper)] text-[var(--void)] hover:bg-[var(--paper)]' : ''}`} onClick={() => onNavigate('admin-list')}>ユーザー管理</button><button className={`${operationsNavButtonClassName} ${view === 'admin-ai-keys' ? 'border-[var(--ember)] bg-[var(--paper)] text-[var(--void)] hover:bg-[var(--paper)]' : ''}`} onClick={() => onNavigate('admin-ai-keys')}>AIキー管理</button><button className={`${operationsNavButtonClassName} ${view === 'audit' ? 'border-[var(--ember)] bg-[var(--paper)] text-[var(--void)] hover:bg-[var(--paper)]' : ''}`} onClick={() => onNavigate('audit')}>監査ログ</button></nav></aside><main className="grid min-w-0 content-start gap-[18px] px-1.5 py-2">{view === 'admin-ai-keys' ? <AdminAiKeysView /> : <RoadmapOperationsView title={title} />}</main></div>;
+  return <div className="grid min-h-screen grid-cols-[248px_minmax(0,1fr)] gap-[18px] p-[18px] max-[1080px]:grid-cols-1"><aside className="sticky top-[18px] grid min-h-[calc(100vh-36px)] content-start gap-[18px] self-start rounded-[18px_8px_8px_18px] bg-[linear-gradient(180deg,#201b2d,#17151f)] p-[22px] text-myr-cream max-[1080px]:min-h-0 max-[1080px]:rounded-myr-card"><SectionHead kicker="Operations" title="運用" /><nav className="grid gap-2.5"><button className={`${operationsNavButtonClassName} ${view === 'admin-list' ? 'border-[var(--ember)] bg-myr-paper text-[var(--void)] hover:bg-myr-paper' : ''}`} onClick={() => onNavigate('admin-list')}>ユーザー管理</button><button className={`${operationsNavButtonClassName} ${view === 'admin-ai-keys' ? 'border-[var(--ember)] bg-myr-paper text-[var(--void)] hover:bg-myr-paper' : ''}`} onClick={() => onNavigate('admin-ai-keys')}>AIキー管理</button><button className={`${operationsNavButtonClassName} ${view === 'audit' ? 'border-[var(--ember)] bg-myr-paper text-[var(--void)] hover:bg-myr-paper' : ''}`} onClick={() => onNavigate('audit')}>監査ログ</button></nav></aside><main className="grid min-w-0 content-start gap-[18px] px-1.5 py-2">{view === 'admin-ai-keys' ? <AdminAiKeysView /> : <RoadmapOperationsView title={title} />}</main></div>;
 }
 
 function RoadmapOperationsView({ title }: { title: string }) {
@@ -319,8 +319,8 @@ function AdminAiKeysView() {
       <div className={accountCardClassName}>
         <h2 className={accountCardHeadingClassName}>管理画面からキーを登録</h2>
         <div className="my-4 grid gap-[7px]">
-          <label className="text-[13px] font-extrabold text-[#4a4357]" htmlFor="ai-provider">Provider</label>
-          <select className="w-full rounded-2xl border border-[var(--line)] bg-[#fffef9] px-3.5 py-3 text-[var(--ink)]" id="ai-provider" value={provider} onChange={(event) => changeProvider(event.target.value)}>
+          <label className="text-myr-ui-sm font-extrabold text-[#4a4357]" htmlFor="ai-provider">Provider</label>
+          <select className="w-full rounded-2xl border border-myr-line bg-myr-paper-bright px-3.5 py-3 text-myr-ink" id="ai-provider" value={provider} onChange={(event) => changeProvider(event.target.value)}>
             <option value="runpod">Runpod</option>
             <option value="openai">OpenAI</option>
           </select>
@@ -328,24 +328,24 @@ function AdminAiKeysView() {
         </div>
         <TextField label="表示名" value={displayName} onChange={setDisplayName} error={firstAdminAiFieldError(error, 'displayName')} />
         <TextField label="APIキー" value={secret} onChange={setSecret} placeholder={provider === 'runpod' ? 'rpa_...' : 'sk-...'} error={firstAdminAiFieldError(error, 'secret')} />
-        <p className="m-0 text-xs leading-normal text-[var(--ink-soft)]">Vaultまたは環境変数で設定済みの場合、ここで同じキーを再登録する必要はありません。</p>
+        <p className="m-0 text-xs leading-normal text-myr-account-ink-soft">Vaultまたは環境変数で設定済みの場合、ここで同じキーを再登録する必要はありません。</p>
         <div className={accountActionRowClassName}><Button variant="primary" onClick={save} disabled={busy || !secret.trim()}>キーを保存</Button></div>
       </div>
       <div className={accountCardClassName}>
         <h2 className={accountCardHeadingClassName}>設定の優先順位</h2>
         <ol className="m-0 mb-4 grid list-none gap-3.5 p-0">
           <li className="grid grid-cols-[30px_1fr] items-start gap-x-2.5 gap-y-0.5">
-            <span className="row-span-2 grid size-7 place-items-center rounded-full bg-[var(--ink)] font-mono text-xs font-extrabold text-white">1</span>
+            <span className="row-span-2 grid size-7 place-items-center rounded-full bg-myr-ink font-mono text-xs font-extrabold text-white">1</span>
             <strong>Vault / 環境変数</strong>
-            <span className="text-[13px] leading-normal text-[var(--ink-soft)]">デプロイ時に注入された設定を最優先で使用します。</span>
+            <span className="text-myr-ui-sm leading-normal text-myr-account-ink-soft">デプロイ時に注入された設定を最優先で使用します。</span>
           </li>
           <li className="grid grid-cols-[30px_1fr] items-start gap-x-2.5 gap-y-0.5">
-            <span className="row-span-2 grid size-7 place-items-center rounded-full bg-[var(--ink)] font-mono text-xs font-extrabold text-white">2</span>
+            <span className="row-span-2 grid size-7 place-items-center rounded-full bg-myr-ink font-mono text-xs font-extrabold text-white">2</span>
             <strong>管理画面</strong>
-            <span className="text-[13px] leading-normal text-[var(--ink-soft)]">環境設定がないProviderでは暗号化してDBへ保存します。</span>
+            <span className="text-myr-ui-sm leading-normal text-myr-account-ink-soft">環境設定がないProviderでは暗号化してDBへ保存します。</span>
           </li>
         </ol>
-        <p className="text-[var(--ink-soft)]">「使用中」は現在Narrative生成に選択されているProviderです。</p>
+        <p className="text-myr-account-ink-soft">「使用中」は現在Narrative生成に選択されているProviderです。</p>
       </div>
     </div>
     <div className={`${accountFlushCardClassName} mt-4 overflow-x-auto`}>
@@ -353,8 +353,8 @@ function AdminAiKeysView() {
         <thead><tr><th className={providerTableHeadClassName}>Provider</th><th className={providerTableHeadClassName}>接続設定</th><th className={providerTableHeadClassName}>キー</th><th className={providerTableHeadClassName}>検証状態</th><th className={providerTableHeadClassName}>操作</th></tr></thead>
         <tbody>{keys.map((key) => (
           <tr key={key.provider} data-testid={'ai-key-row-' + key.provider}>
-            <td className={providerTableCellClassName}><strong className="block">{key.displayName}</strong><span className="mt-[3px] block font-mono text-xs leading-[1.4] text-[var(--ink-soft)]">{key.provider}</span></td>
-            <td className={providerTableCellClassName}><div className="flex flex-wrap gap-1.5">{key.active && <span className={`${providerBadgeClassName} bg-[var(--ink)] text-white`}>使用中</span>}<span className={`${providerBadgeClassName} ${key.credentialSource === 'environment' ? 'bg-[rgba(124,92,255,.14)] text-[var(--iris-deep)]' : key.credentialSource === 'database' ? 'bg-[rgba(217,164,65,.2)] text-[#72520f]' : ''}`}>{key.credentialSource === 'environment' ? 'Vault / 環境変数' : key.credentialSource === 'database' ? '管理画面' : '未設定'}</span></div></td>
+            <td className={providerTableCellClassName}><strong className="block">{key.displayName}</strong><span className="mt-[3px] block font-mono text-xs leading-[1.4] text-myr-account-ink-soft">{key.provider}</span></td>
+            <td className={providerTableCellClassName}><div className="flex flex-wrap gap-1.5">{key.active && <span className={`${providerBadgeClassName} bg-myr-ink text-white`}>使用中</span>}<span className={`${providerBadgeClassName} ${key.credentialSource === 'environment' ? 'bg-[rgba(124,92,255,.14)] text-[var(--iris-deep)]' : key.credentialSource === 'database' ? 'bg-[rgba(217,164,65,.2)] text-[#72520f]' : ''}`}>{key.credentialSource === 'environment' ? 'Vault / 環境変数' : key.credentialSource === 'database' ? '管理画面' : '未設定'}</span></div></td>
             <td className={providerTableCellClassName}>{key.maskedKey}</td>
             <td className={providerTableCellClassName}><span className={`${providerBadgeClassName} ${key.status === 'valid' ? 'bg-[rgba(47,111,87,.14)] text-[var(--verde)]' : ''}`}>{key.status === 'valid' ? '接続済み' : key.status === 'untested' ? '未検証' : key.status}</span></td>
             <td className={providerTableCellClassName}><div className="flex flex-wrap items-center gap-3"><Button onClick={() => void test(key.provider)} disabled={busy || !key.configured}>接続テスト</Button>{key.credentialSource === 'database' && <Button variant="danger" onClick={() => void remove(key.provider)} disabled={busy}>削除</Button>}</div></td>

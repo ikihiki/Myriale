@@ -24,7 +24,7 @@ function ReadOnlyProtagonistFields({ value, testId }: { value: string; testId: s
 
   return (
     <div className="grid gap-4" data-testid={testId}>
-      <label className="grid gap-2 text-xs font-black tracking-[0.04em] text-myr-slate">
+      <label className="grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">
         名前
         <input
           className="!cursor-not-allowed !rounded-none !border-x-0 !border-t-0 !border-b-2 !border-myr-ink/15 !bg-myr-vellum/35 !px-3 !py-2.5 !text-base !text-myr-slate !shadow-none"
@@ -34,7 +34,7 @@ function ReadOnlyProtagonistFields({ value, testId }: { value: string; testId: s
           value={protagonist.name}
         />
       </label>
-      <label className="grid gap-2 text-xs font-black tracking-[0.04em] text-myr-slate">
+      <label className="grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">
         プロフィール
         <textarea
           className="!min-h-28 !cursor-not-allowed !rounded-myr-card !border !border-myr-ink/15 !bg-myr-vellum/35 !px-3 !py-3 !text-base !leading-7 !text-myr-slate !shadow-none"
@@ -127,7 +127,7 @@ function ProtagonistForm({
     <>
       <section className="border-t border-myr-ink/20 py-7 md:py-9" aria-label="主人公確定">
         <div className="mb-6">
-          <p className="mb-2 font-myr-mono text-[0.6875rem] font-black tracking-[0.14em] text-myr-ruby uppercase">
+          <p className="mb-2 font-myr-mono text-myr-caption font-black tracking-[0.14em] text-myr-ruby uppercase">
             Protagonist
           </p>
         </div>
@@ -170,7 +170,7 @@ function ProtagonistForm({
             <div className="grid gap-4">
               <form.Field name="createdName">
                 {(field) => (
-                  <label className="grid gap-2 text-xs font-black tracking-[0.04em] text-myr-slate">
+                  <label className="grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">
                     名前
                     <input
                       className="!rounded-none !border-x-0 !border-t-0 !border-b-2 !border-myr-ink/20 !bg-white/45 !px-3 !py-2.5 !text-base !text-myr-ink focus:!border-myr-iris focus:!outline-none"
@@ -184,7 +184,7 @@ function ProtagonistForm({
               </form.Field>
               <form.Field name="createdProfile">
                 {(field) => (
-                  <label className="grid gap-2 text-xs font-black tracking-[0.04em] text-myr-slate">
+                  <label className="grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">
                     プロフィール
                     <textarea
                       className="!min-h-36 !rounded-myr-card !border !border-myr-ink/20 !bg-white/55 !px-3 !py-3 !text-base !leading-7 !text-myr-ink focus:!border-myr-iris focus:!outline-none"
@@ -276,8 +276,8 @@ function ProtagonistForm({
         >
           {beginError && <p className="m-0 mb-4 text-sm font-bold text-myr-ruby" role="alert">{beginError}</p>}
           <article className="rounded-myr-card border border-myr-ink/15 bg-white/65 p-4 shadow-myr-card" data-testid="start-summary">
-            <span className="font-myr-mono text-[0.6875rem] font-black tracking-[0.08em] text-myr-ruby uppercase">Session snapshot</span>
-            <h2 className="my-2 font-myr-display text-3xl leading-none tracking-[-0.04em]">{scenario.title}</h2>
+            <span className="font-myr-mono text-myr-caption font-black tracking-[0.08em] text-myr-ruby uppercase">Session snapshot</span>
+            <h2 className="my-2 font-myr-display text-3xl leading-none tracking-myr-display">{scenario.title}</h2>
             <p className="my-2 text-sm text-myr-slate">Scenario: {scenario.title}</p>
             {canConfigureInterpretation && (
               <p className="my-2 text-sm text-myr-slate">
@@ -415,7 +415,7 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
         >
           <header className="mb-6 flex flex-col items-start justify-between gap-4 border-b border-myr-ink/15 pb-5 md:flex-row">
             <div>
-              <p className="mb-2 text-[0.6875rem] font-extrabold tracking-[0.16em] text-[#6d587a] uppercase">
+              <p className="mb-2 text-myr-caption font-extrabold tracking-[0.16em] text-myr-ink-subtle uppercase">
                 Session Start / Scenario to play
               </p>
               <h1
@@ -434,11 +434,11 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
           </header>
 
           <section
-            className="overflow-hidden rounded-myr-card bg-white/45 px-5 shadow-myr-card md:px-8 [&_.myr-ui-field]:mb-5 [&_.myr-ui-field>label]:!text-xs [&_.myr-ui-field>label]:!font-black [&_.myr-ui-field>label]:!tracking-[0.04em] [&_.myr-ui-field>label]:!text-myr-slate [&_.myr-ui-select-trigger]:!rounded-none [&_.myr-ui-select-trigger]:!border-x-0 [&_.myr-ui-select-trigger]:!border-t-0 [&_.myr-ui-select-trigger]:!border-b-2 [&_.myr-ui-select-trigger]:!border-myr-ink/20 [&_.myr-ui-select-trigger]:!bg-white/45"
+            className="overflow-hidden rounded-myr-card bg-white/45 px-5 shadow-myr-card md:px-8 [&_.myr-ui-field]:mb-5 [&_.myr-ui-field>label]:!text-xs [&_.myr-ui-field>label]:!font-black [&_.myr-ui-field>label]:!tracking-myr-label [&_.myr-ui-field>label]:!text-myr-slate [&_.myr-ui-select-trigger]:!rounded-none [&_.myr-ui-select-trigger]:!border-x-0 [&_.myr-ui-select-trigger]:!border-t-0 [&_.myr-ui-select-trigger]:!border-b-2 [&_.myr-ui-select-trigger]:!border-myr-ink/20 [&_.myr-ui-select-trigger]:!bg-white/45"
             aria-label="イントロと主人公選択"
           >
             <section className="relative py-7 md:py-9" aria-label="イントロNarrative">
-              <p className="mb-3 font-myr-mono text-[0.6875rem] font-black tracking-[0.14em] text-myr-ruby uppercase">
+              <p className="mb-3 font-myr-mono text-myr-caption font-black tracking-[0.14em] text-myr-ruby uppercase">
                 Opening narrative
               </p>
               <article className="relative pr-4 before:pointer-events-none before:absolute before:-top-8 before:right-0 before:font-myr-display before:text-8xl before:text-myr-iris/10 before:content-['✦']" data-testid="intro-narrative">

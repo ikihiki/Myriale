@@ -11,7 +11,7 @@ const toneClassNames: Record<NoticeTone, string> = {
 
 export function NoticeBanner({ children, tone = 'info', testId = 'um-notice' }: { children: ReactNode; tone?: NoticeTone; testId?: string }) {
   return (
-    <div className={`mb-[18px] rounded-2xl bg-[rgba(18,16,25,.86)] px-4 py-3 text-sm leading-normal text-[#fff6e7] ${toneClassNames[tone]}`} role="status" data-testid={testId}>
+    <div className={`mb-[18px] rounded-2xl bg-[rgba(18,16,25,.86)] px-4 py-3 text-sm leading-normal text-myr-cream ${toneClassNames[tone]}`} role="status" data-testid={testId}>
       {children}
     </div>
   );

@@ -19,15 +19,15 @@ const executionStatusClass: Record<SessionExecutionApiResponse['status'], string
   succeeded: '',
   superseded: 'opacity-72',
 };
-const actionButtonClass = 'min-h-[26px] rounded-full border border-current/28 bg-transparent px-[9px] py-[3px] text-[11px] font-extrabold text-inherit hover:bg-current/8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current';
-const artifactClass = 'mx-auto mb-3 w-[min(100%,720px)] rounded-[18px] border border-myr-ink/14 bg-[#fffbf1] px-4 py-3.5';
+const actionButtonClass = 'min-h-[26px] rounded-full border border-current/28 bg-transparent px-[9px] py-[3px] text-myr-caption font-extrabold text-inherit hover:bg-current/8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current';
+const artifactClass = 'mx-auto mb-3 w-[min(100%,720px)] rounded-myr-card border border-myr-ink/14 bg-[#fffbf1] px-4 py-3.5';
 
 export function SessionInputItem({ text }: { text: string }) {
   return <article className="session-input-item mt-0.5 mr-2 mb-2 ml-[52px] w-fit max-w-[min(82%,620px)] justify-self-end rounded-[18px_18px_5px_18px] border border-[#c9bce4] bg-[#ebe5f8] px-[15px] py-[11px] text-[#2c2440] shadow-[0_7px_20px_rgba(58,43,83,.14)]" data-testid="session-input-item" aria-label="Player Input"><p className="m-0 font-bold leading-[1.55]">{text}</p></article>;
 }
 
 export function NarrativeTurnItem({ turn }: { turn: NarrativeTurnApiResponse }) {
-  return <article className="grid gap-2 rounded-[18px] border border-myr-ink/14 bg-[rgba(255,254,249,.68)] p-3.5" data-testid="narrative-turn-item" aria-label="公開済みNarrative Turn"><p className="m-0 max-w-none leading-[1.65] text-[#303644]"><span className="mr-2 inline-block rounded-full bg-[#d9a441] px-2 py-px align-middle text-[10px] font-black tracking-[.1em] text-[#17151f]" aria-hidden="true">AI</span>{turn.narrative?.body ?? 'Narrativeを表示できません。'}</p></article>;
+  return <article className="grid gap-2 rounded-myr-card border border-myr-ink/14 bg-[rgba(255,254,249,.68)] p-3.5" data-testid="narrative-turn-item" aria-label="公開済みNarrative Turn"><p className="m-0 max-w-none leading-[1.65] text-[#303644]"><span className="mr-2 inline-block rounded-full bg-myr-gold px-2 py-px align-middle text-[10px] font-black tracking-[.1em] text-[#17151f]" aria-hidden="true">AI</span>{turn.narrative?.body ?? 'Narrativeを表示できません。'}</p></article>;
 }
 
 const activeExecutionStatuses = ['queued', 'running', 'retry-wait', 'cancel-requested'];
@@ -81,7 +81,7 @@ export function SessionExecutionItem({ execution, onAction, keepSucceededStatusV
   </div>;
 
   return (
-    <article className={`session-execution-item status-${execution.status} -mt-[3px] mr-2 mb-2 ml-auto w-[min(100%,680px)] justify-self-end border-0 bg-transparent p-0 text-right text-[11px] leading-[1.45] ${executionStatusClass[execution.status]} ${succeeded && !keepSucceededStatusVisible ? 'execution-is-completing' : ''}`} data-testid={`execution-${execution.id}`} role={failed ? 'alert' : 'status'} aria-live={active ? 'polite' : undefined}>
+    <article className={`session-execution-item status-${execution.status} -mt-[3px] mr-2 mb-2 ml-auto w-[min(100%,680px)] justify-self-end border-0 bg-transparent p-0 text-right text-myr-caption leading-[1.45] ${executionStatusClass[execution.status]} ${succeeded && !keepSucceededStatusVisible ? 'execution-is-completing' : ''}`} data-testid={`execution-${execution.id}`} role={failed ? 'alert' : 'status'} aria-live={active ? 'polite' : undefined}>
       {execution.developmentDiagnostics ? <details className="m-0">
         <summary className="execution-diagnostics-summary min-h-5 cursor-pointer list-inside text-inherit select-none focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-myr-iris">{statusLine}</summary>
         <div className="mt-[7px] ml-auto w-[min(100%,620px)] rounded-xl bg-white/[.045] px-3.5 py-3 text-left text-[#aaa2b3]">
@@ -103,7 +103,7 @@ export function SessionExecutionItem({ execution, onAction, keepSucceededStatusV
 }
 
 function ExecutionPayload({ label, value }: { label: string; value: string }) {
-  return <details className="mt-1.5 border-t border-[#aaa2b3]/18 pt-1.5"><summary className="cursor-pointer font-[750]">{label}</summary><pre className="mt-[7px] max-h-[260px] overflow-auto wrap-anywhere whitespace-pre-wrap rounded-lg bg-black/18 p-[9px] text-left text-[11px] text-[#c8c1d0]">{value}</pre></details>;
+  return <details className="mt-1.5 border-t border-[#aaa2b3]/18 pt-1.5"><summary className="cursor-pointer font-[750]">{label}</summary><pre className="mt-[7px] max-h-[260px] overflow-auto wrap-anywhere whitespace-pre-wrap rounded-lg bg-black/18 p-[9px] text-left text-myr-caption text-[#c8c1d0]">{value}</pre></details>;
 }
 
 export type NoteReviewRequest = { expectedNoteRevision: number; title?: string; body?: string };
@@ -112,7 +112,7 @@ export function NoteProposalItem({ proposal, onReview }: { proposal: SessionNote
   const [title, setTitle] = useState(proposal.proposedTitle);
   const [body, setBody] = useState(proposal.proposedBody);
   const request = { expectedNoteRevision: proposal.expectedNoteRevision };
-  return <article className={artifactClass} data-testid="note-proposal-item"><strong>ノート変更案: {proposal.proposedTitle}</strong><div className="my-2.5 grid gap-2 [&_del]:block [&_del]:rounded-[10px] [&_del]:bg-[#fff0ef] [&_del]:p-2.5 [&_del]:no-underline [&_ins]:block [&_ins]:rounded-[10px] [&_ins]:bg-[#eff9f1] [&_ins]:p-2.5 [&_ins]:no-underline"><del>{proposal.beforeBody || '（新規ノート）'}</del><ins>{proposal.proposedBody}</ins></div><p>根拠: {proposal.rationale}</p>{editing && <fieldset aria-label="ノート変更案を編集"><label>タイトル<input value={title} onChange={(event) => setTitle(event.target.value)} /></label><label>本文<textarea value={body} onChange={(event) => setBody(event.target.value)} /></label><div className="button-row"><button onClick={() => onReview?.(proposal.artifactId, 'edit-apply', { ...request, title, body })}>編集内容を適用</button><button onClick={() => setEditing(false)}>編集をやめる</button></div></fieldset>}{proposal.status === 'pending' && !editing && <div className="button-row"><button onClick={() => onReview?.(proposal.artifactId, 'apply', request)}>適用</button><button onClick={() => setEditing(true)}>編集して適用</button><button onClick={() => onReview?.(proposal.artifactId, 'reject', request)}>却下</button><button onClick={() => onReview?.(proposal.artifactId, 'snooze', request)}>あとで</button></div>}</article>;
+  return <article className={artifactClass} data-testid="note-proposal-item"><strong>ノート変更案: {proposal.proposedTitle}</strong><div className="my-2.5 grid gap-2 [&_del]:block [&_del]:rounded-myr-control [&_del]:bg-[#fff0ef] [&_del]:p-2.5 [&_del]:no-underline [&_ins]:block [&_ins]:rounded-myr-control [&_ins]:bg-[#eff9f1] [&_ins]:p-2.5 [&_ins]:no-underline"><del>{proposal.beforeBody || '（新規ノート）'}</del><ins>{proposal.proposedBody}</ins></div><p>根拠: {proposal.rationale}</p>{editing && <fieldset aria-label="ノート変更案を編集"><label>タイトル<input value={title} onChange={(event) => setTitle(event.target.value)} /></label><label>本文<textarea value={body} onChange={(event) => setBody(event.target.value)} /></label><div className="button-row"><button onClick={() => onReview?.(proposal.artifactId, 'edit-apply', { ...request, title, body })}>編集内容を適用</button><button onClick={() => setEditing(false)}>編集をやめる</button></div></fieldset>}{proposal.status === 'pending' && !editing && <div className="button-row"><button onClick={() => onReview?.(proposal.artifactId, 'apply', request)}>適用</button><button onClick={() => setEditing(true)}>編集して適用</button><button onClick={() => onReview?.(proposal.artifactId, 'reject', request)}>却下</button><button onClick={() => onReview?.(proposal.artifactId, 'snooze', request)}>あとで</button></div>}</article>;
 }
 export function ImageArtifactItem({ mediaUrl, contentType }: { mediaUrl?: string | null; contentType: string }) {
   return <figure className={artifactClass} data-testid="image-artifact-item">{mediaUrl ? <img className="block max-h-[420px] w-full rounded-xl object-cover" src={mediaUrl} alt="生成された場面" loading="lazy" /> : <div className="grid min-h-[180px] place-items-center rounded-xl bg-[linear-gradient(135deg,#d7d0f6,#b9dce0)] font-extrabold" role="img" aria-label="画像Artifactのプレビュー">画像プレビュー</div>}<figcaption>{contentType} / Narrativeとは独立した任意成果物</figcaption></figure>;
