@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Button, Input, Textarea } from '../../components/ui';
+import { Button, Input, Textarea, surfaceRecipe, textRecipe } from '../../components/ui';
 import { useRouter } from '@tanstack/react-router';
 import { useForm, useStore } from '@tanstack/react-form';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -25,7 +25,7 @@ function ReadOnlyProtagonistFields({ value, testId }: { value: string; testId: s
 
   return (
     <div className="grid gap-4" data-testid={testId}>
-      <label className="grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">
+      <label className={`grid gap-2 ${textRecipe('label')}`}>
         名前
         <Input
           variant="underline"
@@ -35,7 +35,7 @@ function ReadOnlyProtagonistFields({ value, testId }: { value: string; testId: s
           value={protagonist.name}
         />
       </label>
-      <label className="grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">
+      <label className={`grid gap-2 ${textRecipe('label')}`}>
         プロフィール
         <Textarea
           className="!min-h-28 !rounded-myr-card !border-myr-ink/15 !px-3 !py-3 !text-base !leading-7 !shadow-none"
@@ -128,7 +128,7 @@ function ProtagonistForm({
     <>
       <section className="border-t border-myr-ink/20 py-7 md:py-9" aria-label="主人公確定">
         <div className="mb-6">
-          <p className="mb-2 font-myr-mono text-myr-caption font-black tracking-[0.14em] text-myr-ruby uppercase">
+          <p className={`mb-2 ${textRecipe('eyebrowData')}`}>
             Protagonist
           </p>
         </div>
@@ -171,7 +171,7 @@ function ProtagonistForm({
             <div className="grid gap-4">
               <form.Field name="createdName">
                 {(field) => (
-                  <label className="grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">
+                  <label className={`grid gap-2 ${textRecipe('label')}`}>
                     名前
                     <Input
                       variant="underline"
@@ -185,7 +185,7 @@ function ProtagonistForm({
               </form.Field>
               <form.Field name="createdProfile">
                 {(field) => (
-                  <label className="grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">
+                  <label className={`grid gap-2 ${textRecipe('label')}`}>
                     プロフィール
                     <Textarea
                       className="!min-h-36 !rounded-myr-card !border-myr-ink/20 !bg-white/55 !px-3 !py-3 !text-base !leading-7"
@@ -264,9 +264,9 @@ function ProtagonistForm({
           )}
         >
           {beginError && <p className="m-0 mb-4 text-sm font-bold text-myr-ruby" role="alert">{beginError}</p>}
-          <article className="rounded-myr-card border border-myr-ink/15 bg-white/65 p-4 shadow-myr-card" data-testid="start-summary">
-            <span className="font-myr-mono text-myr-caption font-black tracking-[0.08em] text-myr-ruby uppercase">Session snapshot</span>
-            <h2 className="my-2 font-myr-display text-3xl leading-none tracking-myr-display">{scenario.title}</h2>
+          <article className={`${surfaceRecipe({ role: 'card', variant: 'archive' })} !bg-white/65`} data-testid="start-summary">
+            <span className={`${textRecipe('eyebrowData')} !tracking-[0.08em]`}>Session snapshot</span>
+            <h2 className={`my-2 ${textRecipe('section')} !text-3xl`}>{scenario.title}</h2>
             <p className="my-2 text-sm text-myr-slate">Scenario: {scenario.title}</p>
             {canConfigureInterpretation && (
               <p className="my-2 text-sm text-myr-slate">
@@ -396,19 +396,19 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
     <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={chromeAccount} onLogout={logout}>
       <div
         data-myriale-theme="archive"
-        className="min-h-[calc(100vh-118px)] bg-[image:var(--myr-screen-background)] p-3 font-myr-body text-myr-ink md:p-5"
+        className={surfaceRecipe({ role: 'canvas' })}
       >
         <main
-          className="mx-auto grid min-h-[calc(100vh-158px)] max-w-[1040px] content-start rounded-myr-panel border border-white/40 bg-[image:var(--myr-paper-background)] [background-size:26px_100%,auto] p-5 shadow-myr-panel md:p-8"
+          className={surfaceRecipe({ role: 'shell', width: 'focused' })}
           aria-label="セッション開始アプリ画面"
         >
           <header className="mb-6 flex flex-col items-start justify-between gap-4 border-b border-myr-ink/15 pb-5 md:flex-row">
             <div>
-              <p className="mb-2 text-myr-caption font-extrabold tracking-[0.16em] text-myr-ink-subtle uppercase">
+              <p className={`mb-2 ${textRecipe('eyebrow')}`}>
                 Session Start / Scenario to play
               </p>
               <h1
-                className="m-0 max-w-[820px] font-myr-display text-[clamp(2.25rem,5vw,4.75rem)] leading-[0.95] tracking-[-0.055em]"
+                className={`m-0 max-w-[820px] ${textRecipe('display')}`}
                 data-testid="selected-scenario-title"
               >
                 {selectedScenario.title}
@@ -424,7 +424,7 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
             aria-label="イントロと主人公選択"
           >
             <section className="relative py-7 md:py-9" aria-label="イントロNarrative">
-              <p className="mb-3 font-myr-mono text-myr-caption font-black tracking-[0.14em] text-myr-ruby uppercase">
+              <p className={`mb-3 ${textRecipe('eyebrowData')}`}>
                 Opening narrative
               </p>
               <article className="relative pr-4 before:pointer-events-none before:absolute before:-top-8 before:right-0 before:font-myr-display before:text-8xl before:text-myr-iris/10 before:content-['✦']" data-testid="intro-narrative">

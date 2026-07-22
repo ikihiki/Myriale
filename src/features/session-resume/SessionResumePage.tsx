@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Button } from '../../components/ui';
+import { Button, surfaceRecipe } from '../../components/ui';
 import { WizardNavigation } from '../../shared/WizardNavigation';
 import { scenarioWizardShellClass, wizardButtonRowClass, wizardKickerClass, wizardNoticeClass, wizardPanelClass, wizardPaperClass, wizardSummaryClass } from '../../shared/scenarioWizardStyles';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
@@ -152,6 +152,7 @@ const suspendedSessions: SuspendedSession[] = [
 ];
 
 const playerAccount = { name: '霧野しおり', email: 'reader@myriale.example', initials: '霧野', role: 'プレイヤー' };
+const resumeCardClassName = `${surfaceRecipe({ role: 'card' })} my-3 [&>span]:text-myr-caption [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-myr-ruby [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-[18px] [&_ul]:text-myr-ink-soft`;
 
 export function SessionResumePage() {
   const appNavigate = useAppNavigation();
@@ -266,7 +267,7 @@ export function SessionResumePage() {
               <div className="mt-3.5 grid gap-3" data-testid="session-list">
                 {activeSessions.map((session) => (
                   <article
-                    className="my-3 rounded-myr-card border border-myr-line-soft bg-myr-paper-glass p-4 [&>span]:text-myr-caption [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-myr-ruby [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-[18px] [&_ul]:text-myr-ink-soft"
+                    className={resumeCardClassName}
                     key={session.id}
                     data-testid={`session-card-${session.id}`}
                   >
@@ -285,7 +286,7 @@ export function SessionResumePage() {
                 ))}
                 {suspendedSessions.map((session) => (
                   <article
-                    className="my-3 rounded-myr-card border border-myr-line-soft bg-myr-paper-glass p-4 [&>span]:text-myr-caption [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-myr-ruby [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-[18px] [&_ul]:text-myr-ink-soft"
+                    className={resumeCardClassName}
                     key={session.id}
                     data-testid={`session-card-${session.id}`}
                   >
@@ -315,7 +316,7 @@ export function SessionResumePage() {
                 AI要約のあらすじ、進行度、復元されるAIコンテキスト、中断中の変更点を見てから再開できます。
               </p>
 
-              <article className="my-3 rounded-myr-card border border-myr-line-soft bg-myr-paper-glass p-4 [&>span]:text-myr-caption [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-myr-ruby [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-[18px] [&_ul]:text-myr-ink-soft" data-testid="recap">
+              <article className={resumeCardClassName} data-testid="recap">
                 <h2>これまでのあらすじ（AI要約）</h2>
                 <p>{selected.recap}</p>
               </article>
@@ -335,7 +336,7 @@ export function SessionResumePage() {
                 </div>
               </dl>
 
-              <article className="my-3 rounded-myr-card border border-myr-line-soft bg-myr-paper-glass p-4 [&>span]:text-myr-caption [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-myr-ruby [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-[18px] [&_ul]:text-myr-ink-soft" data-testid="context">
+              <article className={resumeCardClassName} data-testid="context">
                 <h2>復元されるAIコンテキスト</h2>
                 <p>食い違いを防ぐため、再開時に以下の文脈を復元します。</p>
                 <ul>
@@ -381,7 +382,7 @@ export function SessionResumePage() {
                 <strong>ReadOnlyモードで表示しています。</strong>
                 再開せずに、これまでの全Turn（Turn 1〜{turnCountOf(selected)}）を読み返せます。入力欄は無く、Session状態はSuspendedのまま変化しません。
               </p>
-              <article className="my-3 rounded-myr-card border border-myr-line-soft bg-myr-paper-glass p-4 [&>span]:text-myr-caption [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-myr-ruby [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-[18px] [&_ul]:text-myr-ink-soft" data-testid="recap">
+              <article className={resumeCardClassName} data-testid="recap">
                 <h2>これまでのあらすじ（AI要約）</h2>
                 <p>{selected.recap}</p>
               </article>
@@ -425,23 +426,23 @@ export function SessionResumePage() {
 
         <aside className={wizardSummaryClass} aria-label="セッション状態サマリー">
           <h2>Session</h2>
-          <article>
+          <article className={surfaceRecipe({ role: 'card', variant: 'summary' })}>
             <h3>状態</h3>
             <p data-testid="summary-state">{sessionState}</p>
             <p>{selected ? selected.id : '未選択'}</p>
           </article>
-          <article>
+          <article className={surfaceRecipe({ role: 'card', variant: 'summary' })}>
             <h3>Scenario</h3>
             <p data-testid="summary-scenario">{selected ? selected.scenarioTitle : '一覧から選択してください'}</p>
             <p>{selected ? selected.genre : ''}</p>
           </article>
-          <article>
+          <article className={surfaceRecipe({ role: 'card', variant: 'summary' })}>
             <h3>進行度</h3>
             <p data-testid="summary-progress">
               {selected ? `Turn ${turnCountOf(selected)} / ${selected.playtime}` : '—'}
             </p>
           </article>
-          <article>
+          <article className={surfaceRecipe({ role: 'card', variant: 'summary' })}>
             <h3>主人公</h3>
             <p>{selected ? selected.hero : '—'}</p>
           </article>

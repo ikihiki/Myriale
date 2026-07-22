@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { surfaceRecipe, textRecipe } from '../components/ui';
 
 /**
  * SessionTurn — the shared turn-display component used by every session-play
@@ -107,7 +108,7 @@ export function SessionTurn({
   articleRef,
 }: SessionTurnProps) {
   const narrativeBlock = (
-    <p className="m-0 max-w-none leading-[1.65] text-[#303644]" data-testid={narrativeTestId}>
+    <p className={`m-0 max-w-none ${textRecipe('body')} !leading-[1.65] !text-[#303644]`} data-testid={narrativeTestId}>
       {narrativeTag && <span className="mr-2 inline-block rounded-full bg-myr-gold px-2 py-px align-middle text-[10px] font-black tracking-[.1em] text-[#17151f]" aria-hidden="true">{narrativeTag}</span>}
       {narrative}
     </p>
@@ -117,7 +118,7 @@ export function SessionTurn({
 
   return (
     <article
-      className={`session-turn group grid gap-2 rounded-myr-card border border-myr-ink/14 bg-[rgba(255,254,249,.68)] p-3.5 ${selected ? '!border-myr-ruby !shadow-[inset_4px_0_0_#b84a4a]' : ''} ${variantClass[variantClassName] ?? variantClassName}`.trim()}
+      className={`${surfaceRecipe({ role: 'card', variant: 'turn' })} ${selected ? '!border-myr-ruby !shadow-[inset_4px_0_0_#b84a4a]' : ''} ${variantClass[variantClassName] ?? variantClassName}`.trim()}
       aria-label={ariaLabel}
       data-testid={testId}
       ref={articleRef}

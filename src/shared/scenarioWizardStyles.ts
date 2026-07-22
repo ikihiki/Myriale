@@ -1,3 +1,5 @@
+import { surfaceRecipe, textRecipe } from '../components/ui';
+
 export const scenarioWizardShellClass = [
   'grid min-h-screen grid-cols-[168px_minmax(560px,1fr)_minmax(260px,300px)] items-start gap-3 p-3.5 text-[#17151f]',
   'bg-[radial-gradient(circle_at_12%_18%,rgba(124,92,255,0.2),transparent_24%),radial-gradient(circle_at_92%_8%,rgba(217,164,65,0.24),transparent_20%),linear-gradient(135deg,#17151f_0%,#283244_46%,#dce7f2_100%)]',
@@ -10,7 +12,7 @@ export const wizardPaperClass = [
   'shadow-[0_24px_80px_rgba(23,21,31,0.22)] max-[1120px]:min-h-0',
 ].join(' ');
 
-export const wizardKickerClass = 'mb-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#6d587a]';
+export const wizardKickerClass = `mb-1 ${textRecipe('eyebrow')} !text-[10px] !tracking-[0.14em] !text-[#6d587a]`;
 export const wizardNoticeClass = 'my-2.5 rounded-xl bg-[rgba(18,16,25,0.86)] px-[11px] py-2 text-[13px] text-[#fff6e7]';
 export const wizardButtonRowClass = 'mt-2 flex flex-wrap gap-[7px]';
 
@@ -36,12 +38,10 @@ export const wizardProgressClass = [
 export const wizardActionsClass = 'flex max-w-none justify-between gap-3 border-t border-[rgba(23,21,31,0.18)] pt-3';
 
 export const wizardSummaryClass = [
-  'sticky top-3.5 grid max-h-[calc(100vh-28px)] self-start gap-2 overflow-auto rounded-[18px] border border-[rgba(220,231,242,0.42)] bg-[rgba(255,250,240,0.9)] p-3 shadow-[0_24px_80px_rgba(23,21,31,0.22)]',
-  'max-[1120px]:static max-[1120px]:max-h-none',
+  surfaceRecipe({ role: 'inset', variant: 'summary' }),
   '[&_h2]:m-0 [&_h2]:font-serif [&_h2]:text-lg [&_h2]:tracking-[-0.04em]',
   '[&_label]:my-1.5 [&_label]:grid [&_label]:gap-1 [&_label]:text-[11px] [&_label]:font-black',
   '[&_select]:w-full [&_select]:rounded-[10px] [&_select]:border [&_select]:border-[rgba(23,21,31,0.18)] [&_select]:bg-[#fffef9] [&_select]:px-2.5 [&_select]:py-2 [&_select]:text-xs [&_select]:text-[#17151f]',
-  '[&_article]:rounded-xl [&_article]:border [&_article]:border-[rgba(23,21,31,0.14)] [&_article]:bg-[#fffef9] [&_article]:p-[9px]',
   '[&_h3]:mb-[5px] [&_h3]:mt-0 [&_h3]:text-xs',
   '[&_p]:my-1 [&_p]:line-clamp-3 [&_p]:overflow-hidden [&_p]:text-[11px] [&_p]:leading-[1.35] [&_p]:text-[#3f4552]',
 ].join(' ');

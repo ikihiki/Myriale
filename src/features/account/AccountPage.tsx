@@ -1,5 +1,5 @@
 import { FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
-import { Button as SharedButton } from '../../components/ui';
+import { Button as SharedButton, surfaceRecipe, textRecipe } from '../../components/ui';
 import {
   AppFrame,
   AuthScaffold,
@@ -40,10 +40,10 @@ type Notice = { tone?: NoticeTone; message: string } | null;
 
 const protectedViews = new Set<AccountView>(['profile', 'profile-edit', 'security', 'export', 'withdraw']);
 
-const accountCardClassName = "rounded-myr-shell border border-myr-line bg-[rgba(255,250,240,.9)] p-myr-section-inset shadow-myr-surface";
-const accountFlushCardClassName = "overflow-hidden rounded-myr-shell border border-myr-line bg-[rgba(255,250,240,.9)] shadow-myr-surface";
+const accountCardClassName = surfaceRecipe({ role: 'card', variant: 'account' });
+const accountFlushCardClassName = surfaceRecipe({ role: 'card', variant: 'accountFlush' });
 const accountActionRowClassName = 'mt-1.5 flex flex-wrap items-center gap-2.5';
-const accountCardHeadingClassName = "m-0 mb-3.5 font-[Georgia,'Times_New_Roman',serif] text-[22px] tracking-[-.02em]";
+const accountCardHeadingClassName = `m-0 mb-3.5 ${textRecipe('sectionEditorial')} !text-[22px] !tracking-[-.02em]`;
 const providerTableHeadClassName = 'border-b border-myr-line-strong bg-[rgba(124,92,255,.06)] px-4 py-3 text-left text-myr-caption font-extrabold tracking-[.1em] text-myr-account-ink-soft uppercase';
 const providerTableCellClassName = 'border-b border-myr-line px-4 py-[13px] align-middle';
 const providerBadgeClassName = 'inline-flex w-max items-center whitespace-nowrap rounded-full bg-[rgba(36,27,47,.08)] px-[9px] py-[5px] text-myr-caption font-extrabold text-myr-account-ink-soft';
@@ -203,7 +203,7 @@ function ResetPasswordPage({ api, onLogin }: { api: AccountApi; onLogin: () => v
 }
 
 function ProtectedAccountFrame({ view, user, status, onNavigate, onLogout, children }: { view: AccountView; user: AccountUser | null; status: string; onNavigate: (view: AccountView) => void; onLogout: () => void; children: ReactNode }) {
-  if (status === 'unknown') return <div className="grid grid-cols-[minmax(360px,480px)] justify-center px-[22px] py-[clamp(20px,5vh,56px)]"><main className="rounded-myr-shell border border-myr-line bg-[rgba(255,250,240,.92)] p-[30px] shadow-myr-surface" aria-busy="true">認証状態を確認しています…</main></div>;
+  if (status === 'unknown') return <div className="grid grid-cols-[minmax(360px,480px)] justify-center px-[22px] py-[clamp(20px,5vh,56px)]"><main className={surfaceRecipe({ role: 'panel', variant: 'account' })} aria-busy="true">認証状態を確認しています…</main></div>;
   if (!user) return <AuthScaffold ariaLabel="ログインが必要" kicker="Account" title="ログインが必要です" lead="この画面を表示するにはログインしてください。"><Button variant="primary" onClick={() => onNavigate('login')}>ログインへ</Button></AuthScaffold>;
   return (
     <AppFrame

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button } from '../../components/ui';
+import { Button, surfaceRecipe, textRecipe } from '../../components/ui';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { useAppNavigation, type StoryKey } from '../../shared/nav';
 import {
@@ -44,12 +44,12 @@ const fallbackDb = createDemoDb('resumableSession');
 const crumbs: Crumb[] = [{ label: 'Myriale' }, { label: 'ホーム' }];
 
 
-const homePanelClassName = 'grid gap-[18px] rounded-myr-shell border border-[rgba(220,231,242,.54)] bg-[radial-gradient(circle_at_10%_0%,rgba(124,92,255,.10),transparent_30%),linear-gradient(135deg,rgba(255,250,240,.97),rgba(255,248,232,.90))] p-[clamp(18px,3vw,26px)] shadow-[0_24px_80px_rgba(18,16,25,.18)] max-[720px]:rounded-[20px] max-[720px]:p-[18px]';
+const homePanelClassName = surfaceRecipe({ role: 'panel', variant: 'home' });
 const homeSectionHeadClassName = 'flex flex-wrap items-center justify-between gap-[14px]';
-const homeCardClassName = 'home-card relative grid min-h-[230px] content-start gap-[10px] overflow-hidden rounded-myr-panel border border-[rgba(36,27,47,.12)] bg-[rgba(255,254,249,.82)] p-myr-card-inset';
-const homeCardLabelClassName = 'text-myr-caption font-black tracking-[.08em] text-[#6f4fd8] uppercase';
-const homeCardTitleClassName = "m-0 font-['Yu_Mincho','Hiragino_Mincho_ProN',Georgia,serif] text-[25px] leading-[1.08] tracking-myr-display";
-const homeCardCopyClassName = 'm-0 leading-[1.58] text-myr-slate';
+const homeCardClassName = surfaceRecipe({ role: 'card', variant: 'home' });
+const homeCardLabelClassName = `${textRecipe('eyebrowData')} !tracking-[.08em] !text-[#6f4fd8]`;
+const homeCardTitleClassName = `m-0 ${textRecipe('sectionEditorial')} !text-[25px] !leading-[1.08] !tracking-myr-display`;
+const homeCardCopyClassName = `m-0 ${textRecipe('body')} !leading-[1.58]`;
 const homeCardMetaClassName = 'leading-[1.45] text-myr-ink-subtle';
 const homeCardActionsClassName = 'mt-2 flex flex-wrap items-center gap-[10px] self-end max-[720px]:[&>button]:w-full';
 
@@ -149,7 +149,7 @@ export function HomePage() {
             </div>
           </div>
           <aside
-            className="relative z-[1] grid min-h-[230px] self-center gap-[10px] rounded-3xl border border-[rgba(36,27,47,.16)] bg-[linear-gradient(180deg,rgba(25,20,33,.94),rgba(36,27,47,.88)),#191421] p-5 text-myr-paper max-[820px]:min-h-0"
+            className={`relative z-[1] grid min-h-[230px] self-center gap-[10px] ${surfaceRecipe({ role: 'dark' })} max-[820px]:min-h-0`}
             aria-label="現在の活動概要"
           >
             <span className="text-myr-caption font-black tracking-[.18em] text-[#c6b7d9] uppercase">Desk ledger</span>
@@ -174,7 +174,7 @@ export function HomePage() {
           <div className={homeSectionHeadClassName}>
             <div className="grid gap-0.5">
               <p className="kicker m-0">Continue</p>
-              <h2 className="m-0 font-['Yu_Mincho','Hiragino_Mincho_ProN',Georgia,serif] text-[clamp(28px,4vw,44px)] tracking-[-.06em]">
+              <h2 className={`m-0 ${textRecipe('sectionEditorial')}`}>
                 中断しているセッション
               </h2>
             </div>
@@ -215,7 +215,7 @@ export function HomePage() {
           <div className={homeSectionHeadClassName}>
             <div className="grid gap-0.5">
               <p className="kicker m-0">Recommended</p>
-              <h2 className="m-0 font-['Yu_Mincho','Hiragino_Mincho_ProN',Georgia,serif] text-[clamp(28px,4vw,44px)] tracking-[-.06em]">
+              <h2 className={`m-0 ${textRecipe('sectionEditorial')}`}>
                 おすすめのシナリオ
               </h2>
             </div>
