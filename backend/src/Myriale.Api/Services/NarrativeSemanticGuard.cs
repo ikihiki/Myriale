@@ -29,6 +29,27 @@ public static partial class NarrativeSemanticGuard
         ["突然"] = "理由なく", ["勝手に"] = "理由なく", ["ひとりでに"] = "理由なく",
     };
 
+    public static IReadOnlyList<ValidatedNarrativeProgressionSignal> DeriveProgressionSignals(
+        IReadOnlyList<NarrativeAllowedSignal> allowedSignals,
+        string playerInput,
+        NarrativeSessionStateInput sessionState,
+        string? currentProgressionNode)
+    {
+        var derived = allowedSignals
+            .Select(signal => signal.Code)
+            .Where(code => !string.IsNullOrWhiteSpace(code))
+            .Distinct(StringComparer.Ordinal)
+            .Where(code => SignalEvidenceRules.TryGetValue(code, out var rule)
+                && rule(playerInput, sessionState, currentProgressionNode))
+            .Select(code => CreateValidatedSignal(code, sessionState, currentProgressionNode))
+            .ToArray();
+
+        if (derived.Length > 1)
+            throw new NarrativeSignalValidationException($"Authoritative narrative evidence matched too many progression signals: count={derived.Length}, max=1.");
+
+        return derived;
+    }
+
     public static IReadOnlyList<ValidatedNarrativeProgressionSignal> ValidateProgressionSignals(
         IReadOnlyList<NarrativeProgressionSignal> signals,
         IReadOnlyList<NarrativeAllowedSignal> allowedSignals,
@@ -62,13 +83,18 @@ public static partial class NarrativeSemanticGuard
             if (violations.Count > 0)
                 throw new NarrativeSignalValidationException($"Narrative provider returned an invalid progression signal: {string.Join("; ", violations)}");
 
-            validated.Add(new ValidatedNarrativeProgressionSignal(
-                signal.Code,
-                $"server-rule:{signal.Code};state-revision:{sessionState.Revision};node:{currentProgressionNode ?? "none"}"));
+            validated.Add(CreateValidatedSignal(signal.Code, sessionState, currentProgressionNode));
         }
 
         return validated;
     }
+
+    private static ValidatedNarrativeProgressionSignal CreateValidatedSignal(
+        string code,
+        NarrativeSessionStateInput sessionState,
+        string? currentProgressionNode) => new(
+            code,
+            $"server-rule:{code};state-revision:{sessionState.Revision};node:{currentProgressionNode ?? "none"}");
 
     public static IReadOnlyList<string> MatchForbiddenFacts(string narrative, IEnumerable<string> forbiddenFacts)
     {

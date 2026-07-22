@@ -9,7 +9,7 @@ namespace Myriale.Api.Tests;
 
 public sealed class ProviderNarrativeGeneratorTests
 {
-    private const string ValidResult = "{\"schemaVersion\":\"narrative-dialogue.v8\",\"turnType\":\"npc-reply\",\"heading\":\"青い灯\",\"body\":\"司書リラは青い魔法灯について丁寧に答えた。\",\"signals\":[],\"interpretation\":null}";
+    private const string ValidResult = "{\"body\":\"司書リラは青い魔法灯について丁寧に答えた。\"}";
 
     [Fact]
     public async Task DialogueWirePromptIsExplicitConciseAndIncludesAuthoritativeContext()
@@ -23,12 +23,13 @@ public sealed class ProviderNarrativeGeneratorTests
         var wire = Assert.Single(provider.Requests);
         Assert.Equal("narrative_dialogue", wire.ResponseFormat.SchemaName);
         var system = wire.Messages[0].Text!;
-        Assert.Contains("exactly these six keys", system, StringComparison.Ordinal);
+        Assert.Contains("exactly one key", system, StringComparison.Ordinal);
         Assert.Contains("\"body\": non-empty JSON string, never an object or array", system, StringComparison.Ordinal);
+        Assert.Contains("Do not return schemaVersion, turnType, heading, signals, interpretation", system, StringComparison.Ordinal);
         Assert.Contains("interactionType \"clarification\"", system, StringComparison.Ordinal);
         Assert.Contains("Never choose that decision for the Player", system, StringComparison.Ordinal);
         Assert.Contains("forbiddenNarrativeFact", system, StringComparison.Ordinal);
-        Assert.Contains("triggerDescription is explicitly satisfied", system, StringComparison.Ordinal);
+        Assert.Contains("derived exclusively by server-owned evidence rules", system, StringComparison.Ordinal);
         var policyJson = system[(system.LastIndexOf('\n') + 1)..];
         var wirePolicy = JsonSerializer.Deserialize<NarrativePromptInstructions>(policyJson, new JsonSerializerOptions(JsonSerializerDefaults.Web));
         Assert.NotNull(wirePolicy);
@@ -61,7 +62,7 @@ public sealed class ProviderNarrativeGeneratorTests
     public async Task InvalidStructuredOutputIsRegeneratedOnceAndMetadataIsAggregated()
     {
         var provider = new QueueProvider(
-            Response("{\"schemaVersion\":\"narrative-dialogue.v8\",\"body\":{\"text\":\"wrong type\"}}", inputTokens: 10, outputTokens: 3, latency: 5, attempts: 1, responseId: "first"),
+            Response("{\"body\":{\"text\":\"wrong type\"}}", inputTokens: 10, outputTokens: 3, latency: 5, attempts: 1, responseId: "first"),
             Response(ValidResult, inputTokens: 11, outputTokens: 4, latency: 7, attempts: 2, responseId: "second"));
         var generator = CreateGenerator(provider);
 
@@ -87,14 +88,14 @@ public sealed class ProviderNarrativeGeneratorTests
         var generation = await generator.GenerateDialogueAsync(CreateRequest(), CancellationToken.None);
 
         Assert.Single(provider.Requests);
-        Assert.Equal("青い灯", generation.Value.Heading);
+        Assert.Equal("問いかけへの応答", generation.Value.Heading);
         Assert.Equal(fenced, generation.ReceivedResult);
     }
 
     [Fact]
     public async Task SemanticallyMalformedBodyIsNotCanonicalizedOrAccepted()
     {
-        const string malformed = "{\"schemaVersion\":\"narrative-dialogue.v8\",\"turnType\":\"action-result\",\"heading\":\"Door\",\"body\":{\"text\":\"still not a string\"},\"signals\":[],\"interpretation\":null}";
+        const string malformed = "{\"body\":{\"text\":\"still not a string\"}}";
         var provider = new QueueProvider(Response(malformed), Response(malformed, responseId: "second-invalid"));
         var generator = CreateGenerator(provider);
 
@@ -105,6 +106,100 @@ public sealed class ProviderNarrativeGeneratorTests
         Assert.Equal(AiProviderErrorCodes.SchemaFailure, exception.Code);
         Assert.NotNull(exception.SentPrompt);
         Assert.Equal(malformed, exception.ReceivedResult);
+    }
+
+    [Theory]
+    [InlineData("{\"body\":null}")]
+    [InlineData("{\"body\":\"   \\n  \"}")]
+    public async Task NullOrWhitespaceBodyIsRejectedAfterOneRetry(string malformed)
+    {
+        var provider = new QueueProvider(Response(malformed), Response(malformed, responseId: "second-invalid"));
+
+        var exception = await Assert.ThrowsAsync<AiProviderException>(() =>
+            CreateGenerator(provider).GenerateDialogueAsync(CreateRequest(), CancellationToken.None));
+
+        Assert.Equal(2, provider.Requests.Count);
+        Assert.Equal(AiProviderErrorCodes.SchemaFailure, exception.Code);
+        Assert.Equal(malformed, exception.ReceivedResult);
+    }
+
+    [Theory]
+    [InlineData(NarrativeInteractionTypes.Clarification, "司書リラに尋ねる。", "clarification", "状況を確認する")]
+    [InlineData(NarrativeInteractionTypes.Dialogue, "司書リラに魔法灯について尋ねる。", "npc-reply", "問いかけへの応答")]
+    [InlineData(NarrativeInteractionTypes.Dialogue, "閉じた扉を観察する。", "action-result", "行動の結果")]
+    [InlineData(NarrativeInteractionTypes.Dialogue, "What is behind the door?", "npc-reply", "問いかけへの応答")]
+    public async Task ServerDeterminesTurnTypeAndHeadingFromAuthoritativeInput(
+        string interactionType,
+        string playerInput,
+        string expectedTurnType,
+        string expectedHeading)
+    {
+        var provider = new QueueProvider(Response(ValidResult));
+        var request = CreateRequest() with
+        {
+            InteractionType = interactionType,
+            PlayerInput = playerInput,
+        };
+
+        var generation = await CreateGenerator(provider).GenerateDialogueAsync(request, CancellationToken.None);
+
+        Assert.Equal(NarrativeDialogueSchema.Version, generation.Value.SchemaVersion);
+        Assert.Equal(expectedTurnType, generation.Value.TurnType);
+        Assert.Equal(expectedHeading, generation.Value.Heading);
+        Assert.Equal("司書リラは青い魔法灯について丁寧に答えた。", generation.Value.Body);
+    }
+
+    [Fact]
+    public async Task InterpretationIsServerGeneratedSingleLineAndBounded()
+    {
+        var provider = new QueueProvider(Response(ValidResult));
+        var request = CreateRequest() with
+        {
+            IncludeInterpretation = true,
+            PlayerInput = "司書リラに\n" + new string('長', 300) + "について尋ねる。",
+        };
+
+        var result = (await CreateGenerator(provider).GenerateDialogueAsync(request, CancellationToken.None)).Value;
+
+        Assert.StartsWith("対話: 司書リラに ", result.Interpretation, StringComparison.Ordinal);
+        Assert.DoesNotContain('\n', result.Interpretation!);
+        Assert.DoesNotContain('\r', result.Interpretation!);
+        Assert.True(result.Interpretation!.Length <= 200);
+    }
+
+    [Theory]
+    [InlineData("閉じた星座の扉へ進み、扉に到達した。", true)]
+    [InlineData("星座の扉にはまだ近づかず、遠くから眺める。", false)]
+    public async Task SignalsAreDerivedOnlyFromServerOwnedEvidence(string playerInput, bool expectedSignal)
+    {
+        var provider = new QueueProvider(Response(ValidResult));
+        var request = CreateRequest() with { PlayerInput = playerInput };
+
+        var result = (await CreateGenerator(provider).GenerateDialogueAsync(request, CancellationToken.None)).Value;
+
+        if (!expectedSignal)
+        {
+            Assert.Empty(result.Signals);
+            return;
+        }
+
+        var signal = Assert.Single(result.Signals);
+        Assert.Equal("constellation-door-reached", signal.Code);
+        Assert.Equal("server-rule:constellation-door-reached;state-revision:4;node:exploration", signal.Evidence);
+    }
+
+    [Fact]
+    public async Task ProviderCannotSupplyAnyServerOwnedControlField()
+    {
+        const string providerControlled = "{\"body\":\"本文\",\"turnType\":\"clarification\"}";
+        var provider = new QueueProvider(Response(providerControlled), Response(providerControlled, responseId: "second-invalid"));
+
+        var exception = await Assert.ThrowsAsync<AiProviderException>(() =>
+            CreateGenerator(provider).GenerateDialogueAsync(CreateRequest(), CancellationToken.None));
+
+        Assert.Equal(2, provider.Requests.Count);
+        Assert.Equal(AiProviderErrorCodes.SchemaFailure, exception.Code);
+        Assert.Equal(providerControlled, exception.ReceivedResult);
     }
 
     private static ProviderNarrativeGenerator CreateGenerator(IAiTextProvider provider) => new(

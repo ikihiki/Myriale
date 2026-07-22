@@ -172,7 +172,7 @@ public sealed class NarrativeProviderRequestBudgetTests
         {
             Requests.Add(request);
             return Task.FromResult(new AiTextResponse(
-                "{\"schemaVersion\":\"narrative-dialogue.v8\",\"turnType\":\"action-result\",\"heading\":\"Seal\",\"body\":\"The seal remains closed.\",\"signals\":[],\"interpretation\":\"inspection\"}",
+                "{\"body\":\"The seal remains closed.\"}",
                 new AiGenerationMetadata("test", "test", "response", null, null, 1, 1, "stop")));
         }
 
