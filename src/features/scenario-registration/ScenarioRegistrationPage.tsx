@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Input, Textarea } from '../../components/ui';
 import { ScenarioProgressControls } from '../../ScenarioProgressControls';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { WizardNavigation } from '../../shared/WizardNavigation';
@@ -257,8 +258,8 @@ export function ScenarioRegistrationPage({ api }: { api?: ScenarioApi } = {}) {
         {activeStep === 'cover' && (
           <section className={wizardPanelClass} aria-label="表紙">
             <p><strong>{currentStep.help}。</strong>シナリオは未完成で保存できます。最初はタイトルだけでDraftを作り、あとから設定を足します。</p>
-            <label>シナリオタイトル *<input aria-label="シナリオタイトル" aria-invalid={firstScenarioFieldError(saveError, 'title') ? true : undefined} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="星喰いの地下図書館" /></label>
-            <label>概要（空でも保存できます）<textarea aria-label="概要" aria-invalid={firstScenarioFieldError(saveError, 'summary') ? true : undefined} value={summary} onChange={(event) => setSummary(event.target.value)} /></label>
+            <label>シナリオタイトル *<Input aria-label="シナリオタイトル" aria-invalid={firstScenarioFieldError(saveError, 'title') ? true : undefined} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="星喰いの地下図書館" /></label>
+            <label>概要（空でも保存できます）<Textarea aria-label="概要" aria-invalid={firstScenarioFieldError(saveError, 'summary') ? true : undefined} value={summary} onChange={(event) => setSummary(event.target.value)} /></label>
             <div className={wizardButtonRowClass}><button className="primary" onClick={saveDraft} disabled={saving}>{saving ? '保存中…' : '下書き保存'}</button><button onClick={() => void consultAi('概要')} disabled={aiWorking}>AIに概要案を出してもらう</button><button onClick={adoptSummary}>採用して編集</button></div>
           </section>
         )}
@@ -266,9 +267,9 @@ export function ScenarioRegistrationPage({ api }: { api?: ScenarioApi } = {}) {
         {activeStep === 'lore' && (
           <section className={wizardPanelClass} aria-label="世界の掟">
             <p><strong>{currentStep.help}。</strong>ジャンル、雰囲気、Loreは文章AIと挿絵AIが共通して読む契約です。</p>
-            <label>ジャンル<input aria-label="ジャンル" value={genre} onChange={(event) => setGenre(event.target.value)} /></label>
-            <label>雰囲気<input aria-label="雰囲気" value={tone} onChange={(event) => setTone(event.target.value)} /></label>
-            <label>Lore<textarea aria-label="世界観やルール" value={lore} onChange={(event) => setLore(event.target.value)} /></label>
+            <label>ジャンル<Input aria-label="ジャンル" value={genre} onChange={(event) => setGenre(event.target.value)} /></label>
+            <label>雰囲気<Input aria-label="雰囲気" value={tone} onChange={(event) => setTone(event.target.value)} /></label>
+            <label>Lore<Textarea aria-label="世界観やルール" value={lore} onChange={(event) => setLore(event.target.value)} /></label>
             <button onClick={() => void consultAi('世界観')} disabled={aiWorking}>矛盾をチェック</button>
           </section>
         )}
@@ -323,7 +324,7 @@ export function ScenarioRegistrationPage({ api }: { api?: ScenarioApi } = {}) {
             )}
             <label>
               {heroMode === 'fixed' ? '固定する主人公' : heroMode === 'select' ? '候補キャラクター（1行に1人）' : '自由生成時の前提・制約'}
-              <textarea aria-label="主人公の設定" value={hero} onChange={(event) => setHero(event.target.value)} />
+              <Textarea aria-label="主人公の設定" value={hero} onChange={(event) => setHero(event.target.value)} />
             </label>
           </section>
         )}
@@ -331,17 +332,17 @@ export function ScenarioRegistrationPage({ api }: { api?: ScenarioApi } = {}) {
         {activeStep === 'opening' && (
           <section className={wizardPanelClass} aria-label="第一場面">
             <p><strong>{currentStep.help}。</strong>開始シーンを固定すると、毎回同じ導入から物語を始められます。未入力ならAI生成です。</p>
-            <label>開始シーン<textarea aria-label="開始シーン" value={opening} onChange={(event) => setOpening(event.target.value)} /></label>
+            <label>開始シーン<Textarea aria-label="開始シーン" value={opening} onChange={(event) => setOpening(event.target.value)} /></label>
           </section>
         )}
 
         {activeStep === 'illustration' && (
           <section className={illustrationWizardPanelClass} aria-label="挿絵の筆致">
             <p><strong>{currentStep.help}。</strong>テイスト、ムード、禁止要素を登録し、本番前に保存されないプレビューで確認します。</p>
-            <label>画風<input aria-label="挿絵の画風" value={illustrationStyle} onChange={(event) => setIllustrationStyle(event.target.value)} /></label>
-            <label>ムード<input aria-label="挿絵のムード" value={mood} onChange={(event) => setMood(event.target.value)} /></label>
-            <label>NG要素<textarea aria-label="挿絵の禁止要素" value={negative} onChange={(event) => setNegative(event.target.value)} /></label>
-            <label>サンプルシーン<textarea aria-label="サンプルシーン" value={sampleScene} onChange={(event) => setSampleScene(event.target.value)} /></label>
+            <label>画風<Input aria-label="挿絵の画風" value={illustrationStyle} onChange={(event) => setIllustrationStyle(event.target.value)} /></label>
+            <label>ムード<Input aria-label="挿絵のムード" value={mood} onChange={(event) => setMood(event.target.value)} /></label>
+            <label>NG要素<Textarea aria-label="挿絵の禁止要素" value={negative} onChange={(event) => setNegative(event.target.value)} /></label>
+            <label>サンプルシーン<Textarea aria-label="サンプルシーン" value={sampleScene} onChange={(event) => setSampleScene(event.target.value)} /></label>
             <div className={wizardButtonRowClass}><button onClick={() => void consultAi('挿絵テイスト')} disabled={aiWorking}>画風を相談</button><button onClick={() => void consultAi('挿絵プロンプト')} disabled={aiWorking}>プロンプトを生成</button><button className="primary" onClick={() => void generatePreview()} disabled={aiWorking}>サンプルシーンで生成</button></div>
           </section>
         )}

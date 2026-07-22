@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Input, Textarea } from './components/ui';
 import { MyrialeDialogContent, MyrialeDialogRoot } from './ui/MyrialeRadix';
 
 type Panel = 'cast' | 'locations' | 'beats' | 'secrets' | 'events' | 'debug' | 'test';
@@ -222,7 +223,7 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
 
       {panel === 'test' && (
         <section className={panelClassName} aria-label="テスト実行">
-          <label>テスト開始地点<input aria-label="テスト開始地点" value={testStart} onChange={(event) => setTestStart(event.target.value)} /></label>
+          <label>テスト開始地点<Input aria-label="テスト開始地点" value={testStart} onChange={(event) => setTestStart(event.target.value)} /></label>
           <div className="button-row"><button className="primary" onClick={startTest}>この地点からテスト開始</button></div>
         </section>
       )}
@@ -233,46 +234,46 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
     <>
       {dialog === 'cast' && (
         <FieldDialog title="Castを追加" onClose={() => setDialog(null)}>
-          <label>人物名<input aria-label="人物名" value={castName} onChange={(event) => setCastName(event.target.value)} /></label>
-          <label>役割・性格・秘密<textarea aria-label="人物の役割と秘密" value={castRole} onChange={(event) => setCastRole(event.target.value)} /></label>
-          <label>登場条件・生成ルール<textarea aria-label="人物の登場条件" value={castRule} onChange={(event) => setCastRule(event.target.value)} /></label>
+          <label>人物名<Input aria-label="人物名" value={castName} onChange={(event) => setCastName(event.target.value)} /></label>
+          <label>役割・性格・秘密<Textarea aria-label="人物の役割と秘密" value={castRole} onChange={(event) => setCastRole(event.target.value)} /></label>
+          <label>登場条件・生成ルール<Textarea aria-label="人物の登場条件" value={castRule} onChange={(event) => setCastRule(event.target.value)} /></label>
           <div className="button-row"><button onClick={() => setDialog(null)}>キャンセル</button><button className="primary" onClick={saveCast}>Castを登録</button></div>
         </FieldDialog>
       )}
 
       {dialog === 'location' && (
         <FieldDialog title="Locationを追加" onClose={() => setDialog(null)}>
-          <label>場所名<input aria-label="場所名" value={locationName} onChange={(event) => setLocationName(event.target.value)} /></label>
-          <label>場所の条件<textarea aria-label="場所の条件" value={locationRule} onChange={(event) => setLocationRule(event.target.value)} /></label>
+          <label>場所名<Input aria-label="場所名" value={locationName} onChange={(event) => setLocationName(event.target.value)} /></label>
+          <label>場所の条件<Textarea aria-label="場所の条件" value={locationRule} onChange={(event) => setLocationRule(event.target.value)} /></label>
           <div className="button-row"><button onClick={() => setDialog(null)}>キャンセル</button><button className="primary" onClick={saveLocation}>Locationを登録</button></div>
         </FieldDialog>
       )}
 
       {dialog === 'beat' && (
         <FieldDialog title="Beatを追加" onClose={() => setDialog(null)}>
-          <label>Chapter<input aria-label="Chapter" value={chapter} onChange={(event) => setChapter(event.target.value)} /></label>
-          <label>Beat<input aria-label="Beat" value={beat} onChange={(event) => setBeat(event.target.value)} /></label>
-          <label>Entry条件<textarea aria-label="Entry条件" value={entry} onChange={(event) => setEntry(event.target.value)} /></label>
-          <label>Exit条件<textarea aria-label="Exit条件" value={exit} onChange={(event) => setExit(event.target.value)} /></label>
-          <label>このBeatの禁止事項<textarea aria-label="禁止事項" value={forbidden} onChange={(event) => setForbidden(event.target.value)} /></label>
+          <label>Chapter<Input aria-label="Chapter" value={chapter} onChange={(event) => setChapter(event.target.value)} /></label>
+          <label>Beat<Input aria-label="Beat" value={beat} onChange={(event) => setBeat(event.target.value)} /></label>
+          <label>Entry条件<Textarea aria-label="Entry条件" value={entry} onChange={(event) => setEntry(event.target.value)} /></label>
+          <label>Exit条件<Textarea aria-label="Exit条件" value={exit} onChange={(event) => setExit(event.target.value)} /></label>
+          <label>このBeatの禁止事項<Textarea aria-label="禁止事項" value={forbidden} onChange={(event) => setForbidden(event.target.value)} /></label>
           <div className="button-row"><button onClick={() => setDialog(null)}>キャンセル</button><button className="primary" onClick={lockBeat}>Beatを固定</button></div>
         </FieldDialog>
       )}
 
       {dialog === 'secret' && (
         <FieldDialog title="HiddenBriefを追加" onClose={() => setDialog(null)}>
-          <label>秘密の名前<input aria-label="秘密の名前" value={secretTitle} onChange={(event) => setSecretTitle(event.target.value)} /></label>
-          <label>HiddenBrief<textarea aria-label="HiddenBrief" value={hiddenBrief} onChange={(event) => setHiddenBrief(event.target.value)} /></label>
-          <label>公開条件<textarea aria-label="公開条件" value={revealCondition} onChange={(event) => setRevealCondition(event.target.value)} /></label>
+          <label>秘密の名前<Input aria-label="秘密の名前" value={secretTitle} onChange={(event) => setSecretTitle(event.target.value)} /></label>
+          <label>HiddenBrief<Textarea aria-label="HiddenBrief" value={hiddenBrief} onChange={(event) => setHiddenBrief(event.target.value)} /></label>
+          <label>公開条件<Textarea aria-label="公開条件" value={revealCondition} onChange={(event) => setRevealCondition(event.target.value)} /></label>
           <div className="button-row"><button onClick={() => setDialog(null)}>キャンセル</button><button className="primary" onClick={saveSecret}>非公開情報を保存</button></div>
         </FieldDialog>
       )}
 
       {dialog === 'event' && (
         <FieldDialog title="強制イベントを追加" onClose={() => setDialog(null)}>
-          <label>イベント名<input aria-label="イベント名" value={eventTitle} onChange={(event) => setEventTitle(event.target.value)} /></label>
-          <label>トリガー条件<textarea aria-label="トリガー条件" value={eventTrigger} onChange={(event) => setEventTrigger(event.target.value)} /></label>
-          <label>イベント内容<textarea aria-label="イベント内容" value={eventBody} onChange={(event) => setEventBody(event.target.value)} /></label>
+          <label>イベント名<Input aria-label="イベント名" value={eventTitle} onChange={(event) => setEventTitle(event.target.value)} /></label>
+          <label>トリガー条件<Textarea aria-label="トリガー条件" value={eventTrigger} onChange={(event) => setEventTrigger(event.target.value)} /></label>
+          <label>イベント内容<Textarea aria-label="イベント内容" value={eventBody} onChange={(event) => setEventBody(event.target.value)} /></label>
           <div className="button-row"><button onClick={() => setDialog(null)}>キャンセル</button><button className="primary" onClick={saveEvent}>強制イベントを登録</button></div>
         </FieldDialog>
       )}

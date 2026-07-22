@@ -3,8 +3,8 @@ import type { ReactNode } from 'react';
 export type FieldControlState = 'default' | 'error';
 
 export const fieldControlClassNames: Record<FieldControlState, string> = {
-  default: 'w-full rounded-2xl border border-myr-line bg-myr-paper-bright px-3.5 py-3 text-myr-ink placeholder:text-[#a89f93]',
-  error: 'w-full rounded-2xl border border-[var(--seal)] bg-[#fff7f5] px-3.5 py-3 text-myr-ink placeholder:text-[#a89f93]',
+  default: 'placeholder:text-[#a89f93]',
+  error: '!border-[var(--seal)] !bg-[#fff7f5] placeholder:text-[#a89f93]',
 };
 
 export function Field({

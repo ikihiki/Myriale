@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Input, Textarea } from './components/ui';
 import { useOptionalAppStore } from './app/store';
 import { MyrialeDialogContent, MyrialeDialogRoot } from './ui/MyrialeRadix';
 
@@ -149,7 +150,7 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
       <div className="grid h-full min-h-0 grid-cols-1 items-stretch gap-2">
         <div className="grid min-h-0 content-start gap-1 overflow-auto" aria-label="ノート一覧">
           <div className={`grid items-end gap-2 border-b border-myr-ink/12 pb-1.5 ${mode === 'side' ? 'grid-cols-1' : 'grid-cols-[minmax(220px,1fr)_auto]'}`}>
-            <label className="grid gap-1.5 text-xs font-black text-myr-slate-muted">ノート検索<input className="min-h-[30px] px-2 py-1.5 text-myr-ui-sm" aria-label="ノート検索" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="人物・場所名で検索" /></label>
+            <label className="grid gap-1.5 text-xs font-black text-myr-slate-muted">ノート検索<Input className="min-h-[30px] px-2 py-1.5 text-myr-ui-sm" aria-label="ノート検索" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="人物・場所名で検索" /></label>
             <div className={`flex flex-wrap gap-[5px] ${mode === 'side' ? 'justify-start' : 'justify-end'} [&_button]:rounded-full [&_button]:px-2 [&_button]:py-1 [&_button]:text-myr-caption`} aria-label="ノート操作">
               <button onClick={() => createNote('person')}>人物追加</button>
               <button onClick={() => createNote('location')}>場所追加</button>
@@ -186,12 +187,12 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
               <div><span>{editingNote.kind === 'person' ? '人物ノート' : '場所ノート'}</span><h2>{editingNote.name}</h2><p>{editingNote.firstTurn} 初出 / 確定度: <b>{editingNote.certainty}</b></p></div>
             </header>
             <div className="grid grid-cols-2 gap-2.5 max-myr-workspace:grid-cols-1 [&_label]:grid [&_label]:gap-[5px] [&_label]:text-xs [&_label]:font-black [&_label]:text-myr-slate-muted [&_textarea]:min-h-24">
-              <label>表示名<input aria-label="表示名" value={editingNote.name} onChange={(event) => updateNote(editingNote.id, { name: event.target.value })} /></label>
-              <label>別名<input aria-label="別名" value={editingNote.aliases} onChange={(event) => updateNote(editingNote.id, { aliases: event.target.value })} /></label>
-              <label>外見・種別・詳細<textarea aria-label="外見・種別・詳細" value={editingNote.details} onChange={(event) => updateNote(editingNote.id, { details: event.target.value })} /></label>
-              <label>口調または雰囲気<textarea aria-label="口調または雰囲気" value={editingNote.speechOrAtmosphere} onChange={(event) => updateNote(editingNote.id, { speechOrAtmosphere: event.target.value })} /></label>
-              <label>関係性または施設<textarea aria-label="関係性または施設" value={editingNote.relationsOrFacilities} onChange={(event) => updateNote(editingNote.id, { relationsOrFacilities: event.target.value })} /></label>
-              <label>現在状態または禁則<textarea aria-label="現在状態または禁則" value={editingNote.stateOrRules} onChange={(event) => updateNote(editingNote.id, { stateOrRules: event.target.value })} /></label>
+              <label>表示名<Input aria-label="表示名" value={editingNote.name} onChange={(event) => updateNote(editingNote.id, { name: event.target.value })} /></label>
+              <label>別名<Input aria-label="別名" value={editingNote.aliases} onChange={(event) => updateNote(editingNote.id, { aliases: event.target.value })} /></label>
+              <label>外見・種別・詳細<Textarea aria-label="外見・種別・詳細" value={editingNote.details} onChange={(event) => updateNote(editingNote.id, { details: event.target.value })} /></label>
+              <label>口調または雰囲気<Textarea aria-label="口調または雰囲気" value={editingNote.speechOrAtmosphere} onChange={(event) => updateNote(editingNote.id, { speechOrAtmosphere: event.target.value })} /></label>
+              <label>関係性または施設<Textarea aria-label="関係性または施設" value={editingNote.relationsOrFacilities} onChange={(event) => updateNote(editingNote.id, { relationsOrFacilities: event.target.value })} /></label>
+              <label>現在状態または禁則<Textarea aria-label="現在状態または禁則" value={editingNote.stateOrRules} onChange={(event) => updateNote(editingNote.id, { stateOrRules: event.target.value })} /></label>
             </div>
             <div className="button-row"><button className="primary" onClick={() => markCertainty(editingNote.id, 'Canon')}>Canonにする</button><button onClick={() => markCertainty(editingNote.id, '未確定')}>未確定にする</button><button onClick={() => markCertainty(editingNote.id, '噂')}>噂にする</button><button onClick={closeNote}>閉じる</button></div>
           </MyrialeDialogContent>

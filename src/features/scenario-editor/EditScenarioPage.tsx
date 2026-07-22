@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Input, Textarea } from '../../components/ui';
 import { ScenarioProgressControls } from '../../ScenarioProgressControls';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
@@ -279,10 +280,10 @@ export function EditScenarioPage() {
                 <section className={wizardPanelClass} aria-label="基本情報の編集">
                   <p><strong>タイトルや概要（あらすじ）を編集します。</strong>内容に合った説明へ更新できます。</p>
                   <label>タイトル
-                    <input aria-label="シナリオタイトル" value={draft.title} onChange={(event) => update('title', event.target.value)} />
+                    <Input aria-label="シナリオタイトル" value={draft.title} onChange={(event) => update('title', event.target.value)} />
                   </label>
                   <label>概要（あらすじ）
-                    <textarea aria-label="概要" value={draft.summary} onChange={(event) => update('summary', event.target.value)} />
+                    <Textarea aria-label="概要" value={draft.summary} onChange={(event) => update('summary', event.target.value)} />
                   </label>
                 </section>
               )}
@@ -294,13 +295,13 @@ export function EditScenarioPage() {
                     更新は以降の新しいセッションに使われ、<em>進行中の既存セッションには影響しません。</em>
                   </p>
                   <label>ジャンル
-                    <input aria-label="ジャンル" value={draft.genre} onChange={(event) => update('genre', event.target.value)} />
+                    <Input aria-label="ジャンル" value={draft.genre} onChange={(event) => update('genre', event.target.value)} />
                   </label>
                   <label>雰囲気
-                    <input aria-label="雰囲気" value={draft.tone} onChange={(event) => update('tone', event.target.value)} />
+                    <Input aria-label="雰囲気" value={draft.tone} onChange={(event) => update('tone', event.target.value)} />
                   </label>
                   <label>Lore
-                    <textarea aria-label="世界観やルール" value={draft.lore} onChange={(event) => update('lore', event.target.value)} />
+                    <Textarea aria-label="世界観やルール" value={draft.lore} onChange={(event) => update('lore', event.target.value)} />
                   </label>
                 </section>
               )}
@@ -319,7 +320,7 @@ export function EditScenarioPage() {
                     ]}
                   />
                   <label>Narrative生成方針
-                    <textarea aria-label="Narrative生成方針" value={draft.narrativePolicy} onChange={(event) => update('narrativePolicy', event.target.value)} />
+                    <Textarea aria-label="Narrative生成方針" value={draft.narrativePolicy} onChange={(event) => update('narrativePolicy', event.target.value)} />
                   </label>
                 </section>
               )}
@@ -350,7 +351,7 @@ export function EditScenarioPage() {
                   )}
                   <label>
                     {draft.heroMode === 'fixed' ? '固定する主人公' : draft.heroMode === 'select' ? '候補キャラクター（1行に1人）' : '自由生成時の前提・制約'}
-                    <textarea aria-label="主人公の設定" value={draft.hero} onChange={(event) => update('hero', event.target.value)} />
+                    <Textarea aria-label="主人公の設定" value={draft.hero} onChange={(event) => update('hero', event.target.value)} />
                   </label>
                 </section>
               )}
@@ -367,13 +368,13 @@ export function EditScenarioPage() {
                 <section className={wizardPanelClass} aria-label="挿絵設定の編集">
                   <p><strong>挿絵のテイストや雰囲気を変更します。</strong>画風・ムード・NG要素を編集し、保存されないプレビューで確認できます。</p>
                   <label>画風
-                    <input aria-label="挿絵の画風" value={draft.illustrationStyle} onChange={(event) => update('illustrationStyle', event.target.value)} />
+                    <Input aria-label="挿絵の画風" value={draft.illustrationStyle} onChange={(event) => update('illustrationStyle', event.target.value)} />
                   </label>
                   <label>ムード
-                    <input aria-label="挿絵のムード" value={draft.mood} onChange={(event) => update('mood', event.target.value)} />
+                    <Input aria-label="挿絵のムード" value={draft.mood} onChange={(event) => update('mood', event.target.value)} />
                   </label>
                   <label>NG要素
-                    <textarea aria-label="挿絵の禁止要素" value={draft.negative} onChange={(event) => update('negative', event.target.value)} />
+                    <Textarea aria-label="挿絵の禁止要素" value={draft.negative} onChange={(event) => update('negative', event.target.value)} />
                   </label>
                 </section>
               )}

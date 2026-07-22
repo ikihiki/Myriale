@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Input } from '../../components/ui';
 import { toAppChromeAccount } from '../../account/accountPresentation';
 import { createFetchAdminAiApi, type AdminAiApiError, type AiProviderKey } from '../../account/api/adminAiApi';
 import { useAccountSession } from '../../account/hooks/useAccountSession';
@@ -124,11 +125,11 @@ export function AdminAiKeysPage() {
                   </select>
                 </label>
                 <label className="grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">表示名
-                  <input aria-label="表示名" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+                  <Input aria-label="表示名" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
                 </label>
               </div>
               <label className="mt-4 grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">APIキー
-                <input aria-label="APIキー" type="password" value={secret} onChange={(event) => setSecret(event.target.value)} placeholder={provider === 'runpod' ? 'rpa_...' : 'sk-...'} />
+                <Input aria-label="APIキー" type="password" value={secret} onChange={(event) => setSecret(event.target.value)} placeholder={provider === 'runpod' ? 'rpa_...' : 'sk-...'} />
               </label>
               <p className="mt-3 text-xs leading-5 text-myr-slate">Vaultまたは環境変数で設定済みの場合、ここで同じキーを再登録する必要はありません。</p>
               <button className="mt-4 !rounded-full !bg-myr-ink !px-5 !py-2.5 !text-sm !font-extrabold !text-myr-paper transition hover:!-translate-y-0.5 hover:!bg-myr-iris disabled:!cursor-not-allowed disabled:!opacity-40" onClick={() => void save()} disabled={busy || !secret.trim()}>キーを保存</button>

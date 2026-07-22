@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Input, Textarea } from '../../components/ui';
 import { useRouter } from '@tanstack/react-router';
 import { useForm, useStore } from '@tanstack/react-form';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -26,7 +27,7 @@ function ReadOnlyProtagonistFields({ value, testId }: { value: string; testId: s
     <div className="grid gap-4" data-testid={testId}>
       <label className="grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">
         名前
-        <input
+        <Input
           className="!cursor-not-allowed !rounded-none !border-x-0 !border-t-0 !border-b-2 !border-myr-ink/15 !bg-myr-vellum/35 !px-3 !py-2.5 !text-base !text-myr-slate !shadow-none"
           aria-label="主人公の名前"
           aria-readonly="true"
@@ -36,7 +37,7 @@ function ReadOnlyProtagonistFields({ value, testId }: { value: string; testId: s
       </label>
       <label className="grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">
         プロフィール
-        <textarea
+        <Textarea
           className="!min-h-28 !cursor-not-allowed !rounded-myr-card !border !border-myr-ink/15 !bg-myr-vellum/35 !px-3 !py-3 !text-base !leading-7 !text-myr-slate !shadow-none"
           aria-label="主人公プロフィール"
           aria-readonly="true"
@@ -172,7 +173,7 @@ function ProtagonistForm({
                 {(field) => (
                   <label className="grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">
                     名前
-                    <input
+                    <Input
                       className="!rounded-none !border-x-0 !border-t-0 !border-b-2 !border-myr-ink/20 !bg-white/45 !px-3 !py-2.5 !text-base !text-myr-ink focus:!border-myr-iris focus:!outline-none"
                       aria-label="主人公の名前"
                       value={field.state.value}
@@ -186,7 +187,7 @@ function ProtagonistForm({
                 {(field) => (
                   <label className="grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">
                     プロフィール
-                    <textarea
+                    <Textarea
                       className="!min-h-36 !rounded-myr-card !border !border-myr-ink/20 !bg-white/55 !px-3 !py-3 !text-base !leading-7 !text-myr-ink focus:!border-myr-iris focus:!outline-none"
                       aria-label="主人公プロフィール"
                       value={field.state.value}
