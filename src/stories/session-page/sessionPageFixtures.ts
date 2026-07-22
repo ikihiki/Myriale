@@ -1,4 +1,4 @@
-import type { DialogueTurn, HeadingLink } from './SessionPage';
+import type { DialogueTurn, HeadingLink } from '../../features/session-play/sessionPageModel';
 
 export const initialTurns: DialogueTurn[] = [
   {

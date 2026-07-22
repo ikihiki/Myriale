@@ -1,11 +1,13 @@
+import type { ComponentType } from 'react';
 import { createBrowserHistory, createMemoryHistory, createRouter } from '@tanstack/react-router';
 import { createFetchAccountApi, type AccountApi } from './account/api/accountApi';
+import { SessionPageContainer } from './features/session-play/SessionPageContainer';
 import { routeTree } from './routeTree.gen';
 
 export type AppRouterContext = {
   showDebugPanel: boolean;
   accountApi: AccountApi;
-  sessionFixture: boolean;
+  sessionPageContainer: ComponentType<{ sessionId: string }>;
 };
 
 export type AppHistoryMode = 'browser' | 'memory';
@@ -15,13 +17,13 @@ export function createAppRouter({
   historyMode = 'memory',
   showDebugPanel = true,
   accountApi = createFetchAccountApi(),
-  sessionFixture = false,
+  sessionPageContainer = SessionPageContainer,
 }: {
   initialUrl?: string;
   historyMode?: AppHistoryMode;
   showDebugPanel?: boolean;
   accountApi?: AccountApi;
-  sessionFixture?: boolean;
+  sessionPageContainer?: ComponentType<{ sessionId: string }>;
 } = {}) {
   const history = historyMode === 'browser'
     ? createBrowserHistory()
@@ -30,7 +32,7 @@ export function createAppRouter({
   return createRouter({
     routeTree,
     history,
-    context: { showDebugPanel, accountApi, sessionFixture },
+    context: { showDebugPanel, accountApi, sessionPageContainer },
     defaultPreload: 'intent',
   });
 }

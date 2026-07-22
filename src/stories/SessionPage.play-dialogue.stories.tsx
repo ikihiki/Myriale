@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
 import { MyrialeApp } from '../app/MyrialeApp';
 import { createDemoDb } from '../app/demoData';
+import { MockSessionPageContainer } from './session-page/MockSessionPageContainer';
 import '../styles.css';
 
 const createProgressedPlayDb = () => {
@@ -22,7 +23,7 @@ const createProgressedPlayDb = () => {
 const meta = {
   title: 'ユーザーストーリー/Session play dialogue',
   component: MyrialeApp,
-  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098" initialDb={createProgressedPlayDb()} sessionFixture />,
+  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098" initialDb={createProgressedPlayDb()} sessionPageContainer={MockSessionPageContainer} />,
   parameters: {
     notes: 'docs/user-stories/session-play-dialogue-user-stories.md の各ユーザーストーリーを、Storybook Interactions の step と expect で操作説明できるアプリ画面にしたものです。',
   },
@@ -46,7 +47,7 @@ export const USP01CurrentSituationNarrative: Story = {
       await expect(canvas.getByTestId('session-state')).toHaveTextContent('Active');
       await expect(canvas.getByTestId('turn-1-narrative')).toHaveTextContent('水没した閲覧室');
       await expect(canvas.getByTestId('turn-1-narrative')).toHaveTextContent('銀の鍵');
-      await expect(canvas.getByRole('status')).toHaveTextContent('現在地、周囲、直近の出来事');
+      await expect(canvas.getByTestId('dialogue-notice')).toHaveTextContent('現在地、周囲、直近の出来事');
     });
   },
 };
@@ -63,7 +64,7 @@ export const USP02AndP03NaturalInputToNarrativeResult: Story = {
       await userEvent.click(canvas.getByRole('button', { name: '行動を送る' }));
       await expect(canvas.getByTestId('dialogue-log')).toHaveTextContent('プレイヤーの入力: 周囲を警戒しながら閲覧室を出る');
       await expect(canvas.getByTestId('dialogue-log')).toHaveTextContent('想定外の痕跡');
-      await expect(canvas.getByRole('status')).toHaveTextContent('結果をNarrativeとして生成');
+      await expect(canvas.getByTestId('dialogue-notice')).toHaveTextContent('結果をNarrativeとして生成');
     });
   },
 };
@@ -110,7 +111,7 @@ export const USP05AskClarificationWithoutProgress: Story = {
       await expect(canvas.getByTestId('dialogue-log')).toHaveTextContent('補足説明');
     });
     await step('補足要求は行動扱いにせず、物語進行やSession状態を変化させない', async () => {
-      await expect(canvas.getByRole('status')).toHaveTextContent('行動ではない');
+      await expect(canvas.getByTestId('dialogue-notice')).toHaveTextContent('行動ではない');
       await expect(canvas.getByTestId('session-state')).toHaveTextContent('Active');
       await expect(canvas.getByTestId('active-turn-summary')).toHaveTextContent('物語状態は変化しない');
     });
@@ -126,7 +127,7 @@ export const USP05BRecommendNextAction: Story = {
       await expect(canvas.getByLabelText('自由に行動や会話を入力')).toHaveValue(
         '銀の鍵を扉にかざし、刻まれた星座との対応を確かめる',
       );
-      await expect(canvas.getByRole('status')).toHaveTextContent('内容を編集してから送信できます');
+      await expect(canvas.getByTestId('dialogue-notice')).toHaveTextContent('内容を編集してから送信できます');
     });
   },
 };
@@ -156,7 +157,7 @@ export const USP07DeleteDraftInput: Story = {
       await userEvent.type(canvas.getByLabelText('自由に行動や会話を入力'), '入力ミス');
       await userEvent.click(canvas.getByRole('button', { name: '入力を消去' }));
       await expect(canvas.getByLabelText('自由に行動や会話を入力')).toHaveValue('');
-      await expect(canvas.getByRole('status')).toHaveTextContent('入力欄の未送信テキストを無効化');
+      await expect(canvas.getByTestId('dialogue-notice')).toHaveTextContent('入力欄の未送信テキストを無効化');
       await expect(canvas.queryByRole('button', { name: '直前のターンに戻る' })).not.toBeInTheDocument();
     });
   },
@@ -172,7 +173,7 @@ export const USP08AndP10ContinuousLoopWaitsForInput: Story = {
       await expect(canvas.getByTestId('dialogue-log')).toHaveTextContent('プレイヤーの入力: 反応した書架へ近づく');
     });
     await step('AIは重要な進行を勝手に進めず、次のPlayer Inputを待つ', async () => {
-      await expect(canvas.getByRole('status')).toHaveTextContent('次の重要な進行は入力待ち');
+      await expect(canvas.getByTestId('dialogue-notice')).toHaveTextContent('次の重要な進行は入力待ち');
     });
   },
 };
@@ -193,7 +194,7 @@ export const USP09ReviewLogFromToc: Story = {
     });
     await step('AI見出しを選ぶと、その見出しが始まる切り替わりTurnへジャンプする', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '見出し「螺旋階段と星図灯」へ（Turn 08から）' }));
-      await expect(canvas.getByRole('status')).toHaveTextContent('場面の切り替わりTurn 08へジャンプ');
+      await expect(canvas.getByTestId('dialogue-notice')).toHaveTextContent('場面の切り替わりTurn 08へジャンプ');
       await expect(canvas.getByTestId('active-turn-summary')).toHaveTextContent('08 / 螺旋階段へ向かう');
       await expect(canvas.getByTestId('active-heading-summary')).toHaveTextContent('螺旋階段と星図灯（Turn 08から）');
       await expect(canvas.getByTestId('session-state')).toHaveTextContent('Active');
@@ -253,7 +254,7 @@ export const USP11RewindToAnyPastTurn: Story = {
     await step('確定すると指定ターン以降を無効化し、巻き戻し地点から再入力できる', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '巻き戻しを確定' }));
       await expect(canvas.getByTestId('dialogue-log')).not.toHaveTextContent('銀の鍵を水面に沈めてみる');
-      await expect(canvas.getByRole('status')).toHaveTextContent('AIコンテキストを再構築');
+      await expect(canvas.getByTestId('dialogue-notice')).toHaveTextContent('AIコンテキストを再構築');
       await expect(canvas.getByLabelText('自由に行動や会話を入力')).toBeVisible();
     });
   },

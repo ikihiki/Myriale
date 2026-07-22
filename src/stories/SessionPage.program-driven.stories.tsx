@@ -2,12 +2,13 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
 import { MyrialeApp } from '../app/MyrialeApp';
 import { createDemoDb } from '../app/demoData';
+import { MockSessionPageContainer } from './session-page/MockSessionPageContainer';
 import '../styles.css';
 
 const meta = {
   title: 'ユーザーストーリー/Program-driven narrative',
   component: MyrialeApp,
-  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098" initialDb={createDemoDb('programDrivenSession')} />,
+  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098" initialDb={createDemoDb('programDrivenSession')} sessionPageContainer={MockSessionPageContainer} />,
   parameters: {
     notes: 'docs/user-stories/program-driven-narrative-user-stories.md の各ユーザーストーリー（US-PG01〜PG10）を、Storybook Interactions の step と expect で操作説明できるアプリ画面にしたものです。',
   },

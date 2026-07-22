@@ -1,257 +1,139 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { toAppChromeAccount, type AppChromeAccount } from '../../account/accountPresentation';
 import { actionRowClassName, Button, Label, Notice, SummaryInset, Textarea } from '../../components/ui';
 import { ArrowUpIcon, CloseIcon, LightbulbIcon, RotateBackIcon, SparkleIcon } from '../../components/icons';
-import { useAccountSession } from '../../account/hooks/useAccountSession';
-import { AppChrome, type Crumb } from '../../shared/AppChrome';
+import { AppChrome } from '../../shared/AppChrome';
 import { useOptionalAppStore, type TurnDisplayFlags } from '../../app/store';
 import { SessionTurn } from '../../shared/SessionTurn';
 import { SessionNotesWorkspace } from '../../SessionNotesWorkspace';
 import { WizardNavigation } from '../../shared/WizardNavigation';
 import { scenarioWizardShellClass, wizardPaperClass, wizardSummaryClass } from '../../shared/scenarioWizardStyles';
-import {
-  acceptSessionInput,
-  getSession,
-  hasActiveSessionExecutions,
-  mutateSessionExecution,
-  recommendNextAction,
-  reviewSessionNoteProposal,
-  type NarrativeInteractionType,
-  type NarrativeTurnApiResponse,
-  type SessionApiError,
-  type SessionApiResponse,
-} from './sessionPlayApi';
-import { SessionActivityFeed, type NoteReviewRequest } from './SessionActivityFeed';
+import { SessionActivityFeed } from './SessionActivityFeed';
 import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeToggle, MyrialeSelect } from '../../ui/MyrialeRadix';
-import { useAppNavigation } from '../../shared/nav';
-import { clampInitialTurnCount, headingLinks, initialTurns, resultForInput } from './sessionPlayFixtures';
+import type { NarrativeInteractionType } from './sessionPlayApi';
+import type { DialogueTurn, HeadingLink, SessionPagePresentationProps } from './sessionPageModel';
 
-type TurnKind = 'action' | 'clarification' | 'rewound';
+const modeLabels = {
+  dialogue: { badge: '対話中', label: 'AI対話モード', summary: 'Dialogue Mode', reason: '自由入力で行動や会話を送れます。' },
+  battle: { badge: 'バトル中', label: 'バトル', summary: 'Forced Mode / バトル', reason: '自由入力は無効。バトル行動ボタンで進行します。' },
+  roll: { badge: '判定中', label: '判定', summary: 'Forced Mode / 判定', reason: '自由入力と巻き戻しが無効。判定結果を確定します。' },
+  event: { badge: 'イベント進行中', label: '強制イベント', summary: 'Forced Mode / イベント', reason: '自由入力は無効。イベントを順番に再生します。' },
+  recovering: { badge: '復旧中', label: '復旧確認', summary: 'Recovery', reason: '未確定の処理を破棄し、確定地点から復旧します。' },
+} as const;
 
-export type DialogueTurn = {
-  id: number;
-  turnTitle: string;
-  narrative: string;
-  playerInput?: string;
-  interpretation?: string;
-  kind: TurnKind;
-  display?: TurnDisplayFlags;
+const defaultProgram = {
+  mode: 'dialogue' as const,
+  flavor: 'dialogue' as const,
+  battle: { enemy: '', playerHp: 0, enemyHp: 0, turn: 1 },
+  rollResult: null,
+  fixedRoll: 'ランダム',
+  eventAdvanced: false,
+  pendingAction: '未完了処理なし',
+  lastConfirmed: '確定済みTurnを表示中',
+  recoveryPoint: null,
+  transitions: [],
+  notice: '',
+  onFixedRollChange: () => undefined,
+  onStartBattle: () => undefined,
+  onStartRoll: () => undefined,
+  onStartEvent: () => undefined,
+  onBattleAction: () => undefined,
+  onRoll: () => undefined,
+  onAdvanceEvent: () => undefined,
+  onComplete: () => undefined,
+  onProcessingError: () => undefined,
+  onRecover: () => undefined,
+  onReconnect: () => undefined,
 };
 
-export type HeadingLink = {
-  title: string;
-  startTurnId: number;
-  summary: string;
-};
-
-export const toDialogueTurn = (turn: NarrativeTurnApiResponse): DialogueTurn => ({
-  id: turn.position,
-  turnTitle: turn.narrative?.heading
-    ?? (turn.narrative?.playerInput
-      ? 'Player Inputを受けたNarrative'
-      : turn.kind === 'module'
-        ? 'プログラムによる進行'
-        : '物語の始まり'),
-  playerInput: turn.narrative?.playerInput ?? undefined,
-  interpretation: turn.narrative?.interpretation ?? undefined,
-  narrative: turn.narrative?.body
-    ?? (turn.kind === 'module' ? 'プログラムによる進行を実行しています。' : 'Narrativeを表示できません。'),
-  kind: turn.narrative?.turnType === 'clarification' ? 'clarification' : 'action',
-  display: turn.kind === 'module'
-    ? { allowRewind: false, showInterpretation: false, leadTone: 'program', leadTag: 'PROGRAM' }
-    : undefined,
-});
-
-export function SessionPage({ sessionId = 'SES-PREP-1098', fixture = false }: { sessionId?: string; fixture?: boolean } = {}) {
-  return fixture
-    ? <SessionDialogueSection sessionId={sessionId} />
-    : <ServerSessionPage sessionId={sessionId} />;
-}
-
-function ServerSessionPage({ sessionId }: { sessionId: string }) {
-  const appNavigate = useAppNavigation();
-  const accountSession = useAccountSession();
-  const chromeAccount = toAppChromeAccount(accountSession.user);
-  const pollGeneration = useRef(0);
-  const [session, setSession] = useState<SessionApiResponse | null>(null);
-  const [error, setError] = useState('');
-  const [requiresLogin, setRequiresLogin] = useState(false);
-
-  const goToLogin = () => appNavigate?.('login');
-  const logout = async () => {
-    await accountSession.api.logout();
-    accountSession.clearUser();
-    goToLogin();
-  };
-
-  useEffect(() => {
-    const abort = new AbortController();
-    setSession(null);
-    setError('');
-    setRequiresLogin(false);
-    void getSession(sessionId, undefined, abort.signal)
-      .then(setSession)
-      .catch((reason: SessionApiError) => {
-        if (reason.name === 'AbortError') return;
-        if (reason.status === 401) {
-          accountSession.clearUser();
-          setRequiresLogin(true);
-          setError('Sessionを表示するにはログインが必要です。');
-          return;
-        }
-        setError(reason.message);
-      });
-    return () => abort.abort();
-  }, [accountSession.clearUser, sessionId]);
-
-  useEffect(() => {
-    if (!session || !hasActiveSessionExecutions(session)) return;
-    const abort = new AbortController();
-    const interval = window.setInterval(() => {
-      const generation = ++pollGeneration.current;
-      void getSession(sessionId, undefined, abort.signal).then((next) => {
-        if (generation !== pollGeneration.current) return;
-        setSession((current) => !current || next.revision >= current.revision ? next : current);
-      }).catch((reason: SessionApiError) => {
-        if (reason.name !== 'AbortError') setError(reason.message);
-      });
-    }, 750);
-    return () => { window.clearInterval(interval); abort.abort(); };
-  }, [session, sessionId]);
-
-  if (!session) {
-    return (
-      <AppChrome section="sessions" breadcrumbs={[{ label: 'Myriale', to: 'home' }, { label: 'セッション' }]} account={chromeAccount} onLogout={logout}>
-        <main className="grid min-h-[calc(100vh-118px)] place-items-center bg-[image:var(--myr-screen-background)] p-6 text-myr-ink">
-          <section className="max-w-xl rounded-myr-panel bg-myr-paper p-8 text-center shadow-myr-panel" aria-label={error ? 'Session読み込みエラー' : 'Session読み込み中'}>
-            <h1 className="font-myr-display text-4xl">{error ? 'Sessionを読み込めませんでした' : 'Sessionを読み込んでいます'}</h1>
-            <p role={error ? 'alert' : 'status'}>{error || '確定済みのTurnを取得しています。'}</p>
-            {error && (
-              <Button
-                variant="secondary" size="lg"
-                onClick={requiresLogin ? goToLogin : () => window.location.reload()}
-              >
-                {requiresLogin ? 'ログインへ' : '再読み込み'}
-              </Button>
-            )}
-          </section>
-        </main>
-      </AppChrome>
-    );
-  }
-
-  return (
-    <SessionDialogueSection
-      sessionId={sessionId}
-      serverSession={session}
-      account={chromeAccount}
-      onLogout={logout}
-      onLogin={goToLogin}
-      onAuthenticationRequired={accountSession.clearUser}
-      onSessionChange={setSession}
-    />
-  );
-}
-
-const demoPlayerAccount: AppChromeAccount = {
-  name: '霧野しおり',
-  email: 'reader@myriale.example',
-  initials: '霧野',
-  role: 'プレイヤー',
-};
-
-function SessionDialogueSection({
-  sessionId,
-  serverSession,
-  account = demoPlayerAccount,
+export function SessionPageStatus({
+  account,
+  error = '',
+  requiresLogin = false,
   onLogout,
   onLogin,
-  onAuthenticationRequired,
-  onSessionChange,
+  onReload,
 }: {
-  sessionId: string;
-  serverSession?: SessionApiResponse;
-  account?: AppChromeAccount | null;
-  onLogout?: () => void | Promise<void>;
+  account: SessionPagePresentationProps['account'];
+  error?: string;
+  requiresLogin?: boolean;
+  onLogout?: SessionPagePresentationProps['onLogout'];
   onLogin?: () => void;
-  onAuthenticationRequired?: () => void;
-  onSessionChange?: (session: SessionApiResponse) => void;
+  onReload?: () => void;
 }) {
+  return (
+    <AppChrome section="sessions" breadcrumbs={[{ label: 'Myriale', to: 'home' }, { label: 'セッション' }]} account={account} onLogout={onLogout}>
+      <main className="grid min-h-[calc(100vh-118px)] place-items-center bg-[image:var(--myr-screen-background)] p-6 text-myr-ink">
+        <section className="max-w-xl rounded-myr-panel bg-myr-paper p-8 text-center shadow-myr-panel" aria-label={error ? 'Session読み込みエラー' : 'Session読み込み中'}>
+          <h1 className="font-myr-display text-4xl">{error ? 'Sessionを読み込めませんでした' : 'Sessionを読み込んでいます'}</h1>
+          <p role={error ? 'alert' : 'status'}>{error || '確定済みのTurnを取得しています。'}</p>
+          {error && <Button variant="secondary" size="lg" onClick={requiresLogin ? onLogin : onReload}>{requiresLogin ? 'ログインへ' : '再読み込み'}</Button>}
+        </section>
+      </main>
+    </AppChrome>
+  );
+}
+
+export function SessionPage({
+  sessionId,
+  account,
+  turns,
+  headingLinks,
+  sessionStateLabel,
+  activitySession,
+  initialInput = '',
+  initialInteractionType = 'dialogue',
+  initialNotice = '',
+  isSubmitting = false,
+  isRecommending = false,
+  authenticationRequired: authenticationRequiredProp = false,
+  turnDisplay,
+  program = defaultProgram,
+  onLogout,
+  onLogin,
+  onSubmit,
+  onRecommend,
+  onClarification,
+  onExecutionAction,
+  onNoteReview,
+  onRewind,
+}: SessionPagePresentationProps) {
   const appStore = useOptionalAppStore();
-  const dbSession = appStore?.db.playSessions[sessionId];
-  const initialTurnCount = clampInitialTurnCount(dbSession?.turn);
-  const initialVisibleTurns = serverSession
-    ? serverSession.turns.map(toDialogueTurn)
-    : initialTurns.slice(0, initialTurnCount);
-  const resumableInput = serverSession?.pendingInputs.at(-1);
-  const [turns, setTurns] = useState<DialogueTurn[]>(initialVisibleTurns);
-  const [input, setInput] = useState(resumableInput?.input ?? '');
-  const [interactionType, setInteractionType] = useState<NarrativeInteractionType>(
-    resumableInput?.interactionType ?? 'dialogue',
-  );
-  const [selectedTurnId, setSelectedTurnId] = useState(initialVisibleTurns.at(-1)?.id ?? 1);
-  const [draftRequest, setDraftRequest] = useState<{
-    input: string;
-    requestId: string;
-    interactionType: NarrativeInteractionType;
-  } | null>(
-    resumableInput
-      ? {
-          input: resumableInput.input,
-          requestId: resumableInput.requestId,
-          interactionType: resumableInput.interactionType ?? 'dialogue',
-        }
-      : null,
-  );
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isRecommending, setIsRecommending] = useState(false);
-  const [authenticationRequired, setAuthenticationRequired] = useState(false);
-  const [notice, setNotice] = useState(
-    resumableInput
-      ? resumableInput.errorMessage ?? '未完了のPlayer Inputを復元しました。同じRequest IDで再試行できます。'
-      : serverSession
-        ? 'Serverに保存された確定済みTurnを表示しています。'
-        : initialTurnCount === 1
-          ? ''
-          : `Session状態はActiveです。DB設定により、複数ターン経過後（Turn ${String(initialTurnCount).padStart(2, '0')}まで）のログを表示しています。AIが現在地、周囲、直近の出来事をNarrativeとして提示しました。`,
-  );
+  const [input, setInput] = useState(initialInput);
+  const [interactionType, setInteractionType] = useState<NarrativeInteractionType>(initialInteractionType);
+  const [selectedTurnId, setSelectedTurnId] = useState(turns.at(-1)?.id ?? 1);
+  const [retryAvailable, setRetryAvailable] = useState(false);
+  const [notice, setNotice] = useState(initialNotice);
+  const [authenticationRequired, setAuthenticationRequired] = useState(authenticationRequiredProp);
   const notesMode = appStore?.db.ui.notesPanelMode ?? 'side';
-  const setNotesMode = (mode: 'side' | 'full') => {
-    appStore?.dispatch({ type: 'NOTES_PANEL_MODE_CHANGED', mode });
-  };
+  const setNotesMode = (mode: 'side' | 'full') => appStore?.dispatch({ type: 'NOTES_PANEL_MODE_CHANGED', mode });
   const [notesView, setNotesView] = useState<'hidden' | 'split' | 'full'>(notesMode === 'full' ? 'full' : 'split');
   const [isNarrowViewport, setIsNarrowViewport] = useState(false);
+  const [showInterpretationFor, setShowInterpretationFor] = useState<number[]>([]);
+  const [pendingRewindId, setPendingRewindId] = useState<number | null>(null);
+  const [notesRailWidth, setNotesRailWidth] = useState(340);
+  const [debugPanelOpen, setDebugPanelOpen] = useState(program.flavor === 'modeTransition');
+  const [keepSucceededExecutionStatusVisible, setKeepSucceededExecutionStatusVisible] = useState(false);
+
+  useEffect(() => {
+    if (program.notice) setNotice(program.notice);
+  }, [program.notice]);
+  useEffect(() => setAuthenticationRequired(authenticationRequiredProp), [authenticationRequiredProp]);
+  useEffect(() => {
+    const latestId = turns.at(-1)?.id;
+    if (latestId != null && !turns.some((turn) => turn.id === selectedTurnId)) setSelectedTurnId(latestId);
+  }, [selectedTurnId, turns]);
+
   const setNotesViewMode = (view: 'hidden' | 'split' | 'full') => {
     const nextView = isNarrowViewport && view === 'split' ? 'full' : view;
     setNotesView(nextView);
-    if (nextView !== 'hidden') {
-      setNotesMode(nextView === 'full' ? 'full' : 'side');
-    }
+    if (nextView !== 'hidden') setNotesMode(nextView === 'full' ? 'full' : 'side');
   };
-
-  const [showInterpretationFor, setShowInterpretationFor] = useState<number[]>([]);
-  const [pendingRewindId, setPendingRewindId] = useState<number | null>(null);
-
-  const selectedTurn = useMemo(
-    () => turns.find((turn) => turn.id === selectedTurnId) ?? turns[turns.length - 1],
-    [selectedTurnId, turns],
-  );
+  const selectedTurn = useMemo(() => turns.find((turn) => turn.id === selectedTurnId) ?? turns[turns.length - 1], [selectedTurnId, turns]);
   const latestTurn = turns[turns.length - 1];
-  const availableHeadingLinks = serverSession
-    ? turns.map((turn) => ({ title: turn.turnTitle, startTurnId: turn.id, summary: 'Serverに保存された確定済みTurn' }))
-    : headingLinks.filter((heading) => heading.startTurnId <= latestTurn.id);
-  // TOCの末尾は常に最後のTurnを指す: 最後のAI見出しがログ末尾より手前で終わる場合、最新Turnへのリンクを補う。
-  const tocHeadingLinks: HeadingLink[] =
-    availableHeadingLinks[availableHeadingLinks.length - 1]?.startTurnId === latestTurn.id
-      ? availableHeadingLinks
-      : [
-          ...availableHeadingLinks,
-          {
-            title: '最新の対話',
-            startTurnId: latestTurn.id,
-            summary: 'AIが付けた最新の見出し。TOC末尾は常に最後のTurnを指す',
-          },
-        ];
+  const availableHeadingLinks = headingLinks.filter((heading) => heading.startTurnId <= latestTurn.id);
+  const tocHeadingLinks: HeadingLink[] = availableHeadingLinks.at(-1)?.startTurnId === latestTurn.id
+    ? availableHeadingLinks
+    : [...availableHeadingLinks, { title: '最新の対話', startTurnId: latestTurn.id, summary: 'AIが付けた最新の見出し。TOC末尾は常に最後のTurnを指す' }];
   const activeHeading = tocHeadingLinks.find((heading, index) => {
     const nextHeading = tocHeadingLinks[index + 1];
     return selectedTurnId >= heading.startTurnId && (!nextHeading || selectedTurnId < nextHeading.startTurnId);
@@ -262,9 +144,7 @@ function SessionDialogueSection({
     const media = window.matchMedia('(max-width: 1120px)');
     const syncViewport = () => {
       setIsNarrowViewport(media.matches);
-      if (media.matches) {
-        setNotesView((current) => (current === 'split' ? 'hidden' : current));
-      }
+      if (media.matches) setNotesView((current) => current === 'split' ? 'hidden' : current);
     };
     syncViewport();
     media.addEventListener('change', syncViewport);
@@ -274,364 +154,92 @@ function SessionDialogueSection({
   const turnRefs = useRef<Record<number, HTMLElement | null>>({});
   useEffect(() => {
     const node = turnRefs.current[selectedTurnId];
-    if (node && typeof node.scrollIntoView === 'function') {
-      node.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
+    if (node && typeof node.scrollIntoView === 'function') node.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [selectedTurnId, turns]);
 
   const sendInput = async () => {
     const submittedInput = input.trim();
-    if (!submittedInput) {
-      setNotice('自然言語で行動や会話を入力してください。文法が不完全でも受理します。');
+    if (!submittedInput) { setNotice('自然言語で行動や会話を入力してください。文法が不完全でも受理します。'); return; }
+    const result = await onSubmit(submittedInput, interactionType);
+    setNotice(result.notice);
+    setAuthenticationRequired(Boolean(result.authenticationRequired));
+    setRetryAvailable(!result.ok);
+    if (result.ok) { setInput(''); setInteractionType('dialogue'); }
+  };
+  const askClarification = async () => {
+    if (onClarification) {
+      const result = await onClarification();
+      setNotice(result.notice);
       return;
     }
-    if (isSubmitting) return;
-
-    const reusableDraft = draftRequest?.input === submittedInput && draftRequest.interactionType === interactionType ? draftRequest : null;
-    const requestId = reusableDraft
-      ? reusableDraft.requestId
-      : `narrative-${crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
-    setDraftRequest({ input: submittedInput, requestId, interactionType });
-    setIsSubmitting(true);
-    setAuthenticationRequired(false);
-    setNotice('Player Inputを受理し、Narrativeを生成しています。');
-    try {
-      if (serverSession) {
-        const accepted = await acceptSessionInput(sessionId, submittedInput, requestId, undefined, interactionType);
-        const nextOrder = Math.max(0, ...(serverSession.activity ?? []).map((item) => item.order)) + 1;
-        onSessionChange?.({
-          ...serverSession,
-          inputs: [...(serverSession.inputs ?? []), accepted.input],
-          executions: [...(serverSession.executions ?? []), accepted.execution],
-          activity: [...(serverSession.activity ?? []),
-            { type: 'input', id: accepted.input.id, order: nextOrder },
-            { type: 'execution', id: accepted.execution.id, order: nextOrder + 1, causalId: accepted.input.id }],
-        });
-        setNotice('Player Inputを保存し、Narrative生成を開始しました。ブラウザを閉じても処理は継続します。');
-      } else {
-        const nextTurn = resultForInput(submittedInput, turns.length + 1);
-        setTurns((current) => current.some((turn) => turn.id === nextTurn.id) ? current : [...current, nextTurn]);
-        setSelectedTurnId(nextTurn.id);
-        setNotice('Player Inputを行動として解釈し、結果をNarrativeとして生成しました。次の重要な進行は入力待ちです。');
-      }
-      setInput('');
-      setInteractionType('dialogue');
-      setDraftRequest(null);
-    } catch (error) {
-      const apiError = error as SessionApiError;
-      if (apiError.status === 401) {
-        setAuthenticationRequired(true);
-        onAuthenticationRequired?.();
-      }
-      const prefix = apiError.code === 'request_in_progress'
-        ? '同じ入力のNarrative生成が進行中です。'
-        : apiError.status === 401
-          ? 'ログインが必要です。'
-          : apiError.status === 409
-            ? 'Sessionの状態が変わったため、この入力を確定できませんでした。'
-            : '';
-      setNotice(`${prefix}${error instanceof Error ? error.message : 'Narrativeの生成に失敗しました。'} 入力を保持して同じRequest IDで再試行できます。`);
-    } finally {
-      setIsSubmitting(false);
-    }
+    setInput('今の状況を簡単にまとめて');
+    setInteractionType('clarification');
+    setNotice('補足要求を入力欄へ設定しました。理解補助として送信し、物語進行は許可しません。');
   };
-
-  const handleExecutionAction = async (executionId: string, action: 'retry' | 'cancel' | 'dismiss') => {
-    if (!serverSession) return;
-    try {
-      const target = serverSession.executions?.find((item) => item.id === executionId);
-      const updated = await mutateSessionExecution(executionId, action);
-      if (action === 'dismiss' && target?.triggerType === 'player-input') {
-        onSessionChange?.({
-          ...serverSession,
-          inputs: serverSession.inputs?.filter((item) => item.id !== target.triggerId),
-          executions: serverSession.executions?.filter((item) => item.id !== executionId),
-          activity: serverSession.activity?.filter((item) => item.id !== executionId && item.id !== target.triggerId),
-        });
-      } else {
-        onSessionChange?.({ ...serverSession, executions: (serverSession.executions ?? []).map((item) => item.id === executionId ? updated : item) });
-      }
-      setNotice(action === 'retry' ? '同じ入力で再試行を開始しました。' : action === 'cancel' ? 'キャンセルを要求しました。' : '入力を取り消しました。');
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Executionを更新できませんでした。');
-    }
-  };
-
-  const handleNoteReview = async (artifactId: string, action: 'apply' | 'edit-apply' | 'reject' | 'snooze', request: NoteReviewRequest) => {
-    if (!serverSession) return;
-    try {
-      const updated = await reviewSessionNoteProposal(artifactId, action, request);
-      onSessionChange?.({
-        ...serverSession,
-        noteProposals: (serverSession.noteProposals ?? []).map((item) => item.artifactId === artifactId ? updated : item),
-      });
-      setNotice(action === 'apply' || action === 'edit-apply' ? 'ノート変更案を適用し、Revisionを作成しました。' : action === 'reject' ? 'ノート変更案を却下しました。' : 'ノート変更案を後で確認できるよう保留しました。');
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'ノート変更案を更新できませんでした。');
-    }
-  };
-
-  const askClarification = () => {
-    if (serverSession) {
-      const clarificationInput = '今の状況を簡単にまとめて';
-      setInput(clarificationInput);
-      setInteractionType('clarification');
-      setDraftRequest(null);
-      setNotice('補足要求を入力欄へ設定しました。理解補助として送信し、物語進行は許可しません。');
-      return;
-    }
-    const clarification: DialogueTurn = {
-      id: turns.length + 1,
-      turnTitle: '状況の再説明',
-      playerInput: '今の状況を簡単にまとめて',
-      narrative:
-        '補足説明: あなたは水没した閲覧室にいて、銀の鍵を持っています。書架の奥には会話できそうな人物がいます。この返答は理解補助であり、物語進行や世界状態は変化しません。',
-      kind: 'clarification',
-    };
-    setTurns((current) => [...current, clarification]);
-    setSelectedTurnId(clarification.id);
-    setNotice('補足要求として扱いました。行動ではないため、セッション状態と物語進行は変化しません。');
-  };
-
   const recommendAction = async () => {
-    if (isRecommending || isSubmitting) return;
-    setIsRecommending(true);
-    setAuthenticationRequired(false);
     setNotice('AIが現在の状況から次の行動案を考えています。');
-    try {
-      const suggestion = serverSession
-        ? await recommendNextAction(sessionId)
-        : latestTurn.narrative.includes('扉')
-          ? '銀の鍵を扉にかざし、刻まれた星座との対応を確かめる'
-          : '周囲の安全を確かめながら、目につく手掛かりを詳しく調べる';
-      setInput(suggestion);
-      setInteractionType('dialogue');
-      setDraftRequest(null);
-      setNotice('AIの提案を入力欄へ設定しました。内容を編集してから送信できます。');
-    } catch (error) {
-      const apiError = error as SessionApiError;
-      if (apiError.status === 401) {
-        setAuthenticationRequired(true);
-        onAuthenticationRequired?.();
-      }
-      setNotice(error instanceof Error ? error.message : '次の行動案を生成できませんでした。');
-    } finally {
-      setIsRecommending(false);
-    }
+    const result = await onRecommend();
+    setNotice(result.notice);
+    setAuthenticationRequired(Boolean(result.authenticationRequired));
+    if (result.ok && result.value) { setInput(result.value); setInteractionType('dialogue'); }
   };
-
-  const toggleInterpretation = (turn: DialogueTurn) => {
-    const willShow = !showInterpretationFor.includes(turn.id);
-    setShowInterpretationFor((current) =>
-      willShow ? [...current, turn.id] : current.filter((id) => id !== turn.id),
-    );
+  const handleExecutionAction = async (executionId: string, action: 'retry' | 'cancel' | 'dismiss') => {
+    if (!onExecutionAction) return;
+    const result = await onExecutionAction(executionId, action);
+    setNotice(result.notice);
   };
-
-  const deleteDraft = () => {
-    setInput('');
-    setInteractionType('dialogue');
-    setDraftRequest(null);
-    setNotice('削除: 入力欄の未送信テキストを無効化しました。再入力できます。');
+  const handleNoteReview = async (...args: Parameters<NonNullable<SessionPagePresentationProps['onNoteReview']>>) => {
+    if (!onNoteReview) return;
+    const result = await onNoteReview(...args);
+    setNotice(result.notice);
   };
-
-  const jumpToHeading = (heading: HeadingLink) => {
-    setSelectedTurnId(heading.startTurnId);
-    setNotice(`AI見出し「${heading.title}」から、場面の切り替わりTurn ${String(heading.startTurnId).padStart(2, '0')}へジャンプしました。ReadOnly表示のためSession状態は変化しません。`);
-  };
-
+  const toggleInterpretation = (turn: DialogueTurn) => setShowInterpretationFor((current) => current.includes(turn.id) ? current.filter((id) => id !== turn.id) : [...current, turn.id]);
+  const deleteDraft = () => { setInput(''); setInteractionType('dialogue'); setNotice('削除: 入力欄の未送信テキストを無効化しました。再入力できます。'); };
+  const jumpToHeading = (heading: HeadingLink) => { setSelectedTurnId(heading.startTurnId); setNotice(`AI見出し「${heading.title}」から、場面の切り替わりTurn ${String(heading.startTurnId).padStart(2, '0')}へジャンプしました。ReadOnly表示のためSession状態は変化しません。`); };
   const requestRewind = (id: number) => {
-    if (serverSession) {
-      setNotice('Serverに確定したTurnの巻き戻しはまだ利用できません。履歴は変更されていません。');
-      return;
-    }
+    if (!onRewind) { setNotice('Serverに確定したTurnの巻き戻しはまだ利用できません。履歴は変更されていません。'); return; }
     setPendingRewindId(id);
     setNotice(`Turn ${String(id).padStart(2, '0')}まで戻る前に確認します。指定ターン以降のログと非同期処理を無効化します。`);
   };
-
-  const confirmRewind = () => {
-    if (pendingRewindId == null) return;
-    const nextTurns = turns
-      .filter((turn) => turn.id <= pendingRewindId)
-      .map((turn) => (turn.id === pendingRewindId ? { ...turn, turnTitle: `${turn.turnTitle}（巻き戻し地点）` } : turn));
-    setTurns(nextTurns);
-    setSelectedTurnId(pendingRewindId);
+  const confirmRewind = async () => {
+    if (pendingRewindId == null || !onRewind) return;
+    const turnId = pendingRewindId;
     setPendingRewindId(null);
-    setNotice('ここまで戻る: 指定ターン以降のログを無効化し、AIコンテキストを再構築しました。巻き戻し地点から再入力できます。');
+    const result = await onRewind(turnId);
+    setNotice(result.notice);
+    if (result.ok) setSelectedTurnId(turnId);
   };
 
-  const initialSessionView = appStore?.db.ui.sessionView ?? 'dialogue';
-  const [sessionMode, setSessionMode] = useState<'dialogue' | 'battle' | 'roll' | 'event' | 'recovering'>('dialogue');
-  const [sessionModeFlavor] = useState<'dialogue' | 'program' | 'modeTransition'>(initialSessionView);
-  const [battle, setBattle] = useState({ enemy: '錆びついた書架番', playerHp: 30, enemyHp: 24, turn: 1 });
-  const [rollResult, setRollResult] = useState<{ value: number; success: boolean } | null>(null);
-  const [fixedRoll, setFixedRoll] = useState('ランダム');
-  const [eventAdvanced, setEventAdvanced] = useState(false);
-  const [pendingAction, setPendingAction] = useState('未完了処理なし');
-  const [lastConfirmed, setLastConfirmed] = useState('Turn 18: AI対話モードで自由入力待ち');
-  const [recoveryPoint, setRecoveryPoint] = useState<'lastConfirmed' | 'safePoint' | null>(null);
-  const [transitionRows, setTransitionRows] = useState<Array<{ id: number; from: string; to: string; reason: string; at: string }>>([
-    { id: 1, from: '—', to: 'AI対話モード', reason: 'セッション開始', at: '21:04:12' },
-  ]);
-
-  const [notesRailWidth, setNotesRailWidth] = useState(340);
-  const sessionPageClassName = `${scenarioWizardShellClass} min-h-[calc(100vh-118px)] min-w-0 max-w-full grid-cols-[190px_minmax(0,1fr)_minmax(300px,var(--notes-rail-width,340px))] max-myr-workspace:grid-cols-1`;
-  const sessionPageStyle = {
-    '--notes-rail-width': `${notesRailWidth}px`,
-  } as CSSProperties;
-
-  const [debugPanelOpen, setDebugPanelOpen] = useState(false);
-  const [keepSucceededExecutionStatusVisible, setKeepSucceededExecutionStatusVisible] = useState(false);
-
-  const modeLabels = {
-    dialogue: { badge: '対話中', label: 'AI対話モード', summary: 'Dialogue Mode', reason: '自由入力で行動や会話を送れます。' },
-    battle: { badge: 'バトル中', label: 'バトル', summary: 'Forced Mode / バトル', reason: '自由入力は無効。バトル行動ボタンで進行します。' },
-    roll: { badge: '判定中', label: '判定', summary: 'Forced Mode / 判定', reason: '自由入力と巻き戻しが無効。判定結果を確定します。' },
-    event: { badge: 'イベント進行中', label: '強制イベント', summary: 'Forced Mode / イベント', reason: '自由入力は無効。イベントを順番に再生します。' },
-    recovering: { badge: '復旧中', label: '復旧確認', summary: 'Recovery', reason: '未確定の処理を破棄し、確定地点から復旧します。' },
-  } satisfies Record<typeof sessionMode, { badge: string; label: string; summary: string; reason: string }>;
+  const sessionMode = program.mode;
+  const sessionModeFlavor = program.flavor;
+  const battle = program.battle;
+  const rollResult = program.rollResult;
+  const fixedRoll = program.fixedRoll;
+  const eventAdvanced = program.eventAdvanced;
+  const pendingAction = program.pendingAction;
+  const lastConfirmed = program.lastConfirmed;
+  const recoveryPoint = program.recoveryPoint;
+  const transitionRows = program.transitions;
   const modeMeta = modeLabels[sessionMode];
   const forcedMode = sessionMode !== 'dialogue';
   const programPanelClass = 'mt-3 grid gap-3 rounded-2xl border border-myr-ink/14 bg-myr-session-program-panel p-4';
-  const modeBadgeClass = {
-    dialogue: 'bg-myr-session-mode-dialogue', battle: 'bg-myr-ruby', roll: 'bg-myr-session-mode-roll', event: 'bg-myr-session-mode-event', recovering: 'bg-myr-plum',
-  }[sessionMode];
-  const defaultTurnDisplay: TurnDisplayFlags = { allowRewind: true, showInterpretation: true, leadTone: 'player', leadTag: '⟶' };
-  const programTurnDisplay: TurnDisplayFlags = { allowRewind: false, showInterpretation: false, leadTone: 'program', leadTag: 'PROGRAM' };
-  const displayForTurn = (turn: DialogueTurn): TurnDisplayFlags => ({
-    ...defaultTurnDisplay,
-    ...(dbSession?.turnDisplay?.[turn.id] ?? {}),
-    ...(turn.display ?? {}),
-    ...(serverSession ? { allowRewind: false } : {}),
-  });
+  const modeBadgeClass = { dialogue: 'bg-myr-session-mode-dialogue', battle: 'bg-myr-ruby', roll: 'bg-myr-session-mode-roll', event: 'bg-myr-session-mode-event', recovering: 'bg-myr-plum' }[sessionMode];
+  const defaultTurnDisplay: TurnDisplayFlags = { allowRewind: Boolean(onRewind), showInterpretation: true, leadTone: 'player', leadTag: '⟶' };
+  const displayForTurn = (turn: DialogueTurn): TurnDisplayFlags => ({ ...defaultTurnDisplay, ...(turnDisplay?.[turn.id] ?? {}), ...(turn.display ?? {}), ...(activitySession ? { allowRewind: false } : {}) });
   const generatedLog = turns.map((turn) => `${turn.turnTitle} ${turn.playerInput ?? ''} ${turn.narrative}`).join('\n');
-
-  const addTransitionRow = (from: typeof sessionMode, to: typeof sessionMode, reason: string) => {
-    const at = `21:${String(5 + transitionRows.length).padStart(2, '0')}:${String(10 + transitionRows.length).padStart(2, '0')}`;
-    setTransitionRows((current) => [...current, { id: current.length + 1, from: modeLabels[from].label, to: modeLabels[to].label, reason, at }]);
-  };
-
-  const appendGeneratedTurn = (title: string, narrative: string, playerInput?: string, interpretation?: string, display?: TurnDisplayFlags) => {
-    const nextTurn: DialogueTurn = {
-      id: turns.length + 1,
-      turnTitle: title,
-      playerInput,
-      interpretation,
-      narrative,
-      kind: 'action',
-      display,
-    };
-    setTurns((current) => [...current, nextTurn]);
-    setSelectedTurnId(nextTurn.id);
-    return nextTurn;
-  };
-
-  const switchSessionMode = (next: typeof sessionMode, reason: string) => {
-    addTransitionRow(sessionMode, next, reason);
-    setSessionMode(next);
-    setPendingAction(next === 'dialogue' ? '未完了処理なし' : `${modeLabels[next].label}の処理が未完了`);
-    setNotice(`${reason}: modeTransitionを経て${modeLabels[next].label}へ接続しました。変化するのは入力部分だけで、Turn表示は共通の対話ログに追加されます。`);
-    appendGeneratedTurn(
-      `${modeLabels[next].label}へ遷移`,
-      next === 'dialogue'
-        ? 'プログラム処理が終わり、同じ対話ログの続きとして自由入力へ戻る。'
-        : `${reason}。条件を満たしたため、Sessionは${modeLabels[next].label}の入力UIへ切り替わる。`,
-      undefined,
-      `MODE: ${modeLabels[sessionMode].label} → ${modeLabels[next].label}`,
-      programTurnDisplay,
-    );
-  };
-
-  const startBattleFromCondition = (label: 'バトルを開始' | 'バトル開始' = 'バトルを開始') => {
-    setBattle({ enemy: '錆びついた書架番', playerHp: 30, enemyHp: 24, turn: 1 });
-    switchSessionMode('battle', label);
-  };
-
-  const startRollFromCondition = (label: '判定を開始' | '判定開始' = '判定を開始') => {
-    setRollResult(null);
-    switchSessionMode('roll', label);
-  };
-
-  const startEventFromCondition = (label: '強制イベントを発生' | '強制イベント開始' = '強制イベントを発生') => {
-    setEventAdvanced(false);
-    switchSessionMode('event', label);
-  };
-
-  const resolveBattleAction = (action: '攻撃' | '防御' | 'スキル' | '逃走') => {
-    const damageTable = { 攻撃: 8, 防御: 2, スキル: 12, 逃走: 0 } satisfies Record<typeof action, number>;
-    const counterTable = { 攻撃: 4, 防御: 1, スキル: 5, 逃走: 0 } satisfies Record<typeof action, number>;
-    const dealt = damageTable[action];
-    const counter = counterTable[action];
-    const enemyHp = Math.max(0, battle.enemyHp - dealt);
-    const playerHp = Math.max(0, battle.playerHp - counter);
-    appendGeneratedTurn(
-      `BATTLE TURN ${battle.turn}`,
-      `BATTLE TURN ${battle.turn}: 行動「${action}」確定 / 与ダメージ${dealt} / 被ダメージ${counter} / 敵HP ${enemyHp} / 自HP ${playerHp}。この結果も通常ターンと同じ対話ログに表示される。`,
-      action,
-      'プログラムモードのボタン入力として解釈しました。',
-      programTurnDisplay,
-    );
-    setBattle({ ...battle, enemyHp, playerHp, turn: battle.turn + 1 });
-    setLastConfirmed(`Turn ${turns.length + 1}: バトル行動「${action}」を確定`);
-    setPendingAction(enemyHp === 0 ? 'バトル結果確定。AI対話へ復帰可能' : `Battle Turn ${battle.turn + 1} の行動選択待ち`);
-    setNotice('行動ログは通常ターンと同じ形式で追加されます。');
-  };
-
-  const rollDie = () => {
-    const value = fixedRoll === 'ランダム' ? 5 : Number(fixedRoll);
-    const success = value >= 4;
-    setRollResult({ value, success });
-    appendGeneratedTurn(
-      '判定結果',
-      success
-        ? `ROLL: d6=${value}（成功）。成功ルートのNarrativeを同じ対話ログへ追加しました。`
-        : `ROLL: d6=${value}（失敗）。失敗ルートへ自動で進めました。プレイヤー操作なしで結果を確定します。`,
-      '判定を実行',
-      'プログラムが乱数結果を確定しました。',
-      programTurnDisplay,
-    );
-    setNotice(success ? '判定に成功しました。' : '失敗ルートへ自動で進めました。');
-  };
-
-  const advanceEvent = () => {
-    setEventAdvanced(true);
-    appendGeneratedTurn(
-      '強制イベント確定',
-      'イベント確定: 落下ダメージ5。AIが描写・心情・演出を生成し、結果は共通の対話ログに残る。',
-      '強制イベントを進める',
-      'イベント中の分岐不可処理として解釈しました。',
-      programTurnDisplay,
-    );
-    setNotice('AIが描写・心情・演出を生成しました。');
-  };
-
-  const completeProgramMode = () => {
-    setLastConfirmed(`Turn ${turns.length}: ${modeMeta.label}の結果を確定`);
-    switchSessionMode('dialogue', 'プログラム主導シーン正常終了');
-    setPendingAction('未完了処理なし');
-    setNotice('正常終了しました。AI対話モードに戻り、自由入力と巻き戻しが再度有効になりました。');
-  };
-
-  const simulateProcessingError = () => {
-    addTransitionRow(sessionMode, 'recovering', 'プログラム処理エラー');
-    setSessionMode('recovering');
-    setPendingAction('未確定: ダメージ計算の後半は反映しない');
-    appendGeneratedTurn('復旧確認', 'ERROR: ダメージ計算の途中で失敗。確定済み=行動選択まで / 未確定=ダメージ反映。', undefined, '未確定の処理結果はSession Stateへ反映しません。', programTurnDisplay);
-    setNotice('エラーが発生しました。確定済み地点を表示し、未確定の処理結果はSession Stateへ反映しません。');
-  };
-
-  const recoverFromPoint = (point: 'lastConfirmed' | 'safePoint') => {
-    setRecoveryPoint(point);
-    addTransitionRow('recovering', 'dialogue', point === 'lastConfirmed' ? '最後に確定した地点から復帰' : '安全なセーフポイントへ復帰');
-    setSessionMode('dialogue');
-    setPendingAction('未完了処理なし');
-    setNotice(point === 'lastConfirmed' ? '最後に確定した地点から復帰しました。' : '安全なセーフポイントへ戻りました。');
-  };
-
-  const simulateReconnect = () => {
-    setPendingAction(`${modeMeta.label}の未完了UIを再提示`);
-    setNotice('通信断から再接続しました。最後に確定した進行地点からモード状態を復元し、未完了UIを再提示します。');
-  };
-
+  const startBattleFromCondition = program.onStartBattle;
+  const startRollFromCondition = program.onStartRoll;
+  const startEventFromCondition = program.onStartEvent;
+  const resolveBattleAction = program.onBattleAction;
+  const rollDie = program.onRoll;
+  const advanceEvent = program.onAdvanceEvent;
+  const completeProgramMode = program.onComplete;
+  const simulateProcessingError = program.onProcessingError;
+  const recoverFromPoint = program.onRecover;
+  const simulateReconnect = program.onReconnect;
+  const setFixedRoll = program.onFixedRollChange;
+  const sessionPageClassName = `${scenarioWizardShellClass} min-h-[calc(100vh-118px)] min-w-0 max-w-full grid-cols-[190px_minmax(0,1fr)_minmax(300px,var(--notes-rail-width,340px))] max-myr-workspace:grid-cols-1`;
+  const sessionPageStyle = { '--notes-rail-width': `${notesRailWidth}px` } as CSSProperties;
   return (
     <AppChrome
       section="sessions"
@@ -661,7 +269,7 @@ function SessionDialogueSection({
           if (heading) jumpToHeading(heading);
         }}
         markerLabel="Session state"
-        markerValue={<span data-testid="session-state">{dbSession?.state ?? 'Active'}</span>}
+        markerValue={<span data-testid="session-state">{sessionStateLabel}</span>}
       />
 
       <main className={`${wizardPaperClass} min-w-0 ${notesView === 'full' ? 'hidden' : ''} ${notesView === 'hidden' ? 'col-[2/-1] max-myr-workspace:col-start-1' : ''}`} aria-label="AI対話モード">
@@ -685,8 +293,8 @@ function SessionDialogueSection({
           </Notice>
         )}
 
-        {serverSession ? (
-          <SessionActivityFeed session={serverSession} onExecutionAction={(id, action) => void handleExecutionAction(id, action)} onNoteReview={(id, action, request) => void handleNoteReview(id, action, request)} keepSucceededStatusVisible={keepSucceededExecutionStatusVisible} />
+        {activitySession ? (
+          <SessionActivityFeed session={activitySession} onExecutionAction={(id, action) => void handleExecutionAction(id, action)} onNoteReview={(id, action, request) => void handleNoteReview(id, action, request)} keepSucceededStatusVisible={keepSucceededExecutionStatusVisible} />
         ) : (
         <section className="grid max-h-[48vh] gap-3 overflow-auto pr-2" aria-label="対話ログ" data-testid="dialogue-log">
           {turns.map((turn) => {
@@ -791,7 +399,7 @@ function SessionDialogueSection({
               onChange={(event) => {
                 const nextInput = event.target.value;
                 setInput(nextInput);
-                if (draftRequest && draftRequest.input !== nextInput.trim()) setDraftRequest(null);
+                if (retryAvailable) setRetryAvailable(false);
               }}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
@@ -845,8 +453,8 @@ function SessionDialogueSection({
                   onClick={() => void sendInput()}
                   data-testid="send-free-input"
                   disabled={isSubmitting || !input.trim()}
-                  aria-label={isSubmitting ? 'Narrativeを生成中' : draftRequest ? '同じ入力を再試行' : '行動を送る'}
-                  title={draftRequest ? '同じ入力を再試行' : '行動を送る'}
+                  aria-label={isSubmitting ? 'Narrativeを生成中' : retryAvailable ? '同じ入力を再試行' : '行動を送る'}
+                  title={retryAvailable ? '同じ入力を再試行' : '行動を送る'}
                 >
                   {isSubmitting
                     ? <span className="size-3.5 animate-spin rounded-full border-2 border-myr-session-control/40 border-t-myr-session-control motion-reduce:animate-[spin_1.4s_linear_infinite]" aria-hidden="true" />

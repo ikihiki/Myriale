@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
 import { MyrialeApp } from '../app/MyrialeApp';
 import { createDemoDb } from '../app/demoData';
+import { MockSessionPageContainer } from './session-page/MockSessionPageContainer';
 import '../styles.css';
 
 const meta = {
@@ -52,7 +53,7 @@ export const HomeDashboard: Story = {
 
 export const FullAppHappyPath: Story = {
   name: '統合アプリ: シナリオ選択からプレイ画面へ遷移する',
-  args: { initialUrl: '/scenarios', initialDb: createDemoDb('activeSession') },
+  args: { initialUrl: '/scenarios', initialDb: createDemoDb('activeSession'), sessionPageContainer: MockSessionPageContainer },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
@@ -72,7 +73,7 @@ export const FullAppHappyPath: Story = {
 
 export const DirectOpenPlaySession: Story = {
   name: 'URL直開き: プレイ中セッション',
-  args: { initialUrl: '/sessions/SES-PREP-1098', initialDb: createDemoDb('activeSession') },
+  args: { initialUrl: '/sessions/SES-PREP-1098', initialDb: createDemoDb('activeSession'), sessionPageContainer: MockSessionPageContainer },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await step('URLとDB seedで目的画面を再現する', async () => {
@@ -85,7 +86,7 @@ export const DirectOpenPlaySession: Story = {
 
 export const DirectOpenLorebook: Story = {
   name: 'URL直開き: セッション中のLorebook管理',
-  args: { initialUrl: '/sessions/SES-PREP-1098', initialDb: createDemoDb('lorebook') },
+  args: { initialUrl: '/sessions/SES-PREP-1098', initialDb: createDemoDb('lorebook'), sessionPageContainer: MockSessionPageContainer },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await step('ノート用DBをseedしてセッション画面内のLorebookを開く', async () => {
