@@ -1,13 +1,26 @@
 import { forwardRef, type ComponentPropsWithoutRef } from 'react';
+import { buttonRecipe, type ButtonSize, type ButtonSurface, type ButtonVariant } from './buttonRecipes';
 
-const baseClassName = 'cursor-pointer border-0 [font:inherit] disabled:cursor-not-allowed';
+const compatibilityClassName = 'cursor-pointer border-0 [font:inherit] disabled:cursor-not-allowed';
 
-function cx(...classNames: Array<string | undefined>) {
+function cx(...classNames: Array<string | undefined | false>) {
   return classNames.filter(Boolean).join(' ');
 }
 
-export const Button = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<'button'>>(
-  function Button({ className, ...props }, ref) {
-    return <button ref={ref} className={cx(baseClassName, className)} {...props} />;
+export type ButtonProps = ComponentPropsWithoutRef<'button'> & {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  surface?: ButtonSurface;
+};
+
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  function Button({ className, variant, size, surface, ...props }, ref) {
+    return (
+      <button
+        ref={ref}
+        className={cx(variant ? buttonRecipe({ variant, size, surface }) : compatibilityClassName, className)}
+        {...props}
+      />
+    );
   },
 );

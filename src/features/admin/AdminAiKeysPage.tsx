@@ -132,7 +132,7 @@ export function AdminAiKeysPage() {
                 <Input aria-label="APIキー" type="password" value={secret} onChange={(event) => setSecret(event.target.value)} placeholder={provider === 'runpod' ? 'rpa_...' : 'sk-...'} />
               </label>
               <p className="mt-3 text-xs leading-5 text-myr-slate">Vaultまたは環境変数で設定済みの場合、ここで同じキーを再登録する必要はありません。</p>
-              <Button className="mt-4 !rounded-full !bg-myr-ink !px-5 !py-2.5 !text-sm !font-extrabold !text-myr-paper transition hover:!-translate-y-0.5 hover:!bg-myr-iris disabled:!cursor-not-allowed disabled:!opacity-40" onClick={() => void save()} disabled={busy || !secret.trim()}>キーを保存</Button>
+              <Button variant="secondary" className="mt-4" onClick={() => void save()} disabled={busy || !secret.trim()}>キーを保存</Button>
             </section>
 
             <aside className="rounded-myr-card border border-myr-ink/15 bg-myr-vellum/45 p-5" aria-label="設定の優先順位">
@@ -155,7 +155,7 @@ export function AdminAiKeysPage() {
                     <td className="px-4 py-4"><div className="flex flex-wrap gap-1.5">{key.active && <span className="rounded-full bg-myr-ink px-2.5 py-1 text-myr-caption font-black text-myr-paper">使用中</span>}<span className={`rounded-full px-2.5 py-1 text-myr-caption font-black ${key.credentialSource === 'environment' ? 'bg-myr-iris/15 text-myr-iris' : key.credentialSource === 'database' ? 'bg-myr-gold/30 text-myr-ink' : 'bg-myr-ink/8 text-myr-slate'}`}>{sourceLabel(key.credentialSource)}</span></div></td>
                     <td className="px-4 py-4 font-myr-mono text-xs">{key.maskedKey}</td>
                     <td className="px-4 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-black ${key.status === 'valid' ? 'bg-[#2f6f57]/15 text-[#2f6f57]' : 'bg-myr-ink/8 text-myr-slate'}`}>{statusLabel(key.status)}</span></td>
-                    <td className="px-4 py-4"><div className="flex flex-wrap gap-2"><Button className="!rounded-full !border !border-myr-ink/25 !bg-transparent !px-4 !py-2 !font-extrabold !text-myr-ink hover:!border-myr-iris hover:!text-myr-iris disabled:!cursor-not-allowed disabled:!opacity-35" onClick={() => void test(key.provider)} disabled={busy || !key.configured}>接続テスト</Button>{key.credentialSource === 'database' && <Button className="!rounded-full !bg-myr-ruby !px-4 !py-2 !font-extrabold !text-white disabled:!opacity-35" onClick={() => void remove(key.provider)} disabled={busy}>削除</Button>}</div></td>
+                    <td className="px-4 py-4"><div className="flex flex-wrap gap-2"><Button variant="ghost" size="sm" onClick={() => void test(key.provider)} disabled={busy || !key.configured}>接続テスト</Button>{key.credentialSource === 'database' && <Button variant="danger" size="sm" onClick={() => void remove(key.provider)} disabled={busy}>削除</Button>}</div></td>
                   </tr>
                 ))}</tbody>
               </table>

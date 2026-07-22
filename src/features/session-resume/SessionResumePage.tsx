@@ -278,7 +278,7 @@ export function SessionResumePage() {
                     <p className="text-myr-ui-sm font-extrabold !text-myr-ink-subtle">
                       進行度: Turn {session.turn} ・ 現在プレイ中
                     </p>
-                    <Button className="primary" onClick={openActiveSession}>
+                    <Button variant="primary" size="sm" onClick={openActiveSession}>
                       {session.scenarioTitle}のプレイ画面へ
                     </Button>
                   </article>
@@ -299,7 +299,7 @@ export function SessionResumePage() {
                     <p className="text-myr-ui-sm font-extrabold !text-myr-ink-subtle">
                       進行度: Turn {turnCountOf(session)} ・ プレイ時間 {session.playtime} ・ 最終プレイ {session.lastPlayed}
                     </p>
-                    <Button className="primary" onClick={() => selectSession(session)}>
+                    <Button variant="primary" size="sm" onClick={() => selectSession(session)}>
                       {session.scenarioTitle}を再開
                     </Button>
                   </article>
@@ -364,11 +364,11 @@ export function SessionResumePage() {
               </article>
 
               <div className={wizardButtonRowClass}>
-                <Button onClick={backToList}>一覧へ戻る</Button>
-                <Button onClick={viewReadOnly} data-testid="readonly-button">
+                <Button variant="secondary" size="sm" onClick={backToList}>一覧へ戻る</Button>
+                <Button variant="secondary" size="sm" onClick={viewReadOnly} data-testid="readonly-button">
                   再開せずに読み返す（ReadOnly）
                 </Button>
-                <Button className="primary" onClick={resumeSession} data-testid="resume-button">
+                <Button variant="primary" size="sm" onClick={resumeSession} data-testid="resume-button">
                   確認したので再開する（プレイ画面へ）
                 </Button>
               </div>
@@ -414,8 +414,8 @@ export function SessionResumePage() {
                 ReadOnly: 選択肢や入力は無効です。再開すると続きから操作できます。
               </p>
               <div className={wizardButtonRowClass}>
-                <Button onClick={() => selectSession(selected)}>再開の確認へ戻る</Button>
-                <Button className="primary" onClick={resumeSession} data-testid="resume-button">
+                <Button variant="secondary" size="sm" onClick={() => selectSession(selected)}>再開の確認へ戻る</Button>
+                <Button variant="primary" size="sm" onClick={resumeSession} data-testid="resume-button">
                   読み返したので再開する（プレイ画面へ）
                 </Button>
               </div>

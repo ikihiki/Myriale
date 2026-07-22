@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
-import { Button, Input, Textarea } from '../components/ui';
+import { Button, Input, Textarea, type ButtonSize, type ButtonVariant } from '../components/ui';
 
 const meta: Meta = {
   title: 'コンポーネント/Form Controls',
@@ -80,20 +80,49 @@ export const Variants: Story = {
   },
 };
 
-export const ButtonCompatibility: Story = {
-  name: 'Button compatibility / form semantics',
+const buttonVariants: ButtonVariant[] = ['primary', 'secondary', 'ghost', 'text', 'danger', 'icon'];
+const buttonSizes: ButtonSize[] = ['sm', 'md', 'lg', 'iconSm', 'iconMd'];
+
+export const ButtonRoles: Story = {
+  name: 'Button variant × size / semantics',
   render: function Render() {
     const [status, setStatus] = useState('未操作');
     return (
-      <div className="grid gap-4">
+      <div className="grid gap-5">
+        <section className="overflow-x-auto" aria-label="Button role matrix">
+          <div className="grid min-w-[620px] grid-cols-[90px_repeat(5,minmax(92px,1fr))] items-center gap-2">
+            <span />
+            {buttonSizes.map((size) => <strong className="text-center text-xs" key={size}>{size}</strong>)}
+            {buttonVariants.map((variant) => (
+              <div className="contents" key={variant}>
+                <strong className="text-xs">{variant}</strong>
+                {buttonSizes.map((size) => {
+                  const label = `${variant} ${size}`;
+                  return (
+                    <Button
+                      type="button"
+                      variant={variant}
+                      size={size}
+                      aria-label={variant === 'icon' ? label : undefined}
+                      key={size}
+                      onClick={() => setStatus(`${label} clicked`)}
+                    >
+                      {variant === 'icon' ? <span aria-hidden="true">✦</span> : size}
+                    </Button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </section>
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={() => setStatus('plain clicked')}>Plain button</Button>
-          <Button className="rounded-full bg-myr-ink px-5 py-2.5 font-extrabold text-myr-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-myr-iris" onClick={() => setStatus('custom clicked')}>Custom button</Button>
-          <Button disabled>Disabled button</Button>
+          <Button variant="primary" onClick={() => setStatus('focus clicked')}>Focus target</Button>
+          <Button variant="secondary" disabled>Disabled action</Button>
+          <Button onClick={() => setStatus('plain clicked')}>Compatibility button</Button>
         </div>
         <form className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end" onSubmit={(event) => { event.preventDefault(); setStatus('form submitted'); }}>
           <label className="grid min-w-0 gap-1.5 text-xs font-black">Form value<Input name="title" defaultValue="星喰いの図書館" /></label>
-          <Button className="justify-self-start rounded-full bg-myr-gold px-5 py-3 font-black text-myr-ink">Submit without type</Button>
+          <Button variant="primary" size="lg" className="justify-self-start">Submit without type</Button>
         </form>
         <output aria-live="polite">状態: {status}</output>
       </div>
@@ -101,21 +130,25 @@ export const ButtonCompatibility: Story = {
   },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await step('互換ベースと無効状態を公開する', async () => {
-      await expect(canvas.getByRole('button', { name: 'Plain button' })).toHaveClass('cursor-pointer', 'border-0', '[font:inherit]');
-      await expect(canvas.getByRole('button', { name: 'Disabled button' })).toBeDisabled();
-      await expect(canvas.getByRole('button', { name: 'Disabled button' })).toHaveClass('disabled:cursor-not-allowed');
+    await step('全variantとsizeの組み合わせをtyped recipeで公開する', async () => {
+      await expect(canvas.getByRole('button', { name: 'primary sm' })).toHaveClass('bg-myr-gold', 'px-3', 'py-2');
+      await expect(canvas.getByRole('button', { name: 'secondary lg' })).toHaveClass('bg-myr-ink', 'px-5', 'py-3');
+      await expect(canvas.getByRole('button', { name: 'icon iconSm' })).toHaveClass('size-[30px]', 'p-0');
+      await expect(canvas.getByRole('button', { name: 'icon iconMd' })).toHaveAccessibleName('icon iconMd');
     });
-    await step('キーボードフォーカスと操作を保つ', async () => {
-      const plain = canvas.getByRole('button', { name: 'Plain button' });
-      plain.focus();
-      await expect(plain).toHaveFocus();
+    await step('focus-visible recipeとdisabled状態を共通化する', async () => {
+      const focusTarget = canvas.getByRole('button', { name: 'Focus target' });
+      focusTarget.focus();
+      await expect(focusTarget).toHaveFocus();
+      await expect(focusTarget).toHaveClass('focus-visible:outline-myr-iris', 'motion-reduce:transition-none');
       await userEvent.keyboard('{Enter}');
-      await expect(canvas.getByText('状態: plain clicked')).toBeInTheDocument();
-      await userEvent.tab();
-      await expect(canvas.getByRole('button', { name: 'Custom button' })).toHaveFocus();
+      await expect(canvas.getByText('状態: focus clicked')).toBeInTheDocument();
+      const disabled = canvas.getByRole('button', { name: 'Disabled action' });
+      await expect(disabled).toBeDisabled();
+      await expect(disabled).toHaveClass('disabled:opacity-40', 'disabled:cursor-not-allowed');
     });
-    await step('type未指定のボタンはフォームを送信する', async () => {
+    await step('互換defaultとtype未指定のsubmit semanticsを維持する', async () => {
+      await expect(canvas.getByRole('button', { name: 'Compatibility button' })).toHaveClass('cursor-pointer', 'border-0', '[font:inherit]');
       const submit = canvas.getByRole('button', { name: 'Submit without type' });
       await expect(submit).not.toHaveAttribute('type');
       await userEvent.click(submit);

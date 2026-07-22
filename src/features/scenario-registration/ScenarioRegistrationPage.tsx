@@ -260,7 +260,7 @@ export function ScenarioRegistrationPage({ api }: { api?: ScenarioApi } = {}) {
             <p><strong>{currentStep.help}。</strong>シナリオは未完成で保存できます。最初はタイトルだけでDraftを作り、あとから設定を足します。</p>
             <label>シナリオタイトル *<Input aria-label="シナリオタイトル" aria-invalid={firstScenarioFieldError(saveError, 'title') ? true : undefined} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="星喰いの地下図書館" /></label>
             <label>概要（空でも保存できます）<Textarea aria-label="概要" aria-invalid={firstScenarioFieldError(saveError, 'summary') ? true : undefined} value={summary} onChange={(event) => setSummary(event.target.value)} /></label>
-            <div className={wizardButtonRowClass}><Button className="primary" onClick={saveDraft} disabled={saving}>{saving ? '保存中…' : '下書き保存'}</Button><Button onClick={() => void consultAi('概要')} disabled={aiWorking}>AIに概要案を出してもらう</Button><Button onClick={adoptSummary}>採用して編集</Button></div>
+            <div className={wizardButtonRowClass}><Button variant="primary" size="sm" onClick={saveDraft} disabled={saving}>{saving ? '保存中…' : '下書き保存'}</Button><Button variant="secondary" size="sm" onClick={() => void consultAi('概要')} disabled={aiWorking}>AIに概要案を出してもらう</Button><Button variant="secondary" size="sm" onClick={adoptSummary}>採用して編集</Button></div>
           </section>
         )}
 
@@ -270,7 +270,7 @@ export function ScenarioRegistrationPage({ api }: { api?: ScenarioApi } = {}) {
             <label>ジャンル<Input aria-label="ジャンル" value={genre} onChange={(event) => setGenre(event.target.value)} /></label>
             <label>雰囲気<Input aria-label="雰囲気" value={tone} onChange={(event) => setTone(event.target.value)} /></label>
             <label>Lore<Textarea aria-label="世界観やルール" value={lore} onChange={(event) => setLore(event.target.value)} /></label>
-            <Button onClick={() => void consultAi('世界観')} disabled={aiWorking}>矛盾をチェック</Button>
+            <Button variant="secondary" size="sm" onClick={() => void consultAi('世界観')} disabled={aiWorking}>矛盾をチェック</Button>
           </section>
         )}
 
@@ -343,13 +343,13 @@ export function ScenarioRegistrationPage({ api }: { api?: ScenarioApi } = {}) {
             <label>ムード<Input aria-label="挿絵のムード" value={mood} onChange={(event) => setMood(event.target.value)} /></label>
             <label>NG要素<Textarea aria-label="挿絵の禁止要素" value={negative} onChange={(event) => setNegative(event.target.value)} /></label>
             <label>サンプルシーン<Textarea aria-label="サンプルシーン" value={sampleScene} onChange={(event) => setSampleScene(event.target.value)} /></label>
-            <div className={wizardButtonRowClass}><Button onClick={() => void consultAi('挿絵テイスト')} disabled={aiWorking}>画風を相談</Button><Button onClick={() => void consultAi('挿絵プロンプト')} disabled={aiWorking}>プロンプトを生成</Button><Button className="primary" onClick={() => void generatePreview()} disabled={aiWorking}>サンプルシーンで生成</Button></div>
+            <div className={wizardButtonRowClass}><Button variant="secondary" size="sm" onClick={() => void consultAi('挿絵テイスト')} disabled={aiWorking}>画風を相談</Button><Button variant="secondary" size="sm" onClick={() => void consultAi('挿絵プロンプト')} disabled={aiWorking}>プロンプトを生成</Button><Button variant="primary" size="sm" onClick={() => void generatePreview()} disabled={aiWorking}>サンプルシーンで生成</Button></div>
           </section>
         )}
 
         <nav className={wizardActionsClass} aria-label="ウィザード操作">
-          <Button onClick={() => move(-1)} disabled={currentIndex === 0}>戻る</Button>
-          <Button className="primary" onClick={() => move(1)} disabled={currentIndex === wizardSteps.length - 1}>次へ</Button>
+          <Button variant="secondary" size="sm" onClick={() => move(-1)} disabled={currentIndex === 0}>戻る</Button>
+          <Button variant="primary" size="sm" onClick={() => move(1)} disabled={currentIndex === wizardSteps.length - 1}>次へ</Button>
         </nav>
       </main>
 

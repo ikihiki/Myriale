@@ -1,6 +1,7 @@
 import { createRef, type FormEvent } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Button as AccountButton } from '../../account/components/Button';
 import { Button } from '.';
 
 afterEach(cleanup);
@@ -26,6 +27,28 @@ describe('Button', () => {
     }
   });
 
+  it('applies typed role, size, surface, focus, disabled, and reduced-motion recipes', () => {
+    render(
+      <>
+        <Button variant="primary" size="lg">Primary</Button>
+        <Button variant="ghost" size="sm" surface="dark" disabled>Dark ghost</Button>
+        <Button variant="icon" size="iconSm" aria-label="Add item">+</Button>
+      </>,
+    );
+
+    const primary = screen.getByRole('button', { name: 'Primary' });
+    for (const className of ['inline-flex', 'rounded-full', 'bg-myr-gold', 'px-5', 'py-3', 'focus-visible:outline-myr-iris', 'disabled:opacity-40', 'motion-reduce:transition-none']) {
+      expect(primary.classList.contains(className)).toBe(true);
+    }
+    const darkGhost = screen.getByRole('button', { name: 'Dark ghost' });
+    for (const className of ['border-myr-paper/35', 'text-myr-paper', 'px-3', 'py-2']) {
+      expect(darkGhost.classList.contains(className)).toBe(true);
+    }
+    const icon = screen.getByRole('button', { name: 'Add item' });
+    expect(icon.classList.contains('size-[30px]')).toBe(true);
+    expect(icon.classList.contains('p-0')).toBe(true);
+  });
+
   it('handles clicks and preserves native disabled behavior', () => {
     const enabledClick = vi.fn();
     const disabledClick = vi.fn();
@@ -46,6 +69,17 @@ describe('Button', () => {
     expect(button.getAttribute('type')).toBeNull();
     fireEvent.click(button);
     expect(submit).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the account adapter API and its default non-submit type', () => {
+    const submit = vi.fn((event: FormEvent) => event.preventDefault());
+    render(<form onSubmit={submit}><AccountButton variant="primary">Account action</AccountButton></form>);
+
+    const button = screen.getByRole('button', { name: 'Account action' });
+    expect(button.getAttribute('type')).toBe('button');
+    expect(button.classList.contains('bg-myr-ink')).toBe(true);
+    fireEvent.click(button);
+    expect(submit).not.toHaveBeenCalled();
   });
 
   it('preserves an explicit button type', () => {

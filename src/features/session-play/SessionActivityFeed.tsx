@@ -20,7 +20,6 @@ const executionStatusClass: Record<SessionExecutionApiResponse['status'], string
   succeeded: '',
   superseded: 'opacity-72',
 };
-const actionButtonClass = 'min-h-[26px] rounded-full border border-current/28 bg-transparent px-[9px] py-[3px] text-myr-caption font-extrabold text-inherit hover:bg-current/8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current';
 const artifactClass = 'mx-auto mb-3 w-[min(100%,720px)] rounded-myr-card border border-myr-ink/14 bg-[#fffbf1] px-4 py-3.5';
 
 export function SessionInputItem({ text }: { text: string }) {
@@ -76,9 +75,9 @@ export function SessionExecutionItem({ execution, onAction, keepSucceededStatusV
   const statusLine = <ExecutionStatusLine execution={execution} elapsed={elapsed} />;
   const canCancelInput = failed && execution.triggerType === 'player-input' && execution.capabilities.canDismiss;
   const actions = (execution.capabilities.canRetry || execution.capabilities.canCancel || canCancelInput) && <div className={`execution-actions flex min-h-[26px] justify-end gap-1.5 ${failed ? 'mt-[5px]' : 'mt-1'}`}>
-    {execution.capabilities.canRetry && <Button className={actionButtonClass} onClick={() => onAction?.(execution.id, 'retry')}>再試行</Button>}
-    {execution.capabilities.canCancel && <Button className={actionButtonClass} onClick={() => onAction?.(execution.id, 'cancel')}>キャンセル</Button>}
-    {canCancelInput && <Button className={actionButtonClass} onClick={() => onAction?.(execution.id, 'dismiss')}>入力取り消し</Button>}
+    {execution.capabilities.canRetry && <Button variant="ghost" size="sm" onClick={() => onAction?.(execution.id, 'retry')}>再試行</Button>}
+    {execution.capabilities.canCancel && <Button variant="ghost" size="sm" onClick={() => onAction?.(execution.id, 'cancel')}>キャンセル</Button>}
+    {canCancelInput && <Button variant="ghost" size="sm" onClick={() => onAction?.(execution.id, 'dismiss')}>入力取り消し</Button>}
   </div>;
 
   return (
@@ -113,7 +112,7 @@ export function NoteProposalItem({ proposal, onReview }: { proposal: SessionNote
   const [title, setTitle] = useState(proposal.proposedTitle);
   const [body, setBody] = useState(proposal.proposedBody);
   const request = { expectedNoteRevision: proposal.expectedNoteRevision };
-  return <article className={artifactClass} data-testid="note-proposal-item"><strong>ノート変更案: {proposal.proposedTitle}</strong><div className="my-2.5 grid gap-2 [&_del]:block [&_del]:rounded-myr-control [&_del]:bg-[#fff0ef] [&_del]:p-2.5 [&_del]:no-underline [&_ins]:block [&_ins]:rounded-myr-control [&_ins]:bg-[#eff9f1] [&_ins]:p-2.5 [&_ins]:no-underline"><del>{proposal.beforeBody || '（新規ノート）'}</del><ins>{proposal.proposedBody}</ins></div><p>根拠: {proposal.rationale}</p>{editing && <fieldset aria-label="ノート変更案を編集"><label>タイトル<Input value={title} onChange={(event) => setTitle(event.target.value)} /></label><label>本文<Textarea value={body} onChange={(event) => setBody(event.target.value)} /></label><div className="button-row"><Button onClick={() => onReview?.(proposal.artifactId, 'edit-apply', { ...request, title, body })}>編集内容を適用</Button><Button onClick={() => setEditing(false)}>編集をやめる</Button></div></fieldset>}{proposal.status === 'pending' && !editing && <div className="button-row"><Button onClick={() => onReview?.(proposal.artifactId, 'apply', request)}>適用</Button><Button onClick={() => setEditing(true)}>編集して適用</Button><Button onClick={() => onReview?.(proposal.artifactId, 'reject', request)}>却下</Button><Button onClick={() => onReview?.(proposal.artifactId, 'snooze', request)}>あとで</Button></div>}</article>;
+  return <article className={artifactClass} data-testid="note-proposal-item"><strong>ノート変更案: {proposal.proposedTitle}</strong><div className="my-2.5 grid gap-2 [&_del]:block [&_del]:rounded-myr-control [&_del]:bg-[#fff0ef] [&_del]:p-2.5 [&_del]:no-underline [&_ins]:block [&_ins]:rounded-myr-control [&_ins]:bg-[#eff9f1] [&_ins]:p-2.5 [&_ins]:no-underline"><del>{proposal.beforeBody || '（新規ノート）'}</del><ins>{proposal.proposedBody}</ins></div><p>根拠: {proposal.rationale}</p>{editing && <fieldset aria-label="ノート変更案を編集"><label>タイトル<Input value={title} onChange={(event) => setTitle(event.target.value)} /></label><label>本文<Textarea value={body} onChange={(event) => setBody(event.target.value)} /></label><div className="button-row"><Button variant="primary" size="sm" onClick={() => onReview?.(proposal.artifactId, 'edit-apply', { ...request, title, body })}>編集内容を適用</Button><Button variant="ghost" size="sm" onClick={() => setEditing(false)}>編集をやめる</Button></div></fieldset>}{proposal.status === 'pending' && !editing && <div className="button-row"><Button variant="primary" size="sm" onClick={() => onReview?.(proposal.artifactId, 'apply', request)}>適用</Button><Button variant="secondary" size="sm" onClick={() => setEditing(true)}>編集して適用</Button><Button variant="danger" size="sm" onClick={() => onReview?.(proposal.artifactId, 'reject', request)}>却下</Button><Button variant="ghost" size="sm" onClick={() => onReview?.(proposal.artifactId, 'snooze', request)}>あとで</Button></div>}</article>;
 }
 export function ImageArtifactItem({ mediaUrl, contentType }: { mediaUrl?: string | null; contentType: string }) {
   return <figure className={artifactClass} data-testid="image-artifact-item">{mediaUrl ? <img className="block max-h-[420px] w-full rounded-xl object-cover" src={mediaUrl} alt="生成された場面" loading="lazy" /> : <div className="grid min-h-[180px] place-items-center rounded-xl bg-[linear-gradient(135deg,#d7d0f6,#b9dce0)] font-extrabold" role="img" aria-label="画像Artifactのプレビュー">画像プレビュー</div>}<figcaption>{contentType} / Narrativeとは独立した任意成果物</figcaption></figure>;

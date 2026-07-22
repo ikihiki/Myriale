@@ -306,7 +306,7 @@ function ServerSessionPage({ sessionId }: { sessionId: string }) {
             <p role={error ? 'alert' : 'status'}>{error || '確定済みのTurnを取得しています。'}</p>
             {error && (
               <Button
-                className="!rounded-full !bg-myr-ink !px-5 !py-3 !font-black !text-myr-paper"
+                variant="secondary" size="lg"
                 onClick={requiresLogin ? goToLogin : () => window.location.reload()}
               >
                 {requiresLogin ? 'ログインへ' : '再読み込み'}
@@ -669,8 +669,6 @@ function SessionDialogueSection({
   } satisfies Record<typeof sessionMode, { badge: string; label: string; summary: string; reason: string }>;
   const modeMeta = modeLabels[sessionMode];
   const forcedMode = sessionMode !== 'dialogue';
-  const compactControlButtonClass = 'rounded-full bg-myr-plum px-3 py-2 text-xs font-black text-myr-paper';
-  const primaryControlButtonClass = `${compactControlButtonClass} !bg-myr-gold !text-[#17151f]`;
   const programPanelClass = 'mt-3 grid gap-2.5 rounded-2xl border border-myr-ink/14 bg-[rgba(250,249,255,.7)] p-3.5';
   const modeBadgeClass = {
     dialogue: 'bg-[#4a845c]', battle: 'bg-myr-ruby', roll: 'bg-[#7054dd]', event: 'bg-[#c77d16]', recovering: 'bg-myr-plum',
@@ -846,13 +844,13 @@ function SessionDialogueSection({
 
       <main className={`${wizardPaperClass} min-w-0 ${notesView === 'full' ? 'hidden' : ''} ${notesView === 'hidden' ? 'col-[2/-1] max-myr-workspace:col-start-1' : ''}`} aria-label="AI対話モード">
         <p className="kicker">Session play / AI dialogue mode</p>
-        <div className="mb-2.5 flex justify-end gap-2 [&_button]:rounded-full [&_button]:bg-myr-plum [&_button]:px-3 [&_button]:py-2 [&_button]:text-xs [&_button]:font-black [&_button]:text-myr-paper" aria-label="ノート表示切り替え">
+        <div className="mb-2.5 flex justify-end gap-2" aria-label="ノート表示切り替え">
           {notesView === 'hidden' ? (
-            <Button className={primaryControlButtonClass} onClick={() => setNotesViewMode(isNarrowViewport ? 'full' : 'split')}>ノートを表示</Button>
+            <Button variant="primary" size="sm" onClick={() => setNotesViewMode(isNarrowViewport ? 'full' : 'split')}>ノートを表示</Button>
           ) : (
             <>
-              <Button onClick={() => setNotesViewMode('hidden')}>ノートを非表示</Button>
-              <Button className={primaryControlButtonClass} onClick={() => setNotesViewMode('full')}>ノートを全画面表示</Button>
+              <Button variant="secondary" size="sm" onClick={() => setNotesViewMode('hidden')}>ノートを非表示</Button>
+              <Button variant="primary" size="sm" onClick={() => setNotesViewMode('full')}>ノートを全画面表示</Button>
             </>
           )}
         </div>
@@ -860,7 +858,7 @@ function SessionDialogueSection({
           <div className="notice" role="status" data-testid="dialogue-notice">
             <span>{notice}</span>
             {authenticationRequired && onLogin && (
-              <Button className="primary" onClick={onLogin}>ログインへ</Button>
+              <Button variant="primary" size="sm" onClick={onLogin}>ログインへ</Button>
             )}
           </div>
         )}
@@ -886,7 +884,8 @@ function SessionDialogueSection({
                 selected={selectedTurnId === turn.id}
                 headingActions={display.allowRewind ? (
                   <Button
-                    className="!grid !size-[30px] !place-items-center !rounded-[9px] !border-0 !bg-transparent !p-0 !text-[#6b6874] hover:!bg-myr-ink/7 hover:!text-[#211e2b] focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
+                    variant="icon"
+                    size="iconSm"
                     onClick={() => requestRewind(turn.id)}
                     aria-label="ここまで戻る"
                     title="ここまで戻る"
@@ -931,12 +930,12 @@ function SessionDialogueSection({
 
         {pendingRewindId != null && (
           <MyrialeDialogRoot open onOpenChange={(open) => { if (!open) setPendingRewindId(null); }}>
-            <MyrialeDialogContent title="巻き戻し確認" className="rewind-dialog !my-3 !rounded-myr-card !border !border-myr-ruby/32 !bg-[rgba(255,238,220,.86)] !p-3.5 [&_p]:max-w-none [&_p]:text-[#5a3d3d] [&_button]:rounded-full [&_button]:bg-myr-plum [&_button]:px-3 [&_button]:py-2 [&_button]:text-xs [&_button]:text-myr-paper [&_.primary]:!bg-myr-gold [&_.primary]:!font-black [&_.primary]:!text-[#17151f]" portal={false} data-testid="rewind-dialog">
+            <MyrialeDialogContent title="巻き戻し確認" className="rewind-dialog !my-3 !rounded-myr-card !border !border-myr-ruby/32 !bg-[rgba(255,238,220,.86)] !p-3.5 [&_p]:max-w-none [&_p]:text-[#5a3d3d]" portal={false} data-testid="rewind-dialog">
               <strong>Turn {String(pendingRewindId).padStart(2, '0')}まで戻りますか？</strong>
               <p>指定ターン以降のログ、挿絵生成などの非同期処理を無効化またはキャンセルします。</p>
               <div className="button-row">
-                <Button className="primary" onClick={confirmRewind}>巻き戻しを確定</Button>
-                <Button onClick={() => setPendingRewindId(null)}>キャンセル</Button>
+                <Button variant="danger" size="sm" onClick={confirmRewind}>巻き戻しを確定</Button>
+                <Button variant="ghost" size="sm" onClick={() => setPendingRewindId(null)}>キャンセル</Button>
               </div>
             </MyrialeDialogContent>
           </MyrialeDialogRoot>
@@ -978,7 +977,8 @@ function SessionDialogueSection({
               <div className="flex items-center justify-between gap-3 px-2 pt-[5px] pb-2 pl-2.5">
                 <div className="flex items-center gap-0.5" aria-label="入力補助">
                   <Button
-                    className="!grid !size-[34px] !place-items-center !rounded-myr-control !border-0 !bg-transparent !p-0 !text-[#67636f] hover:!bg-myr-ink/7 hover:!text-[#211e2b] focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
+                    variant="icon"
+                    size="iconMd"
                     onClick={askClarification}
                     aria-label="状況を簡単にまとめて聞く"
                     title="状況を簡単にまとめて聞く"
@@ -986,7 +986,8 @@ function SessionDialogueSection({
                     <SparkleIcon />
                   </Button>
                   <Button
-                    className="!grid !size-[34px] !place-items-center !rounded-myr-control !border-0 !bg-transparent !p-0 !text-[#67636f] hover:!bg-myr-ink/7 hover:!text-[#211e2b] focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris disabled:!opacity-30"
+                    variant="icon"
+                    size="iconMd"
                     onClick={() => void recommendAction()}
                     aria-label="AIに次の行動を提案してもらう"
                     title="AIに次の行動を提案してもらう"
@@ -997,7 +998,8 @@ function SessionDialogueSection({
                       : <LightbulbIcon />}
                   </Button>
                   <Button
-                    className="!grid !size-[34px] !place-items-center !rounded-myr-control !border-0 !bg-transparent !p-0 !text-[#67636f] hover:!bg-myr-ink/7 hover:!text-[#211e2b] focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris disabled:!opacity-30"
+                    variant="icon"
+                    size="iconMd"
                     onClick={deleteDraft}
                     aria-label="入力を消去"
                     title="入力を消去"
@@ -1007,7 +1009,9 @@ function SessionDialogueSection({
                   </Button>
                 </div>
                 <Button
-                  className="!grid !size-9 !shrink-0 !place-items-center !rounded-full !border-0 !bg-[#211e2b] !p-0 !text-myr-paper-bright !shadow-none transition-[transform,background-color,opacity] duration-150 hover:!translate-y-[-1px] hover:!bg-[#4d3bb5] focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris disabled:!cursor-not-allowed disabled:!bg-[#d5d1d8] disabled:!text-[#f8f6f2] motion-reduce:transition-none"
+                  variant="secondary"
+                  size="iconMd"
+                  className="!size-9"
                   onClick={() => void sendInput()}
                   data-testid="send-free-input"
                   disabled={isSubmitting || !input.trim()}
@@ -1027,11 +1031,11 @@ function SessionDialogueSection({
             <div className={programPanelClass} data-testid="active-battle-turn">
               <p data-testid="battle-turn-lead">Battle Turn {battle.turn}</p>
               <div role="group" aria-label={sessionModeFlavor === 'modeTransition' ? 'バトルターン行動' : 'バトル行動'} className="button-row">
-                {(['攻撃', '防御', 'スキル', '逃走'] as const).map((action) => <Button key={action} onClick={() => resolveBattleAction(action)}>{action}</Button>)}
+                {(['攻撃', '防御', 'スキル', '逃走'] as const).map((action) => <Button key={action} variant="secondary" size="sm" onClick={() => resolveBattleAction(action)}>{action}</Button>)}
               </div>
-              <Button onClick={completeProgramMode}>AI対話へ戻る</Button>
-              <Button onClick={completeProgramMode}>正常終了してAI対話へ戻る</Button>
-              <Button onClick={simulateProcessingError}>処理エラーを発生</Button>
+              <Button variant="secondary" size="sm" onClick={completeProgramMode}>AI対話へ戻る</Button>
+              <Button variant="secondary" size="sm" onClick={completeProgramMode}>正常終了してAI対話へ戻る</Button>
+              <Button variant="danger" size="sm" onClick={simulateProcessingError}>処理エラーを発生</Button>
             </div>
           )}
 
@@ -1043,10 +1047,10 @@ function SessionDialogueSection({
                 onValueChange={setFixedRoll}
                 options={['ランダム', '1', '2', '3', '4', '5', '6'].map((value) => ({ value, label: value }))}
               />
-              <Button className="primary" data-testid="roll-button" onClick={rollDie}>ダイスを振る</Button>
+              <Button variant="primary" size="sm" data-testid="roll-button" onClick={rollDie}>ダイスを振る</Button>
               {rollResult && <p data-testid="roll-result">d6 = {rollResult.value} → {rollResult.success ? '成功' : '失敗'}</p>}
-              <Button onClick={simulateReconnect}>通信断から再接続</Button>
-              <Button onClick={completeProgramMode}>正常終了してAI対話へ戻る</Button>
+              <Button variant="ghost" size="sm" onClick={simulateReconnect}>通信断から再接続</Button>
+              <Button variant="secondary" size="sm" onClick={completeProgramMode}>正常終了してAI対話へ戻る</Button>
             </div>
           )}
 
@@ -1055,16 +1059,16 @@ function SessionDialogueSection({
               <p data-testid="event-lock">中断・分岐はできません</p>
               <p data-testid="current-objective">崩落イベント</p>
               <p data-testid="processing-detail">順番に再生</p>
-              <Button data-testid="event-advance" onClick={advanceEvent}>イベントを進める</Button>
-              <Button onClick={completeProgramMode}>正常終了してAI対話へ戻る</Button>
+              <Button variant="primary" size="sm" data-testid="event-advance" onClick={advanceEvent}>イベントを進める</Button>
+              <Button variant="secondary" size="sm" onClick={completeProgramMode}>正常終了してAI対話へ戻る</Button>
               {eventAdvanced && <p>イベントは確定済みです。</p>}
             </div>
           )}
 
           {sessionMode === 'recovering' && (
             <div className={programPanelClass}>
-              <Button onClick={() => recoverFromPoint('lastConfirmed')}>最後に確定した地点から再開</Button>
-              <Button onClick={() => recoverFromPoint('safePoint')}>安全なセーフポイントから再開</Button>
+              <Button variant="secondary" size="sm" onClick={() => recoverFromPoint('lastConfirmed')}>最後に確定した地点から再開</Button>
+              <Button variant="secondary" size="sm" onClick={() => recoverFromPoint('safePoint')}>安全なセーフポイントから再開</Button>
             </div>
           )}
         </section>
@@ -1076,7 +1080,8 @@ function SessionDialogueSection({
         <section className="mt-[18px] border-t border-myr-ink/18 pt-3" aria-label="デバッグパネル">
           <Button
             type="button"
-            className="rounded-full bg-myr-plum/90 px-3 py-2 text-xs font-black text-myr-paper"
+            variant="ghost"
+            size="sm"
             aria-expanded={debugPanelOpen}
             aria-controls="session-debug-panel"
             onClick={() => setDebugPanelOpen((open) => !open)}
@@ -1113,11 +1118,11 @@ function SessionDialogueSection({
                   />
                 )}
                 <div className="button-row">
-                  <Button onClick={() => startBattleFromCondition('バトルを開始')}>バトルを開始</Button>
+                  <Button variant="secondary" size="sm" onClick={() => startBattleFromCondition('バトルを開始')}>バトルを開始</Button>
                   <Button className="visually-hidden" onClick={() => startBattleFromCondition('バトル開始')}>バトル開始</Button>
-                  <Button className="primary" onClick={() => startRollFromCondition('判定を開始')}>判定を開始</Button>
+                  <Button variant="primary" size="sm" onClick={() => startRollFromCondition('判定を開始')}>判定を開始</Button>
                   <Button className="visually-hidden" onClick={() => startRollFromCondition('判定開始')}>判定開始</Button>
-                  <Button onClick={() => startEventFromCondition('強制イベントを発生')}>強制イベントを発生</Button>
+                  <Button variant="secondary" size="sm" onClick={() => startEventFromCondition('強制イベントを発生')}>強制イベントを発生</Button>
                   <Button className="visually-hidden" onClick={() => startEventFromCondition('強制イベント開始')}>強制イベント開始</Button>
                 </div>
               </section>
@@ -1163,9 +1168,9 @@ function SessionDialogueSection({
 
       {notesView === 'full' && (
         <section className="col-[2/-1] z-[2] grid min-h-[calc(100vh-150px)] grid-rows-[auto_minmax(0,1fr)] rounded-myr-panel border border-myr-ink/16 bg-myr-paper-bright p-myr-card-inset shadow-[0_24px_70px_rgba(18,16,25,.16)] max-myr-workspace:col-start-1" aria-label="ノート集中表示" data-testid="session-notes-focus">
-          <div className="mb-2.5 flex items-center justify-end gap-2.5 [&_button]:rounded-full [&_button]:bg-myr-plum [&_button]:px-[11px] [&_button]:py-[7px] [&_button]:text-myr-caption [&_button]:font-black [&_button]:text-myr-paper" aria-label="ノート表示設定">
-            <Button onClick={() => setNotesViewMode('hidden')}>ノートを非表示</Button>
-            <Button className={primaryControlButtonClass} onClick={() => setNotesViewMode(isNarrowViewport ? 'hidden' : 'split')}>
+          <div className="mb-2.5 flex items-center justify-end gap-2.5" aria-label="ノート表示設定">
+            <Button variant="secondary" size="sm" onClick={() => setNotesViewMode('hidden')}>ノートを非表示</Button>
+            <Button variant="primary" size="sm" onClick={() => setNotesViewMode(isNarrowViewport ? 'hidden' : 'split')}>
               {isNarrowViewport ? '閉じる' : 'ターン画面に戻る'}
             </Button>
           </div>
@@ -1175,7 +1180,7 @@ function SessionDialogueSection({
 
       {notesView === 'split' && (
         <aside className={`${wizardSummaryClass} grid h-[calc(100vh-150px)] min-h-0 min-w-[300px] w-[var(--notes-rail-width,340px)] grid-rows-[auto_minmax(0,1fr)] self-stretch overflow-hidden`} aria-label="セッションノート">
-          <div className="mb-2.5 flex items-center justify-end gap-2.5 [&_button]:rounded-full [&_button]:bg-myr-plum [&_button]:px-[11px] [&_button]:py-[7px] [&_button]:text-myr-caption [&_button]:font-black [&_button]:text-myr-paper" aria-label="ノート表示設定">
+          <div className="mb-2.5 flex items-center justify-end gap-2.5" aria-label="ノート表示設定">
             <label className="flex items-center gap-2 text-myr-caption font-black text-myr-slate-muted">
               表示比率
               <input
@@ -1189,8 +1194,8 @@ function SessionDialogueSection({
                 onChange={(event) => setNotesRailWidth(Number(event.target.value))}
               />
             </label>
-            <Button onClick={() => setNotesViewMode('hidden')}>ノートを非表示</Button>
-            <Button className={primaryControlButtonClass} onClick={() => setNotesViewMode('full')}>全画面表示</Button>
+            <Button variant="secondary" size="sm" onClick={() => setNotesViewMode('hidden')}>ノートを非表示</Button>
+            <Button variant="primary" size="sm" onClick={() => setNotesViewMode('full')}>全画面表示</Button>
           </div>
           <SessionNotesWorkspace mode="side" />
         </aside>

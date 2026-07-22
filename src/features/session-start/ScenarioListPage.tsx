@@ -56,10 +56,7 @@ export function ScenarioListPage() {
                   選択するとイントロと主人公選択をすぐに表示します。
                 </p>
               </div>
-              <Button
-                className="!rounded-full !bg-myr-ink !px-4 !py-2.5 !text-sm !font-extrabold !text-myr-paper shadow-myr-card transition hover:!-translate-y-0.5 hover:!bg-myr-iris focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
-                onClick={openRegistration}
-              >
+              <Button variant="secondary" className="shadow-myr-card" onClick={openRegistration}>
                 新しいシナリオを登録
               </Button>
             </div>
@@ -78,10 +75,7 @@ export function ScenarioListPage() {
                   </h2>
                   <p className="m-0 text-sm font-bold text-myr-slate">{scenario.genre} / {scenario.tone}</p>
                   <p className="mt-3 mb-5 flex-1 text-sm leading-6 text-myr-slate">{scenario.lore}</p>
-                  <Button
-                    className="!rounded-full !bg-myr-gold !px-4 !py-2.5 !text-sm !font-black !text-myr-void transition group-hover:!bg-myr-ink group-hover:!text-myr-paper focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
-                    onClick={() => startScenario(scenario.id)}
-                  >
+                  <Button variant="primary" onClick={() => startScenario(scenario.id)}>
                     {scenario.title}で開始
                   </Button>
                 </article>

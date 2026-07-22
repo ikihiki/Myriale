@@ -200,7 +200,8 @@ function ProtagonistForm({
               <div className="flex flex-wrap items-center gap-3">
                 <Button
                   type="button"
-                  className="!rounded-full !bg-myr-vellum !px-4 !py-2.5 !text-xs !font-black !text-myr-ink hover:!bg-myr-mist focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
+                  variant="ghost"
+                  size="sm"
                   onClick={generateAiHero}
                   disabled={heroRecommendation.isPending}
                 >
@@ -231,10 +232,7 @@ function ProtagonistForm({
           )}
 
           <div className="mt-7 flex justify-end border-t border-myr-ink/15 pt-5">
-            <Button
-              type="submit"
-              className="!rounded-full !bg-myr-gold !px-5 !py-3 !text-sm !font-black !text-myr-void shadow-myr-card transition hover:!-translate-y-0.5 hover:!bg-myr-ink hover:!text-myr-paper focus-visible:!outline-2 focus-visible:!outline-offset-2 focus-visible:!outline-myr-iris"
-            >
+            <Button type="submit" variant="primary" size="lg" className="shadow-myr-card">
               開始内容を確認
             </Button>
           </div>
@@ -250,25 +248,15 @@ function ProtagonistForm({
           data-testid="start-review-dialog"
           footer={(
             <>
-              <Button
-                className="!rounded-full !bg-myr-vellum !px-4 !py-2.5 !font-extrabold !text-myr-ink hover:!bg-myr-mist"
-                onClick={() => setReviewOpen(false)}
-              >
+              <Button variant="ghost" onClick={() => setReviewOpen(false)}>
                 主人公選択を修正
               </Button>
               {requiresLogin ? (
-                <Button
-                  className="!rounded-full !bg-myr-ink !px-4 !py-2.5 !font-extrabold !text-myr-paper hover:!bg-myr-iris"
-                  onClick={onLogin}
-                >
+                <Button variant="secondary" onClick={onLogin}>
                   ログインへ
                 </Button>
               ) : (
-                <Button
-                  className="!rounded-full !bg-myr-ink !px-4 !py-2.5 !font-extrabold !text-myr-paper hover:!bg-myr-iris"
-                  onClick={() => void beginStory()}
-                  disabled={isBeginning}
-                >
+                <Button variant="secondary" onClick={() => void beginStory()} disabled={isBeginning}>
                   {isBeginning ? 'Sessionを作成しています…' : '物語を始める'}
                 </Button>
               )}
@@ -395,7 +383,7 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
                   ? scenarioQuery.error.message
                   : '指定されたシナリオが見つかりません。シナリオ一覧から選び直してください。'}
             </p>
-            <Button className="!rounded-full !bg-myr-ink !px-5 !py-3 !font-black !text-myr-paper" onClick={backToScenarioList}>
+            <Button variant="secondary" size="lg" onClick={backToScenarioList}>
               シナリオ一覧へ
             </Button>
           </section>
@@ -426,10 +414,7 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
                 {selectedScenario.title}
               </h1>
             </div>
-            <Button
-              className="!rounded-full !bg-transparent !px-0 !py-2 !text-sm !font-black !text-myr-iris underline decoration-myr-iris/30 underline-offset-4 hover:!text-myr-ruby focus-visible:!outline-2 focus-visible:!outline-offset-4 focus-visible:!outline-myr-iris"
-              onClick={backToScenarioList}
-            >
+            <Button variant="text" onClick={backToScenarioList}>
               シナリオ一覧へ戻る
             </Button>
           </header>

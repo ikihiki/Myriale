@@ -12,7 +12,7 @@ export const wizardPaperClass = [
 
 export const wizardKickerClass = 'mb-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#6d587a]';
 export const wizardNoticeClass = 'my-2.5 rounded-xl bg-[rgba(18,16,25,0.86)] px-[11px] py-2 text-[13px] text-[#fff6e7]';
-export const wizardButtonRowClass = 'mt-2 flex flex-wrap gap-[7px] [&_button]:rounded-full [&_button]:bg-[#2b2940] [&_button]:px-3 [&_button]:py-2 [&_button]:text-xs [&_button]:text-[#fffaf0] [&_button.primary]:!bg-[#d9a441] [&_button.primary]:!font-black [&_button.primary]:!text-[#17151f]';
+export const wizardButtonRowClass = 'mt-2 flex flex-wrap gap-[7px]';
 
 export const wizardPanelClass = [
   'max-w-none border-0 bg-transparent px-0 pt-0.5 pb-3',
@@ -22,7 +22,6 @@ export const wizardPanelClass = [
   '[&_input]:rounded-none [&_input]:border-x-0 [&_input]:border-t-0 [&_input]:border-b-2 [&_input]:border-[rgba(23,21,31,0.22)] [&_input]:bg-white/40 [&_input]:px-3 [&_input]:py-2.5 [&_input]:text-[15px] [&_input]:shadow-none',
   '[&_select]:rounded-none [&_select]:border-x-0 [&_select]:border-t-0 [&_select]:border-b-2 [&_select]:border-[rgba(23,21,31,0.22)] [&_select]:bg-white/40 [&_select]:px-3 [&_select]:py-2.5 [&_select]:text-[15px] [&_select]:shadow-none',
   '[&_textarea]:min-h-[clamp(280px,48vh,560px)] [&_textarea]:rounded-none [&_textarea]:border-x-0 [&_textarea]:border-t-0 [&_textarea]:border-b-2 [&_textarea]:border-[rgba(23,21,31,0.22)] [&_textarea]:bg-white/40 [&_textarea]:px-3 [&_textarea]:py-3.5 [&_textarea]:text-base [&_textarea]:leading-[1.7] [&_textarea]:shadow-none',
-  '[&_button]:rounded-full [&_button]:bg-[#2b2940] [&_button]:px-3 [&_button]:py-2 [&_button]:text-xs [&_button]:text-[#fffaf0] [&_button.primary]:!bg-[#d9a441] [&_button.primary]:!font-black [&_button.primary]:!text-[#17151f]',
 ].join(' ');
 
 export const illustrationWizardPanelClass = `${wizardPanelClass} [&_textarea]:min-h-[clamp(150px,24vh,260px)]`;
@@ -34,12 +33,7 @@ export const wizardProgressClass = [
   '[&_small]:text-[11px] [&_small]:text-[#566072]',
 ].join(' ');
 
-export const wizardActionsClass = [
-  'flex max-w-none justify-between gap-3 border-t border-[rgba(23,21,31,0.18)] pt-3',
-  '[&_button]:rounded-full [&_button]:bg-[#2b2940] [&_button]:px-3 [&_button]:py-2 [&_button]:text-xs [&_button]:text-[#fffaf0]',
-  '[&_button.primary]:!bg-[#d9a441] [&_button.primary]:!font-black [&_button.primary]:!text-[#17151f]',
-  '[&_button:disabled]:cursor-not-allowed [&_button:disabled]:opacity-40',
-].join(' ');
+export const wizardActionsClass = 'flex max-w-none justify-between gap-3 border-t border-[rgba(23,21,31,0.18)] pt-3';
 
 export const wizardSummaryClass = [
   'sticky top-3.5 grid max-h-[calc(100vh-28px)] self-start gap-2 overflow-auto rounded-[18px] border border-[rgba(220,231,242,0.42)] bg-[rgba(255,250,240,0.9)] p-3 shadow-[0_24px_80px_rgba(23,21,31,0.22)]',
@@ -50,5 +44,4 @@ export const wizardSummaryClass = [
   '[&_article]:rounded-xl [&_article]:border [&_article]:border-[rgba(23,21,31,0.14)] [&_article]:bg-[#fffef9] [&_article]:p-[9px]',
   '[&_h3]:mb-[5px] [&_h3]:mt-0 [&_h3]:text-xs',
   '[&_p]:my-1 [&_p]:line-clamp-3 [&_p]:overflow-hidden [&_p]:text-[11px] [&_p]:leading-[1.35] [&_p]:text-[#3f4552]',
-  '[&_button]:rounded-full [&_button]:bg-[#2b2940] [&_button]:px-3 [&_button]:py-2 [&_button]:text-xs [&_button]:text-[#fffaf0] [&_button.primary]:!bg-[#d9a441] [&_button.primary]:!font-black [&_button.primary]:!text-[#17151f]',
 ].join(' ');

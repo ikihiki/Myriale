@@ -43,10 +43,6 @@ type HomeDashboardViewModel = {
 const fallbackDb = createDemoDb('resumableSession');
 const crumbs: Crumb[] = [{ label: 'Myriale' }, { label: 'ホーム' }];
 
-const homeButtonMotionClassName = 'transition-[transform,box-shadow,background] duration-[160ms] ease-[ease] hover:-translate-y-px hover:shadow-[0_10px_24px_rgba(18,16,25,.16)] motion-reduce:transition-none motion-reduce:hover:translate-y-0';
-const homeDarkButtonClassName = `border border-[rgba(36,27,47,.14)] rounded-full bg-[rgba(36,27,47,.92)] px-4 py-myr-control-y text-myr-paper ${homeButtonMotionClassName}`;
-const homePrimaryButtonClassName = `border border-[rgba(36,27,47,.14)] rounded-full bg-myr-gold px-4 py-myr-control-y font-black text-[#1d1725] ${homeButtonMotionClassName}`;
-const homeTextButtonClassName = `mt-[10px] border border-[rgba(36,27,47,.14)] rounded-full bg-transparent px-4 py-myr-control-y font-black text-[#6f4fd8] shadow-none ${homeButtonMotionClassName}`;
 
 const homePanelClassName = 'grid gap-[18px] rounded-myr-shell border border-[rgba(220,231,242,.54)] bg-[radial-gradient(circle_at_10%_0%,rgba(124,92,255,.10),transparent_30%),linear-gradient(135deg,rgba(255,250,240,.97),rgba(255,248,232,.90))] p-[clamp(18px,3vw,26px)] shadow-[0_24px_80px_rgba(18,16,25,.18)] max-[720px]:rounded-[20px] max-[720px]:p-[18px]';
 const homeSectionHeadClassName = 'flex flex-wrap items-center justify-between gap-[14px]';
@@ -144,10 +140,10 @@ export function HomePage() {
               </p>
             )}
             <div className="mt-2 flex flex-wrap items-center gap-[10px] max-[720px]:[&>button]:w-full" aria-label="トップページの主要導線">
-              <Button className={homePrimaryButtonClassName} onClick={() => go('scenarioList')} data-testid="home-search-scenarios">
+              <Button variant="primary" onClick={() => go('scenarioList')} data-testid="home-search-scenarios">
                 シナリオを検索して開始
               </Button>
-              <Button className={homeDarkButtonClassName} onClick={() => go('scenarioRegister')} data-testid="home-create-scenario">
+              <Button variant="secondary" onClick={() => go('scenarioRegister')} data-testid="home-create-scenario">
                 シナリオを新規作成
               </Button>
             </div>
@@ -182,7 +178,7 @@ export function HomePage() {
                 中断しているセッション
               </h2>
             </div>
-            <Button type="button" className={homeTextButtonClassName} onClick={() => go('resumeSession')}>
+            <Button type="button" variant="text" className="mt-[10px]" onClick={() => go('resumeSession')}>
               すべて見る
             </Button>
           </div>
@@ -196,7 +192,7 @@ export function HomePage() {
                   <p className={homeCardCopyClassName}>{session.summary}</p>
                   <small className={homeCardMetaClassName}>{session.hero}</small>
                   <div className={homeCardActionsClassName}>
-                    <Button className={homePrimaryButtonClassName} onClick={() => go(session.destination)}>
+                    <Button variant="primary" onClick={() => go(session.destination)}>
                       {session.resumeLabel}
                     </Button>
                   </div>
@@ -208,7 +204,7 @@ export function HomePage() {
                 <h3 className={homeCardTitleClassName}>再開待ちのセッションはありません</h3>
                 <p className={homeCardCopyClassName}>シナリオを選んで、新しい物語の準備を始められます。</p>
                 <div className={homeCardActionsClassName}>
-                  <Button className={homePrimaryButtonClassName} onClick={() => go('startSession')}>シナリオを探す</Button>
+                  <Button variant="primary" onClick={() => go('startSession')}>シナリオを探す</Button>
                 </div>
               </article>
             )}
@@ -223,7 +219,7 @@ export function HomePage() {
                 おすすめのシナリオ
               </h2>
             </div>
-            <Button type="button" className={homeTextButtonClassName} onClick={() => go('startSession')}>
+            <Button type="button" variant="text" className="mt-[10px]" onClick={() => go('startSession')}>
               検索画面へ
             </Button>
           </div>
@@ -236,8 +232,8 @@ export function HomePage() {
                 <p className={homeCardCopyClassName}>{scenario.summary ?? scenario.genre}</p>
                 <small className={homeCardMetaClassName}>{scenario.updatedLabel}</small>
                 <div className={homeCardActionsClassName}>
-                  <Button className={homePrimaryButtonClassName} onClick={() => startRecommendedScenario(scenario)}>このシナリオで開始</Button>
-                  <Button className={homeDarkButtonClassName} onClick={() => go('scenarioEdit')}>詳細を編集</Button>
+                  <Button variant="primary" onClick={() => startRecommendedScenario(scenario)}>このシナリオで開始</Button>
+                  <Button variant="secondary" onClick={() => go('scenarioEdit')}>詳細を編集</Button>
                 </div>
               </article>
             ))}
