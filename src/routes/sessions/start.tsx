@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
-import { StartSessionPage, type StartSessionSearch } from '../../features/session-start/StartSessionPage';
+import type { StartSessionSearch } from '../../features/session-start/startSessionModel';
 
 export const Route = createFileRoute('/sessions/start')({
   validateSearch: (search: Record<string, unknown>): StartSessionSearch => ({
@@ -12,5 +12,7 @@ export const Route = createFileRoute('/sessions/start')({
 });
 
 function StartSessionRoute() {
-  return <StartSessionPage search={Route.useSearch()} />;
+  const { startSessionContainer: StartSessionContainer } = Route.useRouteContext();
+  const { scenarioId } = Route.useSearch();
+  return <StartSessionContainer scenarioId={scenarioId!} />;
 }

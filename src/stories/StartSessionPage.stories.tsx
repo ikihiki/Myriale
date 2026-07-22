@@ -2,12 +2,13 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, waitFor, within } from '@storybook/test';
 import { MyrialeApp } from '../app/MyrialeApp';
 import { createDemoDb } from '../app/demoData';
+import { MockStartSessionContainer } from './start-session-page/MockStartSessionContainer';
 import '../styles.css';
 
 const meta = {
   title: 'ユーザーストーリー/Start session',
   component: MyrialeApp,
-  render: () => <MyrialeApp initialUrl="/scenarios" initialDb={createDemoDb('activeSession')} />,
+  render: () => <MyrialeApp initialUrl="/scenarios" initialDb={createDemoDb('activeSession')} startSessionContainer={MockStartSessionContainer} />,
   parameters: {
     notes: 'docs/user-stories/start-session.md の各ユーザーストーリーを、Storybook Interactions の step と expect で操作説明できるアプリ画面にしたものです。',
   },
@@ -105,7 +106,7 @@ export const USS03CreateHeroWithAiAssistance: Story = {
 
 export const USS03SelectHeroWithOptionalFreeGeneration: Story = {
   name: 'US-S03B: 選択式で許可された場合だけ自由生成へ切り替える',
-  render: () => <MyrialeApp initialUrl="/scenarios" initialDb={createDemoDb('activeSession')} />,
+  render: () => <MyrialeApp initialUrl="/scenarios" initialDb={createDemoDb('activeSession')} startSessionContainer={MockStartSessionContainer} />,
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await startPreparing(canvas, '月虹の庭と眠らない時計');
@@ -175,14 +176,11 @@ export const USS05BeginActiveSession: Story = {
     const canvas = within(canvasElement);
     await startPreparing(canvas);
     await userEvent.click(canvas.getByRole('button', { name: '開始内容を確認' }));
-    await step('確認ダイアログの「物語を始める」でSessionをActiveにし、US-P01のプレイ画面へ合流する', async () => {
+    await step('API未設定では架空のSessionへfallbackせず、明示的なエラーを表示する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '物語を始める' }));
-      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098');
-      await expect(canvas.getByTestId('session-state')).toHaveTextContent('Active');
-      await expect(canvas.getByTestId('turn-1-narrative')).toHaveTextContent('水没した閲覧室');
-      await expect(canvas.getByTestId('turn-1-narrative')).toHaveTextContent('銀の鍵');
-      await expect(canvas.getByRole('status')).toHaveTextContent('イントロのみ');
-      await expect(canvas.queryByRole('article', { name: 'Turn 02' })).not.toBeInTheDocument();
+      await expect(canvas.getByRole('alert')).toHaveTextContent('Session APIが設定されていません');
+      await expect(canvas.getByTestId('app-url')).not.toHaveTextContent('/sessions/SES-PREP-1098');
+      await expect(canvas.queryByTestId('session-state')).not.toBeInTheDocument();
     });
   },
 };

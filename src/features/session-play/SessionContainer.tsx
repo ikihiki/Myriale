@@ -18,7 +18,7 @@ import {
 } from './sessionPlayApi';
 import type { NoteReviewRequest } from './SessionActivityFeed';
 
-export function SessionContainer({ sessionId = 'SES-PREP-1098' }: { sessionId?: string } = {}) {
+export function SessionContainer({ sessionId }: { sessionId: string }) {
   const appNavigate = useAppNavigation();
   const accountSession = useAccountSession();
   const chromeAccount = toAppChromeAccount(accountSession.user);
@@ -27,6 +27,7 @@ export function SessionContainer({ sessionId = 'SES-PREP-1098' }: { sessionId?: 
   const [loadNotice, setLoadNotice] = useState<SessionNotice | null>(null);
   const [liveNotice, setLiveNotice] = useState<SessionNotice | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitInFlight = useRef(false);
   const [isRecommending, setIsRecommending] = useState(false);
   const draftRequest = useRef<{ input: string; requestId: string; interactionType: NarrativeInteractionType } | null>(null);
 
@@ -82,7 +83,8 @@ export function SessionContainer({ sessionId = 'SES-PREP-1098' }: { sessionId?: 
   }
 
   const submit = async (input: string, interactionType: NarrativeInteractionType): Promise<SessionCommandResult> => {
-    if (isSubmitting) return { ok: false, notice: sessionInfoNotice('Narrativeを生成中です。') };
+    if (submitInFlight.current) return { ok: false, notice: sessionInfoNotice('Narrativeを生成中です。') };
+    submitInFlight.current = true;
     const reusable = draftRequest.current?.input === input && draftRequest.current.interactionType === interactionType
       ? draftRequest.current
       : null;
@@ -107,6 +109,7 @@ export function SessionContainer({ sessionId = 'SES-PREP-1098' }: { sessionId?: 
       if (error.kind === 'unauthorized') accountSession.clearUser();
       return { ok: false, notice: toSessionNotice(error, 'submit') };
     } finally {
+      submitInFlight.current = false;
       setIsSubmitting(false);
     }
   };

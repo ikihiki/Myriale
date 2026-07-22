@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { AppChromeAccount } from '../../account/accountPresentation';
 import { useOptionalAppStore, type TurnDisplayFlags } from '../../app/store';
 import { SessionPresentation, SessionPresentationStatus } from '../../features/session-play/SessionPresentation';
@@ -24,11 +24,13 @@ const programTurnDisplay: TurnDisplayFlags = { allowRewind: false, showInterpret
 
 export type SessionErrorScenario = 'success' | 'load-401' | 'load-404' | 'submit-409' | 'submit-429' | 'load-503' | 'submit-timeout';
 
-export function MockSessionContainer({ sessionId, scenario = 'success' }: { sessionId: string; scenario?: SessionErrorScenario }) {
+export function MockSessionContainer({ sessionId, scenario = 'success', submissionDelayMs = 0 }: { sessionId: string; scenario?: SessionErrorScenario; submissionDelayMs?: number }) {
   const appStore = useOptionalAppStore();
   const dbSession = appStore?.db.playSessions[sessionId];
   const initialTurnCount = clampInitialTurnCount(dbSession?.turn);
   const [turns, setTurns] = useState<DialogueTurn[]>(initialTurns.slice(0, initialTurnCount));
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitInFlight = useRef(false);
   const [sessionMode, setSessionMode] = useState<SessionMode>('dialogue');
   const [sessionModeFlavor] = useState<SessionModeFlavor>(appStore?.db.ui.sessionView ?? 'dialogue');
   const [battle, setBattle] = useState({ enemy: '錆びついた書架番', playerHp: 30, enemyHp: 24, turn: 1 });
@@ -149,15 +151,24 @@ export function MockSessionContainer({ sessionId, scenario = 'success' }: { sess
     headingLinks={headingLinks}
     sessionStateLabel={dbSession?.state ?? 'Active'}
     initialNotice={notice}
+    isSubmitting={isSubmitting}
     turnDisplay={dbSession?.turnDisplay}
     program={program}
     onReload={() => undefined}
     onSessionList={() => undefined}
     onSubmit={async (input) => {
-      if (submitError) return { ok: false, notice: submitError };
-      const nextTurn = resultForInput(input, turns.length + 1);
-      setTurns((current) => [...current, nextTurn]);
-      return { ok: true, notice: 'Player Inputを行動として解釈し、結果をNarrativeとして生成しました。次の重要な進行は入力待ちです。' };
+      if (submitInFlight.current) return { ok: false, notice: 'Narrativeを生成中です。' };
+      submitInFlight.current = true;
+      setIsSubmitting(true);
+      try {
+        if (submissionDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, submissionDelayMs));
+        if (submitError) return { ok: false, notice: submitError };
+        setTurns((current) => [...current, resultForInput(input, current.length + 1)]);
+        return { ok: true, notice: 'Player Inputを行動として解釈し、結果をNarrativeとして生成しました。次の重要な進行は入力待ちです。' };
+      } finally {
+        submitInFlight.current = false;
+        setIsSubmitting(false);
+      }
     }}
     onRecommend={async () => ({ ok: true, value: turns.at(-1)?.narrative.includes('扉') ? '銀の鍵を扉にかざし、刻まれた星座との対応を確かめる' : '周囲の安全を確かめながら、目につく手掛かりを詳しく調べる', notice: 'AIの提案を入力欄へ設定しました。内容を編集してから送信できます。' })}
     onClarification={() => {

@@ -1,16 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { ArchiveCard, Button, Input, Label, PageCanvas, PageShell, Textarea } from '../../components/ui';
-import { useRouter } from '@tanstack/react-router';
 import { useForm, useStore } from '@tanstack/react-form';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { createFetchScenarioApi, type ScenarioApi } from '../../app/scenarioApi';
-import { toAppChromeAccount } from '../../account/accountPresentation';
-import { useAccountSession } from '../../account/hooks/useAccountSession';
-import { createSession, getSessionApiBaseUrl, type SessionApiError } from '../session-play/sessionPlayApi';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { MyrialeDialogContent, MyrialeDialogRoot, MyrialeSelect } from '../../ui/MyrialeRadix';
-import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
-import { toScenarioSummary, type ScenarioSummary } from './scenarioPresentation';
+import type { ScenarioSummary } from './scenarioPresentation';
+import type { StartSessionPresentationProps } from './startSessionModel';
 
 function protagonistDetails(value: string) {
   const [name, ...profileParts] = value.split('/').map((part) => part.trim());
@@ -51,28 +45,22 @@ function ReadOnlyProtagonistFields({ value, testId }: { value: string; testId: s
 
 const FREE_GENERATION_OPTION = '__free-generation__';
 
-export type StartSessionSearch = {
-  scenarioId?: string;
-};
-
 function ProtagonistForm({
   scenario,
-  api,
   onBeginStory,
+  onRecommendHero,
   isBeginning,
-  beginError,
-  requiresLogin,
+  isRecommending,
   onLogin,
   canConfigureInterpretation,
   interpretationEnabled,
   onInterpretationEnabledChange,
 }: {
   scenario: ScenarioSummary;
-  api: ScenarioApi;
-  onBeginStory: (selectedHero: string) => Promise<void> | void;
+  onBeginStory: (selectedHero: string, interpretationEnabled: boolean) => Promise<import('./startSessionModel').StartSessionCommandResult>;
+  onRecommendHero: StartSessionPresentationProps['onRecommendHero'];
   isBeginning: boolean;
-  beginError: string;
-  requiresLogin: boolean;
+  isRecommending: boolean;
   onLogin: () => void;
   canConfigureInterpretation: boolean;
   interpretationEnabled: boolean;
@@ -81,6 +69,8 @@ function ProtagonistForm({
   const heroCandidates = scenario.hero.split('\n').map((candidate) => candidate.trim()).filter(Boolean);
   const [aiSuggestion, setAiSuggestion] = useState('');
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [beginError, setBeginError] = useState('');
+  const [requiresLogin, setRequiresLogin] = useState(false);
   const form = useForm({
     defaultValues: {
       heroSelection: scenario.heroMode === 'free' ? FREE_GENERATION_OPTION : heroCandidates[0] ?? '',
@@ -89,20 +79,6 @@ function ProtagonistForm({
     },
     onSubmit: () => {
       setReviewOpen(true);
-    },
-  });
-  const heroRecommendation = useMutation({
-    mutationFn: () => api.recommendHero(scenario.id, {
-      currentName: form.state.values.createdName,
-      currentProfile: form.state.values.createdProfile,
-    }),
-    onSuccess: (recommendation) => {
-      form.setFieldValue('createdName', recommendation.name);
-      form.setFieldValue('createdProfile', recommendation.profile);
-      setAiSuggestion(recommendation.message);
-    },
-    onError: (error) => {
-      setAiSuggestion(error instanceof Error ? error.message : '主人公案を取得できませんでした。');
     },
   });
   const formValues = useStore(form.store, (state) => state.values);
@@ -115,13 +91,29 @@ function ProtagonistForm({
       ? `${formValues.createdName} / ${formValues.createdProfile}`
       : formValues.heroSelection;
 
-  const generateAiHero = () => {
+  const generateAiHero = async () => {
     setAiSuggestion('');
-    heroRecommendation.mutate();
+    const result = await onRecommendHero({
+      name: form.state.values.createdName,
+      profile: form.state.values.createdProfile,
+    });
+    if (result.ok && result.value) {
+      form.setFieldValue('createdName', result.value.name);
+      form.setFieldValue('createdProfile', result.value.profile);
+      setAiSuggestion(result.message ?? 'AI案を入力欄へ反映しました。確認・修正してから確定してください。');
+    } else {
+      setAiSuggestion(result.message ?? '主人公案を取得できませんでした。');
+    }
   };
 
   const beginStory = async () => {
-    await onBeginStory(heroForSummary);
+    setBeginError('');
+    setRequiresLogin(false);
+    const result = await onBeginStory(heroForSummary, interpretationEnabled);
+    if (!result.ok) {
+      setBeginError(result.message ?? 'Sessionを開始できませんでした。');
+      setRequiresLogin(result.requiresLogin === true);
+    }
   };
 
   return (
@@ -202,10 +194,10 @@ function ProtagonistForm({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={generateAiHero}
-                  disabled={heroRecommendation.isPending}
+                  onClick={() => void generateAiHero()}
+                  disabled={isRecommending}
                 >
-                  {heroRecommendation.isPending ? 'AIが主人公を推薦しています…' : 'AIに主人公を生成してもらう'}
+                  {isRecommending ? 'AIが主人公を推薦しています…' : 'AIに主人公を生成してもらう'}
                 </Button>
                 {aiSuggestion && <p className="m-0 text-xs font-bold text-myr-iris" role="status">{aiSuggestion}</p>}
               </div>
@@ -281,88 +273,30 @@ function ProtagonistForm({
   );
 }
 
-export function StartSessionPage({ search, api }: { search?: StartSessionSearch; api?: ScenarioApi } = {}) {
-  const router = useRouter();
-  const appNavigate = useAppNavigation();
-  const accountSession = useAccountSession();
-  const chromeAccount = toAppChromeAccount(accountSession.user);
-  const scenarioApi = useMemo(() => api ?? createFetchScenarioApi(), [api]);
-  const [sessionRequestId] = useState(() => `session-${crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`);
-  const [isBeginning, setIsBeginning] = useState(false);
-  const [beginError, setBeginError] = useState('');
+export function StartSessionPresentation({
+  account,
+  scenario,
+  status,
+  loadError,
+  canConfigureInterpretation,
+  isBeginning,
+  isRecommending,
+  onLogout,
+  onLogin,
+  onScenarioList,
+  onRecommendHero,
+  onBeginStory,
+}: StartSessionPresentationProps) {
   const [interpretationEnabled, setInterpretationEnabled] = useState(false);
-  const [requiresLogin, setRequiresLogin] = useState(false);
-  const scenarioId = search?.scenarioId;
-  const scenarioQuery = useQuery({
-    queryKey: ['scenarios', 'detail', scenarioId],
-    queryFn: ({ signal }) => scenarioApi.getScenario(scenarioId!, signal),
-    enabled: Boolean(scenarioId),
-    staleTime: 30_000,
-  });
-  const selectedScenario = useMemo<ScenarioSummary | null>(
-    () => scenarioQuery.data ? toScenarioSummary(scenarioQuery.data) : null,
-    [scenarioQuery.data],
-  );
-  const navigateTo = (destination: 'scenarioList' | 'login') => {
-    if (appNavigate) {
-      appNavigate(destination);
-      return;
-    }
-    navigateToStory(STORY_IDS[destination]);
-  };
-  const backToScenarioList = () => navigateTo('scenarioList');
-  const goToLogin = () => navigateTo('login');
-  const logout = async () => {
-    await accountSession.api.logout();
-    accountSession.clearUser();
-    goToLogin();
-  };
-
-  const beginStory = async (selectedHero: string) => {
-    if (!scenarioId || isBeginning) return;
-    if (!getSessionApiBaseUrl()) {
-      if (appNavigate) {
-        appNavigate('playSession');
-        return;
-      }
-      navigateToStory(STORY_IDS.playSession);
-      return;
-    }
-
-    if (accountSession.status === 'anonymous') {
-      setBeginError('Sessionを開始するにはログインが必要です。');
-      setRequiresLogin(true);
-      return;
-    }
-
-    setBeginError('');
-    setRequiresLogin(false);
-    setIsBeginning(true);
-    try {
-      const session = await createSession(scenarioId, sessionRequestId, undefined, interpretationEnabled, selectedHero);
-      router.history.push(`/sessions/${encodeURIComponent(session.id)}`);
-    } catch (error) {
-      const apiError = error as SessionApiError;
-      if (apiError.status === 401) {
-        accountSession.clearUser();
-        setBeginError('Sessionを開始するにはログインが必要です。ログイン後、もう一度開始してください。');
-        setRequiresLogin(true);
-      } else {
-        setBeginError(error instanceof Error ? error.message : 'Sessionを開始できませんでした。');
-      }
-    } finally {
-      setIsBeginning(false);
-    }
-  };
-
   const sessionCrumbs: Crumb[] = [
     { label: 'Myriale', to: 'home' },
     { label: 'セッション', to: 'scenarioList' },
     { label: 'セッション開始' },
   ];
-  if (scenarioId && scenarioQuery.isPending) {
+
+  if (status === 'loading') {
     return (
-      <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={chromeAccount} onLogout={logout}>
+      <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={account} onLogout={onLogout}>
         <main className="grid min-h-[calc(100vh-118px)] place-items-center bg-[image:var(--myr-screen-background)] p-6 text-myr-ink">
           <p className="rounded-full bg-myr-paper px-5 py-3 font-black shadow-myr-card" role="status">シナリオを読み込んでいます。</p>
         </main>
@@ -370,20 +304,14 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
     );
   }
 
-  if (!scenarioId || scenarioQuery.isError || !selectedScenario) {
+  if (status === 'error' || !scenario) {
     return (
-      <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={chromeAccount} onLogout={logout}>
+      <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={account} onLogout={onLogout}>
         <main className="grid min-h-[calc(100vh-118px)] place-items-center bg-[image:var(--myr-screen-background)] p-6 text-myr-ink">
           <section className="max-w-xl rounded-myr-panel bg-myr-paper p-8 text-center shadow-myr-panel" aria-label="シナリオ読み込みエラー">
             <h1 className="font-myr-display text-4xl">シナリオを読み込めませんでした</h1>
-            <p className="my-4 text-myr-slate">
-              {!scenarioId
-                ? '開始するシナリオが指定されていません。'
-                : scenarioQuery.error instanceof Error
-                  ? scenarioQuery.error.message
-                  : '指定されたシナリオが見つかりません。シナリオ一覧から選び直してください。'}
-            </p>
-            <Button variant="secondary" size="lg" onClick={backToScenarioList}>
+            <p className="my-4 text-myr-slate">{loadError ?? '指定されたシナリオが見つかりません。シナリオ一覧から選び直してください。'}</p>
+            <Button variant="secondary" size="lg" onClick={onScenarioList}>
               シナリオ一覧へ
             </Button>
           </section>
@@ -393,7 +321,7 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
   }
 
   return (
-    <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={chromeAccount} onLogout={logout}>
+    <AppChrome section="sessions" breadcrumbs={sessionCrumbs} account={account} onLogout={onLogout}>
       <PageCanvas data-myriale-theme="archive">
         <PageShell width="focused" aria-label="セッション開始アプリ画面">
           <header className="mb-6 flex flex-col items-start justify-between gap-4 border-b border-myr-ink/15 pb-5 md:flex-row">
@@ -407,10 +335,10 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
                 className="m-0 max-w-myr-section"
                 data-testid="selected-scenario-title"
               >
-                {selectedScenario.title}
+                {scenario.title}
               </Label>
             </div>
-            <Button variant="text" onClick={backToScenarioList}>
+            <Button variant="text" onClick={onScenarioList}>
               シナリオ一覧へ戻る
             </Button>
           </header>
@@ -425,20 +353,19 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
               </Label>
               <article className="relative pr-4 before:pointer-events-none before:absolute before:-top-8 before:right-0 before:font-myr-display before:text-8xl before:text-myr-iris/10 before:content-['✦']" data-testid="intro-narrative">
                 <p className="relative z-10 m-0 max-w-200 font-myr-display text-[clamp(1.25rem,2.5vw,1.75rem)] leading-[1.65] tracking-[-0.025em]">
-                  {selectedScenario.opening}
+                  {scenario.opening}
                 </p>
               </article>
             </section>
 
             <ProtagonistForm
-              scenario={selectedScenario}
-              api={scenarioApi}
-              onBeginStory={beginStory}
+              scenario={scenario}
+              onBeginStory={onBeginStory}
+              onRecommendHero={onRecommendHero}
               isBeginning={isBeginning}
-              beginError={beginError}
-              requiresLogin={requiresLogin}
-              onLogin={goToLogin}
-              canConfigureInterpretation={accountSession.user?.canDebugDialogue === true}
+              isRecommending={isRecommending}
+              onLogin={onLogin}
+              canConfigureInterpretation={canConfigureInterpretation}
               interpretationEnabled={interpretationEnabled}
               onInterpretationEnabledChange={setInterpretationEnabled}
             />

@@ -66,9 +66,9 @@ SessionをServer上の確定データから復元し、自然言語のPlayer Inp
 
 ### フェーズ1完了条件
 
-- [ ] Session作成、Opening表示、Player Input、Mock Narrative保存、再読み込み、同一request replayが一連で動作する。
-- [ ] 本番画面がhard-codedなSession履歴やlocal成功fallbackに依存しない。
-- [ ] ブラウザの二重clickや通信再送でPlayer InputとNarrativeが重複しない。
+- [x] Session作成、Opening表示、Player Input、Mock Narrative保存、再読み込み、同一request replayが一連で動作する。
+- [x] 本番画面がhard-codedなSession履歴やlocal成功fallbackに依存しない。
+- [x] ブラウザの二重clickや通信再送でPlayer InputとNarrativeが重複しない。
 
 ## フェーズ2: Dialogue契約とAI Context Builder
 

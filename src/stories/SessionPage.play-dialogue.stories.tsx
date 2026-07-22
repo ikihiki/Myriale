@@ -88,6 +88,28 @@ export const ComposerKeyboardBehavior: Story = {
   },
 };
 
+export const ComposerDoubleClickCreatesOneTurn: Story = {
+  name: 'Composer: 送信ボタンの二重clickでTurnを重複作成しない',
+  render: () => (
+    <MyrialeApp
+      initialUrl="/sessions/SES-PREP-1098"
+      initialDb={createProgressedPlayDb()}
+      sessionContainer={({ sessionId }) => <MockSessionContainer sessionId={sessionId} submissionDelayMs={25} />}
+    />
+  ),
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByLabelText('自由に行動や会話を入力');
+    await userEvent.type(input, '二重送信されないことを確認する');
+    await step('送信ボタンを素早く二重clickしても、最初の送信中に再送しない', async () => {
+      await userEvent.dblClick(canvas.getByRole('button', { name: '行動を送る' }));
+      const createdTurn = await canvas.findByRole('article', { name: 'Turn 13' });
+      await expect(createdTurn).toHaveTextContent('プレイヤーの入力: 二重送信されないことを確認する');
+      await expect(canvas.queryByRole('article', { name: 'Turn 14' })).not.toBeInTheDocument();
+    });
+  },
+};
+
 export const USP04TalkWithNpcNaturally: Story = {
   name: 'US-P04: NPCと自然に会話したい',
   play: async ({ canvasElement, step }) => {

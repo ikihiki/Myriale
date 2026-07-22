@@ -176,6 +176,106 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task SessionDialogueFlowPersistsOpeningAndNarrativeAcrossReloadAndReplay()
+    {
+        var client = await AuthenticatedClientAsync("dialogue-full-flow@example.test");
+        var createBody = new
+        {
+            requestId = "dialogue-full-flow-session",
+            scenarioId = "SCN-STAR-LIBRARY",
+        };
+
+        using var created = await client.PostAsJsonAsync("/api/sessions/", createBody);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var createdSession = await created.Content.ReadFromJsonAsync<JsonElement>();
+        var sessionId = createdSession.GetProperty("id").GetString()!;
+        var createdOpening = Assert.Single(createdSession.GetProperty("turns").EnumerateArray());
+        Assert.Equal(1, createdOpening.GetProperty("position").GetInt32());
+        Assert.Null(createdOpening.GetProperty("previousTurnId").GetString());
+        Assert.Equal("opening", createdOpening.GetProperty("narrative").GetProperty("turnType").GetString());
+        Assert.Equal("あなたは水没した閲覧室で目を覚ます。", createdOpening.GetProperty("narrative").GetProperty("body").GetString());
+        Assert.Equal(createdOpening.GetProperty("id").GetString(), createdSession.GetProperty("headTurnId").GetString());
+
+        var hydratedOpeningSession = await GetSessionAsync(client, sessionId);
+        var hydratedOpening = Assert.Single(hydratedOpeningSession.GetProperty("turns").EnumerateArray());
+        Assert.Equal(createdOpening.GetProperty("id").GetString(), hydratedOpening.GetProperty("id").GetString());
+        Assert.Equal("あなたは水没した閲覧室で目を覚ます。", hydratedOpening.GetProperty("narrative").GetProperty("body").GetString());
+
+        var inputBody = new
+        {
+            requestId = "dialogue-full-flow-input",
+            text = "銀の鍵を掲げて扉へ進む",
+        };
+        using var accepted = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", inputBody);
+        var acceptedJson = await AssertNarrativeExecutionSucceededAsync(client, accepted);
+        var inputId = acceptedJson.GetProperty("input").GetProperty("id").GetString()!;
+        var executionId = acceptedJson.GetProperty("execution").GetProperty("id").GetString()!;
+
+        var reloadedSession = await GetSessionAsync(client, sessionId);
+        var reloadedTurns = reloadedSession.GetProperty("turns").EnumerateArray().ToArray();
+        Assert.Equal(2, reloadedTurns.Length);
+        Assert.Equal([1, 2], reloadedTurns.Select(turn => turn.GetProperty("position").GetInt32()).ToArray());
+        Assert.Equal(createdOpening.GetProperty("id").GetString(), reloadedTurns[0].GetProperty("id").GetString());
+        Assert.Equal(reloadedTurns[0].GetProperty("id").GetString(), reloadedTurns[1].GetProperty("previousTurnId").GetString());
+        Assert.Equal(reloadedTurns[1].GetProperty("id").GetString(), reloadedSession.GetProperty("headTurnId").GetString());
+        Assert.Equal(inputId, reloadedTurns[1].GetProperty("narrative").GetProperty("playerInputId").GetString());
+        Assert.Equal(inputBody.text, reloadedTurns[1].GetProperty("narrative").GetProperty("playerInput").GetString());
+        Assert.Equal(_generator.DialogueBody, reloadedTurns[1].GetProperty("narrative").GetProperty("body").GetString());
+        Assert.Empty(reloadedSession.GetProperty("pendingInputs").EnumerateArray());
+
+        using var replay = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", inputBody);
+        var replayJson = await AssertNarrativeExecutionSucceededAsync(client, replay);
+        Assert.Equal(inputId, replayJson.GetProperty("input").GetProperty("id").GetString());
+        Assert.Equal(executionId, replayJson.GetProperty("execution").GetProperty("id").GetString());
+
+        var replayedSession = await GetSessionAsync(client, sessionId);
+        Assert.Equal(2, replayedSession.GetProperty("turns").GetArrayLength());
+        Assert.Equal(reloadedSession.GetProperty("headTurnId").GetString(), replayedSession.GetProperty("headTurnId").GetString());
+        Assert.Single(_generator.DialogueRequests);
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal(1, await db.Sessions.CountAsync(session => session.Id == sessionId));
+        Assert.Equal(1, await db.SessionPlayerInputs.CountAsync(input => input.SessionId == sessionId));
+        Assert.Equal(1, await db.SessionExecutions.CountAsync(execution => execution.SessionId == sessionId && execution.Kind == SessionExecutionKinds.Narrative));
+        Assert.Equal(2, await db.SessionTurns.CountAsync(turn => turn.SessionId == sessionId));
+    }
+
+    [Fact]
+    public async Task ConcurrentInputResendCreatesOneInputExecutionAndNarrative()
+    {
+        var client = await AuthenticatedClientAsync("dialogue-concurrent-replay@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        var body = new { requestId = "dialogue-concurrent-replay", text = "銀の鍵を扉にかざす" };
+
+        var responses = await Task.WhenAll(
+            client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", body),
+            client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", body));
+        try
+        {
+            Assert.All(responses, response => Assert.Equal(HttpStatusCode.Accepted, response.StatusCode));
+            var accepted = await Task.WhenAll(responses.Select(response => response.Content.ReadFromJsonAsync<JsonElement>()));
+            Assert.Equal(accepted[0].GetProperty("input").GetProperty("id").GetString(), accepted[1].GetProperty("input").GetProperty("id").GetString());
+            Assert.Equal(accepted[0].GetProperty("execution").GetProperty("id").GetString(), accepted[1].GetProperty("execution").GetProperty("id").GetString());
+            await WaitForExecutionStatusAsync(
+                client,
+                accepted[0].GetProperty("execution").GetProperty("id").GetString()!,
+                SessionExecutionStatuses.Succeeded);
+        }
+        finally
+        {
+            foreach (var response in responses) response.Dispose();
+        }
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal(1, await db.SessionPlayerInputs.CountAsync(input => input.SessionId == sessionId));
+        Assert.Equal(1, await db.SessionExecutions.CountAsync(execution => execution.SessionId == sessionId && execution.Kind == SessionExecutionKinds.Narrative));
+        Assert.Equal(1, await db.SessionTurns.CountAsync(turn => turn.SessionId == sessionId && turn.PlayerInputId != null));
+        Assert.Single(_generator.DialogueRequests);
+    }
+
+    [Fact]
     public async Task NarrativeTurnPersistsPlayerInputAndReplaysIdempotently()
     {
         var client = await AuthenticatedClientAsync("dialogue-persist@example.test");
