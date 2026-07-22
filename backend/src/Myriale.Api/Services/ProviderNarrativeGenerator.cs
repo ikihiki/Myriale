@@ -9,6 +9,7 @@ namespace Myriale.Api.Services;
 
 public sealed class ProviderNarrativeGenerator(
     IAiTextProvider provider,
+    NarrativeProviderRequestBudgeter requestBudgeter,
     ILogger<ProviderNarrativeGenerator> logger) : INarrativeGenerator, IActionRecommendationGenerator
 {
     private static readonly JsonSerializerOptions Strict = new(JsonSerializerDefaults.Web) { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
@@ -18,12 +19,9 @@ public sealed class ProviderNarrativeGenerator(
 
     public async Task<NarrativeGeneration<NarrativeDialogueResult>> GenerateDialogueAsync(NarrativeDialogueRequest request, CancellationToken cancellationToken)
     {
-        var providerRequest = CreateRequest(
-            "narrative_dialogue",
-            DialogueSchema,
-            BuildSystem(request.Prompt),
-            JsonSerializer.Serialize(request, Strict));
-        var sentPrompt = SerializePrompt(providerRequest);
+        request = requestBudgeter.Fit(request, CreateDialogueRequest);
+        var providerRequest = CreateDialogueRequest(request);
+        var sentPrompt = requestBudgeter.Serialize(providerRequest);
         AiTextResponse response;
         try
         {
@@ -80,6 +78,12 @@ public sealed class ProviderNarrativeGenerator(
         }
         return result with { Suggestion = result.Suggestion.Trim() };
     }
+    private static AiTextRequest CreateDialogueRequest(NarrativeDialogueRequest request) => CreateRequest(
+        "narrative_dialogue",
+        DialogueSchema,
+        BuildSystem(request.Prompt),
+        JsonSerializer.Serialize(request, Strict));
+
     private static AiTextRequest CreateRequest(string schemaName, string schemaJson, string systemPrompt, string userPrompt)
     {
         using var schema = JsonDocument.Parse(schemaJson);
@@ -100,16 +104,6 @@ public sealed class ProviderNarrativeGenerator(
         exception.ProviderResponseExcerpt,
         sentPrompt,
         receivedResult);
-
-    private static string SerializePrompt(AiTextRequest request) => JsonSerializer.Serialize(new
-    {
-        messages = request.Messages.Select(message => new { role = message.Role.Value, content = message.Text }),
-        responseFormat = new
-        {
-            schemaName = request.ResponseFormat.SchemaName,
-            schema = request.ResponseFormat.Schema?.GetRawText(),
-        },
-    }, Strict);
 
     private T Deserialize<T>(AiTextResponse response, string schemaName)
     {

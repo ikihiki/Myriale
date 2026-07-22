@@ -44,7 +44,10 @@ public sealed class RealProviderNarrativeEvaluationTests
             new EmptyCredentialStore(),
             options,
             NullLogger<OpenAiCompatibleTextProvider>.Instance);
-        var generator = new ProviderNarrativeGenerator(textProvider, NullLogger<ProviderNarrativeGenerator>.Instance);
+        var generator = new ProviderNarrativeGenerator(
+            textProvider,
+            new NarrativeProviderRequestBudgeter(Options.Create(new NarrativeContextOptions())),
+            NullLogger<ProviderNarrativeGenerator>.Instance);
 
         var cases = FilterCases(CreateCases(), Environment.GetEnvironmentVariable("AI_EVAL_CASES"));
         var runs = new List<EvaluationRun>();
