@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
+import { Button as UiButton } from '../components/ui';
 import { Button } from '../account/AccountKit';
 import {
   MyrialeCheckbox,
@@ -206,6 +207,108 @@ export const DialogComponent: Story = {
     await expect(screen.getByRole('dialog', { name: '契約書の確認' })).toBeVisible();
     await userEvent.click(screen.getByRole('button', { name: '閉じる' }));
     await expect(screen.queryByRole('dialog', { name: '契約書の確認' })).not.toBeInTheDocument();
+  },
+};
+
+export const DialogRoles: Story = {
+  name: 'Dialog — size / tone / footer roles',
+  render: () => (
+    <div className="grid gap-4">
+      <p className="section-lead">default 540px、wide 620px、editor 760pxとwarning toneを同じDialog APIで確認します。</p>
+      <div className="button-row">
+        <MyrialeDialogRoot>
+          <MyrialeDialogTrigger asChild><UiButton variant="ghost">Defaultを開く</UiButton></MyrialeDialogTrigger>
+          <MyrialeDialogContent
+            title="Default dialog"
+            description="標準確認に使う540pxのDialogです。"
+            footer={<MyrialeDialogClose asChild><UiButton variant="primary">Defaultを完了</UiButton></MyrialeDialogClose>}
+          >
+            <input aria-label="Defaultの入力" defaultValue="霧の契約" />
+          </MyrialeDialogContent>
+        </MyrialeDialogRoot>
+
+        <MyrialeDialogRoot>
+          <MyrialeDialogTrigger asChild><UiButton variant="ghost">Wideを開く</UiButton></MyrialeDialogTrigger>
+          <MyrialeDialogContent
+            title="Wide dialog"
+            description="開始前レビューに使う620pxのDialogです。"
+            size="wide"
+            footer={<MyrialeDialogClose asChild><UiButton variant="primary">Wideを完了</UiButton></MyrialeDialogClose>}
+          >
+            <div className="myr-ui-note-card">Scenarioと主人公のサマリーを横にゆとりを持って表示します。</div>
+          </MyrialeDialogContent>
+        </MyrialeDialogRoot>
+
+        <MyrialeDialogRoot>
+          <MyrialeDialogTrigger asChild><UiButton variant="ghost">Editorを開く</UiButton></MyrialeDialogTrigger>
+          <MyrialeDialogContent
+            title="Editor dialog"
+            description="複雑なフォームや表を維持する760pxのDialogです。"
+            size="editor"
+            bodyClassName="grid grid-cols-2 gap-3 max-sm:grid-cols-1"
+            footer={<><UiButton variant="ghost">下書き</UiButton><MyrialeDialogClose asChild><UiButton variant="primary">Editorを保存</UiButton></MyrialeDialogClose></>}
+          >
+            <label className="grid gap-1">人物名<input aria-label="Editorの人物名" defaultValue="月読ミナト" /></label>
+            <label className="grid gap-1">役割<input aria-label="Editorの役割" defaultValue="案内人" /></label>
+          </MyrialeDialogContent>
+        </MyrialeDialogRoot>
+
+        <MyrialeDialogRoot>
+          <MyrialeDialogTrigger asChild><UiButton variant="danger">Warningを開く</UiButton></MyrialeDialogTrigger>
+          <MyrialeDialogContent
+            title="Warning dialog"
+            description="取り消せない操作を明確に区別します。"
+            tone="warning"
+            footer={<><UiButton variant="danger">破棄を確定</UiButton><MyrialeDialogClose asChild><UiButton variant="ghost">キャンセル</UiButton></MyrialeDialogClose></>}
+          >
+            この操作は元に戻せません。
+          </MyrialeDialogContent>
+        </MyrialeDialogRoot>
+      </div>
+    </div>
+  ),
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
+
+    await step('defaultはアクセシブルな名前と説明を持ち、フォーカスを閉じ込め、Escapeで閉じる', async () => {
+      const trigger = canvas.getByRole('button', { name: 'Defaultを開く' });
+      await userEvent.click(trigger);
+      const dialog = screen.getByRole('dialog', { name: 'Default dialog' });
+      await expect(dialog).toHaveAttribute('data-size', 'default');
+      await expect(dialog).toHaveAttribute('data-tone', 'default');
+      await expect(dialog).toHaveAccessibleDescription('標準確認に使う540pxのDialogです。');
+      await expect(dialog).toContainElement(canvasElement.ownerDocument.activeElement as HTMLElement);
+      await userEvent.tab();
+      await userEvent.tab();
+      await userEvent.tab();
+      await expect(dialog).toContainElement(canvasElement.ownerDocument.activeElement as HTMLElement);
+      await userEvent.keyboard('{Escape}');
+      await expect(screen.queryByRole('dialog', { name: 'Default dialog' })).not.toBeInTheDocument();
+      await expect(trigger).toHaveFocus();
+    });
+
+    await step('wideとeditorは型付きsize roleとfooter順序を反映する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: 'Wideを開く' }));
+      const wide = screen.getByRole('dialog', { name: 'Wide dialog' });
+      await expect(wide).toHaveAttribute('data-size', 'wide');
+      await userEvent.click(screen.getByRole('button', { name: 'Wideを完了' }));
+
+      await userEvent.click(canvas.getByRole('button', { name: 'Editorを開く' }));
+      const editor = screen.getByRole('dialog', { name: 'Editor dialog' });
+      await expect(editor).toHaveAttribute('data-size', 'editor');
+      const editorActions = within(editor).getAllByRole('button').map((button) => button.textContent);
+      await expect(editorActions).toEqual(['下書き', 'Editorを保存', '×']);
+      await userEvent.click(screen.getByRole('button', { name: 'Editorを保存' }));
+    });
+
+    await step('warning toneと危険操作footerを表示する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: 'Warningを開く' }));
+      const warning = screen.getByRole('dialog', { name: 'Warning dialog' });
+      await expect(warning).toHaveAttribute('data-tone', 'warning');
+      await expect(within(warning).getByRole('heading', { name: 'Warning dialog' })).toHaveClass('text-myr-ruby');
+      await userEvent.click(screen.getByRole('button', { name: 'キャンセル' }));
+    });
   },
 };
 

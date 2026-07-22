@@ -182,11 +182,24 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
 
       {editingNote && (
         <MyrialeDialogRoot open onOpenChange={(open) => { if (!open) closeNote(); }}>
-          <MyrialeDialogContent title="ノート編集" className="wire-dialog note-edit-dialog" portal={false} data-testid="note-edit-dialog">
+          <MyrialeDialogContent
+            title="ノート編集"
+            size="editor"
+            portal={false}
+            data-testid="note-edit-dialog"
+            footer={(
+              <>
+                <Button variant="primary" size="sm" onClick={() => markCertainty(editingNote.id, 'Canon')}>Canonにする</Button>
+                <Button variant="secondary" size="sm" onClick={() => markCertainty(editingNote.id, '未確定')}>未確定にする</Button>
+                <Button variant="secondary" size="sm" onClick={() => markCertainty(editingNote.id, '噂')}>噂にする</Button>
+                <Button variant="ghost" size="sm" onClick={closeNote}>閉じる</Button>
+              </>
+            )}
+          >
             <header className="flex items-center justify-between gap-4">
-              <div><span>{editingNote.kind === 'person' ? '人物ノート' : '場所ノート'}</span><h2>{editingNote.name}</h2><p>{editingNote.firstTurn} 初出 / 確定度: <b>{editingNote.certainty}</b></p></div>
+              <div><span>{editingNote.kind === 'person' ? '人物ノート' : '場所ノート'}</span><h3 className="my-1 font-myr-display text-2xl tracking-myr-display">{editingNote.name}</h3><p className="m-0 text-sm text-myr-slate">{editingNote.firstTurn} 初出 / 確定度: <b>{editingNote.certainty}</b></p></div>
             </header>
-            <div className="grid grid-cols-2 gap-2.5 max-myr-workspace:grid-cols-1 [&_label]:grid [&_label]:gap-[5px] [&_label]:text-xs [&_label]:font-black [&_label]:text-myr-slate-muted [&_textarea]:min-h-24">
+            <div className="mt-4 grid grid-cols-2 gap-2.5 max-myr-workspace:grid-cols-1 [&_label]:grid [&_label]:gap-[5px] [&_label]:text-xs [&_label]:font-black [&_label]:text-myr-slate-muted [&_textarea]:min-h-24">
               <label>表示名<Input aria-label="表示名" value={editingNote.name} onChange={(event) => updateNote(editingNote.id, { name: event.target.value })} /></label>
               <label>別名<Input aria-label="別名" value={editingNote.aliases} onChange={(event) => updateNote(editingNote.id, { aliases: event.target.value })} /></label>
               <label>外見・種別・詳細<Textarea aria-label="外見・種別・詳細" value={editingNote.details} onChange={(event) => updateNote(editingNote.id, { details: event.target.value })} /></label>
@@ -194,7 +207,6 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
               <label>関係性または施設<Textarea aria-label="関係性または施設" value={editingNote.relationsOrFacilities} onChange={(event) => updateNote(editingNote.id, { relationsOrFacilities: event.target.value })} /></label>
               <label>現在状態または禁則<Textarea aria-label="現在状態または禁則" value={editingNote.stateOrRules} onChange={(event) => updateNote(editingNote.id, { stateOrRules: event.target.value })} /></label>
             </div>
-            <div className="button-row"><Button variant="primary" size="sm" onClick={() => markCertainty(editingNote.id, 'Canon')}>Canonにする</Button><Button variant="secondary" size="sm" onClick={() => markCertainty(editingNote.id, '未確定')}>未確定にする</Button><Button variant="secondary" size="sm" onClick={() => markCertainty(editingNote.id, '噂')}>噂にする</Button><Button variant="ghost" size="sm" onClick={closeNote}>閉じる</Button></div>
           </MyrialeDialogContent>
         </MyrialeDialogRoot>
       )}

@@ -243,7 +243,7 @@ function ProtagonistForm({
         <MyrialeDialogContent
           title="開始前の最終確認"
           description="Scenarioと主人公を確認してから物語を開始します。"
-          className="!w-[min(620px,calc(100vw-32px))] !border-myr-ink/20 !bg-myr-paper !text-myr-ink"
+          size="wide"
           portal={false}
           data-testid="start-review-dialog"
           footer={(

@@ -930,13 +930,21 @@ function SessionDialogueSection({
 
         {pendingRewindId != null && (
           <MyrialeDialogRoot open onOpenChange={(open) => { if (!open) setPendingRewindId(null); }}>
-            <MyrialeDialogContent title="巻き戻し確認" className="rewind-dialog !my-3 !rounded-myr-card !border !border-myr-ruby/32 !bg-[rgba(255,238,220,.86)] !p-3.5 [&_p]:max-w-none [&_p]:text-[#5a3d3d]" portal={false} data-testid="rewind-dialog">
+            <MyrialeDialogContent
+              title="巻き戻し確認"
+              tone="warning"
+              portal={false}
+              data-testid="rewind-dialog"
+              bodyClassName="grid gap-2 [&_p]:m-0 [&_p]:max-w-none"
+              footer={(
+                <>
+                  <Button variant="danger" size="sm" onClick={confirmRewind}>巻き戻しを確定</Button>
+                  <Button variant="ghost" size="sm" onClick={() => setPendingRewindId(null)}>キャンセル</Button>
+                </>
+              )}
+            >
               <strong>Turn {String(pendingRewindId).padStart(2, '0')}まで戻りますか？</strong>
               <p>指定ターン以降のログ、挿絵生成などの非同期処理を無効化またはキャンセルします。</p>
-              <div className="button-row">
-                <Button variant="danger" size="sm" onClick={confirmRewind}>巻き戻しを確定</Button>
-                <Button variant="ghost" size="sm" onClick={() => setPendingRewindId(null)}>キャンセル</Button>
-              </div>
             </MyrialeDialogContent>
           </MyrialeDialogRoot>
         )}

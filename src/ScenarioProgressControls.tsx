@@ -17,15 +17,23 @@ const initialAdvancedNotice = 'ready';
 function FieldDialog({
   title,
   children,
+  footer,
   onClose,
 }: {
   title: string;
   children: React.ReactNode;
+  footer: React.ReactNode;
   onClose: () => void;
 }) {
   return (
     <MyrialeDialogRoot open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <MyrialeDialogContent title={title} className="wire-dialog" portal={false}>
+      <MyrialeDialogContent
+        title={title}
+        size="editor"
+        portal={false}
+        bodyClassName="grid gap-3 [&_label]:grid [&_label]:gap-1.5 [&_label]:text-xs [&_label]:font-black [&_label]:text-myr-slate-muted [&_textarea]:min-h-[110px]"
+        footer={footer}
+      >
         {children}
       </MyrialeDialogContent>
     </MyrialeDialogRoot>
@@ -231,48 +239,63 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
   const dialogContent = (
     <>
       {dialog === 'cast' && (
-        <FieldDialog title="Castを追加" onClose={() => setDialog(null)}>
+        <FieldDialog
+          title="Castを追加"
+          onClose={() => setDialog(null)}
+          footer={<><Button variant="ghost" size="sm" onClick={() => setDialog(null)}>キャンセル</Button><Button variant="primary" size="sm" onClick={saveCast}>Castを登録</Button></>}
+        >
           <label>人物名<Input aria-label="人物名" value={castName} onChange={(event) => setCastName(event.target.value)} /></label>
           <label>役割・性格・秘密<Textarea aria-label="人物の役割と秘密" value={castRole} onChange={(event) => setCastRole(event.target.value)} /></label>
           <label>登場条件・生成ルール<Textarea aria-label="人物の登場条件" value={castRule} onChange={(event) => setCastRule(event.target.value)} /></label>
-          <div className="button-row"><Button variant="ghost" size="sm" onClick={() => setDialog(null)}>キャンセル</Button><Button variant="primary" size="sm" onClick={saveCast}>Castを登録</Button></div>
         </FieldDialog>
       )}
 
       {dialog === 'location' && (
-        <FieldDialog title="Locationを追加" onClose={() => setDialog(null)}>
+        <FieldDialog
+          title="Locationを追加"
+          onClose={() => setDialog(null)}
+          footer={<><Button variant="ghost" size="sm" onClick={() => setDialog(null)}>キャンセル</Button><Button variant="primary" size="sm" onClick={saveLocation}>Locationを登録</Button></>}
+        >
           <label>場所名<Input aria-label="場所名" value={locationName} onChange={(event) => setLocationName(event.target.value)} /></label>
           <label>場所の条件<Textarea aria-label="場所の条件" value={locationRule} onChange={(event) => setLocationRule(event.target.value)} /></label>
-          <div className="button-row"><Button variant="ghost" size="sm" onClick={() => setDialog(null)}>キャンセル</Button><Button variant="primary" size="sm" onClick={saveLocation}>Locationを登録</Button></div>
         </FieldDialog>
       )}
 
       {dialog === 'beat' && (
-        <FieldDialog title="Beatを追加" onClose={() => setDialog(null)}>
+        <FieldDialog
+          title="Beatを追加"
+          onClose={() => setDialog(null)}
+          footer={<><Button variant="ghost" size="sm" onClick={() => setDialog(null)}>キャンセル</Button><Button variant="primary" size="sm" onClick={lockBeat}>Beatを固定</Button></>}
+        >
           <label>Chapter<Input aria-label="Chapter" value={chapter} onChange={(event) => setChapter(event.target.value)} /></label>
           <label>Beat<Input aria-label="Beat" value={beat} onChange={(event) => setBeat(event.target.value)} /></label>
           <label>Entry条件<Textarea aria-label="Entry条件" value={entry} onChange={(event) => setEntry(event.target.value)} /></label>
           <label>Exit条件<Textarea aria-label="Exit条件" value={exit} onChange={(event) => setExit(event.target.value)} /></label>
           <label>このBeatの禁止事項<Textarea aria-label="禁止事項" value={forbidden} onChange={(event) => setForbidden(event.target.value)} /></label>
-          <div className="button-row"><Button variant="ghost" size="sm" onClick={() => setDialog(null)}>キャンセル</Button><Button variant="primary" size="sm" onClick={lockBeat}>Beatを固定</Button></div>
         </FieldDialog>
       )}
 
       {dialog === 'secret' && (
-        <FieldDialog title="HiddenBriefを追加" onClose={() => setDialog(null)}>
+        <FieldDialog
+          title="HiddenBriefを追加"
+          onClose={() => setDialog(null)}
+          footer={<><Button variant="ghost" size="sm" onClick={() => setDialog(null)}>キャンセル</Button><Button variant="primary" size="sm" onClick={saveSecret}>非公開情報を保存</Button></>}
+        >
           <label>秘密の名前<Input aria-label="秘密の名前" value={secretTitle} onChange={(event) => setSecretTitle(event.target.value)} /></label>
           <label>HiddenBrief<Textarea aria-label="HiddenBrief" value={hiddenBrief} onChange={(event) => setHiddenBrief(event.target.value)} /></label>
           <label>公開条件<Textarea aria-label="公開条件" value={revealCondition} onChange={(event) => setRevealCondition(event.target.value)} /></label>
-          <div className="button-row"><Button variant="ghost" size="sm" onClick={() => setDialog(null)}>キャンセル</Button><Button variant="primary" size="sm" onClick={saveSecret}>非公開情報を保存</Button></div>
         </FieldDialog>
       )}
 
       {dialog === 'event' && (
-        <FieldDialog title="強制イベントを追加" onClose={() => setDialog(null)}>
+        <FieldDialog
+          title="強制イベントを追加"
+          onClose={() => setDialog(null)}
+          footer={<><Button variant="ghost" size="sm" onClick={() => setDialog(null)}>キャンセル</Button><Button variant="primary" size="sm" onClick={saveEvent}>強制イベントを登録</Button></>}
+        >
           <label>イベント名<Input aria-label="イベント名" value={eventTitle} onChange={(event) => setEventTitle(event.target.value)} /></label>
           <label>トリガー条件<Textarea aria-label="トリガー条件" value={eventTrigger} onChange={(event) => setEventTrigger(event.target.value)} /></label>
           <label>イベント内容<Textarea aria-label="イベント内容" value={eventBody} onChange={(event) => setEventBody(event.target.value)} /></label>
-          <div className="button-row"><Button variant="ghost" size="sm" onClick={() => setDialog(null)}>キャンセル</Button><Button variant="primary" size="sm" onClick={saveEvent}>強制イベントを登録</Button></div>
         </FieldDialog>
       )}
     </>

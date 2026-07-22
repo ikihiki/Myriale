@@ -121,6 +121,7 @@ export const USE04ASUseAdvancedControlsDuringEdit: Story = {
     });
     await step('編集中でもUS-AS03のようにBeatを追加できる', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '新規Beat' }));
+      await expect(canvas.getByRole('dialog', { name: 'Beatを追加' })).toHaveAttribute('data-size', 'editor');
       await userEvent.clear(canvas.getByLabelText('Chapter'));
       await userEvent.type(canvas.getByLabelText('Chapter'), 'Chapter 9: 編集中の終章');
       await userEvent.click(canvas.getByRole('button', { name: 'Beatを固定' }));

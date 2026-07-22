@@ -73,9 +73,7 @@ body { margin: 0; background: #211b28; color: var(--ink); font-family: Inter, ui
   border: 0 !important;
 }
 
-/* Complex shared table/dialog descendant contracts remain global because they
-   are reused by scenario progress controls and Radix-backed editing dialogs. */
-/* Scenario progress tables and modal-style dialogs retain shared structural CSS. */
+/* Scenario progress tables retain shared structural CSS. */
 
 
 .wire-table {
@@ -106,47 +104,3 @@ body { margin: 0; background: #211b28; color: var(--ink); font-family: Inter, ui
 }
 
 .wire-table tr:last-child td { border-bottom: 0; }
-
-.wire-dialog {
-  width: min(760px, calc(100vw - 48px));
-  max-height: calc(100vh - 48px);
-  overflow: auto;
-  display: grid;
-  gap: 12px;
-  padding: 20px;
-  border: 1px solid rgba(220, 231, 242, .6);
-  border-radius: var(--myr-radius-panel);
-  background: #fffaf0;
-  box-shadow: 0 28px 90px rgba(18, 16, 25, .38);
-}
-
-.wire-dialog-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.wire-dialog h2 {
-  margin: 0;
-  font-family: Georgia, 'Times New Roman', serif;
-  letter-spacing: var(--myr-tracking-display);
-}
-
-.wire-dialog label {
-  display: grid;
-  gap: 6px;
-  color: var(--myr-color-slate-muted);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.wire-dialog textarea { min-height: 110px; }
-.wire-dialog .button-row { justify-content: flex-end; }
-.wire-dialog button {
-  border-radius: 999px;
-  padding: 9px 13px;
-  background: var(--myr-color-plum);
-  color: var(--myr-color-paper);
-}
-.wire-dialog .primary { background: var(--myr-color-gold); color: #17151f; font-weight: 900; }

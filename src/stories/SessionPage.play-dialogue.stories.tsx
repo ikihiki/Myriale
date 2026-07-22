@@ -216,6 +216,7 @@ export const USP10NotesAlwaysAvailableSideAndFull: Story = {
       await expect(canvas.getByTestId('session-notes-side')).toHaveTextContent('月読ミナト');
       await userEvent.click(within(canvas.getByTestId('session-notes-side')).getByRole('button', { name: '月読ミナトを編集' }));
       await expect(canvas.getByRole('dialog', { name: 'ノート編集' })).toBeVisible();
+      await expect(canvas.getByTestId('note-edit-dialog')).toHaveAttribute('data-size', 'editor');
       await expect(canvas.getByTestId('app-db-summary')).toHaveTextContent('open person-minato');
       await userEvent.clear(canvas.getByLabelText('別名'));
       await userEvent.type(canvas.getByLabelText('別名'), '水際の案内人');
@@ -247,6 +248,7 @@ export const USP11RewindToAnyPastTurn: Story = {
       await userEvent.click(turnOne.getByRole('button', { name: 'ここまで戻る' }));
       await expect(canvas.getByRole('dialog', { name: '巻き戻し確認' })).toBeVisible();
       await expect(canvas.getByTestId('rewind-dialog')).toHaveTextContent('非同期処理を無効化');
+      await expect(canvas.getByTestId('rewind-dialog')).toHaveAttribute('data-tone', 'warning');
     });
     await step('確定すると指定ターン以降を無効化し、巻き戻し地点から再入力できる', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '巻き戻しを確定' }));
