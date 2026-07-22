@@ -295,17 +295,35 @@ export function SessionPresentation({
           )}
         </div>
         {notice && (
-          <Notice className="my-4.5" data-testid="dialogue-notice" data-notice-kind={notice.kind} tone={notice.tone} role={notice.tone === 'danger' ? 'alert' : 'status'}>
-            <span>{notice.title && <strong className="block">{notice.title}</strong>}{notice.message}</span>
-            {notice.action && (
+          <Notice
+            className="sticky top-[126px] z-40 my-4.5 flex items-start gap-3 drop-shadow-[0_12px_18px_rgba(18,16,25,.28)] backdrop-blur-md"
+            data-testid="dialogue-notice"
+            data-notice-kind={notice.kind}
+            tone={notice.tone}
+            role={notice.tone === 'danger' ? 'alert' : 'status'}
+          >
+            <span className="min-w-0 flex-1">{notice.title && <strong className="block">{notice.title}</strong>}{notice.message}</span>
+            <span className="flex shrink-0 items-center gap-2">
+              {notice.action && (
+                <Button
+                  variant={notice.tone === 'danger' ? 'danger' : 'secondary'}
+                  size="sm"
+                  onClick={notice.action === 'login' ? onLogin : notice.action === 'session-list' ? onSessionList : onReload}
+                >
+                  {noticeActionLabel(notice.action)}
+                </Button>
+              )}
               <Button
-                variant={notice.tone === 'danger' ? 'danger' : 'secondary'}
-                size="sm"
-                onClick={notice.action === 'login' ? onLogin : notice.action === 'session-list' ? onSessionList : onReload}
+                type="button"
+                variant="icon"
+                size="iconSm"
+                surface="dark"
+                aria-label="メッセージを閉じる"
+                onClick={() => setNotice('')}
               >
-                {noticeActionLabel(notice.action)}
+                <CloseIcon />
               </Button>
-            )}
+            </span>
           </Notice>
         )}
 
