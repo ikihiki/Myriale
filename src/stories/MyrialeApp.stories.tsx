@@ -3,6 +3,7 @@ import { expect, userEvent, within } from '@storybook/test';
 import { MyrialeApp } from '../app/MyrialeApp';
 import { createDemoDb } from '../app/demoData';
 import { MockSessionContainer } from './session-page/MockSessionContainer';
+import { MockStartSessionContainer } from './start-session-page/MockStartSessionContainer';
 import '../styles.css';
 
 const meta = {
@@ -18,7 +19,7 @@ type Story = StoryObj<typeof meta>;
 
 export const HomeDashboard: Story = {
   name: 'トップページ: 中断セッションとおすすめシナリオ',
-  args: { initialUrl: '/', initialDb: createDemoDb('resumableSession') },
+  args: { initialUrl: '/', initialDb: createDemoDb('resumableSession'), startSessionContainer: MockStartSessionContainer },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await step('トップページで今日の導線・中断Session・おすすめScenarioを確認する', async () => {
