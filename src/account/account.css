@@ -61,10 +61,6 @@
   border-radius: 4px;
 }
 
-/* Account-frame color overrides remain scoped here until the layout slice. */
-.account-rail .desk-brand strong { color: #fff6e7; }
-.account-rail .desk-brand small { color: #c9bdd8; }
-
 .button-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; align-items: center; }
 
 /* Intentional Account Kit color override for the shared Radix progress indicator. */
@@ -98,10 +94,6 @@
 .reg-card h3 { margin: 0 0 6px; font-size: 14px; }
 .card-grid { display: grid; gap: 16px; }
 .card-grid.two { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
-.card-grid.metrics { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-.metric { padding: 16px; border: 1px solid var(--line); border-radius: 20px; background: linear-gradient(135deg, #fffef9, #eee4ff); }
-.metric span { color: var(--ink-soft); font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-.metric strong { display: block; margin-top: 6px; font-family: Georgia, serif; font-size: 34px; line-height: 1; }
 
 .provider-priority { display: grid; gap: 14px; margin: 0 0 16px; padding: 0; list-style: none; counter-reset: priority; }
 .provider-priority li { display: grid; grid-template-columns: 30px 1fr; gap: 2px 10px; align-items: start; }
@@ -117,142 +109,13 @@
 .provider-badge.database { background: rgba(217, 164, 65, 0.2); color: #72520f; }
 .provider-status.valid { background: rgba(47, 111, 87, 0.14); color: var(--verde); }
 
-/* ---- Auth desk scaffold (mirrors .login-grid / .login-card / .login-context) ---- */
-.auth-desk {
-  display: grid;
-  grid-template-columns: minmax(360px, 480px) minmax(0, 360px);
-  gap: 18px;
-  align-items: start;
-  justify-content: center;
-  padding: clamp(20px, 5vh, 56px) 22px;
-}
-.auth-card {
-  padding: 30px;
-  border: 1px solid var(--line);
-  border-radius: 28px;
-  background: rgba(255, 250, 240, 0.92);
-  box-shadow: var(--shadow);
-}
-.auth-card .desk-brand { margin-bottom: 22px; }
-.auth-footer {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 16px;
-  align-items: center;
-  font-size: 13px;
-  color: var(--ink-soft);
-}
-.auth-context {
-  padding: 26px;
-  border: 1px solid var(--line);
-  border-radius: 28px;
-  background: linear-gradient(135deg, rgba(255, 250, 240, 0.92), rgba(214, 231, 224, 0.9));
-  box-shadow: var(--shadow);
-}
-.auth-context h3 { margin: 0 0 14px; font-family: Georgia, serif; font-size: 24px; }
-.auth-context ol, .auth-context ul { margin: 0; padding-left: 18px; }
-.auth-context li { margin: 12px 0; color: #5f506c; line-height: 1.5; }
-.auth-context .identity-seal { margin: 4px 0 18px; }
-
-/* ---- Signed-in app frame (rail mirrors .story-rail / .contract-spine) ---- */
-.account-frame {
-  display: grid;
-  grid-template-columns: 248px minmax(0, 1fr);
-  gap: 18px;
-  padding: 18px;
-  min-height: 100vh;
-}
-.account-frame.has-aside { grid-template-columns: 248px minmax(0, 1fr) minmax(260px, 320px); }
-.account-rail {
-  position: sticky;
-  top: 18px;
-  align-self: start;
-  display: grid;
-  gap: 18px;
-  align-content: start;
-  padding: 22px;
-  min-height: calc(100vh - 36px);
-  border-radius: 18px 8px 8px 18px;
-  background: linear-gradient(180deg, #201b2d, #17151f);
-  color: #fff6e7;
-}
-.rail-identity {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 14px 0;
-  border-top: 1px solid rgba(244, 238, 223, 0.14);
-  border-bottom: 1px solid rgba(244, 238, 223, 0.14);
-}
-.rail-identity strong { display: block; font-size: 14px; }
-.rail-identity small { color: #c9bdd8; font-size: 11px; word-break: break-all; }
-.account-nav { display: grid; gap: 10px; }
-.account-nav button {
-  padding: 12px 14px;
-  text-align: left;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background: rgba(255, 250, 240, 0.08);
-  color: #fff6e7;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-.account-nav button:hover { background: rgba(255, 250, 240, 0.16); }
-.account-nav button.active { background: var(--paper); color: var(--void); border-color: var(--ember); }
-.rail-logout { justify-self: start; color: var(--ember); }
-.account-main { min-width: 0; padding: 8px 6px; display: grid; gap: 18px; align-content: start; }
-.account-aside {
-  position: sticky;
-  top: 18px;
-  align-self: start;
-  display: grid;
-  gap: 14px;
-  align-content: start;
-  padding: 20px;
-  border-radius: 8px 24px 24px 8px;
-  border: 1px solid var(--line);
-  background: rgba(255, 250, 240, 0.9);
-  box-shadow: var(--shadow);
-}
-.account-aside h2 { margin: 0; font-family: Georgia, serif; font-size: 20px; }
-
 /* ---- Misc layout helpers ---- */
-.stack { display: grid; gap: 18px; align-content: start; }
 .inline-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 .muted { color: var(--ink-soft); }
-.audit-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
-.audit-list li {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: linear-gradient(135deg, #fffef9, #f3edff);
-}
-.audit-list time { color: var(--ink-soft); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 14px; }
 .toolbar .field { margin: 0; }
 .toolbar .grow { flex: 1 1 220px; }
-.danger-zone { border: 1px solid rgba(184, 69, 63, 0.4); background: linear-gradient(180deg, rgba(255, 250, 240, 0.94), #fdeeec); }
-.danger-zone h2 { color: var(--seal); }
-.checkbox-row { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0; font-size: 14px; }
-.checkbox-row input { width: 18px; height: 18px; margin-top: 2px; flex: 0 0 auto; }
 .pill-row { display: flex; flex-wrap: wrap; gap: 8px; }
-.snapshot-line { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
-.snapshot-line:first-child { border-top: 0; }
-.snapshot-line span { color: var(--ink-soft); }
-
-@media (max-width: 1080px) {
-  .auth-desk { grid-template-columns: minmax(0, 480px); }
-  .account-frame, .account-frame.has-aside { grid-template-columns: 1fr; }
-  .account-rail { min-height: auto; border-radius: 18px; }
-  .account-aside { position: static; }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .account-kit * { transition: none !important; }

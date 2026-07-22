@@ -318,7 +318,7 @@ export const AppFrameComponent: Story = {
         user={{ name: '霧野しおり', email: 'shiori@example.com', state: 'active', initials: '霧' }}
         aside={<DefinitionList items={[{ term: '現在', value: active }]} testId="frame-aside" />}
       >
-        <section className="reg-card" aria-label="AppFrame本文">
+        <section className="rounded-[28px] border border-[var(--line)] bg-[rgba(255,250,240,.9)] p-[22px] shadow-[var(--shadow)]" aria-label="AppFrame本文">
           <SectionHead kicker="Account" title="AppFrame本文" lead="ナビゲーションと本文領域を1つの枠にまとめます。" />
           <p data-testid="frame-active">active: {active}</p>
         </section>

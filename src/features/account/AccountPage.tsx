@@ -39,6 +39,10 @@ type Notice = { tone?: NoticeTone; message: string } | null;
 
 const protectedViews = new Set<AccountView>(['profile', 'profile-edit', 'security', 'export', 'withdraw']);
 
+const accountCardClassName = "rounded-[28px] border border-[var(--line)] bg-[rgba(255,250,240,.9)] p-[22px] shadow-[var(--shadow)]";
+const accountActionRowClassName = 'mt-1.5 flex flex-wrap items-center gap-2.5';
+const operationsNavButtonClassName = 'cursor-pointer rounded-full border border-transparent bg-[rgba(255,250,240,.08)] px-3.5 py-3 text-left font-bold text-[#fff6e7] transition-colors duration-150 hover:bg-[rgba(255,250,240,.16)]';
+
 export function AccountPage({
   initialView = 'register',
   api,
@@ -129,7 +133,7 @@ function RegisterPage({ api, onRegistered, onLogin }: { api: AccountApi; onRegis
         <TextField label="メールアドレス" value={email} onChange={setEmail} type="email" required autoComplete="email" inputMode="email" error={firstFieldError(error, 'email')} />
         <PasswordField label="パスワード" value={password} onChange={setPassword} showStrength showChecklist testId="register-password" error={firstFieldError(error, 'password')} />
         <PasswordField label="パスワード（確認）" value={confirm} onChange={setConfirm} autoComplete="new-password" error={firstFieldError(error, 'confirm')} />
-        <div className="button-row"><Button type="submit" variant="primary" disabled={submitting}>{submitting ? '登録中…' : '登録する'}</Button></div>
+        <div className={accountActionRowClassName}><Button type="submit" variant="primary" disabled={submitting}>{submitting ? '登録中…' : '登録する'}</Button></div>
       </form>
     </AuthScaffold>
   );
@@ -152,7 +156,7 @@ function LoginPage({ api, onLoggedIn, onRegister, onReset }: { api: AccountApi; 
       <form onSubmit={submit}>
         <TextField label="メールアドレス" value={email} onChange={setEmail} type="email" required autoComplete="email" inputMode="email" />
         <PasswordField label="パスワード" value={password} onChange={setPassword} autoComplete="current-password" testId="login-password" />
-        <div className="button-row"><Button type="submit" variant="primary" disabled={submitting}>{submitting ? 'ログイン中…' : 'ログインする'}</Button></div>
+        <div className={accountActionRowClassName}><Button type="submit" variant="primary" disabled={submitting}>{submitting ? 'ログイン中…' : 'ログインする'}</Button></div>
       </form>
     </AuthScaffold>
   );
@@ -183,17 +187,17 @@ function ResetPasswordPage({ api, onLogin }: { api: AccountApi; onLogin: () => v
       {error && <NoticeBanner tone="danger" testId="um-notice">{error.message}</NoticeBanner>}
       <form onSubmit={confirm}>
         <TextField label="メールアドレス" value={email} onChange={setEmail} type="email" inputMode="email" />
-        <div className="button-row"><Button onClick={request}>再設定リンクを送信する</Button></div>
+        <div className={accountActionRowClassName}><Button onClick={request}>再設定リンクを送信する</Button></div>
         <TextField label="再設定トークン" value={token} onChange={setToken} help="開発/テスト環境では API 応答の token を自動入力します。" />
         <PasswordField label="新しいパスワード" value={password} onChange={setPassword} showStrength showChecklist testId="reset-password" />
-        <div className="button-row"><Button type="submit" variant="primary">パスワードを変更する</Button></div>
+        <div className={accountActionRowClassName}><Button type="submit" variant="primary">パスワードを変更する</Button></div>
       </form>
     </AuthScaffold>
   );
 }
 
 function ProtectedAccountFrame({ view, user, status, onNavigate, onLogout, children }: { view: AccountView; user: AccountUser | null; status: string; onNavigate: (view: AccountView) => void; onLogout: () => void; children: ReactNode }) {
-  if (status === 'unknown') return <div className="auth-desk"><main className="auth-card" aria-busy="true">認証状態を確認しています…</main></div>;
+  if (status === 'unknown') return <div className="grid grid-cols-[minmax(360px,480px)] justify-center px-[22px] py-[clamp(20px,5vh,56px)]"><main className="rounded-[28px] border border-[var(--line)] bg-[rgba(255,250,240,.92)] p-[30px] shadow-[var(--shadow)]" aria-busy="true">認証状態を確認しています…</main></div>;
   if (!user) return <AuthScaffold ariaLabel="ログインが必要" kicker="Account" title="ログインが必要です" lead="この画面を表示するにはログインしてください。"><Button variant="primary" onClick={() => onNavigate('login')}>ログインへ</Button></AuthScaffold>;
   return (
     <AppFrame
@@ -210,7 +214,7 @@ function ProtectedAccountFrame({ view, user, status, onNavigate, onLogout, child
 }
 
 function ProfileView({ user, onEdit }: { user: AccountUser; onEdit: () => void }) {
-  return <section className="reg-card" role="region" aria-label="プロフィール"><SectionHead kicker="US-UM08" title="プロフィール" lead="Identity に保存されたアカウント情報です。" /><DefinitionList items={[{ term: 'User ID', value: <span data-testid="issued-user-id">{user.id}</span> }, { term: '表示名', value: user.displayName }, { term: 'メール', value: user.email }, { term: '状態', value: user.state === 'active' ? '有効' : user.state }, { term: '自己紹介', value: user.bio || '未設定' }]} /><div className="button-row"><Button variant="primary" onClick={onEdit}>プロフィールを編集する</Button></div></section>;
+  return <section className={accountCardClassName} role="region" aria-label="プロフィール"><SectionHead kicker="US-UM08" title="プロフィール" lead="Identity に保存されたアカウント情報です。" /><DefinitionList items={[{ term: 'User ID', value: <span data-testid="issued-user-id">{user.id}</span> }, { term: '表示名', value: user.displayName }, { term: 'メール', value: user.email }, { term: '状態', value: user.state === 'active' ? '有効' : user.state }, { term: '自己紹介', value: user.bio || '未設定' }]} /><div className={accountActionRowClassName}><Button variant="primary" onClick={onEdit}>プロフィールを編集する</Button></div></section>;
 }
 
 function EditProfileView({ api, user, onSaved }: { api: AccountApi; user: AccountUser; onSaved: (user: AccountUser) => void }) {
@@ -222,15 +226,15 @@ function EditProfileView({ api, user, onSaved }: { api: AccountApi; user: Accoun
     setError(null);
     try { onSaved(await api.updateProfile({ displayName, bio })); } catch (caught) { setError(caught as AccountApiError); }
   };
-  return <section className="reg-card" role="region" aria-label="プロフィール編集"><SectionHead kicker="US-UM09" title="プロフィール編集" lead="表示名と自己紹介を更新します。" />{error && <NoticeBanner tone="danger" testId="um-notice">{error.message}</NoticeBanner>}<form onSubmit={submit}><TextField label="表示名" value={displayName} onChange={setDisplayName} error={firstFieldError(error, 'displayName')} /><TextAreaField label="自己紹介" value={bio} onChange={setBio} error={firstFieldError(error, 'bio')} /><div className="button-row"><Button type="submit" variant="primary">保存する</Button></div></form></section>;
+  return <section className={accountCardClassName} role="region" aria-label="プロフィール編集"><SectionHead kicker="US-UM09" title="プロフィール編集" lead="表示名と自己紹介を更新します。" />{error && <NoticeBanner tone="danger" testId="um-notice">{error.message}</NoticeBanner>}<form onSubmit={submit}><TextField label="表示名" value={displayName} onChange={setDisplayName} error={firstFieldError(error, 'displayName')} /><TextAreaField label="自己紹介" value={bio} onChange={setBio} error={firstFieldError(error, 'bio')} /><div className={accountActionRowClassName}><Button type="submit" variant="primary">保存する</Button></div></form></section>;
 }
 
 function SecurityView() {
-  return <section className="reg-card" role="region" aria-label="セキュリティ"><SectionHead kicker="Security" title="セキュリティ設定" lead="パスワード、ログイン履歴、外部ログイン連携の土台です。" /><NoticeBanner tone="warning">MVPでは ASP.NET Core Identity の cookie セッションとパスワード認証を利用しています。OAuth と他端末ログアウトは Phase 2 で接続します。</NoticeBanner></section>;
+  return <section className={accountCardClassName} role="region" aria-label="セキュリティ"><SectionHead kicker="Security" title="セキュリティ設定" lead="パスワード、ログイン履歴、外部ログイン連携の土台です。" /><NoticeBanner tone="warning">MVPでは ASP.NET Core Identity の cookie セッションとパスワード認証を利用しています。OAuth と他端末ログアウトは Phase 2 で接続します。</NoticeBanner></section>;
 }
 
 function ExportView() {
-  return <section className="reg-card" role="region" aria-label="データ書き出し"><SectionHead kicker="Phase 3" title="データ書き出し" lead="エクスポートジョブとダウンロードは後続フェーズで実装します。" /></section>;
+  return <section className={accountCardClassName} role="region" aria-label="データ書き出し"><SectionHead kicker="Phase 3" title="データ書き出し" lead="エクスポートジョブとダウンロードは後続フェーズで実装します。" /></section>;
 }
 
 function WithdrawView({ api, user, onWithdrawn }: { api: AccountApi; user: AccountUser; onWithdrawn: () => void }) {
@@ -242,7 +246,7 @@ function WithdrawView({ api, user, onWithdrawn }: { api: AccountApi; user: Accou
     setError(null);
     try { await api.withdraw({ confirmation }); onWithdrawn(); } catch (caught) { setError(caught as AccountApiError); }
   };
-  return <section className="reg-card danger-zone" role="region" aria-label="退会"><SectionHead kicker="US-UM11" title="退会" lead="アカウントを soft delete し、Identity セッションをサインアウトします。" />{error && <NoticeBanner tone="danger" testId="um-notice">{error.message}</NoticeBanner>}<label className="checkbox-row"><input type="checkbox" checked={understood} onChange={(event) => setUnderstood(event.target.checked)} />退会の注意事項を理解しました</label><TextField label="確認のため登録メールアドレスを入力" value={confirmation} onChange={setConfirmation} error={firstFieldError(error, 'confirmation')} testId="withdraw-confirmation" /><div className="button-row"><Button variant="danger" disabled={!canDelete} onClick={submit}>アカウントを削除する</Button></div></section>;
+  return <section className={`${accountCardClassName} border-[rgba(184,69,63,.4)] bg-[linear-gradient(180deg,rgba(255,250,240,.94),#fdeeec)] [&_h2]:text-[var(--seal)]`} role="region" aria-label="退会"><SectionHead kicker="US-UM11" title="退会" lead="アカウントを soft delete し、Identity セッションをサインアウトします。" />{error && <NoticeBanner tone="danger" testId="um-notice">{error.message}</NoticeBanner>}<label className="my-3 flex items-start gap-2.5 text-sm [&_input]:mt-0.5 [&_input]:size-[18px] [&_input]:shrink-0"><input type="checkbox" checked={understood} onChange={(event) => setUnderstood(event.target.checked)} />退会の注意事項を理解しました</label><TextField label="確認のため登録メールアドレスを入力" value={confirmation} onChange={setConfirmation} error={firstFieldError(error, 'confirmation')} testId="withdraw-confirmation" /><div className={accountActionRowClassName}><Button variant="danger" disabled={!canDelete} onClick={submit}>アカウントを削除する</Button></div></section>;
 }
 
 function RoadmapAuthPage({ title, lead, onLogin }: { title: string; lead: string; onLogin: () => void }) {
@@ -251,7 +255,7 @@ function RoadmapAuthPage({ title, lead, onLogin }: { title: string; lead: string
 
 function OperationsPage({ view, onNavigate }: { view: AccountView; onNavigate: (view: AccountView) => void }) {
   const title = view === 'audit' ? '監査ログ' : view === 'admin-detail' ? 'ユーザー詳細' : view === 'admin-ai-keys' ? 'AIキー管理' : 'ユーザー管理';
-  return <div className="account-frame"><aside className="account-rail"><SectionHead kicker="Operations" title="運用" /><nav className="account-nav"><button className={view === 'admin-list' ? 'active' : ''} onClick={() => onNavigate('admin-list')}>ユーザー管理</button><button className={view === 'admin-ai-keys' ? 'active' : ''} onClick={() => onNavigate('admin-ai-keys')}>AIキー管理</button><button className={view === 'audit' ? 'active' : ''} onClick={() => onNavigate('audit')}>監査ログ</button></nav></aside><main className="account-main">{view === 'admin-ai-keys' ? <AdminAiKeysView /> : <RoadmapOperationsView title={title} />}</main></div>;
+  return <div className="grid min-h-screen grid-cols-[248px_minmax(0,1fr)] gap-[18px] p-[18px] max-[1080px]:grid-cols-1"><aside className="sticky top-[18px] grid min-h-[calc(100vh-36px)] content-start gap-[18px] self-start rounded-[18px_8px_8px_18px] bg-[linear-gradient(180deg,#201b2d,#17151f)] p-[22px] text-[#fff6e7] max-[1080px]:min-h-0 max-[1080px]:rounded-[18px]"><SectionHead kicker="Operations" title="運用" /><nav className="grid gap-2.5"><button className={`${operationsNavButtonClassName} ${view === 'admin-list' ? 'border-[var(--ember)] bg-[var(--paper)] text-[var(--void)] hover:bg-[var(--paper)]' : ''}`} onClick={() => onNavigate('admin-list')}>ユーザー管理</button><button className={`${operationsNavButtonClassName} ${view === 'admin-ai-keys' ? 'border-[var(--ember)] bg-[var(--paper)] text-[var(--void)] hover:bg-[var(--paper)]' : ''}`} onClick={() => onNavigate('admin-ai-keys')}>AIキー管理</button><button className={`${operationsNavButtonClassName} ${view === 'audit' ? 'border-[var(--ember)] bg-[var(--paper)] text-[var(--void)] hover:bg-[var(--paper)]' : ''}`} onClick={() => onNavigate('audit')}>監査ログ</button></nav></aside><main className="grid min-w-0 content-start gap-[18px] px-1.5 py-2">{view === 'admin-ai-keys' ? <AdminAiKeysView /> : <RoadmapOperationsView title={title} />}</main></div>;
 }
 
 function RoadmapOperationsView({ title }: { title: string }) {
@@ -306,7 +310,7 @@ function AdminAiKeysView() {
   return <section className="reg-card" role="region" aria-label="AIキー管理"><SectionHead kicker="Admin / AI Providers" title="AI Provider管理" lead="OpenAIまたはRunpodの接続状態を確認し、必要に応じてAPIキーを登録します。" />
     <NoticeBanner tone={error ? 'danger' : 'info'} testId="ai-key-notice">{error?.message ?? notice}</NoticeBanner>
     <div className="card-grid two">
-      <div className="reg-card"><h2>管理画面からキーを登録</h2><div className="field"><label htmlFor="ai-provider">Provider</label><select id="ai-provider" value={provider} onChange={(event) => changeProvider(event.target.value)}><option value="runpod">Runpod</option><option value="openai">OpenAI</option></select>{firstAdminAiFieldError(error, 'provider') && <p className="field-error">{firstAdminAiFieldError(error, 'provider')}</p>}</div><TextField label="表示名" value={displayName} onChange={setDisplayName} error={firstAdminAiFieldError(error, 'displayName')} /><TextField label="APIキー" value={secret} onChange={setSecret} placeholder={provider === 'runpod' ? 'rpa_...' : 'sk-...'} error={firstAdminAiFieldError(error, 'secret')} /><p className="field-help">Vaultまたは環境変数で設定済みの場合、ここで同じキーを再登録する必要はありません。</p><div className="button-row"><Button variant="primary" onClick={save} disabled={busy || !secret.trim()}>キーを保存</Button></div></div>
+      <div className="reg-card"><h2>管理画面からキーを登録</h2><div className="field"><label htmlFor="ai-provider">Provider</label><select id="ai-provider" value={provider} onChange={(event) => changeProvider(event.target.value)}><option value="runpod">Runpod</option><option value="openai">OpenAI</option></select>{firstAdminAiFieldError(error, 'provider') && <p className="field-error">{firstAdminAiFieldError(error, 'provider')}</p>}</div><TextField label="表示名" value={displayName} onChange={setDisplayName} error={firstAdminAiFieldError(error, 'displayName')} /><TextField label="APIキー" value={secret} onChange={setSecret} placeholder={provider === 'runpod' ? 'rpa_...' : 'sk-...'} error={firstAdminAiFieldError(error, 'secret')} /><p className="field-help">Vaultまたは環境変数で設定済みの場合、ここで同じキーを再登録する必要はありません。</p><div className={accountActionRowClassName}><Button variant="primary" onClick={save} disabled={busy || !secret.trim()}>キーを保存</Button></div></div>
       <div className="reg-card"><h2>設定の優先順位</h2><ol className="provider-priority"><li><strong>Vault / 環境変数</strong><span>デプロイ時に注入された設定を最優先で使用します。</span></li><li><strong>管理画面</strong><span>環境設定がないProviderでは暗号化してDBへ保存します。</span></li></ol><p className="muted">「使用中」は現在Narrative生成に選択されているProviderです。</p></div>
     </div>
     <div className="reg-card flush provider-table-wrap"><table className="user-table" aria-label="AIキー一覧"><thead><tr><th>Provider</th><th>接続設定</th><th>キー</th><th>検証状態</th><th>操作</th></tr></thead><tbody>{keys.map((key) => <tr key={key.provider} data-testid={'ai-key-row-' + key.provider}><td><strong>{key.displayName}</strong><span className="provider-id">{key.provider}</span></td><td><div className="provider-badges">{key.active && <span className="provider-badge active">使用中</span>}<span className={`provider-badge ${key.credentialSource}`}>{key.credentialSource === 'environment' ? 'Vault / 環境変数' : key.credentialSource === 'database' ? '管理画面' : '未設定'}</span></div></td><td>{key.maskedKey}</td><td><span className={`provider-status ${key.status}`}>{key.status === 'valid' ? '接続済み' : key.status === 'untested' ? '未検証' : key.status}</span></td><td><div className="inline-actions"><Button onClick={() => void test(key.provider)} disabled={busy || !key.configured}>接続テスト</Button>{key.credentialSource === 'database' && <Button variant="danger" onClick={() => void remove(key.provider)} disabled={busy}>削除</Button>}</div></td></tr>)}</tbody></table></div>
