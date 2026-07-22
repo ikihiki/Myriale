@@ -28,7 +28,7 @@ function ReadOnlyProtagonistFields({ value, testId }: { value: string; testId: s
       <label className="grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">
         名前
         <Input
-          className="!cursor-not-allowed !rounded-none !border-x-0 !border-t-0 !border-b-2 !border-myr-ink/15 !bg-myr-vellum/35 !px-3 !py-2.5 !text-base !text-myr-slate !shadow-none"
+          variant="underline"
           aria-label="主人公の名前"
           aria-readonly="true"
           readOnly
@@ -38,7 +38,7 @@ function ReadOnlyProtagonistFields({ value, testId }: { value: string; testId: s
       <label className="grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">
         プロフィール
         <Textarea
-          className="!min-h-28 !cursor-not-allowed !rounded-myr-card !border !border-myr-ink/15 !bg-myr-vellum/35 !px-3 !py-3 !text-base !leading-7 !text-myr-slate !shadow-none"
+          className="!min-h-28 !rounded-myr-card !border-myr-ink/15 !px-3 !py-3 !text-base !leading-7 !shadow-none"
           aria-label="主人公プロフィール"
           aria-readonly="true"
           readOnly
@@ -174,7 +174,7 @@ function ProtagonistForm({
                   <label className="grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">
                     名前
                     <Input
-                      className="!rounded-none !border-x-0 !border-t-0 !border-b-2 !border-myr-ink/20 !bg-white/45 !px-3 !py-2.5 !text-base !text-myr-ink focus:!border-myr-iris focus:!outline-none"
+                      variant="underline"
                       aria-label="主人公の名前"
                       value={field.state.value}
                       onBlur={field.handleBlur}
@@ -188,7 +188,7 @@ function ProtagonistForm({
                   <label className="grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">
                     プロフィール
                     <Textarea
-                      className="!min-h-36 !rounded-myr-card !border !border-myr-ink/20 !bg-white/55 !px-3 !py-3 !text-base !leading-7 !text-myr-ink focus:!border-myr-iris focus:!outline-none"
+                      className="!min-h-36 !rounded-myr-card !border-myr-ink/20 !bg-white/55 !px-3 !py-3 !text-base !leading-7"
                       aria-label="主人公プロフィール"
                       value={field.state.value}
                       onBlur={field.handleBlur}

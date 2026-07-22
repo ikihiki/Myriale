@@ -150,7 +150,7 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
       <div className="grid h-full min-h-0 grid-cols-1 items-stretch gap-2">
         <div className="grid min-h-0 content-start gap-1 overflow-auto" aria-label="ノート一覧">
           <div className={`grid items-end gap-2 border-b border-myr-ink/12 pb-1.5 ${mode === 'side' ? 'grid-cols-1' : 'grid-cols-[minmax(220px,1fr)_auto]'}`}>
-            <label className="grid gap-1.5 text-xs font-black text-myr-slate-muted">ノート検索<Input className="min-h-[30px] px-2 py-1.5 text-myr-ui-sm" aria-label="ノート検索" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="人物・場所名で検索" /></label>
+            <label className="grid gap-1.5 text-xs font-black text-myr-slate-muted">ノート検索<Input variant="compact" aria-label="ノート検索" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="人物・場所名で検索" /></label>
             <div className={`flex flex-wrap gap-[5px] ${mode === 'side' ? 'justify-start' : 'justify-end'} [&_button]:rounded-full [&_button]:px-2 [&_button]:py-1 [&_button]:text-myr-caption`} aria-label="ノート操作">
               <Button onClick={() => createNote('person')}>人物追加</Button>
               <Button onClick={() => createNote('location')}>場所追加</Button>

@@ -1,13 +1,12 @@
 import { forwardRef, type ComponentPropsWithoutRef } from 'react';
+import { controlClassName, textareaVariantClassNames, type TextareaVariant } from './controlRecipes';
 
-const baseClassName = '[font:inherit] min-h-[126px] w-full resize-y rounded-2xl border border-myr-line bg-myr-paper-bright px-3.5 py-3 text-myr-ink';
+export type TextareaProps = ComponentPropsWithoutRef<'textarea'> & {
+  variant?: TextareaVariant;
+};
 
-function cx(...classNames: Array<string | undefined>) {
-  return classNames.filter(Boolean).join(' ');
-}
-
-export const Textarea = forwardRef<HTMLTextAreaElement, ComponentPropsWithoutRef<'textarea'>>(
-  function Textarea({ className, ...props }, ref) {
-    return <textarea ref={ref} className={cx(baseClassName, className)} {...props} />;
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
+  function Textarea({ className, variant = 'field', ...props }, ref) {
+    return <textarea ref={ref} className={controlClassName(textareaVariantClassNames[variant], className)} {...props} />;
   },
 );

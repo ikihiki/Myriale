@@ -68,6 +68,25 @@ export const USP02AndP03NaturalInputToNarrativeResult: Story = {
   },
 };
 
+export const ComposerKeyboardBehavior: Story = {
+  name: 'Composer: Shift+Enterで改行し、Enterで送信する',
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    const input = canvas.getByLabelText('自由に行動や会話を入力');
+    await step('Shift+Enterは送信せず改行する', async () => {
+      await userEvent.type(input, '一行目');
+      await userEvent.keyboard('{Shift>}{Enter}{/Shift}二行目');
+      await expect(input).toHaveValue('一行目\n二行目');
+      await expect(canvas.getByTestId('dialogue-log')).not.toHaveTextContent('プレイヤーの入力: 一行目');
+    });
+    await step('Enterは入力を送信し、composerを空に戻す', async () => {
+      await userEvent.keyboard('{Enter}');
+      await expect(canvas.getByTestId('dialogue-log')).toHaveTextContent('プレイヤーの入力: 一行目 二行目');
+      await expect(input).toHaveValue('');
+    });
+  },
+};
+
 export const USP04TalkWithNpcNaturally: Story = {
   name: 'US-P04: NPCと自然に会話したい',
   play: async ({ canvasElement, step }) => {

@@ -25,31 +25,49 @@ export const Variants: Story = {
     const [password, setPassword] = useState('mist-2026');
     const [notes, setNotes] = useState('一行目');
     return (
-      <div className="grid gap-4 [&_label]:grid [&_label]:gap-1.5 [&_label]:text-xs [&_label]:font-black">
-        <label>Default<Input aria-label="Default input" value={name} onChange={(event) => setName(event.target.value)} /></label>
-        <label>Password<Input aria-label="Password input" type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
-        <label>Disabled<Input aria-label="Disabled input" value="変更不可" disabled /></label>
-        <label>Readonly<Input aria-label="Readonly input" value="参照専用" readOnly /></label>
-        <label>Invalid<Input aria-label="Invalid input" aria-invalid="true" className="border-myr-ruby !bg-[#fff7f5]" defaultValue="修正が必要" /></label>
-        <label>Compact<Input aria-label="Compact input" className="min-h-[30px] !px-2 !py-1.5 text-myr-ui-sm" defaultValue="コンパクト" /></label>
-        <label>Borderless<Input aria-label="Borderless input" className="rounded-none border-0 bg-transparent shadow-none" defaultValue="境界線なし" /></label>
-        <label>Textarea<Textarea aria-label="Textarea input" value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
+      <div className="grid gap-5">
+        <section className="grid gap-3 [&_label]:grid [&_label]:gap-1.5 [&_label]:text-xs [&_label]:font-black" aria-label="Input role matrix">
+          <label>Field<Input aria-label="Field input" value={name} onChange={(event) => setName(event.target.value)} /></label>
+          <label>Underline<Input aria-label="Underline input" variant="underline" defaultValue="下線入力" /></label>
+          <label>Compact<Input aria-label="Compact input" variant="compact" defaultValue="コンパクト" /></label>
+          <label>Borderless<Input aria-label="Borderless input" variant="borderless" defaultValue="境界線なし" /></label>
+          <label>Password<Input aria-label="Password input" type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
+          <label>Invalid<Input aria-label="Invalid input" aria-invalid="true" defaultValue="修正が必要" /></label>
+          <label>Readonly<Input aria-label="Readonly input" value="参照専用" readOnly /></label>
+          <label>Disabled<Input aria-label="Disabled input" value="変更不可" disabled /></label>
+        </section>
+        <section className="grid gap-3 [&_label]:grid [&_label]:gap-1.5 [&_label]:text-xs [&_label]:font-black" aria-label="Textarea role matrix">
+          <label>Field<Textarea aria-label="Textarea input" value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
+          <label>Underline<Textarea aria-label="Underline textarea" variant="underline" defaultValue="下線テキスト" /></label>
+          <label>Compact<Textarea aria-label="Compact textarea" variant="compact" defaultValue="短いメモ" /></label>
+          <label>Borderless<Textarea aria-label="Borderless textarea" variant="borderless" defaultValue="境界線なし" /></label>
+          <label>Composer<Textarea aria-label="Composer textarea" variant="composer" defaultValue="次の行動" /></label>
+        </section>
       </div>
     );
   },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await step('標準入力はキーボード操作で値を更新する', async () => {
-      const input = canvas.getByLabelText('Default input');
+      const input = canvas.getByLabelText('Field input');
       await userEvent.clear(input);
       await userEvent.type(input, '星喰いの図書館');
       await expect(input).toHaveValue('星喰いの図書館');
     });
+    await step('InputとTextareaのrole recipeを公開する', async () => {
+      await expect(canvas.getByLabelText('Underline input')).toHaveClass('rounded-none', 'border-b-2', 'bg-white/45');
+      await expect(canvas.getByLabelText('Compact input')).toHaveClass('min-h-[30px]', 'px-2', 'py-1.5');
+      await expect(canvas.getByLabelText('Borderless input')).toHaveClass('border-0', 'bg-transparent', 'shadow-none');
+      await expect(canvas.getByLabelText('Composer textarea')).toHaveClass('min-h-[76px]', 'max-h-[220px]', 'px-[19px]');
+    });
     await step('パスワード属性と各状態を保持する', async () => {
       await expect(canvas.getByLabelText('Password input')).toHaveAttribute('type', 'password');
       await expect(canvas.getByLabelText('Disabled input')).toBeDisabled();
+      await expect(canvas.getByLabelText('Disabled input')).toHaveClass('disabled:cursor-not-allowed');
       await expect(canvas.getByLabelText('Readonly input')).toHaveAttribute('readonly');
+      await expect(canvas.getByLabelText('Readonly input')).not.toBeDisabled();
       await expect(canvas.getByLabelText('Invalid input')).toHaveAttribute('aria-invalid', 'true');
+      await expect(canvas.getByLabelText('Invalid input')).toHaveClass('aria-invalid:border-myr-ruby', 'aria-invalid:bg-[#fff7f5]');
     });
     await step('Tab移動とTextareaの改行入力が機能する', async () => {
       const textarea = canvas.getByLabelText('Textarea input');

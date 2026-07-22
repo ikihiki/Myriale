@@ -956,7 +956,7 @@ function SessionDialogueSection({
           )}
           <div className="overflow-hidden rounded-[26px] border border-myr-ink/15 bg-[rgba(255,254,249,0.96)] shadow-[0_10px_30px_rgba(34,29,48,0.11),0_1px_2px_rgba(34,29,48,0.08)] transition-[border-color,box-shadow] duration-150 focus-within:border-myr-iris/45 focus-within:shadow-[0_12px_34px_rgba(34,29,48,0.14),0_0_0_3px_rgba(124,92,255,0.09)] max-sm:rounded-myr-panel motion-reduce:transition-none">
             <Textarea
-              className="block !min-h-[76px] max-h-[220px] w-full resize-y rounded-none border-0 bg-transparent !px-[19px] !pt-[17px] !pb-2 text-[15px] leading-[1.6] !text-[#24212d] shadow-none placeholder:!text-[#8a8791] focus:outline-none focus:shadow-none"
+              variant="composer"
               aria-label="自由に行動や会話を入力"
               value={input}
               onChange={(event) => {

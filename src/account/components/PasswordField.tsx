@@ -3,7 +3,7 @@ import { Input } from '../../components/ui';
 import { MyrialeProgress, MyrialeToggle } from '../../ui/MyrialeRadix';
 import { defaultPasswordRequirements, passwordStrength, strengthLabel } from '../password';
 import type { PasswordRequirement } from '../types';
-import { Field, fieldControlClassNames } from './Field';
+import { Field, fieldDescriptionId } from './Field';
 
 export function PasswordField({
   label = 'パスワード',
@@ -36,7 +36,7 @@ export function PasswordField({
   return (
     <Field label={label} htmlFor={id} help={help} error={error}>
       <div className="relative flex">
-        <Input className={`${fieldControlClassNames[error ? 'error' : 'default']} pr-16`} id={id} aria-label={label} aria-invalid={error ? true : undefined} type={visible ? 'text' : 'password'} value={value} autoComplete={autoComplete} data-testid={testId} onChange={(event) => onChange(event.target.value)} />
+        <Input className="pr-16 placeholder:text-[#a89f93]" id={id} aria-label={label} aria-describedby={error ? fieldDescriptionId(id, 'error') : help ? fieldDescriptionId(id, 'help') : undefined} aria-invalid={error ? true : undefined} type={visible ? 'text' : 'password'} value={value} autoComplete={autoComplete} data-testid={testId} onChange={(event) => onChange(event.target.value)} />
         <MyrialeToggle className="absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer rounded-full border-0 bg-[rgba(36,27,47,.08)] px-2.5 py-1.5 text-xs font-bold text-[#4a4357] aria-pressed:bg-[rgba(124,92,255,.16)] aria-pressed:text-[var(--iris-deep)]" pressed={visible} aria-label={visible ? 'パスワードを隠す' : 'パスワードを表示'} onPressedChange={setVisible}>
           {visible ? '隠す' : '表示'}
         </MyrialeToggle>

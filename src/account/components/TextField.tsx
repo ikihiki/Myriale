@@ -1,6 +1,6 @@
 import { useId } from 'react';
 import { Input } from '../../components/ui';
-import { Field, fieldControlClassNames } from './Field';
+import { Field, fieldDescriptionId } from './Field';
 
 export function TextField({
   label,
@@ -32,7 +32,7 @@ export function TextField({
   const id = useId();
   return (
     <Field label={label} htmlFor={id} required={required} help={help} error={error}>
-      <Input className={fieldControlClassNames[error ? 'error' : 'default']} id={id} aria-label={label} aria-invalid={error ? true : undefined} type={type} value={value} placeholder={placeholder} required={required} autoComplete={autoComplete} inputMode={inputMode} name={name} data-testid={testId} onChange={(event) => onChange(event.target.value)} />
+      <Input className="placeholder:text-[#a89f93]" id={id} aria-label={label} aria-describedby={error ? fieldDescriptionId(id, 'error') : help ? fieldDescriptionId(id, 'help') : undefined} aria-invalid={error ? true : undefined} type={type} value={value} placeholder={placeholder} required={required} autoComplete={autoComplete} inputMode={inputMode} name={name} data-testid={testId} onChange={(event) => onChange(event.target.value)} />
     </Field>
   );
 }

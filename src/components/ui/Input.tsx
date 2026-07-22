@@ -1,13 +1,12 @@
 import { forwardRef, type ComponentPropsWithoutRef } from 'react';
+import { controlClassName, inputVariantClassNames, type InputVariant } from './controlRecipes';
 
-const baseClassName = '[font:inherit] w-full rounded-2xl border border-myr-line bg-myr-paper-bright px-3.5 py-3 text-myr-ink';
+export type InputProps = ComponentPropsWithoutRef<'input'> & {
+  variant?: InputVariant;
+};
 
-function cx(...classNames: Array<string | undefined>) {
-  return classNames.filter(Boolean).join(' ');
-}
-
-export const Input = forwardRef<HTMLInputElement, ComponentPropsWithoutRef<'input'>>(
-  function Input({ className, ...props }, ref) {
-    return <input ref={ref} className={cx(baseClassName, className)} {...props} />;
+export const Input = forwardRef<HTMLInputElement, InputProps>(
+  function Input({ className, variant = 'field', ...props }, ref) {
+    return <input ref={ref} className={controlClassName(inputVariantClassNames[variant], className)} {...props} />;
   },
 );
