@@ -1,10 +1,13 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SessionActivityFeed } from './SessionActivityFeed';
 import { sessionActivityFixture } from './sessionActivityFixtures';
 import { hasActiveSessionExecutions } from './sessionPlayApi';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 describe('SessionActivityFeed', () => {
   it('renders accepted input and failure as separate elements without creating an error turn', () => {
@@ -29,6 +32,38 @@ describe('SessionActivityFeed', () => {
     expect(screen.queryByText('開発者向け詳細')).toBeNull();
     rerender(<SessionActivityFeed session={sessionActivityFixture('failed')} />);
     expect(screen.getAllByText('開発者向け詳細').length).toBeGreaterThan(0);
+  });
+
+  it('renders player input as an offset chat bubble and error actions on the second row', () => {
+    render(<SessionActivityFeed session={sessionActivityFixture('failed')} />);
+    const input = screen.getByTestId('session-input-item');
+    expect(input.classList.contains('session-input-item')).toBe(true);
+    const error = screen.getByTestId('execution-EXE-narrative-failed');
+    expect(error.children[1].classList.contains('execution-actions')).toBe(true);
+  });
+
+  it('updates elapsed generation time and toggles diagnostics from the status line', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-21T12:00:05Z'));
+    render(<SessionActivityFeed session={sessionActivityFixture('running')} />);
+    const execution = screen.getByTestId('execution-EXE-narrative-running');
+    expect(execution.textContent).toContain('5秒');
+    const details = execution.querySelector('details');
+    const summary = execution.querySelector('summary');
+    expect(summary?.textContent).toContain('物語: 生成しています');
+    expect(details?.open).toBe(false);
+    fireEvent.click(summary!);
+    expect(details?.open).toBe(true);
+    act(() => vi.advanceTimersByTime(1000));
+    expect(execution.textContent).toContain('6秒');
+  });
+
+  it('removes a completed execution after its exit animation', () => {
+    vi.useFakeTimers();
+    render(<SessionActivityFeed session={sessionActivityFixture('succeeded')} />);
+    expect(screen.getByTestId('execution-EXE-narrative-succeeded')).not.toBeNull();
+    act(() => vi.advanceTimersByTime(720));
+    expect(screen.queryByTestId('execution-EXE-narrative-succeeded')).toBeNull();
   });
 
   it('polls only while at least one execution is active', () => {

@@ -27,8 +27,9 @@ export const FailedWithDevelopmentDiagnostics: Story = {
       await userEvent.click(canvas.getAllByRole('button', { name: '再試行' })[0]);
       await expect(args.onExecutionAction).toHaveBeenCalled();
     });
-    await step('Development diagnostics expose safe trace data', async () => {
-      await userEvent.click(canvas.getAllByText('開発者向け詳細')[0]);
+    await step('The status line toggles safe development diagnostics', async () => {
+      const status = canvas.getAllByText(/物語: 生成できませんでした/)[0];
+      await userEvent.click(status);
       await expect(canvas.getAllByText(/0123456789abcdef0123456789abcdef/).length).toBeGreaterThan(0);
       await expect(canvas.queryByText(/Bearer secret/i)).not.toBeInTheDocument();
     });

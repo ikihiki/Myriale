@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { NarrativeTurnApiResponse, SessionApiResponse, SessionExecutionApiResponse, SessionNoteProposalApiResponse } from './sessionPlayApi';
 
 const statusCopy: Record<string, string> = {
@@ -9,30 +9,74 @@ const statusCopy: Record<string, string> = {
 const kindCopy: Record<string, string> = { narrative: '物語', 'module-handoff': 'Module結果の物語', 'note-proposal': 'ノートの変更案', image: '場面の画像' };
 
 export function SessionInputItem({ text }: { text: string }) {
-  return <article className="session-input-item" data-testid="session-input-item" aria-label="Player Input"><span aria-hidden="true">⟶</span><p>{text}</p></article>;
+  return <article className="session-input-item" data-testid="session-input-item" aria-label="Player Input"><p>{text}</p></article>;
 }
 export function NarrativeTurnItem({ turn }: { turn: NarrativeTurnApiResponse }) {
   return <article className="session-turn" data-testid="narrative-turn-item" aria-label="公開済みNarrative Turn"><p className="session-turn-narrative"><span className="session-turn-narrative-tag" aria-hidden="true">AI</span>{turn.narrative?.body ?? 'Narrativeを表示できません。'}</p></article>;
 }
+
+const activeExecutionStatuses = ['queued', 'running', 'retry-wait', 'cancel-requested'];
+const formatElapsed = (milliseconds: number) => {
+  const totalSeconds = Number.isFinite(milliseconds) ? Math.max(0, Math.floor(milliseconds / 1000)) : 0;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes >= 60) return `${Math.floor(minutes / 60)}時間${minutes % 60}分`;
+  if (minutes > 0) return `${minutes}分${seconds}秒`;
+  return `${seconds}秒`;
+};
+
+function ExecutionStatusLine({ execution, elapsed }: { execution: SessionExecutionApiResponse; elapsed: string }) {
+  return <span className="execution-status-copy" key={`${execution.status}-${execution.revision}`}>
+    {kindCopy[execution.kind] ?? execution.kind}: {statusCopy[execution.status] ?? execution.status}
+    <span className="execution-elapsed" aria-hidden="true">{elapsed}</span>
+  </span>;
+}
+
 export function SessionExecutionItem({ execution, onAction }: { execution: SessionExecutionApiResponse; onAction?: (id: string, action: 'retry' | 'cancel' | 'dismiss') => void }) {
-  const active = ['queued', 'running', 'retry-wait', 'cancel-requested'].includes(execution.status);
+  const active = activeExecutionStatuses.includes(execution.status);
   const failed = execution.status === 'failed';
+  const succeeded = execution.status === 'succeeded';
+  const [now, setNow] = useState(() => Date.now());
+  const [hidden, setHidden] = useState(false);
+
+  useEffect(() => {
+    if (!active) return undefined;
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [active]);
+
+  useEffect(() => {
+    setHidden(false);
+    if (!succeeded) return undefined;
+    const timer = window.setTimeout(() => setHidden(true), 720);
+    return () => window.clearTimeout(timer);
+  }, [succeeded, execution.revision]);
+
+  if (hidden) return null;
+  const startedAt = Date.parse(execution.startedAt ?? execution.createdAt);
+  const finishedAt = execution.completedAt ? Date.parse(execution.completedAt) : now;
+  const elapsed = formatElapsed(finishedAt - startedAt);
+  const statusLine = <ExecutionStatusLine execution={execution} elapsed={elapsed} />;
+  const actions = (execution.capabilities.canRetry || execution.capabilities.canCancel || execution.capabilities.canDismiss) && <div className="execution-actions">
+    {execution.capabilities.canRetry && <button onClick={() => onAction?.(execution.id, 'retry')}>再試行</button>}
+    {execution.capabilities.canCancel && <button onClick={() => onAction?.(execution.id, 'cancel')}>キャンセル</button>}
+    {execution.capabilities.canDismiss && <button onClick={() => onAction?.(execution.id, 'dismiss')}>閉じる</button>}
+  </div>;
+
   return (
-    <article className={`session-execution-item status-${execution.status}`} data-testid={`execution-${execution.id}`} role={failed ? 'alert' : 'status'} aria-live={active ? 'polite' : undefined}>
-      <strong>{kindCopy[execution.kind] ?? execution.kind}: {statusCopy[execution.status] ?? execution.status}</strong>
-      {execution.userErrorMessage && <p>{execution.userErrorMessage}</p>}
-      {failed && <p>Player Inputと既存のNarrativeは保存されています。</p>}
-      <div className="button-row">
-        {execution.capabilities.canRetry && <button onClick={() => onAction?.(execution.id, 'retry')}>再試行</button>}
-        {execution.capabilities.canCancel && <button onClick={() => onAction?.(execution.id, 'cancel')}>キャンセル</button>}
-        {execution.capabilities.canDismiss && <button onClick={() => onAction?.(execution.id, 'dismiss')}>閉じる</button>}
-      </div>
-      {execution.developmentDiagnostics && (
-        <details className="execution-diagnostics"><summary>開発者向け詳細</summary>
+    <article className={`session-execution-item status-${execution.status}${succeeded ? ' execution-is-completing' : ''}`} data-testid={`execution-${execution.id}`} role={failed ? 'alert' : 'status'} aria-live={active ? 'polite' : undefined}>
+      {execution.developmentDiagnostics ? <details className="execution-diagnostics">
+        <summary>{statusLine}</summary>
+        <div className="execution-diagnostics-body">
+          <span className="execution-diagnostics-label">開発者向け詳細</span>
           <dl><dt>Execution ID</dt><dd><code>{execution.id}</code></dd><dt>Session ID</dt><dd><code>{execution.developmentDiagnostics.sessionId}</code></dd><dt>Revision</dt><dd>{execution.developmentDiagnostics.revision}</dd><dt>Lease</dt><dd>{execution.developmentDiagnostics.leaseOwner ?? '—'} {execution.developmentDiagnostics.leaseTokenHint ?? ''}</dd></dl>
           {execution.developmentDiagnostics.attempts.map((attempt) => <section key={attempt.id} className="execution-attempt"><strong>Attempt {attempt.attemptNumber}</strong><pre>{JSON.stringify(attempt, null, 2)}</pre></section>)}
-        </details>
-      )}
+        </div>
+      </details> : <div className="execution-status-line">{statusLine}</div>}
+      {actions}
+      {execution.userErrorMessage && <p className="execution-error-message">{execution.userErrorMessage}</p>}
+      {failed && <p className="execution-error-context">Player Inputと既存のNarrativeは保存されています。</p>}
     </article>
   );
 }
