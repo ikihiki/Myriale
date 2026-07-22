@@ -22,7 +22,7 @@ const createProgressedPlayDb = () => {
 const meta = {
   title: 'ユーザーストーリー/Session play dialogue',
   component: MyrialeApp,
-  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098" initialDb={createProgressedPlayDb()} />,
+  render: () => <MyrialeApp initialUrl="/sessions/SES-PREP-1098" initialDb={createProgressedPlayDb()} sessionFixture />,
   parameters: {
     notes: 'docs/user-stories/session-play-dialogue-user-stories.md の各ユーザーストーリーを、Storybook Interactions の step と expect で操作説明できるアプリ画面にしたものです。',
   },

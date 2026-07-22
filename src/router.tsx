@@ -5,6 +5,7 @@ import { routeTree } from './routeTree.gen';
 export type AppRouterContext = {
   showDebugPanel: boolean;
   accountApi: AccountApi;
+  sessionFixture: boolean;
 };
 
 export type AppHistoryMode = 'browser' | 'memory';
@@ -14,11 +15,13 @@ export function createAppRouter({
   historyMode = 'memory',
   showDebugPanel = true,
   accountApi = createFetchAccountApi(),
+  sessionFixture = false,
 }: {
   initialUrl?: string;
   historyMode?: AppHistoryMode;
   showDebugPanel?: boolean;
   accountApi?: AccountApi;
+  sessionFixture?: boolean;
 } = {}) {
   const history = historyMode === 'browser'
     ? createBrowserHistory()
@@ -27,7 +30,7 @@ export function createAppRouter({
   return createRouter({
     routeTree,
     history,
-    context: { showDebugPanel, accountApi },
+    context: { showDebugPanel, accountApi, sessionFixture },
     defaultPreload: 'intent',
   });
 }
