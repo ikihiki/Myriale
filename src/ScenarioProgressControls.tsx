@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Input, Textarea } from './components/ui';
+import { Button, Input, Notice, Textarea } from './components/ui';
 import { MyrialeDialogContent, MyrialeDialogRoot } from './ui/MyrialeRadix';
 
 type Panel = 'cast' | 'locations' | 'beats' | 'secrets' | 'events' | 'debug' | 'test';
@@ -149,7 +149,7 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
 
   const panelClassName = 'grid gap-3';
   const noticeNode = notice !== initialAdvancedNotice ? (
-    <div className="my-[18px] rounded-2xl bg-[rgba(18,16,25,.86)] px-4 py-3 text-myr-cream" role="status" data-testid="advanced-notice">{notice}</div>
+    <Notice className="my-[18px]" data-testid="advanced-notice">{notice}</Notice>
   ) : null;
 
   const panelContent = (

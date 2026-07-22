@@ -13,10 +13,8 @@
 * { box-sizing: border-box; }
 body { margin: 0; background: #211b28; color: var(--ink); font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
 
-/* Shared primitives used across every page (kicker label, status notice,
-   text/primary buttons, and choice rows). */
+/* Shared primitives retained for legacy kicker, text buttons, and choice rows. */
 .kicker { margin:0 0 8px; text-transform: uppercase; letter-spacing: .16em; font-size: 12px; color: var(--myr-color-ink-subtle); font-weight: 800; }
-.notice { margin: 18px 0; padding: 12px 16px; border-radius: 16px; background: rgba(18,16,25,.86); color: var(--myr-color-cream); }
 .text-button { margin-top: 10px; color: #7054dd; background: transparent; padding: 10px 0; font-weight: 900; }
 
 .primary, .choice-row button { border-radius: 999px; padding: 11px 16px; background: var(--ink); color: white; }

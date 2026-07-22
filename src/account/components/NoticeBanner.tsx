@@ -1,18 +1,6 @@
 import type { ReactNode } from 'react';
-
-type NoticeTone = 'info' | 'success' | 'warning' | 'danger';
-
-const toneClassNames: Record<NoticeTone, string> = {
-  info: 'shadow-[inset_4px_0_0_var(--iris)]',
-  success: 'shadow-[inset_4px_0_0_var(--verde)]',
-  warning: 'shadow-[inset_4px_0_0_var(--ember)]',
-  danger: 'shadow-[inset_4px_0_0_var(--seal)]',
-};
+import { Notice, type NoticeTone } from '../../components/ui';
 
 export function NoticeBanner({ children, tone = 'info', testId = 'um-notice' }: { children: ReactNode; tone?: NoticeTone; testId?: string }) {
-  return (
-    <div className={`mb-[18px] rounded-2xl bg-[rgba(18,16,25,.86)] px-4 py-3 text-sm leading-normal text-myr-cream ${toneClassNames[tone]}`} role="status" data-testid={testId}>
-      {children}
-    </div>
-  );
+  return <Notice tone={tone} className="mb-[18px]" data-testid={testId}>{children}</Notice>;
 }

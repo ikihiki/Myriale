@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Button, surfaceRecipe } from '../../components/ui';
+import { Button, Notice, surfaceRecipe } from '../../components/ui';
 import { WizardNavigation } from '../../shared/WizardNavigation';
 import { scenarioWizardShellClass, wizardButtonRowClass, wizardKickerClass, wizardNoticeClass, wizardPanelClass, wizardPaperClass, wizardSummaryClass } from '../../shared/scenarioWizardStyles';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
@@ -254,9 +254,9 @@ export function SessionResumePage() {
 
         <main className={wizardPaperClass} aria-label="セッション再開アプリ画面">
           <p className={wizardKickerClass}>Session resume / Continue your story</p>
-          <div className={wizardNoticeClass} role="status" data-testid="resume-notice">
+          <Notice className={wizardNoticeClass} data-testid="resume-notice">
             {notice}
-          </div>
+          </Notice>
 
           {view === 'list' && (
             <section className={wizardPanelClass} aria-label="中断中のセッション">

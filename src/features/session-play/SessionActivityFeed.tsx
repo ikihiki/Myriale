@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Input, Textarea } from '../../components/ui';
+import { Button, Input, Textarea, toneTextClassNames, type BadgeTone } from '../../components/ui';
 import type { NarrativeTurnApiResponse, SessionApiResponse, SessionExecutionApiResponse, SessionNoteProposalApiResponse } from './sessionPlayApi';
 import './SessionActivityFeed.css';
 
@@ -10,15 +10,26 @@ const statusCopy: Record<string, string> = {
 };
 const kindCopy: Record<string, string> = { narrative: '物語', 'module-handoff': 'Module結果の物語', 'note-proposal': 'ノートの変更案', image: '場面の画像' };
 
+const executionStatusTone: Record<SessionExecutionApiResponse['status'], BadgeTone> = {
+  queued: 'neutral',
+  running: 'info',
+  'retry-wait': 'warning',
+  'cancel-requested': 'warning',
+  failed: 'danger',
+  cancelled: 'neutral',
+  succeeded: 'success',
+  superseded: 'neutral',
+};
+
 const executionStatusClass: Record<SessionExecutionApiResponse['status'], string> = {
-  queued: '',
-  running: '',
-  'retry-wait': '',
-  'cancel-requested': '',
-  failed: 'text-[#e0645e]',
-  cancelled: 'opacity-72',
-  succeeded: '',
-  superseded: 'opacity-72',
+  queued: toneTextClassNames[executionStatusTone.queued],
+  running: toneTextClassNames[executionStatusTone.running],
+  'retry-wait': toneTextClassNames[executionStatusTone['retry-wait']],
+  'cancel-requested': toneTextClassNames[executionStatusTone['cancel-requested']],
+  failed: toneTextClassNames[executionStatusTone.failed],
+  cancelled: `${toneTextClassNames[executionStatusTone.cancelled]} opacity-72`,
+  succeeded: toneTextClassNames[executionStatusTone.succeeded],
+  superseded: `${toneTextClassNames[executionStatusTone.superseded]} opacity-72`,
 };
 const artifactClass = 'mx-auto mb-3 w-[min(100%,720px)] rounded-myr-card border border-myr-ink/14 bg-[#fffbf1] px-4 py-3.5';
 

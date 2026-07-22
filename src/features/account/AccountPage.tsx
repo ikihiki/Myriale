@@ -1,5 +1,5 @@
 import { FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
-import { Button as SharedButton, surfaceRecipe, textRecipe } from '../../components/ui';
+import { Badge, Button as SharedButton, surfaceRecipe, textRecipe } from '../../components/ui';
 import {
   AppFrame,
   AuthScaffold,
@@ -46,7 +46,6 @@ const accountActionRowClassName = 'mt-1.5 flex flex-wrap items-center gap-2.5';
 const accountCardHeadingClassName = `m-0 mb-3.5 ${textRecipe('sectionEditorial')} !text-[22px] !tracking-[-.02em]`;
 const providerTableHeadClassName = 'border-b border-myr-line-strong bg-[rgba(124,92,255,.06)] px-4 py-3 text-left text-myr-caption font-extrabold tracking-[.1em] text-myr-account-ink-soft uppercase';
 const providerTableCellClassName = 'border-b border-myr-line px-4 py-[13px] align-middle';
-const providerBadgeClassName = 'inline-flex w-max items-center whitespace-nowrap rounded-full bg-[rgba(36,27,47,.08)] px-[9px] py-[5px] text-myr-caption font-extrabold text-myr-account-ink-soft';
 const operationsNavButtonClassName = 'cursor-pointer rounded-full border border-transparent bg-[rgba(255,250,240,.08)] px-3.5 py-3 text-left font-bold text-myr-cream transition-colors duration-150 hover:bg-[rgba(255,250,240,.16)]';
 
 export function AccountPage({
@@ -355,9 +354,9 @@ function AdminAiKeysView() {
         <tbody>{keys.map((key) => (
           <tr key={key.provider} data-testid={'ai-key-row-' + key.provider}>
             <td className={providerTableCellClassName}><strong className="block">{key.displayName}</strong><span className="mt-[3px] block font-mono text-xs leading-[1.4] text-myr-account-ink-soft">{key.provider}</span></td>
-            <td className={providerTableCellClassName}><div className="flex flex-wrap gap-1.5">{key.active && <span className={`${providerBadgeClassName} bg-myr-ink text-white`}>使用中</span>}<span className={`${providerBadgeClassName} ${key.credentialSource === 'environment' ? 'bg-[rgba(124,92,255,.14)] text-[var(--iris-deep)]' : key.credentialSource === 'database' ? 'bg-[rgba(217,164,65,.2)] text-[#72520f]' : ''}`}>{key.credentialSource === 'environment' ? 'Vault / 環境変数' : key.credentialSource === 'database' ? '管理画面' : '未設定'}</span></div></td>
+            <td className={providerTableCellClassName}><div className="flex flex-wrap gap-1.5">{key.active && <Badge className="!border-myr-ink !bg-myr-ink !text-white">使用中</Badge>}<Badge tone={key.credentialSource === 'environment' ? 'info' : key.credentialSource === 'database' ? 'warning' : 'neutral'}>{key.credentialSource === 'environment' ? 'Vault / 環境変数' : key.credentialSource === 'database' ? '管理画面' : '未設定'}</Badge></div></td>
             <td className={providerTableCellClassName}>{key.maskedKey}</td>
-            <td className={providerTableCellClassName}><span className={`${providerBadgeClassName} ${key.status === 'valid' ? 'bg-[rgba(47,111,87,.14)] text-[var(--verde)]' : ''}`}>{key.status === 'valid' ? '接続済み' : key.status === 'untested' ? '未検証' : key.status}</span></td>
+            <td className={providerTableCellClassName}><Badge tone={key.status === 'valid' ? 'success' : 'neutral'}>{key.status === 'valid' ? '接続済み' : key.status === 'untested' ? '未検証' : key.status}</Badge></td>
             <td className={providerTableCellClassName}><div className="flex flex-wrap items-center gap-3"><Button onClick={() => void test(key.provider)} disabled={busy || !key.configured}>接続テスト</Button>{key.credentialSource === 'database' && <Button variant="danger" onClick={() => void remove(key.provider)} disabled={busy}>削除</Button>}</div></td>
           </tr>
         ))}</tbody>

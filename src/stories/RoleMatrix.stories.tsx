@@ -1,8 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, within } from '@storybook/test';
 import {
+  Badge,
+  Notice,
   surfaceRecipe,
   textRecipe,
+  type BadgeTone,
+  type NoticeTone,
+  type NoticeVariant,
   type SurfaceWidth,
   type TextRole,
 } from '../components/ui';
@@ -20,6 +25,9 @@ const textRoles: TextRole[] = [
   'caption',
   'data',
 ];
+const noticeTones: NoticeTone[] = ['info', 'success', 'warning', 'danger'];
+const noticeVariants: NoticeVariant[] = ['inverse', 'soft'];
+const badgeTones: BadgeTone[] = ['neutral', 'info', 'success', 'warning', 'danger'];
 
 const meta: Meta = {
   title: 'コンポーネント/Role Matrix',
@@ -87,6 +95,55 @@ export const SurfacesAndTypography: Story = {
     await step('見出し構造がアクセシブルである', async () => {
       await expect(canvas.getByRole('heading', { level: 1 })).toHaveTextContent('物語の面と文字の役割');
       await expect(canvas.getAllByRole('heading', { level: 2 })).toHaveLength(2);
+    });
+  },
+};
+
+export const StatusAndFeedback: Story = {
+  name: 'Status × feedback roles',
+  render: () => (
+    <div data-myriale-theme="archive" className={surfaceRecipe({ role: 'canvas' })}>
+      <main className={`${surfaceRecipe({ role: 'shell', width: 'reading' })} !min-h-0`} aria-labelledby="status-feedback-heading">
+        <p className={textRecipe('eyebrow')}>UI foundation / Status and feedback</p>
+        <h1 id="status-feedback-heading" className={textRecipe('display')}>状態とフィードバック</h1>
+        {noticeVariants.map((variant) => (
+          <section className="mt-7 grid gap-3" aria-labelledby={`notice-${variant}`} key={variant}>
+            <h2 id={`notice-${variant}`} className={textRecipe('section')}>Notice / {variant}</h2>
+            {noticeTones.map((tone) => (
+              <Notice key={tone} variant={variant} tone={tone} aria-label={`${variant} ${tone} notice`}>
+                {tone}: 操作の結果と次の行動を伝えます。
+              </Notice>
+            ))}
+          </section>
+        ))}
+        <section className="mt-7 grid gap-3" aria-labelledby="badge-heading">
+          <h2 id="badge-heading" className={textRecipe('section')}>Badge tones / dots</h2>
+          <div className="flex flex-wrap gap-2">
+            {badgeTones.map((tone) => <Badge key={tone} tone={tone} dot aria-label={`${tone} badge`}>{tone}</Badge>)}
+          </div>
+          <Badge tone="success" aria-label="badge without dot">dotなし</Badge>
+        </section>
+      </main>
+    </div>
+  ),
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await step('全toneとvariantをstatusとして公開する', async () => {
+      await expect(canvas.getAllByRole('status')).toHaveLength(noticeTones.length * noticeVariants.length);
+      for (const variant of noticeVariants) for (const tone of noticeTones) {
+        await expect(canvas.getByLabelText(`${variant} ${tone} notice`)).toHaveTextContent(tone);
+      }
+    });
+    await step('Badgeのtoneとdecorative dotを区別する', async () => {
+      for (const tone of badgeTones) {
+        const badge = canvas.getByLabelText(`${tone} badge`);
+        await expect(badge.firstElementChild).toHaveAttribute('aria-hidden', 'true');
+      }
+      await expect(canvas.getByLabelText('badge without dot').children).toHaveLength(0);
+    });
+    await step('見出し構造とラベルがアクセシブルである', async () => {
+      await expect(canvas.getByRole('heading', { level: 1, name: '状態とフィードバック' })).toBeVisible();
+      await expect(canvas.getAllByRole('heading', { level: 2 })).toHaveLength(3);
     });
   },
 };

@@ -13,7 +13,7 @@ export const wizardPaperClass = [
 ].join(' ');
 
 export const wizardKickerClass = `mb-1 ${textRecipe('eyebrow')} !text-[10px] !tracking-[0.14em] !text-[#6d587a]`;
-export const wizardNoticeClass = 'my-2.5 rounded-xl bg-[rgba(18,16,25,0.86)] px-[11px] py-2 text-[13px] text-[#fff6e7]';
+export const wizardNoticeClass = 'my-2.5 !rounded-xl !px-[11px] !py-2 !text-[13px]';
 export const wizardButtonRowClass = 'mt-2 flex flex-wrap gap-[7px]';
 
 export const wizardPanelClass = [

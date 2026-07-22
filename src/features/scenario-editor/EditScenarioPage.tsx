@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Input, Textarea } from '../../components/ui';
+import { Button, Input, Notice, Textarea } from '../../components/ui';
 import { ScenarioProgressControls } from '../../ScenarioProgressControls';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
@@ -249,7 +249,7 @@ export function EditScenarioPage() {
 
         <main className={wizardPaperClass} aria-label="シナリオ編集アプリ画面">
           <p className={wizardKickerClass}>Scenario edit / Improve and publish</p>
-          <div className={wizardNoticeClass} role="status" data-testid="edit-notice">{notice}</div>
+          <Notice className={wizardNoticeClass} data-testid="edit-notice">{notice}</Notice>
 
           {view === 'list' && (
             <section className={wizardPanelClass} aria-label="自分のシナリオ一覧">

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Button, Input, Textarea, surfaceRecipe } from '../../components/ui';
+import { Button, Input, Notice, Textarea, surfaceRecipe } from '../../components/ui';
 import { ScenarioProgressControls } from '../../ScenarioProgressControls';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { WizardNavigation } from '../../shared/WizardNavigation';
@@ -248,7 +248,7 @@ export function ScenarioRegistrationPage({ api }: { api?: ScenarioApi } = {}) {
 
       <main className={wizardPaperClass} aria-label="シナリオ登録ウィザード">
         <p className={wizardKickerClass}>Scenario Forge / Wizard registration</p>
-        <div className={wizardNoticeClass} role="status" data-testid="scenario-notice">{notice}</div>
+        <Notice className={wizardNoticeClass} tone={saveError ? 'danger' : 'info'} data-testid="scenario-notice">{notice}</Notice>
 
         <div className={wizardProgressClass} aria-label="ウィザード進捗">
           <span>{String(currentIndex + 1).padStart(2, '0')}</span>

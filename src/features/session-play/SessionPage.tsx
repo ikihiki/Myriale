@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { toAppChromeAccount, type AppChromeAccount } from '../../account/accountPresentation';
-import { Button, Textarea } from '../../components/ui';
+import { Button, Notice, Textarea } from '../../components/ui';
 import { useAccountSession } from '../../account/hooks/useAccountSession';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { useOptionalAppStore, type TurnDisplayFlags } from '../../app/store';
@@ -855,12 +855,12 @@ function SessionDialogueSection({
           )}
         </div>
         {notice && (
-          <div className="notice" role="status" data-testid="dialogue-notice">
+          <Notice className="my-[18px]" data-testid="dialogue-notice">
             <span>{notice}</span>
             {authenticationRequired && onLogin && (
               <Button variant="primary" size="sm" onClick={onLogin}>ログインへ</Button>
             )}
-          </div>
+          </Notice>
         )}
 
         {serverSession ? (

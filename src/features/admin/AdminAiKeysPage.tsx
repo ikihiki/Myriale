@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Input, surfaceRecipe, textRecipe } from '../../components/ui';
+import { Badge, Button, Input, Notice, surfaceRecipe, textRecipe } from '../../components/ui';
 import { toAppChromeAccount } from '../../account/accountPresentation';
 import { createFetchAdminAiApi, type AdminAiApiError, type AiProviderKey } from '../../account/api/adminAiApi';
 import { useAccountSession } from '../../account/hooks/useAccountSession';
@@ -106,12 +106,12 @@ export function AdminAiKeysPage() {
               <h1 className={`m-0 max-w-[820px] ${textRecipe('display')}`}>物語を動かすAIを、ここで整える。</h1>
               <p className={`mt-4 max-w-[700px] ${textRecipe('bodySm')} !leading-7`}><strong className="text-myr-ink">OpenAIとRunpodの接続状態を管理します。</strong> Vaultから注入された設定はそのまま表示し、管理画面で同じキーを再登録せずに疎通確認できます。</p>
             </div>
-            <span className="rounded-full border border-myr-ink/15 bg-myr-paper/80 px-4 py-2 font-myr-mono text-xs font-black text-myr-slate">{keys.filter((key) => key.configured).length} / {keys.length} configured</span>
+            <Badge className="px-4 py-2 font-myr-mono">{keys.filter((key) => key.configured).length} / {keys.length} configured</Badge>
           </header>
 
-          <div className={`mb-5 rounded-myr-card border px-4 py-3 text-sm font-bold ${error ? 'border-myr-ruby/35 bg-myr-ruby/10 text-myr-ruby' : 'border-myr-iris/25 bg-myr-iris/10 text-myr-ink'}`} role="status" data-testid="ai-key-notice">
+          <Notice className="mb-5" tone={error ? 'danger' : 'info'} variant="soft" role={error ? 'alert' : 'status'} data-testid="ai-key-notice">
             {error?.message ?? notice}
-          </div>
+          </Notice>
 
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
             <section className={surfaceRecipe({ role: 'panel' })} aria-labelledby="provider-registration-heading">
@@ -152,9 +152,9 @@ export function AdminAiKeysPage() {
                 <tbody>{keys.map((key) => (
                   <tr className="border-t border-myr-ink/10" key={key.provider} data-testid={`ai-key-row-${key.provider}`}>
                     <td className="px-4 py-4"><strong className="block font-extrabold">{key.displayName}</strong><span className="font-myr-mono text-xs text-myr-slate">{key.provider}</span></td>
-                    <td className="px-4 py-4"><div className="flex flex-wrap gap-1.5">{key.active && <span className="rounded-full bg-myr-ink px-2.5 py-1 text-myr-caption font-black text-myr-paper">使用中</span>}<span className={`rounded-full px-2.5 py-1 text-myr-caption font-black ${key.credentialSource === 'environment' ? 'bg-myr-iris/15 text-myr-iris' : key.credentialSource === 'database' ? 'bg-myr-gold/30 text-myr-ink' : 'bg-myr-ink/8 text-myr-slate'}`}>{sourceLabel(key.credentialSource)}</span></div></td>
+                    <td className="px-4 py-4"><div className="flex flex-wrap gap-1.5">{key.active && <Badge className="!border-myr-ink !bg-myr-ink !text-myr-paper">使用中</Badge>}<Badge tone={key.credentialSource === 'environment' ? 'info' : key.credentialSource === 'database' ? 'warning' : 'neutral'}>{sourceLabel(key.credentialSource)}</Badge></div></td>
                     <td className="px-4 py-4 font-myr-mono text-xs">{key.maskedKey}</td>
-                    <td className="px-4 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-black ${key.status === 'valid' ? 'bg-[#2f6f57]/15 text-[#2f6f57]' : 'bg-myr-ink/8 text-myr-slate'}`}>{statusLabel(key.status)}</span></td>
+                    <td className="px-4 py-4"><Badge tone={key.status === 'valid' ? 'success' : 'neutral'}>{statusLabel(key.status)}</Badge></td>
                     <td className="px-4 py-4"><div className="flex flex-wrap gap-2"><Button variant="ghost" size="sm" onClick={() => void test(key.provider)} disabled={busy || !key.configured}>接続テスト</Button>{key.credentialSource === 'database' && <Button variant="danger" size="sm" onClick={() => void remove(key.provider)} disabled={busy}>削除</Button>}</div></td>
                   </tr>
                 ))}</tbody>
