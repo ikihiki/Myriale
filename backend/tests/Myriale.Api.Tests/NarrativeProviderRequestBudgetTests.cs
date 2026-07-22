@@ -25,25 +25,23 @@ public sealed class NarrativeProviderRequestBudgetTests
         var firstSerialized = budgeter.Serialize(firstProviderRequest);
         Assert.True(budgeter.EstimateTokens(firstProviderRequest) <= budget);
 
-        var fitted = JsonSerializer.Deserialize<NarrativeDialogueRequest>(
+        var fitted = JsonSerializer.Deserialize<ProviderDialoguePayload>(
             firstProviderRequest.Messages[1].Text!,
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
         Assert.NotNull(fitted);
+        Assert.Equal(request.SchemaVersion, fitted.SchemaVersion);
+        Assert.Equal(request.ContextSchemaVersion, fitted.ContextSchemaVersion);
         Assert.Equal(request.Scenario, fitted.Scenario);
         Assert.Equal(request.PlayerInput, fitted.PlayerInput);
         Assert.Equal(request.SessionState.Revision, fitted.SessionState.Revision);
         Assert.Equal(request.SessionState.Flags.OrderBy(item => item.Key), fitted.SessionState.Flags.OrderBy(item => item.Key));
         Assert.Equal(request.CurrentProgressionNode, fitted.CurrentProgressionNode);
         Assert.Equal(Assert.Single(request.AllowedSignals), Assert.Single(fitted.AllowedSignals));
-        Assert.Equal(request.Prompt.Version, fitted.Prompt.Version);
-        Assert.Equal(request.Prompt.Rules, fitted.Prompt.Rules);
         Assert.Equal(request.RecentTurns[^1], Assert.Single(fitted.RecentTurns));
         Assert.Equal(request.Memory.Lorebook[0], Assert.Single(fitted.Memory.Lorebook));
         Assert.True(fitted.PriorModuleOutcomes.Count < request.PriorModuleOutcomes.Count);
         Assert.Equal(request.PriorModuleOutcomes[^1].Code, fitted.PriorModuleOutcomes[^1].Code);
         Assert.Null(fitted.Memory.Summary);
-        Assert.Contains("progression", fitted.ContextDiagnostics.ComponentIds);
-        Assert.Contains("module-outcomes", fitted.ContextDiagnostics.ComponentIds);
 
         provider.Requests.Clear();
         await generator.GenerateDialogueAsync(request, CancellationToken.None);
@@ -133,10 +131,38 @@ public sealed class NarrativeProviderRequestBudgetTests
         return new AiTextRequest(
             [
                 new ChatMessage(ChatRole.System, JsonSerializer.Serialize(request.Prompt)),
-                new ChatMessage(ChatRole.User, JsonSerializer.Serialize(request)),
+                new ChatMessage(ChatRole.User, JsonSerializer.Serialize(ToProviderPayload(request))),
             ],
             ChatResponseFormat.ForJsonSchema(schema.RootElement.Clone(), "narrative_dialogue"));
     }
+
+    private static ProviderDialoguePayload ToProviderPayload(NarrativeDialogueRequest request) => new(
+        request.SchemaVersion,
+        request.ContextSchemaVersion,
+        request.Scenario,
+        request.RecentTurns,
+        request.Memory,
+        request.PriorModuleOutcomes,
+        request.InteractionType,
+        request.PlayerInput,
+        request.SessionState,
+        request.CurrentProgressionNode,
+        request.AllowedSignals,
+        request.IncludeInterpretation);
+
+    private sealed record ProviderDialoguePayload(
+        string SchemaVersion,
+        string ContextSchemaVersion,
+        NarrativeScenarioInput Scenario,
+        IReadOnlyList<NarrativeDialogueTurnInput> RecentTurns,
+        NarrativeSessionMemoryInput Memory,
+        IReadOnlyList<NarrativePriorModuleOutcomeInput> PriorModuleOutcomes,
+        string InteractionType,
+        string PlayerInput,
+        NarrativeSessionStateInput SessionState,
+        string? CurrentProgressionNode,
+        IReadOnlyList<NarrativeAllowedSignal> AllowedSignals,
+        bool IncludeInterpretation);
 
     private sealed class CapturingProvider : IAiTextProvider
     {
