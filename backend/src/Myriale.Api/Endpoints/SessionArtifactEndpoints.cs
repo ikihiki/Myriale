@@ -145,7 +145,7 @@ public static class SessionArtifactEndpoints
             if (proposal.NoteId is null)
             {
                 if (request.ExpectedNoteRevision != 0) return Results.Conflict(new SessionErrorResponse("note_revision_conflict", "ノートが更新されています。"));
-                note = new SessionNote { Id = $"NOT-{Guid.NewGuid():N}".ToUpperInvariant(), SessionId = proposal.SessionId, Revision = 1, Title = request.Title?.Trim() ?? proposal.ProposedTitle, Body = request.Body?.Trim() ?? proposal.ProposedBody, CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
+                note = new SessionNote { Id = $"NOT-{Guid.NewGuid():N}".ToUpperInvariant(), SessionId = proposal.SessionId, Kind = "rule", AliasesJson = "[]", CanonStatus = "canon", FirstTurnId = proposal.SourceTurnId, UpdatedFromTurnId = proposal.SourceTurnId, UpdateSource = "ai-approved", Revision = 1, Title = request.Title?.Trim() ?? proposal.ProposedTitle, Body = request.Body?.Trim() ?? proposal.ProposedBody, CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow };
                 db.SessionNotes.Add(note); proposal.NoteId = note.Id;
             }
             else

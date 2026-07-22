@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { actionRowClassName, Button, Input, Textarea } from './components/ui';
+import { getSessionMemory, saveSessionLorebookEntry, type SessionLorebookEntryApiResponse, type SessionSummaryApiResponse } from './features/session-play/sessionPlayApi';
 import { useOptionalAppStore } from './app/store';
 import { MyrialeDialogContent, MyrialeDialogRoot } from './ui/MyrialeRadix';
 
-type NoteKind = 'person' | 'location';
+type NoteKind = 'person' | 'location' | 'item' | 'organization' | 'rule';
 type Certainty = 'Canon' | '未確定' | '噂';
 type NoteMode = 'side' | 'full';
 
@@ -18,6 +19,9 @@ type SessionNote = {
   stateOrRules: string;
   firstTurn: string;
   certainty: Certainty;
+  revision?: number;
+  referencedByTurnIds?: string[];
+  persisted?: boolean;
 };
 
 const initialNotes: SessionNote[] = [
@@ -59,14 +63,55 @@ const initialNotes: SessionNote[] = [
   },
 ];
 
-export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
+const certaintyFromApi = (status: SessionLorebookEntryApiResponse['canonStatus']): Certainty =>
+  status === 'canon' ? 'Canon' : status === 'rumor' ? '噂' : '未確定';
+const certaintyToApi = (certainty: Certainty): SessionLorebookEntryApiResponse['canonStatus'] =>
+  certainty === 'Canon' ? 'canon' : certainty === '噂' ? 'rumor' : 'unconfirmed';
+const kindLabel = (kind: NoteKind) => ({ person: '人物', location: '場所', item: 'アイテム', organization: '組織', rule: 'ルール' })[kind];
+
+const decodeContent = (content: string) => {
+  try {
+    const parsed = JSON.parse(content) as Partial<Pick<SessionNote, 'details' | 'speechOrAtmosphere' | 'relationsOrFacilities' | 'stateOrRules'>>;
+    if (parsed && typeof parsed === 'object') return {
+      details: parsed.details ?? '', speechOrAtmosphere: parsed.speechOrAtmosphere ?? '',
+      relationsOrFacilities: parsed.relationsOrFacilities ?? '', stateOrRules: parsed.stateOrRules ?? '',
+    };
+  } catch { /* Legacy plain-text note. */ }
+  return { details: content, speechOrAtmosphere: '', relationsOrFacilities: '', stateOrRules: '' };
+};
+
+const fromApi = (entry: SessionLorebookEntryApiResponse): SessionNote => ({
+  id: entry.id, kind: entry.kind, name: entry.displayName, aliases: entry.aliases.join(' / '),
+  ...decodeContent(entry.content), firstTurn: entry.firstTurnId ?? '未設定', certainty: certaintyFromApi(entry.canonStatus),
+  revision: entry.revision, referencedByTurnIds: entry.referencedByTurnIds, persisted: true,
+});
+
+export function SessionNotesWorkspace({ mode = 'full', sessionId }: { mode?: NoteMode; sessionId?: string }) {
   const appStore = useOptionalAppStore();
   const [notes, setNotes] = useState(initialNotes);
+  const [summaries, setSummaries] = useState<SessionSummaryApiResponse[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
   const [localOpenNoteId, setLocalOpenNoteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [notice, setNotice] = useState('セッション中いつでもノートを参照・編集できます。編集はダイアログで開き、サイド確認でも全画面でも同じDB状態を使います。');
   const [contextSummary, setContextSummary] = useState('Lorebook Canon: 月読ミナト / 水没した地下図書館。Recent Turns: 直近6件。');
   const [issue, setIssue] = useState('矛盾候補はありません。必要に応じて整合性チェックできます。');
+
+  useEffect(() => {
+    if (!sessionId) return;
+    const abort = new AbortController();
+    void getSessionMemory(sessionId, undefined, abort.signal)
+      .then((memory) => {
+        setNotes(memory.lorebook.map(fromApi));
+        setSummaries(memory.summaries);
+        setNotice('Serverに保存されたLorebookとSummaryを読み込みました。');
+      })
+      .catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === 'AbortError') return;
+        setNotice(reason instanceof Error ? reason.message : 'Session Memoryを読み込めませんでした。');
+      });
+    return () => abort.abort();
+  }, [sessionId]);
 
   const openNoteId = appStore?.db.ui.openNoteId ?? localOpenNoteId;
   const editingNote = notes.find((note) => note.id === openNoteId) ?? null;
@@ -97,39 +142,57 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
   };
 
   const createNote = (kind: NoteKind) => {
-    const note: SessionNote = kind === 'person'
-      ? {
-          id: `person-${notes.length + 1}`,
-          kind: 'person',
-          name: '灯守アキラ',
-          aliases: '灯台の記録係',
-          details: '外見: 煤けた外套、片目に星図レンズ。年齢感は30代。',
-          speechOrAtmosphere: '短く断定的に話す。語尾は「だろう」。',
-          relationsOrFacilities: '地下天文台の記録係。主人公へ螺旋階段の由来を教える。',
-          stateOrRules: '現在地: 地下天文台 / 確定前の提案',
-          firstTurn: 'Turn 13',
-          certainty: '未確定',
-        }
-      : {
-          id: `location-${notes.length + 1}`,
-          kind: 'location',
-          name: '地下天文台',
-          aliases: '星図盤の間',
-          details: '種別: ダンジョン / 位置: 螺旋階段の先 / 危険度: 中',
-          speechOrAtmosphere: '乾いた石、古い真鍮、回転する星図盤の低い音。',
-          relationsOrFacilities: '主要施設: 星図盤、観測窓、封印扉。',
-          stateOrRules: '禁則: 星図盤起動前に封印扉を開けない。',
-          firstTurn: 'Turn 14',
-          certainty: '未確定',
-        };
+    const examples: Record<NoteKind, { name: string; aliases: string; details: string }> = {
+      person: { name: '灯守アキラ', aliases: '灯台の記録係', details: '外見、立場、知識、秘密、公開条件を記録します。' },
+      location: { name: '地下天文台', aliases: '星図盤の間', details: '位置、雰囲気、施設、危険を記録します。' },
+      item: { name: '新しいアイテム', aliases: '', details: '所有者、状態、効果、消費状況を記録します。' },
+      organization: { name: '新しい組織', aliases: '', details: '目的、構成員、関係性を記録します。' },
+      rule: { name: '新しいルール', aliases: '', details: '世界法則、禁則、例外を記録します。' },
+    };
+    const example = examples[kind];
+    const note: SessionNote = {
+      id: `draft-${kind}-${crypto.randomUUID?.() ?? Date.now()}`, kind, name: example.name, aliases: example.aliases,
+      details: example.details, speechOrAtmosphere: '', relationsOrFacilities: '', stateOrRules: '',
+      firstTurn: '未設定', certainty: '未確定', persisted: false,
+    };
     setNotes((current) => [...current, note]);
     openNote(note.id);
-    setNotice(`${kind === 'person' ? '人物' : '場所'}ノートを作成し、編集ダイアログで開きました。`);
+    setNotice(`${kindLabel(kind)}ノートを作成し、編集ダイアログで開きました。保存するまでCanonにはなりません。`);
   };
 
   const markCertainty = (noteId: string, certainty: Certainty) => {
     updateNote(noteId, { certainty });
     setNotice(`ノートの確定度を「${certainty}」にしました。`);
+  };
+
+  const saveNote = async (note: SessionNote) => {
+    if (!sessionId) {
+      setNotice('Storybook fixtureとしてローカル状態を保存しました。');
+      closeNote();
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const saved = await saveSessionLorebookEntry(sessionId, {
+        kind: note.kind,
+        displayName: note.name,
+        aliases: note.aliases.split(/[／/]/).map((alias) => alias.trim()).filter(Boolean),
+        content: JSON.stringify({
+          details: note.details, speechOrAtmosphere: note.speechOrAtmosphere,
+          relationsOrFacilities: note.relationsOrFacilities, stateOrRules: note.stateOrRules,
+        }),
+        canonStatus: certaintyToApi(note.certainty),
+        firstTurnId: note.firstTurn && note.firstTurn !== '未設定' && !note.firstTurn.startsWith('Turn ') ? note.firstTurn : null,
+        expectedRevision: note.persisted ? note.revision : undefined,
+      }, note.persisted ? note.id : undefined);
+      setNotes((current) => current.map((item) => item.id === note.id ? fromApi(saved) : item));
+      setNotice('Lorebook entryをServerへ保存し、次のNarrative Context候補へ反映しました。');
+      closeNote();
+    } catch (reason) {
+      setNotice(reason instanceof Error ? reason.message : 'Lorebook entryを保存できませんでした。');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const rebuildContext = () => {
@@ -154,6 +217,9 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
             <div className={`flex flex-wrap gap-1.25 ${mode === 'side' ? 'justify-start' : 'justify-end'} [&_button]:rounded-full [&_button]:px-2 [&_button]:py-1 [&_button]:text-myr-caption`} aria-label="ノート操作">
               <Button onClick={() => createNote('person')}>人物追加</Button>
               <Button onClick={() => createNote('location')}>場所追加</Button>
+              <Button onClick={() => createNote('item')}>アイテム追加</Button>
+              <Button onClick={() => createNote('organization')}>組織追加</Button>
+              <Button onClick={() => createNote('rule')}>ルール追加</Button>
               <Button onClick={rebuildContext}>Context再構築</Button>
               <Button onClick={checkConsistency}>整合性チェック</Button>
             </div>
@@ -164,7 +230,7 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
           </div>
           {filteredNotes.map((note) => (
             <article key={note.id} className={`grid items-center border-b border-myr-ink/8 px-1.5 py-1.25 text-left text-myr-ink ${mode === 'side' ? 'grid-cols-[74px_minmax(90px,1fr)_44px] gap-1.25' : 'grid-cols-[92px_minmax(120px,.8fr)_minmax(140px,1fr)_minmax(180px,1.4fr)_54px] gap-2'}`} aria-label={`${note.name}のノート概要`}>
-              <span className="text-myr-micro font-black tracking-myr-label text-[#7054dd]">{note.kind === 'person' ? '人物' : '場所'} / {note.certainty}</span>
+              <span className="text-myr-micro font-black tracking-myr-label text-[#7054dd]">{kindLabel(note.kind)} / {note.certainty}</span>
               <strong>{note.name}</strong>
               <small className={`${mode === 'side' ? 'hidden' : 'block'} overflow-hidden text-ellipsis whitespace-nowrap text-myr-ink-subtle`}>{note.aliases} · {note.firstTurn}</small>
               <p className={`${mode === 'side' ? 'hidden' : 'block'} m-0 overflow-hidden text-ellipsis whitespace-nowrap text-myr-slate`}>{note.details}</p>
@@ -175,6 +241,8 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
           <section className={`${mode === 'side' ? 'hidden' : 'grid'} mt-2 gap-1 border-t border-myr-ink/16 pt-2`} aria-label="ノートContext">
             <div className="grid grid-cols-[112px_minmax(0,1fr)_auto] items-center gap-2 px-0.5 py-1 text-xs text-myr-slate-muted"><strong>Canon Notes</strong><span data-testid="canon-count">{canonNotes.length}件</span></div>
             <div className="grid grid-cols-[112px_minmax(0,1fr)_auto] items-center gap-2 px-0.5 py-1 text-xs text-myr-slate-muted"><strong>Context</strong><span data-testid="context-stack">{contextSummary}</span></div>
+            <div className="grid grid-cols-[112px_minmax(0,1fr)_auto] items-center gap-2 px-0.5 py-1 text-xs text-myr-slate-muted"><strong>Latest Summary</strong><span data-testid="latest-session-summary">{summaries.at(-1) ? `v${summaries.at(-1)?.version} / Turn ${summaries.at(-1)?.fromPosition}-${summaries.at(-1)?.toPosition} / ${summaries.at(-1)?.currentLocation || '現在地未設定'}` : '未生成'}</span></div>
+            <div className="grid grid-cols-[112px_minmax(0,1fr)_auto] items-center gap-2 px-0.5 py-1 text-xs text-myr-slate-muted"><strong>参照Canon</strong><span data-testid="lorebook-reference-debug">{notes.filter((note) => (note.referencedByTurnIds?.length ?? 0) > 0).map((note) => `${note.name}: ${note.referencedByTurnIds?.join(', ')}`).join(' / ') || '次のNarrative生成後に参照Turnを表示'}</span></div>
             <div className="grid grid-cols-[112px_minmax(0,1fr)_minmax(220px,auto)] items-center gap-2 border-t border-dashed border-myr-ink/14 px-0.5 pt-2 pb-1 text-xs text-myr-slate-muted"><strong>整合性</strong><span data-testid="consistency-issue">{issue}</span><div className={actionRowClassName}><Button variant="ghost" size="sm" onClick={() => setNotice('ノート更新として確定しました。')}>ノートを更新</Button><Button variant="ghost" size="sm" onClick={() => setNotice('AI出力側を修正し、Canonは変更しません。')}>AI出力を修正</Button><Button variant="ghost" size="sm" onClick={() => setNotice('噂として保持しました。AIには断定させません。')}>噂として保持</Button></div></div>
           </section>
         </div>
@@ -189,6 +257,7 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
             data-testid="note-edit-dialog"
             footer={(
               <>
+                <Button variant="primary" size="sm" disabled={isSaving} onClick={() => void saveNote(editingNote)}>{isSaving ? '保存中…' : 'Serverへ保存'}</Button>
                 <Button variant="primary" size="sm" onClick={() => markCertainty(editingNote.id, 'Canon')}>Canonにする</Button>
                 <Button variant="secondary" size="sm" onClick={() => markCertainty(editingNote.id, '未確定')}>未確定にする</Button>
                 <Button variant="secondary" size="sm" onClick={() => markCertainty(editingNote.id, '噂')}>噂にする</Button>
@@ -197,7 +266,7 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
             )}
           >
             <header className="flex items-center justify-between gap-4">
-              <div><span>{editingNote.kind === 'person' ? '人物ノート' : '場所ノート'}</span><h3 className="my-1 font-myr-display text-2xl tracking-myr-display">{editingNote.name}</h3><p className="m-0 text-sm text-myr-slate">{editingNote.firstTurn} 初出 / 確定度: <b>{editingNote.certainty}</b></p></div>
+              <div><span>{kindLabel(editingNote.kind)}ノート</span><h3 className="my-1 font-myr-display text-2xl tracking-myr-display">{editingNote.name}</h3><p className="m-0 text-sm text-myr-slate">{editingNote.firstTurn} 初出 / 確定度: <b>{editingNote.certainty}</b></p></div>
             </header>
             <div className="mt-4 grid grid-cols-2 gap-2.5 max-myr-workspace:grid-cols-1 [&_label]:grid [&_label]:gap-1.25 [&_label]:text-xs [&_label]:font-black [&_label]:text-myr-slate-muted [&_textarea]:min-h-24">
               <label>表示名<Input aria-label="表示名" value={editingNote.name} onChange={(event) => updateNote(editingNote.id, { name: event.target.value })} /></label>

@@ -76,6 +76,22 @@ export type SessionNoteProposalApiResponse = {
   artifactId: string; sourceTurnId: string; noteId?: string | null; expectedNoteRevision: number; proposedTitle: string;
   beforeBody: string; proposedBody: string; rationale: string; status: string; createdAt: string;
 };
+export type SessionLorebookEntryApiResponse = {
+  id: string; kind: 'person' | 'location' | 'item' | 'organization' | 'rule'; displayName: string; aliases: string[];
+  content: string; canonStatus: 'canon' | 'unconfirmed' | 'rumor'; firstTurnId?: string | null; updatedFromTurnId?: string | null;
+  updateSource: string; revision: number; createdAt: string; updatedAt: string; referencedByTurnIds: string[];
+};
+export type SessionSummaryApiResponse = {
+  id: string; fromTurnId: string; toTurnId: string; fromPosition: number; toPosition: number; version: number;
+  confidence: string; currentLocation: string; characters: string[]; objectives: string[]; clues: string[];
+  inventory: string[]; moduleResults: string[]; body: string; generatedAt: string;
+};
+export type SessionMemoryApiResponse = { lorebook: SessionLorebookEntryApiResponse[]; summaries: SessionSummaryApiResponse[] };
+export type UpsertSessionLorebookEntry = {
+  kind: SessionLorebookEntryApiResponse['kind']; displayName: string; aliases: string[]; content: string;
+  canonStatus: SessionLorebookEntryApiResponse['canonStatus']; firstTurnId?: string | null; updatedFromTurnId?: string | null; expectedRevision?: number;
+};
+
 export type SessionInputAcceptedApiResponse = { input: SessionPlayerInputApiResponse; execution: SessionExecutionApiResponse };
 
 export type SessionApiResponse = {
@@ -191,6 +207,37 @@ export async function reviewSessionNoteProposal(
   });
   if (!response.ok) throw await toSessionApiError(response, 'ノート変更案を更新できませんでした。');
   return response.json() as Promise<SessionNoteProposalApiResponse>;
+}
+
+export async function getSessionMemory(
+  sessionId: string,
+  baseUrl = getSessionApiBaseUrl(),
+  signal?: AbortSignal,
+): Promise<SessionMemoryApiResponse> {
+  if (!baseUrl) throw sessionApiError('Session APIが設定されていません。', 503, 'session_api_unavailable');
+  const response = await sessionFetch(`${baseUrl}/${encodeURIComponent(sessionId)}/memory/`, {
+    credentials: 'include', headers: { Accept: 'application/json' }, signal,
+  });
+  if (!response.ok) throw await toSessionApiError(response, 'Session Memoryを読み込めませんでした。');
+  return response.json() as Promise<SessionMemoryApiResponse>;
+}
+
+export async function saveSessionLorebookEntry(
+  sessionId: string,
+  entry: UpsertSessionLorebookEntry,
+  noteId?: string,
+  baseUrl = getSessionApiBaseUrl(),
+): Promise<SessionLorebookEntryApiResponse> {
+  if (!baseUrl) throw sessionApiError('Session APIが設定されていません。', 503, 'session_api_unavailable');
+  const target = noteId
+    ? `${baseUrl}/${encodeURIComponent(sessionId)}/memory/lorebook/${encodeURIComponent(noteId)}`
+    : `${baseUrl}/${encodeURIComponent(sessionId)}/memory/lorebook`;
+  const response = await sessionFetch(target, {
+    method: noteId ? 'PUT' : 'POST', credentials: 'include', headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(entry),
+  });
+  if (!response.ok) throw await toSessionApiError(response, 'Lorebook entryを保存できませんでした。');
+  return response.json() as Promise<SessionLorebookEntryApiResponse>;
 }
 
 export const hasActiveSessionExecutions = (session: SessionApiResponse) =>

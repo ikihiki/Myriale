@@ -12,6 +12,7 @@ public sealed class NarrativeExecutionHandler(
     INarrativePromptBuilder promptBuilder,
     INarrativeGenerator generator,
     SessionScenarioProgressionService progression,
+    SessionSummaryService summaries,
     IHostEnvironment environment,
     ILogger<NarrativeExecutionHandler> logger) : ISessionExecutionHandler
 {
@@ -42,7 +43,7 @@ public sealed class NarrativeExecutionHandler(
         using var providerActivity = SessionExecutionTelemetry.ActivitySource.StartActivity("ai.provider.request", ActivityKind.Client);
         try
         {
-            context = await contextBuilder.BuildDialogueAsync(session.OwnerId, session.Id, input.InteractionType, cancellationToken);
+            context = await contextBuilder.BuildDialogueAsync(session.OwnerId, session.Id, input.InteractionType, input.Text, cancellationToken);
             prompt = promptBuilder.Build(context, input.InteractionType);
             var dialogueRequest = new NarrativeDialogueRequest(
                 NarrativeDialogueSchema.Version, context.SchemaVersion, context.Diagnostics, context.Scenario, context.RecentTurns,
@@ -171,6 +172,16 @@ public sealed class NarrativeExecutionHandler(
         current.Session.UpdatedAt = now;
         db.SessionArtifacts.Add(artifact);
         db.SessionTurns.Add(turn);
+        foreach (var lorebookEntry in context.Memory.Lorebook)
+        {
+            db.SessionTurnLorebookReferences.Add(new SessionTurnLorebookReference
+            {
+                TurnId = turn.Id,
+                NoteId = lorebookEntry.Id,
+                Reason = "context-retrieval",
+                Turn = turn,
+            });
+        }
         foreach (var generatedSignal in generation.Value.Signals)
         {
             var signal = new SessionNarrativeSignal
@@ -242,6 +253,7 @@ public sealed class NarrativeExecutionHandler(
         SessionExecutionTelemetry.TurnPublished.Add(1, SessionExecutionTelemetry.Tags(current.Kind, current.Status));
         SessionExecutionTelemetry.ArtifactSize.Record(System.Text.Encoding.UTF8.GetByteCount(generation.Value.Body), SessionExecutionTelemetry.Tags(current.Kind, current.Status));
         await progression.EnsureNarrativeTurnAsync(session.OwnerId, turn.Id, cancellationToken);
+        await summaries.TryGenerateAsync(session.Id, turn.Position, cancellationToken);
         return new(true);
     }
 

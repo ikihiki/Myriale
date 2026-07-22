@@ -1138,6 +1138,122 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         randomValueCount = 0,
     };
 
+    [Fact]
+    public async Task LorebookApiPersistsKindsCanonStatusAndRevision()
+    {
+        var client = await AuthenticatedClientAsync("lorebook-api@example.test");
+        var sessionId = await CreateSessionAsync(client);
+
+        using var created = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/memory/lorebook", new
+        {
+            kind = "item", displayName = "銀の鍵", aliases = new[] { "星鍵" },
+            content = "Turn 1で取得した重要item。", canonStatus = "canon",
+        });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var createdJson = await created.Content.ReadFromJsonAsync<JsonElement>();
+        var noteId = createdJson.GetProperty("id").GetString();
+        Assert.Equal("item", createdJson.GetProperty("kind").GetString());
+        Assert.Equal("canon", createdJson.GetProperty("canonStatus").GetString());
+        Assert.Equal(1, createdJson.GetProperty("revision").GetInt64());
+
+        using var updated = await client.PutAsJsonAsync($"/api/sessions/{sessionId}/memory/lorebook/{noteId}", new
+        {
+            kind = "item", displayName = "銀の鍵", aliases = new[] { "星鍵", "水鏡の鍵" },
+            content = "扉を開くまでは消費されない。", canonStatus = "rumor", expectedRevision = 1,
+        });
+        Assert.True(updated.IsSuccessStatusCode, await updated.Content.ReadAsStringAsync());
+        var updatedJson = await updated.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("rumor", updatedJson.GetProperty("canonStatus").GetString());
+        Assert.Equal(2, updatedJson.GetProperty("revision").GetInt64());
+
+        using var memory = await client.GetAsync($"/api/sessions/{sessionId}/memory/");
+        Assert.True(memory.IsSuccessStatusCode, await memory.Content.ReadAsStringAsync());
+        var memoryJson = await memory.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("水鏡の鍵", memoryJson.GetProperty("lorebook")[0].GetProperty("aliases")[1].GetString());
+    }
+
+    [Fact]
+    public async Task DialogueRetrievesRelevantCanonLabelsRumorAndRecordsReferencesWithinBudget()
+    {
+        var client = await AuthenticatedClientAsync("lorebook-context@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var now = DateTimeOffset.UtcNow;
+            db.SessionNotes.AddRange(
+                new SessionNote { Id = "LOR-MINATO", SessionId = sessionId, Kind = "person", Title = "月読ミナト", AliasesJson = "[\"濡れた外套の人物\"]", Body = "静かな敬語で話す案内人。", CanonStatus = "canon", UpdateSource = "user", Revision = 1, CreatedAt = now, UpdatedAt = now },
+                new SessionNote { Id = "LOR-BELL", SessionId = sessionId, Kind = "person", Title = "鐘楼の主", AliasesJson = "[]", Body = "未来の主人公かもしれないという伝聞。", CanonStatus = "rumor", UpdateSource = "user", Revision = 1, CreatedAt = now, UpdatedAt = now },
+                new SessionNote { Id = "LOR-CANDIDATE", SessionId = sessionId, Kind = "location", Title = "未承認の海底都市", AliasesJson = "[]", Body = new string('x', 6000), CanonStatus = "unconfirmed", UpdateSource = "ai", Revision = 1, CreatedAt = now, UpdatedAt = now });
+            await db.SaveChangesAsync();
+        }
+
+        using var response = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", new { requestId = "memory-context", text = "月読ミナトに鐘楼の主の噂を尋ねる" });
+        var accepted = await AssertNarrativeExecutionSucceededAsync(client, response);
+        var inputId = accepted.GetProperty("input").GetProperty("id").GetString()!;
+        var request = Assert.Single(_generator.DialogueRequests);
+        Assert.Contains(request.Memory.Lorebook, item => item.Id == "LOR-MINATO" && item.Text.Contains("CANON", StringComparison.Ordinal));
+        Assert.Contains(request.Memory.Lorebook, item => item.Id == "LOR-BELL" && item.Text.Contains("never assert", StringComparison.Ordinal));
+        Assert.DoesNotContain(request.Memory.Lorebook, item => item.Id == "LOR-CANDIDATE");
+        Assert.True(request.Memory.Lorebook.Sum(item => (System.Text.Encoding.UTF8.GetByteCount(item.Text) + 3) / 4) <= 2048);
+
+        var turn = await GetNarrativeTurnForInputAsync(client, sessionId, inputId);
+        var turnId = turn.GetProperty("id").GetString();
+        await using var verifyScope = _factory.Services.CreateAsyncScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var references = await verifyDb.SessionTurnLorebookReferences.Where(item => item.TurnId == turnId).Select(item => item.NoteId).ToListAsync();
+        Assert.Contains("LOR-MINATO", references);
+        Assert.Contains("LOR-BELL", references);
+    }
+
+    [Fact]
+    public async Task SummaryReconstructsFactsFromTwentyTurnsWithoutChangingCanon()
+    {
+        var client = await AuthenticatedClientAsync("long-memory@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var session = await db.Sessions.Include(item => item.Turns).SingleAsync(item => item.Id == sessionId);
+        var now = DateTimeOffset.UtcNow;
+        var opening = new SessionTurn
+        {
+            Id = "TRN-LONG-01", SessionId = sessionId, Position = 1, Kind = "narrative",
+            DialogueTurnType = "opening", NarrativeBody = "20 Turn前に銀の鍵を取得した。", CreatedAt = now,
+        };
+        db.SessionTurns.Add(opening);
+        db.SessionNotes.Add(new SessionNote
+        {
+            Id = "LOR-OLD-KEY", SessionId = sessionId, Kind = "item", Title = "20 Turn前の銀の鍵", AliasesJson = "[]",
+            Body = "Openingで取得し、まだ消費されていない。", CanonStatus = "canon", FirstTurnId = opening.Id,
+            UpdateSource = "user", Revision = 1, CreatedAt = now, UpdatedAt = now,
+        });
+        var previousId = opening.Id;
+        for (var position = 2; position <= 20; position++)
+        {
+            var turn = new SessionTurn
+            {
+                Id = $"TRN-LONG-{position:00}", SessionId = sessionId, PreviousTurnId = previousId, Position = position,
+                Kind = "narrative", NarrativeBody = position == 20 ? "銀の鍵を持ったまま鐘楼へ到着した。" : $"長期Sessionの出来事 {position}", CreatedAt = now.AddMinutes(position),
+            };
+            db.SessionTurns.Add(turn);
+            previousId = turn.Id;
+        }
+        session.HeadTurnId = previousId;
+        await db.SaveChangesAsync();
+        var summaryService = scope.ServiceProvider.GetRequiredService<SessionSummaryService>();
+        await summaryService.TryGenerateAsync(sessionId, 10, CancellationToken.None);
+        await summaryService.TryGenerateAsync(sessionId, 20, CancellationToken.None);
+
+        var summaries = await db.SessionSummaries.AsNoTracking().Where(item => item.SessionId == sessionId).OrderBy(item => item.Version).ToListAsync();
+        Assert.Equal(2, summaries.Count);
+        Assert.Equal(1, summaries[0].FromPosition);
+        Assert.Equal(20, summaries[1].ToPosition);
+        Assert.Contains("20 Turn前の銀の鍵", summaries[1].Body, StringComparison.Ordinal);
+        var canon = await db.SessionNotes.AsNoTracking().SingleAsync(item => item.Id == "LOR-OLD-KEY");
+        Assert.Equal("canon", canon.CanonStatus);
+        Assert.Equal(1, canon.Revision);
+    }
+
     private async Task<string> CreateSessionAsync(
         HttpClient client,
         bool interpretationEnabled = false,

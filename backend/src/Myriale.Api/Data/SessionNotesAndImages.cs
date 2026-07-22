@@ -6,13 +6,20 @@ public sealed class SessionNote
 {
     [Key, MaxLength(40)] public string Id { get; set; } = string.Empty;
     [Required, MaxLength(40)] public string SessionId { get; set; } = string.Empty;
+    [Required, MaxLength(32)] public string Kind { get; set; } = "person";
     [Required, MaxLength(160)] public string Title { get; set; } = string.Empty;
+    [Required] public string AliasesJson { get; set; } = "[]";
     [Required] public string Body { get; set; } = string.Empty;
+    [Required, MaxLength(24)] public string CanonStatus { get; set; } = "unconfirmed";
+    [MaxLength(40)] public string? FirstTurnId { get; set; }
+    [MaxLength(40)] public string? UpdatedFromTurnId { get; set; }
+    [Required, MaxLength(24)] public string UpdateSource { get; set; } = "user";
     public long Revision { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public Session Session { get; set; } = null!;
     public ICollection<SessionNoteRevision> Revisions { get; set; } = [];
+    public ICollection<SessionTurnLorebookReference> TurnReferences { get; set; } = [];
 }
 
 public sealed class SessionNoteRevision
@@ -42,6 +49,36 @@ public sealed class SessionNoteProposal
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? ReviewedAt { get; set; }
     public SessionArtifact Artifact { get; set; } = null!;
+}
+
+public sealed class SessionSummary
+{
+    [Key, MaxLength(40)] public string Id { get; set; } = string.Empty;
+    [Required, MaxLength(40)] public string SessionId { get; set; } = string.Empty;
+    [Required, MaxLength(40)] public string FromTurnId { get; set; } = string.Empty;
+    [Required, MaxLength(40)] public string ToTurnId { get; set; } = string.Empty;
+    public int FromPosition { get; set; }
+    public int ToPosition { get; set; }
+    public int Version { get; set; }
+    [Required, MaxLength(24)] public string Confidence { get; set; } = "confirmed";
+    [Required] public string CurrentLocation { get; set; } = string.Empty;
+    [Required] public string CharactersJson { get; set; } = "[]";
+    [Required] public string ObjectivesJson { get; set; } = "[]";
+    [Required] public string CluesJson { get; set; } = "[]";
+    [Required] public string InventoryJson { get; set; } = "[]";
+    [Required] public string ModuleResultsJson { get; set; } = "[]";
+    [Required] public string Body { get; set; } = string.Empty;
+    public DateTimeOffset GeneratedAt { get; set; }
+    public Session Session { get; set; } = null!;
+}
+
+public sealed class SessionTurnLorebookReference
+{
+    [Required, MaxLength(40)] public string TurnId { get; set; } = string.Empty;
+    [Required, MaxLength(40)] public string NoteId { get; set; } = string.Empty;
+    [Required, MaxLength(32)] public string Reason { get; set; } = "relevant";
+    public SessionTurn Turn { get; set; } = null!;
+    public SessionNote Note { get; set; } = null!;
 }
 
 public sealed class SessionImage

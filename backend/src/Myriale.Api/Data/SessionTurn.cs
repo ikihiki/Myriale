@@ -69,5 +69,6 @@ public sealed class SessionTurn
     public SessionTurn? SourceModuleTurn { get; set; }
     public SessionTurn? NarrativeTurn { get; set; }
     public SessionPlayerInput? PlayerInput { get; set; }
+    public ICollection<SessionTurnLorebookReference> LorebookReferences { get; set; } = [];
     public ICollection<SessionNarrativeSignal> NarrativeSignals { get; set; } = [];
 }

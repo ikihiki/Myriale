@@ -8,6 +8,7 @@ public interface INarrativeContextBuilder
         string ownerId,
         string sessionId,
         string interactionType,
+        string playerInput,
         CancellationToken cancellationToken);
 }
 

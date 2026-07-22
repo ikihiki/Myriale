@@ -41,6 +41,7 @@ public sealed class Session
     public ICollection<SessionPlayerInput> PlayerInputs { get; set; } = [];
     public ICollection<SessionExecution> Executions { get; set; } = [];
     public ICollection<SessionNote> Notes { get; set; } = [];
+    public ICollection<SessionSummary> Summaries { get; set; } = [];
     public ICollection<SessionNarrativeSignal> NarrativeSignals { get; set; } = [];
     public ICollection<SessionProgressionTransitionReceipt> ProgressionTransitionReceipts { get; set; } = [];
     public ICollection<SessionProgressionModuleSnapshot> ProgressionModuleSnapshots { get; set; } = [];
