@@ -241,8 +241,8 @@ model: <vLLM model name>
 ### フェーズ4完了条件
 
 - [x] 固定評価ケースでPlayer agency、NPC一貫性、Canon、Module結果を守れる。
-- [ ] 誤ったsignalやForbidden Factsを含む出力がSessionへcommitされない。
-- [ ] AIの内部推論を公開せず、短い入力解釈だけを表示できる。
+- [x] 誤ったsignalやForbidden Factsを含む出力がSessionへcommitされない。
+- [x] AIの内部推論を公開せず、短い入力解釈だけを表示できる。
 
 ## フェーズ5: Lorebookと長期記憶
 

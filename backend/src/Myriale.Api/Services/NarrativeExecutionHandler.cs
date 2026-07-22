@@ -59,8 +59,9 @@ public sealed class NarrativeExecutionHandler(
                 throw new NarrativeGenerationException("Narrative provider returned an invalid body.");
             ValidateGeneratedResult(generation.Value, generation.Metadata, input.InteractionType, session.InterpretationEnabled);
             ValidateSignals(generation.Value.Signals, generation.Metadata, context.AllowedSignals);
+            ValidateForbiddenNarrativeFacts(generation.Value.Body, generation.Metadata, context.PriorModuleOutcomes);
             if (environment.IsDevelopment())
-                validationResult = JsonSerializer.Serialize(new { status = "passed", checks = new[] { "dialogue-contract", "progression-signals" } });
+                validationResult = JsonSerializer.Serialize(new { status = "passed", checks = new[] { "dialogue-contract", "public-interpretation", "progression-signals", "forbidden-narrative-facts" } });
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -319,8 +320,14 @@ public sealed class NarrativeExecutionHandler(
             violations.Add($"clarification returned signals count={result.Signals.Count}");
         if (interpretationRequired && string.IsNullOrWhiteSpace(result.Interpretation))
             violations.Add("interpretation is required but empty");
-        if (result.Interpretation?.Length > 500)
-            violations.Add($"interpretation length={result.Interpretation.Length} max=500");
+        if (interpretationRequired && result.Interpretation is { } interpretation)
+        {
+            if (interpretation.Length > 200)
+                violations.Add($"interpretation length={interpretation.Length} max=200");
+            if (interpretation.Contains('\n') || interpretation.Contains('\r'))
+                violations.Add("interpretation must be a single line");
+
+        }
 
         if (violations.Count == 0) return;
         var reason = string.Join("; ", violations);
@@ -367,6 +374,28 @@ public sealed class NarrativeExecutionHandler(
                 metadata.Provider, metadata.Model, metadata.ResponseId, signal.Code, reason);
             throw new NarrativeGenerationException($"Narrative provider returned an invalid progression signal: {reason}");
         }
+    }
+
+    private void ValidateForbiddenNarrativeFacts(
+        string body,
+        AiGenerationMetadata metadata,
+        IReadOnlyList<NarrativePriorModuleOutcomeInput> priorModuleOutcomes)
+    {
+        var matchedFacts = priorModuleOutcomes
+            .SelectMany(outcome => outcome.ForbiddenNarrativeFacts)
+            .Select(fact => fact.Trim())
+            .Where(fact => fact.Length > 0 && body.Contains(fact, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (matchedFacts.Length == 0) return;
+
+        logger.LogWarning(
+            "AI Provider narrative matched forbidden facts. Provider={Provider} Model={Model} ResponseId={ResponseId} MatchCount={MatchCount}",
+            metadata.Provider, metadata.Model, metadata.ResponseId, matchedFacts.Length);
+        throw new AiProviderException(
+            AiProviderErrorCodes.ContentRejected,
+            $"Narrative provider returned content matching {matchedFacts.Length} forbidden narrative fact(s).",
+            false);
     }
 
     private async Task RecordFailureDiagnosticsAsync(

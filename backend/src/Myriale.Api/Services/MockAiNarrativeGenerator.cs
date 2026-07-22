@@ -43,7 +43,9 @@ public sealed class MockAiNarrativeGenerator(IHttpClientFactory httpClientFactor
             || result.Signals is null
             || (result.TurnType == "clarification" && result.Signals.Count > 0)
             || (request.IncludeInterpretation && string.IsNullOrWhiteSpace(result.Interpretation))
-            || result.Interpretation?.Length > 500)
+            || result.Interpretation?.Length > 200
+            || result.Interpretation?.Contains('\n') == true
+            || result.Interpretation?.Contains('\r') == true)
             throw new NarrativeGenerationException("Narrative provider returned an invalid response.");
         var normalized = result with
         {

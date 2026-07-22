@@ -26,6 +26,7 @@ public sealed class NarrativePromptBuilder : INarrativePromptBuilder
             "Scenario、Session flags、進行node、Module Outcomeのcode、Public Facts、Emitted Events、Narrative HintsをCanonとして維持する。",
             "Forbidden Narrative Factsを本文で成立させず、矛盾する事実を作らない。",
             "行動結果または現在状況を描写した後、次の重要な決定をPlayerへ返す。",
+            "inputInterpretationはPlayerへ公開する行動種別と入力要約だけを200文字以内の1行で返す。思考過程、内部推論、分析手順、判断理由、chain-of-thoughtを含めない。",
         };
         if (interactionType == NarrativeInteractionTypes.Clarification)
             rules.Add("Clarificationでは既存情報だけを整理し、新しい事件、NPC、場所、状態変化を確定しない。");

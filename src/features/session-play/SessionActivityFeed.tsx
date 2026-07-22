@@ -38,7 +38,14 @@ export function SessionInputItem({ text }: { text: string }) {
 }
 
 export function NarrativeTurnItem({ turn }: { turn: NarrativeTurnApiResponse }) {
-  return <article className="grid gap-2 rounded-myr-card border border-myr-ink/14 bg-myr-session-turn p-4" data-testid="narrative-turn-item" aria-label="公開済みNarrative Turn"><p className="m-0 max-w-none leading-[1.65] text-[#303644]"><span className="mr-2 inline-block rounded-full bg-myr-gold px-2 py-px align-middle text-myr-micro font-black tracking-[.1em] text-[#17151f]" aria-hidden="true">AI</span>{turn.narrative?.body ?? 'Narrativeを表示できません。'}</p></article>;
+  const interpretation = turn.narrative?.interpretation;
+  return <article className="grid gap-2 rounded-myr-card border border-myr-ink/14 bg-myr-session-turn p-4" data-testid="narrative-turn-item" aria-label="公開済みNarrative Turn">
+    <p className="m-0 max-w-none leading-[1.65] text-[#303644]"><span className="mr-2 inline-block rounded-full bg-myr-gold px-2 py-px align-middle text-myr-micro font-black tracking-[.1em] text-[#17151f]" aria-hidden="true">AI</span>{turn.narrative?.body ?? 'Narrativeを表示できません。'}</p>
+    {interpretation && <details className="rounded-lg border border-myr-ink/10 bg-white/35 px-3 py-2 text-myr-caption text-[#555b68]">
+      <summary className="cursor-pointer font-bold focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-myr-iris">入力の解釈</summary>
+      <p className="mt-2 mb-0 leading-relaxed">{interpretation}</p>
+    </details>}
+  </article>;
 }
 
 const activeExecutionStatuses = ['queued', 'running', 'retry-wait', 'cancel-requested'];
