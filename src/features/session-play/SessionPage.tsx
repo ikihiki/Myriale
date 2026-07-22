@@ -6,6 +6,7 @@ import { useOptionalAppStore, type TurnDisplayFlags } from '../../app/store';
 import { SessionTurn } from '../../shared/SessionTurn';
 import { SessionNotesWorkspace } from '../../SessionNotesWorkspace';
 import { WizardNavigation } from '../../shared/WizardNavigation';
+import { scenarioWizardShellClass, wizardPaperClass, wizardSummaryClass } from '../../shared/scenarioWizardStyles';
 import {
   acceptSessionInput,
   getSession,
@@ -651,7 +652,8 @@ function SessionDialogueSection({
 
   const [notesRailWidth, setNotesRailWidth] = useState(340);
   const sessionPageClassName = [
-    'scenario-forge scenario-forge-wizard session-play-page',
+    scenarioWizardShellClass,
+    'session-play-page',
     notesView === 'hidden' ? 'notes-hidden' : '',
     notesView === 'full' ? 'notes-fullscreen' : '',
   ].filter(Boolean).join(' ');
@@ -840,7 +842,7 @@ function SessionDialogueSection({
         markerValue={<span data-testid="session-state">{dbSession?.state ?? 'Active'}</span>}
       />
 
-      <main className="forge-paper wizard-paper" aria-label="AI対話モード">
+      <main className={`${wizardPaperClass} forge-paper`} aria-label="AI対話モード">
         <p className="kicker">Session play / AI dialogue mode</p>
         <div className="turn-notes-toolbar" aria-label="ノート表示切り替え">
           {notesView === 'hidden' ? (
@@ -1169,7 +1171,7 @@ function SessionDialogueSection({
       )}
 
       {notesView === 'split' && (
-        <aside className="ai-bookmark wizard-summary session-notes-rail" aria-label="セッションノート">
+        <aside className={`${wizardSummaryClass} session-notes-rail`} aria-label="セッションノート">
           <div className="notes-panel-toolbar" aria-label="ノート表示設定">
             <label>
               表示比率

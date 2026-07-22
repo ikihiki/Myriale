@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
 import { WizardNavigation } from '../shared/WizardNavigation';
+import { scenarioWizardShellClass, wizardKickerClass, wizardPaperClass, wizardProgressClass } from '../shared/scenarioWizardStyles';
 import '../styles.css';
 
 const meta: Meta = {
@@ -12,11 +13,11 @@ const meta: Meta = {
   },
   decorators: [
     (Story) => (
-      <div className="scenario-forge scenario-forge-wizard" style={{ minHeight: 420, width: 'min(980px, 92vw)' }}>
+      <div className={`${scenarioWizardShellClass} !min-h-[420px] !w-[min(980px,92vw)]`}>
         <Story />
-        <main className="forge-paper wizard-paper" aria-label="Story本文">
-          <p className="kicker">Wizard navigation sample</p>
-          <div className="wizard-progress" aria-label="サンプル進捗">
+        <main className={wizardPaperClass} aria-label="Story本文">
+          <p className={wizardKickerClass}>Wizard navigation sample</p>
+          <div className={wizardProgressClass} aria-label="サンプル進捗">
             <span>02</span>
             <strong>本文領域</strong>
             <small>ナビゲーションの横に来る紙面です。</small>
@@ -68,11 +69,11 @@ export const NarrowCollapsed: Story = {
   },
   decorators: [
     (Story) => (
-      <div className="scenario-forge scenario-forge-wizard" style={{ minHeight: 420, width: 360 }}>
+      <div className={`${scenarioWizardShellClass} !min-h-[420px] !w-[360px]`}>
         <Story />
-        <main className="forge-paper wizard-paper" aria-label="狭幅Story本文">
-          <p className="kicker">Compact layout</p>
-          <div className="wizard-progress" aria-label="狭幅進捗">
+        <main className={wizardPaperClass} aria-label="狭幅Story本文">
+          <p className={wizardKickerClass}>Compact layout</p>
+          <div className={wizardProgressClass} aria-label="狭幅進捗">
             <span>02</span>
             <strong>本文を優先</strong>
             <small>ナビは必要な時だけ開きます。</small>

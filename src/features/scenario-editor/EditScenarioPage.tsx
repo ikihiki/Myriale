@@ -3,6 +3,7 @@ import { ScenarioProgressControls } from '../../ScenarioProgressControls';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { STORY_IDS, navigateToStory, useAppNavigation } from '../../shared/nav';
 import { WizardNavigation } from '../../shared/WizardNavigation';
+import { scenarioWizardShellClass, wizardButtonRowClass, wizardKickerClass, wizardNoticeClass, wizardPanelClass, wizardPaperClass, wizardSummaryClass } from '../../shared/scenarioWizardStyles';
 import { MyrialeSelect } from '../../ui/MyrialeRadix';
 
 type EditView = 'list' | 'edit';
@@ -122,7 +123,7 @@ type AdvancedPanelId = 'cast' | 'locations' | 'beats' | 'secrets' | 'events' | '
 
 function EditAdvancedSection({ panel, help }: { panel: AdvancedPanelId; title: string; help: string }) {
   return (
-    <section className="wizard-panel" aria-label={`${help}の編集`}>
+    <section className={wizardPanelClass} aria-label={`${help}の編集`}>
       <ScenarioProgressControls initialPanel={panel} />
     </section>
   );
@@ -210,7 +211,7 @@ export function EditScenarioPage() {
 
   return (
     <AppChrome section="library" breadcrumbs={editCrumbs} account={playerAccount}>
-      <div className="scenario-forge scenario-forge-wizard edit-scenario-page">
+      <div className={scenarioWizardShellClass}>
         <WizardNavigation
           title="Scenario Editor"
           ariaLabel={view === 'list' ? '編集できるシナリオ' : '編集セクション'}
@@ -245,24 +246,24 @@ export function EditScenarioPage() {
           action={view === 'edit' ? <button className="text-button" onClick={backToList}>シナリオ一覧へ戻る</button> : undefined}
         />
 
-        <main className="forge-paper wizard-paper" aria-label="シナリオ編集アプリ画面">
-          <p className="kicker">Scenario edit / Improve and publish</p>
-          <div className="notice" role="status" data-testid="edit-notice">{notice}</div>
+        <main className={wizardPaperClass} aria-label="シナリオ編集アプリ画面">
+          <p className={wizardKickerClass}>Scenario edit / Improve and publish</p>
+          <div className={wizardNoticeClass} role="status" data-testid="edit-notice">{notice}</div>
 
           {view === 'list' && (
-            <section className="wizard-panel" aria-label="自分のシナリオ一覧">
+            <section className={wizardPanelClass} aria-label="自分のシナリオ一覧">
               <p>
                 <strong>既存のシナリオを編集して改善できます。</strong>
                 所有または編集権限のあるシナリオを、公開・非公開に関わらず編集できます。編集は下書きとして保存されます。
               </p>
-              <div className="edit-scenario-list" data-testid="scenario-list">
+              <div className="mt-3.5 grid gap-3" data-testid="scenario-list">
                 {scenarioLibrary.map((scenario) => (
-                  <article className="edit-scenario-card" key={scenario.id} data-testid={`card-${scenario.id}`}>
+                  <article className="rounded-[18px] border border-[rgba(23,21,31,0.14)] bg-[rgba(255,254,249,0.72)] p-4 [&>span]:text-[11px] [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-[#7054dd] [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-[-0.04em] [&_p]:max-w-none [&_p]:text-[#4f4658]" key={scenario.id} data-testid={`card-${scenario.id}`}>
                     <span>{scenario.visibility} / {scenario.id}</span>
                     <h2>{scenario.title}</h2>
                     <p>{scenario.genre} / {scenario.tone}</p>
                     <p>{scenario.summary}</p>
-                    <p className="edit-scenario-meta">
+                    <p className="text-[13px] font-extrabold !text-[#6d587a]">
                       進行中セッション: {scenario.activeSessions}件 ・ 最終編集: {scenario.history[0]?.at ?? '—'}
                     </p>
                     <button className="primary" onClick={() => startEditing(scenario)}>編集</button>
@@ -275,7 +276,7 @@ export function EditScenarioPage() {
           {view === 'edit' && draft && (
             <>
               {activeSection === 'basics' && (
-                <section className="wizard-panel" aria-label="基本情報の編集">
+                <section className={wizardPanelClass} aria-label="基本情報の編集">
                   <p><strong>タイトルや概要（あらすじ）を編集します。</strong>内容に合った説明へ更新できます。</p>
                   <label>タイトル
                     <input aria-label="シナリオタイトル" value={draft.title} onChange={(event) => update('title', event.target.value)} />
@@ -287,7 +288,7 @@ export function EditScenarioPage() {
               )}
 
               {activeSection === 'world' && (
-                <section className="wizard-panel" aria-label="世界観の編集">
+                <section className={wizardPanelClass} aria-label="世界観の編集">
                   <p>
                     <strong>ジャンル・雰囲気・Loreを調整します。</strong>
                     更新は以降の新しいセッションに使われ、<em>進行中の既存セッションには影響しません。</em>
@@ -305,7 +306,7 @@ export function EditScenarioPage() {
               )}
 
               {activeSection === 'ai' && (
-                <section className="wizard-panel" aria-label="AI設定の編集">
+                <section className={wizardPanelClass} aria-label="AI設定の編集">
                   <p><strong>AIの振る舞いを調整します。</strong>AI裁量レベルとNarrative生成方針は、セッション開始前の設定として保存されます。</p>
                   <MyrialeSelect
                     label="AI裁量"
@@ -324,7 +325,7 @@ export function EditScenarioPage() {
               )}
 
               {activeSection === 'hero' && (
-                <section className="wizard-panel" aria-label="主人公設定の編集">
+                <section className={wizardPanelClass} aria-label="主人公設定の編集">
                   <p><strong>セッション開始時の主人公の扱いを設定します。</strong>固定、候補選択、自由生成のいずれかをシナリオ設定として保存します。</p>
                   <MyrialeSelect
                     label="主人公の扱い"
@@ -337,7 +338,7 @@ export function EditScenarioPage() {
                     ]}
                   />
                   {draft.heroMode === 'select' && (
-                    <label className="choice-row">
+                    <label className="my-3 grid grid-cols-[1fr_auto] items-center gap-2 text-xs font-black text-[#4f5767] [&_input]:size-4">
                       <span>候補選択に加えて自由生成を許可</span>
                       <input
                         type="checkbox"
@@ -363,7 +364,7 @@ export function EditScenarioPage() {
               {activeSection === 'asTest' && <EditAdvancedSection panel="test" title={draft.title} help="US-AS11: 任意ビートから検証" />}
 
               {activeSection === 'illustration' && (
-                <section className="wizard-panel" aria-label="挿絵設定の編集">
+                <section className={wizardPanelClass} aria-label="挿絵設定の編集">
                   <p><strong>挿絵のテイストや雰囲気を変更します。</strong>画風・ムード・NG要素を編集し、保存されないプレビューで確認できます。</p>
                   <label>画風
                     <input aria-label="挿絵の画風" value={draft.illustrationStyle} onChange={(event) => update('illustrationStyle', event.target.value)} />
@@ -381,22 +382,22 @@ export function EditScenarioPage() {
           )}
         </main>
 
-        <aside className="ai-bookmark wizard-summary" aria-label="編集サマリー">
+        <aside className={wizardSummaryClass} aria-label="編集サマリー">
           <h2>編集状態</h2>
           {view === 'edit' && draft && (
-            <article className="edit-review-panel" aria-label="確認と反映">
+            <article className="border border-dashed border-[rgba(112,84,221,0.4)] !bg-[rgba(245,243,255,0.6)]" aria-label="確認と反映">
               <h3>確認 → 反映</h3>
               <p>AIチェックとテストプレイで品質を確認してから、下書き保存・公開できます。AIは補助に限定され、確定は常に作者が行います。</p>
-              <div className="button-row">
+              <div className={wizardButtonRowClass}>
                 <button onClick={runAiCheck} data-testid="ai-check-button">AIにチェック</button>
                 <button onClick={runPreview} data-testid="preview-button">プレビュー（テストプレイ）</button>
                 <button onClick={openTestPlay}>本番相当のテストプレイへ</button>
               </div>
-              <div className="button-row">
+              <div className={wizardButtonRowClass}>
                 <button onClick={saveDraft} data-testid="save-button">下書き保存</button>
                 <button className="primary" onClick={publish} data-testid="publish-button">公開して反映</button>
               </div>
-              <div className="edit-visibility">
+              <div className="mt-1.5 grid max-w-60 gap-1.5 font-extrabold">
                 <MyrialeSelect
                   label="公開状態"
                   value={draft.visibility}
@@ -437,7 +438,7 @@ export function EditScenarioPage() {
           <article data-testid="history">
             <h3>編集履歴</h3>
             {draft ? (
-              <ol className="edit-history-list">
+              <ol className="m-0 grid gap-2 pl-[18px] [&_li]:grid [&_li]:gap-0.5 [&_small]:text-[11px] [&_small]:font-extrabold [&_small]:tracking-[0.04em] [&_small]:text-[#6d587a]">
                 {draft.history.map((entry) => (
                   <li key={`${entry.at}-${entry.summary}`}>
                     <small>{entry.at}</small>
