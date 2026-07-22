@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Modules;
@@ -157,6 +158,86 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         Assert.DoesNotContain("stateJson", projected, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("random", projected, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("effects", projected, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task DialogueContextUsesVersionedComponentOrderAndConfiguredTokenBudgets()
+    {
+        var client = await AuthenticatedClientAsync("dialogue-context-contract@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        var (_, executionId) = await CreateActiveTurnAsync(client, sessionId, "context-contract-init");
+        using var completed = await CompleteAsync(client, executionId, "context-contract-complete");
+        Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
+        await WaitForHandoffStatusAsync(SessionExecutionStatuses.Succeeded);
+
+        using var firstDialogue = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/inputs",
+            new { requestId = "context-contract-first", text = "最初のNarrativeを生成する" });
+        await AssertNarrativeExecutionSucceededAsync(client, firstDialogue);
+        _generator.DialogueRequests.Clear();
+
+        using var secondDialogue = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/inputs",
+            new { requestId = "context-contract-second", text = "Context契約を検証する" });
+        await AssertNarrativeExecutionSucceededAsync(client, secondDialogue);
+
+        var request = Assert.Single(_generator.DialogueRequests);
+        Assert.Equal(NarrativeDialogueSchema.Version, request.SchemaVersion);
+        Assert.Equal(NarrativeContextSchema.Version, request.ContextSchemaVersion);
+        Assert.Equal(NarrativeContextSchema.Version, request.ContextDiagnostics.SchemaVersion);
+        Assert.Equal(
+            ["scenario", "session-state", "memory", "recent-turns", "module-outcomes", "progression"],
+            request.ContextDiagnostics.ComponentIds);
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var options = scope.ServiceProvider.GetRequiredService<IOptions<NarrativeContextOptions>>().Value;
+        Assert.Equal(4096, options.RecentTurnsTokenBudget);
+        Assert.Equal(2048, options.MemoryTokenBudget);
+        var tokenEstimator = scope.ServiceProvider.GetRequiredService<INarrativeTokenEstimator>();
+        Assert.True(request.RecentTurns.Sum(tokenEstimator.EstimateTokens) <= options.RecentTurnsTokenBudget);
+        var memoryTokens = EstimateMemoryTokens(request.Memory);
+        Assert.True(memoryTokens <= options.MemoryTokenBudget);
+    }
+
+    [Fact]
+    public async Task CompleteSerializedDialogueRequestExcludesPrivateModuleData()
+    {
+        const string privateConfiguration = "PRIVATE-CONFIGURATION-SENTINEL";
+        const string privateState = "PRIVATE-STATE-SENTINEL";
+        const string privateRandom = "PRIVATE-RANDOM-SENTINEL";
+        const string privateReceipt = "PRIVATE-RECEIPT-SENTINEL";
+        const string privateSecret = "PRIVATE-SECRET-SENTINEL";
+        var client = await AuthenticatedClientAsync("dialogue-private-contract@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        var (_, executionId) = await CreateActiveTurnAsync(client, sessionId, "private-contract-init");
+        using var completed = await CompleteAsync(client, executionId, "private-contract-complete");
+        Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
+        await WaitForHandoffStatusAsync(SessionExecutionStatuses.Succeeded);
+
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var execution = await db.ModuleExecutions.SingleAsync(item => item.Id == executionId);
+            execution.ConfigurationJson = JsonSerializer.Serialize(new { sentinel = privateConfiguration });
+            execution.ContextJson = JsonSerializer.Serialize(new { secret = privateSecret });
+            execution.StateJson = JsonSerializer.Serialize(new { sentinel = privateState });
+            var receipt = await db.ModuleExecutionRequests.OrderByDescending(item => item.Id).FirstAsync(item => item.ExecutionId == executionId);
+            receipt.RandomValuesJson = JsonSerializer.Serialize(new[] { privateRandom });
+            receipt.ResponseJson = JsonSerializer.Serialize(new { sentinel = privateReceipt });
+            await db.SaveChangesAsync();
+        }
+
+        using var dialogue = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/inputs",
+            new { requestId = "private-contract-dialogue", text = "公開された結果だけを振り返る" });
+        await AssertNarrativeExecutionSucceededAsync(client, dialogue);
+
+        var serializedRequest = JsonSerializer.Serialize(Assert.Single(_generator.DialogueRequests));
+        Assert.DoesNotContain(privateConfiguration, serializedRequest, StringComparison.Ordinal);
+        Assert.DoesNotContain(privateState, serializedRequest, StringComparison.Ordinal);
+        Assert.DoesNotContain(privateRandom, serializedRequest, StringComparison.Ordinal);
+        Assert.DoesNotContain(privateReceipt, serializedRequest, StringComparison.Ordinal);
+        Assert.DoesNotContain(privateSecret, serializedRequest, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1252,6 +1333,14 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var canon = await db.SessionNotes.AsNoTracking().SingleAsync(item => item.Id == "LOR-OLD-KEY");
         Assert.Equal("canon", canon.CanonStatus);
         Assert.Equal(1, canon.Revision);
+    }
+
+    private static int EstimateMemoryTokens(NarrativeSessionMemoryInput memory)
+    {
+        static int Estimate(string? text) => string.IsNullOrEmpty(text)
+            ? 0
+            : Math.Max(1, (System.Text.Encoding.UTF8.GetByteCount(text) + 3) / 4);
+        return Estimate(memory.Summary) + memory.Lorebook.Sum(item => Estimate(item.Text));
     }
 
     private async Task<string> CreateSessionAsync(

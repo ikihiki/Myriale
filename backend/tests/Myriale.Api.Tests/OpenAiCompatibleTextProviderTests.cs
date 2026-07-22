@@ -25,6 +25,7 @@ public sealed class OpenAiCompatibleTextProviderTests
 
         Assert.Contains("\"type\":\"json_schema\"", handler.LastBody, StringComparison.Ordinal);
         Assert.Contains("\"strict\":true", handler.LastBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("chat_template_kwargs", handler.LastBody, StringComparison.Ordinal);
         Assert.Equal("resp-1", result.Metadata.ResponseId);
         Assert.Equal(11, result.Metadata.InputTokens);
         Assert.Equal(4, result.Metadata.OutputTokens);
@@ -65,6 +66,7 @@ public sealed class OpenAiCompatibleTextProviderTests
         Assert.Equal("https://api.runpod.ai/v2/real-endpoint/openai/v1/chat/completions", handler.LastUri?.ToString());
         using var body = JsonDocument.Parse(handler.LastBody);
         Assert.Equal("Qwen/Qwen3-8B", body.RootElement.GetProperty("model").GetString());
+        Assert.False(body.RootElement.GetProperty("chat_template_kwargs").GetProperty("enable_thinking").GetBoolean());
     }
 
     [Fact]

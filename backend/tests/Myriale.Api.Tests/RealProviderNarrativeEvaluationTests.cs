@@ -46,7 +46,7 @@ public sealed class RealProviderNarrativeEvaluationTests
             NullLogger<OpenAiCompatibleTextProvider>.Instance);
         var generator = new ProviderNarrativeGenerator(textProvider, NullLogger<ProviderNarrativeGenerator>.Instance);
 
-        var cases = CreateCases();
+        var cases = FilterCases(CreateCases(), Environment.GetEnvironmentVariable("AI_EVAL_CASES"));
         var runs = new List<EvaluationRun>();
         foreach (var evaluationCase in cases)
         {
@@ -71,6 +71,7 @@ public sealed class RealProviderNarrativeEvaluationTests
                         signalFalsePositive,
                         signalFalseNegative,
                         null,
+                        null,
                         result.Metadata.LatencyMilliseconds,
                         result.Metadata.InputTokens,
                         result.Metadata.OutputTokens,
@@ -78,11 +79,11 @@ public sealed class RealProviderNarrativeEvaluationTests
                 }
                 catch (AiProviderException exception)
                 {
-                    runs.Add(new(evaluationCase.Id, repetition, false, false, false, false, exception.Code, null, null, null, null));
+                    runs.Add(new(evaluationCase.Id, repetition, false, false, false, false, exception.Code, exception.Message, null, null, null, null));
                 }
                 catch (OperationCanceledException)
                 {
-                    runs.Add(new(evaluationCase.Id, repetition, false, false, false, false, AiProviderErrorCodes.Timeout, null, null, null, null));
+                    runs.Add(new(evaluationCase.Id, repetition, false, false, false, false, AiProviderErrorCodes.Timeout, "AI Provider request timed out.", null, null, null, null));
                 }
             }
         }
@@ -139,6 +140,15 @@ public sealed class RealProviderNarrativeEvaluationTests
             "閉じた星座の扉の前まで進み、扉に到達した。"),
             [], [], "constellation-door-reached"),
     ];
+
+    private static IReadOnlyList<EvaluationCase> FilterCases(IReadOnlyList<EvaluationCase> cases, string? configuredCaseIds)
+    {
+        if (string.IsNullOrWhiteSpace(configuredCaseIds)) return cases;
+        var selected = configuredCaseIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var filtered = cases.Where(evaluationCase => selected.Contains(evaluationCase.Id)).ToArray();
+        if (filtered.Length == 0) throw new InvalidOperationException("AI_EVAL_CASES did not match a known evaluation case.");
+        return filtered;
+    }
 
     private static NarrativeDialogueRequest CreateRequest(string interactionType, string playerInput)
     {
@@ -217,6 +227,7 @@ public sealed class RealProviderNarrativeEvaluationTests
         bool SignalFalsePositive,
         bool SignalFalseNegative,
         string? ErrorCode,
+        string? FailureDetail,
         long? LatencyMilliseconds,
         int? InputTokens,
         int? OutputTokens,

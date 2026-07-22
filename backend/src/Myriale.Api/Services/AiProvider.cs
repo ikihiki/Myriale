@@ -165,15 +165,15 @@ public sealed class OpenAiCompatibleTextProvider(
         var endpoint = new Uri(new Uri(ResolveBaseUrl(provider, options.BaseUrl)), "chat/completions");
         using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
-        request.Content = new StringContent(JsonSerializer.Serialize(new
+        var payload = new Dictionary<string, object?>
         {
-            model = options.Model,
-            messages = input.Messages.Select(message => new { role = message.Role.Value, content = message.Text }),
-            temperature = options.Temperature,
-            max_tokens = options.MaxOutputTokens,
+            ["model"] = options.Model,
+            ["messages"] = input.Messages.Select(message => new { role = message.Role.Value, content = message.Text }),
+            ["temperature"] = options.Temperature,
+            ["max_tokens"] = options.MaxOutputTokens,
             // Microsoft.Extensions.AI owns the provider-neutral messages and response format. This adapter owns
             // the final OpenAI-compatible wire shape so OpenAI and Runpod vLLM receive the same strict contract.
-            response_format = new
+            ["response_format"] = new
             {
                 type = "json_schema",
                 json_schema = new
@@ -184,7 +184,12 @@ public sealed class OpenAiCompatibleTextProvider(
                         ?? throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "Structured output schema is required.", false))
                 }
             }
-        }, Json), Encoding.UTF8, "application/json");
+        };
+        // Qwen3 spends its completion budget on hidden reasoning unless thinking is explicitly disabled.
+        // Runpod's vLLM OpenAI-compatible endpoint accepts this model-specific chat-template option.
+        if (provider == "runpod" && options.Model.Contains("qwen3", StringComparison.OrdinalIgnoreCase))
+            payload["chat_template_kwargs"] = new { enable_thinking = false };
+        request.Content = new StringContent(JsonSerializer.Serialize(payload, Json), Encoding.UTF8, "application/json");
         var stopwatch = Stopwatch.StartNew();
         try
         {

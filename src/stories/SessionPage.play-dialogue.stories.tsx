@@ -88,6 +88,25 @@ export const ComposerKeyboardBehavior: Story = {
   },
 };
 
+export const NarrativeGenerationLoading: Story = {
+  name: 'Narrative generation: loading中は入力操作を無効化する',
+  render: () => (
+    <MyrialeApp
+      initialUrl="/sessions/SES-PREP-1098"
+      initialDb={createProgressedPlayDb()}
+      sessionContainer={({ sessionId }) => <MockSessionContainer sessionId={sessionId} initiallySubmitting />}
+    />
+  ),
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await step('Narrative生成中の進行表示を示し、重複操作につながる入力Controlsを無効化する', async () => {
+      await expect(canvas.getByRole('button', { name: 'Narrativeを生成中' })).toBeDisabled();
+      await expect(canvas.getByLabelText('自由に行動や会話を入力')).toBeDisabled();
+      await expect(canvas.getByRole('button', { name: 'AIに次の行動を提案してもらう' })).toBeDisabled();
+    });
+  },
+};
+
 export const ComposerDoubleClickCreatesOneTurn: Story = {
   name: 'Composer: 送信ボタンの二重clickでTurnを重複作成しない',
   render: () => (
