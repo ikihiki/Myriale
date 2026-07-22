@@ -14,7 +14,8 @@ public static class DeterministicSafeNarrativeBodyBuilder
                 : BuildObservation(request);
 
         if (NarrativeBodyQualityGuard.RequiresLongDetail(request.PlayerInput)) body = ExpandDetail(request, body);
-        body = RemoveForbiddenSentences(body, request.PriorModuleOutcomes.SelectMany(outcome => outcome.ForbiddenNarrativeFacts));
+        body = RemoveForbiddenSentences(body, request.PriorModuleOutcomes.SelectMany(outcome => outcome.ForbiddenNarrativeFacts)
+            .Concat(NarrativeBodyQualityGuard.UndisclosedMemorySecrets(request)));
         return Bound(body, 20_000);
     }
 
@@ -35,6 +36,7 @@ public static class DeterministicSafeNarrativeBodyBuilder
             if (request.RecentTurns.Any(turn => turn.Narrative?.Contains("足元", StringComparison.Ordinal) == true
                 && turn.Narrative.Contains("照ら", StringComparison.Ordinal))) grounded.Add("その灯は足元を照らしている");
         }
+        if (request.Memory.Summary is { Length: > 0 } summary) grounded.Add(EnsureSentence(summary));
         grounded.AddRange(PublicFacts(request));
         if (grounded.Count == 0) grounded.Add("公開されている情報からは、これ以上を確定できない");
         var speaker = npc is null ? "問いかけに対し" : $"{npc}は問いに向き直り";

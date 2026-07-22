@@ -106,12 +106,18 @@ public sealed class RealProviderSessionLoopTests : IDisposable
             var status = execution.GetProperty("status").GetString();
             if (status == SessionExecutionStatuses.Succeeded)
             {
-                using var turnResponse = await client.GetAsync($"/api/sessions/{sessionId}/inputs/{inputId}/narrative");
-                Assert.Equal(HttpStatusCode.OK, turnResponse.StatusCode);
-                return await turnResponse.Content.ReadFromJsonAsync<JsonElement>();
+                var session = await GetSessionAsync(client, sessionId);
+                var publishedTurn = session.GetProperty("turns").EnumerateArray().FirstOrDefault(turn =>
+                    turn.TryGetProperty("narrative", out var narrative)
+                    && narrative.TryGetProperty("playerInputId", out var publishedInputId)
+                    && string.Equals(publishedInputId.GetString(), inputId, StringComparison.Ordinal));
+                if (publishedTurn.ValueKind != JsonValueKind.Undefined) return publishedTurn;
             }
             if (status is SessionExecutionStatuses.Failed or SessionExecutionStatuses.Cancelled or SessionExecutionStatuses.Superseded)
-                Assert.Fail($"Real-provider session execution ended with sanitized status '{status}'.");
+            {
+                var errorCode = execution.TryGetProperty("errorCode", out var error) ? error.GetString() : null;
+                Assert.Fail($"Real-provider session execution ended with sanitized status '{status}' and error code '{errorCode ?? "none"}'.");
+            }
             await Task.Delay(500);
         }
         Assert.Fail("Real-provider session execution did not complete before the configured test timeout.");

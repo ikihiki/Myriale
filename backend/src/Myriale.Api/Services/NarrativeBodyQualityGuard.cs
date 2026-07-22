@@ -59,13 +59,21 @@ public sealed partial class NarrativeBodyQualityGuard
         var relevantOutcomes = request.PriorModuleOutcomes.Where(outcome => OutcomeIsRelevant(request.PlayerInput, outcome)).ToArray();
         foreach (var outcome in relevantOutcomes)
         {
-            if (outcome.PublicFacts.Count > 0 && !outcome.PublicFacts.Any(fact => SharesAuthoritativeConcept(trimmed, fact.Text)))
+            if (outcome.PublicFacts.Count > 0 && outcome.PublicFacts.Any(fact => MissingAuthoritativeConcept(trimmed, fact.Text)))
                 violations.Add("module-public-fact-missing");
-            if (outcome.NarrativeHints.Count > 0 && !outcome.NarrativeHints.Any(hint => SharesAuthoritativeConcept(trimmed, hint)))
+            if (outcome.NarrativeHints.Count > 0 && outcome.NarrativeHints.Any(hint => MissingAuthoritativeConcept(trimmed, hint)))
                 violations.Add("module-hint-missing");
         }
 
-        var forbidden = NarrativeSemanticGuard.MatchForbiddenFacts(trimmed, request.PriorModuleOutcomes.SelectMany(outcome => outcome.ForbiddenNarrativeFacts));
+        if (IsExplicitNpcQuestion(request) && request.Memory.Summary is { Length: > 0 } summary)
+        {
+            foreach (var concept in new[] { "信頼", "守", "慎重" }.Where(summary.Contains))
+                if (!trimmed.Contains(concept, StringComparison.Ordinal)) violations.Add($"npc-continuity-{concept}");
+        }
+
+        var forbiddenFacts = request.PriorModuleOutcomes.SelectMany(outcome => outcome.ForbiddenNarrativeFacts)
+            .Concat(UndisclosedMemorySecrets(request));
+        var forbidden = NarrativeSemanticGuard.MatchForbiddenFacts(trimmed, forbiddenFacts);
         if (forbidden.Count > 0) violations.Add("forbidden-fact");
 
         return violations.Count == 0 ? NarrativeBodyQualityAssessment.Passed : new(false, violations.Distinct(StringComparer.Ordinal).ToArray());
@@ -101,6 +109,31 @@ public sealed partial class NarrativeBodyQualityGuard
     private static bool OutcomeIsRelevant(string input, NarrativePriorModuleOutcomeInput outcome) =>
         outcome.PublicFacts.Any(fact => SharesAuthoritativeConcept(input, fact.Text))
         || outcome.NarrativeHints.Any(hint => SharesAuthoritativeConcept(input, hint));
+
+    internal static IEnumerable<string> UndisclosedMemorySecrets(NarrativeDialogueRequest request)
+    {
+        const string marker = "知識境界:";
+        foreach (var entry in request.Memory.Lorebook)
+        {
+            var start = entry.Text.IndexOf(marker, StringComparison.Ordinal);
+            if (start < 0 || !entry.Text.Contains("未開示", StringComparison.Ordinal)) continue;
+            start += marker.Length;
+            var end = entry.Text.IndexOf("が、この秘密", start, StringComparison.Ordinal);
+            if (end < 0) end = entry.Text.IndexOf("。", start, StringComparison.Ordinal);
+            if (end > start)
+            {
+                var secret = entry.Text[start..end].Trim();
+                if (secret.Length > 0) yield return secret;
+            }
+        }
+    }
+
+    private static bool MissingAuthoritativeConcept(string narrative, string authoritativeText)
+    {
+        string[] concepts = ["扉", "門", "封印", "青", "灯", "鍵", "銀", "影", "敵", "Player", "探索者"];
+        var required = concepts.Where(concept => authoritativeText.Contains(concept, StringComparison.Ordinal)).ToArray();
+        return required.Length > 0 && required.Any(concept => !narrative.Contains(concept, StringComparison.Ordinal));
+    }
 
     private static bool SharesAuthoritativeConcept(string left, string right)
     {

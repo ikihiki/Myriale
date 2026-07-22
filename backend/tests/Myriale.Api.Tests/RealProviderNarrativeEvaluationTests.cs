@@ -32,7 +32,8 @@ public sealed class RealProviderNarrativeEvaluationTests
             cases.Select(item => item.Id).ToArray());
 
         var continuityCase = cases.Single(item => item.Id == "long-session-npc-continuity");
-        Assert.True(continuityCase.Request.RecentTurns.Count >= 20);
+        Assert.True(continuityCase.Request.SessionState.Revision >= 20);
+        Assert.Equal(2, continuityCase.Request.RecentTurns.Count);
         Assert.False(string.IsNullOrWhiteSpace(continuityCase.Request.Memory.Summary));
         Assert.NotEmpty(continuityCase.Request.Memory.Lorebook);
         Assert.Equal([["司書", "リラ"], ["信頼"], ["守"], ["慎重"], ["ござい"]], continuityCase.RequiredConceptGroups);
@@ -363,7 +364,7 @@ public sealed class RealProviderNarrativeEvaluationTests
                 "Guided",
                 "探索者",
                 "探索者は司書リラと向き合っている。"),
-            recentTurns,
+            recentTurns.TakeLast(2).ToArray(),
             new NarrativeSessionMemoryInput(
                 "20回を超える対話を経て、司書リラは探索者を信頼しているが、危険から守るため慎重な助言を崩さない。",
                 [new NarrativeLorebookEntryInput(
