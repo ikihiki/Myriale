@@ -55,13 +55,22 @@ public sealed class SessionSummaryService(
             if (body.Length > 12000) body = body[^12000..];
             var summary = new SessionSummary
             {
-                Id = $"SUM-{Guid.NewGuid():N}".ToUpperInvariant(), SessionId = sessionId,
-                FromTurnId = sourceTurns[0].Id, ToTurnId = sourceTurns[^1].Id,
-                FromPosition = fromPosition, ToPosition = throughPosition, Version = (previous?.Version ?? 0) + 1,
-                Confidence = "confirmed", CurrentLocation = location, CharactersJson = JsonSerializer.Serialize(characters),
-                ObjectivesJson = JsonSerializer.Serialize(objectives), CluesJson = JsonSerializer.Serialize(clues),
-                InventoryJson = JsonSerializer.Serialize(inventory), ModuleResultsJson = JsonSerializer.Serialize(moduleResults),
-                Body = body, GeneratedAt = DateTimeOffset.UtcNow,
+                Id = $"SUM-{Guid.NewGuid():N}".ToUpperInvariant(),
+                SessionId = sessionId,
+                FromTurnId = sourceTurns[0].Id,
+                ToTurnId = sourceTurns[^1].Id,
+                FromPosition = fromPosition,
+                ToPosition = throughPosition,
+                Version = (previous?.Version ?? 0) + 1,
+                Confidence = "confirmed",
+                CurrentLocation = location,
+                CharactersJson = JsonSerializer.Serialize(characters),
+                ObjectivesJson = JsonSerializer.Serialize(objectives),
+                CluesJson = JsonSerializer.Serialize(clues),
+                InventoryJson = JsonSerializer.Serialize(inventory),
+                ModuleResultsJson = JsonSerializer.Serialize(moduleResults),
+                Body = body,
+                GeneratedAt = DateTimeOffset.UtcNow,
             };
             db.SessionSummaries.Add(summary);
             await db.SaveChangesAsync(cancellationToken);

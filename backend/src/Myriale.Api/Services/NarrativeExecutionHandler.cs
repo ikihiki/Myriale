@@ -71,7 +71,11 @@ public sealed class NarrativeExecutionHandler(
                 generation.Metadata,
                 context.PriorModuleOutcomes);
             if (environment.IsDevelopment())
-                validationResult = JsonSerializer.Serialize(new { status = "passed", checks = new[] { "dialogue-contract", "public-interpretation", "progression-signals", "forbidden-narrative-facts" } });
+                validationResult = JsonSerializer.Serialize(new
+                {
+                    status = generation.Metadata.FinishReason == "safe_fallback" ? "safe_fallback" : "passed",
+                    checks = new[] { "dialogue-contract", "body-quality", "public-interpretation", "progression-signals", "forbidden-narrative-facts" },
+                });
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -109,6 +113,7 @@ public sealed class NarrativeExecutionHandler(
 
         providerActivity?.SetTag("ai.provider.name", generation.Metadata.Provider);
         providerActivity?.SetTag("ai.model.name", generation.Metadata.Model);
+        providerActivity?.SetTag("myriale.provider.status", generation.Metadata.FinishReason == "safe_fallback" ? "safe_fallback" : "completed");
         SessionExecutionTelemetry.ProviderDuration.Record(generation.Metadata.LatencyMilliseconds, SessionExecutionTelemetry.Tags(execution.Kind, execution.Status, generation.Metadata.Provider, generation.Metadata.Model));
         if (generation.Metadata.InputTokens is not null) SessionExecutionTelemetry.ProviderInputTokens.Record(generation.Metadata.InputTokens.Value, SessionExecutionTelemetry.Tags(execution.Kind, execution.Status, generation.Metadata.Provider, generation.Metadata.Model));
         if (generation.Metadata.OutputTokens is not null) SessionExecutionTelemetry.ProviderOutputTokens.Record(generation.Metadata.OutputTokens.Value, SessionExecutionTelemetry.Tags(execution.Kind, execution.Status, generation.Metadata.Provider, generation.Metadata.Model));
@@ -152,7 +157,7 @@ public sealed class NarrativeExecutionHandler(
             Status = "committed",
             ContentType = "application/json",
             ContentJson = JsonSerializer.Serialize(committedDialogue),
-            MetadataJson = JsonSerializer.Serialize(new { generation.Metadata.Provider, generation.Metadata.Model, generation.Metadata.ResponseId }),
+            MetadataJson = JsonSerializer.Serialize(new { generation.Metadata.Provider, generation.Metadata.Model, generation.Metadata.ResponseId, generation.Metadata.FinishReason }),
             Checksum = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(generation.Value.Body))).ToLowerInvariant(),
             CreatedAt = now,
             ValidatedAt = now,

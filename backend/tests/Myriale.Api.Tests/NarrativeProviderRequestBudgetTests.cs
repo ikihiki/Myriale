@@ -17,7 +17,7 @@ public sealed class NarrativeProviderRequestBudgetTests
         var options = Options.Create(new NarrativeContextOptions { FinalProviderRequestTokenBudget = budget });
         var budgeter = new NarrativeProviderRequestBudgeter(options);
         var provider = new CapturingProvider();
-        var generator = new ProviderNarrativeGenerator(provider, budgeter, NullLogger<ProviderNarrativeGenerator>.Instance);
+        var generator = new ProviderNarrativeGenerator(provider, budgeter, new NarrativeBodyQualityGuard(), NullLogger<ProviderNarrativeGenerator>.Instance);
         var request = CreateStressRequest();
 
         await generator.GenerateDialogueAsync(request, CancellationToken.None);

@@ -30,6 +30,7 @@ builder.Services.AddScoped<OpenAiCompatibleTextProvider>();
 builder.Services.AddScoped<IAiTextProvider>(services => services.GetRequiredService<OpenAiCompatibleTextProvider>());
 builder.Services.AddScoped<MockAiNarrativeGenerator>();
 builder.Services.AddSingleton<NarrativeProviderRequestBudgeter>();
+builder.Services.AddSingleton<NarrativeBodyQualityGuard>();
 builder.Services.AddScoped<ProviderNarrativeGenerator>();
 builder.Services.AddScoped<INarrativeGenerator>(services =>
     string.Equals(builder.Configuration["AiProvider:Provider"], "mock", StringComparison.OrdinalIgnoreCase)

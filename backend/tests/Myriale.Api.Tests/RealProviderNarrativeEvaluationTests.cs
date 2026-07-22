@@ -86,6 +86,7 @@ public sealed class RealProviderNarrativeEvaluationTests
         var generator = new ProviderNarrativeGenerator(
             textProvider,
             new NarrativeProviderRequestBudgeter(Options.Create(new NarrativeContextOptions())),
+            new NarrativeBodyQualityGuard(),
             NullLogger<ProviderNarrativeGenerator>.Instance);
 
         Assert.True(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("AI_EVAL_CASES")),

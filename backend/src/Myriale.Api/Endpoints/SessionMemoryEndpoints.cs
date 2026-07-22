@@ -55,10 +55,19 @@ public static class SessionMemoryEndpoints
         var now = DateTimeOffset.UtcNow;
         var note = new SessionNote
         {
-            Id = $"LOR-{Guid.NewGuid():N}".ToUpperInvariant(), SessionId = sessionId, Kind = request.Kind,
-            Title = request.DisplayName.Trim(), AliasesJson = JsonSerializer.Serialize(NormalizeAliases(request.Aliases)),
-            Body = request.Content.Trim(), CanonStatus = request.CanonStatus, FirstTurnId = request.FirstTurnId,
-            UpdatedFromTurnId = request.UpdatedFromTurnId, UpdateSource = "user", Revision = 1, CreatedAt = now, UpdatedAt = now,
+            Id = $"LOR-{Guid.NewGuid():N}".ToUpperInvariant(),
+            SessionId = sessionId,
+            Kind = request.Kind,
+            Title = request.DisplayName.Trim(),
+            AliasesJson = JsonSerializer.Serialize(NormalizeAliases(request.Aliases)),
+            Body = request.Content.Trim(),
+            CanonStatus = request.CanonStatus,
+            FirstTurnId = request.FirstTurnId,
+            UpdatedFromTurnId = request.UpdatedFromTurnId,
+            UpdateSource = "user",
+            Revision = 1,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         db.SessionNotes.Add(note);
         db.SessionNoteRevisions.Add(new SessionNoteRevision { Id = $"NRV-{Guid.NewGuid():N}".ToUpperInvariant(), Note = note, NoteId = note.Id, Revision = 1, Title = note.Title, Body = note.Body, CreatedAt = now });

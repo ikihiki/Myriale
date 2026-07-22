@@ -9,7 +9,7 @@ namespace Myriale.Api.Tests;
 
 public sealed class ProviderNarrativeGeneratorTests
 {
-    private const string ValidResult = "{\"body\":\"司書リラは青い魔法灯について丁寧に答えた。\"}";
+    private const string ValidResult = "{\"body\":\"司書リラは青い魔法灯を示し、『この灯は常に青く輝き、足元を照らすものでございます』と丁寧に答えた。判断は探索者に委ねられている。\"}";
 
     [Fact]
     public async Task DialogueWirePromptIsExplicitConciseAndIncludesAuthoritativeContext()
@@ -93,34 +93,33 @@ public sealed class ProviderNarrativeGeneratorTests
     }
 
     [Fact]
-    public async Task SemanticallyMalformedBodyIsNotCanonicalizedOrAccepted()
+    public async Task ExhaustedApplicationSchemaFailuresUseSafeFallback()
     {
         const string malformed = "{\"body\":{\"text\":\"still not a string\"}}";
         var provider = new QueueProvider(Response(malformed), Response(malformed, responseId: "second-invalid"));
         var generator = CreateGenerator(provider);
 
-        var exception = await Assert.ThrowsAsync<AiProviderException>(() =>
-            generator.GenerateDialogueAsync(CreateRequest(), CancellationToken.None));
+        var generation = await generator.GenerateDialogueAsync(CreateRequest(), CancellationToken.None);
 
         Assert.Equal(2, provider.Requests.Count);
-        Assert.Equal(AiProviderErrorCodes.SchemaFailure, exception.Code);
-        Assert.NotNull(exception.SentPrompt);
-        Assert.Equal(malformed, exception.ReceivedResult);
+        Assert.Equal("safe_fallback", generation.Metadata.FinishReason);
+        Assert.Contains("\"status\":\"safe_fallback\"", generation.ReceivedResult, StringComparison.Ordinal);
+        Assert.DoesNotContain("still not a string", generation.ReceivedResult, StringComparison.Ordinal);
+        Assert.True(new NarrativeBodyQualityGuard().Assess(CreateRequest(), generation.Value.Body).IsAcceptable);
     }
 
     [Theory]
     [InlineData("{\"body\":null}")]
     [InlineData("{\"body\":\"   \\n  \"}")]
-    public async Task NullOrWhitespaceBodyIsRejectedAfterOneRetry(string malformed)
+    public async Task SchemaValidButEmptyBodyUsesSafeFallbackWithoutAnotherProviderCall(string malformed)
     {
-        var provider = new QueueProvider(Response(malformed), Response(malformed, responseId: "second-invalid"));
+        var provider = new QueueProvider(Response(malformed));
 
-        var exception = await Assert.ThrowsAsync<AiProviderException>(() =>
-            CreateGenerator(provider).GenerateDialogueAsync(CreateRequest(), CancellationToken.None));
+        var generation = await CreateGenerator(provider).GenerateDialogueAsync(CreateRequest(), CancellationToken.None);
 
-        Assert.Equal(2, provider.Requests.Count);
-        Assert.Equal(AiProviderErrorCodes.SchemaFailure, exception.Code);
-        Assert.Equal(malformed, exception.ReceivedResult);
+        Assert.Single(provider.Requests);
+        Assert.Equal("safe_fallback", generation.Metadata.FinishReason);
+        Assert.True(new NarrativeBodyQualityGuard().Assess(CreateRequest(), generation.Value.Body).IsAcceptable);
     }
 
     [Theory]
@@ -146,7 +145,7 @@ public sealed class ProviderNarrativeGeneratorTests
         Assert.Equal(NarrativeDialogueSchema.Version, generation.Value.SchemaVersion);
         Assert.Equal(expectedTurnType, generation.Value.TurnType);
         Assert.Equal(expectedHeading, generation.Value.Heading);
-        Assert.Equal("司書リラは青い魔法灯について丁寧に答えた。", generation.Value.Body);
+        Assert.False(string.IsNullOrWhiteSpace(generation.Value.Body));
     }
 
     [Fact]
@@ -194,12 +193,42 @@ public sealed class ProviderNarrativeGeneratorTests
         const string providerControlled = "{\"body\":\"本文\",\"turnType\":\"clarification\"}";
         var provider = new QueueProvider(Response(providerControlled), Response(providerControlled, responseId: "second-invalid"));
 
+        var generation = await CreateGenerator(provider).GenerateDialogueAsync(CreateRequest(), CancellationToken.None);
+
+        Assert.Equal(2, provider.Requests.Count);
+        Assert.Equal("safe_fallback", generation.Metadata.FinishReason);
+        Assert.Equal("npc-reply", generation.Value.TurnType);
+        Assert.DoesNotContain("turnType", generation.ReceivedResult, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(AiProviderErrorCodes.Timeout, true)]
+    [InlineData(AiProviderErrorCodes.RateLimited, true)]
+    [InlineData(AiProviderErrorCodes.ProviderUnavailable, true)]
+    [InlineData(AiProviderErrorCodes.InvalidCredential, false)]
+    [InlineData(AiProviderErrorCodes.ContentRejected, false)]
+    public async Task ProviderOutagesAndRejectionsRemainVisibleAndNeverUseFallback(string code, bool retryable)
+    {
+        var provider = new ThrowingProvider(new AiProviderException(code, "provider failure", retryable));
+
         var exception = await Assert.ThrowsAsync<AiProviderException>(() =>
             CreateGenerator(provider).GenerateDialogueAsync(CreateRequest(), CancellationToken.None));
 
-        Assert.Equal(2, provider.Requests.Count);
-        Assert.Equal(AiProviderErrorCodes.SchemaFailure, exception.Code);
-        Assert.Equal(providerControlled, exception.ReceivedResult);
+        Assert.Equal(code, exception.Code);
+        Assert.Equal(retryable, exception.Retryable);
+        Assert.Equal(1, provider.RequestCount);
+        Assert.DoesNotContain("safe_fallback", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ProviderCancellationRemainsVisibleAndNeverUsesFallback()
+    {
+        var provider = new ThrowingProvider(new OperationCanceledException("provider timeout"));
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            CreateGenerator(provider).GenerateDialogueAsync(CreateRequest(), CancellationToken.None));
+
+        Assert.Equal(1, provider.RequestCount);
     }
 
     private static ProviderNarrativeGenerator CreateGenerator(IAiTextProvider provider) => new(
@@ -208,6 +237,7 @@ public sealed class ProviderNarrativeGeneratorTests
         {
             FinalProviderRequestTokenBudget = 20_000,
         })),
+        new NarrativeBodyQualityGuard(),
         NullLogger<ProviderNarrativeGenerator>.Instance);
 
     private static NarrativeDialogueRequest CreateRequest()
@@ -260,6 +290,19 @@ public sealed class ProviderNarrativeGeneratorTests
         string responseId = "response") => new(
             text,
             new AiGenerationMetadata("test", "qwen3-30b-a3b", responseId, inputTokens, outputTokens, latency, attempts, "stop"));
+
+    private sealed class ThrowingProvider(Exception exception) : IAiTextProvider
+    {
+        public int RequestCount { get; private set; }
+
+        public Task<AiTextResponse> GenerateAsync(AiTextRequest request, CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            return Task.FromException<AiTextResponse>(exception);
+        }
+
+        public Task TestConnectionAsync(string provider, string credential, CancellationToken cancellationToken) => Task.CompletedTask;
+    }
 
     private sealed class QueueProvider(params AiTextResponse[] responses) : IAiTextProvider
     {

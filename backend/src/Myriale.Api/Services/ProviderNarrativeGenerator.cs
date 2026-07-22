@@ -10,6 +10,7 @@ namespace Myriale.Api.Services;
 public sealed class ProviderNarrativeGenerator(
     IAiTextProvider provider,
     NarrativeProviderRequestBudgeter requestBudgeter,
+    NarrativeBodyQualityGuard bodyQualityGuard,
     ILogger<ProviderNarrativeGenerator> logger) : INarrativeGenerator, IActionRecommendationGenerator
 {
     private static readonly JsonSerializerOptions Strict = new(JsonSerializerDefaults.Web) { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
@@ -41,20 +42,21 @@ public sealed class ProviderNarrativeGenerator(
             try
             {
                 var body = Deserialize<DialogueBodyResponse>(response, "narrative_dialogue").Body?.Trim();
-                if (string.IsNullOrWhiteSpace(body) || body.Length > 20_000)
+                var assessment = bodyQualityGuard.Assess(request, body);
+                if (!assessment.IsAcceptable)
                 {
                     logger.LogWarning(
-                        "AI Provider dialogue body failed semantic validation. Provider={Provider} Model={Model} ResponseId={ResponseId} BodyLength={BodyLength} IsEmpty={IsEmpty}",
+                        "AI Provider dialogue body failed quality validation; using safe fallback. Provider={Provider} Model={Model} ResponseId={ResponseId} BodyLength={BodyLength} Violations={Violations} Result=safe_fallback",
                         response.Metadata.Provider,
                         response.Metadata.Model,
                         response.Metadata.ResponseId,
                         body?.Length ?? 0,
-                        string.IsNullOrWhiteSpace(body));
-                    throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "AI Provider returned invalid narrative dialogue body.", false);
+                        string.Join(',', assessment.Violations));
+                    return CreateSafeFallback(request, responses, sentPrompt, "quality_guard");
                 }
 
                 return new(
-                    CreateDialogueResult(request, body),
+                    CreateDialogueResult(request, body!),
                     AggregateMetadata(responses),
                     sentPrompt,
                     response.Text);
@@ -75,6 +77,16 @@ public sealed class ProviderNarrativeGenerator(
                     response.Metadata.ResponseId,
                     attempt,
                     DialogueStructuredOutputAttempts);
+            }
+            catch (AiProviderException exception) when (exception.Code == AiProviderErrorCodes.SchemaFailure)
+            {
+                logger.LogWarning(
+                    "AI Provider dialogue structured output retries exhausted; using safe fallback. Provider={Provider} Model={Model} ResponseId={ResponseId} Attempts={Attempts} Result=safe_fallback",
+                    response.Metadata.Provider,
+                    response.Metadata.Model,
+                    response.Metadata.ResponseId,
+                    DialogueStructuredOutputAttempts);
+                return CreateSafeFallback(request, responses, sentPrompt, "schema_exhausted");
             }
             catch (AiProviderException exception)
             {
@@ -118,6 +130,30 @@ public sealed class ProviderNarrativeGenerator(
         }
         return result with { Suggestion = result.Suggestion.Trim() };
     }
+    private NarrativeGeneration<NarrativeDialogueResult> CreateSafeFallback(
+        NarrativeDialogueRequest request,
+        IReadOnlyList<AiTextResponse> responses,
+        string sentPrompt,
+        string reason)
+    {
+        var body = DeterministicSafeNarrativeBodyBuilder.Build(request);
+        var finalAssessment = bodyQualityGuard.Assess(request, body);
+        if (!finalAssessment.IsAcceptable)
+            throw new InvalidOperationException($"Deterministic safe narrative failed its quality invariant: {string.Join(',', finalAssessment.Violations)}");
+
+        var metadata = AggregateMetadata(responses) with { FinishReason = "safe_fallback" };
+        SessionExecutionTelemetry.SafeFallbacks.Add(1, SessionExecutionTelemetry.ProviderTags(
+            metadata.Provider,
+            metadata.Model,
+            "safe_fallback",
+            reason));
+        return new(
+            CreateDialogueResult(request, body),
+            metadata,
+            sentPrompt,
+            JsonSerializer.Serialize(new { status = "safe_fallback", reason }, Strict));
+    }
+
     private static NarrativeDialogueResult CreateDialogueResult(NarrativeDialogueRequest request, string body)
     {
         var turnType = DetermineTurnType(request.InteractionType, request.PlayerInput);
