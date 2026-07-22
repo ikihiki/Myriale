@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Myriale.Api.Contracts;
@@ -15,6 +16,7 @@ public sealed class RealProviderNarrativeEvaluationTests
     private const double MinimumQualitySuccessRate = 0.90;
     private const double MinimumSignalAccuracyRate = 0.95;
     private const double MinimumPerCaseSuccessRate = 2d / 3d;
+    private static readonly JsonElement WarmupSchema = JsonSerializer.Deserialize<JsonElement>("""{"type":"object","additionalProperties":false,"properties":{"ok":{"type":"boolean"}},"required":["ok"]}""");
     private static readonly JsonSerializerOptions ReportJson = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
     [Fact]
@@ -65,6 +67,9 @@ public sealed class RealProviderNarrativeEvaluationTests
 
         var repetitions = ReadBoundedIntWithFloor("AI_EVAL_REPETITIONS", MinimumRepetitions, MinimumRepetitions, 10);
         var timeoutSeconds = ReadBoundedInt("AI_EVAL_TIMEOUT_SECONDS", 900, 30, 3600);
+        var warmupAttempts = ReadBoundedInt("AI_EVAL_WARMUP_ATTEMPTS", 3, 1, 10);
+        var warmupTimeoutSeconds = ReadBoundedInt("AI_EVAL_WARMUP_TIMEOUT_SECONDS", 600, 60, 1800);
+        var warmupBackoffSeconds = ReadBoundedInt("AI_EVAL_WARMUP_BACKOFF_SECONDS", 15, 0, 300);
         var options = Options.Create(new AiProviderOptions
         {
             Provider = providerName,
@@ -92,34 +97,46 @@ public sealed class RealProviderNarrativeEvaluationTests
         Assert.True(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("AI_EVAL_CASES")),
             "The production approval gate must run every required evaluation case; AI_EVAL_CASES is not supported.");
         var cases = CreateCases();
-        var runs = new List<EvaluationRun>();
-        foreach (var evaluationCase in cases)
+        var warmup = await new RealProviderWarmup(async cancellationToken =>
         {
-            for (var repetition = 1; repetition <= repetitions; repetition++)
+            var response = await textProvider.GenerateAsync(CreateWarmupRequest(), cancellationToken);
+            ValidateWarmupResponse(response.Text);
+        }).RunAsync(
+            warmupAttempts,
+            TimeSpan.FromSeconds(warmupTimeoutSeconds),
+            TimeSpan.FromSeconds(warmupBackoffSeconds));
+
+        var runs = new List<EvaluationRun>();
+        if (warmup.Succeeded)
+        {
+            foreach (var evaluationCase in cases)
             {
-                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
-                try
+                for (var repetition = 1; repetition <= repetitions; repetition++)
                 {
-                    var result = await generator.GenerateDialogueAsync(evaluationCase.Request, timeout.Token);
-                    var failures = EvaluateQuality(evaluationCase, result.Value);
-                    runs.Add(new(
-                        evaluationCase.Id,
-                        repetition,
-                        true,
-                        failures.Count == 0,
-                        failures,
-                        result.Metadata.LatencyMilliseconds,
-                        result.Metadata.InputTokens,
-                        result.Metadata.OutputTokens,
-                        result.Metadata.AttemptCount));
-                }
-                catch (AiProviderException exception)
-                {
-                    runs.Add(new(evaluationCase.Id, repetition, false, false, [$"provider:{exception.Code}"], null, null, null, null));
-                }
-                catch (OperationCanceledException)
-                {
-                    runs.Add(new(evaluationCase.Id, repetition, false, false, ["provider:timeout"], null, null, null, null));
+                    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
+                    try
+                    {
+                        var result = await generator.GenerateDialogueAsync(evaluationCase.Request, timeout.Token);
+                        var failures = EvaluateQuality(evaluationCase, result.Value);
+                        runs.Add(new(
+                            evaluationCase.Id,
+                            repetition,
+                            true,
+                            failures.Count == 0,
+                            failures,
+                            result.Metadata.LatencyMilliseconds,
+                            result.Metadata.InputTokens,
+                            result.Metadata.OutputTokens,
+                            result.Metadata.AttemptCount));
+                    }
+                    catch (AiProviderException exception)
+                    {
+                        runs.Add(new(evaluationCase.Id, repetition, false, false, [$"provider:{exception.Code}"], null, null, null, null));
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        runs.Add(new(evaluationCase.Id, repetition, false, false, ["provider:timeout"], null, null, null, null));
+                    }
                 }
             }
         }
@@ -134,6 +151,10 @@ public sealed class RealProviderNarrativeEvaluationTests
             NarrativeDialogueSchema.Version,
             repetitions,
             timeoutSeconds,
+            warmupAttempts,
+            warmupTimeoutSeconds,
+            warmupBackoffSeconds,
+            new(warmup.DurationMilliseconds, warmup.Attempts),
             new(
                 runs.Count,
                 runs.Count(run => run.SchemaSucceeded),
@@ -161,6 +182,8 @@ public sealed class RealProviderNarrativeEvaluationTests
         if (directory is not null) Directory.CreateDirectory(directory);
         await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(report, ReportJson));
 
+        Assert.True(warmup.Succeeded,
+            $"Provider unavailable: warmup did not produce a usable response after {warmup.Attempts.Count} attempt(s). LastErrorCode={warmup.Attempts.LastOrDefault()?.ErrorCode ?? "none"}. See the sanitized report.");
         Assert.True(report.Summary.SchemaSuccessRate >= MinimumSchemaSuccessRate,
             $"Schema success {report.Summary.SchemaSuccessRate:P1} was below the fixed production floor {MinimumSchemaSuccessRate:P0}. See the sanitized report.");
         Assert.True(report.Summary.QualitySuccessRate >= MinimumQualitySuccessRate,
@@ -171,6 +194,31 @@ public sealed class RealProviderNarrativeEvaluationTests
             $"Case {item.CaseId} schema success {item.SchemaSuccessRate:P1} was below the fixed per-case floor {MinimumPerCaseSuccessRate:P0}."));
         Assert.All(report.Cases, item => Assert.True(item.QualitySuccessRate >= MinimumPerCaseSuccessRate,
             $"Case {item.CaseId} quality success {item.QualitySuccessRate:P1} was below the fixed per-case floor {MinimumPerCaseSuccessRate:P0}."));
+    }
+
+    private static AiTextRequest CreateWarmupRequest() => new(
+        [
+            new ChatMessage(ChatRole.System, "Return the requested JSON object only."),
+            new ChatMessage(ChatRole.User, "Return an object whose ok property is true."),
+        ],
+        ChatResponseFormat.ForJsonSchema(WarmupSchema, "myriale_production_gate_warmup"));
+
+    private static void ValidateWarmupResponse(string text)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(text);
+            if (document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("ok", out var ok)
+                && ok.ValueKind == JsonValueKind.True)
+                return;
+        }
+        catch (JsonException exception)
+        {
+            throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "AI Provider warmup returned invalid structured output.", false, null, exception);
+        }
+
+        throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "AI Provider warmup returned an unusable structured response.", false);
     }
 
     private static IReadOnlyList<EvaluationCase> CreateCases()
@@ -346,6 +394,9 @@ public sealed class RealProviderNarrativeEvaluationTests
         double SchemaSuccessRate,
         int QualitySuccesses,
         double QualitySuccessRate);
+    private sealed record WarmupReport(
+        long DurationMilliseconds,
+        IReadOnlyList<RealProviderWarmupAttempt> Attempts);
     private sealed record EvaluationReport(
         DateTimeOffset ExecutedAt,
         string Provider,
@@ -355,6 +406,10 @@ public sealed class RealProviderNarrativeEvaluationTests
         string DialogueVersion,
         int Repetitions,
         int TimeoutSeconds,
+        int WarmupMaxAttempts,
+        int WarmupTimeoutSeconds,
+        int WarmupBackoffSeconds,
+        WarmupReport Warmup,
         EvaluationSummary Summary,
         IReadOnlyList<EvaluationCaseSummary> Cases,
         IReadOnlyList<EvaluationRun> Runs);

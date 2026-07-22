@@ -21,6 +21,9 @@ jobs:
       AI_EVAL_ENABLED: "true"
       AI_EVAL_SESSION_LOOP_ENABLED: "true"
       AI_EVAL_REPETITIONS: ${{ inputs.repetitions }}
+      AI_EVAL_WARMUP_ATTEMPTS: ${{ vars.AI_EVAL_WARMUP_ATTEMPTS || '3' }}
+      AI_EVAL_WARMUP_TIMEOUT_SECONDS: ${{ vars.AI_EVAL_WARMUP_TIMEOUT_SECONDS || '600' }}
+      AI_EVAL_WARMUP_BACKOFF_SECONDS: ${{ vars.AI_EVAL_WARMUP_BACKOFF_SECONDS || '15' }}
       AI_PROVIDER: ${{ vars.AI_PROVIDER || 'runpod' }}
       AI_MODEL: ${{ vars.AI_MODEL || 'qwen3-30b-a3b' }}
       AI_API_KEY: ${{ secrets.AI_API_KEY }}
