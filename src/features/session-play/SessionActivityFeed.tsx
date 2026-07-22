@@ -66,7 +66,7 @@ export function SessionExecutionItem({ execution, onAction, keepSucceededStatusV
   </div>;
 
   return (
-    <article className={`session-execution-item status-${execution.status}${succeeded ? ' execution-is-completing' : ''}`} data-testid={`execution-${execution.id}`} role={failed ? 'alert' : 'status'} aria-live={active ? 'polite' : undefined}>
+    <article className={`session-execution-item status-${execution.status}${succeeded && !keepSucceededStatusVisible ? ' execution-is-completing' : ''}`} data-testid={`execution-${execution.id}`} role={failed ? 'alert' : 'status'} aria-live={active ? 'polite' : undefined}>
       {execution.developmentDiagnostics ? <details className="execution-diagnostics">
         <summary>{statusLine}</summary>
         <div className="execution-diagnostics-body">

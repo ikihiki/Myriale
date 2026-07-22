@@ -78,15 +78,39 @@ describe('SessionActivityFeed', () => {
     expect(screen.queryByTestId('execution-EXE-narrative-succeeded')).toBeNull();
   });
 
-  it('keeps a completed execution visible when the debug display setting is enabled', () => {
+  it('keeps a completed execution visible without the exit animation when the debug setting is enabled', () => {
     vi.useFakeTimers();
     const { rerender } = render(<SessionActivityFeed session={sessionActivityFixture('succeeded')} />);
-    act(() => vi.advanceTimersByTime(720));
-    expect(screen.queryByTestId('execution-EXE-narrative-succeeded')).toBeNull();
+    let execution = screen.getByTestId('execution-EXE-narrative-succeeded');
+    expect(execution.classList.contains('execution-is-completing')).toBe(true);
 
     rerender(<SessionActivityFeed session={sessionActivityFixture('succeeded')} keepSucceededStatusVisible />);
+    execution = screen.getByTestId('execution-EXE-narrative-succeeded');
+    expect(execution.classList.contains('execution-is-completing')).toBe(false);
     act(() => vi.advanceTimersByTime(720));
-    expect(screen.getByTestId('execution-EXE-narrative-succeeded').textContent).toContain('生成が完了しました');
+    expect(execution.textContent).toContain('生成が完了しました');
+  });
+
+  it('cancels and restarts the exit animation when the debug setting is toggled repeatedly', () => {
+    vi.useFakeTimers();
+    const session = sessionActivityFixture('succeeded');
+    const { rerender } = render(<SessionActivityFeed session={session} />);
+    act(() => vi.advanceTimersByTime(300));
+
+    rerender(<SessionActivityFeed session={session} keepSucceededStatusVisible />);
+    let execution = screen.getByTestId('execution-EXE-narrative-succeeded');
+    expect(execution.classList.contains('execution-is-completing')).toBe(false);
+    act(() => vi.advanceTimersByTime(1000));
+    expect(screen.getByTestId('execution-EXE-narrative-succeeded')).not.toBeNull();
+
+    rerender(<SessionActivityFeed session={session} />);
+    execution = screen.getByTestId('execution-EXE-narrative-succeeded');
+    expect(execution.classList.contains('execution-is-completing')).toBe(true);
+    act(() => vi.advanceTimersByTime(300));
+    rerender(<SessionActivityFeed session={session} keepSucceededStatusVisible />);
+    expect(screen.getByTestId('execution-EXE-narrative-succeeded').classList.contains('execution-is-completing')).toBe(false);
+    act(() => vi.advanceTimersByTime(1000));
+    expect(screen.getByTestId('execution-EXE-narrative-succeeded')).not.toBeNull();
   });
 
   it('polls only while at least one execution is active', () => {

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, within } from '@storybook/test';
 import { SessionActivityFeed } from '../features/session-play/SessionActivityFeed';
@@ -14,6 +15,38 @@ export const Cancelled: Story = { args: { session: sessionActivityFixture('cance
 export const Succeeded: Story = { args: { session: sessionActivityFixture('succeeded'), onExecutionAction: fn() } };
 export const SucceededStatusPinnedForDebug: Story = {
   args: { session: sessionActivityFixture('succeeded'), onExecutionAction: fn(), keepSucceededStatusVisible: true },
+};
+
+function SucceededStatusToggleHarness() {
+  const [keepVisible, setKeepVisible] = useState(false);
+  return <>
+    <label><input type="checkbox" checked={keepVisible} onChange={(event) => setKeepVisible(event.target.checked)} />成功後もAI生成ステータスを表示する</label>
+    <SessionActivityFeed session={sessionActivityFixture('succeeded')} keepSucceededStatusVisible={keepVisible} />
+  </>;
+}
+
+export const SucceededStatusToggleStress: Story = {
+  args: { session: sessionActivityFixture('succeeded') },
+  render: () => <SucceededStatusToggleHarness />,
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    const setting = canvas.getByRole('checkbox', { name: '成功後もAI生成ステータスを表示する' });
+    await step('消失アニメーション中でも設定を有効にするとステータスを保持する', async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 240));
+      await userEvent.click(setting);
+      await new Promise((resolve) => window.setTimeout(resolve, 800));
+      await expect(canvas.getByText(/物語: 生成が完了しました/)).toBeVisible();
+    });
+    await step('連続して切り替えても有効時には消失アニメーションを停止する', async () => {
+      await userEvent.click(setting);
+      await new Promise((resolve) => window.setTimeout(resolve, 240));
+      await userEvent.click(setting);
+      await new Promise((resolve) => window.setTimeout(resolve, 800));
+      const execution = canvas.getByTestId('execution-EXE-narrative-succeeded');
+      await expect(execution).not.toHaveClass('execution-is-completing');
+      await expect(execution).toBeVisible();
+    });
+  },
 };
 
 export const Superseded: Story = { args: { session: sessionActivityFixture('superseded'), onExecutionAction: fn() } };
