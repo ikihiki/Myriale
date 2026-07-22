@@ -13,7 +13,7 @@ const meta: Meta = {
   },
   decorators: [
     (Story) => (
-      <div className={`${scenarioWizardShellClass} !min-h-[420px] !w-[min(980px,92vw)]`}>
+      <div className={`${scenarioWizardShellClass} !min-h-105 !w-[min(980px,92vw)]`}>
         <Story />
         <main className={wizardPaperClass} aria-label="Story本文">
           <p className={wizardKickerClass}>Wizard navigation sample</p>
@@ -69,7 +69,7 @@ export const NarrowCollapsed: Story = {
   },
   decorators: [
     (Story) => (
-      <div className={`${scenarioWizardShellClass} !min-h-[420px] !w-[360px]`}>
+      <div className={`${scenarioWizardShellClass} !min-h-105 !w-90`}>
         <Story />
         <main className={wizardPaperClass} aria-label="狭幅Story本文">
           <p className={wizardKickerClass}>Compact layout</p>

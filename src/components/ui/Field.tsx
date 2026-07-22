@@ -15,7 +15,7 @@ export function fieldDescriptionId(htmlFor: string, role: 'help' | 'error') {
 
 export function Field({ label, htmlFor, required, help, error, children }: FieldProps) {
   return (
-    <div className="my-4 grid gap-[7px]">
+    <div className="my-4 grid gap-1.75">
       <label className="text-myr-ui-sm font-extrabold text-[#4a4357]" htmlFor={htmlFor}>
         {label}
         {required && <span className="text-[var(--seal)]" aria-hidden="true"> *</span>}

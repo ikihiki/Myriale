@@ -4,8 +4,8 @@ import { stateMeta } from '../stateMeta';
 type IdentitySize = 'sm' | 'md';
 
 const sizeClassNames: Record<IdentitySize, string> = {
-  sm: 'size-11 text-[15px]',
-  md: 'size-[72px] text-2xl',
+  sm: 'size-11 text-myr-control',
+  md: 'size-18 text-2xl',
 };
 
 const stateClassNames: Record<AccountState, string> = {

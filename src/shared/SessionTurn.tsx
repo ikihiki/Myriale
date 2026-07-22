@@ -70,15 +70,15 @@ const leadClass: Record<TurnLeadTone, string> = {
 
 const leadTagClass: Record<TurnLeadTone, string> = {
   player: 'text-base leading-[1.4] text-myr-iris',
-  program: 'inline-block rounded-full bg-myr-plum px-2 py-px align-middle text-[10px] font-black tracking-[.1em] text-myr-paper',
+  program: 'inline-block rounded-full bg-myr-plum px-2 py-px align-middle text-myr-micro font-black tracking-[.1em] text-myr-paper',
 };
 
 const variantClass: Record<string, string> = {
   '': '',
-  'turn-battle': 'border-l-[3px] border-l-myr-ruby',
-  'turn-roll': 'border-l-[3px] border-l-[#7054dd]',
-  'turn-event': 'border-l-[3px] border-l-[#c77d16]',
-  'turn-dialogue': 'border-l-[3px] border-l-[#4a845c]',
+  'turn-battle': 'border-l-3 border-l-myr-ruby',
+  'turn-roll': 'border-l-3 border-l-[#7054dd]',
+  'turn-event': 'border-l-3 border-l-[#c77d16]',
+  'turn-dialogue': 'border-l-3 border-l-[#4a845c]',
 };
 
 function TurnLeadBlock({ lead }: { lead: TurnLead }) {
@@ -109,7 +109,7 @@ export function SessionTurn({
 }: SessionTurnProps) {
   const narrativeBlock = (
     <p className={`m-0 max-w-none ${textRecipe('body')} !leading-[1.65] !text-[#303644]`} data-testid={narrativeTestId}>
-      {narrativeTag && <span className="mr-2 inline-block rounded-full bg-myr-gold px-2 py-px align-middle text-[10px] font-black tracking-[.1em] text-[#17151f]" aria-hidden="true">{narrativeTag}</span>}
+      {narrativeTag && <span className="mr-2 inline-block rounded-full bg-myr-gold px-2 py-px align-middle text-myr-micro font-black tracking-[.1em] text-[#17151f]" aria-hidden="true">{narrativeTag}</span>}
       {narrative}
     </p>
   );
@@ -127,7 +127,7 @@ export function SessionTurn({
       {leadBlock}
       {narrativeBlock}
       {headingActions && (
-        <div className="mt-[-2px] flex min-h-[30px] justify-start">
+        <div className="-mt-0.5 flex min-h-myr-control-compact justify-start">
           <div className="flex gap-1 opacity-40 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 max-sm:opacity-100 motion-reduce:transition-none">
             {headingActions}
           </div>

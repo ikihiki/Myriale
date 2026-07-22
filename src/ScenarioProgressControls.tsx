@@ -31,7 +31,7 @@ function FieldDialog({
         title={title}
         size="editor"
         portal={false}
-        bodyClassName="grid gap-3 [&_label]:grid [&_label]:gap-1.5 [&_label]:text-xs [&_label]:font-black [&_label]:text-myr-slate-muted [&_textarea]:min-h-[110px]"
+        bodyClassName="grid gap-3 [&_label]:grid [&_label]:gap-1.5 [&_label]:text-xs [&_label]:font-black [&_label]:text-myr-slate-muted [&_textarea]:min-h-27.5"
         footer={footer}
       >
         {children}
@@ -157,7 +157,7 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
 
   const panelClassName = 'grid gap-3';
   const noticeNode = notice !== initialAdvancedNotice ? (
-    <Notice className="my-[18px]" data-testid="advanced-notice">{notice}</Notice>
+    <Notice className="my-4.5" data-testid="advanced-notice">{notice}</Notice>
   ) : null;
 
   const panelContent = (

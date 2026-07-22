@@ -56,9 +56,9 @@ export const Variants: Story = {
     });
     await step('InputとTextareaのrole recipeを公開する', async () => {
       await expect(canvas.getByLabelText('Underline input')).toHaveClass('rounded-none', 'border-b-2', 'bg-white/45');
-      await expect(canvas.getByLabelText('Compact input')).toHaveClass('min-h-[30px]', 'px-2', 'py-1.5');
+      await expect(canvas.getByLabelText('Compact input')).toHaveClass('min-h-myr-control-compact', 'px-2', 'py-1.5');
       await expect(canvas.getByLabelText('Borderless input')).toHaveClass('border-0', 'bg-transparent', 'shadow-none');
-      await expect(canvas.getByLabelText('Composer textarea')).toHaveClass('min-h-[76px]', 'max-h-[220px]', 'px-[19px]');
+      await expect(canvas.getByLabelText('Composer textarea')).toHaveClass('min-h-myr-composer-min', 'max-h-myr-composer-max', 'px-4.75');
     });
     await step('パスワード属性と各状態を保持する', async () => {
       await expect(canvas.getByLabelText('Password input')).toHaveAttribute('type', 'password');
@@ -90,7 +90,7 @@ export const ButtonRoles: Story = {
     return (
       <div className="grid gap-5">
         <section className="overflow-x-auto" aria-label="Button role matrix">
-          <div className="grid min-w-[620px] grid-cols-[90px_repeat(5,minmax(92px,1fr))] items-center gap-2">
+          <div className="grid min-w-155 grid-cols-[90px_repeat(5,minmax(92px,1fr))] items-center gap-2">
             <span />
             {buttonSizes.map((size) => <strong className="text-center text-xs" key={size}>{size}</strong>)}
             {buttonVariants.map((variant) => (
@@ -133,7 +133,7 @@ export const ButtonRoles: Story = {
     await step('全variantとsizeの組み合わせをtyped recipeで公開する', async () => {
       await expect(canvas.getByRole('button', { name: 'primary sm' })).toHaveClass('bg-myr-gold', 'px-3', 'py-2');
       await expect(canvas.getByRole('button', { name: 'secondary lg' })).toHaveClass('bg-myr-ink', 'px-5', 'py-3');
-      await expect(canvas.getByRole('button', { name: 'icon iconSm' })).toHaveClass('size-[30px]', 'p-0');
+      await expect(canvas.getByRole('button', { name: 'icon iconSm' })).toHaveClass('size-7.5', 'p-0');
       await expect(canvas.getByRole('button', { name: 'icon iconMd' })).toHaveAccessibleName('icon iconMd');
     });
     await step('focus-visible recipeとdisabled状態を共通化する', async () => {

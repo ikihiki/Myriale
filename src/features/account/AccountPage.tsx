@@ -45,7 +45,7 @@ const accountFlushCardClassName = surfaceRecipe({ role: 'card', variant: 'accoun
 const accountActionRowClassName = 'mt-1.5 flex flex-wrap items-center gap-2.5';
 const accountCardHeadingClassName = `m-0 mb-3.5 ${textRecipe('sectionEditorial')} !text-[22px] !tracking-[-.02em]`;
 const providerTableHeadClassName = 'border-b border-myr-line-strong bg-[rgba(124,92,255,.06)] px-4 py-3 text-left text-myr-caption font-extrabold tracking-[.1em] text-myr-account-ink-soft uppercase';
-const providerTableCellClassName = 'border-b border-myr-line px-4 py-[13px] align-middle';
+const providerTableCellClassName = 'border-b border-myr-line px-4 py-3.25 align-middle';
 const operationsNavButtonClassName = 'cursor-pointer rounded-full border border-transparent bg-[rgba(255,250,240,.08)] px-3.5 py-3 text-left font-bold text-myr-cream transition-colors duration-150 hover:bg-[rgba(255,250,240,.16)]';
 
 export function AccountPage({
@@ -202,7 +202,7 @@ function ResetPasswordPage({ api, onLogin }: { api: AccountApi; onLogin: () => v
 }
 
 function ProtectedAccountFrame({ view, user, status, onNavigate, onLogout, children }: { view: AccountView; user: AccountUser | null; status: string; onNavigate: (view: AccountView) => void; onLogout: () => void; children: ReactNode }) {
-  if (status === 'unknown') return <div className="grid grid-cols-[minmax(360px,480px)] justify-center px-[22px] py-[clamp(20px,5vh,56px)]"><main className={surfaceRecipe({ role: 'panel', variant: 'account' })} aria-busy="true">認証状態を確認しています…</main></div>;
+  if (status === 'unknown') return <div className="grid grid-cols-[minmax(360px,480px)] justify-center px-5.5 py-[clamp(20px,5vh,56px)]"><main className={surfaceRecipe({ role: 'panel', variant: 'account' })} aria-busy="true">認証状態を確認しています…</main></div>;
   if (!user) return <AuthScaffold ariaLabel="ログインが必要" kicker="Account" title="ログインが必要です" lead="この画面を表示するにはログインしてください。"><Button variant="primary" onClick={() => onNavigate('login')}>ログインへ</Button></AuthScaffold>;
   return (
     <AppFrame
@@ -251,7 +251,7 @@ function WithdrawView({ api, user, onWithdrawn }: { api: AccountApi; user: Accou
     setError(null);
     try { await api.withdraw({ confirmation }); onWithdrawn(); } catch (caught) { setError(caught as AccountApiError); }
   };
-  return <section className={`${accountCardClassName} border-[rgba(184,69,63,.4)] bg-[linear-gradient(180deg,rgba(255,250,240,.94),#fdeeec)] [&_h2]:text-[var(--seal)]`} role="region" aria-label="退会"><SectionHead kicker="US-UM11" title="退会" lead="アカウントを soft delete し、Identity セッションをサインアウトします。" />{error && <NoticeBanner tone="danger" testId="um-notice">{error.message}</NoticeBanner>}<label className="my-3 flex items-start gap-2.5 text-sm"><input className="mt-0.5 size-[18px] shrink-0 accent-myr-iris" type="checkbox" checked={understood} onChange={(event) => setUnderstood(event.target.checked)} />退会の注意事項を理解しました</label><TextField label="確認のため登録メールアドレスを入力" value={confirmation} onChange={setConfirmation} error={firstFieldError(error, 'confirmation')} testId="withdraw-confirmation" /><div className={accountActionRowClassName}><Button variant="danger" disabled={!canDelete} onClick={submit}>アカウントを削除する</Button></div></section>;
+  return <section className={`${accountCardClassName} border-[rgba(184,69,63,.4)] bg-[linear-gradient(180deg,rgba(255,250,240,.94),#fdeeec)] [&_h2]:text-[var(--seal)]`} role="region" aria-label="退会"><SectionHead kicker="US-UM11" title="退会" lead="アカウントを soft delete し、Identity セッションをサインアウトします。" />{error && <NoticeBanner tone="danger" testId="um-notice">{error.message}</NoticeBanner>}<label className="my-3 flex items-start gap-2.5 text-sm"><input className="mt-0.5 size-4.5 shrink-0 accent-myr-iris" type="checkbox" checked={understood} onChange={(event) => setUnderstood(event.target.checked)} />退会の注意事項を理解しました</label><TextField label="確認のため登録メールアドレスを入力" value={confirmation} onChange={setConfirmation} error={firstFieldError(error, 'confirmation')} testId="withdraw-confirmation" /><div className={accountActionRowClassName}><Button variant="danger" disabled={!canDelete} onClick={submit}>アカウントを削除する</Button></div></section>;
 }
 
 function RoadmapAuthPage({ title, lead, onLogin }: { title: string; lead: string; onLogin: () => void }) {
@@ -260,7 +260,7 @@ function RoadmapAuthPage({ title, lead, onLogin }: { title: string; lead: string
 
 function OperationsPage({ view, onNavigate }: { view: AccountView; onNavigate: (view: AccountView) => void }) {
   const title = view === 'audit' ? '監査ログ' : view === 'admin-detail' ? 'ユーザー詳細' : view === 'admin-ai-keys' ? 'AIキー管理' : 'ユーザー管理';
-  return <div className="grid min-h-screen grid-cols-[248px_minmax(0,1fr)] gap-[18px] p-[18px] max-[1080px]:grid-cols-1"><aside className="sticky top-[18px] grid min-h-[calc(100vh-36px)] content-start gap-[18px] self-start rounded-[18px_8px_8px_18px] bg-[linear-gradient(180deg,#201b2d,#17151f)] p-[22px] text-myr-cream max-[1080px]:min-h-0 max-[1080px]:rounded-myr-card"><SectionHead kicker="Operations" title="運用" /><nav className="grid gap-2.5"><SharedButton className={`${operationsNavButtonClassName} ${view === 'admin-list' ? 'border-[var(--ember)] bg-myr-paper text-[var(--void)] hover:bg-myr-paper' : ''}`} onClick={() => onNavigate('admin-list')}>ユーザー管理</SharedButton><SharedButton className={`${operationsNavButtonClassName} ${view === 'admin-ai-keys' ? 'border-[var(--ember)] bg-myr-paper text-[var(--void)] hover:bg-myr-paper' : ''}`} onClick={() => onNavigate('admin-ai-keys')}>AIキー管理</SharedButton><SharedButton className={`${operationsNavButtonClassName} ${view === 'audit' ? 'border-[var(--ember)] bg-myr-paper text-[var(--void)] hover:bg-myr-paper' : ''}`} onClick={() => onNavigate('audit')}>監査ログ</SharedButton></nav></aside><main className="grid min-w-0 content-start gap-[18px] px-1.5 py-2">{view === 'admin-ai-keys' ? <AdminAiKeysView /> : <RoadmapOperationsView title={title} />}</main></div>;
+  return <div className="grid min-h-screen grid-cols-[248px_minmax(0,1fr)] gap-4.5 p-4.5 max-myr-account:grid-cols-1"><aside className="sticky top-4.5 grid min-h-[calc(100vh-36px)] content-start gap-4.5 self-start rounded-[18px_8px_8px_18px] bg-[linear-gradient(180deg,#201b2d,#17151f)] p-5.5 text-myr-cream max-myr-account:min-h-0 max-myr-account:rounded-myr-card"><SectionHead kicker="Operations" title="運用" /><nav className="grid gap-2.5"><SharedButton className={`${operationsNavButtonClassName} ${view === 'admin-list' ? 'border-[var(--ember)] bg-myr-paper text-[var(--void)] hover:bg-myr-paper' : ''}`} onClick={() => onNavigate('admin-list')}>ユーザー管理</SharedButton><SharedButton className={`${operationsNavButtonClassName} ${view === 'admin-ai-keys' ? 'border-[var(--ember)] bg-myr-paper text-[var(--void)] hover:bg-myr-paper' : ''}`} onClick={() => onNavigate('admin-ai-keys')}>AIキー管理</SharedButton><SharedButton className={`${operationsNavButtonClassName} ${view === 'audit' ? 'border-[var(--ember)] bg-myr-paper text-[var(--void)] hover:bg-myr-paper' : ''}`} onClick={() => onNavigate('audit')}>監査ログ</SharedButton></nav></aside><main className="grid min-w-0 content-start gap-4.5 px-1.5 py-2">{view === 'admin-ai-keys' ? <AdminAiKeysView /> : <RoadmapOperationsView title={title} />}</main></div>;
 }
 
 function RoadmapOperationsView({ title }: { title: string }) {
@@ -318,7 +318,7 @@ function AdminAiKeysView() {
     <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
       <div className={accountCardClassName}>
         <h2 className={accountCardHeadingClassName}>管理画面からキーを登録</h2>
-        <div className="my-4 grid gap-[7px]">
+        <div className="my-4 grid gap-1.75">
           <label className="text-myr-ui-sm font-extrabold text-[#4a4357]" htmlFor="ai-provider">Provider</label>
           <select className="w-full rounded-2xl border border-myr-line bg-myr-paper-bright px-3.5 py-3 text-myr-ink" id="ai-provider" value={provider} onChange={(event) => changeProvider(event.target.value)}>
             <option value="runpod">Runpod</option>
@@ -349,11 +349,11 @@ function AdminAiKeysView() {
       </div>
     </div>
     <div className={`${accountFlushCardClassName} mt-4 overflow-x-auto`}>
-      <table className="w-full min-w-[640px] border-collapse text-sm" aria-label="AIキー一覧">
+      <table className="w-full min-w-160 border-collapse text-sm" aria-label="AIキー一覧">
         <thead><tr><th className={providerTableHeadClassName}>Provider</th><th className={providerTableHeadClassName}>接続設定</th><th className={providerTableHeadClassName}>キー</th><th className={providerTableHeadClassName}>検証状態</th><th className={providerTableHeadClassName}>操作</th></tr></thead>
         <tbody>{keys.map((key) => (
           <tr key={key.provider} data-testid={'ai-key-row-' + key.provider}>
-            <td className={providerTableCellClassName}><strong className="block">{key.displayName}</strong><span className="mt-[3px] block font-mono text-xs leading-[1.4] text-myr-account-ink-soft">{key.provider}</span></td>
+            <td className={providerTableCellClassName}><strong className="block">{key.displayName}</strong><span className="mt-0.75 block font-mono text-xs leading-[1.4] text-myr-account-ink-soft">{key.provider}</span></td>
             <td className={providerTableCellClassName}><div className="flex flex-wrap gap-1.5">{key.active && <Badge className="!border-myr-ink !bg-myr-ink !text-white">使用中</Badge>}<Badge tone={key.credentialSource === 'environment' ? 'info' : key.credentialSource === 'database' ? 'warning' : 'neutral'}>{key.credentialSource === 'environment' ? 'Vault / 環境変数' : key.credentialSource === 'database' ? '管理画面' : '未設定'}</Badge></div></td>
             <td className={providerTableCellClassName}>{key.maskedKey}</td>
             <td className={providerTableCellClassName}><Badge tone={key.status === 'valid' ? 'success' : 'neutral'}>{key.status === 'valid' ? '接続済み' : key.status === 'untested' ? '未検証' : key.status}</Badge></td>

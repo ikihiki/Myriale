@@ -33,8 +33,8 @@ export const buttonSizeClassNames: Record<ButtonSize, string> = {
   sm: 'px-3 py-2 text-xs',
   md: 'px-4 py-2.5 text-sm',
   lg: 'px-5 py-3 text-base',
-  iconSm: 'size-[30px] shrink-0 p-0 text-sm',
-  iconMd: 'size-[34px] shrink-0 p-0 text-base',
+  iconSm: 'size-7.5 shrink-0 p-0 text-sm',
+  iconMd: 'size-8.5 shrink-0 p-0 text-base',
 };
 
 export const actionRowClassName = 'flex flex-wrap gap-2.5';

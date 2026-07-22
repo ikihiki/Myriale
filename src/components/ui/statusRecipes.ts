@@ -51,5 +51,5 @@ export function noticeRecipe(tone: NoticeTone = 'info', variant: NoticeVariant =
 }
 
 export function badgeRecipe(tone: BadgeTone = 'neutral'): string {
-  return `inline-flex w-max items-center whitespace-nowrap rounded-full border px-[9px] py-1 text-xs font-bold ${badgeToneClassNames[tone]}`;
+  return `inline-flex w-max items-center whitespace-nowrap rounded-full border px-2.25 py-1 text-xs font-bold ${badgeToneClassNames[tone]}`;
 }

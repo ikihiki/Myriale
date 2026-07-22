@@ -21,9 +21,9 @@ export function AuthScaffold({
   footer?: ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[minmax(360px,480px)_minmax(0,360px)] items-start justify-center gap-[18px] px-[22px] py-[clamp(20px,5vh,56px)] max-[1080px]:grid-cols-[minmax(0,480px)]">
+    <div className="grid grid-cols-[minmax(360px,480px)_minmax(0,360px)] items-start justify-center gap-4.5 px-5.5 py-[clamp(20px,5vh,56px)] max-myr-account:grid-cols-[minmax(0,480px)]">
       <main
-        className={`${surfaceRecipe({ role: 'panel', variant: 'account' })} [&_.desk-brand]:mb-[22px]`}
+        className={`${surfaceRecipe({ role: 'panel', variant: 'account' })} [&_.desk-brand]:mb-5.5`}
         aria-label={ariaLabel}
       >
         <DeskBrand />
@@ -37,7 +37,7 @@ export function AuthScaffold({
       </main>
       {context && (
         <aside
-          className={`${surfaceRecipe({ role: 'inset', variant: 'account' })} [&_.identity-seal]:mt-1 [&_.identity-seal]:mb-[18px] [&_h3]:mt-0 [&_h3]:mb-3.5 [&_h3]:font-[Georgia,serif] [&_h3]:text-2xl [&_li]:my-3 [&_li]:leading-6 [&_li]:text-[#5f506c] [&_ol]:m-0 [&_ol]:pl-[18px] [&_ul]:m-0 [&_ul]:pl-[18px]`}
+          className={`${surfaceRecipe({ role: 'inset', variant: 'account' })} [&_.identity-seal]:mt-1 [&_.identity-seal]:mb-4.5 [&_h3]:mt-0 [&_h3]:mb-3.5 [&_h3]:font-[Georgia,serif] [&_h3]:text-2xl [&_li]:my-3 [&_li]:leading-6 [&_li]:text-[#5f506c] [&_ol]:m-0 [&_ol]:pl-4.5 [&_ul]:m-0 [&_ul]:pl-4.5`}
           aria-label="補足情報"
         >
           {context}

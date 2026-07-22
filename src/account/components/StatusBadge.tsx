@@ -12,5 +12,5 @@ const stateTones: Record<AccountState, BadgeTone> = {
 };
 
 export function StatusBadge({ state, children }: { state: AccountState; children?: ReactNode }) {
-  return <Badge tone={stateTones[state]} dot className="!pr-[11px] !pl-[9px]" data-state={state}>{children ?? stateMeta[state].label}</Badge>;
+  return <Badge tone={stateTones[state]} dot className="!pr-2.75 !pl-2.25" data-state={state}>{children ?? stateMeta[state].label}</Badge>;
 }

@@ -27,7 +27,7 @@ import { useAppNavigation } from '../../shared/nav';
 
 function ArrowUpIcon() {
   return (
-    <svg className="size-[18px] fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+    <svg className="size-4.5 fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
       <path d="M10 15V5m0 0L6 9m4-4 4 4" />
     </svg>
   );
@@ -35,7 +35,7 @@ function ArrowUpIcon() {
 
 function RotateBackIcon() {
   return (
-    <svg className="size-[18px] fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+    <svg className="size-4.5 fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
       <path d="M6.5 6.5H3.75V3.75M4.2 6.2a7 7 0 1 1-.75 6.85" />
     </svg>
   );
@@ -43,7 +43,7 @@ function RotateBackIcon() {
 
 function SparkleIcon() {
   return (
-    <svg className="size-[18px] fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+    <svg className="size-4.5 fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
       <path d="M10 2.75c.45 2.65 1.85 4.05 4.5 4.5-2.65.45-4.05 1.85-4.5 4.5-.45-2.65-1.85-4.05-4.5-4.5 2.65-.45 4.05-1.85 4.5-4.5ZM15.25 12.5c.22 1.35.9 2.03 2.25 2.25-1.35.22-2.03.9-2.25 2.25-.22-1.35-.9-2.03-2.25-2.25 1.35-.22 2.03-.9 2.25-2.25Z" />
     </svg>
   );
@@ -51,7 +51,7 @@ function SparkleIcon() {
 
 function LightbulbIcon() {
   return (
-    <svg className="size-[18px] fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+    <svg className="size-4.5 fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
       <path d="M6.5 12.25c-1.1-.95-1.75-2.25-1.75-3.75a5.25 5.25 0 0 1 10.5 0c0 1.5-.65 2.8-1.75 3.75-.75.65-1 1.2-1 2H7.5c0-.8-.25-1.35-1-2ZM7.5 17h5M8 14.25h4" />
     </svg>
   );
@@ -59,7 +59,7 @@ function LightbulbIcon() {
 
 function CloseIcon() {
   return (
-    <svg className="size-[18px] fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+    <svg className="size-4.5 fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
       <path d="m6 6 8 8m0-8-8 8" />
     </svg>
   );
@@ -855,7 +855,7 @@ function SessionDialogueSection({
           )}
         </div>
         {notice && (
-          <Notice className="my-[18px]" data-testid="dialogue-notice">
+          <Notice className="my-4.5" data-testid="dialogue-notice">
             <span>{notice}</span>
             {authenticationRequired && onLogin && (
               <Button variant="primary" size="sm" onClick={onLogin}>ログインへ</Button>
@@ -949,7 +949,7 @@ function SessionDialogueSection({
           </MyrialeDialogRoot>
         )}
 
-        <section className="mx-auto mt-4 w-full max-w-[720px] justify-self-stretch px-2.5 pb-1 max-sm:px-0" aria-label="自然言語入力">
+        <section className="mx-auto mt-4 mb-1 w-full max-w-myr-reading justify-self-stretch px-2.5 max-sm:px-0" aria-label="自然言語入力">
           {forcedMode && (
             <>
               <div className="mb-2 flex flex-wrap items-center gap-3 rounded-2xl border border-myr-ink/16 bg-myr-paper/80 px-4 py-3 text-myr-ui-sm" aria-label="現在の入力モード">
@@ -982,7 +982,7 @@ function SessionDialogueSection({
             />
 
             {sessionMode === 'dialogue' && (
-              <div className="flex items-center justify-between gap-3 px-2 pt-[5px] pb-2 pl-2.5">
+              <div className="flex items-center justify-between gap-3 px-2 pt-1.25 pb-2 pl-2.5">
                 <div className="flex items-center gap-0.5" aria-label="入力補助">
                   <Button
                     variant="icon"
@@ -1085,7 +1085,7 @@ function SessionDialogueSection({
         <div className="visually-hidden" data-testid="program-notice">{notice}</div>
         <div className="visually-hidden" data-testid="mode-notice">{notice}</div>
 
-        <section className="mt-[18px] border-t border-myr-ink/18 pt-3" aria-label="デバッグパネル">
+        <section className="mt-4.5 border-t border-myr-ink/18 pt-3" aria-label="デバッグパネル">
           <Button
             type="button"
             variant="ghost"
@@ -1100,12 +1100,12 @@ function SessionDialogueSection({
             <section className="rounded-[14px] border border-[#4a427a]/20 bg-[#f4f1ff]/72 px-3.5 py-3" aria-label="AI生成表示設定">
               <label className="flex cursor-pointer items-start gap-2.5">
                 <input
-                  className="mt-[3px] size-4 shrink-0 accent-[#6052a8]"
+                  className="mt-0.75 size-4 shrink-0 accent-[#6052a8]"
                   type="checkbox"
                   checked={keepSucceededExecutionStatusVisible}
                   onChange={(event) => setKeepSucceededExecutionStatusVisible(event.target.checked)}
                 />
-                <span className="grid gap-[3px]">
+                <span className="grid gap-0.75">
                   <strong>成功後もAI生成ステータスを表示する</strong>
                   <small className="leading-normal text-[#666176]">通常は完了後に消えるステータスメッセージを、デバッグ確認のため対話ログに残します。</small>
                 </span>
@@ -1175,7 +1175,7 @@ function SessionDialogueSection({
       </main>
 
       {notesView === 'full' && (
-        <section className="col-[2/-1] z-[2] grid min-h-[calc(100vh-150px)] grid-rows-[auto_minmax(0,1fr)] rounded-myr-panel border border-myr-ink/16 bg-myr-paper-bright p-myr-card-inset shadow-[0_24px_70px_rgba(18,16,25,.16)] max-myr-workspace:col-start-1" aria-label="ノート集中表示" data-testid="session-notes-focus">
+        <section className="col-[2/-1] z-2 grid min-h-[calc(100vh-150px)] grid-rows-[auto_minmax(0,1fr)] rounded-myr-panel border border-myr-ink/16 bg-myr-paper-bright p-myr-card-inset shadow-[0_24px_70px_rgba(18,16,25,.16)] max-myr-workspace:col-start-1" aria-label="ノート集中表示" data-testid="session-notes-focus">
           <div className="mb-2.5 flex items-center justify-end gap-2.5" aria-label="ノート表示設定">
             <Button variant="secondary" size="sm" onClick={() => setNotesViewMode('hidden')}>ノートを非表示</Button>
             <Button variant="primary" size="sm" onClick={() => setNotesViewMode(isNarrowViewport ? 'hidden' : 'split')}>
@@ -1187,7 +1187,7 @@ function SessionDialogueSection({
       )}
 
       {notesView === 'split' && (
-        <aside className={`${wizardSummaryClass} grid h-[calc(100vh-150px)] min-h-0 min-w-[300px] w-[var(--notes-rail-width,340px)] grid-rows-[auto_minmax(0,1fr)] self-stretch overflow-hidden`} aria-label="セッションノート">
+        <aside className={`${wizardSummaryClass} grid h-[calc(100vh-150px)] min-h-0 min-w-75 w-[var(--notes-rail-width,340px)] grid-rows-[auto_minmax(0,1fr)] self-stretch overflow-hidden`} aria-label="セッションノート">
           <div className="mb-2.5 flex items-center justify-end gap-2.5" aria-label="ノート表示設定">
             <label className="flex items-center gap-2 text-myr-caption font-black text-myr-slate-muted">
               表示比率

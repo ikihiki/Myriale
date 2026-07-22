@@ -45,7 +45,7 @@ describe('Button', () => {
       expect(darkGhost.classList.contains(className)).toBe(true);
     }
     const icon = screen.getByRole('button', { name: 'Add item' });
-    expect(icon.classList.contains('size-[30px]')).toBe(true);
+    expect(icon.classList.contains('size-7.5')).toBe(true);
     expect(icon.classList.contains('p-0')).toBe(true);
   });
 

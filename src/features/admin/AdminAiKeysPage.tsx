@@ -103,8 +103,8 @@ export function AdminAiKeysPage() {
           <p className={`mb-2 ${textRecipe('eyebrow')}`}>Operations / AI providers</p>
           <header className="mb-6 flex flex-col items-start justify-between gap-4 border-b border-myr-ink/15 pb-5 md:flex-row md:items-end">
             <div>
-              <h1 className={`m-0 max-w-[820px] ${textRecipe('display')}`}>物語を動かすAIを、ここで整える。</h1>
-              <p className={`mt-4 max-w-[700px] ${textRecipe('bodySm')} !leading-7`}><strong className="text-myr-ink">OpenAIとRunpodの接続状態を管理します。</strong> Vaultから注入された設定はそのまま表示し、管理画面で同じキーを再登録せずに疎通確認できます。</p>
+              <h1 className={`m-0 max-w-myr-section ${textRecipe('display')}`}>物語を動かすAIを、ここで整える。</h1>
+              <p className={`mt-4 max-w-myr-form ${textRecipe('bodySm')} !leading-7`}><strong className="text-myr-ink">OpenAIとRunpodの接続状態を管理します。</strong> Vaultから注入された設定はそのまま表示し、管理画面で同じキーを再登録せずに疎通確認できます。</p>
             </div>
             <Badge className="px-4 py-2 font-myr-mono">{keys.filter((key) => key.configured).length} / {keys.length} configured</Badge>
           </header>
@@ -147,7 +147,7 @@ export function AdminAiKeysPage() {
 
           <section className="mt-4 overflow-hidden rounded-myr-card border border-myr-ink/15 bg-myr-paper/80 shadow-myr-card" aria-label="AIキー一覧">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+              <table className="w-full min-w-190 border-collapse text-left text-sm">
                 <thead className="bg-myr-iris/10 font-myr-mono text-myr-caption tracking-[0.1em] text-myr-slate uppercase"><tr><th className="px-4 py-3">Provider</th><th className="px-4 py-3">接続設定</th><th className="px-4 py-3">キー</th><th className="px-4 py-3">検証状態</th><th className="px-4 py-3">操作</th></tr></thead>
                 <tbody>{keys.map((key) => (
                   <tr className="border-t border-myr-ink/10" key={key.provider} data-testid={`ai-key-row-${key.provider}`}>

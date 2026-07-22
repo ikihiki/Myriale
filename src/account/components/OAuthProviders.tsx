@@ -4,7 +4,7 @@ import type { OAuthProvider } from '../types';
 
 export function OAuthProviders({ providers = defaultProviders, onChoose, verb = '続ける' }: { providers?: OAuthProvider[]; onChoose?: (provider: OAuthProvider) => void; verb?: string }) {
   return (
-    <div className="mt-[18px] mb-1.5">
+    <div className="mt-4.5 mb-1.5">
       <div className="or-divider"><span>または</span></div>
       <div className="grid gap-2.5">
         {providers.map((provider) => (

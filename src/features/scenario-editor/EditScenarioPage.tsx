@@ -439,7 +439,7 @@ export function EditScenarioPage() {
           <article data-testid="history">
             <h3>編集履歴</h3>
             {draft ? (
-              <ol className="m-0 grid gap-2 pl-[18px] [&_li]:grid [&_li]:gap-0.5 [&_small]:text-myr-caption [&_small]:font-extrabold [&_small]:tracking-myr-label [&_small]:text-myr-ink-subtle">
+              <ol className="m-0 grid gap-2 pl-4.5 [&_li]:grid [&_li]:gap-0.5 [&_small]:text-myr-caption [&_small]:font-extrabold [&_small]:tracking-myr-label [&_small]:text-myr-ink-subtle">
                 {draft.history.map((entry) => (
                   <li key={`${entry.at}-${entry.summary}`}>
                     <small>{entry.at}</small>

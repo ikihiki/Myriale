@@ -408,7 +408,7 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
                 Session Start / Scenario to play
               </p>
               <h1
-                className={`m-0 max-w-[820px] ${textRecipe('display')}`}
+                className={`m-0 max-w-myr-section ${textRecipe('display')}`}
                 data-testid="selected-scenario-title"
               >
                 {selectedScenario.title}
@@ -428,7 +428,7 @@ export function StartSessionPage({ search, api }: { search?: StartSessionSearch;
                 Opening narrative
               </p>
               <article className="relative pr-4 before:pointer-events-none before:absolute before:-top-8 before:right-0 before:font-myr-display before:text-8xl before:text-myr-iris/10 before:content-['✦']" data-testid="intro-narrative">
-                <p className="relative z-10 m-0 max-w-[800px] font-myr-display text-[clamp(1.25rem,2.5vw,1.75rem)] leading-[1.65] tracking-[-0.025em]">
+                <p className="relative z-10 m-0 max-w-200 font-myr-display text-[clamp(1.25rem,2.5vw,1.75rem)] leading-[1.65] tracking-[-0.025em]">
                   {selectedScenario.opening}
                 </p>
               </article>

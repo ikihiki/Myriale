@@ -152,7 +152,7 @@ const suspendedSessions: SuspendedSession[] = [
 ];
 
 const playerAccount = { name: '霧野しおり', email: 'reader@myriale.example', initials: '霧野', role: 'プレイヤー' };
-const resumeCardClassName = `${surfaceRecipe({ role: 'card' })} my-3 [&>span]:text-myr-caption [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-myr-ruby [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-[18px] [&_ul]:text-myr-ink-soft`;
+const resumeCardClassName = `${surfaceRecipe({ role: 'card' })} my-3 [&>span]:text-myr-caption [&>span]:font-black [&>span]:uppercase [&>span]:tracking-[0.08em] [&>span]:text-myr-ruby [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-4.5 [&_ul]:text-myr-ink-soft`;
 
 export function SessionResumePage() {
   const appNavigate = useAppNavigation();
@@ -347,7 +347,7 @@ export function SessionResumePage() {
               </article>
 
               <article
-                className={`my-3 rounded-myr-card border p-4 [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-[18px] [&_ul]:text-myr-ink-soft ${selected.changes.length === 0 ? 'border-[rgba(74,132,92,0.32)] bg-[rgba(232,245,233,0.8)]' : 'border-[rgba(184,74,74,0.3)] bg-[rgba(255,240,224,0.8)]'}`}
+                className={`my-3 rounded-myr-card border p-4 [&_h2]:my-2 [&_h2]:font-serif [&_h2]:text-[clamp(20px,1.8vw,30px)] [&_h2]:leading-[1.05] [&_h2]:tracking-myr-display [&_p]:max-w-none [&_p]:text-myr-ink-soft [&_ul]:mt-2 [&_ul]:grid [&_ul]:gap-1.5 [&_ul]:pl-4.5 [&_ul]:text-myr-ink-soft ${selected.changes.length === 0 ? 'border-[rgba(74,132,92,0.32)] bg-[rgba(232,245,233,0.8)]' : 'border-[rgba(184,74,74,0.3)] bg-[rgba(255,240,224,0.8)]'}`}
                 data-testid="changes"
               >
                 <h2>再開前の注意点</h2>
@@ -387,13 +387,13 @@ export function SessionResumePage() {
                 <p>{selected.recap}</p>
               </article>
               <div
-                className="my-3.5 grid max-h-[360px] gap-2.5 overflow-y-auto p-1"
+                className="my-3.5 grid max-h-90 gap-2.5 overflow-y-auto p-1"
                 aria-label={`全Turnログ（Turn 1〜${turnCountOf(selected)}）`}
                 data-testid="restored-log"
               >
                 {selected.turns.map((turn) => (
                   <article
-                    className={`rounded-2xl border p-[14px_16px] ${turn.id === turnCountOf(selected) ? 'border-myr-gold bg-[rgba(255,247,230,0.92)] shadow-[0_0_0_1px_rgba(217,164,65,0.4)]' : 'border-myr-line-soft bg-myr-paper-glass'}`}
+                    className={`rounded-2xl border px-4 py-3.5 ${turn.id === turnCountOf(selected) ? 'border-myr-gold bg-[rgba(255,247,230,0.92)] shadow-[0_0_0_1px_rgba(217,164,65,0.4)]' : 'border-myr-line-soft bg-myr-paper-glass'}`}
                     key={turn.id}
                     aria-label={`Turn ${String(turn.id).padStart(2, '0')}`}
                     data-testid={`restored-turn-${turn.id}`}

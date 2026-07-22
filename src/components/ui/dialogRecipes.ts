@@ -14,11 +14,11 @@ export const dialogSurfaceToneClassNames: Record<DialogTone, string> = {
 };
 
 const roleClassNames: Record<Exclude<DialogRole, 'surface' | 'title' | 'description'>, string> = {
-  overlay: 'fixed inset-0 z-[60] bg-[radial-gradient(circle_at_30%_20%,rgba(124,92,255,.22),transparent_28%),rgba(18,16,25,.66)] backdrop-blur-[6px]',
+  overlay: 'fixed inset-0 z-60 bg-[radial-gradient(circle_at_30%_20%,rgba(124,92,255,.22),transparent_28%),rgba(18,16,25,.66)] backdrop-blur-[6px]',
   sigil: 'mb-4 grid size-11 place-items-center rounded-full bg-[conic-gradient(from_180deg,var(--myr-color-iris),var(--myr-color-ember),var(--myr-color-mist),var(--myr-color-iris))] font-myr-display text-xl font-black text-[#17121d]',
   body: 'mt-5 leading-[1.65]',
   footer: 'mt-6 flex flex-wrap justify-end gap-2.5 border-t border-myr-ink/10 pt-4',
-  close: 'absolute right-[18px] top-[18px] inline-grid size-[34px] cursor-pointer place-items-center rounded-full border border-myr-ink/20 bg-myr-paper/80 font-bold text-myr-ink transition-colors hover:border-myr-iris hover:text-myr-iris focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-myr-iris',
+  close: 'absolute right-4.5 top-4.5 inline-grid size-8.5 cursor-pointer place-items-center rounded-full border border-myr-ink/20 bg-myr-paper/80 font-bold text-myr-ink transition-colors hover:border-myr-iris hover:text-myr-iris focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-myr-iris',
 };
 
 const titleToneClassNames: Record<DialogTone, string> = {
@@ -40,7 +40,7 @@ export function dialogRecipe(options: {
 
   if (options.role === 'surface') {
     return [
-      'fixed left-1/2 top-1/2 z-[70] box-border grid max-h-[calc(100vh-32px)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-myr-shell border p-7 font-myr-body shadow-[0_24px_80px_rgba(18,16,25,.24)] outline-none max-sm:max-h-[calc(100vh-24px)] max-sm:w-[calc(100vw-24px)] max-sm:p-5',
+      'fixed left-1/2 top-1/2 z-70 box-border grid max-h-[calc(100vh-32px)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-myr-shell border p-7 font-myr-body shadow-[0_24px_80px_rgba(18,16,25,.24)] outline-none max-sm:max-h-[calc(100vh-24px)] max-sm:w-[calc(100vw-24px)] max-sm:p-5',
       dialogSizeClassNames[options.size ?? 'default'],
       dialogSurfaceToneClassNames[tone],
     ].join(' ');

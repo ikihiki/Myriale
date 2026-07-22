@@ -31,10 +31,10 @@ describe('navigationRecipe', () => {
     const wizard = navigationRecipe({ role: 'railItem', density: 'wizard', active: true });
     const account = navigationRecipe({ role: 'railItem', density: 'account', active: true });
 
-    expectClasses(wizard, 'w-full', 'text-left', 'px-[9px]', 'shadow-[inset_3px_0_0_#d9a441]');
+    expectClasses(wizard, 'w-full', 'text-left', 'px-2.25', 'shadow-[inset_3px_0_0_#d9a441]');
     expectClasses(account, 'w-full', 'text-left', 'px-3.5', 'border-[var(--ember)]', 'bg-myr-paper');
     expect(wizard).not.toContain('px-3.5');
-    expect(account).not.toContain('px-[9px]');
+    expect(account).not.toContain('px-2.25');
   });
 
   it('styles a Radix tab through its generated data-state', () => {

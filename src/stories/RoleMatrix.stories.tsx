@@ -81,15 +81,15 @@ export const SurfacesAndTypography: Story = {
     const canvas = within(canvasElement);
     await step('主要surface roleが意味のある領域名を持つ', async () => {
       await expect(canvas.getByLabelText('Role matrix canvas')).toBeInTheDocument();
-      await expect(canvas.getByLabelText('Role matrix shell')).toHaveClass('max-w-[1180px]', 'bg-[image:var(--myr-paper-background)]');
+      await expect(canvas.getByLabelText('Role matrix shell')).toHaveClass('max-w-myr-content', 'bg-[image:var(--myr-paper-background)]');
       await expect(canvas.getByLabelText('Panel surface')).toHaveClass('rounded-myr-card', 'shadow-myr-card');
       await expect(canvas.getByLabelText('Dark surface')).toHaveClass('text-myr-paper');
     });
     await step('shell width variantをtyped matrixで公開する', async () => {
-      await expect(canvasElement.querySelector('[data-width="content"]')).toHaveClass('max-w-[1180px]');
-      await expect(canvasElement.querySelector('[data-width="focused"]')).toHaveClass('max-w-[1040px]');
-      await expect(canvasElement.querySelector('[data-width="chrome"]')).toHaveClass('max-w-[1320px]');
-      await expect(canvasElement.querySelector('[data-width="reading"]')).toHaveClass('max-w-[720px]');
+      await expect(canvasElement.querySelector('[data-width="content"]')).toHaveClass('max-w-myr-content');
+      await expect(canvasElement.querySelector('[data-width="focused"]')).toHaveClass('max-w-myr-focused');
+      await expect(canvasElement.querySelector('[data-width="chrome"]')).toHaveClass('max-w-myr-chrome');
+      await expect(canvasElement.querySelector('[data-width="reading"]')).toHaveClass('max-w-myr-reading');
     });
     await step('editorialとdataのeyebrowを視覚的に区別する', async () => {
       await expect(canvasElement.querySelector('[data-text-role="eyebrow"]')).not.toHaveClass('font-myr-mono');
@@ -219,7 +219,7 @@ export const NavigationRoles: Story = {
     });
     await step('menu dangerとrail densityが別のgeometryを保つ', async () => {
       await expect(canvas.getByRole('menuitem', { name: 'ログアウト' })).toHaveClass('!text-[#b8453f]');
-      await expect(within(canvas.getByRole('navigation', { name: 'Wizard rail recipe sample' })).getByRole('button', { name: /世界の掟/ })).toHaveClass('px-[9px]');
+      await expect(within(canvas.getByRole('navigation', { name: 'Wizard rail recipe sample' })).getByRole('button', { name: /世界の掟/ })).toHaveClass('px-2.25');
       await expect(within(canvas.getByRole('navigation', { name: 'Account rail recipe sample' })).getByRole('button', { name: 'プロフィール' })).toHaveClass('px-3.5');
     });
     await step('Radix tabsは矢印キーで移動する', async () => {

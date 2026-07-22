@@ -3,12 +3,12 @@ import { Button } from './Button';
 import { StatusBadge } from './StatusBadge';
 
 const headCellClassName = 'border-b border-myr-line-strong bg-[rgba(124,92,255,.06)] px-4 py-3 text-left text-myr-caption font-extrabold tracking-[.1em] text-myr-account-ink-soft uppercase';
-const bodyCellClassName = 'border-b border-myr-line px-4 py-[13px] align-middle';
+const bodyCellClassName = 'border-b border-myr-line px-4 py-3.25 align-middle';
 
 export function UserTable({ users, selectedId, onSelect, caption }: { users: AdminUser[]; selectedId?: string; onSelect?: (user: AdminUser) => void; caption: string }) {
   return (
     <div className="w-full overflow-x-auto">
-      <table className="w-full min-w-[640px] border-collapse text-sm">
+      <table className="w-full min-w-160 border-collapse text-sm">
         <caption className="sr-only text-left">{caption}</caption>
         <thead>
           <tr>

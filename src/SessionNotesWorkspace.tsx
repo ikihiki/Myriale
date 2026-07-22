@@ -151,7 +151,7 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
         <div className="grid min-h-0 content-start gap-1 overflow-auto" aria-label="ノート一覧">
           <div className={`grid items-end gap-2 border-b border-myr-ink/12 pb-1.5 ${mode === 'side' ? 'grid-cols-1' : 'grid-cols-[minmax(220px,1fr)_auto]'}`}>
             <label className="grid gap-1.5 text-xs font-black text-myr-slate-muted">ノート検索<Input variant="compact" aria-label="ノート検索" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="人物・場所名で検索" /></label>
-            <div className={`flex flex-wrap gap-[5px] ${mode === 'side' ? 'justify-start' : 'justify-end'} [&_button]:rounded-full [&_button]:px-2 [&_button]:py-1 [&_button]:text-myr-caption`} aria-label="ノート操作">
+            <div className={`flex flex-wrap gap-1.25 ${mode === 'side' ? 'justify-start' : 'justify-end'} [&_button]:rounded-full [&_button]:px-2 [&_button]:py-1 [&_button]:text-myr-caption`} aria-label="ノート操作">
               <Button onClick={() => createNote('person')}>人物追加</Button>
               <Button onClick={() => createNote('location')}>場所追加</Button>
               <Button onClick={rebuildContext}>Context再構築</Button>
@@ -159,12 +159,12 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
             </div>
           </div>
 
-          <div className={`${mode === 'side' ? 'hidden' : 'grid'} grid-cols-[92px_minmax(120px,.8fr)_minmax(140px,1fr)_minmax(180px,1.4fr)_54px] items-center gap-2 px-1.5 py-1 text-[10px] font-black tracking-[.06em] text-myr-ink-subtle uppercase`} role="row">
+          <div className={`${mode === 'side' ? 'hidden' : 'grid'} grid-cols-[92px_minmax(120px,.8fr)_minmax(140px,1fr)_minmax(180px,1.4fr)_54px] items-center gap-2 px-1.5 py-1 text-myr-micro font-black tracking-[.06em] text-myr-ink-subtle uppercase`} role="row">
             <span>種別</span><span>名前</span><span>別名・初出</span><span>要点</span><span>操作</span>
           </div>
           {filteredNotes.map((note) => (
-            <article key={note.id} className={`grid items-center border-b border-myr-ink/8 px-1.5 py-[5px] text-left text-myr-ink ${mode === 'side' ? 'grid-cols-[74px_minmax(90px,1fr)_44px] gap-[5px]' : 'grid-cols-[92px_minmax(120px,.8fr)_minmax(140px,1fr)_minmax(180px,1.4fr)_54px] gap-2'}`} aria-label={`${note.name}のノート概要`}>
-              <span className="text-[10px] font-black tracking-myr-label text-[#7054dd]">{note.kind === 'person' ? '人物' : '場所'} / {note.certainty}</span>
+            <article key={note.id} className={`grid items-center border-b border-myr-ink/8 px-1.5 py-1.25 text-left text-myr-ink ${mode === 'side' ? 'grid-cols-[74px_minmax(90px,1fr)_44px] gap-1.25' : 'grid-cols-[92px_minmax(120px,.8fr)_minmax(140px,1fr)_minmax(180px,1.4fr)_54px] gap-2'}`} aria-label={`${note.name}のノート概要`}>
+              <span className="text-myr-micro font-black tracking-myr-label text-[#7054dd]">{note.kind === 'person' ? '人物' : '場所'} / {note.certainty}</span>
               <strong>{note.name}</strong>
               <small className={`${mode === 'side' ? 'hidden' : 'block'} overflow-hidden text-ellipsis whitespace-nowrap text-myr-ink-subtle`}>{note.aliases} · {note.firstTurn}</small>
               <p className={`${mode === 'side' ? 'hidden' : 'block'} m-0 overflow-hidden text-ellipsis whitespace-nowrap text-myr-slate`}>{note.details}</p>
@@ -199,7 +199,7 @@ export function SessionNotesWorkspace({ mode = 'full' }: { mode?: NoteMode }) {
             <header className="flex items-center justify-between gap-4">
               <div><span>{editingNote.kind === 'person' ? '人物ノート' : '場所ノート'}</span><h3 className="my-1 font-myr-display text-2xl tracking-myr-display">{editingNote.name}</h3><p className="m-0 text-sm text-myr-slate">{editingNote.firstTurn} 初出 / 確定度: <b>{editingNote.certainty}</b></p></div>
             </header>
-            <div className="mt-4 grid grid-cols-2 gap-2.5 max-myr-workspace:grid-cols-1 [&_label]:grid [&_label]:gap-[5px] [&_label]:text-xs [&_label]:font-black [&_label]:text-myr-slate-muted [&_textarea]:min-h-24">
+            <div className="mt-4 grid grid-cols-2 gap-2.5 max-myr-workspace:grid-cols-1 [&_label]:grid [&_label]:gap-1.25 [&_label]:text-xs [&_label]:font-black [&_label]:text-myr-slate-muted [&_textarea]:min-h-24">
               <label>表示名<Input aria-label="表示名" value={editingNote.name} onChange={(event) => updateNote(editingNote.id, { name: event.target.value })} /></label>
               <label>別名<Input aria-label="別名" value={editingNote.aliases} onChange={(event) => updateNote(editingNote.id, { aliases: event.target.value })} /></label>
               <label>外見・種別・詳細<Textarea aria-label="外見・種別・詳細" value={editingNote.details} onChange={(event) => updateNote(editingNote.id, { details: event.target.value })} /></label>

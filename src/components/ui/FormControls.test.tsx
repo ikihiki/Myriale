@@ -48,7 +48,7 @@ describe('Input', () => {
       </>,
     );
 
-    expectClasses(screen.getByLabelText('Compact'), ['min-h-[30px]', 'px-2', 'py-1.5', 'text-myr-ui-sm']);
+    expectClasses(screen.getByLabelText('Compact'), ['min-h-myr-control-compact', 'px-2', 'py-1.5', 'text-myr-ui-sm']);
     expectClasses(screen.getByLabelText('Borderless'), ['rounded-none', 'border-0', 'bg-transparent', 'shadow-none']);
     expectClasses(screen.getByLabelText('Invalid'), ['aria-invalid:border-myr-ruby', 'aria-invalid:bg-[#fff7f5]']);
     expectClasses(screen.getByLabelText('Readonly'), ['read-only:bg-myr-vellum/35', 'read-only:text-myr-slate']);
@@ -64,7 +64,7 @@ describe('Textarea', () => {
     const textarea = screen.getByLabelText('Notes');
     expect(ref.current).toBe(textarea);
     expect(textarea.getAttribute('rows')).toBe('4');
-    expectClasses(textarea, ['[font:inherit]', 'min-h-[126px]', 'resize-y', 'rounded-2xl', 'border-myr-line', 'bg-myr-paper-bright', 'px-3.5', 'py-3', 'text-myr-ink', 'min-h-24']);
+    expectClasses(textarea, ['[font:inherit]', 'min-h-myr-textarea-min', 'resize-y', 'rounded-2xl', 'border-myr-line', 'bg-myr-paper-bright', 'px-3.5', 'py-3', 'text-myr-ink', 'min-h-24']);
   });
 
   it('uses the textarea-specific composer recipe', () => {
@@ -72,7 +72,7 @@ describe('Textarea', () => {
 
     const textarea = screen.getByLabelText('Composer');
     expect(textarea.hasAttribute('variant')).toBe(false);
-    expectClasses(textarea, ['block', 'min-h-[76px]', 'max-h-[220px]', 'rounded-none', 'border-0', 'bg-transparent', 'px-[19px]', 'pt-[17px]', 'pb-2', 'text-[15px]', 'leading-[1.6]']);
+    expectClasses(textarea, ['block', 'min-h-myr-composer-min', 'max-h-myr-composer-max', 'rounded-none', 'border-0', 'bg-transparent', 'px-4.75', 'pt-4.25', 'pb-2', 'text-myr-control', 'leading-[1.6]']);
   });
 });
 

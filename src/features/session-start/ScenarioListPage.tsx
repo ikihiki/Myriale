@@ -48,10 +48,10 @@ export function ScenarioListPage() {
           <section aria-label="シナリオ一覧">
             <div className="mb-6 flex flex-col items-start justify-between gap-4 border-b border-myr-ink/15 pb-5 md:flex-row md:items-end">
               <div>
-                <h1 className={`m-0 max-w-[820px] ${textRecipe('display')}`}>
+                <h1 className={`m-0 max-w-myr-section ${textRecipe('display')}`}>
                   どの物語を、今夜ひらきますか。
                 </h1>
-                <p className={`mt-4 max-w-[680px] ${textRecipe('bodySm')} !leading-7`}>
+                <p className={`mt-4 max-w-170 ${textRecipe('bodySm')} !leading-7`}>
                   <strong className="text-myr-ink">利用可能なScenarioを選択します。</strong>
                   選択するとイントロと主人公選択をすぐに表示します。
                 </p>
