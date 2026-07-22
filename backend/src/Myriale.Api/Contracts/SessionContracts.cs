@@ -131,6 +131,9 @@ public sealed record SessionExecutionAttemptDiagnosticsResponse(
     string? SpanId,
     string? ExceptionChain,
     string? RedactedResponseExcerpt,
+    string? SentPrompt,
+    string? ReceivedResult,
+    string? ValidationResult,
     string? PromptVersion,
     string? ContextHash,
     int? ContextSizeBytes);

@@ -32,7 +32,7 @@ Development seeds a deterministic owner-scoped fixture Session when `SessionArti
 
 ## Diagnostics and telemetry
 
-`IHostEnvironment.IsDevelopment()` is the only diagnostics gate. Development responses may include safe lease hints, Attempt metadata, provider/model IDs, timing/token counts, exception type chains, redacted excerpts, and trace/span IDs. Production omits the entire diagnostics object. Credentials, headers, full prompts, raw provider responses, and private Module state are forbidden in every environment.
+`IHostEnvironment.IsDevelopment()` is the only diagnostics gate. Development responses may include safe lease hints, Attempt metadata, provider/model IDs, timing/token counts, exception type chains, redacted excerpts, trace/span IDs, the exact narrative prompt payload, the received structured result, and validation outcomes. Production omits the entire diagnostics object. Development payloads are bounded and credential-like values are redacted. Credentials, Authorization/Cookie headers, and private Module state remain forbidden in every environment.
 
 `Myriale.SessionExecution` supplies ActivitySource and Meter instrumentation for acceptance, execution, provider, artifact validation/persistence/reconciliation, and Turn publication. Metrics use bounded labels only (`kind`, `status`, provider/model, normalized error code); Session/Input/Execution IDs and player text are never metric labels. Queue depth, running, retry-wait, oldest queued age, and stuck gauges read an in-memory snapshot refreshed by `SessionExecutionMetricsSampler`, so observable callbacks never query the database. The API stores W3C trace parent information so worker work remains causally linked after the request ends.
 

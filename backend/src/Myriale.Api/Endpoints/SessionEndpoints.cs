@@ -229,8 +229,17 @@ public static class SessionEndpoints
 
         var turns = await LoadTurnsAsync(ownerId, sessionId, db, executions, cancellationToken);
         var pendingInputs = await LoadPendingInputsAsync(sessionId, db, cancellationToken);
-        var inputs = (await db.SessionPlayerInputs.AsNoTracking().Where(item => item.SessionId == sessionId).ToListAsync(cancellationToken)).OrderBy(item => item.CreatedAt).ToList();
-        var storedExecutions = (await db.SessionExecutions.AsNoTracking().Include(item => item.Attempts).Where(item => item.SessionId == sessionId).ToListAsync(cancellationToken)).OrderBy(item => item.CreatedAt).ToList();
+        var storedExecutions = (await db.SessionExecutions.AsNoTracking().Include(item => item.Attempts)
+            .Where(item => item.SessionId == sessionId && item.DismissedAt == null)
+            .ToListAsync(cancellationToken)).OrderBy(item => item.CreatedAt).ToList();
+        var visibleInputIds = storedExecutions.Where(item => item.TriggerType == "player-input").Select(item => item.TriggerId).ToHashSet(StringComparer.Ordinal);
+        visibleInputIds.UnionWith(turns.Select(item => item.Narrative?.PlayerInputId).OfType<string>());
+        var inputs = (await db.SessionPlayerInputs.AsNoTracking()
+            .Where(item => item.SessionId == sessionId)
+            .ToListAsync(cancellationToken))
+            .Where(item => visibleInputIds.Contains(item.Id))
+            .OrderBy(item => item.CreatedAt)
+            .ToList();
         var artifacts = (await db.SessionArtifacts.AsNoTracking().Where(item => item.SessionId == sessionId && item.Status == "committed").ToListAsync(cancellationToken)).OrderBy(item => item.CreatedAt).ToList();
         var images = await db.SessionImages.AsNoTracking().Where(item => item.SessionId == sessionId).ToDictionaryAsync(item => item.ArtifactId, cancellationToken);
         var proposals = (await db.SessionNoteProposals.AsNoTracking().Where(item => item.SessionId == sessionId).ToListAsync(cancellationToken)).OrderBy(item => item.CreatedAt).ToList();
@@ -422,7 +431,7 @@ public static class SessionEndpoints
         if (inputs.Count == 0) return [];
         var inputIds = inputs.Select(input => input.Id).ToArray();
         var executions = await db.SessionExecutions.AsNoTracking()
-            .Where(execution => execution.SessionId == sessionId && inputIds.Contains(execution.TriggerId))
+            .Where(execution => execution.SessionId == sessionId && execution.DismissedAt == null && inputIds.Contains(execution.TriggerId))
             .ToDictionaryAsync(execution => execution.TriggerId, cancellationToken);
         return inputs
             .Where(input => executions.ContainsKey(input.Id))

@@ -28,12 +28,16 @@ public sealed class AiProviderException(
     bool retryable,
     TimeSpan? retryAfter = null,
     Exception? inner = null,
-    string? providerResponseExcerpt = null)
+    string? providerResponseExcerpt = null,
+    string? sentPrompt = null,
+    string? receivedResult = null)
     : Exception(message, inner)
 {
     public string Code { get; } = code;
     public bool Retryable { get; } = retryable;
     public TimeSpan? RetryAfter { get; } = retryAfter;
+    public string? SentPrompt { get; } = sentPrompt;
+    public string? ReceivedResult { get; } = receivedResult;
     public string? ProviderResponseExcerpt { get; } = providerResponseExcerpt;
 }
 
@@ -42,7 +46,11 @@ public sealed record AiTextRequest(
     ChatResponseFormatJson ResponseFormat);
 public sealed record AiGenerationMetadata(string Provider, string Model, string? ResponseId, int? InputTokens, int? OutputTokens, long LatencyMilliseconds, int AttemptCount, string? FinishReason);
 public sealed record AiTextResponse(string Text, AiGenerationMetadata Metadata);
-public sealed record NarrativeGeneration<T>(T Value, AiGenerationMetadata Metadata);
+public sealed record NarrativeGeneration<T>(
+    T Value,
+    AiGenerationMetadata Metadata,
+    string? SentPrompt = null,
+    string? ReceivedResult = null);
 
 public interface IAiTextProvider
 {

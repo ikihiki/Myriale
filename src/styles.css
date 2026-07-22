@@ -1071,6 +1071,11 @@ textarea { min-height: 126px; resize: vertical; }
   text-align: left;
 }
 .execution-diagnostics-label { display: block; margin-bottom: 8px; font-weight: 800; }
+.execution-attempt { margin-top: 14px; }
+.execution-attempt-summary { margin-block: 7px 10px; }
+.execution-payload { margin-top: 6px; border-top: 1px solid rgba(170, 162, 179, .18); padding-top: 6px; }
+.execution-payload > summary { cursor: pointer; font-weight: 750; }
+.execution-payload pre { margin: 7px 0 0; padding: 9px; border-radius: 8px; background: rgba(0, 0, 0, .18); color: #c8c1d0; text-align: left; overflow-wrap: anywhere; }
 .execution-diagnostics pre { max-height: 260px; overflow: auto; white-space: pre-wrap; font-size: 11px; }
 .execution-diagnostics dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; }
 .execution-diagnostics dd { margin: 0; overflow-wrap: anywhere; }

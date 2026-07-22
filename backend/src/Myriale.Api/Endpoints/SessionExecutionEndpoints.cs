@@ -32,7 +32,7 @@ public static class SessionExecutionEndpoints
         var execution = await db.SessionExecutions.Include(item => item.Attempts).SingleOrDefaultAsync(item => item.Id == executionId && item.Session.OwnerId == owner, cancellationToken);
         if (execution is null) return Results.NotFound();
         if (execution.Status == SessionExecutionStatuses.Queued) return Results.Ok(SessionExecutionProjection.ToResponse(execution, environment.IsDevelopment()));
-        if (!execution.IsRetryable || execution.Status is not (SessionExecutionStatuses.Failed or SessionExecutionStatuses.Cancelled))
+        if (execution.Status is not (SessionExecutionStatuses.Failed or SessionExecutionStatuses.Cancelled))
             return Results.Conflict(new SessionErrorResponse("execution_not_retryable", "この生成処理は再試行できません。"));
         SessionExecutionStateMachine.Transition(execution, SessionExecutionStatuses.Queued);
         execution.QueuedAt = DateTimeOffset.UtcNow; execution.CompletedAt = null; execution.NextAttemptAt = null; execution.DismissedAt = null;

@@ -36,19 +36,31 @@ public sealed class NarrativeExecutionHandler(
         NarrativeDialogueContext context;
         NarrativePromptInstructions prompt;
         NarrativeGeneration<NarrativeDialogueResult> generation;
+        string? sentPrompt = null;
+        string? receivedResult = null;
+        string? validationResult = null;
         using var providerActivity = SessionExecutionTelemetry.ActivitySource.StartActivity("ai.provider.request", ActivityKind.Client);
         try
         {
             context = await contextBuilder.BuildDialogueAsync(session.OwnerId, session.Id, input.InteractionType, cancellationToken);
             prompt = promptBuilder.Build(context, input.InteractionType);
-            generation = await generator.GenerateDialogueAsync(new NarrativeDialogueRequest(
+            var dialogueRequest = new NarrativeDialogueRequest(
                 NarrativeDialogueSchema.Version, context.SchemaVersion, context.Diagnostics, context.Scenario, context.RecentTurns,
                 context.Memory, context.PriorModuleOutcomes, input.InteractionType, prompt, input.Text, context.SessionState,
-                context.CurrentProgressionNode, context.AllowedSignals, session.InterpretationEnabled), cancellationToken);
+                context.CurrentProgressionNode, context.AllowedSignals, session.InterpretationEnabled);
+            if (environment.IsDevelopment()) sentPrompt = DiagnosticContent(JsonSerializer.Serialize(dialogueRequest));
+            generation = await generator.GenerateDialogueAsync(dialogueRequest, cancellationToken);
+            if (environment.IsDevelopment())
+            {
+                sentPrompt = DiagnosticContent(generation.SentPrompt ?? sentPrompt);
+                receivedResult = DiagnosticContent(generation.ReceivedResult ?? JsonSerializer.Serialize(generation.Value));
+            }
             if (string.IsNullOrWhiteSpace(generation.Value.Body) || generation.Value.Body.Length > 20_000)
                 throw new NarrativeGenerationException("Narrative provider returned an invalid body.");
             ValidateGeneratedResult(generation.Value, generation.Metadata, input.InteractionType, session.InterpretationEnabled);
             ValidateSignals(generation.Value.Signals, generation.Metadata, context.AllowedSignals);
+            if (environment.IsDevelopment())
+                validationResult = JsonSerializer.Serialize(new { status = "passed", checks = new[] { "dialogue-contract", "progression-signals" } });
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -59,10 +71,17 @@ public sealed class NarrativeExecutionHandler(
             var providerError = exception as AiProviderException;
             var code = providerError?.Code ?? (exception is OperationCanceledException ? AiProviderErrorCodes.Timeout : AiProviderErrorCodes.SchemaFailure);
             var retryable = providerError?.Retryable ?? exception is HttpRequestException or OperationCanceledException;
+            if (environment.IsDevelopment())
+            {
+                sentPrompt = DiagnosticContent(providerError?.SentPrompt ?? sentPrompt);
+                receivedResult ??= DiagnosticContent(providerError?.ReceivedResult ?? providerError?.ProviderResponseExcerpt);
+                validationResult = JsonSerializer.Serialize(new { status = "failed", errorCode = code, reason = exception.Message });
+            }
             providerActivity?.SetStatus(ActivityStatusCode.Error, code);
-            await RecordFailureDiagnosticsAsync(workerContext.AttemptId, exception, code, retryable, cancellationToken);
+            await RecordFailureDiagnosticsAsync(
+                workerContext.AttemptId, exception, code, retryable, sentPrompt, receivedResult, validationResult, cancellationToken);
             logger.LogWarning(exception, "Narrative execution failed. ExecutionId={ExecutionId} ErrorCode={ErrorCode} Retryable={Retryable}", execution.Id, code, retryable);
-            return new(false, retryable, code, "Narrativeを生成できませんでした。入力内容は保存されています。");
+            return new(false, retryable, code);
         }
 
         providerActivity?.SetTag("ai.provider.name", generation.Metadata.Provider);
@@ -198,6 +217,12 @@ public sealed class NarrativeExecutionHandler(
         attempt.Provider = generation.Metadata.Provider; attempt.Model = generation.Metadata.Model; attempt.ProviderRequestId = generation.Metadata.ResponseId;
         attempt.LatencyMilliseconds = generation.Metadata.LatencyMilliseconds; attempt.InputTokens = generation.Metadata.InputTokens; attempt.OutputTokens = generation.Metadata.OutputTokens;
         attempt.FinishReason = generation.Metadata.FinishReason; attempt.PromptVersion = prompt.Version; attempt.ContextHash = context.Diagnostics.Hash; attempt.ContextSizeBytes = context.Diagnostics.SizeBytes;
+        if (environment.IsDevelopment())
+        {
+            attempt.SentPrompt = sentPrompt;
+            attempt.ReceivedResult = receivedResult;
+            attempt.ValidationResult = validationResult;
+        }
         SessionExecutionCompletion.MarkPublished(current, attempt, now);
         try
         {
@@ -344,7 +369,15 @@ public sealed class NarrativeExecutionHandler(
         }
     }
 
-    private async Task RecordFailureDiagnosticsAsync(string attemptId, Exception exception, string code, bool retryable, CancellationToken cancellationToken)
+    private async Task RecordFailureDiagnosticsAsync(
+        string attemptId,
+        Exception exception,
+        string code,
+        bool retryable,
+        string? sentPrompt,
+        string? receivedResult,
+        string? validationResult,
+        CancellationToken cancellationToken)
     {
         var attempt = await db.SessionExecutionAttempts.SingleAsync(item => item.Id == attemptId, cancellationToken);
         attempt.ErrorCode = code;
@@ -354,6 +387,9 @@ public sealed class NarrativeExecutionHandler(
         {
             attempt.ExceptionChain = string.Join(" -> ", Enumerate(exception).Select(item => item.GetType().Name));
             attempt.RedactedResponseExcerpt = DevelopmentErrorDetails.From(environment, exception) is { } details ? Redact(details) : null;
+            attempt.SentPrompt = sentPrompt;
+            attempt.ReceivedResult = receivedResult;
+            attempt.ValidationResult = validationResult;
         }
         await db.SaveChangesAsync(cancellationToken);
     }
@@ -361,6 +397,17 @@ public sealed class NarrativeExecutionHandler(
     private static IEnumerable<Exception> Enumerate(Exception exception)
     {
         for (var current = exception; current is not null; current = current.InnerException!) yield return current;
+    }
+
+    private static string? DiagnosticContent(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        const int maxLength = 100_000;
+        var redacted = System.Text.RegularExpressions.Regex.Replace(
+            value,
+            "(?i)(authorization|api[-_ ]?key|cookie)\\s*[:=]\\s*[^,;\\s\\\"]+",
+            "$1=[REDACTED]");
+        return redacted.Length <= maxLength ? redacted : redacted[..maxLength] + "…";
     }
 
     public static string Redact(string value)

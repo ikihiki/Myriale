@@ -14,14 +14,18 @@ describe('SessionActivityFeed', () => {
     render(<SessionActivityFeed session={sessionActivityFixture('failed')} />);
     expect(screen.getByTestId('session-input-item').textContent).toContain('銀の鍵を扉にかざす');
     expect(screen.getAllByTestId('narrative-turn-item')).toHaveLength(2);
-    expect(screen.getAllByRole('alert')[0].textContent).toContain('Player Inputと既存のNarrativeは保存されています');
+    expect(screen.getAllByRole('alert')[0].textContent).not.toContain('入力内容は保存されています');
+    expect(screen.getAllByRole('alert')[0].textContent).not.toContain('Player Inputと既存のNarrativeは保存されています');
   });
 
-  it('keeps retry in the stable execution slot', () => {
+  it('offers retry and input cancellation without a close action', () => {
     const onAction = vi.fn();
     render(<SessionActivityFeed session={sessionActivityFixture('failed')} onExecutionAction={onAction} />);
     fireEvent.click(screen.getAllByRole('button', { name: '再試行' })[0]);
     expect(onAction).toHaveBeenCalledWith('EXE-narrative-failed', 'retry');
+    fireEvent.click(screen.getByRole('button', { name: '入力取り消し' }));
+    expect(onAction).toHaveBeenCalledWith('EXE-narrative-failed', 'dismiss');
+    expect(screen.queryByRole('button', { name: '閉じる' })).toBeNull();
     expect(screen.getAllByTestId(/^execution-/)).toHaveLength(3);
   });
 
@@ -32,6 +36,14 @@ describe('SessionActivityFeed', () => {
     expect(screen.queryByText('開発者向け詳細')).toBeNull();
     rerender(<SessionActivityFeed session={sessionActivityFixture('failed')} />);
     expect(screen.getAllByText('開発者向け詳細').length).toBeGreaterThan(0);
+  });
+
+  it('shows prompt, received result, and validation outcome in development diagnostics', () => {
+    render(<SessionActivityFeed session={sessionActivityFixture('failed')} />);
+    expect(screen.getAllByText('送信したプロンプト').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('受信した結果').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('バリデーション結果').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Bearer secret/i)).toBeNull();
   });
 
   it('renders player input as an offset chat bubble and error actions on the second row', () => {

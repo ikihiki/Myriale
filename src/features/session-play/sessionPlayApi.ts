@@ -51,7 +51,8 @@ export type SessionExecutionAttemptApiResponse = {
   providerRequestId?: string | null; startedAt: string; completedAt?: string | null; latencyMilliseconds?: number | null;
   inputTokens?: number | null; outputTokens?: number | null; finishReason?: string | null; errorCode?: string | null;
   errorCategory?: string | null; retryable: boolean; correlationId?: string | null; traceId?: string | null; spanId?: string | null;
-  exceptionChain?: string | null; redactedResponseExcerpt?: string | null; promptVersion?: string | null; contextHash?: string | null; contextSizeBytes?: number | null;
+  exceptionChain?: string | null; redactedResponseExcerpt?: string | null; sentPrompt?: string | null; receivedResult?: string | null;
+  validationResult?: string | null; promptVersion?: string | null; contextHash?: string | null; contextSizeBytes?: number | null;
 };
 
 export type SessionExecutionApiResponse = {

@@ -26,6 +26,9 @@ public sealed class SessionExecutionAttempt
     [MaxLength(32)] public string? SpanId { get; set; }
     [MaxLength(300)] public string? ExceptionChain { get; set; }
     [MaxLength(1000)] public string? RedactedResponseExcerpt { get; set; }
+    public string? SentPrompt { get; set; }
+    public string? ReceivedResult { get; set; }
+    public string? ValidationResult { get; set; }
     [MaxLength(80)] public string? PromptVersion { get; set; }
     [MaxLength(64)] public string? ContextHash { get; set; }
     public int? ContextSizeBytes { get; set; }

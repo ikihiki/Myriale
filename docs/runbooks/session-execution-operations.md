@@ -28,7 +28,7 @@ In Development, expand `開発者向け詳細`, copy the Attempt trace ID, and s
 
 Set `OTEL_EXPORTER_OTLP_ENDPOINT` to export traces, metrics, and logs. Do not combine signal-specific `AddOtlpExporter` registration with cross-cutting `UseOtlpExporter`; ServiceDefaults uses the cross-cutting exporter once for all signals. Verify resource fields `service.name`, `service.version`, `deployment.environment.name`, and (when supplied through `GIT_COMMIT_SHA`, `SOURCE_VERSION`, or `OpenTelemetry:Resource:GitCommitSha`) `vcs.ref.head.revision`. Configure head sampling with `OpenTelemetry:Tracing:Sampler` (`always-on`, `always-off`, or `parent-based-ratio`) and `OpenTelemetry:Tracing:Ratio`; use collector configuration for tail sampling.
 
-Audit telemetry/log output for forbidden data: player text, full prompt/Narrative, credentials, Authorization/Cookie headers, raw provider response, Data Protection payload, and private Module state. Metric dimensions must never include Session/Input/Execution IDs or email.
+Audit telemetry/log output for forbidden data: player text, full prompt/Narrative, credentials, Authorization/Cookie headers, raw provider response, Data Protection payload, and private Module state. Metric dimensions must never include Session/Input/Execution IDs or email. Prompt, received result, and validation payloads are allowed only inside the Development-gated Session Execution diagnostics response and its bounded/redacted Attempt storage; they must not be emitted to logs, traces, metrics, or Production responses.
 
 ## Note/image artifacts
 

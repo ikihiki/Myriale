@@ -45,12 +45,17 @@ public sealed class MockAiNarrativeGenerator(IHttpClientFactory httpClientFactor
             || (request.IncludeInterpretation && string.IsNullOrWhiteSpace(result.Interpretation))
             || result.Interpretation?.Length > 500)
             throw new NarrativeGenerationException("Narrative provider returned an invalid response.");
-        return new(result with
+        var normalized = result with
         {
             Heading = result.Heading.Trim(),
             Body = result.Body.Trim(),
             Interpretation = request.IncludeInterpretation ? result.Interpretation?.Trim() : null,
-        }, MockMetadata());
+        };
+        return new(
+            normalized,
+            MockMetadata(),
+            JsonSerializer.Serialize(request),
+            JsonSerializer.Serialize(normalized));
     }
 
     public async Task<NarrativeGeneration<string>> GenerateAsync(NarrativeHandoffRequest request, CancellationToken cancellationToken)

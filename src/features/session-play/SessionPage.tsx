@@ -515,9 +515,19 @@ function SessionDialogueSection({
   const handleExecutionAction = async (executionId: string, action: 'retry' | 'cancel' | 'dismiss') => {
     if (!serverSession) return;
     try {
+      const target = serverSession.executions?.find((item) => item.id === executionId);
       const updated = await mutateSessionExecution(executionId, action);
-      onSessionChange?.({ ...serverSession, executions: (serverSession.executions ?? []).map((item) => item.id === executionId ? updated : item) });
-      setNotice(action === 'retry' ? '同じExecution slotで再試行を開始しました。' : action === 'cancel' ? 'キャンセルを要求しました。' : 'Execution詳細を閉じました。');
+      if (action === 'dismiss' && target?.triggerType === 'player-input') {
+        onSessionChange?.({
+          ...serverSession,
+          inputs: serverSession.inputs?.filter((item) => item.id !== target.triggerId),
+          executions: serverSession.executions?.filter((item) => item.id !== executionId),
+          activity: serverSession.activity?.filter((item) => item.id !== executionId && item.id !== target.triggerId),
+        });
+      } else {
+        onSessionChange?.({ ...serverSession, executions: (serverSession.executions ?? []).map((item) => item.id === executionId ? updated : item) });
+      }
+      setNotice(action === 'retry' ? '同じ入力で再試行を開始しました。' : action === 'cancel' ? 'キャンセルを要求しました。' : '入力を取り消しました。');
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Executionを更新できませんでした。');
     }

@@ -18,12 +18,33 @@ public sealed class ProviderNarrativeGenerator(
 
     public async Task<NarrativeGeneration<NarrativeDialogueResult>> GenerateDialogueAsync(NarrativeDialogueRequest request, CancellationToken cancellationToken)
     {
-        var response = await provider.GenerateAsync(CreateRequest(
+        var providerRequest = CreateRequest(
             "narrative_dialogue",
             DialogueSchema,
             BuildSystem(request.Prompt),
-            JsonSerializer.Serialize(request, Strict)), cancellationToken);
-        return new(Deserialize<NarrativeDialogueResult>(response, "narrative_dialogue"), response.Metadata);
+            JsonSerializer.Serialize(request, Strict));
+        var sentPrompt = SerializePrompt(providerRequest);
+        AiTextResponse response;
+        try
+        {
+            response = await provider.GenerateAsync(providerRequest, cancellationToken);
+        }
+        catch (AiProviderException exception)
+        {
+            throw WithDiagnostics(exception, sentPrompt, exception.ProviderResponseExcerpt);
+        }
+        try
+        {
+            return new(
+                Deserialize<NarrativeDialogueResult>(response, "narrative_dialogue"),
+                response.Metadata,
+                sentPrompt,
+                response.Text);
+        }
+        catch (AiProviderException exception)
+        {
+            throw WithDiagnostics(exception, sentPrompt, response.Text);
+        }
     }
     public async Task<NarrativeGeneration<string>> GenerateAsync(NarrativeHandoffRequest request, CancellationToken cancellationToken)
     {
@@ -69,6 +90,26 @@ public sealed class ProviderNarrativeGenerator(
             ],
             ChatResponseFormat.ForJsonSchema(schema.RootElement.Clone(), schemaName));
     }
+
+    private static AiProviderException WithDiagnostics(AiProviderException exception, string sentPrompt, string? receivedResult) => new(
+        exception.Code,
+        exception.Message,
+        exception.Retryable,
+        exception.RetryAfter,
+        exception,
+        exception.ProviderResponseExcerpt,
+        sentPrompt,
+        receivedResult);
+
+    private static string SerializePrompt(AiTextRequest request) => JsonSerializer.Serialize(new
+    {
+        messages = request.Messages.Select(message => new { role = message.Role.Value, content = message.Text }),
+        responseFormat = new
+        {
+            schemaName = request.ResponseFormat.SchemaName,
+            schema = request.ResponseFormat.Schema?.GetRawText(),
+        },
+    }, Strict);
 
     private T Deserialize<T>(AiTextResponse response, string schemaName)
     {

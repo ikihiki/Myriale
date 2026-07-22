@@ -58,10 +58,11 @@ export function SessionExecutionItem({ execution, onAction }: { execution: Sessi
   const finishedAt = execution.completedAt ? Date.parse(execution.completedAt) : now;
   const elapsed = formatElapsed(finishedAt - startedAt);
   const statusLine = <ExecutionStatusLine execution={execution} elapsed={elapsed} />;
-  const actions = (execution.capabilities.canRetry || execution.capabilities.canCancel || execution.capabilities.canDismiss) && <div className="execution-actions">
+  const canCancelInput = failed && execution.triggerType === 'player-input' && execution.capabilities.canDismiss;
+  const actions = (execution.capabilities.canRetry || execution.capabilities.canCancel || canCancelInput) && <div className="execution-actions">
     {execution.capabilities.canRetry && <button onClick={() => onAction?.(execution.id, 'retry')}>再試行</button>}
     {execution.capabilities.canCancel && <button onClick={() => onAction?.(execution.id, 'cancel')}>キャンセル</button>}
-    {execution.capabilities.canDismiss && <button onClick={() => onAction?.(execution.id, 'dismiss')}>閉じる</button>}
+    {canCancelInput && <button onClick={() => onAction?.(execution.id, 'dismiss')}>入力取り消し</button>}
   </div>;
 
   return (
@@ -71,12 +72,17 @@ export function SessionExecutionItem({ execution, onAction }: { execution: Sessi
         <div className="execution-diagnostics-body">
           <span className="execution-diagnostics-label">開発者向け詳細</span>
           <dl><dt>Execution ID</dt><dd><code>{execution.id}</code></dd><dt>Session ID</dt><dd><code>{execution.developmentDiagnostics.sessionId}</code></dd><dt>Revision</dt><dd>{execution.developmentDiagnostics.revision}</dd><dt>Lease</dt><dd>{execution.developmentDiagnostics.leaseOwner ?? '—'} {execution.developmentDiagnostics.leaseTokenHint ?? ''}</dd></dl>
-          {execution.developmentDiagnostics.attempts.map((attempt) => <section key={attempt.id} className="execution-attempt"><strong>Attempt {attempt.attemptNumber}</strong><pre>{JSON.stringify(attempt, null, 2)}</pre></section>)}
+          {execution.developmentDiagnostics.attempts.map((attempt) => <section key={attempt.id} className="execution-attempt">
+            <strong>Attempt {attempt.attemptNumber}</strong>
+            <dl className="execution-attempt-summary"><dt>Status</dt><dd>{attempt.status}</dd><dt>Provider</dt><dd>{attempt.provider ?? '—'} / {attempt.model ?? '—'}</dd><dt>Latency</dt><dd>{attempt.latencyMilliseconds == null ? '—' : `${attempt.latencyMilliseconds}ms`}</dd></dl>
+            {attempt.sentPrompt && <details className="execution-payload"><summary>送信したプロンプト</summary><pre>{attempt.sentPrompt}</pre></details>}
+            {attempt.receivedResult && <details className="execution-payload"><summary>受信した結果</summary><pre>{attempt.receivedResult}</pre></details>}
+            {attempt.validationResult && <details className="execution-payload"><summary>バリデーション結果</summary><pre>{attempt.validationResult}</pre></details>}
+            {(attempt.exceptionChain || attempt.redactedResponseExcerpt) && <details className="execution-payload"><summary>例外情報</summary><pre>{JSON.stringify({ exceptionChain: attempt.exceptionChain, redactedResponseExcerpt: attempt.redactedResponseExcerpt }, null, 2)}</pre></details>}
+          </section>)}
         </div>
       </details> : <div className="execution-status-line">{statusLine}</div>}
       {actions}
-      {execution.userErrorMessage && <p className="execution-error-message">{execution.userErrorMessage}</p>}
-      {failed && <p className="execution-error-context">Player Inputと既存のNarrativeは保存されています。</p>}
     </article>
   );
 }

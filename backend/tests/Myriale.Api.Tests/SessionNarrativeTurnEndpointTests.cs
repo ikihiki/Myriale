@@ -443,6 +443,63 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task ManualRetryIsAvailableAfterNonRetryableNarrativeFailure()
+    {
+        var client = await AuthenticatedClientAsync("dialogue-manual-retry@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        _generator.DialogueSchemaVersion = "unsupported.v0";
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/inputs",
+            new { requestId = "dialogue-manual-retry", text = "もう一度試す" });
+        var accepted = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var executionId = accepted.GetProperty("execution").GetProperty("id").GetString()!;
+        var failed = await WaitForExecutionStatusAsync(client, executionId, SessionExecutionStatuses.Failed);
+        Assert.False(failed.GetProperty("isRetryable").GetBoolean());
+        Assert.True(failed.GetProperty("capabilities").GetProperty("canRetry").GetBoolean());
+
+        var diagnostics = Assert.Single(failed.GetProperty("developmentDiagnostics").GetProperty("attempts").EnumerateArray());
+        Assert.Contains("PlayerInput", diagnostics.GetProperty("sentPrompt").GetString(), StringComparison.Ordinal);
+        Assert.Contains("unsupported.v0", diagnostics.GetProperty("receivedResult").GetString(), StringComparison.Ordinal);
+        Assert.Equal("failed", JsonDocument.Parse(diagnostics.GetProperty("validationResult").GetString()!).RootElement.GetProperty("status").GetString());
+
+        using var retry = await client.PostAsync($"/api/session-executions/{executionId}/retry", null);
+        Assert.Equal(HttpStatusCode.OK, retry.StatusCode);
+        Assert.Equal(SessionExecutionStatuses.Queued, (await retry.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task DismissingFailedNarrativeInputRemovesItFromSessionActivityWithoutDeletingTheEvent()
+    {
+        var client = await AuthenticatedClientAsync("dialogue-cancel-input@example.test");
+        var sessionId = await CreateSessionAsync(client);
+        _generator.DialogueSchemaVersion = "unsupported.v0";
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/inputs",
+            new { requestId = "dialogue-cancel-input", text = "この入力を取り消す" });
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var accepted = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var inputId = accepted.GetProperty("input").GetProperty("id").GetString()!;
+        var executionId = accepted.GetProperty("execution").GetProperty("id").GetString()!;
+        await WaitForExecutionStatusAsync(client, executionId, SessionExecutionStatuses.Failed);
+
+        using var dismissed = await client.PostAsync($"/api/session-executions/{executionId}/dismiss", null);
+        Assert.Equal(HttpStatusCode.OK, dismissed.StatusCode);
+
+        var session = await GetSessionAsync(client, sessionId);
+        Assert.Empty(session.GetProperty("inputs").EnumerateArray());
+        Assert.Empty(session.GetProperty("executions").EnumerateArray());
+        Assert.DoesNotContain(session.GetProperty("activity").EnumerateArray(), item => item.GetProperty("id").GetString() is var id && (id == inputId || id == executionId));
+        Assert.Empty(session.GetProperty("pendingInputs").EnumerateArray());
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal(inputId, (await db.SessionPlayerInputs.AsNoTracking().SingleAsync()).Id);
+        Assert.NotNull((await db.SessionExecutions.AsNoTracking().SingleAsync()).DismissedAt);
+    }
+
+    [Fact]
     public async Task EnabledInterpretationIsRequestedPersistedAndReturned()
     {
         const string email = "dialogue-interpretation@example.test";
@@ -820,15 +877,18 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         var execution = await WaitForExecutionStatusAsync(client, executionId, SessionExecutionStatuses.Failed);
 
         Assert.Equal("schema_failure", execution.GetProperty("errorCode").GetString());
-        Assert.Equal("Narrativeを生成できませんでした。入力内容は保存されています。", execution.GetProperty("userErrorMessage").GetString());
+        Assert.Equal(JsonValueKind.Null, execution.GetProperty("userErrorMessage").ValueKind);
         Assert.False(execution.GetProperty("isRetryable").GetBoolean());
-        Assert.False(execution.GetProperty("capabilities").GetProperty("canRetry").GetBoolean());
+        Assert.True(execution.GetProperty("capabilities").GetProperty("canRetry").GetBoolean());
         Assert.True(execution.GetProperty("capabilities").GetProperty("canDismiss").GetBoolean());
         var attempt = Assert.Single(execution.GetProperty("developmentDiagnostics").GetProperty("attempts").EnumerateArray());
         Assert.Equal("failed", attempt.GetProperty("status").GetString());
         Assert.Equal("schema_failure", attempt.GetProperty("errorCode").GetString());
         Assert.False(attempt.GetProperty("retryable").GetBoolean());
         Assert.Contains("Exception", attempt.GetProperty("exceptionChain").GetString(), StringComparison.Ordinal);
+        if (attempt.GetProperty("sentPrompt").ValueKind != JsonValueKind.Null)
+            Assert.Contains("PlayerInput", attempt.GetProperty("sentPrompt").GetString(), StringComparison.Ordinal);
+        Assert.Equal("failed", JsonDocument.Parse(attempt.GetProperty("validationResult").GetString()!).RootElement.GetProperty("status").GetString());
         if (expectedDetails is not null)
             Assert.Contains(expectedDetails, attempt.GetProperty("redactedResponseExcerpt").GetString(), StringComparison.Ordinal);
 

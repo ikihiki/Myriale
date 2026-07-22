@@ -8,7 +8,7 @@ public static class SessionExecutionProjection
     public static SessionExecutionResponse ToResponse(SessionExecution execution, bool includeDevelopmentDiagnostics)
     {
         var capabilities = new SessionExecutionCapabilities(
-            execution.IsRetryable && execution.Status is SessionExecutionStatuses.Failed or SessionExecutionStatuses.Cancelled,
+            execution.Status is SessionExecutionStatuses.Failed or SessionExecutionStatuses.Cancelled,
             execution.Status is SessionExecutionStatuses.Queued or SessionExecutionStatuses.Running or SessionExecutionStatuses.RetryWait or SessionExecutionStatuses.CancelRequested,
             SessionExecutionStatuses.IsTerminal(execution.Status));
         SessionExecutionDiagnosticsResponse? diagnostics = null;
@@ -21,7 +21,8 @@ public static class SessionExecutionProjection
                     item.Id, item.AttemptNumber, item.Status, item.WorkerId, item.Provider, item.Model, item.ProviderRequestId,
                     item.StartedAt, item.CompletedAt, item.LatencyMilliseconds, item.InputTokens, item.OutputTokens, item.FinishReason,
                     item.ErrorCode, item.ErrorCategory, item.Retryable, item.CorrelationId, item.TraceId, item.SpanId,
-                    item.ExceptionChain, item.RedactedResponseExcerpt, item.PromptVersion, item.ContextHash, item.ContextSizeBytes)).ToList());
+                    item.ExceptionChain, item.RedactedResponseExcerpt, item.SentPrompt, item.ReceivedResult, item.ValidationResult,
+                    item.PromptVersion, item.ContextHash, item.ContextSizeBytes)).ToList());
         }
         return new SessionExecutionResponse(
             execution.Id, execution.SessionId, execution.Kind, execution.TriggerType, execution.TriggerId, execution.Status,
