@@ -6,19 +6,22 @@ namespace Myriale.Api.Services;
 
 public interface IPlaySessionListingService
 {
-    Task<IReadOnlyList<PlaySessionSummaryDto>> ListRejoinableAsync(
+    Task<IReadOnlyList<PlaySessionSummaryDto>> ListAsync(
         string ownerId,
+        bool includeCompleted,
         CancellationToken cancellationToken);
 }
 
 public sealed class PlaySessionListingService(ApplicationDbContext db) : IPlaySessionListingService
 {
-    public async Task<IReadOnlyList<PlaySessionSummaryDto>> ListRejoinableAsync(
+    public async Task<IReadOnlyList<PlaySessionSummaryDto>> ListAsync(
         string ownerId,
+        bool includeCompleted,
         CancellationToken cancellationToken)
     {
         var sessionSummaries = await db.Sessions.AsNoTracking()
-            .Where(session => session.OwnerId == ownerId && session.Status != "completed")
+            .Where(session => session.OwnerId == ownerId
+                && (includeCompleted || session.Status != "completed"))
             .Select(session => new PlaySessionSummaryDto(
                 session.Id,
                 session.ScenarioId,

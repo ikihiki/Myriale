@@ -6,7 +6,7 @@ public sealed class DemoHomeDashboardService(IPlaySessionListingService sessions
 {
     public async Task<HomeDashboardResponse> GetDashboardAsync(string ownerId, CancellationToken cancellationToken)
     {
-        var resumableSessions = await sessions.ListRejoinableAsync(ownerId, cancellationToken);
+        var activeSessions = await sessions.ListAsync(ownerId, includeCompleted: false, cancellationToken);
         return new HomeDashboardResponse(
             Account: new AccountSummaryDto(
                 DisplayName: "ミリア",
@@ -15,7 +15,7 @@ public sealed class DemoHomeDashboardService(IPlaySessionListingService sessions
                 Role: "Reader",
                 UnreadNotifications: 2,
                 CurrentWorkspaceName: "Myriale Library"),
-            ResumableSessions: resumableSessions,
+            ActiveSessions: activeSessions,
             RecommendedScenarios:
             [
                 new ScenarioSummaryDto(

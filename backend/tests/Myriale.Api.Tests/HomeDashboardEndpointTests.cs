@@ -31,7 +31,7 @@ public sealed class HomeDashboardEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task GetHomeDashboard_ReturnsOwnersRealSessionsAndRecommendations()
+    public async Task GetHomeDashboard_ReturnsOwnersActiveSessionsAndRecommendations()
     {
         using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await SessionListingEndpointTests.RegisterAndAuthenticateAsync(client, "home-owner@example.test");
@@ -51,6 +51,16 @@ public sealed class HomeDashboardEndpointTests : IDisposable
                 new DateTimeOffset(2026, 7, 23, 10, 0, 0, TimeSpan.Zero),
                 1,
                 false);
+            await SessionListingEndpointTests.AddSessionAsync(
+                db,
+                "SES-HOME-COMPLETED",
+                ownerId,
+                scenario.Id,
+                "完了した主人公",
+                "completed",
+                new DateTimeOffset(2026, 7, 23, 11, 0, 0, TimeSpan.Zero),
+                1,
+                false);
         }
 
         using var response = await client.GetAsync("/api/home/dashboard");
@@ -63,8 +73,8 @@ public sealed class HomeDashboardEndpointTests : IDisposable
         Assert.Equal("ミリア", account.GetProperty("displayName").GetString());
         Assert.True(account.TryGetProperty("unreadNotifications", out _));
 
-        var resumableSessions = json.GetProperty("resumableSessions");
-        var session = Assert.Single(resumableSessions.EnumerateArray());
+        var activeSessions = json.GetProperty("activeSessions");
+        var session = Assert.Single(activeSessions.EnumerateArray());
         Assert.Equal("SES-HOME-REAL", session.GetProperty("id").GetString());
         Assert.Equal("ホームの主人公", session.GetProperty("selectedHero").GetString());
 

@@ -30,34 +30,22 @@ public sealed class SessionListingEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [Fact]
-    public async Task ListSessions_ReturnsOnlyOwnersNonCompletedSessionsInDeterministicOrder()
+    [Theory]
+    [InlineData("/api/sessions")]
+    [InlineData("/api/sessions?includeCompleted=false")]
+    public async Task ListSessions_OmittedOrFalseIncludeCompletedExcludesCompletedSessions(string requestUri)
     {
         using var ownerClient = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var otherClient = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await RegisterAndAuthenticateAsync(ownerClient, "owner@example.test");
         await RegisterAndAuthenticateAsync(otherClient, "other@example.test");
+        await SeedSessionsAsync("owner@example.test", "other@example.test");
 
-        await using (var scope = _factory.Services.CreateAsyncScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var ownerId = await db.Users.Where(user => user.Email == "owner@example.test").Select(user => user.Id).SingleAsync();
-            var otherOwnerId = await db.Users.Where(user => user.Email == "other@example.test").Select(user => user.Id).SingleAsync();
-            var scenario = await db.Scenarios.OrderBy(item => item.Id).FirstAsync();
-            var baseTime = new DateTimeOffset(2026, 7, 23, 10, 0, 0, TimeSpan.Zero);
-
-            await AddSessionAsync(db, "SES-NEW", ownerId, scenario.Id, "新しい主人公", "active", baseTime.AddMinutes(3), 2, true);
-            await AddSessionAsync(db, "SES-TIE-A", ownerId, scenario.Id, "主人公A", "active", baseTime.AddMinutes(2), 1, false);
-            await AddSessionAsync(db, "SES-TIE-B", ownerId, scenario.Id, "主人公B", "active", baseTime.AddMinutes(2), 1, false);
-            await AddSessionAsync(db, "SES-COMPLETED", ownerId, scenario.Id, "完了済み", "completed", baseTime.AddMinutes(4), 1, false);
-            await AddSessionAsync(db, "SES-OTHER", otherOwnerId, scenario.Id, "別ユーザー", "active", baseTime.AddMinutes(5), 1, false);
-        }
-
-        using var response = await ownerClient.GetAsync("/api/sessions");
+        using var response = await ownerClient.GetAsync(requestUri);
 
         Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
         var sessions = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal(["SES-NEW", "SES-TIE-A", "SES-TIE-B"], sessions.EnumerateArray().Select(item => item.GetProperty("id").GetString()!).ToArray());
+        Assert.Equal(["SES-NEW", "SES-TIE-A", "SES-TIE-B"], SessionIds(sessions));
 
         var first = sessions[0];
         Assert.False(string.IsNullOrWhiteSpace(first.GetProperty("scenarioTitle").GetString()));
@@ -70,6 +58,58 @@ public sealed class SessionListingEndpointTests : IDisposable
         Assert.True(first.TryGetProperty("createdAt", out _));
         Assert.True(first.TryGetProperty("updatedAt", out _));
     }
+
+    [Fact]
+    public async Task ListSessions_TrueIncludeCompletedReturnsMixedStatusesInDeterministicOrder()
+    {
+        using var ownerClient = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var otherClient = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await RegisterAndAuthenticateAsync(ownerClient, "owner@example.test");
+        await RegisterAndAuthenticateAsync(otherClient, "other@example.test");
+        await SeedSessionsAsync("owner@example.test", "other@example.test");
+
+        using var response = await ownerClient.GetAsync("/api/sessions?includeCompleted=true");
+
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
+        var sessions = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(["SES-COMPLETED", "SES-NEW", "SES-TIE-A", "SES-TIE-B"], SessionIds(sessions));
+        Assert.Equal(["completed", "active", "active", "active"], sessions.EnumerateArray().Select(item => item.GetProperty("status").GetString()!).ToArray());
+    }
+
+    [Fact]
+    public async Task ListSessions_TrueIncludeCompletedRemainsOwnerScoped()
+    {
+        using var ownerClient = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var otherClient = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await RegisterAndAuthenticateAsync(ownerClient, "owner@example.test");
+        await RegisterAndAuthenticateAsync(otherClient, "other@example.test");
+        await SeedSessionsAsync("owner@example.test", "other@example.test");
+
+        using var response = await ownerClient.GetAsync("/api/sessions?includeCompleted=true");
+
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
+        var sessions = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.DoesNotContain("SES-OTHER", SessionIds(sessions));
+    }
+
+    private async Task SeedSessionsAsync(string ownerEmail, string otherOwnerEmail)
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var ownerId = await db.Users.Where(user => user.Email == ownerEmail).Select(user => user.Id).SingleAsync();
+        var otherOwnerId = await db.Users.Where(user => user.Email == otherOwnerEmail).Select(user => user.Id).SingleAsync();
+        var scenario = await db.Scenarios.OrderBy(item => item.Id).FirstAsync();
+        var baseTime = new DateTimeOffset(2026, 7, 23, 10, 0, 0, TimeSpan.Zero);
+
+        await AddSessionAsync(db, "SES-NEW", ownerId, scenario.Id, "新しい主人公", "active", baseTime.AddMinutes(3), 2, true);
+        await AddSessionAsync(db, "SES-TIE-A", ownerId, scenario.Id, "主人公A", "active", baseTime.AddMinutes(2), 1, false);
+        await AddSessionAsync(db, "SES-TIE-B", ownerId, scenario.Id, "主人公B", "active", baseTime.AddMinutes(2), 1, false);
+        await AddSessionAsync(db, "SES-COMPLETED", ownerId, scenario.Id, "完了済み", "completed", baseTime.AddMinutes(4), 1, false);
+        await AddSessionAsync(db, "SES-OTHER", otherOwnerId, scenario.Id, "別ユーザー", "completed", baseTime.AddMinutes(5), 1, false);
+    }
+
+    private static string[] SessionIds(JsonElement sessions) =>
+        sessions.EnumerateArray().Select(item => item.GetProperty("id").GetString()!).ToArray();
 
     public void Dispose()
     {
