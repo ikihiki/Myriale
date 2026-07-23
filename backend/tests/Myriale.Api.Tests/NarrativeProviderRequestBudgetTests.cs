@@ -21,7 +21,8 @@ public sealed class NarrativeProviderRequestBudgetTests
         var request = CreateStressRequest();
 
         await generator.GenerateDialogueAsync(request, CancellationToken.None);
-        var firstProviderRequest = Assert.Single(provider.Requests);
+        Assert.Equal(2, provider.Requests.Count);
+        var firstProviderRequest = provider.Requests[0];
         var firstSerialized = budgeter.Serialize(firstProviderRequest);
         Assert.True(budgeter.EstimateTokens(firstProviderRequest) <= budget);
 
@@ -45,7 +46,8 @@ public sealed class NarrativeProviderRequestBudgetTests
 
         provider.Requests.Clear();
         await generator.GenerateDialogueAsync(request, CancellationToken.None);
-        Assert.Equal(firstSerialized, budgeter.Serialize(Assert.Single(provider.Requests)));
+        Assert.Equal(2, provider.Requests.Count);
+        Assert.Equal(firstSerialized, budgeter.Serialize(provider.Requests[0]));
     }
 
     [Fact]

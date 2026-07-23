@@ -7,6 +7,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 {
     public DbSet<Scenario> Scenarios => Set<Scenario>();
     public DbSet<AiProviderKey> AiProviderKeys => Set<AiProviderKey>();
+    public DbSet<AiProviderRuntimeSettings> AiProviderRuntimeSettings => Set<AiProviderRuntimeSettings>();
     public DbSet<ModulePackage> ModulePackages => Set<ModulePackage>();
     public DbSet<ScenarioProgressionNode> ScenarioProgressionNodes => Set<ScenarioProgressionNode>();
     public DbSet<ScenarioProgressionTransition> ScenarioProgressionTransitions => Set<ScenarioProgressionTransition>();

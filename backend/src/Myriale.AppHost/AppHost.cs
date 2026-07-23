@@ -84,10 +84,12 @@ if (isPublishMode)
         var apiContainer = kubernetesResource.Workload?.PodTemplate.Spec.Containers
             .Single(container => container.Name == "myriale-api")
             ?? throw new InvalidOperationException("The Myriale API container was not generated.");
-        AddSecretEnvironment(apiContainer, "AiProvider__Provider", "provider");
-        AddSecretEnvironment(apiContainer, "AiProvider__ApiKey", "apiKey");
-        AddSecretEnvironment(apiContainer, "AiProvider__BaseUrl", "baseUrl");
-        AddSecretEnvironment(apiContainer, "AiProvider__Model", "model");
+        AddSecretEnvironment(apiContainer, "AiProvider__Providers__openai__ApiKey", "openaiApiKey");
+        AddSecretEnvironment(apiContainer, "AiProvider__Providers__openai__BaseUrl", "openaiBaseUrl");
+        AddSecretEnvironment(apiContainer, "AiProvider__Providers__openai__Model", "openaiModel");
+        AddSecretEnvironment(apiContainer, "AiProvider__Providers__runpod__ApiKey", "runpodApiKey");
+        AddSecretEnvironment(apiContainer, "AiProvider__Providers__runpod__BaseUrl", "runpodBaseUrl");
+        AddSecretEnvironment(apiContainer, "AiProvider__Providers__runpod__Model", "runpodModel");
         kubernetesResource.AdditionalResources.Add(new MyrialeAiProviderExternalSecret());
 
         if (postgres is not null) return;
@@ -215,10 +217,12 @@ internal sealed class MyrialeAiProviderExternalSecret : BaseKubernetesResource
             },
             Data =
             [
-                ExternalSecretData.FromVault("provider", "provider"),
-                ExternalSecretData.FromVault("apiKey", "apiKey"),
-                ExternalSecretData.FromVault("baseUrl", "baseUrl"),
-                ExternalSecretData.FromVault("model", "model")
+                ExternalSecretData.FromOpenAiVault("openaiApiKey", "apiKey"),
+                ExternalSecretData.FromOpenAiVault("openaiBaseUrl", "baseUrl"),
+                ExternalSecretData.FromOpenAiVault("openaiModel", "model"),
+                ExternalSecretData.FromRunpodVault("runpodApiKey", "apiKey"),
+                ExternalSecretData.FromRunpodVault("runpodBaseUrl", "baseUrl"),
+                ExternalSecretData.FromRunpodVault("runpodModel", "model")
             ]
         };
     }
@@ -262,7 +266,8 @@ internal sealed class ExternalSecretTarget
 
 internal sealed class ExternalSecretData
 {
-    private const string DefaultVaultKey = "{{ default `forge/apps/myriale/ai` (get (default (dict) .Values.forge) `aiVaultKey`) }}";
+    private const string OpenAiVaultKey = "{{ default `forge/apps/myriale/openai` (get (default (dict) .Values.forge) `openAiVaultKey`) }}";
+    private const string RunpodVaultKey = "{{ default `forge/apps/myriale/ai` (get (default (dict) .Values.forge) `runpodVaultKey`) }}";
 
     [YamlMember(Alias = "secretKey")]
     public string SecretKey { get; init; } = string.Empty;
@@ -270,12 +275,15 @@ internal sealed class ExternalSecretData
     [YamlMember(Alias = "remoteRef")]
     public ExternalSecretRemoteReference RemoteRef { get; init; } = new();
 
-    public static ExternalSecretData FromVault(string secretKey, string property) => new()
+    public static ExternalSecretData FromOpenAiVault(string secretKey, string property) => FromVault(OpenAiVaultKey, secretKey, property);
+    public static ExternalSecretData FromRunpodVault(string secretKey, string property) => FromVault(RunpodVaultKey, secretKey, property);
+
+    private static ExternalSecretData FromVault(string vaultKey, string secretKey, string property) => new()
     {
         SecretKey = secretKey,
         RemoteRef = new ExternalSecretRemoteReference
         {
-            Key = new HelmTemplateValue(DefaultVaultKey),
+            Key = new HelmTemplateValue(vaultKey),
             Property = property
         }
     };

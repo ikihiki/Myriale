@@ -26,6 +26,7 @@ public sealed class SessionExecutionFinalizer(ApplicationDbContext db, TimeProvi
         attempt.TraceId = activity?.TraceId.ToString();
         attempt.SpanId = activity?.SpanId.ToString();
         attempt.CorrelationId = Activity.Current?.TraceId.ToString();
+        attempt.ErrorCategory = result.ErrorCategory;
         attempt.ErrorCode = result.ErrorCode;
         attempt.Retryable = result.Retryable;
         execution.LeaseOwner = null; execution.LeaseToken = null; execution.LeaseExpiresAt = null;

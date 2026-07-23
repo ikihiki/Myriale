@@ -30,6 +30,13 @@ public sealed class ProviderNarrativeGeneratorTests
         Assert.Contains("Never choose that decision for the Player", system, StringComparison.Ordinal);
         Assert.Contains("forbiddenNarrativeFact", system, StringComparison.Ordinal);
         Assert.Contains("derived exclusively by server-owned evidence rules", system, StringComparison.Ordinal);
+        Assert.Contains("not a repetition or close paraphrase", system, StringComparison.Ordinal);
+        Assert.Contains("Preserve established concrete object names", system, StringComparison.Ordinal);
+        Assert.Contains("addressed NPC owns the answer", system, StringComparison.Ordinal);
+        Assert.Contains("remains with the Player unless the current input explicitly transfers it", system, StringComparison.Ordinal);
+        Assert.Contains("movement conditional on an NPC's agreement", system, StringComparison.Ordinal);
+        Assert.Contains("distinguish present possession from legal or named ownership", system, StringComparison.Ordinal);
+        Assert.Contains("authoritative module check", system, StringComparison.Ordinal);
         var policyJson = system[(system.LastIndexOf('\n') + 1)..];
         var wirePolicy = JsonSerializer.Deserialize<NarrativePromptInstructions>(policyJson, new JsonSerializerOptions(JsonSerializerDefaults.Web));
         Assert.NotNull(wirePolicy);
@@ -64,7 +71,9 @@ public sealed class ProviderNarrativeGeneratorTests
         const int tokenBudget = 6_000;
         const string disclosedSecret = "司書リラの本当の主は深淵王である";
         var providerBody = $"司書リラは探索者を信頼し、危険から守るため慎重に答えるのでございます。ただし、{disclosedSecret}。この事実も今ここで伝えるべきでしょう。";
-        var provider = new QueueProvider(Response(JsonSerializer.Serialize(new { body = providerBody })));
+        var provider = new QueueProvider(
+            Response(JsonSerializer.Serialize(new { body = providerBody })),
+            Response(JsonSerializer.Serialize(new { body = providerBody }), responseId: "second-invalid"));
         var budgeter = new NarrativeProviderRequestBudgeter(Options.Create(new NarrativeContextOptions
         {
             FinalProviderRequestTokenBudget = tokenBudget,
@@ -80,7 +89,8 @@ public sealed class ProviderNarrativeGeneratorTests
 
         var generation = await generator.GenerateDialogueAsync(request, CancellationToken.None);
 
-        var wire = Assert.Single(provider.Requests);
+        Assert.Equal(2, provider.Requests.Count);
+        var wire = provider.Requests[0];
         Assert.True(budgeter.EstimateTokens(wire) <= tokenBudget);
         using var user = JsonDocument.Parse(wire.Messages[1].Text!);
         var root = user.RootElement;
@@ -100,6 +110,48 @@ public sealed class ProviderNarrativeGeneratorTests
         Assert.Contains("ござい", generation.Value.Body, StringComparison.Ordinal);
         Assert.DoesNotContain("深淵王", generation.Value.Body, StringComparison.Ordinal);
         Assert.True(new NarrativeBodyQualityGuard().Assess(request, generation.Value.Body).IsAcceptable);
+    }
+
+    [Fact]
+    public async Task QualityFailureIsRegeneratedOnceBeforeFallback()
+    {
+        const string repeatedBody = "司書リラは青い魔法灯を示し、『この灯は常に青く輝くのでございます』と答えた。探索者は次の判断を待っている。";
+        var provider = new QueueProvider(
+            Response(JsonSerializer.Serialize(new { body = repeatedBody })),
+            Response(ValidResult, responseId: "regenerated"));
+        var request = CreateRequest() with
+        {
+            RecentTurns = [new NarrativeDialogueTurnInput("前の質問", repeatedBody)],
+        };
+
+        var generation = await CreateGenerator(provider).GenerateDialogueAsync(request, CancellationToken.None);
+
+        Assert.Equal(2, provider.Requests.Count);
+        Assert.Equal("regenerated", generation.Metadata.ResponseId);
+        Assert.NotEqual("safe_fallback", generation.Metadata.FinishReason);
+        Assert.Contains("足元を照らす", generation.Value.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RepeatedNarrowQuestionUsesDistinctSafeFallbackAfterQualityRetries()
+    {
+        const string question = "この星座模様は何を示している？銀の鍵との関係だけ、分かる範囲で教えて。";
+        const string previous = "この星座模様は銀の鍵の刻印と対応しており、扉の仕組みに関係しているのでございます。分かる範囲では、それ以上の由来はまだ確定できません。";
+        var provider = new QueueProvider(
+            Response(JsonSerializer.Serialize(new { body = previous })),
+            Response(JsonSerializer.Serialize(new { body = previous }), responseId: "repeated-again"));
+        var request = CreateRequest() with
+        {
+            PlayerInput = question,
+            RecentTurns = [new NarrativeDialogueTurnInput(question, previous)],
+        };
+
+        var generation = await CreateGenerator(provider).GenerateDialogueAsync(request, CancellationToken.None);
+
+        Assert.Equal(2, provider.Requests.Count);
+        Assert.Equal("safe_fallback", generation.Metadata.FinishReason);
+        Assert.Contains("付け加えられる新しい情報はございません", generation.Value.Body, StringComparison.Ordinal);
+        Assert.NotEqual(previous, generation.Value.Body);
     }
 
     [Fact]
@@ -177,7 +229,7 @@ public sealed class ProviderNarrativeGeneratorTests
         string expectedTurnType,
         string expectedHeading)
     {
-        var provider = new QueueProvider(Response(ValidResult));
+        var provider = new QueueProvider(Response(ValidResult), Response(ValidResult, responseId: "second"));
         var request = CreateRequest() with
         {
             InteractionType = interactionType,
@@ -212,10 +264,11 @@ public sealed class ProviderNarrativeGeneratorTests
 
     [Theory]
     [InlineData("閉じた星座の扉へ進み、扉に到達した。", true)]
+    [InlineData("銀の鍵を使って閉じた星座の扉を開ける。判定を行う。", true)]
     [InlineData("星座の扉にはまだ近づかず、遠くから眺める。", false)]
     public async Task SignalsAreDerivedOnlyFromServerOwnedEvidence(string playerInput, bool expectedSignal)
     {
-        var provider = new QueueProvider(Response(ValidResult));
+        var provider = new QueueProvider(Response(ValidResult), Response(ValidResult, responseId: "second"));
         var request = CreateRequest() with { PlayerInput = playerInput };
 
         var result = (await CreateGenerator(provider).GenerateDialogueAsync(request, CancellationToken.None)).Value;

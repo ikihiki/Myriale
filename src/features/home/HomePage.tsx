@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, DarkPanel, HomeCard, HomePanel, Label } from '../../components/ui';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
-import { useAppNavigation, type StoryKey } from '../../shared/nav';
+import { useAppNavigation, type AppNavigateOptions, type StoryKey } from '../../shared/nav';
 import {
   fetchHomeDashboard,
   isHomeDashboardApiEnabled,
@@ -103,7 +103,7 @@ export function HomePage() {
     [apiDashboard, storeVm],
   );
 
-  const go = (to: StoryKey) => navigate?.(to);
+  const go = (to: StoryKey, options?: AppNavigateOptions) => navigate?.(to, options);
   const startRecommendedScenario = (scenario: HomeScenario) => navigate?.('startSession', {
     query: { scenarioId: scenario.id },
   });
@@ -188,7 +188,7 @@ export function HomePage() {
                   <Label as="p" textRole="body" className="m-0 !leading-[1.58]">{session.summary}</Label>
                   <small className={homeCardMetaClassName}>{session.hero}</small>
                   <div className={homeCardActionsClassName}>
-                    <Button variant="primary" onClick={() => go(session.destination)}>
+                    <Button variant="primary" onClick={() => go(session.destination, { sessionId: session.id })}>
                       {session.resumeLabel}
                     </Button>
                   </div>

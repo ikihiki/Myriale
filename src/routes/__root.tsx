@@ -16,8 +16,9 @@ function RootLayout() {
   const { db } = useAppStore();
   const { showDebugPanel } = Route.useRouteContext();
   const currentUrl = `${location.pathname}${location.searchStr}`;
+  const currentSessionId = /^\/sessions\/([^/]+)/.exec(location.pathname)?.[1];
   const navigate = (key: Parameters<typeof appHrefForStoryKey>[0], options?: Parameters<typeof appHrefForStoryKey>[1]) => {
-    router.history.push(appHrefForStoryKey(key, options));
+    router.history.push(appHrefForStoryKey(key, { ...options, sessionId: options?.sessionId ?? currentSessionId }));
   };
 
   return (

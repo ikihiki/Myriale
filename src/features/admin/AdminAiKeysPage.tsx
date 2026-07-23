@@ -29,8 +29,8 @@ export function AdminAiKeysPage() {
   const api = useMemo(() => createFetchAdminAiApi(), []);
   const session = useAccountSession();
   const [keys, setKeys] = useState<AiProviderKey[]>([]);
-  const [provider, setProvider] = useState('runpod');
-  const [displayName, setDisplayName] = useState('Runpod Serverless');
+  const [provider, setProvider] = useState('openai');
+  const [displayName, setDisplayName] = useState('OpenAI');
   const [secret, setSecret] = useState('');
   const [notice, setNotice] = useState('デプロイ設定と管理画面で登録したAIキーを確認できます。キー本体は再表示しません。');
   const [error, setError] = useState<AdminAiApiError | null>(null);
@@ -80,6 +80,20 @@ export function AdminAiKeysPage() {
     }
   };
 
+  const activate = async (target: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const key = await api.activateProvider(target);
+      setKeys((current) => current.map((item) => ({ ...item, active: item.provider === target })));
+      setNotice(`使用するAIを${key.displayName}へ切り替えました。次のNarrative生成から反映されます。`);
+    } catch (caught) {
+      setError(caught as AdminAiApiError);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const remove = async (target: string) => {
     setBusy(true);
     setError(null);
@@ -120,8 +134,8 @@ export function AdminAiKeysPage() {
               <div className="mt-5 grid gap-4 md:grid-cols-2">
                 <Label as="label" textRole="label" className="grid gap-2">Provider
                   <select className="!rounded-myr-card !border !border-myr-ink/15 !bg-myr-paper-bright !px-3 !py-3 !text-base !text-myr-ink" value={provider} onChange={(event) => changeProvider(event.target.value)}>
-                    <option value="runpod">Runpod</option>
                     <option value="openai">OpenAI</option>
+                    <option value="runpod">Runpod</option>
                   </select>
                 </Label>
                 <Label as="label" textRole="label" className="grid gap-2">表示名
@@ -155,7 +169,7 @@ export function AdminAiKeysPage() {
                     <td className="px-4 py-4"><div className="flex flex-wrap gap-1.5">{key.active && <Badge className="!border-myr-ink !bg-myr-ink !text-myr-paper">使用中</Badge>}<Badge tone={key.credentialSource === 'environment' ? 'info' : key.credentialSource === 'database' ? 'warning' : 'neutral'}>{sourceLabel(key.credentialSource)}</Badge></div></td>
                     <td className="px-4 py-4 font-myr-mono text-xs">{key.maskedKey}</td>
                     <td className="px-4 py-4"><Badge tone={key.status === 'valid' ? 'success' : 'neutral'}>{statusLabel(key.status)}</Badge></td>
-                    <td className="px-4 py-4"><div className="flex flex-wrap gap-2"><Button variant="ghost" size="sm" onClick={() => void test(key.provider)} disabled={busy || !key.configured}>接続テスト</Button>{key.credentialSource === 'database' && <Button variant="danger" size="sm" onClick={() => void remove(key.provider)} disabled={busy}>削除</Button>}</div></td>
+                    <td className="px-4 py-4"><div className="flex flex-wrap gap-2"><Button variant="secondary" size="sm" onClick={() => void activate(key.provider)} disabled={busy || !key.configured || key.active}>{key.active ? '使用中' : 'このAIを使用'}</Button><Button variant="ghost" size="sm" onClick={() => void test(key.provider)} disabled={busy || !key.configured}>接続テスト</Button>{key.credentialSource === 'database' && <Button variant="danger" size="sm" onClick={() => void remove(key.provider)} disabled={busy}>削除</Button>}</div></td>
                   </tr>
                 ))}</tbody>
               </table>

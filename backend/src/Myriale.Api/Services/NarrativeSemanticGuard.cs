@@ -172,12 +172,13 @@ public static partial class NarrativeSemanticGuard
         ];
         if (rejected.Any(compact.Contains)) return false;
 
-        string[] arrivalActions =
+        string[] arrivalOrDoorCheckActions =
         [
             "到達", "辿り着", "たどり着", "着いた", "着く", "前まで進", "場所まで進", "扉へ進", "扉に進", "扉へ向か", "扉に向か", "扉まで歩", "扉へ移動",
-            "reach", "arrive", "proceedtothe", "gotothe", "walktothe", "movetothe", "traveltothe"
+            "扉を開け", "扉を開く", "鍵を差し込", "鍵を使", "星図灯をかざ", "星図灯の光を合わせ", "判定を行", "判定する",
+            "reach", "arrive", "proceedtothe", "gotothe", "walktothe", "movetothe", "traveltothe", "opentheconstellationdoor", "usethekey", "attempttoopenthe"
         ];
-        return arrivalActions.Any(compact.Contains);
+        return arrivalOrDoorCheckActions.Any(compact.Contains);
     }
 
     private static HashSet<string> Concepts(string normalized)

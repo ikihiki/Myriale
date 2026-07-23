@@ -7,12 +7,12 @@ const navigationPaths: Record<StoryKey, string> = {
   advancedScenario: '/scenarios/SCN-STAR-LIBRARY/edit',
   scenarioList: '/scenarios',
   startSession: '/sessions/start',
-  playSession: '/sessions/SES-PREP-1098',
-  resumeSession: '/sessions/SES-PREP-1098/resume',
-  programDriven: '/sessions/SES-PREP-1098',
-  modeTransition: '/sessions/SES-PREP-1098',
-  sessionNotesAuto: '/sessions/SES-PREP-1098',
-  sessionNotesLorebook: '/sessions/SES-PREP-1098',
+  playSession: '/scenarios',
+  resumeSession: '/scenarios',
+  programDriven: '/scenarios',
+  modeTransition: '/scenarios',
+  sessionNotesAuto: '/scenarios',
+  sessionNotesLorebook: '/scenarios',
   login: '/account/login',
   register: '/account/register',
   resetPassword: '/account/reset-password',
@@ -25,12 +25,20 @@ const navigationPaths: Record<StoryKey, string> = {
   adminAiKeys: '/admin',
 };
 
-export function appPathForStoryKey(key: StoryKey): string {
+export function appPathForStoryKey(key: StoryKey, options?: AppNavigateOptions): string {
+  if (options?.sessionId) {
+    const session = `/sessions/${encodeURIComponent(options.sessionId)}`;
+    if (key === 'resumeSession') return `${session}/resume`;
+    if (key === 'programDriven') return `${session}/program`;
+    if (key === 'modeTransition') return `${session}/mode-exception`;
+    if (key === 'sessionNotesAuto' || key === 'sessionNotesLorebook') return `${session}/notes`;
+    if (key === 'playSession') return session;
+  }
   return navigationPaths[key];
 }
 
 export function appHrefForStoryKey(key: StoryKey, options?: AppNavigateOptions): string {
-  const path = appPathForStoryKey(key);
+  const path = appPathForStoryKey(key, options);
   const search = new URLSearchParams(options?.query).toString();
   return search ? `${path}?${search}` : path;
 }

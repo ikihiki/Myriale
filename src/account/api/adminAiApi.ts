@@ -17,6 +17,7 @@ export type AdminAiApi = {
   saveKey: (provider: string, payload: { displayName: string; secret: string }) => Promise<AiProviderKey>;
   deleteKey: (provider: string) => Promise<void>;
   testKey: (provider: string) => Promise<AiProviderKey>;
+  activateProvider: (provider: string) => Promise<AiProviderKey>;
 };
 
 const ADMIN_AI_PATH = '/api/admin/ai-keys';
@@ -46,18 +47,19 @@ export function createFetchAdminAiApi(baseUrl = getAdminAiApiBaseUrl()): AdminAi
     saveKey: (provider, payload) => request<AiProviderKey>(`/${encodeURIComponent(provider)}`, { method: 'PUT', body: JSON.stringify(payload) }),
     deleteKey: (provider) => request<void>(`/${encodeURIComponent(provider)}`, { method: 'DELETE' }),
     testKey: (provider) => request<AiProviderKey>(`/${encodeURIComponent(provider)}/test`, { method: 'POST' }),
+    activateProvider: (provider) => request<AiProviderKey>('/active-provider', { method: 'PUT', body: JSON.stringify({ provider }) }),
   };
 }
 
 export function createDemoAdminAiApi(): AdminAiApi {
   let keys: AiProviderKey[] = [
-    { provider: 'openai', displayName: 'OpenAI', configured: false, maskedKey: '未設定', credentialSource: 'none', active: false, status: 'untested', updatedAt: new Date(0).toISOString(), lastValidatedAt: null },
-    { provider: 'runpod', displayName: 'Runpod Serverless', configured: true, maskedKey: '••••••••demo', credentialSource: 'environment', active: true, status: 'valid', updatedAt: new Date().toISOString(), lastValidatedAt: new Date().toISOString() },
+    { provider: 'openai', displayName: 'OpenAI', configured: true, maskedKey: '••••••••demo', credentialSource: 'environment', active: true, status: 'valid', updatedAt: new Date().toISOString(), lastValidatedAt: new Date().toISOString() },
+    { provider: 'runpod', displayName: 'Runpod Serverless', configured: true, maskedKey: '••••••••demo', credentialSource: 'environment', active: false, status: 'valid', updatedAt: new Date().toISOString(), lastValidatedAt: new Date().toISOString() },
   ];
   return {
     async listKeys() { return keys; },
     async saveKey(provider, payload) {
-      const key: AiProviderKey = { provider, displayName: payload.displayName, configured: true, maskedKey: `••••••••${payload.secret.slice(-4) || 'key'}`, credentialSource: 'database', active: false, status: 'saved', updatedAt: new Date().toISOString(), lastValidatedAt: null };
+      const key: AiProviderKey = { provider, displayName: payload.displayName, configured: true, maskedKey: `••••••••${payload.secret.slice(-4) || 'key'}`, credentialSource: 'database', active: keys.find((item) => item.provider === provider)?.active ?? false, status: 'saved', updatedAt: new Date().toISOString(), lastValidatedAt: null };
       keys = [key, ...keys.filter((item) => item.provider !== provider)];
       return key;
     },
@@ -67,6 +69,12 @@ export function createDemoAdminAiApi(): AdminAiApi {
       const key = keys.find((item) => item.provider === provider);
       if (!key) throw demoError('AIキーが見つかりません。', 404);
       return key;
+    },
+    async activateProvider(provider) {
+      const key = keys.find((item) => item.provider === provider);
+      if (!key?.configured) throw demoError('先にAIキーを登録してください。', 409);
+      keys = keys.map((item) => ({ ...item, active: item.provider === provider }));
+      return keys.find((item) => item.provider === provider)!;
     },
   };
 }

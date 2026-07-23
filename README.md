@@ -135,6 +135,44 @@ AppHost は以下の resource をまとめて起動します。
 
 Aspire ダッシュボード上の `myriale-api` が `GET /api/home/dashboard` を提供します。`myriale-frontend` と `myriale-storybook` は `WithReference(api)` で API resource を参照し、`VITE_MYRIAL_API_MODE=proxy` のとき Vite proxy 経由で `/api/*` を `myriale-api` に転送します。
 
+### OpenAI APIの設定
+
+Narrative生成は既定でOpenAIの`gpt-4.1-mini`を使用します。APIキーはGitへ追加せず、環境変数、デプロイ先のsecret、またはAI Provider管理画面から登録してください。
+
+ローカルでAspireを起動する場合は、OpenAIのAPIキーをASP.NET Core設定形式の環境変数へ渡します。
+
+```bash
+export AiProvider__Provider=openai
+export AiProvider__Model=gpt-4.1-mini
+export AiProvider__ApiKey='sk-...'
+aspire run --project backend/src/Myriale.AppHost/Myriale.AppHost.csproj
+```
+
+既に`OPEN_AI_KEY`へ入れている場合は、値を表示せずに次のように引き渡せます。
+
+```bash
+export AiProvider__ApiKey="$OPEN_AI_KEY"
+```
+
+管理画面から登録・切り替えする場合は、AI管理権限を持つアカウントでログインし、`/account/admin/ai-keys`を開きます。Providerのキーを保存して「接続テスト」を行ったあと、「このAIを使用」を押すと、次のNarrative生成からOpenAIとRunpodを切り替えられます。管理画面で保存したキーと使用Providerの選択はDBへ保存されますが、現在の既定値`Database:RecreateOnStartup=true`ではAPI再起動時にDBが再作成されるため、キーの継続利用にはVaultまたは環境変数を使用してください。
+
+ForgeではProviderごとに既存のVault keyを分離して利用します。
+
+- OpenAI: `forge/apps/myriale/openai`。異なるkeyを使う場合は`forge.openAiVaultKey`で指定します。
+- Runpod: 既存の`forge/apps/myriale/ai`をそのまま利用します。異なるkeyを使う場合は`forge.runpodVaultKey`で指定します。このkeyは削除・上書きされません。
+
+OpenAI用keyには次のpropertyを登録します。
+
+```yaml
+apiKey: sk-...
+baseUrl: https://api.openai.com/v1
+model: gpt-4.1-mini
+```
+
+既存のRunpod用keyには、従来どおり`apiKey`、`baseUrl`、`model`を保持してください。`provider` propertyが残っていても問題ありません。
+
+APIキーはブラウザー、フロントエンド環境変数、ソースコード、ログへ渡さないでください。使用量と上限はOpenAI Platform側でも設定・監視してください。
+
 ### 外部 PostgreSQL の接続
 
 Forgeへのpublish時は、生成HelmチャートにCloudNativePGの`myriale-postgres` Clusterを含めます。PR環境は1Gi、通常環境は8Giの永続ボリュームを使用します。CNPGが生成する`myriale-postgres-app` Secretの`uri`をAPIの`POSTGRES_URL`へ注入します。API起動時は、現段階では`Database:RecreateOnStartup=true`を既定値としてdatabaseを再作成し、EF Coreの`EnsureCreated`で現在のmodelからschemaを作成します。DB永続化が必要になった将来はこの設定を`false`へ切り替えられますが、その時点でschema migrationとbackfill方針を導入する必要があります。PRごとにClusterとデータが分離され、PR環境の削除時にデータベースも削除されます。

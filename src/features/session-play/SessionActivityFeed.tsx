@@ -37,6 +37,12 @@ export function SessionInputItem({ text }: { text: string }) {
   return <article className="session-input-item mt-0.5 mr-2 mb-2 ml-13 w-fit max-w-[min(82%,620px)] justify-self-end rounded-[18px_18px_5px_18px] border border-[#c9bce4] bg-myr-session-input px-4 py-3 text-[#2c2440] shadow-[0_7px_20px_rgba(58,43,83,.14)]" data-testid="session-input-item" aria-label="Player Input"><p className="m-0 font-bold leading-[1.55]">{text}</p></article>;
 }
 
+export function ProgramTurnItem() {
+  return <article className="grid gap-2 rounded-myr-card border border-myr-ink/14 bg-myr-session-turn p-4" data-testid="program-turn-item" aria-label="Module進行">
+    <p className="m-0 max-w-none leading-[1.65] text-[#303644]"><span className="mr-2 inline-block rounded-full bg-myr-gold px-2 py-px align-middle text-myr-micro font-black tracking-[.1em] text-[#17151f]" aria-hidden="true">PROGRAM</span>判定結果を処理し、Sessionの進行へ反映しました。</p>
+  </article>;
+}
+
 export function NarrativeTurnItem({ turn }: { turn: NarrativeTurnApiResponse }) {
   const interpretation = turn.narrative?.interpretation;
   return <article className="grid gap-2 rounded-myr-card border border-myr-ink/14 bg-myr-session-turn p-4" data-testid="narrative-turn-item" aria-label="公開済みNarrative Turn">
@@ -147,7 +153,13 @@ export function SessionActivityFeed({ session, onExecutionAction, onNoteReview, 
     {activity.map((item) => {
       if (item.type === 'input') { const input = inputs.get(item.id); return input ? <SessionInputItem key={`input-${item.id}`} text={input.text} /> : null; }
       if (item.type === 'execution') { const execution = executions.get(item.id); return execution ? <SessionExecutionItem key={`execution-${item.id}`} execution={execution} onAction={onExecutionAction} keepSucceededStatusVisible={keepSucceededStatusVisible} /> : null; }
-      if (item.type === 'turn') { const turn = turns.get(item.id); return turn ? <NarrativeTurnItem key={`turn-${item.id}`} turn={turn} /> : null; }
+      if (item.type === 'turn') {
+        const turn = turns.get(item.id);
+        if (!turn) return null;
+        return turn.kind === 'module' && !turn.narrative
+          ? <ProgramTurnItem key={`turn-${item.id}`} />
+          : <NarrativeTurnItem key={`turn-${item.id}`} turn={turn} />;
+      }
       const artifact = artifacts.get(item.id); if (!artifact) return null;
       if (artifact.kind === 'image') return <ImageArtifactItem key={`artifact-${item.id}`} mediaUrl={artifact.mediaUrl} contentType={artifact.contentType} />;
       if (artifact.kind === 'note-patch') { const proposal = proposals.get(item.id); return proposal ? <NoteProposalItem key={`artifact-${item.id}`} proposal={proposal} onReview={onNoteReview} /> : null; }

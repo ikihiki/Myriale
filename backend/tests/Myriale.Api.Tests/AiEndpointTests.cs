@@ -44,6 +44,7 @@ public sealed class AiEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
         var savedJson = await saved.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("••••••••1234", savedJson.GetProperty("maskedKey").GetString());
+        Assert.True(savedJson.GetProperty("active").GetBoolean());
         Assert.DoesNotContain("test-secret-1234", savedJson.ToString(), StringComparison.Ordinal);
         await using (var scope = _factory.Services.CreateAsyncScope())
         {
@@ -54,6 +55,31 @@ public sealed class AiEndpointTests : IDisposable
         using var tested = await client.PostAsync("/api/admin/ai-keys/openai/test", null);
         Assert.Equal(HttpStatusCode.OK, tested.StatusCode);
         Assert.Equal("valid", (await tested.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task AdminAiKeys_ActivatesConfiguredProviderAtRuntime()
+    {
+        var client = await CreateSignedInClientAsync(grantAdmin: true);
+        using var saved = await client.PutAsJsonAsync("/api/admin/ai-keys/runpod", new { displayName = "Runpod Serverless", secret = "runpod-secret-5678" });
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+
+        using var activated = await client.PutAsJsonAsync("/api/admin/ai-keys/active-provider", new { provider = "runpod" });
+        Assert.Equal(HttpStatusCode.OK, activated.StatusCode);
+        Assert.True((await activated.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("active").GetBoolean());
+
+        using var listed = await client.GetAsync("/api/admin/ai-keys/");
+        var providers = (await listed.Content.ReadFromJsonAsync<JsonElement>()).EnumerateArray().ToArray();
+        Assert.True(providers.Single(item => item.GetProperty("provider").GetString() == "runpod").GetProperty("active").GetBoolean());
+        Assert.False(providers.Single(item => item.GetProperty("provider").GetString() == "openai").GetProperty("active").GetBoolean());
+    }
+
+    [Fact]
+    public async Task AdminAiKeys_RejectsActivationWhenProviderHasNoCredential()
+    {
+        var client = await CreateSignedInClientAsync(grantAdmin: true);
+        using var response = await client.PutAsJsonAsync("/api/admin/ai-keys/active-provider", new { provider = "runpod" });
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
     [Fact]

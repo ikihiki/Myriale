@@ -12,6 +12,7 @@ public sealed record AiProviderKeyResponse(
     DateTimeOffset? LastValidatedAt);
 
 public sealed record UpsertAiProviderKeyRequest(string DisplayName, string Secret);
+public sealed record ActivateAiProviderRequest(string Provider);
 
 public sealed record AiAdminErrorResponse(string Message, IReadOnlyDictionary<string, string[]> Errors);
 

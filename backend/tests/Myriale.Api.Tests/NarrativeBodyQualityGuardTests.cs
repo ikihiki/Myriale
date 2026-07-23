@@ -69,8 +69,163 @@ public sealed class NarrativeBodyQualityGuardTests
         Assert.Contains("forbidden-fact", _guard.Assess(forbiddenRequest, "確定情報として、司書リラが銀の鍵を盗んだことが明らかになった。探索者はその結果を受け入れるほかない。 ").Violations);
     }
 
+    [Fact]
+    public void GuardRejectsRepeatedNarrativeConcreteNameDriftSpeakerInversionAndPrematureModuleOutcome()
+    {
+        var repeatedNarrative = "司書リラは星座模様を指し示し、それが古い星の配置を表す印であり、銀の鍵に刻まれた線と対応しているのでございますと答えた。二つを重ねれば一致する箇所を確かめられるが、それ以上の由来はまだ断定できないと静かに付け加えた。";
+        var repeated = Request(NarrativeInteractionTypes.Dialogue, "扉を調べる。") with
+        {
+            RecentTurns = [new NarrativeDialogueTurnInput("前の行動", repeatedNarrative)],
+        };
+        Assert.Contains("repeated-narrative", _guard.Assess(repeated, repeatedNarrative).Violations);
+        Assert.Contains("repeated-narrative", _guard.Assess(repeated, repeatedNarrative.Replace("二つを重ねれば一致する箇所を確かめられるが、", string.Empty, StringComparison.Ordinal)).Violations);
+
+        var drift = Request(NarrativeInteractionTypes.Dialogue, "星図灯を扉の星座模様にかざす。");
+        Assert.Contains("entity-name-drift:星座模様", _guard.Assess(drift, "探索者は星図灯を星座の模型へ向け、星座模様との対応を慎重に確かめている。扉の状態はまだ変わっていない。").Violations);
+
+        var inverted = Request(NarrativeInteractionTypes.Dialogue, "司書リラに魔法灯について尋ねる。");
+        Assert.Contains("npc-speaker-inversion", _guard.Assess(inverted, "探索者は司書リラへ向き直り、青い魔法灯について丁寧に答えたのでございます。返答の後も判断は探索者に委ねられている。").Violations);
+
+        var gated = Request(NarrativeInteractionTypes.Dialogue, "銀の鍵を使って閉じた星座の扉を開ける。判定を行う。");
+        Assert.Contains("module-gated-outcome", _guard.Assess(gated, "探索者が銀の鍵を差し込むと、扉は静かに軋みながら開き始めました。扉の向こうには薄暗い空間が広がっています。").Violations);
+
+        var narrow = Request(NarrativeInteractionTypes.Dialogue, "この星座模様は何を示している？銀の鍵との関係だけ、分かる範囲で教えて。");
+        Assert.Contains("unrequested-choice-appendix", _guard.Assess(narrow, "司書リラは、星座模様と銀の鍵の刻印が対応しているのでございますと答えた。次の行動として扉を調べるか、別の場所へ進むかを選択できる。").Violations);
+    }
+
+    [Fact]
+    public void SafeFallbackUsesNaturalProseWithoutPromptOrRecordLeakage()
+    {
+        var outcome = new NarrativePriorModuleOutcomeInput(
+            "door-opened",
+            [new ModuleFact("state", "星座の扉は開いている。")],
+            [],
+            ["閉じた星座の扉が開いた確定結果を描写する。"],
+            []);
+        var request = Request(
+            NarrativeInteractionTypes.Dialogue,
+            "開いた扉に刻まれた星座模様を、銀の鍵と見比べながら詳しく調べる。",
+            new Dictionary<string, bool> { ["door-open"] = true, ["player-has-silver-key"] = true },
+            [outcome]);
+
+        var body = DeterministicSafeNarrativeBodyBuilder.Build(request);
+
+        Assert.DoesNotContain("描写する", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("確定結果", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("確認記録", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("名称と同一性", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("のでございます", body, StringComparison.Ordinal);
+        Assert.Contains("星座模様", body, StringComparison.Ordinal);
+        Assert.Contains("銀の鍵", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GuardProtectsPlayerHeldItemsAndConditionalMovementAcrossScenarios()
+    {
+        var ownership = AshStationRequest("リオ、今あなたが握っているのは私の切符なのか。私の切符なら返して。");
+        var drifted = "リオは宛名のない切符をしっかりと握り直し、それは自分のものだと答えた。サヤは返事を聞き、次の判断を待っている。";
+        var assessment = _guard.Assess(ownership, drifted);
+        Assert.Contains("player-held-item-transfer:宛名のない切符", assessment.Violations);
+        Assert.Contains("ownership-answer-missing", assessment.Violations);
+
+        var direct = "リオは問いに答えた。『探索者は現在、宛名のない切符を握っている。ただし、記された持ち主が誰かはまだ確定していない』と事実を分けて説明した。";
+        Assert.True(_guard.Assess(ownership, direct).IsAcceptable, string.Join(',', _guard.Assess(ownership, direct).Violations));
+
+        var movement = AshStationRequest("リオに忘れられた谷までの案内を頼む。了承するなら、二人で北門へ歩き出す。");
+        var omitted = "リオは切符の刻印を見つめ、ゆっくりとうなずいた。北門から廃線跡を辿れば谷へ着くと説明し、サヤの判断を待った。";
+        Assert.Contains("conditional-action-omitted", _guard.Assess(movement, omitted).Violations);
+        var fulfilled = "リオは切符の刻印を見つめ、ゆっくりとうなずいた。二人は灰の駅を離れ、忘れられた谷を目指して北門へ歩き出した。";
+        Assert.True(_guard.Assess(movement, fulfilled).IsAcceptable, string.Join(',', _guard.Assess(movement, fulfilled).Violations));
+    }
+
+    [Fact]
+    public void AshStationFallbackAnswersTicketPossessionInWorldAndNamesRecentNpc()
+    {
+        var request = AshStationRequest("リオ、今あなたが握っているのは私の切符なのか。私の切符なら返して。最初の目印だけ教えて。");
+
+        var body = DeterministicSafeNarrativeBodyBuilder.Build(request);
+        var assessment = _guard.Assess(request, body);
+
+        Assert.True(assessment.IsAcceptable, string.Join(',', assessment.Violations));
+        Assert.Contains("リオ", body, StringComparison.Ordinal);
+        Assert.Contains("探索者は現在、宛名のない切符を握っている", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("公開されている情報", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("ございます", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ConditionalMovementFallbackUsesEstablishedNpcNameInsteadOfActionPhrase()
+    {
+        var request = AshStationRequest("私は切符をリオに渡さず、自分の手に持ったまま印を見せる。『道案内をしてくれる？もし一緒に行くことに同意してくれるなら、北門へ向かって歩き始めよう』") with
+        {
+            RecentTurns =
+            [
+                new NarrativeDialogueTurnInput(
+                    "名前と行き先を尋ねる。",
+                    "リオは『私の名前はリオです』と答えた。選択肢として、リオと一緒に町を探しに行くことを提案できる。"),
+            ],
+        };
+
+        var body = DeterministicSafeNarrativeBodyBuilder.Build(request);
+        var assessment = _guard.Assess(request, body);
+
+        Assert.True(assessment.IsAcceptable, string.Join(',', assessment.Violations));
+        Assert.StartsWith("リオは", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("行くことは問い", body, StringComparison.Ordinal);
+        Assert.Contains("宛名のない切符を握ったまま", body, StringComparison.Ordinal);
+        Assert.Contains("まだ歩き出さず", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SafeFallbackForRepeatedNarrowQuestionDoesNotReplayThePreviousAnswer()
+    {
+        const string question = "この星座模様は何を示している？銀の鍵との関係だけ、分かる範囲で教えて。";
+        const string previous = "この星座模様は銀の鍵の刻印と対応しており、扉の仕組みに関係しているのでございます。分かる範囲では、それ以上の由来はまだ確定できません。";
+        var request = Request(NarrativeInteractionTypes.Dialogue, question) with
+        {
+            RecentTurns = [new NarrativeDialogueTurnInput(question, previous)],
+        };
+
+        var body = DeterministicSafeNarrativeBodyBuilder.Build(request);
+        var assessment = _guard.Assess(request, body);
+
+        Assert.True(assessment.IsAcceptable, string.Join(',', assessment.Violations));
+        Assert.NotEqual(previous, body);
+        Assert.Contains("付け加えられる新しい情報はございません", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("次の行動", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("選択肢", body, StringComparison.Ordinal);
+    }
+
     private static EvaluationCase Case(string id, NarrativeDialogueRequest request, int minimum, IReadOnlyList<IReadOnlyList<string>> required, IReadOnlyList<IReadOnlyList<string>> forbidden) =>
         new(id, request, minimum, required, forbidden);
+
+    private static NarrativeDialogueRequest AshStationRequest(string playerInput)
+    {
+        var request = Request(NarrativeInteractionTypes.Dialogue, playerInput);
+        return request with
+        {
+            Scenario = new NarrativeScenarioInput(
+                "灰の駅と宛名のない切符",
+                "灰が降り続ける駅から、宛名のない切符の行き先を探す。",
+                "Mystery",
+                "静かな荒野",
+                "朝が来ない荒野では、切符だけが次の町を覚えている。",
+                "High",
+                "サヤ",
+                "あなたは灰の降る駅で、宛名のない切符を握っている。"),
+            RecentTurns =
+            [
+                new NarrativeDialogueTurnInput(
+                    "近くの旅人に名前を尋ねる。",
+                    "旅人は静かな声で『私の名前はリオです』と答えた。サヤは宛名のない切符を手にしたまま返事を聞いた。"),
+            ],
+            Memory = new NarrativeSessionMemoryInput(string.Empty, []),
+            PriorModuleOutcomes = [],
+            AllowedSignals = [],
+            SessionState = new NarrativeSessionStateInput(3, new Dictionary<string, bool>()),
+            CurrentProgressionNode = null,
+        };
+    }
 
     private static NarrativeDialogueRequest Request(
         string interactionType,
