@@ -38,19 +38,31 @@ public sealed partial class NarrativeBodyQualityGuard
 
         var normalizedBody = NormalizeForComparison(trimmed);
         if (request.RecentTurns.Any(turn => !string.IsNullOrWhiteSpace(turn.Narrative)
-            && NormalizeForComparison(turn.Narrative!) == normalizedBody))
+            && IsRepeatedNarrative(normalizedBody, NormalizeForComparison(turn.Narrative!))))
             violations.Add("repeated-narrative");
 
         foreach (var term in ProtectedConcreteTerms.Where(request.PlayerInput.Contains))
-            if (!trimmed.Contains(term, StringComparison.Ordinal)) violations.Add($"entity-name-drift:{term}");
+        {
+            if (!trimmed.Contains(term, StringComparison.Ordinal)
+                || ConcreteTermSubstitutions.TryGetValue(term, out var substitutions)
+                && substitutions.Any(trimmed.Contains))
+                violations.Add($"entity-name-drift:{term}");
+        }
 
         var doorCheckPending = NarrativeSemanticGuard.DeriveProgressionSignals(
             request.AllowedSignals,
             request.PlayerInput,
             request.SessionState,
             request.CurrentProgressionNode).Any(signal => signal.Code == "constellation-door-reached");
-        if (doorCheckPending && ContainsAny(trimmed, "扉が開いた", "扉は開いた", "扉を開いた", "判定に成功", "判定に失敗", "守護者が目覚め", "guardian awakened"))
+        if (doorCheckPending && ContainsAny(trimmed,
+            "扉が開いた", "扉は開いた", "扉を開いた", "扉が開き", "扉は開き", "扉を開き",
+            "開き始め", "開いていく", "開こうと", "開きかけ", "扉の向こう", "扉の先", "扉の奥",
+            "判定に成功", "判定は成功", "判定に失敗", "判定は失敗", "守護者が目覚め", "guardian awakened"))
             violations.Add("module-gated-outcome");
+
+        if (IsNarrowAnswerRequest(request.PlayerInput)
+            && ContainsAny(trimmed, "次の行動", "次にどう", "どうします", "どうするか", "選択肢", "何を確かめるか"))
+            violations.Add("unrequested-choice-appendix");
 
         if (IsExplicitNpcQuestion(request))
         {
@@ -97,6 +109,9 @@ public sealed partial class NarrativeBodyQualityGuard
     }
 
     internal static bool RequiresLongDetail(string input) => DetailMarkers.Any(input.Contains);
+
+    internal static bool IsNarrowAnswerRequest(string input) => ContainsAny(input,
+        "だけ教えて", "だけ、", "だけを", "関係だけ", "分かる範囲で", "わかる範囲で", "only tell", "only explain");
 
     internal static bool IsExplicitNpcQuestion(NarrativeDialogueRequest request) =>
         !string.Equals(request.InteractionType, NarrativeInteractionTypes.Clarification, StringComparison.Ordinal)
@@ -159,6 +174,38 @@ public sealed partial class NarrativeBodyQualityGuard
     }
 
     private static readonly string[] ProtectedConcreteTerms = ["星座模様", "星図灯", "銀の鍵"];
+    private static readonly IReadOnlyDictionary<string, string[]> ConcreteTermSubstitutions = new Dictionary<string, string[]>(StringComparer.Ordinal)
+    {
+        ["星座模様"] = ["星座の模型", "星座模型"],
+        ["星図灯"] = ["星図の灯", "星図ランプ"],
+        ["銀の鍵"] = ["銀色の鍵"],
+    };
+
+    private static bool IsRepeatedNarrative(string left, string right)
+    {
+        if (left == right) return true;
+        if (left.Length < 80 || right.Length < 80) return false;
+
+        var leftBigrams = BuildBigramCounts(left);
+        var rightBigrams = BuildBigramCounts(right);
+        var overlap = 0;
+        foreach (var (bigram, count) in leftBigrams)
+            if (rightBigrams.TryGetValue(bigram, out var otherCount)) overlap += Math.Min(count, otherCount);
+
+        var total = leftBigrams.Values.Sum() + rightBigrams.Values.Sum();
+        return total > 0 && 2d * overlap / total >= 0.86d;
+    }
+
+    private static Dictionary<string, int> BuildBigramCounts(string value)
+    {
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var index = 0; index < value.Length - 1; index++)
+        {
+            var bigram = value.Substring(index, 2);
+            counts[bigram] = counts.GetValueOrDefault(bigram) + 1;
+        }
+        return counts;
+    }
 
     private static string NormalizeForComparison(string value)
     {
@@ -170,7 +217,7 @@ public sealed partial class NarrativeBodyQualityGuard
 
     private static bool ContainsAny(string value, params string[] candidates) => candidates.Any(value.Contains);
 
-    [GeneratedRegex(@"(?:探索者|Player|プレイヤー)(?:.{0,32})(?:答え|返答|応じ)", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
+    [GeneratedRegex(@"(?:探索者|Player|プレイヤー)(?:.{0,32})(?:答えた|答える|返答した|返答する|応じた|応じる)", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
     private static partial Regex PlayerAnswerRegex();
 
     [GeneratedRegex(@"([\p{L}]{2,12})は", RegexOptions.CultureInvariant)]

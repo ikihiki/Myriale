@@ -40,7 +40,14 @@ public static class DeterministicSafeNarrativeBodyBuilder
         grounded.AddRange(PublicFacts(request));
         if (grounded.Count == 0) grounded.Add("公開されている情報からは、これ以上を確定できない");
         var speaker = npc is null ? "問いかけに対し" : $"{npc}は問いに向き直り";
-        return $"{speaker}、『{string.Join("。", grounded.Distinct(StringComparer.Ordinal))}のでございます。未確認の事柄を事実とは申し上げられません』と丁寧な応答が返る。探索者が何を確かめるかは、なお本人に委ねられている。";
+        var answer = string.Join("。", grounded
+            .Select(item => item.Trim().TrimEnd('。'))
+            .Where(item => item.Length > 0)
+            .Distinct(StringComparer.Ordinal));
+        var closing = NarrativeBodyQualityGuard.IsNarrowAnswerRequest(request.PlayerInput)
+            ? string.Empty
+            : "。探索者はその答えを受け、次に確かめる事柄を自分で選べる";
+        return $"{speaker}、『{answer}。未確認の事柄を事実とは申し上げられません。分かる範囲でお伝えできるのは以上でございます』と丁寧に答える{closing}。";
     }
 
     private static string BuildObservation(NarrativeDialogueRequest request)
@@ -60,12 +67,11 @@ public static class DeterministicSafeNarrativeBodyBuilder
         var facts = PublicFacts(request).Concat(StateFacts(request)).ToList();
         if (facts.Count == 0) facts.Add(request.Scenario.Opening);
         var summary = string.Join(" ", facts.Distinct(StringComparer.Ordinal));
-        var continuity = request.RecentTurns.Count == 0
-            ? "今回の確認では、目の前の状況を初めて慎重に見定めている。"
-            : $"今回の確認では、直前までの記録を踏まえて別の角度から状況を見定めている（確認記録 {request.RecentTurns.Count + 1}）。";
         var observedObjects = string.Join("と", new[] { "星座模様", "星図灯", "銀の鍵" }.Where(request.PlayerInput.Contains));
-        var observedFocus = observedObjects.Length > 0 ? $" 焦点となる{observedObjects}の名称と同一性は保たれている。" : string.Empty;
-        return $"探索者が確かめられる範囲では、{summary} {continuity}{observedFocus} 新しい行動が勝手に実行されることはなく、重要な判断と行動は探索者自身に委ねられている。";
+        var observation = observedObjects.Length > 0
+            ? $"探索者は{observedObjects}へ注意を向け、見比べながら分かる範囲を慎重に調べる。"
+            : "探索者は目の前の状況へ注意を向け、分かる範囲を慎重に調べる。";
+        return $"{observation}{summary} 観察した範囲では新たな変化は起きておらず、探索者は確かめた事実をもとに判断できる。";
     }
 
     private static string ExpandDetail(NarrativeDialogueRequest request, string initial)
@@ -80,7 +86,7 @@ public static class DeterministicSafeNarrativeBodyBuilder
             ? $"現在の位置と状況については、{request.Scenario.Opening} これ以上の由来や歴史は公開情報からは確定できない。"
             : $"これまでの公開事実として、{string.Join(" ", facts)} これらは現在の描写でも変えずに保たれる。");
         builder.Append("\n\n");
-        builder.Append("ここで述べられる役割は、探索者が周囲を理解し、自分で選択するための手掛かりを示すことに限られる。扉を開く、奥へ入る、物を使うといった結果は、探索者が明示しない限り確定しないのでございます。");
+        builder.Append("ここで述べられる役割は、探索者が周囲を理解し、自分で選択するための手掛かりを示すことに限られる。扉を開く、奥へ入る、物を使うといった結果は、探索者が明示しない限り確定しない。");
         return builder.ToString();
     }
 
@@ -102,8 +108,23 @@ public static class DeterministicSafeNarrativeBodyBuilder
         foreach (var outcome in request.PriorModuleOutcomes)
         {
             foreach (var fact in outcome.PublicFacts) yield return EnsureSentence(fact.Text);
-            foreach (var hint in outcome.NarrativeHints) yield return EnsureSentence(hint);
+            if (outcome.PublicFacts.Count > 0) continue;
+            foreach (var hint in outcome.NarrativeHints)
+            {
+                var safeHint = SanitizeNarrativeHint(hint);
+                if (safeHint.Length > 0) yield return EnsureSentence(safeHint);
+            }
         }
+    }
+
+    private static string SanitizeNarrativeHint(string hint)
+    {
+        var value = hint.Trim().TrimEnd('。');
+        value = value.Replace("ことを描写する", string.Empty, StringComparison.Ordinal)
+            .Replace("を描写する", string.Empty, StringComparison.Ordinal)
+            .Replace("確定結果", string.Empty, StringComparison.Ordinal)
+            .Replace("として扱う", "である", StringComparison.Ordinal);
+        return value.Trim().TrimEnd('。');
     }
 
     private static string? FindNpcName(NarrativeDialogueRequest request) =>

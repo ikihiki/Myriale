@@ -72,20 +72,51 @@ public sealed class NarrativeBodyQualityGuardTests
     [Fact]
     public void GuardRejectsRepeatedNarrativeConcreteNameDriftSpeakerInversionAndPrematureModuleOutcome()
     {
+        var repeatedNarrative = "司書リラは星座模様を指し示し、それが古い星の配置を表す印であり、銀の鍵に刻まれた線と対応しているのでございますと答えた。二つを重ねれば一致する箇所を確かめられるが、それ以上の由来はまだ断定できないと静かに付け加えた。";
         var repeated = Request(NarrativeInteractionTypes.Dialogue, "扉を調べる。") with
         {
-            RecentTurns = [new NarrativeDialogueTurnInput("前の行動", "閉じた扉は静かなままで、探索者は次の判断を待っている。")],
+            RecentTurns = [new NarrativeDialogueTurnInput("前の行動", repeatedNarrative)],
         };
-        Assert.Contains("repeated-narrative", _guard.Assess(repeated, "閉じた扉は静かなままで、探索者は次の判断を待っている。").Violations);
+        Assert.Contains("repeated-narrative", _guard.Assess(repeated, repeatedNarrative).Violations);
+        Assert.Contains("repeated-narrative", _guard.Assess(repeated, repeatedNarrative.Replace("二つを重ねれば一致する箇所を確かめられるが、", string.Empty, StringComparison.Ordinal)).Violations);
 
         var drift = Request(NarrativeInteractionTypes.Dialogue, "星図灯を扉の星座模様にかざす。");
-        Assert.Contains("entity-name-drift:星座模様", _guard.Assess(drift, "探索者は星図灯を星座の模型へ向け、周囲を慎重に確かめている。扉の状態はまだ変わっていない。").Violations);
+        Assert.Contains("entity-name-drift:星座模様", _guard.Assess(drift, "探索者は星図灯を星座の模型へ向け、星座模様との対応を慎重に確かめている。扉の状態はまだ変わっていない。").Violations);
 
         var inverted = Request(NarrativeInteractionTypes.Dialogue, "司書リラに魔法灯について尋ねる。");
         Assert.Contains("npc-speaker-inversion", _guard.Assess(inverted, "探索者は司書リラへ向き直り、青い魔法灯について丁寧に答えたのでございます。返答の後も判断は探索者に委ねられている。").Violations);
 
         var gated = Request(NarrativeInteractionTypes.Dialogue, "銀の鍵を使って閉じた星座の扉を開ける。判定を行う。");
-        Assert.Contains("module-gated-outcome", _guard.Assess(gated, "探索者が銀の鍵を差し込むと扉が開いた。星座の光が広がり、判定は成功した。次の行動を選べる状態になった。").Violations);
+        Assert.Contains("module-gated-outcome", _guard.Assess(gated, "探索者が銀の鍵を差し込むと、扉は静かに軋みながら開き始めました。扉の向こうには薄暗い空間が広がっています。").Violations);
+
+        var narrow = Request(NarrativeInteractionTypes.Dialogue, "この星座模様は何を示している？銀の鍵との関係だけ、分かる範囲で教えて。");
+        Assert.Contains("unrequested-choice-appendix", _guard.Assess(narrow, "司書リラは、星座模様と銀の鍵の刻印が対応しているのでございますと答えた。次の行動として扉を調べるか、別の場所へ進むかを選択できる。").Violations);
+    }
+
+    [Fact]
+    public void SafeFallbackUsesNaturalProseWithoutPromptOrRecordLeakage()
+    {
+        var outcome = new NarrativePriorModuleOutcomeInput(
+            "door-opened",
+            [new ModuleFact("state", "星座の扉は開いている。")],
+            [],
+            ["閉じた星座の扉が開いた確定結果を描写する。"],
+            []);
+        var request = Request(
+            NarrativeInteractionTypes.Dialogue,
+            "開いた扉に刻まれた星座模様を、銀の鍵と見比べながら詳しく調べる。",
+            new Dictionary<string, bool> { ["door-open"] = true, ["player-has-silver-key"] = true },
+            [outcome]);
+
+        var body = DeterministicSafeNarrativeBodyBuilder.Build(request);
+
+        Assert.DoesNotContain("描写する", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("確定結果", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("確認記録", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("名称と同一性", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("のでございます", body, StringComparison.Ordinal);
+        Assert.Contains("星座模様", body, StringComparison.Ordinal);
+        Assert.Contains("銀の鍵", body, StringComparison.Ordinal);
     }
 
     private static EvaluationCase Case(string id, NarrativeDialogueRequest request, int minimum, IReadOnlyList<IReadOnlyList<string>> required, IReadOnlyList<IReadOnlyList<string>> forbidden) =>

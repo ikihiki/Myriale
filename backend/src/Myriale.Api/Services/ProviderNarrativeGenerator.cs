@@ -349,7 +349,7 @@ public sealed class ProviderNarrativeGenerator(
         - interactionType "clarification" requires a clarification-only body with no state change and no new event.
         - interactionType "dialogue" should render an NPC's direct answer or speech when the Player clearly addresses, asks, or questions an NPC. The addressed NPC owns the answer; never rewrite the Player's quoted question as the NPC's words or make the Player answer their own question.
         - Describe only the new turn delta, not a repetition or close paraphrase of a recent narrative. Preserve established concrete object names and referents verbatim; never rename a 星座模様 as a 模型 or otherwise substitute a different object.
-        - Describe the requested action/result or current situation, then return the next important decision to the Player. Never choose that decision for the Player.
+        - Describe the requested action/result or current situation, then return the next important decision to the Player. Never choose that decision for the Player. If the Player explicitly asks for only a narrow fact or relationship, answer only that scope and omit generic choices or a next-action appendix.
         - Do not convert observing, asking, checking, or approaching into opening, entering, consuming, contracting, attacking, or another unrequested consequential action.
         - Match the requested level of detail. For a detailed explanation, provide multiple substantive paragraphs and do not truncate the answer.
         - Preserve scenario lore, recent turns, memory canon status, session flags, progression node, and prior module outcome codes/public facts/emitted events/narrative hints as authoritative canon.

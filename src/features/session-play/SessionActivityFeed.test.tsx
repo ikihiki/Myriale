@@ -131,6 +131,20 @@ describe('SessionActivityFeed', () => {
     expect(screen.queryByText('入力の解釈')).toBeNull();
   });
 
+  it('renders a module turn without narrative as program progress instead of an error placeholder', () => {
+    const session = sessionActivityFixture('succeeded');
+    session.turns = [
+      ...session.turns,
+      { id: 'TRN-MODULE', position: 3, previousTurnId: 'TRN-2', kind: 'module', narrative: null, createdAt: '2026-07-21T12:00:08Z' },
+    ];
+    session.activity = [...(session.activity ?? []), { type: 'turn', id: 'TRN-MODULE', order: 999 }];
+
+    render(<SessionActivityFeed session={session} />);
+
+    expect(screen.getByTestId('program-turn-item').textContent).toContain('判定結果を処理');
+    expect(screen.queryByText('Narrativeを表示できません。')).toBeNull();
+  });
+
   it('polls only while at least one execution is active', () => {
     expect(hasActiveSessionExecutions(sessionActivityFixture('running'))).toBe(true);
     expect(hasActiveSessionExecutions(sessionActivityFixture('failed'))).toBe(false);
