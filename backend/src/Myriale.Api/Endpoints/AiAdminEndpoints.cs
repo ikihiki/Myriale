@@ -14,6 +14,7 @@ public static class AiAdminEndpoints
             .RequireCors("MyrialeFrontend")
             .RequireAuthorization("AiAdministration");
         group.MapGet("/", ListAsync);
+        group.MapPut("/active-provider", ActivateAsync);
         group.MapPut("/{provider}", UpsertAsync);
         group.MapDelete("/{provider}", DeleteAsync);
         group.MapPost("/{provider}/test", TestAsync);
@@ -22,27 +23,42 @@ public static class AiAdminEndpoints
 
     private static readonly string[] SupportedProviders = ["openai", "runpod"];
 
-    private static async Task<IResult> ListAsync(IAiCredentialStore store, ApplicationDbContext db, IConfiguration configuration, CancellationToken cancellationToken)
+    private static async Task<IResult> ListAsync(IAiCredentialStore store, IAiProviderSelectionStore selection, ApplicationDbContext db, IConfiguration configuration, CancellationToken cancellationToken)
     {
+        var activeProvider = await selection.GetActiveProviderAsync(cancellationToken);
         var rows = await db.AiProviderKeys.AsNoTracking().ToDictionaryAsync(key => key.Provider, StringComparer.OrdinalIgnoreCase, cancellationToken);
         var providers = SupportedProviders.Concat(rows.Keys).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(provider => provider);
         var responses = new List<AiProviderKeyResponse>();
         foreach (var provider in providers)
         {
             rows.TryGetValue(provider, out var row);
-            responses.Add(await ToResponseAsync(provider, row, store, configuration, cancellationToken));
+            responses.Add(await ToResponseAsync(provider, row, activeProvider, store, configuration, cancellationToken));
         }
         return Results.Ok(responses);
     }
 
-    private static async Task<IResult> UpsertAsync(string provider, UpsertAiProviderKeyRequest request, IAiCredentialStore store, ApplicationDbContext db, IConfiguration configuration, CancellationToken cancellationToken)
+    private static async Task<IResult> ActivateAsync(ActivateAiProviderRequest request, IAiCredentialStore store, IAiProviderSelectionStore selection, ApplicationDbContext db, IConfiguration configuration, CancellationToken cancellationToken)
+    {
+        var provider = Normalize(request.Provider);
+        if (provider is not ("openai" or "runpod"))
+            return Results.BadRequest(new AiAdminErrorResponse("使用するAI Providerを確認してください。", new Dictionary<string, string[]> { ["provider"] = ["openai または runpod を指定してください。"] }));
+        if (string.IsNullOrWhiteSpace(await store.GetAsync(provider, cancellationToken)))
+            return Results.Conflict(new AiAdminErrorResponse("先にAIキーを登録してください。", new Dictionary<string, string[]> { ["provider"] = ["未設定のProviderは使用できません。"] }));
+
+        await selection.SetActiveProviderAsync(provider, cancellationToken);
+        var row = await db.AiProviderKeys.AsNoTracking().SingleOrDefaultAsync(x => x.Provider == provider, cancellationToken);
+        return Results.Ok(await ToResponseAsync(provider, row, provider, store, configuration, cancellationToken));
+    }
+
+    private static async Task<IResult> UpsertAsync(string provider, UpsertAiProviderKeyRequest request, IAiCredentialStore store, IAiProviderSelectionStore selection, ApplicationDbContext db, IConfiguration configuration, CancellationToken cancellationToken)
     {
         provider = Normalize(provider);
         var errors = Validate(provider, request);
         if (errors.Count > 0) return Results.BadRequest(new AiAdminErrorResponse("AIキー設定を確認してください。", errors));
         await store.SaveAsync(provider, request.DisplayName.Trim(), request.Secret.Trim(), cancellationToken);
         var row = await db.AiProviderKeys.AsNoTracking().SingleAsync(x => x.Provider == provider, cancellationToken);
-        return Results.Ok(await ToResponseAsync(provider, row, store, configuration, cancellationToken));
+        var activeProvider = await selection.GetActiveProviderAsync(cancellationToken);
+        return Results.Ok(await ToResponseAsync(provider, row, activeProvider, store, configuration, cancellationToken));
     }
 
     private static async Task<IResult> DeleteAsync(string provider, IAiCredentialStore store, CancellationToken cancellationToken)
@@ -51,7 +67,7 @@ public static class AiAdminEndpoints
         return Results.NoContent();
     }
 
-    private static async Task<IResult> TestAsync(string provider, IAiCredentialStore store, IAiTextProvider textProvider, ApplicationDbContext db, IConfiguration configuration, IHostEnvironment environment, CancellationToken cancellationToken)
+    private static async Task<IResult> TestAsync(string provider, IAiCredentialStore store, IAiProviderSelectionStore selection, IAiTextProvider textProvider, ApplicationDbContext db, IConfiguration configuration, IHostEnvironment environment, CancellationToken cancellationToken)
     {
         provider = Normalize(provider);
         if (provider is not ("openai" or "runpod")) return Results.NotFound();
@@ -69,7 +85,8 @@ public static class AiAdminEndpoints
             row.Status = "valid";
             row.LastValidatedAt = row.UpdatedAt = DateTimeOffset.UtcNow;
             await db.SaveChangesAsync(cancellationToken);
-            return Results.Ok(await ToResponseAsync(provider, row, store, configuration, cancellationToken));
+            var activeProvider = await selection.GetActiveProviderAsync(cancellationToken);
+            return Results.Ok(await ToResponseAsync(provider, row, activeProvider, store, configuration, cancellationToken));
         }
         catch (AiProviderException exception)
         {
@@ -94,7 +111,7 @@ public static class AiAdminEndpoints
         return errors;
     }
 
-    private static async Task<AiProviderKeyResponse> ToResponseAsync(string provider, AiProviderKey? key, IAiCredentialStore store, IConfiguration configuration, CancellationToken cancellationToken)
+    private static async Task<AiProviderKeyResponse> ToResponseAsync(string provider, AiProviderKey? key, string activeProvider, IAiCredentialStore store, IConfiguration configuration, CancellationToken cancellationToken)
     {
         var environmentSecret = configuration[$"AiProvider:Providers:{provider}:ApiKey"];
         if (string.IsNullOrWhiteSpace(environmentSecret)
@@ -109,7 +126,7 @@ public static class AiAdminEndpoints
             !string.IsNullOrWhiteSpace(secret),
             string.IsNullOrWhiteSpace(secret) ? "未設定" : store.Mask(secret),
             credentialSource,
-            string.Equals(configuration["AiProvider:Provider"], provider, StringComparison.OrdinalIgnoreCase),
+            string.Equals(activeProvider, provider, StringComparison.OrdinalIgnoreCase),
             key?.Status ?? "untested",
             key?.UpdatedAt ?? default,
             key?.LastValidatedAt);

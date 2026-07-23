@@ -154,16 +154,22 @@ aspire run --project backend/src/Myriale.AppHost/Myriale.AppHost.csproj
 export AiProvider__ApiKey="$OPEN_AI_KEY"
 ```
 
-管理画面から登録する場合は、AI管理権限を持つアカウントでログインし、`/account/admin/ai-keys`を開きます。Providerで`OpenAI`を選択してキーを保存し、一覧の「接続テスト」を実行してください。管理画面で保存したキーはData Protectionで暗号化してDBへ保存されますが、現在の既定値`Database:RecreateOnStartup=true`ではAPI再起動時にDBが再作成されるため、継続利用する環境ではsecretまたは環境変数を使用してください。
+管理画面から登録・切り替えする場合は、AI管理権限を持つアカウントでログインし、`/account/admin/ai-keys`を開きます。Providerのキーを保存して「接続テスト」を行ったあと、「このAIを使用」を押すと、次のNarrative生成からOpenAIとRunpodを切り替えられます。管理画面で保存したキーと使用Providerの選択はDBへ保存されますが、現在の既定値`Database:RecreateOnStartup=true`ではAPI再起動時にDBが再作成されるため、キーの継続利用にはVaultまたは環境変数を使用してください。
 
-ForgeではOpenAI専用のVault key `forge/apps/myriale/openai`へ、次のpropertyを登録します。既存の`forge/apps/myriale/ai`は参照・上書き・削除しません。異なるOpenAI用keyを使う場合はHelm valueの`forge.openAiVaultKey`で指定します。
+ForgeではProviderごとに既存のVault keyを分離して利用します。
+
+- OpenAI: `forge/apps/myriale/openai`。異なるkeyを使う場合は`forge.openAiVaultKey`で指定します。
+- Runpod: 既存の`forge/apps/myriale/ai`をそのまま利用します。異なるkeyを使う場合は`forge.runpodVaultKey`で指定します。このkeyは削除・上書きされません。
+
+OpenAI用keyには次のpropertyを登録します。
 
 ```yaml
-provider: openai
 apiKey: sk-...
 baseUrl: https://api.openai.com/v1
 model: gpt-4.1-mini
 ```
+
+既存のRunpod用keyには、従来どおり`apiKey`、`baseUrl`、`model`を保持してください。`provider` propertyが残っていても問題ありません。
 
 APIキーはブラウザー、フロントエンド環境変数、ソースコード、ログへ渡さないでください。使用量と上限はOpenAI Platform側でも設定・監視してください。
 

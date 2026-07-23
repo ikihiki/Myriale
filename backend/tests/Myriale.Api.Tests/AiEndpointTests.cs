@@ -58,6 +58,31 @@ public sealed class AiEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task AdminAiKeys_ActivatesConfiguredProviderAtRuntime()
+    {
+        var client = await CreateSignedInClientAsync(grantAdmin: true);
+        using var saved = await client.PutAsJsonAsync("/api/admin/ai-keys/runpod", new { displayName = "Runpod Serverless", secret = "runpod-secret-5678" });
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+
+        using var activated = await client.PutAsJsonAsync("/api/admin/ai-keys/active-provider", new { provider = "runpod" });
+        Assert.Equal(HttpStatusCode.OK, activated.StatusCode);
+        Assert.True((await activated.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("active").GetBoolean());
+
+        using var listed = await client.GetAsync("/api/admin/ai-keys/");
+        var providers = (await listed.Content.ReadFromJsonAsync<JsonElement>()).EnumerateArray().ToArray();
+        Assert.True(providers.Single(item => item.GetProperty("provider").GetString() == "runpod").GetProperty("active").GetBoolean());
+        Assert.False(providers.Single(item => item.GetProperty("provider").GetString() == "openai").GetProperty("active").GetBoolean());
+    }
+
+    [Fact]
+    public async Task AdminAiKeys_RejectsActivationWhenProviderHasNoCredential()
+    {
+        var client = await CreateSignedInClientAsync(grantAdmin: true);
+        using var response = await client.PutAsJsonAsync("/api/admin/ai-keys/active-provider", new { provider = "runpod" });
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
     public async Task AdminAiKeys_ListsAndTestsEnvironmentConfiguredProviderWithoutDatabaseKey()
     {
         var databasePath = Path.Combine(Path.GetTempPath(), $"myriale-ai-environment-{Guid.NewGuid():N}.db");

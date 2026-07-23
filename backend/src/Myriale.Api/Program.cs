@@ -25,6 +25,7 @@ builder.Services.AddOptions<AiProviderOptions>()
         && options.LeaseRecoveryIntervalSeconds > 0, "AI quota and recovery limits must be positive.")
     .ValidateOnStart();
 builder.Services.AddScoped<IAiCredentialStore, DataProtectionAiCredentialStore>();
+builder.Services.AddScoped<IAiProviderSelectionStore, DbAiProviderSelectionStore>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<OpenAiCompatibleTextProvider>();
 builder.Services.AddScoped<IAiTextProvider>(services => services.GetRequiredService<OpenAiCompatibleTextProvider>());

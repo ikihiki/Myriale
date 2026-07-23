@@ -96,7 +96,8 @@ public sealed class OpenAiCompatibleTextProvider(
     IHttpClientFactory clients,
     IAiCredentialStore credentials,
     IOptions<AiProviderOptions> configuredOptions,
-    ILogger<OpenAiCompatibleTextProvider> logger) : IAiTextProvider
+    ILogger<OpenAiCompatibleTextProvider> logger,
+    IAiProviderSelectionStore? selection = null) : IAiTextProvider
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -106,7 +107,9 @@ public sealed class OpenAiCompatibleTextProvider(
     public async Task<AiTextResponse> GenerateAsync(AiTextRequest request, CancellationToken cancellationToken)
     {
         var configured = configuredOptions.Value;
-        var provider = Normalize(configured.Provider);
+        var provider = selection is null
+            ? Normalize(configured.Provider)
+            : await selection.GetActiveProviderAsync(cancellationToken);
         var options = ResolveOptions(configured, provider);
         if (provider is not ("openai" or "runpod"))
             throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "実AI Providerが設定されていません。", false);

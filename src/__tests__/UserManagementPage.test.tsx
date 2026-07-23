@@ -108,5 +108,11 @@ describe('UserManagementPage — Identity-backed account UI', () => {
 
     fireEvent.click(within(openai).getByRole('button', { name: '接続テスト' }));
     expect(await screen.findByTestId('ai-key-notice')).toHaveTextContent('OpenAIへの接続テストに成功');
+
+    const runpod = screen.getByTestId('ai-key-row-runpod');
+    fireEvent.click(within(runpod).getByRole('button', { name: 'このAIを使用' }));
+    expect(await screen.findByTestId('ai-key-notice')).toHaveTextContent('使用するAIをRunpod Serverlessへ切り替えました');
+    expect(runpod).toHaveTextContent('使用中');
+    expect(openai).not.toHaveTextContent('使用中');
   });
 });

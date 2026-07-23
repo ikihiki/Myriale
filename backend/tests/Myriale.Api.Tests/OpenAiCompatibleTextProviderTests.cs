@@ -70,6 +70,52 @@ public sealed class OpenAiCompatibleTextProviderTests
     }
 
     [Fact]
+    public async Task Generate_UsesRuntimeSelectedProviderForTheNextRequest()
+    {
+        var handler = new QueueHandler(
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"choices\":[{\"message\":{\"content\":\"{\\\"ok\\\":true}\"},\"finish_reason\":\"stop\"}]}", Encoding.UTF8, "application/json")
+            },
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"choices\":[{\"message\":{\"content\":\"{\\\"ok\\\":true}\"},\"finish_reason\":\"stop\"}]}", Encoding.UTF8, "application/json")
+            });
+        var selection = new SelectionStore("openai");
+        var options = Options.Create(new AiProviderOptions
+        {
+            Provider = "openai",
+            BaseUrl = "https://api.openai.test/v1",
+            Model = "gpt-test",
+            ApiKey = "openai-key",
+            MaxAttempts = 1,
+            Providers = new Dictionary<string, AiProviderProfileOptions>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["runpod"] = new()
+                {
+                    BaseUrl = "https://api.runpod.test/openai/v1",
+                    Model = "qwen-test",
+                    ApiKey = "runpod-key"
+                }
+            }
+        });
+        var provider = new OpenAiCompatibleTextProvider(
+            new Factory(new HttpClient(handler)),
+            new CredentialStore(),
+            options,
+            NullLogger<OpenAiCompatibleTextProvider>.Instance,
+            selection);
+
+        await provider.GenerateAsync(Request(), default);
+        Assert.Equal("https://api.openai.test/v1/chat/completions", handler.LastUri?.ToString());
+        selection.Provider = "runpod";
+        await provider.GenerateAsync(Request(), default);
+        Assert.Equal("https://api.runpod.test/openai/v1/chat/completions", handler.LastUri?.ToString());
+        using var body = JsonDocument.Parse(handler.LastBody);
+        Assert.Equal("qwen-test", body.RootElement.GetProperty("model").GetString());
+    }
+
+    [Fact]
     public async Task Generate_RetriesRateLimitAndReportsFinalAttempt()
     {
         var rateLimited = new HttpResponseMessage(HttpStatusCode.TooManyRequests)
@@ -206,6 +252,17 @@ public sealed class OpenAiCompatibleTextProviderTests
         public Task DeleteAsync(string provider, CancellationToken cancellationToken) => throw new NotSupportedException();
         public string Mask(string secret) => throw new NotSupportedException();
     }
+    private sealed class SelectionStore(string provider) : IAiProviderSelectionStore
+    {
+        public string Provider { get; set; } = provider;
+        public Task<string> GetActiveProviderAsync(CancellationToken cancellationToken) => Task.FromResult(Provider);
+        public Task SetActiveProviderAsync(string provider, CancellationToken cancellationToken)
+        {
+            Provider = provider;
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class RecordingLogger<T> : ILogger<T>
     {
         public List<string> Entries { get; } = [];
