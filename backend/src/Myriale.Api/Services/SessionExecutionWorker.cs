@@ -5,7 +5,7 @@ using Myriale.Api.Data;
 namespace Myriale.Api.Services;
 
 public sealed record SessionExecutionContext(string ExecutionId, string LeaseToken, long Revision, string AttemptId, int AttemptNumber);
-public sealed record SessionExecutionHandlerResult(bool Succeeded, bool Retryable = false, string? ErrorCode = null, string? UserMessage = null, string? TerminalStatus = null);
+public sealed record SessionExecutionHandlerResult(bool Succeeded, bool Retryable = false, string? ErrorCode = null, string? UserMessage = null, string? TerminalStatus = null, string? ErrorCategory = null);
 
 public interface ISessionExecutionHandler
 {
@@ -98,7 +98,7 @@ public sealed class SessionExecutionWorker(
                 {
                     activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
                     logger.LogWarning(exception, "Session execution handler failed. Kind={Kind}", execution.Kind);
-                    result = new(false, true, "execution_failed", "生成処理に失敗しました。入力内容は保存されています。");
+                    result = new(false, true, "execution_failed", "生成処理に失敗しました。入力内容は保存されています。", ErrorCategory: "internal");
                 }
             }
         }

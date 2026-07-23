@@ -33,6 +33,9 @@ public sealed class ProviderNarrativeGeneratorTests
         Assert.Contains("not a repetition or close paraphrase", system, StringComparison.Ordinal);
         Assert.Contains("Preserve established concrete object names", system, StringComparison.Ordinal);
         Assert.Contains("addressed NPC owns the answer", system, StringComparison.Ordinal);
+        Assert.Contains("remains with the Player unless the current input explicitly transfers it", system, StringComparison.Ordinal);
+        Assert.Contains("movement conditional on an NPC's agreement", system, StringComparison.Ordinal);
+        Assert.Contains("distinguish present possession from legal or named ownership", system, StringComparison.Ordinal);
         Assert.Contains("authoritative module check", system, StringComparison.Ordinal);
         var policyJson = system[(system.LastIndexOf('\n') + 1)..];
         var wirePolicy = JsonSerializer.Deserialize<NarrativePromptInstructions>(policyJson, new JsonSerializerOptions(JsonSerializerDefaults.Web));

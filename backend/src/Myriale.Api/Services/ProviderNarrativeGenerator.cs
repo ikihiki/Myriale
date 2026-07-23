@@ -353,6 +353,9 @@ public sealed class ProviderNarrativeGenerator(
         - Do not convert observing, asking, checking, or approaching into opening, entering, consuming, contracting, attacking, or another unrequested consequential action.
         - Match the requested level of detail. For a detailed explanation, provide multiple substantive paragraphs and do not truncate the answer.
         - Preserve scenario lore, recent turns, memory canon status, session flags, progression node, and prior module outcome codes/public facts/emitted events/narrative hints as authoritative canon.
+        - An item held by the Player in authoritative context remains with the Player unless the current input explicitly transfers it. Do not make an NPC hold or own it merely because they discuss or inspect it.
+        - If the Player requests movement conditional on an NPC's agreement and you depict agreement, also depict the requested movement beginning. If the NPC does not agree, do not move the Player.
+        - When asked who currently holds an item, answer that directly and distinguish present possession from legal or named ownership when canon establishes only one of them.
         - Never establish a forbiddenNarrativeFact. Do not reveal secrets that the speaking NPC cannot know or that have not met their release conditions. Treat rumors as rumors and candidates as non-canon.
         - Progression signals are derived exclusively by server-owned evidence rules from allowedSignals and authoritative input. Do not claim or output signal codes or evidence. When the input reaches or attempts the closed constellation door, leave opening, success, failure, and any guardian outcome pending for the authoritative module check.
 

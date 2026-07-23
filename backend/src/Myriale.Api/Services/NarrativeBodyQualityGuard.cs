@@ -49,6 +49,20 @@ public sealed partial class NarrativeBodyQualityGuard
                 violations.Add($"entity-name-drift:{term}");
         }
 
+        var playerHeldItem = FindPlayerHeldItem(request);
+        if (playerHeldItem is not null
+            && !ExplicitlyTransfersItem(request.PlayerInput, playerHeldItem)
+            && AssignsItemToNpc(request, trimmed, playerHeldItem))
+            violations.Add($"player-held-item-transfer:{playerHeldItem}");
+
+        if (AgreedConditionalMovementWasOmitted(request.PlayerInput, trimmed))
+            violations.Add("conditional-action-omitted");
+
+        if (IsPossessionQuestion(request.PlayerInput)
+            && playerHeldItem is not null
+            && !DirectlyAnswersCurrentHolder(trimmed, playerHeldItem))
+            violations.Add("ownership-answer-missing");
+
         var doorCheckPending = NarrativeSemanticGuard.DeriveProgressionSignals(
             request.AllowedSignals,
             request.PlayerInput,
@@ -120,7 +134,7 @@ public sealed partial class NarrativeBodyQualityGuard
     private static bool IsNonAdvancingInput(string input) => ContainsAny(input,
         "開けたり", "入ったりはしない", "開けない", "入らない", "新しい行動はしない", "遠くから", "見るだけ", "観察する", "確認したい");
 
-    private static string? FindAddressedNpc(NarrativeDialogueRequest request)
+    internal static string? FindAddressedNpc(NarrativeDialogueRequest request)
     {
         if (request.PlayerInput.Contains("リラ", StringComparison.Ordinal) && request.Scenario.Lore.Contains("司書リラ", StringComparison.Ordinal))
             return "司書リラ";
@@ -131,7 +145,85 @@ public sealed partial class NarrativeBodyQualityGuard
             var shortName = candidate.Length > 2 ? candidate[^2..] : candidate;
             if (request.PlayerInput.Contains(shortName, StringComparison.Ordinal)) return candidate;
         }
+        foreach (Match match in AddressedNameRegex().Matches(request.PlayerInput))
+        {
+            var candidate = match.Groups[1].Value;
+            if (candidate.Length is < 2 or > 8) continue;
+            if (request.RecentTurns.Any(turn => turn.Narrative?.Contains(candidate, StringComparison.Ordinal) == true)) return candidate;
+        }
         return null;
+    }
+
+    internal static string? FindPlayerHeldItem(NarrativeDialogueRequest request)
+    {
+        var authoritative = string.Join(" ", new[] { request.Scenario.Opening, request.Memory.Summary ?? string.Empty }
+            .Concat(request.PriorModuleOutcomes.SelectMany(outcome => outcome.PublicFacts.Select(fact => fact.Text))));
+        var match = PlayerHeldItemRegex().Match(authoritative);
+        return match.Success ? match.Groups[1].Value : null;
+    }
+
+    private static bool ExplicitlyTransfersItem(string input, string item) =>
+        input.Contains(item, StringComparison.Ordinal)
+        && ContainsAny(input, "渡す", "手渡す", "預ける", "譲る", "受け取って", "貸す");
+
+    private static bool AssignsItemToNpc(NarrativeDialogueRequest request, string narrative, string item)
+    {
+        var npc = FindAddressedNpc(request);
+        var holderMarkers = new[] { "握", "持って", "手に", "所持", "保持", "自分の" };
+        var references = ItemReferences(item);
+        if (npc is not null && references.Any(reference => holderMarkers.Any(marker => AssignsSubjectItem(narrative, npc, reference, marker)))) return true;
+        return IsExplicitNpcQuestion(request)
+            && new[] { "彼", "彼女", "旅人", "司書" }.Any(subject => references.Any(reference => holderMarkers.Any(marker => AssignsSubjectItem(narrative, subject, reference, marker))));
+    }
+
+    private static bool AgreedConditionalMovementWasOmitted(string input, string narrative)
+    {
+        var conditional = ContainsAny(input, "了承するなら", "同意するなら", "承諾するなら", "応じるなら", "頷いたら", "うなずいたら");
+        var requestsMovement = ContainsAny(input, "歩き出", "向かう", "移動する", "出発する", "進み始め", "乗り込");
+        var agreement = ContainsAny(narrative, "了承", "同意", "承諾", "応じ", "頷", "うなず");
+        var movement = ContainsAny(narrative, "歩き出", "向かった", "向かい始め", "移動した", "出発した", "進み始め", "乗り込");
+        return conditional && requestsMovement && agreement && !movement;
+    }
+
+    internal static bool IsPossessionQuestion(string input) => ContainsAny(input,
+        "誰のもの", "持ち主", "所有者", "誰が持", "どちらが持", "今持っている", "握っているのは", "私の切符", "自分の切符");
+
+    private static bool DirectlyAnswersCurrentHolder(string narrative, string item)
+    {
+        var references = ItemReferences(item);
+        var playerHolder = new[] { "あなた", "探索者", "Player", "プレイヤー", "主人公", "サヤ" }
+            .Any(subject => references.Any(reference => ContainsInOrder(narrative, subject, reference, "握")
+                || ContainsInOrder(narrative, subject, reference, "持")));
+        return playerHolder || references.Any(reference => ContainsAny(narrative,
+            $"{reference}を握っているのはあなた", $"{reference}を持っているのはあなた", $"{reference}は探索者が保持"));
+    }
+
+    private static string[] ItemReferences(string item)
+    {
+        var generic = new[] { "切符", "鍵", "手紙", "本", "剣", "杖" }.FirstOrDefault(item.EndsWith);
+        return generic is null || string.Equals(generic, item, StringComparison.Ordinal) ? [item] : [item, generic];
+    }
+
+    private static bool AssignsSubjectItem(string value, string subject, string item, string holderMarker)
+    {
+        var subjectIndex = value.IndexOf(subject, StringComparison.Ordinal);
+        if (subjectIndex < 0) return false;
+        var itemIndex = value.IndexOf(item, subjectIndex + subject.Length, StringComparison.Ordinal);
+        if (itemIndex < 0 || itemIndex - subjectIndex > 48) return false;
+        var segment = value[subjectIndex..itemIndex];
+        if (new[] { "あなた", "探索者", "Player", "プレイヤー", "主人公", "サヤ" }.Any(segment.Contains)) return false;
+        var markerIndex = value.IndexOf(holderMarker, itemIndex + item.Length, StringComparison.Ordinal);
+        return markerIndex >= 0 && markerIndex - itemIndex <= 24;
+    }
+
+    private static bool ContainsInOrder(string value, string first, string second, string third)
+    {
+        var firstIndex = value.IndexOf(first, StringComparison.Ordinal);
+        if (firstIndex < 0) return false;
+        var secondIndex = value.IndexOf(second, firstIndex + first.Length, StringComparison.Ordinal);
+        if (secondIndex < 0 || secondIndex - firstIndex > 80) return false;
+        var thirdIndex = value.IndexOf(third, secondIndex + second.Length, StringComparison.Ordinal);
+        return thirdIndex >= 0 && thirdIndex - secondIndex <= 40;
     }
 
     private static bool MentionsDoor(string input) => input.Contains("扉", StringComparison.Ordinal) || input.Contains("door", StringComparison.OrdinalIgnoreCase);
@@ -216,6 +308,12 @@ public sealed partial class NarrativeBodyQualityGuard
     }
 
     private static bool ContainsAny(string value, params string[] candidates) => candidates.Any(value.Contains);
+
+    [GeneratedRegex(@"(?:あなた|探索者|Player|プレイヤー|主人公)(?:は|が).{0,32}?([\p{L}]{1,16}(?:切符|鍵|手紙|本|剣|杖))を(?:握って|持って|携えて|保持して)いる", RegexOptions.CultureInvariant)]
+    private static partial Regex PlayerHeldItemRegex();
+
+    [GeneratedRegex(@"([\p{L}]{2,8})(?:に|へ|、)", RegexOptions.CultureInvariant)]
+    private static partial Regex AddressedNameRegex();
 
     [GeneratedRegex(@"(?:探索者|Player|プレイヤー)(?:.{0,32})(?:答えた|答える|返答した|返答する|応じた|応じる)", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
     private static partial Regex PlayerAnswerRegex();

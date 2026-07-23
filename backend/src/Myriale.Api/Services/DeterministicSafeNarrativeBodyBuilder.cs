@@ -28,6 +28,10 @@ public static class DeterministicSafeNarrativeBodyBuilder
 
     private static string BuildNpcReply(NarrativeDialogueRequest request)
     {
+        var heldItem = NarrativeBodyQualityGuard.FindPlayerHeldItem(request);
+        if (heldItem is not null && NarrativeBodyQualityGuard.IsPossessionQuestion(request.PlayerInput))
+            return BuildPossessionReply(request, heldItem);
+
         if (request.RecentTurns.Any(turn => string.Equals(turn.PlayerInput?.Trim(), request.PlayerInput.Trim(), StringComparison.Ordinal)))
             return BuildRepeatedQuestionReply(request);
 
@@ -41,7 +45,11 @@ public static class DeterministicSafeNarrativeBodyBuilder
         }
         if (request.Memory.Summary is { Length: > 0 } summary) grounded.Add(EnsureSentence(summary));
         grounded.AddRange(PublicFacts(request));
-        if (grounded.Count == 0) grounded.Add("公開されている情報からは、これ以上を確定できない");
+        if (grounded.Count == 0)
+        {
+            var relevantOpening = RelevantScenarioFact(request);
+            grounded.Add(relevantOpening ?? "今ある手掛かりだけでは、これ以上を確定できない");
+        }
         var speaker = npc is null ? "問いかけに対し" : $"{npc}は問いに向き直り";
         var answer = string.Join("。", grounded
             .Select(item => item.Trim().TrimEnd('。'))
@@ -50,7 +58,20 @@ public static class DeterministicSafeNarrativeBodyBuilder
         var closing = NarrativeBodyQualityGuard.IsNarrowAnswerRequest(request.PlayerInput)
             ? string.Empty
             : "。探索者はその答えを受け、次に確かめる事柄を自分で選べる";
-        return $"{speaker}、『{answer}。未確認の事柄を事実とは申し上げられません。分かる範囲でお伝えできるのは以上でございます』と丁寧に答える{closing}。";
+        var uncertainty = UsesFormalNpcVoice(request)
+            ? "未確認の事柄を事実とは申し上げられません。分かる範囲でお伝えできるのは以上でございます"
+            : "確かめられていないことまでは断言できない。今わかるのはここまでだ";
+        return $"{speaker}、『{answer}。{uncertainty}』と答える{closing}。";
+    }
+
+    private static string BuildPossessionReply(NarrativeDialogueRequest request, string heldItem)
+    {
+        var npc = FindNpcName(request);
+        var speaker = npc is null ? "問いかけに対し" : $"{npc}は問いを聞き直し";
+        var answer = UsesFormalNpcVoice(request)
+            ? $"探索者は現在、{heldItem}を握っております。ただし、記された持ち主まではまだ確定しておりません"
+            : $"探索者は現在、{heldItem}を握っている。ただし、その持ち主が誰かまではまだ確定していない";
+        return $"{speaker}、『{answer}』と、今わかっている事実を分けて答える。";
     }
 
     private static string BuildRepeatedQuestionReply(NarrativeDialogueRequest request)
@@ -147,10 +168,20 @@ public static class DeterministicSafeNarrativeBodyBuilder
         return value.Trim().TrimEnd('。');
     }
 
-    private static string? FindNpcName(NarrativeDialogueRequest request) =>
-        request.PlayerInput.Contains("リラ", StringComparison.Ordinal) && request.Scenario.Lore.Contains("司書リラ", StringComparison.Ordinal)
-            ? "司書リラ"
-            : null;
+    private static string? RelevantScenarioFact(NarrativeDialogueRequest request)
+    {
+        var concepts = new[] { "切符", "鍵", "手紙", "本", "扉", "灯", "駅", "列車" }
+            .Where(request.PlayerInput.Contains)
+            .ToArray();
+        if (concepts.Length == 0) return null;
+        return concepts.Any(request.Scenario.Opening.Contains) ? request.Scenario.Opening : null;
+    }
+
+    private static bool UsesFormalNpcVoice(NarrativeDialogueRequest request) =>
+        request.Scenario.Lore.Contains("ございます", StringComparison.Ordinal)
+        || request.RecentTurns.Any(turn => turn.Narrative?.Contains("ござい", StringComparison.Ordinal) == true);
+
+    private static string? FindNpcName(NarrativeDialogueRequest request) => NarrativeBodyQualityGuard.FindAddressedNpc(request);
 
     private static string RemoveForbiddenSentences(string body, IEnumerable<string> forbiddenFacts)
     {

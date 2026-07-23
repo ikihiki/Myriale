@@ -134,7 +134,7 @@ public sealed class SessionExecutionQueueTests
         Assert.False(await fixture.Queue.HeartbeatAsync(claim, TimeSpan.FromMinutes(2), CancellationToken.None));
         await new SessionExecutionFinalizer(fixture.Db, fixture.Time).FinishAsync(
             claim,
-            new(false, false, "execution_cancelled", "cancelled"),
+            new(false, false, "execution_cancelled", "cancelled", ErrorCategory: "cancellation"),
             activity: null,
             CancellationToken.None);
 
@@ -145,6 +145,7 @@ public sealed class SessionExecutionQueueTests
         Assert.Equal(3, execution.Revision);
         Assert.Equal(now, execution.CompletedAt);
         Assert.Null(execution.LeaseToken);
+        Assert.Equal("cancellation", attempt.ErrorCategory);
         Assert.Equal("cancelled", attempt.Status);
         Assert.Equal(now, attempt.CompletedAt);
     }

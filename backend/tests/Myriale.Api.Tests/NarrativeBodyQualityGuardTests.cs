@@ -120,6 +120,40 @@ public sealed class NarrativeBodyQualityGuardTests
     }
 
     [Fact]
+    public void GuardProtectsPlayerHeldItemsAndConditionalMovementAcrossScenarios()
+    {
+        var ownership = AshStationRequest("リオ、今あなたが握っているのは私の切符なのか。私の切符なら返して。");
+        var drifted = "リオは宛名のない切符をしっかりと握り直し、それは自分のものだと答えた。サヤは返事を聞き、次の判断を待っている。";
+        var assessment = _guard.Assess(ownership, drifted);
+        Assert.Contains("player-held-item-transfer:宛名のない切符", assessment.Violations);
+        Assert.Contains("ownership-answer-missing", assessment.Violations);
+
+        var direct = "リオは問いに答えた。『探索者は現在、宛名のない切符を握っている。ただし、記された持ち主が誰かはまだ確定していない』と事実を分けて説明した。";
+        Assert.True(_guard.Assess(ownership, direct).IsAcceptable, string.Join(',', _guard.Assess(ownership, direct).Violations));
+
+        var movement = AshStationRequest("リオに忘れられた谷までの案内を頼む。了承するなら、二人で北門へ歩き出す。");
+        var omitted = "リオは切符の刻印を見つめ、ゆっくりとうなずいた。北門から廃線跡を辿れば谷へ着くと説明し、サヤの判断を待った。";
+        Assert.Contains("conditional-action-omitted", _guard.Assess(movement, omitted).Violations);
+        var fulfilled = "リオは切符の刻印を見つめ、ゆっくりとうなずいた。二人は灰の駅を離れ、忘れられた谷を目指して北門へ歩き出した。";
+        Assert.True(_guard.Assess(movement, fulfilled).IsAcceptable, string.Join(',', _guard.Assess(movement, fulfilled).Violations));
+    }
+
+    [Fact]
+    public void AshStationFallbackAnswersTicketPossessionInWorldAndNamesRecentNpc()
+    {
+        var request = AshStationRequest("リオ、今あなたが握っているのは私の切符なのか。私の切符なら返して。最初の目印だけ教えて。");
+
+        var body = DeterministicSafeNarrativeBodyBuilder.Build(request);
+        var assessment = _guard.Assess(request, body);
+
+        Assert.True(assessment.IsAcceptable, string.Join(',', assessment.Violations));
+        Assert.Contains("リオ", body, StringComparison.Ordinal);
+        Assert.Contains("探索者は現在、宛名のない切符を握っている", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("公開されている情報", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("ございます", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SafeFallbackForRepeatedNarrowQuestionDoesNotReplayThePreviousAnswer()
     {
         const string question = "この星座模様は何を示している？銀の鍵との関係だけ、分かる範囲で教えて。";
@@ -141,6 +175,34 @@ public sealed class NarrativeBodyQualityGuardTests
 
     private static EvaluationCase Case(string id, NarrativeDialogueRequest request, int minimum, IReadOnlyList<IReadOnlyList<string>> required, IReadOnlyList<IReadOnlyList<string>> forbidden) =>
         new(id, request, minimum, required, forbidden);
+
+    private static NarrativeDialogueRequest AshStationRequest(string playerInput)
+    {
+        var request = Request(NarrativeInteractionTypes.Dialogue, playerInput);
+        return request with
+        {
+            Scenario = new NarrativeScenarioInput(
+                "灰の駅と宛名のない切符",
+                "灰が降り続ける駅から、宛名のない切符の行き先を探す。",
+                "Mystery",
+                "静かな荒野",
+                "朝が来ない荒野では、切符だけが次の町を覚えている。",
+                "High",
+                "サヤ",
+                "あなたは灰の降る駅で、宛名のない切符を握っている。"),
+            RecentTurns =
+            [
+                new NarrativeDialogueTurnInput(
+                    "近くの旅人に名前を尋ねる。",
+                    "旅人は静かな声で『私の名前はリオです』と答えた。サヤは宛名のない切符を手にしたまま返事を聞いた。"),
+            ],
+            Memory = new NarrativeSessionMemoryInput(string.Empty, []),
+            PriorModuleOutcomes = [],
+            AllowedSignals = [],
+            SessionState = new NarrativeSessionStateInput(3, new Dictionary<string, bool>()),
+            CurrentProgressionNode = null,
+        };
+    }
 
     private static NarrativeDialogueRequest Request(
         string interactionType,
