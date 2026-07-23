@@ -44,6 +44,7 @@ public sealed class AiEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
         var savedJson = await saved.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("••••••••1234", savedJson.GetProperty("maskedKey").GetString());
+        Assert.True(savedJson.GetProperty("active").GetBoolean());
         Assert.DoesNotContain("test-secret-1234", savedJson.ToString(), StringComparison.Ordinal);
         await using (var scope = _factory.Services.CreateAsyncScope())
         {

@@ -51,8 +51,8 @@ export function createFetchAdminAiApi(baseUrl = getAdminAiApiBaseUrl()): AdminAi
 
 export function createDemoAdminAiApi(): AdminAiApi {
   let keys: AiProviderKey[] = [
-    { provider: 'openai', displayName: 'OpenAI', configured: false, maskedKey: '未設定', credentialSource: 'none', active: false, status: 'untested', updatedAt: new Date(0).toISOString(), lastValidatedAt: null },
-    { provider: 'runpod', displayName: 'Runpod Serverless', configured: true, maskedKey: '••••••••demo', credentialSource: 'environment', active: true, status: 'valid', updatedAt: new Date().toISOString(), lastValidatedAt: new Date().toISOString() },
+    { provider: 'openai', displayName: 'OpenAI', configured: true, maskedKey: '••••••••demo', credentialSource: 'environment', active: true, status: 'valid', updatedAt: new Date().toISOString(), lastValidatedAt: new Date().toISOString() },
+    { provider: 'runpod', displayName: 'Runpod Serverless', configured: false, maskedKey: '未設定', credentialSource: 'none', active: false, status: 'untested', updatedAt: new Date(0).toISOString(), lastValidatedAt: null },
   ];
   return {
     async listKeys() { return keys; },

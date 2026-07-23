@@ -101,12 +101,12 @@ describe('UserManagementPage — Identity-backed account UI', () => {
 
     expect(await screen.findByRole('navigation', { name: '主要セクション' })).toBeVisible();
     expect(screen.getByTestId('app-url')).toHaveTextContent('/admin');
-    const runpod = await screen.findByTestId('ai-key-row-runpod');
-    expect(runpod).toHaveTextContent('Runpod Serverless');
-    expect(runpod).toHaveTextContent('Vault / 環境変数');
-    expect(runpod).toHaveTextContent('使用中');
+    const openai = await screen.findByTestId('ai-key-row-openai');
+    expect(openai).toHaveTextContent('OpenAI');
+    expect(openai).toHaveTextContent('Vault / 環境変数');
+    expect(openai).toHaveTextContent('使用中');
 
-    fireEvent.click(within(runpod).getByRole('button', { name: '接続テスト' }));
-    expect(await screen.findByTestId('ai-key-notice')).toHaveTextContent('Runpod Serverlessへの接続テストに成功');
+    fireEvent.click(within(openai).getByRole('button', { name: '接続テスト' }));
+    expect(await screen.findByTestId('ai-key-notice')).toHaveTextContent('OpenAIへの接続テストに成功');
   });
 });

@@ -29,8 +29,8 @@ export function AdminAiKeysPage() {
   const api = useMemo(() => createFetchAdminAiApi(), []);
   const session = useAccountSession();
   const [keys, setKeys] = useState<AiProviderKey[]>([]);
-  const [provider, setProvider] = useState('runpod');
-  const [displayName, setDisplayName] = useState('Runpod Serverless');
+  const [provider, setProvider] = useState('openai');
+  const [displayName, setDisplayName] = useState('OpenAI');
   const [secret, setSecret] = useState('');
   const [notice, setNotice] = useState('デプロイ設定と管理画面で登録したAIキーを確認できます。キー本体は再表示しません。');
   const [error, setError] = useState<AdminAiApiError | null>(null);
@@ -120,8 +120,8 @@ export function AdminAiKeysPage() {
               <div className="mt-5 grid gap-4 md:grid-cols-2">
                 <Label as="label" textRole="label" className="grid gap-2">Provider
                   <select className="!rounded-myr-card !border !border-myr-ink/15 !bg-myr-paper-bright !px-3 !py-3 !text-base !text-myr-ink" value={provider} onChange={(event) => changeProvider(event.target.value)}>
-                    <option value="runpod">Runpod</option>
                     <option value="openai">OpenAI</option>
+                    <option value="runpod">Runpod</option>
                   </select>
                 </Label>
                 <Label as="label" textRole="label" className="grid gap-2">表示名
