@@ -43,7 +43,6 @@ public static class ScenarioSeedData
             Title = "目覚めの研究室",
             Summary = BasicInformation,
             Genre = "SFミステリー脱出劇",
-            Tone = "緊張感のある静かな雰囲気",
             AiFreedom = "低: 厳密に守る",
             HeroMode = "free",
             HeroFreeGenerationAllowed = false,
