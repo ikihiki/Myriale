@@ -37,6 +37,36 @@ public sealed class DatabaseInitializationTests : IDisposable
         Assert.Equal(1L, (long)(await currentColumnCommand.ExecuteScalarAsync())!);
     }
 
+    [Fact]
+    public async Task StartupInstallsAndPinsConstellationDoorDemoModule()
+    {
+        using var factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder =>
+            {
+                builder.UseSetting("ConnectionStrings:MyrialeAccounts", $"Data Source={dbPath}");
+                builder.UseSetting("DemoModules:Enabled", "true");
+                builder.UseSetting("DemoModules:EnableInTestHost", "true");
+            });
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/api/scenarios/SCN-STAR-LIBRARY");
+        response.EnsureSuccessStatusCode();
+
+        await using var connection = new SqliteConnection($"Data Source={dbPath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT COUNT(*)
+            FROM ModulePackages p
+            JOIN ScenarioProgressionTransitions t ON t.ModuleDigest = p.Digest
+            WHERE p.ModuleId = 'com.myriale.star-eater.constellation-door'
+              AND p.Version = '1.0.0'
+              AND p.IsEnabled = 1
+              AND t.Id = 'SPT-STAR-LIBRARY-DOOR-REACHED'
+              AND t.ModuleRandomValueCount = 1
+            """;
+        Assert.Equal(1L, (long)(await command.ExecuteScalarAsync())!);
+    }
+
     public void Dispose()
     {
         if (File.Exists(dbPath)) File.Delete(dbPath);

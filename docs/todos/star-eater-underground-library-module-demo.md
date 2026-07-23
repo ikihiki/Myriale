@@ -49,7 +49,7 @@
 
 - [x] Scenario進行遷移が利用するModule packageとconfigurationを指定できるようにする。
 - [x] NarrativeからModule Turnを開始するsignal条件をシナリオ側で表現する（実ダイスModule指定は未実装）。
-- [ ] 『星喰いの地下図書館』に「閉じた星座」の扉の判定設定を追加する。
+- [x] 『星喰いの地下図書館』に「閉じた星座」の扉の判定設定を追加する。
 - [x] Session開始時に、このデモで使用するModuleのID、version、digestとconfiguration snapshotを固定する。
 - [x] Session開始後にScenario側のModule指定が変更されても、進行中Sessionは固定済みsnapshotを使用する。
 - [x] Scenario進行用のModule Turn作成をhost内部のオーケストレーター経路へ限定する。
@@ -58,24 +58,24 @@
 
 ### ダイス判定Module
 
-- [ ] SDKを使った実Module packageとして実装する。
-- [ ] 目標値、ダイス式、補正値、成功・失敗条件をconfigurationで受け取る。
-- [ ] ダイス値にはホスト提供乱数だけを使用する。
-- [ ] Runtime UIには判定目的、目標値、補正値、ダイス結果、成功・失敗を表示する。
-- [ ] Runtime UIは判定開始などのintentだけを送信し、ダイス値や結果を権威値として送信しない。
-- [ ] 完了時に成功または失敗を表す唯一の正式な`ModuleOutcome`を返す。
-- [ ] 成功時に`constellation-door-opened`を`set-flag` Effectで設定する。
-- [ ] 失敗時に`constellation-guardian-awakened`を`set-flag` Effectで設定する。
-- [ ] Narrative HintsとForbidden Narrative Factsを設定し、AIが判定結果を改変しないようにする。
+- [x] SDKを使った実Module packageとして実装する。
+- [x] 目標値、ダイス式、補正値、成功・失敗条件をconfigurationで受け取る。
+- [x] ダイス値にはホスト提供乱数だけを使用する。
+- [x] Runtime UIには判定目的、目標値、補正値、ダイス結果、成功・失敗を表示する。
+- [x] Runtime UIは判定開始などのintentだけを送信し、ダイス値や結果を権威値として送信しない。
+- [x] 完了時に成功または失敗を表す唯一の正式な`ModuleOutcome`を返す。
+- [x] 成功時に`constellation-door-opened`を`set-flag` Effectで設定する。
+- [x] 失敗時に`constellation-guardian-awakened`を`set-flag` Effectで設定する。
+- [x] Narrative HintsとForbidden Narrative Factsを設定し、AIが判定結果を改変しないようにする。
 
 ### セッション統合
 
 - [x] Narrative Turnの確定signalからSession所有のModule Turnを開始する。
-- [ ] Module実行中は通常の自由入力を無効化し、現在の目的を表示する。
-- [ ] 再読み込みや画面遷移後も同じ判定状態を再開できる。
-- [ ] 完了OutcomeとEffectが冪等に保存され、再送時に重複適用されないことを確認する。
-- [ ] 完了後に自動Narrative handoffが実行されることを確認する。
-- [ ] Narrative Turn生成失敗時も判定結果とEffectを維持し、完了requestのreplayで再試行できることを確認する。
+- [x] Module実行中は通常の自由入力を無効化し、現在の目的を表示する。
+- [x] 再読み込みや画面遷移後も同じ判定状態を再開できる。
+- [x] 完了OutcomeとEffectが冪等に保存され、再送時に重複適用されないことを確認する。
+- [x] 完了後に自動Narrative handoffが実行されることを確認する。
+- [x] Narrative Turn生成失敗時も判定結果とEffectを維持し、完了requestのreplayで再試行できることを確認する。
 
 ## フェーズ2: 図書館の守護者とのJRPG戦闘
 
@@ -104,9 +104,9 @@
 
 ## Module packageの配布と開発環境bootstrap
 
-- [ ] ダイス判定Moduleと戦闘Moduleを再現可能な手順でbuildし、`.myriale-module` packageを生成する。
-- [ ] クリーンなAppHost起動時に、デモ用Module packageをcatalogへ導入する開発用bootstrapを用意する。
-- [ ] packageのdigestを導入後に確定し、seed Scenarioまたは開発用設定がそのexact identityを参照する。
+- [ ] ダイス判定Moduleと戦闘Moduleを再現可能な手順でbuildし、`.myriale-module` packageを生成する（ダイス判定Moduleは完了）。
+- [x] クリーンなAppHost起動時に、デモ用Module packageをcatalogへ導入する開発用bootstrapを用意する。
+- [x] packageのdigestを導入後に確定し、seed Scenarioまたは開発用設定がそのexact identityを参照する。
 - [x] Moduleが導入済みかつenabledな状態でのみ、Module設定済みScenario Sessionを開始できるようにする。
 - [ ] DB再作成後も、文書化されたbootstrap手順だけで両Moduleを再導入できることを確認する。
 - [ ] CIまたはintegration testでpackage生成、install、rescan、resolve、executionまでを検証する。
@@ -123,15 +123,15 @@
 
 ### 自動テスト
 
-- [ ] 固定乱数でダイス判定の成功経路を再現する。
-- [ ] 固定乱数でダイス判定の失敗経路を再現する。
+- [x] 固定乱数でダイス判定の成功経路を再現する。
+- [x] 固定乱数でダイス判定の失敗経路を再現する。
 - [ ] ダイス判定の中断・再開とrequest replayを検証する。
 - [ ] 戦闘の勝利経路を固定乱数で再現する。
 - [ ] 戦闘の敗北または逃走経路を固定乱数で再現する。
 - [ ] 戦闘の中断・再開と複数Actionの冪等性を検証する。
-- [ ] Runtime UIが権威値を送信してもModule結果を改変できないことを検証する。
-- [ ] Outcome Effectのexactly-once適用を検証する。
-- [ ] 各Module完了後のautomatic Narrative handoffを検証する。
+- [x] Runtime UIが権威値を送信してもModule結果を改変できないことを検証する。
+- [x] Outcome Effectのexactly-once適用を検証する。
+- [x] 各Module完了後のautomatic Narrative handoffを検証する。
 - [ ] AIへのrequestにprivate State、configuration、context、乱数、receipt、diagnosticsが含まれないことを検証する。
 
 ### 手動レビュー
@@ -155,12 +155,12 @@
 
 ### フェーズ1: ダイス判定デモ
 
-- [ ] Narrativeから星座の扉のダイス判定Moduleへ移行できる。
-- [ ] 成功経路では扉が開き、自動Narrative handoff後に通常対話へ復帰する。
-- [ ] 失敗経路では守護者の起動までを確定し、自動Narrative handoff後に戦闘開始予定の進行状態へ遷移する。
-- [ ] ダイス値はホストとModuleが確定し、Runtime UIやAIから改変できない。
-- [ ] 判定Module Turnを再読み込み後に継続でき、OutcomeとSession Effectが重複適用されない。
-- [ ] ダイスModule packageをクリーンな開発環境へ再現可能な手順で導入できる。
+- [x] Narrativeから星座の扉のダイス判定Moduleへ移行できる。
+- [x] 成功経路では扉が開き、自動Narrative handoff後に通常対話へ復帰する。
+- [x] 失敗経路では守護者の起動までを確定し、自動Narrative handoff後に戦闘開始予定の進行状態へ遷移する。
+- [x] ダイス値はホストとModuleが確定し、Runtime UIやAIから改変できない。
+- [x] 判定Module Turnを再読み込み後に継続でき、OutcomeとSession Effectが重複適用されない。
+- [x] ダイスModule packageをクリーンな開発環境へ再現可能な手順で導入できる。
 
 ### フェーズ2: JRPG戦闘を含む総合デモ
 

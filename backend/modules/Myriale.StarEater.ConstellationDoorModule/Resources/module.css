@@ -1,0 +1,12 @@
+:host { display:block; color:#f4eedf; font-family:ui-serif, Georgia, serif; }
+.door-check { padding:24px; border:1px solid #8f7a49; border-radius:18px; background:radial-gradient(circle at top,#25334a,#101722 70%); box-shadow:inset 0 0 35px #03070d; }
+.eyebrow { color:#d0b66d; font:700 11px/1.4 ui-sans-serif,sans-serif; letter-spacing:.16em; }
+h2 { margin:8px 0 20px; font-size:24px; }
+dl { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:0 0 20px; }
+dl div { padding:10px; border:1px solid #ffffff20; border-radius:10px; background:#ffffff08; }
+dt { color:#a9b5c9; font:600 11px ui-sans-serif,sans-serif; } dd { margin:5px 0 0; font-size:18px; }
+button { width:100%; padding:12px; border:1px solid #d5b85e; border-radius:10px; color:#17130a; background:#e8cc76; font-weight:800; cursor:pointer; }
+button:disabled { opacity:.5; cursor:wait; }
+.result { display:flex; justify-content:space-between; gap:12px; padding:14px; border-radius:10px; border:1px solid; }
+.result.success { border-color:#70c69a; background:#24513b66; } .result.failure { border-color:#d37a79; background:#572a3266; }
+@media(max-width:480px){dl{grid-template-columns:1fr}.result{flex-direction:column}}

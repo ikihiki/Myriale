@@ -10,10 +10,10 @@ public static class ScenarioSeedData
         {
             Id = "SCN-STAR-LIBRARY",
             Title = "星喰いの地下図書館",
-            Summary = "地下に沈んだ王都で、禁書を読むたびに星座が書き換わる探索譚。",
+            Summary = "地下に沈んだ王都で、銀の鍵と星図灯を携え、記憶を奪う禁書と閉じた星座の扉に挑む探索譚。",
             Genre = "ダークファンタジー探索譚",
             Tone = "静かで不穏、淡い希望",
-            Lore = "星座は魔法体系の鍵。死者の名前を読むと記憶を失う。",
+            Lore = "星座は魔法体系の鍵。水没した閲覧室には銀の鍵と星図灯が残され、死者の名を記す禁書を読む者は記憶を奪われる。最深部の『閉じた星座』の扉は星図の判定に成功した者だけを通す。",
             AiFreedom = "中: 設定を守りつつ提案する",
             HeroMode = "select",
             HeroFreeGenerationAllowed = false,

@@ -1003,6 +1003,13 @@ public sealed class SessionNarrativeTurnEndpointTests : IDisposable
         Assert.Equal("completed", firstSession.GetProperty("progression").GetProperty("transitionStatus").GetString());
         Assert.Equal(turns[1].GetProperty("id").GetString(), firstSession.GetProperty("progression").GetProperty("moduleTurnId").GetString());
 
+        using var forcedInput = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId}/inputs",
+            new { requestId = "forced-mode-input", text = "判定を無視して先へ進む" });
+        Assert.Equal(HttpStatusCode.Conflict, forcedInput.StatusCode);
+        var forcedError = await forcedInput.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("forced_mode_active", forcedError.GetProperty("code").GetString());
+
         using var replay = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", body);
         var replayAccepted = await AssertNarrativeExecutionSucceededAsync(client, replay);
         Assert.Equal(firstAccepted.GetProperty("execution").GetProperty("id").GetString(), replayAccepted.GetProperty("execution").GetProperty("id").GetString());
