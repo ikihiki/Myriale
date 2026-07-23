@@ -286,7 +286,7 @@ function toAssistTransport(payload: ScenarioAiAssistPayload) {
 }
 
 function demoAssist(payload: ScenarioAiAssistPayload): ScenarioAiAssistResponse {
-  if (payload.kind === 'summary') return { message: '概要案を3つ提示しました。採用、編集、破棄を選べます。', suggestions: [{ id: 'summary-1', body: '地下に沈んだ王都で、禁書を読むたびに星座が書き換わる探索譚。', rationale: 'title/genre/loreから安全なDraft概要を生成しました。' }] };
+  if (payload.kind === 'summary') return { message: '基本情報案を3つ提示しました。採用、編集、破棄を選べます。', suggestions: [{ id: 'summary-1', body: '## 物語の目的\n\n地下に沈んだ王都で、禁書を読むたびに書き換わる星座の謎を追います。\n\n- 水没した書庫を探索する\n- 失われる記憶の代償を選ぶ', rationale: 'title/genre/loreからMarkdownの基本情報を生成しました。' }] };
   if (payload.kind === 'lore-check') return { message: 'モックAIが世界観の矛盾候補を2件見つけました。', suggestions: [{ id: 'lore-1', body: '死者の名前を読む条件と記憶喪失の範囲を明確化すると、セッション中の判定が安定します。', rationale: 'Loreの発火条件を明文化します。' }] };
   if (payload.kind === 'illustration-style') return { message: 'モックAIがシナリオに合う画風候補を提示しました。', suggestions: [{ id: 'style-1', body: '銅版画風、影絵、水彩写本。低彩度で星図の金線だけを強調。', rationale: '既存のムードとNG要素に合わせました。' }] };
   if (payload.kind === 'illustration-prompt') return { message: 'モックAIが画像生成用プロンプトとネガティブプロンプトを分離して生成しました。', suggestions: [{ id: 'prompt-1', body: 'submerged archive, apprentice librarian, antique star map, copperplate engraving, muted palette', rationale: 'プロンプトとNG要素を分離しました。' }], prompt: 'submerged archive, apprentice librarian, antique star map, copperplate engraving, muted palette', negativePrompt: payload.illustrationNegative };

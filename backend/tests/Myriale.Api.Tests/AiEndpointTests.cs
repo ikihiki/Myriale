@@ -149,7 +149,7 @@ public sealed class AiEndpointTests : IDisposable
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Contains("概要案", json.GetProperty("message").GetString());
+        Assert.Contains("基本情報案", json.GetProperty("message").GetString());
         Assert.NotEmpty(json.GetProperty("suggestions").EnumerateArray());
     }
 

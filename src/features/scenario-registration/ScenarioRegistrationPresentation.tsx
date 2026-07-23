@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ScenarioAiAssistResponse, ScenarioAiKind } from '../../app/scenarioApi';
-import { Button, Input, Label, Notice, SummaryCard, SummaryInset, Textarea } from '../../components/ui';
+import { Button, Input, Label, MarkdownEditor, Notice, SummaryCard, SummaryInset, Textarea } from '../../components/ui';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { WizardNavigation } from '../../shared/WizardNavigation';
 import {
@@ -23,7 +23,7 @@ import {
   type ScenarioRegistrationValues,
 } from './scenarioRegistrationModel';
 
-type SuggestionKind = '概要' | '世界観' | '挿絵テイスト' | '挿絵プロンプト';
+type SuggestionKind = '基本情報' | '世界観' | '挿絵テイスト' | '挿絵プロンプト';
 type WizardStep = 'cover' | 'lore' | 'ai' | 'hero' | 'opening' | 'illustration';
 
 const wizardSteps: Array<{ id: WizardStep; label: string; help: string }> = [
@@ -81,7 +81,7 @@ export function ScenarioRegistrationPresentation({
   };
 
   const kindFor = (kind: SuggestionKind): ScenarioAiKind => {
-    if (kind === '概要') return 'summary';
+    if (kind === '基本情報') return 'summary';
     if (kind === '世界観') return 'lore-check';
     if (kind === '挿絵テイスト') return 'illustration-style';
     return 'illustration-prompt';
@@ -101,9 +101,9 @@ export function ScenarioRegistrationPresentation({
   };
 
   const adoptSummary = () => {
-    const nextSummary = lastAiResponse?.suggestions[0]?.body ?? '地下に沈んだ王都で、禁書を読むたびに星座が書き換わる探索譚。';
+    const nextSummary = lastAiResponse?.suggestions[0]?.body ?? '## 物語の目的\n\n地下に沈んだ王都で、禁書を読むたびに書き換わる星座の謎を追います。';
     update('summary', nextSummary);
-    setNotice('AIの概要案を本文へ採用しました。編集してから保存できます。');
+    setNotice('AIの基本情報案を本文へ採用しました。編集してから保存できます。');
   };
 
   const generatePreview = async () => {
@@ -162,8 +162,15 @@ export function ScenarioRegistrationPresentation({
             <section className={wizardPanelClass} aria-label="表紙">
               <p><strong>{currentStep.help}。</strong>シナリオAPIへ保存する基本情報です。タイトルだけでDraftを作り、ほかの項目はあとから編集できます。</p>
               <label>シナリオタイトル *<Input aria-label="シナリオタイトル" aria-invalid={firstScenarioFieldError(fieldErrors, 'title') ? true : undefined} value={values.title} onChange={(event) => update('title', event.target.value)} placeholder="星喰いの地下図書館" /></label>
-              <label>概要（空でも保存できます）<Textarea aria-label="概要" aria-invalid={firstScenarioFieldError(fieldErrors, 'summary') ? true : undefined} value={values.summary} onChange={(event) => update('summary', event.target.value)} /></label>
-              <div className={wizardButtonRowClass}><Button variant="primary" size="sm" onClick={() => void saveDraft()} disabled={saving}>{saving ? '保存中…' : '下書き保存'}</Button><Button variant="secondary" size="sm" onClick={() => void consultAi('概要')} disabled={aiWorking}>AIに概要案を出してもらう</Button><Button variant="secondary" size="sm" onClick={adoptSummary}>採用して編集</Button></div>
+              <MarkdownEditor
+                label="基本情報"
+                value={values.summary}
+                onChange={(value) => update('summary', value)}
+                error={firstScenarioFieldError(fieldErrors, 'summary')}
+                help="シナリオの前提、目的、遊び方をMarkdownで記述します。空でも下書き保存できます。"
+                placeholder={'## シナリオの目的\n\nこの物語で体験することを書きます。\n\n- 主な目的\n- 重要な前提'}
+              />
+              <div className={wizardButtonRowClass}><Button variant="primary" size="sm" onClick={() => void saveDraft()} disabled={saving}>{saving ? '保存中…' : '下書き保存'}</Button><Button variant="secondary" size="sm" onClick={() => void consultAi('基本情報')} disabled={aiWorking}>AIに基本情報案を出してもらう</Button><Button variant="secondary" size="sm" onClick={adoptSummary}>採用して編集</Button></div>
             </section>
           )}
 
@@ -237,7 +244,7 @@ export function ScenarioRegistrationPresentation({
             { value: '挿絵AI', label: '挿絵AI' },
             { value: 'ルール確認AI', label: 'ルール確認AI' },
           ]} />
-          <SummaryCard as="article"><h3>表紙</h3><p>{values.title || 'タイトル未入力'}</p><p>{values.summary || '概要は空でも保存できます'}</p></SummaryCard>
+          <SummaryCard as="article"><h3>表紙</h3><p>{values.title || 'タイトル未入力'}</p><p>{values.summary ? `基本情報: Markdown ${values.summary.length}文字` : '基本情報は空でも保存できます'}</p></SummaryCard>
           <SummaryCard as="article"><h3>AIが読む契約</h3><p>Genre: {values.genre}</p><p>Tone: {values.tone}</p><p>Lore: {values.lore.split('\n').filter(Boolean).length}項目</p><p>AI裁量: {values.aiFreedom}</p></SummaryCard>
           <SummaryCard as="article"><h3>主人公と第一場面</h3><p>{values.hero}</p><p>{values.opening}</p></SummaryCard>
           <SummaryCard as="article"><h3>挿絵</h3><p>{values.illustrationStyle}</p><p>NG: {values.illustrationNegative}</p></SummaryCard>

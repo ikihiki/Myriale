@@ -57,10 +57,10 @@ export function MockScenarioRegistrationContainer() {
   const assist: ScenarioRegistrationActions['assist'] = async (values, kind) => {
     if (kind === 'summary') return {
       ok: true,
-      message: '概要案を3つ提示しました。採用、編集、破棄を選べます。',
+      message: '基本情報案を3つ提示しました。採用、編集、破棄を選べます。',
       value: {
-        message: '概要案を3つ提示しました。採用、編集、破棄を選べます。',
-        suggestions: [{ id: 'summary-1', body: '地下に沈んだ王都で、禁書を読むたびに星座が書き換わる探索譚。', rationale: 'title/genre/loreからDraft概要を生成しました。' }],
+        message: '基本情報案を3つ提示しました。採用、編集、破棄を選べます。',
+        suggestions: [{ id: 'summary-1', body: '## 物語の目的\n\n地下に沈んだ王都で、禁書を読むたびに書き換わる星座の謎を追います。\n\n- 水没した書庫を探索する\n- 失われる記憶の代償を選ぶ', rationale: 'title/genre/loreからMarkdownの基本情報を生成しました。' }],
       },
     };
     if (kind === 'lore-check') return {

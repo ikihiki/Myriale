@@ -191,8 +191,8 @@ export const US17ConsultAiAboutRegistration: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await step('AIに相談しても、提案は自動確定しない', async () => {
-      await userEvent.click(canvas.getByRole('button', { name: 'AIに概要案を出してもらう' }));
-      await expect(canvas.getByTestId('ai-suggestion')).toHaveTextContent('概要案を3つ提示しました');
+      await userEvent.click(canvas.getByRole('button', { name: 'AIに基本情報案を出してもらう' }));
+      await expect(canvas.getByTestId('ai-suggestion')).toHaveTextContent('基本情報案を3つ提示しました');
       await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('自動確定はしません');
     });
   },
@@ -215,14 +215,16 @@ export const US18SelectAiByPurpose: Story = {
 };
 
 export const US19AiCompletesSummary: Story = {
-  name: 'US-19: シナリオ概要をAIに補完してもらいたい',
+  name: 'US-19: シナリオの基本情報をAIに補完してもらいたい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await step('概要候補を見て、採用してから編集可能な本文に入れる', async () => {
-      await userEvent.click(canvas.getByRole('button', { name: 'AIに概要案を出してもらう' }));
+    await step('基本情報候補を見て、採用してからMarkdown本文に入れる', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: 'AIに基本情報案を出してもらう' }));
       await userEvent.click(canvas.getByRole('button', { name: '採用して編集' }));
-      expect((canvas.getByLabelText('概要') as HTMLTextAreaElement).value).toContain('地下に沈んだ王都');
+      expect((canvas.getByLabelText('基本情報') as HTMLTextAreaElement).value).toContain('## 物語の目的');
       await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('採用しました');
+      await userEvent.click(canvas.getByRole('button', { name: 'プレビュー' }));
+      await expect(canvas.getByRole('article', { name: '基本情報のMarkdownプレビュー' })).toHaveTextContent('水没した書庫を探索する');
     });
   },
 };
