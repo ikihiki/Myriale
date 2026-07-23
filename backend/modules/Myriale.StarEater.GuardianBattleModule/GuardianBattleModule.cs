@@ -92,7 +92,7 @@ public sealed class GuardianBattleModule : IMyrialeModule
 
     private static int RollDamage(int power, uint value) => Math.Max(1, power - 2 + (int)(value % 5));
     private static IReadOnlyList<ModuleAvailableAction> Actions(BattleState state) =>
-        [new("attack", "攻撃", true), new("defend", "防御", true), new("skill", "スキル", state.SkillUsesRemaining > 0, state.SkillUsesRemaining > 0 ? null : "使用回数がありません"), new("flee", "逃走", true)];
+        [new("attack", "攻撃", true, RandomValueCount: 2), new("defend", "防御", true, RandomValueCount: 2), new("skill", "スキル", state.SkillUsesRemaining > 0, state.SkillUsesRemaining > 0 ? null : "使用回数がありません", 2), new("flee", "逃走", true, RandomValueCount: 2)];
     private static JsonElement View(Config config, BattleState state) => Json(new { config.PlayerName, config.EnemyName, playerMaxHp = config.PlayerHp, enemyMaxHp = config.EnemyHp, state.PlayerHp, state.EnemyHp, state.Round, skillName = config.SkillName, state.SkillUsesRemaining, state.Status, state.LastAction, state.LastPlayerDamage, state.LastEnemyDamage });
     private static ModuleTransitionResult Failed(ModuleDispatchRequest request, string code, string message) => new(ModuleExecutionStatuses.Failed, request.ExpectedRevision, request.State, Json(new { }), [], [], Error: new(code, message));
 

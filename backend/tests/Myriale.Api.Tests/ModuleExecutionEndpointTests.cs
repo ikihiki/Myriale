@@ -200,7 +200,7 @@ public sealed class ModuleExecutionEndpointTests : IDisposable
     {
         var client = await AuthenticatedClientAsync("recovery@example.test");
         var id = await CreateExecutionAsync(client, "recovery-init");
-        var body = DispatchBody("recover-dispatch", 0, new { mode = "delay", milliseconds = 5_000 }, 4);
+        var body = DispatchBody("recover-dispatch", 0, new { id = "continue", mode = "delay", milliseconds = 5_000 }, 1);
         using var cancellation = new CancellationTokenSource();
 
         var pendingRequest = client.PostAsJsonAsync($"/api/module-executions/{id}/dispatch", body, cancellation.Token);

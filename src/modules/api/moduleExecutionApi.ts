@@ -28,7 +28,7 @@ export type ModuleExecutionApi = {
   getExecution(id: string, signal?: AbortSignal): Promise<ModuleExecution>;
   getRuntimeUi(id: string, signal?: AbortSignal): Promise<ModuleRuntimeUiDescriptor>;
   getResource(resource: ModuleUiResource, signal?: AbortSignal): Promise<string>;
-  dispatch(id: string, body: { requestId: string; expectedRevision: number; action: unknown; randomValueCount?: number }, signal?: AbortSignal): Promise<ModuleExecution>;
+  dispatch(id: string, body: { requestId: string; expectedRevision: number; action: unknown }, signal?: AbortSignal): Promise<ModuleExecution>;
 };
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {

@@ -31,7 +31,7 @@ The host validates every response before persistence. Request IDs provide idempo
 
 The API resolves modules by the exact tuple of module ID, semantic version, and SHA-256 digest. Runtime calls require the package to remain enabled and installed. Before execution, the host verifies the canonical package digest and confirms that the expanded `module.dll` matches the canonical DLL or ZIP entry.
 
-`DotNetModuleRuntime` uses a digest-keyed, bounded cache of collectible `AssemblyLoadContext` instances. The cache retains the entry-point constructor but creates a fresh `IMyrialeModule` instance for every invocation so mutable module objects cannot leak state between sessions. Cache entries use leases and are unloaded only after active calls finish.
+`DotNetModuleRuntime` loads each invocation into a fresh collectible `AssemblyLoadContext` and unloads it after the call. Both module object fields and assembly static fields are therefore isolated between invocations; all durable state must enter through the explicit request and leave through the response.
 
 The host enforces configuration, state, action, context, effect-count, and total-response limits. It also validates lifecycle status, outcome/error combinations, action and event identifiers, and dispatch revisions before results can reach persistence. Accepted active or completed dispatches advance the revision by exactly one; failed transitions retain the expected revision.
 
@@ -39,7 +39,7 @@ Calls are bounded by a host-wide concurrency gate, including package integrity c
 
 ## Execution and Session Turn persistence
 
-The API retains an authenticated detached Module Execution seam for preview and tooling. Each execution is owner-scoped and pins module ID, semantic version, package digest, contract version, configuration/state schema versions, configuration, and context. State, view state, available actions, revision, and a completed outcome are persisted after every accepted lifecycle step.
+The API retains an authenticated detached Module Execution seam for preview and tooling. Play-session Module Turns are not client-startable by default: validated Narrative progression creates them through the internal orchestrator. The legacy session-turn creation route is available only when the explicit development setting `Modules:EnableClientSessionTurnCreation` is enabled. Each execution is owner-scoped and pins module ID, semantic version, package digest, contract version, configuration/state schema versions, configuration, and context. State, view state, available actions, revision, and a completed outcome are persisted after every accepted lifecycle step.
 
 A play `Session` is owner-scoped to one existing scenario. A `SessionTurn` has a stable position and is currently either a Module Turn owning exactly one Module Execution or a Narrative Turn linked to the completed Module Turn that produced it. The session's next-position counter is an optimistic concurrency token, so competing API processes retry allocation instead of producing duplicate positions. Creating a Module Turn inserts its turn, execution, and initialization receipt atomically; every internal dispatch continues to update that same execution and never creates another turn. Detached executions remain valid and have no Session Turn.
 
@@ -47,7 +47,7 @@ Initialization and dispatch request IDs are recorded as durable receipts. Receip
 
 A module-declared failed dispatch does not mutate the execution snapshot or revision. Its transient error and `uiEvents` are retained in the request receipt for replay. A failed initialization is terminal. Ordinary API responses expose view state and available actions but not private module state, configuration, context, or recorded randomness.
 
-Sessions currently reference the scenario identity rather than an immutable published scenario version. The current application startup also recreates the database. These records are database-backed within the running application environment, but scenario-version pinning and restart durability are intentionally not claimed yet.
+Sessions currently reference the scenario identity rather than an immutable published scenario version. Application startup uses non-destructive database initialization, so execution receipts, recorded host randomness, module state, and progression receipts survive process restarts. Schema upgrades still require an explicit migration strategy.
 
 ## Deferred work
 

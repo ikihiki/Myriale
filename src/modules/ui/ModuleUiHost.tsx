@@ -82,7 +82,7 @@ export function ModuleUiHost({ execution, descriptor, api, onExecution, classNam
         dispatchAbortRef.current = dispatchController;
         channel.port1.postMessage({ protocol: MODULE_UI_PROTOCOL, version: MODULE_UI_VERSION, type: 'submitting', executionId: execution.id, payload: { submitting: true } });
         try {
-          const next = await api.dispatch(execution.id, { requestId: crypto.randomUUID(), expectedRevision: data.expectedRevision, action: data.action, randomValueCount: data.randomValueCount }, dispatchController.signal);
+          const next = await api.dispatch(execution.id, { requestId: crypto.randomUUID(), expectedRevision: data.expectedRevision, action: data.action }, dispatchController.signal);
           if (generation !== generationRef.current) return;
           executionRef.current = { ...next, uiEvents: [] };
           onExecution(executionRef.current);

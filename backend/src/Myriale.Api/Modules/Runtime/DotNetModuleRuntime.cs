@@ -157,6 +157,8 @@ internal sealed class DotNetModuleRuntime(
         {
             if (action is null || string.IsNullOrWhiteSpace(action.Id) || string.IsNullOrWhiteSpace(action.Label) || !actionIds.Add(action.Id))
                 throw Violation("利用可能アクションの識別情報が不正です。");
+            if (action.RandomValueCount < 0 || action.RandomValueCount > 4_096)
+                throw Violation("利用可能アクションのホスト乱数要求が範囲外です。");
         }
 
         switch (status)

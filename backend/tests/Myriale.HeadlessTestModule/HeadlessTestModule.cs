@@ -7,6 +7,7 @@ namespace Myriale.HeadlessTestModule;
 
 public sealed class HeadlessTestModule : IMyrialeModule
 {
+    private static int _staticInvocations;
     private int _invocations;
 
     public ModuleManifest GetManifest() => new(
@@ -31,6 +32,7 @@ public sealed class HeadlessTestModule : IMyrialeModule
     public async ValueTask<ModuleInitializationResult> InitializeAsync(ModuleInitializationRequest request, CancellationToken cancellationToken)
     {
         _invocations++;
+        _staticInvocations++;
         if (request.Configuration.TryGetProperty("initializationDelayMilliseconds", out var delay))
             await Task.Delay(delay.GetInt32(), cancellationToken);
         if (request.Configuration.TryGetProperty("completeOnInitialize", out var complete) && complete.GetBoolean())
@@ -44,14 +46,15 @@ public sealed class HeadlessTestModule : IMyrialeModule
         }
         return new ModuleInitializationResult(
             ModuleExecutionStatuses.Active,
-            Json(new { initialized = true, instanceInvocations = _invocations }),
+            Json(new { initialized = true, instanceInvocations = _invocations, staticInvocations = _staticInvocations }),
             Json(new { screen = "runtime" }),
-            [new ModuleAvailableAction("continue", "Continue", true)]);
+            [new ModuleAvailableAction("continue", "Continue", true, RandomValueCount: 4)]);
     }
 
     public async ValueTask<ModuleTransitionResult> DispatchAsync(ModuleDispatchRequest request, CancellationToken cancellationToken)
     {
         _invocations++;
+        _staticInvocations++;
         var mode = request.Action.TryGetProperty("mode", out var value) ? value.GetString() : null;
         if (mode == "throw") throw new InvalidOperationException("secret plugin failure");
         if (mode == "delay")
@@ -159,9 +162,9 @@ public sealed class HeadlessTestModule : IMyrialeModule
     private ModuleTransitionResult Active(ModuleDispatchRequest request, long revision) => new(
         ModuleExecutionStatuses.Active,
         revision,
-        Json(new { instanceInvocations = _invocations }),
+        Json(new { instanceInvocations = _invocations, staticInvocations = _staticInvocations }),
         Json(new { screen = "runtime" }),
-        [new ModuleAvailableAction("continue", "Continue", true)],
+        [new ModuleAvailableAction("continue", "Continue", true, RandomValueCount: 4)],
         [new ModuleEvent("updated", Json(new { }))]);
 
     private static ModuleOutcome CompletedOutcome() => new(

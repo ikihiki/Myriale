@@ -15,8 +15,7 @@ public sealed record InitializeModuleExecutionRequest(
 public sealed record DispatchModuleExecutionRequest(
     string RequestId,
     long ExpectedRevision,
-    JsonElement Action,
-    int RandomValueCount = 0);
+    JsonElement Action);
 
 public sealed record ModuleExecutionPackageResponse(
     string ModuleId,

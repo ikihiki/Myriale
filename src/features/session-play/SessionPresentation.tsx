@@ -99,7 +99,7 @@ export function SessionPresentation({
   isSubmitting = false,
   isRecommending = false,
   turnDisplay,
-  program = defaultProgram,
+  program: suppliedProgram,
   onLogout,
   onLogin,
   onReload,
@@ -112,6 +112,8 @@ export function SessionPresentation({
   onRewind,
 }: SessionPresentationProps) {
   const appStore = useOptionalAppStore();
+  const program = suppliedProgram ?? defaultProgram;
+  const hasProgramSimulator = suppliedProgram !== undefined;
   const [input, setInput] = useState(initialInput);
   const [interactionType, setInteractionType] = useState<NarrativeInteractionType>(initialInteractionType);
   const [selectedTurnId, setSelectedTurnId] = useState(turns.at(-1)?.id ?? 1);
@@ -509,7 +511,7 @@ export function SessionPresentation({
           </div>
 
 
-          {sessionMode === 'battle' && (
+          {hasProgramSimulator && sessionMode === 'battle' && (
             <div className={programPanelClass} data-testid="active-battle-turn">
               <p data-testid="battle-turn-lead">Battle Turn {battle.turn}</p>
               <div role="group" aria-label={sessionModeFlavor === 'modeTransition' ? 'バトルターン行動' : 'バトル行動'} className={actionRowClassName}>
@@ -521,7 +523,7 @@ export function SessionPresentation({
             </div>
           )}
 
-          {sessionMode === 'roll' && (
+          {hasProgramSimulator && sessionMode === 'roll' && (
             <div className={programPanelClass}>
               <MyrialeSelect
                 label="ダイス固定値"
@@ -536,7 +538,7 @@ export function SessionPresentation({
             </div>
           )}
 
-          {sessionMode === 'event' && (
+          {hasProgramSimulator && sessionMode === 'event' && (
             <div className={programPanelClass}>
               <p data-testid="event-lock">中断・分岐はできません</p>
               <p data-testid="current-objective">崩落イベント</p>
@@ -547,7 +549,7 @@ export function SessionPresentation({
             </div>
           )}
 
-          {sessionMode === 'recovering' && (
+          {hasProgramSimulator && sessionMode === 'recovering' && (
             <div className={programPanelClass}>
               <Button variant="secondary" size="sm" onClick={() => recoverFromPoint('lastConfirmed')}>最後に確定した地点から再開</Button>
               <Button variant="secondary" size="sm" onClick={() => recoverFromPoint('safePoint')}>安全なセーフポイントから再開</Button>
@@ -559,7 +561,7 @@ export function SessionPresentation({
         <div className="visually-hidden" data-testid="program-notice">{notice?.message}</div>
         <div className="visually-hidden" data-testid="mode-notice">{notice?.message}</div>
 
-        <section className="mt-4.5 border-t border-myr-ink/18 pt-3" aria-label="デバッグパネル">
+        {hasProgramSimulator && <section className="mt-4.5 border-t border-myr-ink/18 pt-3" aria-label="デバッグパネル">
           <Button
             type="button"
             variant="ghost"
@@ -645,7 +647,7 @@ export function SessionPresentation({
               </article>
             </section>
           </div>
-        </section>
+        </section>}
       </main>
 
       {notesView === 'full' && (

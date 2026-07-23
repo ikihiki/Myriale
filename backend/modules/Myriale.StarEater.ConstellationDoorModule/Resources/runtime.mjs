@@ -27,7 +27,7 @@ class ConstellationDoor extends HTMLElement {
       this.dispatchEvent(new CustomEvent('myriale:dispatch', {
         bubbles: true,
         composed: true,
-        detail: { expectedRevision: snapshot.revision, action: { id: 'roll' }, randomValueCount: 1 }
+        detail: { expectedRevision: snapshot.revision, action: { id: 'roll' } }
       }));
     });
   }
