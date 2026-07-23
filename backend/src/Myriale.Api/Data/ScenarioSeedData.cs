@@ -150,6 +150,14 @@ public static class ScenarioSeedData
             ScenarioId = "SCN-STAR-LIBRARY",
             Code = "constellation-door-check",
             IsInitial = false,
+            AllowedNarrativeSignalsJson = "[\"constellation-guardian-awakened\"]",
+        },
+        new ScenarioProgressionNode
+        {
+            Id = "SPN-STAR-LIBRARY-GUARDIAN-BATTLE",
+            ScenarioId = "SCN-STAR-LIBRARY",
+            Code = "guardian-battle",
+            IsInitial = false,
             AllowedNarrativeSignalsJson = "[]",
         },
     ];
@@ -171,6 +179,14 @@ public static class ScenarioSeedData
             SignalCode = "constellation-firewall-reached",
             TriggerDescription = "Playerが地下データ書庫の最深部にある『閉じた星座』ファイアウォールへ実際に到達したときだけ発火する。ゲートについて調べる、遠隔スキャンする、噂を聞くだけでは発火しない。",
             TargetNodeId = "SPN-NEON-ARCHIVE-GATE-CHECK",
+        },
+        new ScenarioProgressionTransition
+        {
+            Id = "SPT-STAR-LIBRARY-GUARDIAN-AWAKENED",
+            SourceNodeId = "SPN-STAR-LIBRARY-DOOR-CHECK",
+            SignalCode = "constellation-guardian-awakened",
+            TriggerDescription = "星座の扉の確定Outcomeで図書館の守護者が起動し、そのNarrative handoffが完了したときに発火する。",
+            TargetNodeId = "SPN-STAR-LIBRARY-GUARDIAN-BATTLE",
         },
     ];
 

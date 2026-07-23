@@ -38,7 +38,7 @@ public sealed class DatabaseInitializationTests : IDisposable
     }
 
     [Fact]
-    public async Task StartupInstallsAndPinsConstellationDoorDemoModule()
+    public async Task StartupInstallsAndPinsBothDemoModules()
     {
         using var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
@@ -67,8 +67,20 @@ public sealed class DatabaseInitializationTests : IDisposable
         Assert.Equal(2L, (long)(await command.ExecuteScalarAsync())!);
 
         await using var packageCount = connection.CreateCommand();
-        packageCount.CommandText = "SELECT COUNT(*) FROM ModulePackages";
-        Assert.Equal(1L, (long)(await packageCount.ExecuteScalarAsync())!);
+        packageCount.CommandText = "SELECT COUNT(*) FROM ModulePackages WHERE IsEnabled = 1";
+        Assert.Equal(2L, (long)(await packageCount.ExecuteScalarAsync())!);
+
+        await using var battlePackage = connection.CreateCommand();
+        battlePackage.CommandText = """
+            SELECT COUNT(*)
+            FROM ModulePackages p
+            JOIN ScenarioProgressionTransitions t ON t.ModuleDigest = p.Digest
+            WHERE p.ModuleId = 'com.myriale.rules.turn-battle'
+              AND p.Version = '1.0.0'
+              AND p.IsEnabled = 1
+              AND t.Id = 'SPT-STAR-LIBRARY-GUARDIAN-AWAKENED'
+            """;
+        Assert.Equal(1L, (long)(await battlePackage.ExecuteScalarAsync())!);
 
         await using var sharedDigest = connection.CreateCommand();
         sharedDigest.CommandText = """

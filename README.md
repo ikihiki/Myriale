@@ -159,6 +159,19 @@ dotnet run --project backend/src/Myriale.AppHost/Myriale.AppHost.csproj
 
 API は `MyrialeAccounts`またはPostgreSQL環境変数が指定されている場合にNpgsqlを選択し、接続文字列がないテスト・ローカル実行ではSQLiteを選択します。
 
+### 『星喰いの地下図書館』Module総合デモ
+
+ダイス判定とターン制戦闘の2つのデモpackageは、リポジトリルートで次のコマンドを実行すると決定論的な`.myriale-module`として再生成されます。
+
+```bash
+python3 scripts/build-demo-modules.py --configuration Release
+aspire run --project backend/src/Myriale.AppHost/Myriale.AppHost.csproj
+```
+
+AppHost起動時の開発bootstrapは、`constellation-door-1.0.0.myriale-module`と`guardian-battle-1.0.0.myriale-module`をinstall・enableし、Scenario progressionへexact digestを設定します。DBを再作成した場合も、上記package build後にAppHostを起動すれば両Moduleを再導入できます。
+
+手動レビューでは『星喰いの地下図書館』のSessionを開始し、閉じた星座の扉へ到達してください。ダイス失敗時は`constellation-guardian-awakened`のNarrative handoff後に戦闘へ移行します。戦闘では`攻撃`、`防御`、`星図灯の閃光`、`逃走`を使用でき、勝利時は`guardian-defeated` flagが一度だけ設定され、最終Narrative後に通常入力へ復帰します。AppHostと同時に起動するStorybookはAspire dashboardから、または`npm run storybook`で確認できます。
+
 ### バックエンド検証
 
 ```bash
