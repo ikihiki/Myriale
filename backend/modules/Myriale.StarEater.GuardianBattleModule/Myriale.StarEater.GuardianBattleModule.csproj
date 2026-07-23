@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><AssemblyName>module</AssemblyName></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\..\src\Myriale.ModuleSdk\Myriale.ModuleSdk.csproj" /></ItemGroup>
+</Project>

@@ -251,10 +251,17 @@ public sealed class ModuleExecutionService(
         await Gate.WaitAsync(cancellationToken);
         try
         {
-            var inputError = ValidateCommon(request.RequestId, request.RandomValueCount);
+            var inputError = ValidateCommon(request.RequestId, 0);
             if (inputError is not null) return inputError;
             if (request.ExpectedRevision < 0 || request.Action.ValueKind == JsonValueKind.Undefined)
                 return BadRequest("invalid_request", "ExpectedRevisionとactionを確認してください。");
+
+            var execution = await db.ModuleExecutions
+                .SingleOrDefaultAsync(item => item.Id == executionId && item.OwnerId == ownerId, cancellationToken);
+            if (execution is null) return new ModuleExecutionServiceResult(StatusCodes.Status404NotFound);
+            var randomValueCount = ResolveActionRandomValueCount(execution, request.Action);
+            if (randomValueCount < 0 || randomValueCount > _options.MaxRandomValues)
+                return BadRequest("invalid_action_random_value_count", "Moduleが要求するホスト乱数の個数が範囲外です。");
 
             if (!TryFingerprint(writer =>
             {
@@ -264,7 +271,6 @@ public sealed class ModuleExecutionService(
                 writer.WriteNumber("expectedRevision", request.ExpectedRevision);
                 writer.WritePropertyName("action");
                 WriteCanonical(writer, request.Action);
-                writer.WriteNumber("randomValueCount", request.RandomValueCount);
                 writer.WriteEndObject();
             }, out var payloadHash))
                 return BadRequest("invalid_json", "actionのJSONを正規化できません。");
@@ -278,9 +284,6 @@ public sealed class ModuleExecutionService(
                     : replay;
             }
 
-            var execution = await db.ModuleExecutions
-                .SingleOrDefaultAsync(item => item.Id == executionId && item.OwnerId == ownerId, cancellationToken);
-            if (execution is null) return new ModuleExecutionServiceResult(StatusCodes.Status404NotFound);
             if (execution.Status != ModuleExecutionStatuses.Active)
             {
                 var inactive = Conflict("execution_not_active", "アクティブではないモジュール実行にはactionを送信できません。", execution);
@@ -300,7 +303,7 @@ public sealed class ModuleExecutionService(
                     .Select(turn => turn.Session.State.Revision)
                     .SingleAsync(cancellationToken);
             }
-            var randomValues = GenerateRandomValues(request.RandomValueCount);
+            var randomValues = GenerateRandomValues(randomValueCount);
             var receipt = new ModuleExecutionRequest
             {
                 OwnerId = ownerId,
@@ -825,6 +828,15 @@ public sealed class ModuleExecutionService(
             execution.CreatedAt,
             execution.UpdatedAt,
             execution.CompletedAt);
+
+    private int ResolveActionRandomValueCount(ModuleExecution execution, JsonElement action)
+    {
+        if (!action.TryGetProperty("id", out var idValue) || idValue.ValueKind != JsonValueKind.String)
+            return 0;
+        var actionId = idValue.GetString();
+        var availableActions = JsonSerializer.Deserialize<IReadOnlyList<ModuleAvailableAction>>(execution.AvailableActionsJson, _json) ?? [];
+        return availableActions.SingleOrDefault(item => item.Id == actionId && item.Enabled)?.RandomValueCount ?? 0;
+    }
 
     private static IReadOnlyList<uint> GenerateRandomValues(int count)
     {

@@ -172,27 +172,30 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-    if (db.Database.IsNpgsql())
+    if (app.Configuration.GetValue("Database:RecreateOnStartup", true))
     {
-        await db.Database.ExecuteSqlRawAsync("""
-            DO $$
-            DECLARE schema_to_drop text;
-            BEGIN
-                FOR schema_to_drop IN
-                    SELECT schema_name
-                    FROM information_schema.schemata
-                    WHERE schema_name <> 'information_schema'
-                      AND schema_name NOT LIKE 'pg_%'
-                LOOP
-                    EXECUTE format('DROP SCHEMA %I CASCADE', schema_to_drop);
-                END LOOP;
-            END $$;
-            CREATE SCHEMA public;
-            """);
-    }
-    else
-    {
-        await db.Database.EnsureDeletedAsync();
+        if (db.Database.IsNpgsql())
+        {
+            await db.Database.ExecuteSqlRawAsync("""
+                DO $$
+                DECLARE schema_to_drop text;
+                BEGIN
+                    FOR schema_to_drop IN
+                        SELECT schema_name
+                        FROM information_schema.schemata
+                        WHERE schema_name <> 'information_schema'
+                          AND schema_name NOT LIKE 'pg_%'
+                    LOOP
+                        EXECUTE format('DROP SCHEMA %I CASCADE', schema_to_drop);
+                    END LOOP;
+                END $$;
+                CREATE SCHEMA public;
+                """);
+        }
+        else
+        {
+            await db.Database.EnsureDeletedAsync();
+        }
     }
 
     await db.Database.EnsureCreatedAsync();

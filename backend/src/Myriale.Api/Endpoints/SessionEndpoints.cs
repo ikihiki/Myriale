@@ -29,9 +29,12 @@ public static class SessionEndpoints
         group.MapPost("/{sessionId}/inputs", AcceptInputAsync)
             .WithName("AcceptSessionInput")
             .WithSummary("Durably accepts player input and queues narrative generation.");
-        group.MapPost("/{sessionId}/module-turns", CreateModuleTurnAsync)
-            .WithName("CreateSessionModuleTurn")
-            .WithSummary("Creates one session turn and its module execution atomically.");
+        if (routes.ServiceProvider.GetRequiredService<IConfiguration>().GetValue<bool>("Modules:EnableClientSessionTurnCreation"))
+        {
+            group.MapPost("/{sessionId}/module-turns", CreateModuleTurnAsync)
+                .WithName("CreateSessionModuleTurn")
+                .WithSummary("Development-only seam for creating a session module turn.");
+        }
         group.MapGet("/{sessionId}/turns/{turnId}", GetTurnAsync)
             .WithName("GetSessionTurn")
             .WithSummary("Returns one owner-visible session turn.");

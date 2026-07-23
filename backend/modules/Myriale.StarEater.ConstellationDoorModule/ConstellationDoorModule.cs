@@ -50,7 +50,7 @@ public sealed class ConstellationDoorModule : IMyrialeModule
             ModuleExecutionStatuses.Active,
             Json(new { rolled = false }),
             View(config, null),
-            [new ModuleAvailableAction("roll", "判定する", true)]));
+            [new ModuleAvailableAction("roll", "判定する", true, RandomValueCount: 1)]));
     }
 
     public ValueTask<ModuleTransitionResult> DispatchAsync(ModuleDispatchRequest request, CancellationToken cancellationToken)

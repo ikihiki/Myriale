@@ -8,6 +8,7 @@
   </Folder>
   <Folder Name="/modules/">
     <Project Path="modules/Myriale.StarEater.ConstellationDoorModule/Myriale.StarEater.ConstellationDoorModule.csproj" />
+    <Project Path="modules/Myriale.StarEater.GuardianBattleModule/Myriale.StarEater.GuardianBattleModule.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Myriale.Api.Tests/Myriale.Api.Tests.csproj" />
@@ -15,5 +16,6 @@
     <Project Path="tests/Myriale.TestModule/Myriale.TestModule.csproj" />
     <Project Path="tests/Myriale.HeadlessTestModule/Myriale.HeadlessTestModule.csproj" />
     <Project Path="tests/Myriale.StarEater.ConstellationDoorModule.Tests/Myriale.StarEater.ConstellationDoorModule.Tests.csproj" />
+    <Project Path="tests/Myriale.StarEater.GuardianBattleModule.Tests/Myriale.StarEater.GuardianBattleModule.Tests.csproj" />
   </Folder>
 </Solution>

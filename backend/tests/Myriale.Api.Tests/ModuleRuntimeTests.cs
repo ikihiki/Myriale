@@ -71,6 +71,8 @@ public sealed class ModuleRuntimeTests : IDisposable
         var second = await runtime.DispatchAsync(identity, Dispatch("dispatch-2", 0, new { }), default);
         Assert.Equal(1, first.State.GetProperty("instanceInvocations").GetInt32());
         Assert.Equal(1, second.State.GetProperty("instanceInvocations").GetInt32());
+        Assert.Equal(1, first.State.GetProperty("staticInvocations").GetInt32());
+        Assert.Equal(1, second.State.GetProperty("staticInvocations").GetInt32());
     }
 
     [Fact]

@@ -12,6 +12,7 @@ namespace Myriale.Api.Services;
 public sealed class ModuleHandoffExecutionHandler(
     ApplicationDbContext db,
     INarrativeGenerator generator,
+    SessionScenarioProgressionService progression,
     IHostEnvironment environment,
     ILogger<ModuleHandoffExecutionHandler> logger) : ISessionExecutionHandler
 {
@@ -86,6 +87,7 @@ public sealed class ModuleHandoffExecutionHandler(
         await db.Entry(current).Reference(item => item.Session).Query()
             .Include(session => session.HeadTurn)
             .Include(session => session.State)
+            .Include(session => session.Progress).ThenInclude(progress => progress!.CurrentNode)
             .LoadAsync(cancellationToken);
         source = await LoadSourceAsync(current.TriggerId, cancellationToken);
         causalError = ValidateCausality(current, source);
@@ -153,6 +155,39 @@ public sealed class ModuleHandoffExecutionHandler(
         current.Session.UpdatedAt = now;
         db.SessionArtifacts.Add(artifact);
         db.SessionTurns.Add(turn);
+        if (current.Session.Progress is not null
+            && JsonSerializer.Deserialize<string[]>(current.Session.Progress.CurrentNode.AllowedNarrativeSignalsJson, _json)?.Contains(request.Outcome.Code) == true)
+        {
+            var transition = await db.ScenarioProgressionTransitions.AsNoTracking()
+                .SingleOrDefaultAsync(item => item.SourceNodeId == current.Session.Progress.CurrentNodeId
+                    && item.SignalCode == request.Outcome.Code, cancellationToken);
+            if (transition is not null)
+            {
+                var signal = new SessionNarrativeSignal
+                {
+                    Id = $"NSG-{Guid.NewGuid():N}".ToUpperInvariant(),
+                    SessionId = current.SessionId,
+                    NarrativeTurnId = turn.Id,
+                    Code = request.Outcome.Code,
+                    Evidence = $"Module Outcome {request.Outcome.Code} のNarrative handoffが完了した。",
+                    CreatedAt = now,
+                };
+                var snapshot = await db.SessionProgressionModuleSnapshots.AsNoTracking()
+                    .SingleOrDefaultAsync(item => item.SessionId == current.SessionId && item.TransitionId == transition.Id, cancellationToken);
+                db.SessionNarrativeSignals.Add(signal);
+                db.SessionProgressionTransitionReceipts.Add(new SessionProgressionTransitionReceipt
+                {
+                    Id = $"PTR-{Guid.NewGuid():N}".ToUpperInvariant(), SessionId = current.SessionId,
+                    SourceSignalId = signal.Id, TransitionId = transition.Id, FromNodeId = transition.SourceNodeId, ToNodeId = transition.TargetNodeId,
+                    Status = snapshot is null ? "waiting-configuration" : "pending", ModuleId = snapshot?.ModuleId, ModuleVersion = snapshot?.ModuleVersion,
+                    ModuleDigest = snapshot?.ModuleDigest, ModuleConfigurationJson = snapshot?.ConfigurationJson, ModuleContextJson = snapshot?.ContextJson,
+                    ModuleRandomValueCount = snapshot?.RandomValueCount ?? 0, IsRetryable = snapshot is not null, CreatedAt = now, UpdatedAt = now,
+                });
+                current.Session.Progress.CurrentNodeId = transition.TargetNodeId;
+                current.Session.Progress.Revision++;
+                current.Session.Progress.UpdatedAt = now;
+            }
+        }
         attempt.Provider = generation.Metadata.Provider;
         attempt.Model = generation.Metadata.Model;
         attempt.ProviderRequestId = generation.Metadata.ResponseId;
@@ -178,6 +213,7 @@ public sealed class ModuleHandoffExecutionHandler(
         SessionExecutionTelemetry.ArtifactCommitted.Add(1, SessionExecutionTelemetry.Tags(current.Kind, current.Status));
         SessionExecutionTelemetry.TurnPublished.Add(1, SessionExecutionTelemetry.Tags(current.Kind, current.Status));
         SessionExecutionTelemetry.ArtifactSize.Record(Encoding.UTF8.GetByteCount(generation.Value), SessionExecutionTelemetry.Tags(current.Kind, current.Status));
+        await progression.EnsureNarrativeTurnAsync(current.Session.OwnerId, turn.Id, cancellationToken);
         return new(true);
     }
 

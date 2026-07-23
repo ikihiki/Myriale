@@ -52,7 +52,8 @@ public sealed record ModuleAvailableAction(
     string Id,
     string Label,
     bool Enabled,
-    string? DisabledReason = null);
+    string? DisabledReason = null,
+    int RandomValueCount = 0);
 
 public sealed record ModuleEvent(
     string Type,

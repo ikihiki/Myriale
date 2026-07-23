@@ -24,6 +24,7 @@ public sealed class SessionModuleTurnEndpointTests : IDisposable
         {
             builder.UseSetting("ConnectionStrings:MyrialeAccounts", $"Data Source={Path.Combine(_root, "myriale.db")}");
             builder.UseSetting("Modules:StoragePath", Path.Combine(_root, "modules"));
+            builder.UseSetting("Modules:EnableClientSessionTurnCreation", "true");
         });
     }
 

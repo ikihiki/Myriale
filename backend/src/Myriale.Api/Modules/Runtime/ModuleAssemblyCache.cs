@@ -1,15 +1,11 @@
-using System.Collections.Concurrent;
 using System.Reflection;
-using Microsoft.Extensions.Options;
 using Myriale.ModuleSdk;
 
 namespace Myriale.Api.Modules.Runtime;
 
-internal sealed class ModuleAssemblyCache(IOptions<ModuleRuntimeOptions> options, ILogger<ModuleAssemblyCache> logger) : IDisposable
+internal sealed class ModuleAssemblyCache : IDisposable
 {
-    private readonly ConcurrentDictionary<string, Lazy<ModuleCacheEntry>> _entries = new(StringComparer.Ordinal);
     private readonly object _capacitySync = new();
-    private readonly int _maximumEntries = Math.Max(1, options.Value.MaxCachedAssemblies);
     private bool _disposed;
 
     public ModuleAssemblyLease Acquire(ModulePackageRuntimeDescriptor descriptor)
@@ -17,36 +13,9 @@ internal sealed class ModuleAssemblyCache(IOptions<ModuleRuntimeOptions> options
         lock (_capacitySync)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            EnsureCapacity(descriptor.Identity.Digest);
-            var lazy = _entries.GetOrAdd(descriptor.Identity.Digest, _ =>
-                new Lazy<ModuleCacheEntry>(() => Load(descriptor), LazyThreadSafetyMode.ExecutionAndPublication));
-            try
-            {
-                return lazy.Value.Acquire();
-            }
-            catch
-            {
-                if (_entries.TryRemove(new KeyValuePair<string, Lazy<ModuleCacheEntry>>(descriptor.Identity.Digest, lazy))
-                    && lazy.IsValueCreated)
-                    lazy.Value.Retire();
-                throw;
-            }
+            var entry = Load(descriptor);
+            return entry.Acquire(retireOnRelease: true);
         }
-    }
-
-    private void EnsureCapacity(string requestedDigest)
-    {
-        if (_entries.ContainsKey(requestedDigest) || _entries.Count < _maximumEntries) return;
-        foreach (var candidate in _entries)
-        {
-            if (!candidate.Value.IsValueCreated || !candidate.Value.Value.IsIdle) continue;
-            if (_entries.TryRemove(new KeyValuePair<string, Lazy<ModuleCacheEntry>>(candidate.Key, candidate.Value)))
-            {
-                candidate.Value.Value.Retire();
-                return;
-            }
-        }
-        throw new ModuleRuntimeException(ModuleRuntimeErrorCodes.CapacityExceeded, "モジュールランタイムのキャッシュ上限に達しました。");
     }
 
     private static ModuleCacheEntry Load(ModulePackageRuntimeDescriptor descriptor)
@@ -82,15 +51,7 @@ internal sealed class ModuleAssemblyCache(IOptions<ModuleRuntimeOptions> options
     {
         lock (_capacitySync)
         {
-            if (_disposed) return;
             _disposed = true;
-            foreach (var lazy in _entries.Values)
-            {
-                if (!lazy.IsValueCreated) continue;
-                try { lazy.Value.Retire(); }
-                catch (Exception exception) { logger.LogWarning(exception, "Failed to retire a module assembly cache entry"); }
-            }
-            _entries.Clear();
         }
     }
 
@@ -110,13 +71,13 @@ internal sealed class ModuleCacheEntry(ModuleAssemblyLoadContext loadContext, Co
         get { lock (_sync) return _activeLeases == 0 && !_retired; }
     }
 
-    public ModuleAssemblyLease Acquire()
+    public ModuleAssemblyLease Acquire(bool retireOnRelease = false)
     {
         lock (_sync)
         {
             if (_retired) throw new ModuleRuntimeException(ModuleRuntimeErrorCodes.PackageUnavailable, "モジュールキャッシュは終了処理中です。");
             _activeLeases++;
-            return new ModuleAssemblyLease(this);
+            return new ModuleAssemblyLease(this, retireOnRelease);
         }
     }
 
@@ -148,9 +109,15 @@ internal sealed class ModuleCacheEntry(ModuleAssemblyLoadContext loadContext, Co
     }
 }
 
-internal sealed class ModuleAssemblyLease(ModuleCacheEntry entry) : IDisposable
+internal sealed class ModuleAssemblyLease(ModuleCacheEntry entry, bool retireOnRelease = false) : IDisposable
 {
     private ModuleCacheEntry? _entry = entry;
     public IMyrialeModule CreateModule() => (_entry ?? throw new ObjectDisposedException(nameof(ModuleAssemblyLease))).CreateModule();
-    public void Dispose() => Interlocked.Exchange(ref _entry, null)?.Release();
+    public void Dispose()
+    {
+        var current = Interlocked.Exchange(ref _entry, null);
+        if (current is null) return;
+        if (retireOnRelease) current.Retire();
+        current.Release();
+    }
 }
