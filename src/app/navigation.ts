@@ -7,8 +7,8 @@ const navigationPaths: Record<StoryKey, string> = {
   advancedScenario: '/scenarios/SCN-STAR-LIBRARY/edit',
   scenarioList: '/scenarios',
   startSession: '/sessions/start',
-  playSession: '/scenarios',
-  resumeSession: '/scenarios',
+  playSession: '/sessions',
+  sessionList: '/sessions',
   programDriven: '/scenarios',
   modeTransition: '/scenarios',
   sessionNotesAuto: '/scenarios',
@@ -28,7 +28,6 @@ const navigationPaths: Record<StoryKey, string> = {
 export function appPathForStoryKey(key: StoryKey, options?: AppNavigateOptions): string {
   if (options?.sessionId) {
     const session = `/sessions/${encodeURIComponent(options.sessionId)}`;
-    if (key === 'resumeSession') return `${session}/resume`;
     if (key === 'programDriven') return `${session}/program`;
     if (key === 'modeTransition') return `${session}/mode-exception`;
     if (key === 'sessionNotesAuto' || key === 'sessionNotesLorebook') return `${session}/notes`;

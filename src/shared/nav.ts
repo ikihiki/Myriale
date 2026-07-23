@@ -32,7 +32,7 @@ export const STORY_IDS = {
   scenarioList: 'ユーザーストーリー-start-session--uss-01-start-new-session-from-scenario',
   startSession: 'ユーザーストーリー-start-session--uss-02-read-intro-before-hero',
   playSession: 'ユーザーストーリー-session-play-dialogue--usp-01-current-situation-narrative',
-  resumeSession: 'ユーザーストーリー-session-resume--usr-01-resume-from-last-state',
+  sessionList: 'ユーザーストーリー-session-list--進行中の物語を開く',
   programDriven: 'ユーザーストーリー-program-driven-narrative--uspg-01-forced-mode-disables-input',
   modeTransition: 'ユーザーストーリー-mode-transition-and-exception--usm-01-explicit-mode-switch',
   sessionNotesAuto: 'ユーザーストーリー-session-notes-auto-generation--usan-01-create-pending-note',

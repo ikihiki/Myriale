@@ -33,7 +33,7 @@ export function SessionContainer({ sessionId }: { sessionId: string }) {
   const draftRequest = useRef<{ input: string; requestId: string; interactionType: NarrativeInteractionType } | null>(null);
 
   const goToLogin = () => appNavigate?.('login');
-  const goToSessionList = () => appNavigate?.('scenarioList');
+  const goToSessionList = () => appNavigate?.('sessionList');
   const reload = () => window.location.reload();
   const logout = async () => {
     await accountSession.api.logout();
@@ -167,21 +167,25 @@ export function SessionContainer({ sessionId }: { sessionId: string }) {
     });
   };
 
-  const resumableInput = session.pendingInputs.at(-1);
+  const pendingInput = session.pendingInputs.at(-1);
+  const readOnly = session.status.toLowerCase() === 'completed';
   return <SessionPresentation
     sessionId={sessionId}
     account={chromeAccount}
     turns={session.turns.map(toDialogueTurn)}
     headingLinks={session.turns.map(toDialogueTurn).map((turn) => ({ title: turn.turnTitle, startTurnId: turn.id, summary: 'Serverに保存された確定済みTurn' }))}
-    sessionStateLabel="Active"
+    sessionStateLabel={readOnly ? 'Completed' : 'Active'}
+    readOnly={readOnly}
     activitySession={session}
-    activeModulePanel={headModuleTurn?.execution
+    activeModulePanel={!readOnly && headModuleTurn?.execution
       ? <ActiveModuleTurnPanel execution={headModuleTurn.execution} onExecution={refreshAfterModuleAction} />
       : undefined}
-    moduleHandoffPending={moduleHandoffPending}
-    initialInput={resumableInput?.input}
-    initialInteractionType={resumableInput?.interactionType}
-    initialNotice={resumableInput?.errorMessage ?? (resumableInput ? '未完了のPlayer Inputを復元しました。同じRequest IDで再試行できます。' : 'Serverに保存された確定済みTurnを表示しています。')}
+    moduleHandoffPending={!readOnly && moduleHandoffPending}
+    initialInput={readOnly ? undefined : pendingInput?.input}
+    initialInteractionType={pendingInput?.interactionType}
+    initialNotice={readOnly
+      ? '完了済みの物語を読み取り専用で表示しています。'
+      : pendingInput?.errorMessage ?? (pendingInput ? '未完了のPlayer Inputを復元しました。同じRequest IDで再試行できます。' : 'Serverに保存された確定済みTurnを表示しています。')}
     liveNotice={liveNotice}
     isSubmitting={isSubmitting}
     isRecommending={isRecommending}

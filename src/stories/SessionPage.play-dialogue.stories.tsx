@@ -52,6 +52,33 @@ export const USP01CurrentSituationNarrative: Story = {
   },
 };
 
+export const CompletedSessionReadOnly: Story = {
+  name: '完了済みSession: 読み取り専用で物語を開く',
+  render: () => {
+    const db = createProgressedPlayDb();
+    return <MyrialeApp
+      initialUrl="/sessions/SES-PREP-1098"
+      initialDb={{
+        ...db,
+        playSessions: {
+          ...db.playSessions,
+          'SES-PREP-1098': { ...db.playSessions['SES-PREP-1098'], state: 'Completed' },
+        },
+      }}
+      sessionContainer={MockSessionContainer}
+    />;
+  },
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await step('完了済みの物語はログを表示したまま進行操作を隠す', async () => {
+      await expect(canvas.getByTestId('session-state')).toHaveTextContent('Completed');
+      await expect(canvas.getByTestId('completed-session-read-only')).toBeVisible();
+      await expect(canvas.queryByLabelText('自由に行動や会話を入力')).not.toBeInTheDocument();
+      await expect(canvas.getByTestId('dialogue-log')).toHaveTextContent('水没した閲覧室');
+    });
+  },
+};
+
 export const USP02AndP03NaturalInputToNarrativeResult: Story = {
   name: 'US-P02/P03: 自然言語で行動を入力し、結果を物語として受け取る',
   play: async ({ canvasElement, step }) => {

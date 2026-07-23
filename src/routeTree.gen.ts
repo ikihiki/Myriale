@@ -26,6 +26,7 @@ import { Route as AccountWithdrawRouteImport } from './routes/account/withdraw'
 import { Route as ModuleExecutionsExecutionIdRouteImport } from './routes/module-executions/$executionId'
 import { Route as ScenariosIndexRouteImport } from './routes/scenarios/index'
 import { Route as ScenariosNewRouteImport } from './routes/scenarios/new'
+import { Route as SessionsIndexRouteImport } from './routes/sessions/index'
 import { Route as SessionsSessionIdRouteRouteImport } from './routes/sessions/$sessionId/route'
 import { Route as SessionsStartRouteImport } from './routes/sessions/start'
 import { Route as AccountAdminAiKeysRouteImport } from './routes/account/admin/ai-keys'
@@ -40,7 +41,6 @@ import { Route as SessionsSessionIdModeExceptionRouteImport } from './routes/ses
 import { Route as SessionsSessionIdNotesRouteImport } from './routes/sessions/$sessionId/notes'
 import { Route as SessionsSessionIdPlayRouteImport } from './routes/sessions/$sessionId/play'
 import { Route as SessionsSessionIdProgramRouteImport } from './routes/sessions/$sessionId/program'
-import { Route as SessionsSessionIdResumeRouteImport } from './routes/sessions/$sessionId/resume'
 import { Route as AccountAdminUsersIndexRouteImport } from './routes/account/admin/users/index'
 import { Route as AccountAdminUsersUserIdRouteImport } from './routes/account/admin/users/$userId'
 
@@ -130,6 +130,11 @@ const ScenariosNewRoute = ScenariosNewRouteImport.update({
   path: '/new',
   getParentRoute: () => ScenariosRouteRoute,
 } as any)
+const SessionsIndexRoute = SessionsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SessionsRouteRoute,
+} as any)
 const SessionsSessionIdRouteRoute = SessionsSessionIdRouteRouteImport.update({
   id: '/$sessionId',
   path: '/$sessionId',
@@ -203,11 +208,6 @@ const SessionsSessionIdProgramRoute =
     path: '/program',
     getParentRoute: () => SessionsSessionIdRouteRoute,
   } as any)
-const SessionsSessionIdResumeRoute = SessionsSessionIdResumeRouteImport.update({
-  id: '/resume',
-  path: '/resume',
-  getParentRoute: () => SessionsSessionIdRouteRoute,
-} as any)
 const AccountAdminUsersIndexRoute = AccountAdminUsersIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -239,6 +239,7 @@ export interface FileRoutesByFullPath {
   '/scenarios/new': typeof ScenariosNewRoute
   '/sessions/start': typeof SessionsStartRoute
   '/scenarios/': typeof ScenariosIndexRoute
+  '/sessions/': typeof SessionsIndexRoute
   '/account/admin/users': typeof AccountAdminUsersRouteRouteWithChildren
   '/account/admin/ai-keys': typeof AccountAdminAiKeysRoute
   '/account/admin/audit-log': typeof AccountAdminAuditLogRoute
@@ -249,7 +250,6 @@ export interface FileRoutesByFullPath {
   '/sessions/$sessionId/notes': typeof SessionsSessionIdNotesRoute
   '/sessions/$sessionId/play': typeof SessionsSessionIdPlayRoute
   '/sessions/$sessionId/program': typeof SessionsSessionIdProgramRoute
-  '/sessions/$sessionId/resume': typeof SessionsSessionIdResumeRoute
   '/account/profile/': typeof AccountProfileIndexRoute
   '/sessions/$sessionId/': typeof SessionsSessionIdIndexRoute
   '/account/admin/users/$userId': typeof AccountAdminUsersUserIdRoute
@@ -258,7 +258,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRouteRouteWithChildren
-  '/sessions': typeof SessionsRouteRouteWithChildren
   '/admin': typeof AdminRoute
   '/account/admin': typeof AccountAdminRouteRouteWithChildren
   '/account/export': typeof AccountExportRoute
@@ -272,6 +271,7 @@ export interface FileRoutesByTo {
   '/scenarios/new': typeof ScenariosNewRoute
   '/sessions/start': typeof SessionsStartRoute
   '/scenarios': typeof ScenariosIndexRoute
+  '/sessions': typeof SessionsIndexRoute
   '/account/admin/ai-keys': typeof AccountAdminAiKeysRoute
   '/account/admin/audit-log': typeof AccountAdminAuditLogRoute
   '/account/profile/edit': typeof AccountProfileEditRoute
@@ -281,7 +281,6 @@ export interface FileRoutesByTo {
   '/sessions/$sessionId/notes': typeof SessionsSessionIdNotesRoute
   '/sessions/$sessionId/play': typeof SessionsSessionIdPlayRoute
   '/sessions/$sessionId/program': typeof SessionsSessionIdProgramRoute
-  '/sessions/$sessionId/resume': typeof SessionsSessionIdResumeRoute
   '/account/profile': typeof AccountProfileIndexRoute
   '/sessions/$sessionId': typeof SessionsSessionIdIndexRoute
   '/account/admin/users/$userId': typeof AccountAdminUsersUserIdRoute
@@ -308,6 +307,7 @@ export interface FileRoutesById {
   '/scenarios/new': typeof ScenariosNewRoute
   '/sessions/start': typeof SessionsStartRoute
   '/scenarios/': typeof ScenariosIndexRoute
+  '/sessions/': typeof SessionsIndexRoute
   '/account/admin/users': typeof AccountAdminUsersRouteRouteWithChildren
   '/account/admin/ai-keys': typeof AccountAdminAiKeysRoute
   '/account/admin/audit-log': typeof AccountAdminAuditLogRoute
@@ -318,7 +318,6 @@ export interface FileRoutesById {
   '/sessions/$sessionId/notes': typeof SessionsSessionIdNotesRoute
   '/sessions/$sessionId/play': typeof SessionsSessionIdPlayRoute
   '/sessions/$sessionId/program': typeof SessionsSessionIdProgramRoute
-  '/sessions/$sessionId/resume': typeof SessionsSessionIdResumeRoute
   '/account/profile/': typeof AccountProfileIndexRoute
   '/sessions/$sessionId/': typeof SessionsSessionIdIndexRoute
   '/account/admin/users/$userId': typeof AccountAdminUsersUserIdRoute
@@ -346,6 +345,7 @@ export interface FileRouteTypes {
     | '/scenarios/new'
     | '/sessions/start'
     | '/scenarios/'
+    | '/sessions/'
     | '/account/admin/users'
     | '/account/admin/ai-keys'
     | '/account/admin/audit-log'
@@ -356,7 +356,6 @@ export interface FileRouteTypes {
     | '/sessions/$sessionId/notes'
     | '/sessions/$sessionId/play'
     | '/sessions/$sessionId/program'
-    | '/sessions/$sessionId/resume'
     | '/account/profile/'
     | '/sessions/$sessionId/'
     | '/account/admin/users/$userId'
@@ -365,7 +364,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/account'
-    | '/sessions'
     | '/admin'
     | '/account/admin'
     | '/account/export'
@@ -379,6 +377,7 @@ export interface FileRouteTypes {
     | '/scenarios/new'
     | '/sessions/start'
     | '/scenarios'
+    | '/sessions'
     | '/account/admin/ai-keys'
     | '/account/admin/audit-log'
     | '/account/profile/edit'
@@ -388,7 +387,6 @@ export interface FileRouteTypes {
     | '/sessions/$sessionId/notes'
     | '/sessions/$sessionId/play'
     | '/sessions/$sessionId/program'
-    | '/sessions/$sessionId/resume'
     | '/account/profile'
     | '/sessions/$sessionId'
     | '/account/admin/users/$userId'
@@ -414,6 +412,7 @@ export interface FileRouteTypes {
     | '/scenarios/new'
     | '/sessions/start'
     | '/scenarios/'
+    | '/sessions/'
     | '/account/admin/users'
     | '/account/admin/ai-keys'
     | '/account/admin/audit-log'
@@ -424,7 +423,6 @@ export interface FileRouteTypes {
     | '/sessions/$sessionId/notes'
     | '/sessions/$sessionId/play'
     | '/sessions/$sessionId/program'
-    | '/sessions/$sessionId/resume'
     | '/account/profile/'
     | '/sessions/$sessionId/'
     | '/account/admin/users/$userId'
@@ -561,6 +559,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ScenariosNewRouteImport
       parentRoute: typeof ScenariosRouteRoute
     }
+    '/sessions/': {
+      id: '/sessions/'
+      path: '/'
+      fullPath: '/sessions/'
+      preLoaderRoute: typeof SessionsIndexRouteImport
+      parentRoute: typeof SessionsRouteRoute
+    }
     '/sessions/$sessionId': {
       id: '/sessions/$sessionId'
       path: '/$sessionId'
@@ -657,13 +662,6 @@ declare module '@tanstack/react-router' {
       path: '/program'
       fullPath: '/sessions/$sessionId/program'
       preLoaderRoute: typeof SessionsSessionIdProgramRouteImport
-      parentRoute: typeof SessionsSessionIdRouteRoute
-    }
-    '/sessions/$sessionId/resume': {
-      id: '/sessions/$sessionId/resume'
-      path: '/resume'
-      fullPath: '/sessions/$sessionId/resume'
-      preLoaderRoute: typeof SessionsSessionIdResumeRouteImport
       parentRoute: typeof SessionsSessionIdRouteRoute
     }
     '/account/admin/users/': {
@@ -778,7 +776,6 @@ interface SessionsSessionIdRouteRouteChildren {
   SessionsSessionIdNotesRoute: typeof SessionsSessionIdNotesRoute
   SessionsSessionIdPlayRoute: typeof SessionsSessionIdPlayRoute
   SessionsSessionIdProgramRoute: typeof SessionsSessionIdProgramRoute
-  SessionsSessionIdResumeRoute: typeof SessionsSessionIdResumeRoute
   SessionsSessionIdIndexRoute: typeof SessionsSessionIdIndexRoute
 }
 
@@ -788,7 +785,6 @@ const SessionsSessionIdRouteRouteChildren: SessionsSessionIdRouteRouteChildren =
     SessionsSessionIdNotesRoute: SessionsSessionIdNotesRoute,
     SessionsSessionIdPlayRoute: SessionsSessionIdPlayRoute,
     SessionsSessionIdProgramRoute: SessionsSessionIdProgramRoute,
-    SessionsSessionIdResumeRoute: SessionsSessionIdResumeRoute,
     SessionsSessionIdIndexRoute: SessionsSessionIdIndexRoute,
   }
 
@@ -800,11 +796,13 @@ const SessionsSessionIdRouteRouteWithChildren =
 interface SessionsRouteRouteChildren {
   SessionsSessionIdRouteRoute: typeof SessionsSessionIdRouteRouteWithChildren
   SessionsStartRoute: typeof SessionsStartRoute
+  SessionsIndexRoute: typeof SessionsIndexRoute
 }
 
 const SessionsRouteRouteChildren: SessionsRouteRouteChildren = {
   SessionsSessionIdRouteRoute: SessionsSessionIdRouteRouteWithChildren,
   SessionsStartRoute: SessionsStartRoute,
+  SessionsIndexRoute: SessionsIndexRoute,
 }
 
 const SessionsRouteRouteWithChildren = SessionsRouteRoute._addFileChildren(

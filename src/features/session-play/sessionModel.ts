@@ -122,6 +122,7 @@ export type SessionPresentationProps = {
   turns: DialogueTurn[];
   headingLinks: HeadingLink[];
   sessionStateLabel: string;
+  readOnly?: boolean;
   activitySession?: SessionApiResponse;
   activeModulePanel?: ReactNode;
   moduleHandoffPending?: boolean;

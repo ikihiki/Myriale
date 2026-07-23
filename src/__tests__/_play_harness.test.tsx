@@ -5,7 +5,7 @@ import { composeStories } from '@storybook/react';
 import * as pageStories from '../stories/UserManagementPage.stories';
 import * as kitStories from '../stories/AccountKit.stories';
 import * as appChromeStories from '../stories/AppChrome.stories';
-import * as sessionResumeStories from '../stories/SessionResumePage.stories';
+import * as sessionListStories from '../stories/SessionListPage.stories';
 import * as scenarioRegistrationStories from '../stories/ScenarioRegistrationPage.stories';
 import * as editScenarioStories from '../stories/EditScenarioPage.stories';
 import * as programDrivenStories from '../stories/SessionPage.program-driven.stories';
@@ -20,13 +20,13 @@ afterEach(() => cleanup());
 
 // Runs every Storybook story's play function against a real render, so the
 // documented user-flow interactions (US-UM01..16 + the shared Account kit +
-// the shared AppChrome navigation + US-R01..08 session resume + US-E01..10
+// the shared AppChrome navigation + session listing/direct access + US-E01..10
 // edit scenario + US-PG01..10 program-driven narrative + the shared SessionTurn
 // component) are verified in CI, not just type-checked.
 const composedPageStories = composeStories(pageStories);
 const composedKit = composeStories(kitStories);
 const composedAppChrome = composeStories(appChromeStories);
-const composedSessionResume = composeStories(sessionResumeStories);
+const composedSessionList = composeStories(sessionListStories);
 const composedScenarioRegistration = composeStories(scenarioRegistrationStories);
 const composedEditScenario = composeStories(editScenarioStories);
 const composedProgramDriven = composeStories(programDrivenStories);
@@ -106,8 +106,8 @@ describe('play: AppChrome stories', () => {
   }
 });
 
-describe('play: SessionResumePage stories', () => {
-  for (const [name, Story] of Object.entries(composedSessionResume)) {
+describe('play: SessionListPage stories', () => {
+  for (const [name, Story] of Object.entries(composedSessionList)) {
     it(name, async () => {
       const { container } = render(<Story />);
       await waitFor(() => expect(container.firstElementChild).not.toBeNull());
