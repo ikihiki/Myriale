@@ -5,6 +5,14 @@ import { createAppRouter } from '../router';
 import { appHrefForStoryKey, appPathForStoryKey } from './navigation';
 
 describe('TanStack app routing', () => {
+  it('matches the authenticated session list route', async () => {
+    const router = createAppRouter({ initialUrl: '/sessions' });
+    await router.load();
+
+    expect(router.state.location.pathname).toBe('/sessions');
+    expect(router.state.matches[router.state.matches.length - 1]?.routeId).toBe('/sessions/');
+  });
+
   it('matches a play session and exposes its typed parameter', async () => {
     const router = createAppRouter({ initialUrl: '/sessions/SES-PREP-1098?turn=3' });
     await router.load();
@@ -86,7 +94,8 @@ describe('TanStack app routing', () => {
   it('maps shared navigation keys to router paths and validated search strings', () => {
     expect(appPathForStoryKey('sessionNotesLorebook', { sessionId: 'SES-LIVE-123' })).toBe('/sessions/SES-LIVE-123/notes');
     expect(appHrefForStoryKey('playSession', { sessionId: 'SES-LIVE-123' })).toBe('/sessions/SES-LIVE-123');
-    expect(appPathForStoryKey('playSession')).toBe('/scenarios');
+    expect(appPathForStoryKey('playSession')).toBe('/sessions');
+    expect(appPathForStoryKey('sessionList')).toBe('/sessions');
     expect(appPathForStoryKey('adminAiKeys')).toBe('/admin');
     expect(appHrefForStoryKey('startSession', { query: { scenarioId: 'SCN-001' } })).toBe('/sessions/start?scenarioId=SCN-001');
   });

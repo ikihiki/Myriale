@@ -89,6 +89,7 @@ export function SessionPresentation({
   turns,
   headingLinks,
   sessionStateLabel,
+  readOnly = false,
   activitySession,
   activeModulePanel,
   moduleHandoffPending = false,
@@ -258,8 +259,8 @@ export function SessionPresentation({
     <AppChrome
       section="sessions"
       breadcrumbs={[
-        { label: 'Myriale', to: 'scenarioRegister' },
-        { label: 'セッション', to: 'startSession' },
+        { label: 'Myriale', to: 'home' },
+        { label: 'セッション', to: 'sessionList' },
         { label: 'プレイ中の対話' },
       ]}
       account={account}
@@ -332,7 +333,12 @@ export function SessionPresentation({
         )}
 
         {activitySession ? (
-          <SessionActivityFeed session={activitySession} onExecutionAction={(id, action) => void handleExecutionAction(id, action)} onNoteReview={(id, action, request) => void handleNoteReview(id, action, request)} keepSucceededStatusVisible={keepSucceededExecutionStatusVisible} />
+          <SessionActivityFeed
+            session={activitySession}
+            onExecutionAction={readOnly ? undefined : (id, action) => void handleExecutionAction(id, action)}
+            onNoteReview={readOnly ? undefined : (id, action, request) => void handleNoteReview(id, action, request)}
+            keepSucceededStatusVisible={keepSucceededExecutionStatusVisible}
+          />
         ) : (
         <section className="grid max-h-[48vh] gap-3 overflow-auto pr-2" aria-label="対話ログ" data-testid="dialogue-log">
           {turns.map((turn) => {
@@ -417,14 +423,21 @@ export function SessionPresentation({
           </MyrialeDialogRoot>
         )}
 
-        {activeModulePanel}
-        {moduleHandoffPending && !activeModulePanel && (
+        {!readOnly && activeModulePanel}
+        {!readOnly && moduleHandoffPending && !activeModulePanel && (
           <section className="mx-auto mb-4 w-full max-w-myr-reading rounded-2xl border border-myr-gold/35 bg-myr-paper px-5 py-4" role="status" data-testid="module-handoff-pending">
             <strong>確定結果をNarrativeへ引き渡しています</strong>
             <p className="m-0 mt-1 text-myr-ui-sm text-myr-ink-soft">ダイス結果とSession Effectは保存済みです。描写が追加されるまで自由入力は無効です。</p>
           </section>
         )}
 
+        {readOnly && (
+          <Notice tone="info" className="mx-auto mt-4 w-full max-w-myr-reading" data-testid="completed-session-read-only">
+            このセッションは完了しています。物語を読み返すことはできますが、新しい入力や進行操作はできません。
+          </Notice>
+        )}
+
+        {!readOnly && (
         <section className="mx-auto mt-4 mb-1 w-full max-w-myr-reading justify-self-stretch px-3 max-sm:px-0" aria-label="自然言語入力">
           {forcedMode && (
             <>
@@ -556,12 +569,13 @@ export function SessionPresentation({
             </div>
           )}
         </section>
+        )}
         <div className="visually-hidden" data-testid="program-log">{generatedLog}</div>
         <div className="visually-hidden" data-testid="narrative-log">{generatedLog}</div>
         <div className="visually-hidden" data-testid="program-notice">{notice?.message}</div>
         <div className="visually-hidden" data-testid="mode-notice">{notice?.message}</div>
 
-        {hasProgramSimulator && <section className="mt-4.5 border-t border-myr-ink/18 pt-3" aria-label="デバッグパネル">
+        {!readOnly && hasProgramSimulator && <section className="mt-4.5 border-t border-myr-ink/18 pt-3" aria-label="デバッグパネル">
           <Button
             type="button"
             variant="ghost"

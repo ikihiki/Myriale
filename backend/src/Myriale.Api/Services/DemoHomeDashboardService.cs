@@ -2,11 +2,12 @@ using Myriale.Api.Contracts;
 
 namespace Myriale.Api.Services;
 
-public sealed class DemoHomeDashboardService : IHomeDashboardService
+public sealed class DemoHomeDashboardService(IPlaySessionListingService sessions) : IHomeDashboardService
 {
-    public Task<HomeDashboardResponse> GetDashboardAsync(CancellationToken cancellationToken)
+    public async Task<HomeDashboardResponse> GetDashboardAsync(string ownerId, CancellationToken cancellationToken)
     {
-        var response = new HomeDashboardResponse(
+        var activeSessions = await sessions.ListAsync(ownerId, includeCompleted: false, cancellationToken);
+        return new HomeDashboardResponse(
             Account: new AccountSummaryDto(
                 DisplayName: "ミリア",
                 Email: "reader@myriale.example",
@@ -14,27 +15,7 @@ public sealed class DemoHomeDashboardService : IHomeDashboardService
                 Role: "Reader",
                 UnreadNotifications: 2,
                 CurrentWorkspaceName: "Myriale Library"),
-            ResumableSessions:
-            [
-                new PlaySessionSummaryDto(
-                    Id: "SES-PREP-1098",
-                    ScenarioId: "SCN-STAR-LIBRARY",
-                    ScenarioTitle: "星喰いの地下図書館",
-                    State: "Paused",
-                    HeroName: "リュカ",
-                    Turn: 14,
-                    Summary: "禁書庫の扉を開く直前で中断しています。",
-                    TurnDisplay: "第14ターン"),
-                new PlaySessionSummaryDto(
-                    Id: "SES-ACT-2042",
-                    ScenarioId: "SCN-ASH-STATION",
-                    ScenarioTitle: "灰の駅と宛名のない切符",
-                    State: "Active",
-                    HeroName: "ノア",
-                    Turn: 7,
-                    Summary: "灯台守への聞き込みを継続できます。",
-                    TurnDisplay: "第7ターン")
-            ],
+            ActiveSessions: activeSessions,
             RecommendedScenarios:
             [
                 new ScenarioSummaryDto(
@@ -78,7 +59,5 @@ public sealed class DemoHomeDashboardService : IHomeDashboardService
                     HeroFreeGenerationAllowed: false,
                     Hero: "リュシエン / 夜明け前の森を巡る司書")
             ]);
-
-        return Task.FromResult(response);
     }
 }

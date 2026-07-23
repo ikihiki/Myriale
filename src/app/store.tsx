@@ -5,7 +5,6 @@ export type DemoDbKind =
   | 'registrationDraft'
   | 'editableScenario'
   | 'activeSession'
-  | 'resumableSession'
   | 'programDrivenSession'
   | 'modeTransitionSession'
   | 'notesReview'
@@ -42,7 +41,7 @@ export type TurnDisplayFlags = {
 export type PlaySessionRecord = {
   id: string;
   scenarioId: string;
-  state: 'NotStarted' | 'Preparing' | 'Active' | 'Paused' | 'Completed';
+  state: 'NotStarted' | 'Preparing' | 'Active' | 'Completed';
   hero: string;
   turn: number;
   summary: string;
@@ -78,7 +77,6 @@ export type AppAction =
   | { type: 'SCENARIO_DRAFT_UPDATED'; scenarioId: string; patch: Partial<ScenarioRecord> }
   | { type: 'SCENARIO_SAVED'; scenario: ScenarioRecord }
   | { type: 'SESSION_STARTED'; session: PlaySessionRecord }
-  | { type: 'SESSION_RESUMED'; sessionId: string }
   | { type: 'TURN_APPENDED'; sessionId: string; summary: string }
   | { type: 'TURN_REWOUND'; sessionId: string; turn: number }
   | { type: 'NOTE_PROPOSAL_APPLIED'; proposalId: string }
@@ -108,15 +106,6 @@ export function appReducer(db: AppDb, action: AppAction): AppDb {
         playSessions: { ...db.playSessions, [action.session.id]: action.session },
         ui: { ...db.ui, selectedSessionId: action.session.id },
       };
-    case 'SESSION_RESUMED': {
-      const session = db.playSessions[action.sessionId];
-      if (!session) return db;
-      return {
-        ...db,
-        playSessions: { ...db.playSessions, [action.sessionId]: { ...session, state: 'Active' } },
-        ui: { ...db.ui, selectedSessionId: action.sessionId },
-      };
-    }
     case 'TURN_APPENDED': {
       const session = db.playSessions[action.sessionId];
       if (!session) return db;
@@ -207,7 +196,7 @@ export function appReducer(db: AppDb, action: AppAction): AppDb {
 const AppStoreContext = createContext<{ db: AppDb; dispatch: Dispatch<AppAction> } | null>(null);
 
 export function AppStoreProvider({ initialDb, children }: { initialDb?: AppDb; children: ReactNode }) {
-  const startDb = useMemo(() => initialDb ?? createDemoDb('activeSession'), [initialDb]);
+  const startDb = useMemo(() => initialDb ?? createDemoDb('empty'), [initialDb]);
   const [db, dispatch] = useReducer(appReducer, startDb);
   const value = useMemo(() => ({ db, dispatch }), [db]);
   return <AppStoreContext.Provider value={value}>{children}</AppStoreContext.Provider>;
@@ -279,13 +268,13 @@ export function createDemoDb(kind: DemoDbKind = 'activeSession', overrides: Part
       opening: '夜明け前の森で、割れた書架が小さく鳴る。',
     },
   };
-  const playSessions: AppDb['playSessions'] = {
+  const playSessions: AppDb['playSessions'] = kind === 'empty' ? {} : {
     'SES-PREP-1098': {
       id: 'SES-PREP-1098',
       scenarioId: 'SCN-STAR-LIBRARY',
-      state: kind === 'resumableSession' ? 'Paused' : 'Active',
+      state: 'Active',
       hero: 'ミラ / 星図を読む巡礼者',
-      turn: kind === 'resumableSession' ? 7 : 1,
+      turn: 1,
       summary: '水没した閲覧室で星図灯が点き、禁書庫への扉が半分だけ開いている。',
       turnDisplay: Object.fromEntries(
         Array.from({ length: 12 }, (_, index) => [index + 1, { allowRewind: true, showInterpretation: true, leadTone: 'player', leadTag: '⟶' }]),

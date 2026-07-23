@@ -7,15 +7,18 @@ export type HomeDashboardDto = {
     unreadNotifications: number;
     currentWorkspaceName: string;
   };
-  resumableSessions: Array<{
+  activeSessions: Array<{
     id: string;
     scenarioId: string;
     scenarioTitle: string;
-    state: 'NotStarted' | 'Preparing' | 'Active' | 'Paused' | 'Completed' | string;
-    heroName: string;
-    turn: number;
-    summary: string;
-    turnDisplay?: string | null;
+    selectedHero: string;
+    status: 'active' | 'completed' | string;
+    headTurnId?: string | null;
+    headTurnPosition?: number | null;
+    turnCount: number;
+    latestSummary?: string | null;
+    createdAt: string;
+    updatedAt: string;
   }>;
   recommendedScenarios: Array<{
     id: string;
@@ -58,6 +61,7 @@ export async function fetchHomeDashboard(signal?: AbortSignal): Promise<HomeDash
   }
 
   const response = await fetch(apiUrl, {
+    credentials: 'include',
     headers: { Accept: 'application/json' },
     signal,
   });

@@ -22,6 +22,10 @@ describe('app reducer', () => {
     expect(db.scenarios['SCN-DRAFT-0427']).toBeUndefined();
   });
 
+  it('does not seed sessions into the production default DB', () => {
+    expect(Object.keys(createDemoDb('empty').playSessions)).toHaveLength(0);
+  });
+
   it('updates session turns without mutating the previous DB', () => {
     const db = createDemoDb('activeSession');
     const next = appReducer(db, { type: 'TURN_APPENDED', sessionId: 'SES-PREP-1098', summary: '新しい選択肢を生成した。' });

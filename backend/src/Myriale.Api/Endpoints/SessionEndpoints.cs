@@ -17,6 +17,9 @@ public static class SessionEndpoints
             .RequireAuthorization()
             .RequireCors("MyrialeFrontend");
 
+        group.MapGet("/", ListAsync)
+            .WithName("ListSessions")
+            .WithSummary("Returns the current user's sessions, excluding completed sessions by default.");
         group.MapPost("/", CreateAsync)
             .WithName("CreateSession")
             .WithSummary("Creates an owner-scoped play session for an existing scenario.");
@@ -39,6 +42,18 @@ public static class SessionEndpoints
             .WithName("GetSessionTurn")
             .WithSummary("Returns one owner-visible session turn.");
         return group;
+    }
+
+    private static async Task<IResult> ListAsync(
+        ClaimsPrincipal principal,
+        IPlaySessionListingService sessions,
+        CancellationToken cancellationToken,
+        bool includeCompleted = false)
+    {
+        var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
+
+        return Results.Ok(await sessions.ListAsync(ownerId, includeCompleted, cancellationToken));
     }
 
     private static async Task<IResult> CreateAsync(

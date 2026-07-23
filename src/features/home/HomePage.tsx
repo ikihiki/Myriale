@@ -28,7 +28,7 @@ type HomeSession = PlaySessionRecord & {
   scenarioTitle: string;
   stateLabel: string;
   turnLabel: string;
-  resumeLabel: string;
+  openLabel: string;
   destination: StoryKey;
 };
 
@@ -36,11 +36,11 @@ type HomeDashboardViewModel = {
   account: HomeAccount;
   activeSessionCount: number;
   publishedScenarioCount: number;
-  resumableSessions: HomeSession[];
+  activeSessions: HomeSession[];
   recommendedScenarios: HomeScenario[];
 };
 
-const fallbackDb = createDemoDb('resumableSession');
+const fallbackDb = createDemoDb('activeSession');
 const crumbs: Crumb[] = [{ label: 'Myriale' }, { label: 'ホーム' }];
 
 
@@ -121,7 +121,7 @@ export function HomePage() {
               物語の机を、今日の続きに整える。
             </h1>
             <p className="m-0 max-w-myr-form text-base leading-[1.85] text-[#4c5262]">
-              中断したセッション、今すぐ遊べるシナリオ、書きかけの構想をひとつの入口に集約しました。
+              進行中のセッション、今すぐ遊べるシナリオ、書きかけの構想をひとつの入口に集約しました。
               読む、遊ぶ、作る。次の一手をここから始めます。
             </p>
             {loadState.status !== 'idle' && (
@@ -150,9 +150,9 @@ export function HomePage() {
           >
             <span className="text-myr-caption font-black tracking-[.18em] text-[#c6b7d9] uppercase">Desk ledger</span>
             <strong className="font-[Georgia,'Times_New_Roman',serif] text-[clamp(72px,10vw,120px)] leading-[.85] text-myr-gold">
-              {vm.resumableSessions.length}
+              {vm.activeSessions.length}
             </strong>
-            <small className="font-extrabold text-[#f4eedf]">再開できるセッション</small>
+            <small className="font-extrabold text-[#f4eedf]">進行中のセッション</small>
             <dl className="mt-auto mb-0 grid gap-2">
               <div className="flex justify-between gap-3 border-t border-[rgba(244,238,223,.16)] pt-2.5">
                 <dt className="m-0 text-[#c6b7d9]">進行中</dt>
@@ -166,22 +166,22 @@ export function HomePage() {
           </DarkPanel>
         </section>
 
-        <HomePanel as="section" aria-label="中断しているセッション">
+        <HomePanel as="section" aria-label="進行中のセッション">
           <div className={homeSectionHeadClassName}>
             <div className="grid gap-0.5">
               <p className="kicker m-0">Continue</p>
               <Label as="h2" textRole="sectionEditorial" className="m-0">
-                中断しているセッション
+                進行中のセッション
               </Label>
             </div>
-            <Button type="button" variant="text" className="mt-2.5" onClick={() => go('resumeSession')}>
+            <Button type="button" variant="text" className="mt-2.5" onClick={() => go('sessionList')}>
               すべて見る
             </Button>
           </div>
 
           <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-3.5">
-            {vm.resumableSessions.length > 0 ? (
-              vm.resumableSessions.map((session) => (
+            {vm.activeSessions.length > 0 ? (
+              vm.activeSessions.map((session) => (
                 <HomeCard as="article" key={session.id} data-testid={`home-session-${session.id}`}>
                   <Label textRole="eyebrowData" className="!tracking-[.08em] !text-[#6f4fd8]">{session.stateLabel} / {session.turnLabel}</Label>
                   <Label as="h3" textRole="sectionEditorial" className="m-0 !text-[25px] !leading-[1.08] !tracking-myr-display">{session.scenarioTitle}</Label>
@@ -189,7 +189,7 @@ export function HomePage() {
                   <small className={homeCardMetaClassName}>{session.hero}</small>
                   <div className={homeCardActionsClassName}>
                     <Button variant="primary" onClick={() => go(session.destination, { sessionId: session.id })}>
-                      {session.resumeLabel}
+                      {session.openLabel}
                     </Button>
                   </div>
                 </HomeCard>
@@ -254,8 +254,8 @@ function buildHomeDashboardViewModel(db: AppDb): HomeDashboardViewModel {
     },
     activeSessionCount: sessions.filter((session) => session.state === 'Active').length,
     publishedScenarioCount: scenarios.filter((scenario) => scenario.status === 'published').length,
-    resumableSessions: sessions
-      .filter((session) => session.state === 'Paused' || session.state === 'Active')
+    activeSessions: sessions
+      .filter((session) => session.state === 'Active')
       .sort((a, b) => b.turn - a.turn)
       .slice(0, 3)
       .map((session) => toHomeSession(session, scenarios)),
@@ -275,24 +275,21 @@ function buildHomeDashboardViewModelFromApi(dashboard: HomeDashboardDto): HomeDa
       initials: dashboard.account.initials,
       role: dashboard.account.role,
     },
-    activeSessionCount: dashboard.resumableSessions.filter((session) => session.state === 'Active').length,
+    activeSessionCount: dashboard.activeSessions.filter((session) => session.status.toLowerCase() === 'active').length,
     publishedScenarioCount: dashboard.recommendedScenarios.filter((scenario) => scenario.status === 'published').length,
-    resumableSessions: dashboard.resumableSessions.map((session) => {
-      const isPaused = session.state === 'Paused';
-      return {
-        id: session.id,
-        scenarioId: session.scenarioId,
-        state: normalizeSessionState(session.state),
-        hero: session.heroName,
-        turn: session.turn,
-        summary: session.summary,
-        scenarioTitle: session.scenarioTitle,
-        stateLabel: isPaused ? '中断中' : '進行中',
-        turnLabel: session.turnDisplay ?? `Turn ${session.turn}`,
-        resumeLabel: isPaused ? '再開する' : 'プレイへ戻る',
-        destination: isPaused ? 'resumeSession' : 'playSession',
-      };
-    }),
+    activeSessions: dashboard.activeSessions.map((session) => ({
+      id: session.id,
+      scenarioId: session.scenarioId,
+      state: normalizeSessionState(session.status),
+      hero: session.selectedHero,
+      turn: session.turnCount,
+      summary: session.latestSummary ?? 'まだ要約はありません。物語の続きをセッションで確認できます。',
+      scenarioTitle: session.scenarioTitle,
+      stateLabel: '進行中',
+      turnLabel: `第${session.headTurnPosition ?? session.turnCount}ターン`,
+      openLabel: 'この物語に戻る',
+      destination: 'playSession',
+    })),
     recommendedScenarios: dashboard.recommendedScenarios.map((scenario) => ({
       id: scenario.id,
       title: scenario.title,
@@ -308,14 +305,13 @@ function buildHomeDashboardViewModelFromApi(dashboard: HomeDashboardDto): HomeDa
 
 function toHomeSession(session: PlaySessionRecord, scenarios: ScenarioRecord[]): HomeSession {
   const scenarioTitle = scenarios.find((scenario) => scenario.id === session.scenarioId)?.title ?? '未登録シナリオ';
-  const isPaused = session.state === 'Paused';
   return {
     ...session,
     scenarioTitle,
-    stateLabel: isPaused ? '中断中' : '進行中',
-    turnLabel: `Turn ${session.turn}`,
-    resumeLabel: isPaused ? '再開する' : 'プレイへ戻る',
-    destination: isPaused ? 'resumeSession' : 'playSession',
+    stateLabel: '進行中',
+    turnLabel: `第${session.turn}ターン`,
+    openLabel: 'この物語に戻る',
+    destination: 'playSession',
   };
 }
 
@@ -328,10 +324,12 @@ function toHomeScenario(scenario: ScenarioRecord): HomeScenario {
 }
 
 function normalizeSessionState(state: string): PlaySessionRecord['state'] {
-  if (state === 'NotStarted' || state === 'Preparing' || state === 'Active' || state === 'Paused' || state === 'Completed') {
+  if (state === 'NotStarted' || state === 'Preparing' || state === 'Active' || state === 'Completed') {
     return state;
   }
-  return 'Paused';
+  if (state.toLowerCase() === 'active') return 'Active';
+  if (state.toLowerCase() === 'completed') return 'Completed';
+  return 'Active';
 }
 
 function normalizeScenarioStatus(status: string): ScenarioRecord['status'] {

@@ -75,7 +75,8 @@ builder.Services.AddSingleton<INarrativeTokenEstimator, Utf8NarrativeTokenEstima
 builder.Services.AddSingleton<INarrativePromptBuilder, NarrativePromptBuilder>();
 builder.Services.AddScoped<SessionSummaryService>();
 builder.Services.AddScoped<INarrativeContextBuilder, NarrativeContextBuilder>();
-builder.Services.AddSingleton<IHomeDashboardService, DemoHomeDashboardService>();
+builder.Services.AddScoped<IPlaySessionListingService, PlaySessionListingService>();
+builder.Services.AddScoped<IHomeDashboardService, DemoHomeDashboardService>();
 builder.Services.Configure<ModulePackageOptions>(builder.Configuration.GetSection(ModulePackageOptions.SectionName));
 builder.Services.Configure<ModuleRuntimeOptions>(builder.Configuration.GetSection(ModuleRuntimeOptions.SectionName));
 builder.Services.Configure<ModuleExecutionOptions>(builder.Configuration.GetSection(ModuleExecutionOptions.SectionName));
@@ -241,14 +242,19 @@ app.MapModuleUiEndpoints();
 app.MapAiAdminEndpoints();
 
 app.MapGet("/api/home/dashboard", async (
+        System.Security.Claims.ClaimsPrincipal principal,
         IHomeDashboardService homeDashboardService,
         CancellationToken cancellationToken) =>
     {
-        var dashboard = await homeDashboardService.GetDashboardAsync(cancellationToken);
+        var ownerId = principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
+
+        var dashboard = await homeDashboardService.GetDashboardAsync(ownerId, cancellationToken);
         return Results.Ok(dashboard);
     })
     .WithName("GetHomeDashboard")
-    .WithSummary("Returns the data required to render the home dashboard.")
+    .WithSummary("Returns the data required to render the current user's home dashboard.")
+    .RequireAuthorization()
     .RequireCors("MyrialeFrontend");
 
 app.Run();

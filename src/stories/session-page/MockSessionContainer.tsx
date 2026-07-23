@@ -160,6 +160,7 @@ export function MockSessionContainer({
     turns={turns}
     headingLinks={headingLinks}
     sessionStateLabel={dbSession?.state ?? 'Active'}
+    readOnly={dbSession?.state === 'Completed'}
     initialNotice={notice}
     isSubmitting={isSubmitting}
     turnDisplay={dbSession?.turnDisplay}

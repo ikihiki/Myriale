@@ -49,11 +49,11 @@ const sections: Section[] = [
   {
     id: 'sessions',
     label: 'セッション',
-    to: 'scenarioList',
+    to: 'sessionList',
     links: [
+      { label: 'セッション一覧', to: 'sessionList', hint: '進行中と完了済みの物語を見る' },
       { label: 'セッションを開始', to: 'scenarioList', hint: 'シナリオを選んで主人公決定' },
       { label: 'プレイ中の対話', to: 'playSession', hint: 'AIとの対話で物語を進める' },
-      { label: 'セッションを再開', to: 'resumeSession', hint: '中断した続きから再開' },
       { label: 'プログラム主導の進行', to: 'programDriven', hint: 'バトル・判定・強制イベント' },
       { label: 'モード遷移と例外', to: 'modeTransition', hint: '切替・中断・復帰の共通基盤' },
       { label: 'ノート自動生成', to: 'sessionNotesAuto', hint: 'Lorebook更新通知と差分レビュー' },

@@ -18,16 +18,16 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const HomeDashboard: Story = {
-  name: 'トップページ: 中断セッションとおすすめシナリオ',
-  args: { initialUrl: '/', initialDb: createDemoDb('resumableSession'), startSessionContainer: MockStartSessionContainer },
+  name: 'トップページ: 進行中セッションとおすすめシナリオ',
+  args: { initialUrl: '/', initialDb: createDemoDb('activeSession'), startSessionContainer: MockStartSessionContainer },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await step('トップページで今日の導線・中断Session・おすすめScenarioを確認する', async () => {
+    await step('トップページで今日の導線・進行中Session・おすすめScenarioを確認する', async () => {
       await expect(canvas.getByTestId('app-url')).toHaveTextContent('/');
       await expect(canvas.getByRole('main', { name: 'Myrialeトップページ' })).toBeVisible();
       await expect(canvas.getByRole('heading', { name: '物語の机を、今日の続きに整える。' })).toBeVisible();
-      await expect(canvas.getByRole('complementary', { name: '現在の活動概要' })).toHaveTextContent('再開できるセッション');
-      await expect(canvas.getByRole('region', { name: '中断しているセッション' })).toHaveTextContent('星喰いの地下図書館');
+      await expect(canvas.getByRole('complementary', { name: '現在の活動概要' })).toHaveTextContent('進行中のセッション');
+      await expect(canvas.getByRole('region', { name: '進行中のセッション' })).toHaveTextContent('星喰いの地下図書館');
       await expect(canvas.getByRole('region', { name: 'おすすめのシナリオ' })).toHaveTextContent('灰の駅と宛名のない切符');
     });
     await step('おすすめシナリオから開始すると一覧を挟まずイントロへ遷移する', async () => {
@@ -39,15 +39,16 @@ export const HomeDashboard: Story = {
       await expect(canvas.getByTestId('selected-scenario-title')).toHaveTextContent('星喰いの地下図書館');
       await userEvent.click(canvas.getByRole('button', { name: 'Myriale ホームへ' }));
     });
-    await step('主要導線から検索・新規作成・再開へ遷移できる', async () => {
+    await step('主要導線から検索・新規作成・進行中セッションへ遷移できる', async () => {
       await userEvent.click(canvas.getByTestId('home-search-scenarios'));
       await expect(canvas.getByTestId('app-url')).toHaveTextContent('/scenarios');
       await userEvent.click(canvas.getByRole('button', { name: 'Myriale ホームへ' }));
       await userEvent.click(canvas.getByTestId('home-create-scenario'));
       await expect(canvas.getByTestId('app-url')).toHaveTextContent('/scenarios/new');
       await userEvent.click(canvas.getByRole('button', { name: 'Myriale ホームへ' }));
-      await userEvent.click(canvas.getByRole('button', { name: '再開する' }));
-      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098/resume');
+      const sessionCard = within(canvas.getByTestId('home-session-SES-PREP-1098'));
+      await userEvent.click(sessionCard.getByRole('button', { name: 'この物語に戻る' }));
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098');
     });
   },
 };
@@ -68,6 +69,11 @@ export const FullAppHappyPath: Story = {
       await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098');
       await expect(await canvas.findByTestId('dialogue-log')).toHaveTextContent('水没した閲覧室');
       await expect(canvas.queryByRole('article', { name: 'Turn 02' })).not.toBeInTheDocument();
+    });
+    await step('パンくずのセッションからセッション一覧へ戻る', async () => {
+      const breadcrumbs = within(canvas.getByRole('navigation', { name: '現在地' }));
+      await userEvent.click(breadcrumbs.getByRole('button', { name: 'セッション' }));
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions');
     });
   },
 };
@@ -122,13 +128,18 @@ export const DirectOpenAdminUsers: Story = {
 };
 
 export const RecoverableSessionDemo: Story = {
-  name: 'URL直開き: 中断セッション再開',
-  args: { initialUrl: '/sessions/SES-PREP-1098/resume', initialDb: createDemoDb('resumableSession') },
+  name: 'URL直開き: 進行中セッションへ再参加',
+  args: {
+    initialUrl: '/sessions/SES-PREP-1098',
+    initialDb: createDemoDb('activeSession'),
+    sessionContainer: MockSessionContainer,
+  },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await step('中断セッションの再開画面を直接開く', async () => {
-      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098/resume');
-      await expect(canvas.getByTestId('app-db-summary')).toHaveTextContent('route /sessions/SES-PREP-1098/resume');
+    await step('セッションIDのURLから物語へ直接戻る', async () => {
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098');
+      await expect(canvas.getByTestId('app-db-summary')).toHaveTextContent('route /sessions/SES-PREP-1098');
+      await expect(await canvas.findByTestId('dialogue-log')).toBeVisible();
     });
   },
 };

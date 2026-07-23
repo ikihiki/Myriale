@@ -4,8 +4,11 @@ public sealed record PlaySessionSummaryDto(
     string Id,
     string ScenarioId,
     string ScenarioTitle,
-    string State,
-    string HeroName,
-    int Turn,
-    string Summary,
-    string? TurnDisplay);
+    string SelectedHero,
+    string Status,
+    string? HeadTurnId,
+    int? HeadTurnPosition,
+    int TurnCount,
+    string? LatestSummary,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
