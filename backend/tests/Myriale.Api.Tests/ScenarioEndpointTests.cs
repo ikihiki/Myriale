@@ -18,7 +18,7 @@ public sealed class ScenarioEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task GetScenario_ReturnsSeededScenario()
+    public async Task GetScenario_ReturnsTestFixtureScenario()
     {
         var client = _factory.CreateClient();
 
@@ -33,7 +33,7 @@ public sealed class ScenarioEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task GetScenario_ReturnsCyberpunkArchiveSeed()
+    public async Task GetScenario_ReturnsCyberpunkArchiveFixture()
     {
         var client = _factory.CreateClient();
 
@@ -65,7 +65,7 @@ public sealed class ScenarioEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task RecommendHero_ReturnsAiRecommendationForSeededScenario()
+    public async Task RecommendHero_ReturnsAiRecommendationForFixtureScenario()
     {
         var client = _factory.CreateClient();
 

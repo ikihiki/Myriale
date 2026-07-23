@@ -24,6 +24,7 @@ public static class SessionArtifactFixtureSeedData
         if (await db.Sessions.AnyAsync(item => item.Id == SessionId, cancellationToken)) return;
         var owner = await db.Users.SingleOrDefaultAsync(item => item.Email == AccountSeedData.DefaultEmail, cancellationToken);
         if (owner is null) return;
+        if (!await db.Scenarios.AnyAsync(item => item.Id == "SCN-STAR-LIBRARY", cancellationToken)) return;
 
         var timestamp = new DateTimeOffset(2026, 7, 21, 9, 0, 0, TimeSpan.Zero);
         var checksum = Convert.ToHexStringLower(SHA256.HashData(TinyPng));

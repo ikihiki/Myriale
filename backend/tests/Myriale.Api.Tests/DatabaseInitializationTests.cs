@@ -10,6 +10,27 @@ public sealed class DatabaseInitializationTests : IDisposable
     private readonly string dbPath = Path.Combine(Path.GetTempPath(), $"myriale-database-initialization-{Guid.NewGuid():N}.db");
 
     [Fact]
+    public async Task StartupDoesNotCreateScenarioSeeds()
+    {
+        using var factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder =>
+            {
+                builder.UseSetting("ConnectionStrings:MyrialeAccounts", $"Data Source={dbPath}");
+                builder.UseSetting("TestScenarioFixtures:Enabled", "false");
+            });
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync("/api/scenarios/SCN-STAR-LIBRARY");
+        Assert.Equal(System.Net.HttpStatusCode.NotFound, response.StatusCode);
+
+        await using var connection = new SqliteConnection($"Data Source={dbPath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM Scenarios";
+        Assert.Equal(0L, (long)(await command.ExecuteScalarAsync())!);
+    }
+
+    [Fact]
     public async Task StartupRecreatesTheDatabaseByDefault()
     {
         await StartApiAsync(recreateOnStartup: true);

@@ -2,7 +2,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Myriale.Api.Data;
 
-public static class ScenarioSeedData
+// API integration tests depend on deterministic scenarios, but application startup must remain empty.
+internal static class ScenarioTestFixtureData
 {
     public static readonly IReadOnlyList<Scenario> Scenarios =
     [
@@ -24,7 +25,7 @@ public static class ScenarioSeedData
             IllustrationNegative = "現代車両、銃器、過度な流血",
             SampleScene = "水没した閲覧室で、星図を抱えた司書が振り向く。",
             Status = "published",
-            AuthorId = "SEED-AUTHOR",
+            AuthorId = "TEST-AUTHOR",
             CreatedAt = new DateTimeOffset(2026, 6, 10, 0, 0, 0, TimeSpan.Zero),
             UpdatedAt = new DateTimeOffset(2026, 7, 19, 0, 0, 0, TimeSpan.Zero),
         },
@@ -46,7 +47,7 @@ public static class ScenarioSeedData
             IllustrationNegative = "中世装備、牧歌的風景、明るい昼光、コミカルなデフォルメ",
             SampleScene = "浸水した地下サーバー群の奥で、閉じた星座ゲートと企業Black ICEの輪郭がネオンに浮かぶ。",
             Status = "published",
-            AuthorId = "SEED-AUTHOR",
+            AuthorId = "TEST-AUTHOR",
             CreatedAt = new DateTimeOffset(2026, 7, 23, 0, 0, 0, TimeSpan.Zero),
             UpdatedAt = new DateTimeOffset(2026, 7, 23, 0, 0, 0, TimeSpan.Zero),
         },
@@ -68,7 +69,7 @@ public static class ScenarioSeedData
             IllustrationNegative = "鮮やかな原色、近未来都市",
             SampleScene = "灰の降る無人駅で、宛名のない切符が淡く光る。",
             Status = "published",
-            AuthorId = "SEED-AUTHOR",
+            AuthorId = "TEST-AUTHOR",
             CreatedAt = new DateTimeOffset(2026, 6, 12, 0, 0, 0, TimeSpan.Zero),
             UpdatedAt = new DateTimeOffset(2026, 7, 19, 0, 0, 0, TimeSpan.Zero),
         },
@@ -90,7 +91,7 @@ public static class ScenarioSeedData
             IllustrationNegative = "現代的な電子機器、昼の青空、過度な恐怖表現",
             SampleScene = "月虹の花が揺れる庭園で、止まらない時計塔を三人の旅人が見上げる。",
             Status = "published",
-            AuthorId = "SEED-AUTHOR",
+            AuthorId = "TEST-AUTHOR",
             CreatedAt = new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero),
             UpdatedAt = new DateTimeOffset(2026, 7, 19, 0, 0, 0, TimeSpan.Zero),
         },
@@ -112,7 +113,7 @@ public static class ScenarioSeedData
             IllustrationNegative = "現代建築、原色、コミカルな表現",
             SampleScene = "硝子の木々の間で、司書が割れた本を拾い上げる。",
             Status = "published",
-            AuthorId = "SEED-AUTHOR",
+            AuthorId = "TEST-AUTHOR",
             CreatedAt = new DateTimeOffset(2026, 6, 16, 0, 0, 0, TimeSpan.Zero),
             UpdatedAt = new DateTimeOffset(2026, 7, 19, 0, 0, 0, TimeSpan.Zero),
         },
@@ -190,7 +191,7 @@ public static class ScenarioSeedData
         },
     ];
 
-    public static async Task SeedAsync(ApplicationDbContext db, CancellationToken cancellationToken = default)
+    public static async Task CreateAsync(ApplicationDbContext db, CancellationToken cancellationToken = default)
     {
         if (await db.Scenarios.AnyAsync(cancellationToken)) return;
         db.Scenarios.AddRange(Scenarios.Select(Clone));
