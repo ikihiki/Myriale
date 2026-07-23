@@ -84,7 +84,9 @@ describe('TanStack app routing', () => {
   });
 
   it('maps shared navigation keys to router paths and validated search strings', () => {
-    expect(appPathForStoryKey('sessionNotesLorebook')).toBe('/sessions/SES-PREP-1098');
+    expect(appPathForStoryKey('sessionNotesLorebook', { sessionId: 'SES-LIVE-123' })).toBe('/sessions/SES-LIVE-123/notes');
+    expect(appHrefForStoryKey('playSession', { sessionId: 'SES-LIVE-123' })).toBe('/sessions/SES-LIVE-123');
+    expect(appPathForStoryKey('playSession')).toBe('/scenarios');
     expect(appPathForStoryKey('adminAiKeys')).toBe('/admin');
     expect(appHrefForStoryKey('startSession', { query: { scenarioId: 'SCN-001' } })).toBe('/sessions/start?scenarioId=SCN-001');
   });

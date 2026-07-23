@@ -45,8 +45,27 @@ public sealed class ProviderNarrativeGenerator(
                 var assessment = bodyQualityGuard.Assess(request, body);
                 if (!assessment.IsAcceptable)
                 {
+                    if (body?.Length > 0 && attempt < DialogueStructuredOutputAttempts)
+                    {
+                        SessionExecutionTelemetry.ProviderRetries.Add(1, SessionExecutionTelemetry.ProviderTags(
+                            response.Metadata.Provider,
+                            response.Metadata.Model,
+                            "retry",
+                            "quality_guard"));
+                        logger.LogWarning(
+                            "AI Provider dialogue body failed quality validation and will be regenerated. Provider={Provider} Model={Model} ResponseId={ResponseId} Attempt={Attempt} MaxAttempts={MaxAttempts} BodyLength={BodyLength} Violations={Violations}",
+                            response.Metadata.Provider,
+                            response.Metadata.Model,
+                            response.Metadata.ResponseId,
+                            attempt,
+                            DialogueStructuredOutputAttempts,
+                            body?.Length ?? 0,
+                            string.Join(',', assessment.Violations));
+                        continue;
+                    }
+
                     logger.LogWarning(
-                        "AI Provider dialogue body failed quality validation; using safe fallback. Provider={Provider} Model={Model} ResponseId={ResponseId} BodyLength={BodyLength} Violations={Violations} Result=safe_fallback",
+                        "AI Provider dialogue body quality retries exhausted; using safe fallback. Provider={Provider} Model={Model} ResponseId={ResponseId} BodyLength={BodyLength} Violations={Violations} Result=safe_fallback",
                         response.Metadata.Provider,
                         response.Metadata.Model,
                         response.Metadata.ResponseId,
@@ -328,13 +347,14 @@ public sealed class ProviderNarrativeGenerator(
 
         TURN AND QUALITY RULES
         - interactionType "clarification" requires a clarification-only body with no state change and no new event.
-        - interactionType "dialogue" should render an NPC's direct answer or speech when the Player clearly addresses, asks, or questions an NPC.
+        - interactionType "dialogue" should render an NPC's direct answer or speech when the Player clearly addresses, asks, or questions an NPC. The addressed NPC owns the answer; never rewrite the Player's quoted question as the NPC's words or make the Player answer their own question.
+        - Describe only the new turn delta, not a repetition or close paraphrase of a recent narrative. Preserve established concrete object names and referents verbatim; never rename a 星座模様 as a 模型 or otherwise substitute a different object.
         - Describe the requested action/result or current situation, then return the next important decision to the Player. Never choose that decision for the Player.
         - Do not convert observing, asking, checking, or approaching into opening, entering, consuming, contracting, attacking, or another unrequested consequential action.
         - Match the requested level of detail. For a detailed explanation, provide multiple substantive paragraphs and do not truncate the answer.
         - Preserve scenario lore, recent turns, memory canon status, session flags, progression node, and prior module outcome codes/public facts/emitted events/narrative hints as authoritative canon.
         - Never establish a forbiddenNarrativeFact. Do not reveal secrets that the speaking NPC cannot know or that have not met their release conditions. Treat rumors as rumors and candidates as non-canon.
-        - Progression signals are derived exclusively by server-owned evidence rules from allowedSignals and authoritative input. Do not claim or output signal codes or evidence.
+        - Progression signals are derived exclusively by server-owned evidence rules from allowedSignals and authoritative input. Do not claim or output signal codes or evidence. When the input reaches or attempts the closed constellation door, leave opening, success, failure, and any guardian outcome pending for the authoritative module check.
 
         AUTHORITATIVE STYLE AND POLICY
         {{JsonSerializer.Serialize(prompt, Strict)}}

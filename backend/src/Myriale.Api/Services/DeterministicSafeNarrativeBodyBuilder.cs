@@ -45,10 +45,27 @@ public static class DeterministicSafeNarrativeBodyBuilder
 
     private static string BuildObservation(NarrativeDialogueRequest request)
     {
+        var pendingDoorCheck = NarrativeSemanticGuard.DeriveProgressionSignals(
+            request.AllowedSignals,
+            request.PlayerInput,
+            request.SessionState,
+            request.CurrentProgressionNode).Any(signal => signal.Code == "constellation-door-reached");
+        if (pendingDoorCheck)
+        {
+            var namedObjects = string.Join("と", new[] { "星座模様", "星図灯", "銀の鍵" }.Where(request.PlayerInput.Contains));
+            var focus = namedObjects.Length > 0 ? $"{namedObjects}を確かめながら、" : string.Empty;
+            return $"探索者は閉じた星座の扉の前で、{focus}扉を開くための判定を試みようとしている。扉が開くか、失敗するか、その先で何が起きるかはまだ確定しておらず、権威ある判定の結果を待っている。";
+        }
+
         var facts = PublicFacts(request).Concat(StateFacts(request)).ToList();
         if (facts.Count == 0) facts.Add(request.Scenario.Opening);
         var summary = string.Join(" ", facts.Distinct(StringComparer.Ordinal));
-        return $"探索者が確かめられる範囲では、{summary} 観察によって新しい行動が勝手に実行されることはなく、重要な判断と行動は探索者自身に委ねられている。";
+        var continuity = request.RecentTurns.Count == 0
+            ? "今回の確認では、目の前の状況を初めて慎重に見定めている。"
+            : $"今回の確認では、直前までの記録を踏まえて別の角度から状況を見定めている（確認記録 {request.RecentTurns.Count + 1}）。";
+        var observedObjects = string.Join("と", new[] { "星座模様", "星図灯", "銀の鍵" }.Where(request.PlayerInput.Contains));
+        var observedFocus = observedObjects.Length > 0 ? $" 焦点となる{observedObjects}の名称と同一性は保たれている。" : string.Empty;
+        return $"探索者が確かめられる範囲では、{summary} {continuity}{observedFocus} 新しい行動が勝手に実行されることはなく、重要な判断と行動は探索者自身に委ねられている。";
     }
 
     private static string ExpandDetail(NarrativeDialogueRequest request, string initial)

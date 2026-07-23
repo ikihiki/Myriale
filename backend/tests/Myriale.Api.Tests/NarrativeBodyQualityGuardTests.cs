@@ -69,6 +69,25 @@ public sealed class NarrativeBodyQualityGuardTests
         Assert.Contains("forbidden-fact", _guard.Assess(forbiddenRequest, "確定情報として、司書リラが銀の鍵を盗んだことが明らかになった。探索者はその結果を受け入れるほかない。 ").Violations);
     }
 
+    [Fact]
+    public void GuardRejectsRepeatedNarrativeConcreteNameDriftSpeakerInversionAndPrematureModuleOutcome()
+    {
+        var repeated = Request(NarrativeInteractionTypes.Dialogue, "扉を調べる。") with
+        {
+            RecentTurns = [new NarrativeDialogueTurnInput("前の行動", "閉じた扉は静かなままで、探索者は次の判断を待っている。")],
+        };
+        Assert.Contains("repeated-narrative", _guard.Assess(repeated, "閉じた扉は静かなままで、探索者は次の判断を待っている。").Violations);
+
+        var drift = Request(NarrativeInteractionTypes.Dialogue, "星図灯を扉の星座模様にかざす。");
+        Assert.Contains("entity-name-drift:星座模様", _guard.Assess(drift, "探索者は星図灯を星座の模型へ向け、周囲を慎重に確かめている。扉の状態はまだ変わっていない。").Violations);
+
+        var inverted = Request(NarrativeInteractionTypes.Dialogue, "司書リラに魔法灯について尋ねる。");
+        Assert.Contains("npc-speaker-inversion", _guard.Assess(inverted, "探索者は司書リラへ向き直り、青い魔法灯について丁寧に答えたのでございます。返答の後も判断は探索者に委ねられている。").Violations);
+
+        var gated = Request(NarrativeInteractionTypes.Dialogue, "銀の鍵を使って閉じた星座の扉を開ける。判定を行う。");
+        Assert.Contains("module-gated-outcome", _guard.Assess(gated, "探索者が銀の鍵を差し込むと扉が開いた。星座の光が広がり、判定は成功した。次の行動を選べる状態になった。").Violations);
+    }
+
     private static EvaluationCase Case(string id, NarrativeDialogueRequest request, int minimum, IReadOnlyList<IReadOnlyList<string>> required, IReadOnlyList<IReadOnlyList<string>> forbidden) =>
         new(id, request, minimum, required, forbidden);
 

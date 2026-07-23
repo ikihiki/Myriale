@@ -36,12 +36,29 @@ public sealed partial class NarrativeBodyQualityGuard
             && (ConsequentialActions.Any(trimmed.Contains) || ContainsAny(trimmed, "新たに起き", "先へ進", "次へ進", "到達した")))
             violations.Add("clarification-advanced");
 
+        var normalizedBody = NormalizeForComparison(trimmed);
+        if (request.RecentTurns.Any(turn => !string.IsNullOrWhiteSpace(turn.Narrative)
+            && NormalizeForComparison(turn.Narrative!) == normalizedBody))
+            violations.Add("repeated-narrative");
+
+        foreach (var term in ProtectedConcreteTerms.Where(request.PlayerInput.Contains))
+            if (!trimmed.Contains(term, StringComparison.Ordinal)) violations.Add($"entity-name-drift:{term}");
+
+        var doorCheckPending = NarrativeSemanticGuard.DeriveProgressionSignals(
+            request.AllowedSignals,
+            request.PlayerInput,
+            request.SessionState,
+            request.CurrentProgressionNode).Any(signal => signal.Code == "constellation-door-reached");
+        if (doorCheckPending && ContainsAny(trimmed, "扉が開いた", "扉は開いた", "扉を開いた", "判定に成功", "判定に失敗", "守護者が目覚め", "guardian awakened"))
+            violations.Add("module-gated-outcome");
+
         if (IsExplicitNpcQuestion(request))
         {
             var npcName = FindAddressedNpc(request);
             if (npcName is not null && !trimmed.Contains(npcName, StringComparison.Ordinal)) violations.Add("npc-identity");
             if (request.Scenario.Lore.Contains("ございます", StringComparison.Ordinal) && !trimmed.Contains("ござい", StringComparison.Ordinal))
                 violations.Add("npc-voice");
+            if (PlayerAnswerRegex().IsMatch(trimmed)) violations.Add("npc-speaker-inversion");
             if (MentionsMagicLamp(request.PlayerInput)
                 && (!trimmed.Contains("灯", StringComparison.Ordinal) || !trimmed.Contains("青", StringComparison.Ordinal)))
                 violations.Add("npc-lore-grounding");
@@ -141,7 +158,20 @@ public sealed partial class NarrativeBodyQualityGuard
         return concepts.Any(concept => left.Contains(concept, StringComparison.Ordinal) && right.Contains(concept, StringComparison.Ordinal));
     }
 
+    private static readonly string[] ProtectedConcreteTerms = ["星座模様", "星図灯", "銀の鍵"];
+
+    private static string NormalizeForComparison(string value)
+    {
+        var builder = new StringBuilder(value.Length);
+        foreach (var rune in value.Normalize(NormalizationForm.FormKC).EnumerateRunes())
+            if (Rune.IsLetterOrDigit(rune)) builder.Append(rune.ToString().ToLowerInvariant());
+        return builder.ToString();
+    }
+
     private static bool ContainsAny(string value, params string[] candidates) => candidates.Any(value.Contains);
+
+    [GeneratedRegex(@"(?:探索者|Player|プレイヤー)(?:.{0,32})(?:答え|返答|応じ)", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
+    private static partial Regex PlayerAnswerRegex();
 
     [GeneratedRegex(@"([\p{L}]{2,12})は", RegexOptions.CultureInvariant)]
     private static partial Regex NpcNameRegex();

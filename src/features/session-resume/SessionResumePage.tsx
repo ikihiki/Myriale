@@ -180,9 +180,9 @@ export function SessionResumePage() {
     [appStore?.db.playSessions, appStore?.db.scenarios],
   );
 
-  const openActiveSession = () => {
+  const openActiveSession = (sessionId: string) => {
     if (appNavigate) {
-      appNavigate('playSession');
+      appNavigate('playSession', { sessionId });
       return;
     }
     navigateToStory(STORY_IDS.playSession);
@@ -207,8 +207,8 @@ export function SessionResumePage() {
     );
     // US-R06: 再開を確定したら、Activeなプレイ画面（Session play dialogue）へ遷移する。
     // 復元された全Turnログと続きの入力は、そのプレイ画面が担う。
-    if (appNavigate) {
-      appNavigate('playSession');
+    if (appNavigate && selected) {
+      appNavigate('playSession', { sessionId: selected.id });
       return;
     }
     navigateToStory(STORY_IDS.playSession);
@@ -279,7 +279,7 @@ export function SessionResumePage() {
                     <p className="text-myr-ui-sm font-extrabold !text-myr-ink-subtle">
                       進行度: Turn {session.turn} ・ 現在プレイ中
                     </p>
-                    <Button variant="primary" size="sm" onClick={openActiveSession}>
+                    <Button variant="primary" size="sm" onClick={() => openActiveSession(session.id)}>
                       {session.scenarioTitle}のプレイ画面へ
                     </Button>
                   </Card>

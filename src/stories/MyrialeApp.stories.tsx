@@ -54,13 +54,13 @@ export const HomeDashboard: Story = {
 
 export const FullAppHappyPath: Story = {
   name: '統合アプリ: シナリオ選択からプレイ画面へ遷移する',
-  args: { initialUrl: '/scenarios', initialDb: createDemoDb('activeSession'), sessionContainer: MockSessionContainer },
+  args: { initialUrl: '/sessions/SES-PREP-1098', initialDb: createDemoDb('activeSession'), sessionContainer: MockSessionContainer },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
-    await step('URL風の状態からセッション開始画面を直接開く', async () => {
-      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/scenarios');
-      await expect(canvas.getByRole('region', { name: 'シナリオ一覧' })).toBeVisible();
+    await step('URLから現在のプレイ中セッションを直接開く', async () => {
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions/SES-PREP-1098');
+      await expect(await canvas.findByTestId('dialogue-log')).toHaveTextContent('水没した閲覧室');
     });
     await step('アプリ内ナビゲーションでプレイ画面へ移動し、統合版はイントロのみを表示する', async () => {
       await userEvent.click(canvas.getAllByRole('button', { name: 'セッション' })[0]);

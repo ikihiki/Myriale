@@ -46,6 +46,9 @@ public sealed class NarrativeSemanticGuardTests
 
     [Theory]
     [InlineData("閉じた星座の扉へ進む")]
+    [InlineData("銀の鍵を使って閉じた星座の扉を開ける")]
+    [InlineData("閉じた星座の扉の判定を行う")]
+    [InlineData("I attempt to open the constellation door.")]
     [InlineData("I reach the constellation door.")]
     public void SafeDerivationEmitsOnlyServerProvenAllowedSignal(string playerInput)
     {

@@ -43,6 +43,7 @@ export type StoryKey = keyof typeof STORY_IDS;
 
 export type AppNavigateOptions = {
   query?: Record<string, string>;
+  sessionId?: string;
 };
 
 type AppNavigate = (to: StoryKey, options?: AppNavigateOptions) => void;
