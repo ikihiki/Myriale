@@ -50,7 +50,7 @@ describe('UserManagementPage — Identity-backed account UI', () => {
     render(<UserManagementPage initialView="login" api={createDemoAccountApi()} />);
 
     fireEvent.change(screen.getByLabelText('メールアドレス'), { target: { value: 'reader@myriale.example' } });
-    fireEvent.change(screen.getByTestId('login-password'), { target: { value: 'mist-library-2026' } });
+    fireEvent.change(screen.getByTestId('login-password'), { target: { value: 'a' } });
     fireEvent.click(screen.getByRole('button', { name: 'ログインする' }));
     expect(await screen.findByRole('region', { name: 'プロフィール' })).toBeVisible();
 

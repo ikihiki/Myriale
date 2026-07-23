@@ -77,7 +77,7 @@ export const UM03LoginWithEmail: Story = {
     await step('Identity cookieセッションを開始しプロフィールへ進む', async () => {
       await userEvent.clear(canvas.getByLabelText('メールアドレス'));
       await userEvent.type(canvas.getByLabelText('メールアドレス'), 'reader@myriale.example');
-      await userEvent.type(canvas.getByTestId('login-password'), 'mist-library-2026');
+      await userEvent.type(canvas.getByTestId('login-password'), 'a');
       await userEvent.click(canvas.getByRole('button', { name: 'ログインする' }));
       await expect(canvas.getByRole('region', { name: 'プロフィール' })).toBeVisible();
     });

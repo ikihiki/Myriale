@@ -125,7 +125,7 @@ export function createDemoAccountApi(): AccountApi {
       return demoUser;
     },
     async login(payload) {
-      if (payload.email !== 'reader@myriale.example' || payload.password !== 'mist-library-2026') throw demoError('メールアドレスまたはパスワードが違います。', 401);
+      if (payload.email !== 'reader@myriale.example' || payload.password !== 'a') throw demoError('メールアドレスまたはパスワードが違います。', 401);
       demoUser = { id: 'USR-1031', displayName: '霧野しおり', email: 'reader@myriale.example', bio: '星図を読む巡礼者。夜の図書館で物語を探しています。', emailConfirmed: true, state: 'active', canDebugDialogue: true };
       return demoUser;
     },

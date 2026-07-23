@@ -290,7 +290,7 @@ export const AuthScaffoldComponent: Story = {
       footer={<Button variant="text">新規登録へ</Button>}
     >
       <TextField label="メールアドレス" type="email" value="reader@myriale.example" onChange={() => {}} />
-      <PasswordField label="パスワード" value="mist-library-2026" onChange={() => {}} />
+      <PasswordField label="パスワード" value="a" onChange={() => {}} />
       <Button variant="primary">ログインする</Button>
     </AuthScaffold>
   ),

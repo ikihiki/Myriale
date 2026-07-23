@@ -7,7 +7,7 @@ public static class AccountSeedData
 {
     public const string DefaultDisplayName = "霧野しおり";
     public const string DefaultEmail = "reader@myriale.example";
-    public const string DefaultPassword = "mist-library-2026";
+    public const string DefaultPassword = "a";
 
     public static async Task SeedAsync(
         UserManager<ApplicationUser> userManager,
@@ -30,6 +30,9 @@ public static class AccountSeedData
         var existing = await userManager.FindByEmailAsync(email);
         if (existing is not null)
         {
+            existing.PasswordHash = userManager.PasswordHasher.HashPassword(existing, password);
+            existing.SecurityStamp = Guid.NewGuid().ToString();
+            await EnsureSucceededAsync(userManager.UpdateAsync(existing), "update the seeded account password");
             await EnsureAdminClaimsAsync(userManager, existing);
             return;
         }
@@ -43,13 +46,18 @@ public static class AccountSeedData
             Bio = "星図を読む巡礼者。夜の図書館で物語を探しています。",
             CanDebugDialogue = true,
         };
-        var result = await userManager.CreateAsync(user, password);
-        if (!result.Succeeded)
-        {
-            var errors = string.Join(", ", result.Errors.Select(error => $"{error.Code}: {error.Description}"));
-            throw new InvalidOperationException($"Failed to create the seeded account: {errors}");
-        }
+        user.PasswordHash = userManager.PasswordHasher.HashPassword(user, password);
+        await EnsureSucceededAsync(userManager.CreateAsync(user), "create the seeded account");
         await EnsureAdminClaimsAsync(userManager, user);
+    }
+
+    private static async Task EnsureSucceededAsync(Task<IdentityResult> operation, string action)
+    {
+        var result = await operation;
+        if (result.Succeeded) return;
+
+        var errors = string.Join(", ", result.Errors.Select(error => $"{error.Code}: {error.Description}"));
+        throw new InvalidOperationException($"Failed to {action}: {errors}");
     }
 
     private static async Task EnsureAdminClaimsAsync(UserManager<ApplicationUser> userManager, ApplicationUser user)
