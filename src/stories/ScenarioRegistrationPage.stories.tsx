@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
+import { createDemoAccountApi } from '../account/api/accountApi';
 import { MyrialeApp } from '../app/MyrialeApp';
 import { createDemoDb } from '../app/demoData';
 import { MockScenarioRegistrationContainer } from './scenario-registration-page/MockScenarioRegistrationContainer';
@@ -17,8 +19,63 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+function AnonymousApp({ initialUrl }: { initialUrl: string }) {
+  const accountApi = useMemo(() => {
+    const api = createDemoAccountApi();
+    void api.logout();
+    return api;
+  }, []);
+
+  return <MyrialeApp
+    initialUrl={initialUrl}
+    initialDb={createDemoDb('registrationDraft')}
+    accountApi={accountApi}
+    scenarioRegistrationContainer={MockScenarioRegistrationContainer}
+  />;
+}
+
 const goToStep = async (canvas: ReturnType<typeof within>, stepName: string) => {
   await userEvent.click(canvas.getByRole('button', { name: `${stepName}へ` }));
+};
+
+export const AuthenticationReturnsToScenarioCreation: Story = {
+  name: '認証: ログイン後にシナリオ作成へ戻る',
+  render: () => <AnonymousApp initialUrl="/scenarios/new" />,
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await step('未ログインではログイン画面へ移動し、元のURLを保持する', async () => {
+      await expect(await canvas.findByRole('main', { name: 'ログイン' })).toBeVisible();
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/account/login');
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('redirect=%2Fscenarios%2Fnew');
+    });
+    await step('ログインすると元のシナリオ作成画面へ戻る', async () => {
+      await userEvent.clear(canvas.getByLabelText('メールアドレス'));
+      await userEvent.type(canvas.getByLabelText('メールアドレス'), 'reader@myriale.example');
+      await userEvent.type(canvas.getByTestId('login-password'), 'a');
+      await userEvent.click(canvas.getByRole('button', { name: 'ログインする' }));
+      await expect(await canvas.findByRole('main', { name: 'シナリオ登録ウィザード' })).toBeVisible();
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/scenarios/new');
+    });
+  },
+};
+
+export const AuthenticationDefaultsToHome: Story = {
+  name: '認証: 戻り先がなければホームへ進む',
+  render: () => <AnonymousApp initialUrl="/account/login" />,
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await step('戻り先なしでログインする', async () => {
+      await expect(await canvas.findByRole('main', { name: 'ログイン' })).toBeVisible();
+      await userEvent.clear(canvas.getByLabelText('メールアドレス'));
+      await userEvent.type(canvas.getByLabelText('メールアドレス'), 'reader@myriale.example');
+      await userEvent.type(canvas.getByTestId('login-password'), 'a');
+      await userEvent.click(canvas.getByRole('button', { name: 'ログインする' }));
+    });
+    await step('デフォルトのホーム画面へ移動する', async () => {
+      await expect(await canvas.findByRole('main', { name: 'Myrialeトップページ' })).toBeVisible();
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/');
+    });
+  },
 };
 
 export const US01CreateDraftScenario: Story = {

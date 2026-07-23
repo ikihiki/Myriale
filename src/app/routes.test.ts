@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createDemoAccountApi } from '../account/api/accountApi';
-import { safeRedirectTarget } from '../auth/requireAuthenticated';
+import { authenticatedRedirectTarget, defaultAuthenticatedPath, safeRedirectTarget } from '../auth/requireAuthenticated';
 import { createAppRouter } from '../router';
 import { appHrefForStoryKey, appPathForStoryKey } from './navigation';
 
@@ -36,6 +36,20 @@ describe('TanStack app routing', () => {
     expect(router.state.location.search).toEqual({ redirect: '/sessions/SES-PRIVATE?turn=3' });
   });
 
+  it('redirects anonymous scenario creation to login and preserves the requested page', async () => {
+    const accountApi = createDemoAccountApi();
+    await accountApi.logout();
+    const router = createAppRouter({
+      initialUrl: '/scenarios/new',
+      accountApi,
+    });
+
+    await router.load();
+
+    expect(router.state.location.pathname).toBe('/account/login');
+    expect(router.state.location.search).toEqual({ redirect: '/scenarios/new' });
+  });
+
   it('guards Session start before the page can call its APIs', async () => {
     const accountApi = createDemoAccountApi();
     await accountApi.logout();
@@ -50,6 +64,13 @@ describe('TanStack app routing', () => {
     expect(router.state.location.search).toEqual({
       redirect: '/sessions/start?scenarioId=SCN-STAR-LIBRARY',
     });
+  });
+
+  it('returns to the requested local page after login and otherwise uses home', () => {
+    expect(authenticatedRedirectTarget('/scenarios/new')).toBe('/scenarios/new');
+    expect(authenticatedRedirectTarget(undefined)).toBe('/');
+    expect(authenticatedRedirectTarget('https://example.test/steal')).toBe('/');
+    expect(defaultAuthenticatedPath).toBe(appPathForStoryKey('home'));
   });
 
   it('accepts only local return destinations for guarded login', () => {

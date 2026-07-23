@@ -1,12 +1,13 @@
 import { useMemo, type ComponentType } from 'react';
 import { RouterProvider } from '@tanstack/react-router';
-import { createFetchAccountApi } from '../account/api/accountApi';
+import { createFetchAccountApi, type AccountApi } from '../account/api/accountApi';
 import { AccountApiProvider } from '../account/hooks/useAccountSession';
 import { createAppRouter, type AppHistoryMode } from '../router';
 import { AppStoreProvider, type AppDb } from './store';
 import { createMyrialeQueryClient, MyrialeQueryProvider } from './queryClient';
 
 export type MyrialeAppProps = {
+  accountApi?: AccountApi;
   initialUrl?: string;
   initialDb?: AppDb;
   showDebugPanel?: boolean;
@@ -17,6 +18,7 @@ export type MyrialeAppProps = {
 };
 
 export function MyrialeApp({
+  accountApi,
   initialUrl = '/',
   initialDb,
   showDebugPanel = true,
@@ -25,16 +27,16 @@ export function MyrialeApp({
   sessionContainer,
   startSessionContainer,
 }: MyrialeAppProps) {
-  const accountApi = useMemo(() => createFetchAccountApi(), []);
+  const resolvedAccountApi = useMemo(() => accountApi ?? createFetchAccountApi(), [accountApi]);
   const router = useMemo(
-    () => createAppRouter({ initialUrl, historyMode, showDebugPanel, accountApi, scenarioRegistrationContainer, sessionContainer, startSessionContainer }),
-    [accountApi, historyMode, initialUrl, scenarioRegistrationContainer, sessionContainer, showDebugPanel, startSessionContainer],
+    () => createAppRouter({ initialUrl, historyMode, showDebugPanel, accountApi: resolvedAccountApi, scenarioRegistrationContainer, sessionContainer, startSessionContainer }),
+    [historyMode, initialUrl, resolvedAccountApi, scenarioRegistrationContainer, sessionContainer, showDebugPanel, startSessionContainer],
   );
   const queryClient = useMemo(() => createMyrialeQueryClient(), []);
 
   return (
     <MyrialeQueryProvider client={queryClient}>
-      <AccountApiProvider api={accountApi}>
+      <AccountApiProvider api={resolvedAccountApi}>
         <AppStoreProvider initialDb={initialDb}>
           <RouterProvider router={router} />
         </AppStoreProvider>
