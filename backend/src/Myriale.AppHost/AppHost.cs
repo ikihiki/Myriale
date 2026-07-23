@@ -262,7 +262,7 @@ internal sealed class ExternalSecretTarget
 
 internal sealed class ExternalSecretData
 {
-    private const string DefaultVaultKey = "{{ default `forge/apps/myriale/ai` (get (default (dict) .Values.forge) `aiVaultKey`) }}";
+    private const string DefaultVaultKey = "{{ default `forge/apps/myriale/openai` (get (default (dict) .Values.forge) `openAiVaultKey`) }}";
 
     [YamlMember(Alias = "secretKey")]
     public string SecretKey { get; init; } = string.Empty;

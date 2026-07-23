@@ -156,7 +156,7 @@ export AiProvider__ApiKey="$OPEN_AI_KEY"
 
 管理画面から登録する場合は、AI管理権限を持つアカウントでログインし、`/account/admin/ai-keys`を開きます。Providerで`OpenAI`を選択してキーを保存し、一覧の「接続テスト」を実行してください。管理画面で保存したキーはData Protectionで暗号化してDBへ保存されますが、現在の既定値`Database:RecreateOnStartup=true`ではAPI再起動時にDBが再作成されるため、継続利用する環境ではsecretまたは環境変数を使用してください。
 
-Forgeでは既定のVault key `forge/apps/myriale/ai`へ、次のpropertyを登録します。異なるkeyを使う場合はHelm valueの`forge.aiVaultKey`で指定します。
+ForgeではOpenAI専用のVault key `forge/apps/myriale/openai`へ、次のpropertyを登録します。既存の`forge/apps/myriale/ai`は参照・上書き・削除しません。異なるOpenAI用keyを使う場合はHelm valueの`forge.openAiVaultKey`で指定します。
 
 ```yaml
 provider: openai
