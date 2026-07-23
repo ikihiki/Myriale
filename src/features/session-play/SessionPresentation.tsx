@@ -259,8 +259,8 @@ export function SessionPresentation({
     <AppChrome
       section="sessions"
       breadcrumbs={[
-        { label: 'Myriale', to: 'scenarioRegister' },
-        { label: 'セッション', to: 'startSession' },
+        { label: 'Myriale', to: 'home' },
+        { label: 'セッション', to: 'sessionList' },
         { label: 'プレイ中の対話' },
       ]}
       account={account}

@@ -70,6 +70,11 @@ export const FullAppHappyPath: Story = {
       await expect(await canvas.findByTestId('dialogue-log')).toHaveTextContent('水没した閲覧室');
       await expect(canvas.queryByRole('article', { name: 'Turn 02' })).not.toBeInTheDocument();
     });
+    await step('パンくずのセッションからセッション一覧へ戻る', async () => {
+      const breadcrumbs = within(canvas.getByRole('navigation', { name: '現在地' }));
+      await userEvent.click(breadcrumbs.getByRole('button', { name: 'セッション' }));
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/sessions');
+    });
   },
 };
 

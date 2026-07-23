@@ -196,7 +196,7 @@ export function appReducer(db: AppDb, action: AppAction): AppDb {
 const AppStoreContext = createContext<{ db: AppDb; dispatch: Dispatch<AppAction> } | null>(null);
 
 export function AppStoreProvider({ initialDb, children }: { initialDb?: AppDb; children: ReactNode }) {
-  const startDb = useMemo(() => initialDb ?? createDemoDb('activeSession'), [initialDb]);
+  const startDb = useMemo(() => initialDb ?? createDemoDb('empty'), [initialDb]);
   const [db, dispatch] = useReducer(appReducer, startDb);
   const value = useMemo(() => ({ db, dispatch }), [db]);
   return <AppStoreContext.Provider value={value}>{children}</AppStoreContext.Provider>;
@@ -268,7 +268,7 @@ export function createDemoDb(kind: DemoDbKind = 'activeSession', overrides: Part
       opening: '夜明け前の森で、割れた書架が小さく鳴る。',
     },
   };
-  const playSessions: AppDb['playSessions'] = {
+  const playSessions: AppDb['playSessions'] = kind === 'empty' ? {} : {
     'SES-PREP-1098': {
       id: 'SES-PREP-1098',
       scenarioId: 'SCN-STAR-LIBRARY',
