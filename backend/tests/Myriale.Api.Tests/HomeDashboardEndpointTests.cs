@@ -1,45 +1,84 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Myriale.Api.Data;
 
 namespace Myriale.Api.Tests;
 
-public sealed class HomeDashboardEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+public sealed class HomeDashboardEndpointTests : IDisposable
 {
-    private readonly HttpClient _client;
+    private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"myriale-home-tests-{Guid.NewGuid():N}.db");
+    private readonly WebApplicationFactory<Program> _factory;
 
-    public HomeDashboardEndpointTests(WebApplicationFactory<Program> factory)
+    public HomeDashboardEndpointTests()
     {
-        _client = factory.CreateClient();
+        _factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:MyrialeAccounts", $"Data Source={_dbPath}"));
     }
 
     [Fact]
-    public async Task GetHomeDashboard_ReturnsDashboardPayload()
+    public async Task GetHomeDashboard_AnonymousRequestIsUnauthorized()
     {
-        using var response = await _client.GetAsync("/api/home/dashboard");
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        using var response = await client.GetAsync("/api/home/dashboard");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetHomeDashboard_ReturnsOwnersRealSessionsAndRecommendations()
+    {
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await SessionListingEndpointTests.RegisterAndAuthenticateAsync(client, "home-owner@example.test");
+
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var ownerId = await db.Users.Where(user => user.Email == "home-owner@example.test").Select(user => user.Id).SingleAsync();
+            var scenario = await db.Scenarios.OrderBy(item => item.Id).FirstAsync();
+            await SessionListingEndpointTests.AddSessionAsync(
+                db,
+                "SES-HOME-REAL",
+                ownerId,
+                scenario.Id,
+                "ホームの主人公",
+                "active",
+                new DateTimeOffset(2026, 7, 23, 10, 0, 0, TimeSpan.Zero),
+                1,
+                false);
+        }
+
+        using var response = await client.GetAsync("/api/home/dashboard");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(JsonValueKind.Object, json.ValueKind);
 
         Assert.True(json.TryGetProperty("account", out var account));
         Assert.Equal("ミリア", account.GetProperty("displayName").GetString());
-        Assert.Equal("reader@myriale.example", account.GetProperty("email").GetString());
-        Assert.Equal("ミリ", account.GetProperty("initials").GetString());
         Assert.True(account.TryGetProperty("unreadNotifications", out _));
 
-        Assert.True(json.TryGetProperty("resumableSessions", out var resumableSessions));
-        Assert.Equal(JsonValueKind.Array, resumableSessions.ValueKind);
-        Assert.NotEmpty(resumableSessions.EnumerateArray());
+        var resumableSessions = json.GetProperty("resumableSessions");
+        var session = Assert.Single(resumableSessions.EnumerateArray());
+        Assert.Equal("SES-HOME-REAL", session.GetProperty("id").GetString());
+        Assert.Equal("ホームの主人公", session.GetProperty("selectedHero").GetString());
 
-        Assert.True(json.TryGetProperty("recommendedScenarios", out var recommendedScenarios));
-        Assert.Equal(JsonValueKind.Array, recommendedScenarios.ValueKind);
+        var recommendedScenarios = json.GetProperty("recommendedScenarios");
         Assert.Contains(
             recommendedScenarios.EnumerateArray(),
             scenario => scenario.GetProperty("id").GetString() == "SCN-NEON-ARCHIVE"
                 && scenario.GetProperty("genre").GetString() == "サイバーパンク潜入スリラー");
         Assert.NotEmpty(recommendedScenarios.EnumerateArray());
+    }
+
+    public void Dispose()
+    {
+        _factory.Dispose();
+        if (File.Exists(_dbPath)) File.Delete(_dbPath);
     }
 }

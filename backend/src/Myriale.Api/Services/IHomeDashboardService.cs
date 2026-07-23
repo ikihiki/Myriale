@@ -4,5 +4,5 @@ namespace Myriale.Api.Services;
 
 public interface IHomeDashboardService
 {
-    Task<HomeDashboardResponse> GetDashboardAsync(CancellationToken cancellationToken);
+    Task<HomeDashboardResponse> GetDashboardAsync(string ownerId, CancellationToken cancellationToken);
 }
