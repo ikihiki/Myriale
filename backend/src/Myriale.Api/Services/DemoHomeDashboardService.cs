@@ -48,6 +48,16 @@ public sealed class DemoHomeDashboardService : IHomeDashboardService
                     HeroFreeGenerationAllowed: false,
                     Hero: "ミラ / 星図を読む巡礼者\nセオ / 星図を燃やす護衛\nエル / 記憶を失った写字生"),
                 new ScenarioSummaryDto(
+                    Id: "SCN-NEON-ARCHIVE",
+                    Title: "ネオン喰いの地下データ書庫",
+                    Genre: "サイバーパンク潜入スリラー",
+                    Status: "published",
+                    UpdatedAt: new DateOnly(2026, 7, 23),
+                    Summary: "酸性雨に沈む企業都市の地下で、量子鍵と星図デッキを携え、記憶を焼く禁制アーカイブと閉鎖ゲートを突破する潜入譚。",
+                    HeroMode: "select",
+                    HeroFreeGenerationAllowed: false,
+                    Hero: "レイ / 失われた記憶を追うネットランナー\nジン / 企業警備を裏切ったクローム傭兵\nミオ / 禁制アーカイブから逃げた合成人格"),
+                new ScenarioSummaryDto(
                     Id: "SCN-ASH-STATION",
                     Title: "灰の駅と宛名のない切符",
                     Genre: "終末ロードムービー",

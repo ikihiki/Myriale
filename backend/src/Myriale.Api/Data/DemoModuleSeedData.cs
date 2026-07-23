@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Modules;
 
@@ -25,18 +26,51 @@ public static class DemoModuleSeedData
             throw new InvalidOperationException("The constellation-door demo package has an unexpected identity.");
         await packages.SetEnabledAsync(installed.Package.Digest, true, cancellationToken);
 
-        var transition = await db.ScenarioProgressionTransitions
-            .SingleAsync(item => item.Id == "SPT-STAR-LIBRARY-DOOR-REACHED", cancellationToken);
-        transition.ModuleId = installed.Package.ModuleId;
-        transition.ModuleVersion = installed.Package.Version;
-        transition.ModuleDigest = installed.Package.Digest;
-        transition.ModuleConfigurationJson = """
-            {"purpose":"銀の鍵と星図灯で『閉じた星座』の扉を開く","diceCount":1,"diceSides":20,"modifier":2,"target":13}
-            """;
-        transition.ModuleContextJson = """
-            {"location":"水没した地下図書館・閉じた星座の扉","keyItem":"銀の鍵","lightSource":"星図灯"}
-            """;
-        transition.ModuleRandomValueCount = 1;
+        await ConfigureTransitionAsync(
+            db,
+            "SPT-STAR-LIBRARY-DOOR-REACHED",
+            installed.Package,
+            "銀の鍵と星図灯で『閉じた星座』の扉を開く",
+            "水没した地下図書館・閉じた星座の扉",
+            "銀の鍵",
+            "星図灯",
+            cancellationToken);
+        await ConfigureTransitionAsync(
+            db,
+            "SPT-NEON-ARCHIVE-FIREWALL-REACHED",
+            installed.Package,
+            "量子鍵と星図デッキで『閉じた星座』ファイアウォールを突破する",
+            "オルフェウス地下データ書庫・閉じた星座ゲート",
+            "量子鍵",
+            "星図デッキ",
+            cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task ConfigureTransitionAsync(
+        ApplicationDbContext db,
+        string transitionId,
+        ModulePackage package,
+        string purpose,
+        string location,
+        string keyItem,
+        string lightSource,
+        CancellationToken cancellationToken)
+    {
+        var transition = await db.ScenarioProgressionTransitions
+            .SingleAsync(item => item.Id == transitionId, cancellationToken);
+        transition.ModuleId = package.ModuleId;
+        transition.ModuleVersion = package.Version;
+        transition.ModuleDigest = package.Digest;
+        transition.ModuleConfigurationJson = JsonSerializer.Serialize(new
+        {
+            purpose,
+            diceCount = 1,
+            diceSides = 20,
+            modifier = 2,
+            target = 13,
+        });
+        transition.ModuleContextJson = JsonSerializer.Serialize(new { location, keyItem, lightSource });
+        transition.ModuleRandomValueCount = 1;
     }
 }

@@ -61,10 +61,22 @@ public sealed class DatabaseInitializationTests : IDisposable
             WHERE p.ModuleId = 'com.myriale.star-eater.constellation-door'
               AND p.Version = '1.0.0'
               AND p.IsEnabled = 1
-              AND t.Id = 'SPT-STAR-LIBRARY-DOOR-REACHED'
+              AND t.Id IN ('SPT-STAR-LIBRARY-DOOR-REACHED', 'SPT-NEON-ARCHIVE-FIREWALL-REACHED')
               AND t.ModuleRandomValueCount = 1
             """;
-        Assert.Equal(1L, (long)(await command.ExecuteScalarAsync())!);
+        Assert.Equal(2L, (long)(await command.ExecuteScalarAsync())!);
+
+        await using var packageCount = connection.CreateCommand();
+        packageCount.CommandText = "SELECT COUNT(*) FROM ModulePackages";
+        Assert.Equal(1L, (long)(await packageCount.ExecuteScalarAsync())!);
+
+        await using var sharedDigest = connection.CreateCommand();
+        sharedDigest.CommandText = """
+            SELECT COUNT(DISTINCT ModuleDigest)
+            FROM ScenarioProgressionTransitions
+            WHERE Id IN ('SPT-STAR-LIBRARY-DOOR-REACHED', 'SPT-NEON-ARCHIVE-FIREWALL-REACHED')
+            """;
+        Assert.Equal(1L, (long)(await sharedDigest.ExecuteScalarAsync())!);
     }
 
     public void Dispose()

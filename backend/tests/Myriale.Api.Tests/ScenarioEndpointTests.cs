@@ -33,6 +33,23 @@ public sealed class ScenarioEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task GetScenario_ReturnsCyberpunkArchiveSeed()
+    {
+        var client = _factory.CreateClient();
+
+        using var response = await client.GetAsync("/api/scenarios/SCN-NEON-ARCHIVE");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("ネオン喰いの地下データ書庫", json.GetProperty("title").GetString());
+        Assert.Equal("サイバーパンク潜入スリラー", json.GetProperty("genre").GetString());
+        Assert.Equal("select", json.GetProperty("heroMode").GetString());
+        Assert.Contains("ネットランナー", json.GetProperty("hero").GetString());
+        Assert.Contains("浸水サーバー閲覧層", json.GetProperty("opening").GetString());
+        Assert.Contains("Black ICE", json.GetProperty("lore").GetString());
+    }
+
+    [Fact]
     public async Task GetScenario_ReturnsSelectableScenarioWithFreeGenerationEnabled()
     {
         var client = _factory.CreateClient();
