@@ -1,5 +1,6 @@
-import { Button, HomeCard, HomePanel, Label, Notice } from '../../components/ui';
+import { Button, HomeCard, Label, Notice } from '../../components/ui';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
+import { MyrialeCheckbox } from '../../ui/MyrialeRadix';
 import type { SessionListItem, SessionListState } from './sessionListModel';
 
 const crumbs: Crumb[] = [{ label: 'Myriale', to: 'home' }, { label: 'セッション' }];
@@ -58,29 +59,20 @@ export function SessionListPresentation({
 
   return (
     <AppChrome section="sessions" breadcrumbs={crumbs} account={account} onLogout={onLogout}>
-      <main className="mx-auto grid w-full max-w-myr-chrome gap-5 px-5 py-8 text-myr-ink max-sm:px-3" aria-label="セッション一覧">
-        <header className="relative overflow-hidden rounded-[30px] border border-[rgba(217,164,65,.30)] bg-[radial-gradient(circle_at_85%_15%,rgba(124,92,255,.24),transparent_28%),linear-gradient(135deg,#1b1625,#332642)] px-7 py-8 text-myr-cream shadow-[0_24px_70px_rgba(18,16,25,.22)] max-sm:rounded-[22px] max-sm:px-5">
-          <p className="kicker m-0 text-myr-gold">Your stories</p>
-          <h1 className="mt-2 mb-3 font-['Yu_Mincho','Hiragino_Mincho_ProN',Georgia,serif] text-[clamp(38px,6vw,70px)] leading-none tracking-[-.06em]">物語を選ぶ</h1>
-          <p className="m-0 max-w-180 leading-7 text-[#ddd2e8]">
-            進行中の物語へ戻ったり、完了した物語を読み返したりできます。
-          </p>
-        </header>
-
-        <HomePanel as="section" aria-label="進行中のセッション">
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <main className="mx-auto grid w-full max-w-myr-chrome gap-10 px-5 py-10 text-myr-ink max-sm:px-3 max-sm:py-6" aria-label="セッション一覧">
+        <section className="grid gap-5" aria-label="進行中のセッション">
+          <div className="flex flex-wrap items-end justify-between gap-4 border-b border-myr-ink/14 pb-4">
             <div>
               <p className="kicker m-0">In progress</p>
-              <Label as="h2" textRole="sectionEditorial" className="m-0">進行中のセッション</Label>
+              <Label as="h1" textRole="sectionEditorial" className="m-0">進行中のセッション</Label>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="secondary"
-                aria-pressed={showCompleted}
-                onClick={() => onShowCompletedChange(!showCompleted)}
-              >
-                {showCompleted ? '完了済みを隠す' : '完了済みも表示'}
-              </Button>
+            <div className="flex flex-wrap items-center gap-3">
+              <MyrialeCheckbox
+                checked={showCompleted}
+                onCheckedChange={onShowCompletedChange}
+                label={<span className="grid gap-0.5"><strong className="font-black">完了済みも表示</strong><small className="text-[11px] font-semibold tracking-[.04em] text-myr-ink-subtle">ARCHIVE</small></span>}
+                className="rounded-xl border border-myr-ink/12 bg-myr-paper/72 px-3 py-2 shadow-[0_5px_18px_rgba(36,27,47,.06)] transition-[border-color,background,box-shadow] hover:border-myr-iris/35 hover:bg-white [&_.myr-ui-checkbox]:size-6 [&_.myr-ui-checkbox]:rounded-[8px] [&_.myr-ui-checkbox]:border-2 [&_.myr-ui-checkbox]:border-myr-ink/25 [&_.myr-ui-checkbox]:bg-transparent [&_.myr-ui-checkbox]:shadow-none [&_.myr-ui-checkbox[data-state=checked]]:border-myr-iris [&_.myr-ui-checkbox[data-state=checked]]:bg-myr-iris [&_.myr-ui-checkbox-indicator]:text-myr-gold"
+              />
               <Button variant="secondary" onClick={onFindScenario}>新しい物語を始める</Button>
             </div>
           </div>
@@ -102,18 +94,18 @@ export function SessionListPresentation({
           {state.status === 'ready' && activeSessions.length > 0 && (
             <SessionCards sessions={activeSessions} onOpenSession={onOpenSession} />
           )}
-        </HomePanel>
+        </section>
 
         {state.status === 'ready' && showCompleted && (
-          <HomePanel as="section" aria-label="完了済みのセッション">
-            <div className="mb-4">
+          <section className="grid gap-5 border-t border-myr-ink/14 pt-8" aria-label="完了済みのセッション">
+            <div>
               <p className="kicker m-0">Completed</p>
               <Label as="h2" textRole="sectionEditorial" className="m-0">完了済みのセッション</Label>
             </div>
             {completedSessions.length > 0
               ? <SessionCards sessions={completedSessions} completed onOpenSession={onOpenSession} />
               : <p className="m-0 text-myr-ink-subtle">完了済みのセッションはありません。</p>}
-          </HomePanel>
+          </section>
         )}
       </main>
     </AppChrome>

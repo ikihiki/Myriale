@@ -78,7 +78,7 @@ export const 完了済みの物語を表示する: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.queryByText('灰の駅と宛名のない切符')).not.toBeInTheDocument();
-    await userEvent.click(canvas.getByRole('button', { name: '完了済みも表示' }));
+    await userEvent.click(canvas.getByRole('checkbox', { name: /完了済みも表示/ }));
     await expect(canvas.getByRole('region', { name: '完了済みのセッション' })).toBeVisible();
     await expect(canvas.getByText('灰の駅と宛名のない切符')).toBeVisible();
     await userEvent.click(canvas.getByRole('button', { name: '物語を読み返す' }));
@@ -91,7 +91,7 @@ export const 完了済みだけでも新規開始できる: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText('進行中のセッションはありません')).toBeVisible();
-    await userEvent.click(canvas.getByRole('button', { name: '完了済みも表示' }));
+    await userEvent.click(canvas.getByRole('checkbox', { name: /完了済みも表示/ }));
     await expect(canvas.getByText('灰の駅と宛名のない切符')).toBeVisible();
     await expect(canvas.getByText('進行中のセッションはありません')).toBeVisible();
     await userEvent.click(canvas.getByRole('button', { name: 'シナリオを探す' }));
