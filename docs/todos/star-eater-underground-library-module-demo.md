@@ -2,7 +2,7 @@
 
 ## 目的
 
-既存シナリオ『星喰いの地下図書館』を使い、通常のNarrative Turnからプログラム駆動のModule Turnへ移行し、確定したOutcomeを再びNarrative Turnへ自動的に引き渡す一連のプレイを実装する。
+既存シナリオ『星喰いの地下図書館』を使い、通常のNarrative Turnからプログラム駆動のModule Turnへ移行し、確定したOutcomeを再びNarrative Turnへ自動的に引き渡す一連のプレイを実装する。ModuleはScenario固有の物語から独立した再利用可能なルールとして実装し、その非依存性をサイバーパンクシナリオ『ネオン喰いの地下データ書庫』でも同一packageを利用することで証明する。
 
 最初の実装単位は「閉じた星座」の扉を開くダイス判定とする。その後、判定失敗から図書館の守護者とのJRPG風ターン制戦闘へ分岐させ、Module基盤の総合デモへ拡張する。
 
@@ -55,6 +55,20 @@
 - [x] Scenario進行用のModule Turn作成をhost内部のオーケストレーター経路へ限定する。
 - [x] 既存のclient駆動Module Turn作成APIは、固定Module snapshotを持つScenario Sessionでは拒否し、host内部経路だけを許可する。
 - [x] クライアントが任意のModule identity、configuration、contextを指定してScenario進行を迂回できないことを検証する。
+
+### Moduleのシナリオ非依存性
+
+Module packageは特定のScenarioの物語、ID、登場人物、場所、アイテム、進行node、signal、Session flagへ依存しない。Moduleはダイス判定や戦闘などの再利用可能なルールだけを実装し、シナリオ固有の意味付けはScenario側のconfiguration、context、進行遷移およびOutcome適用設定で与える。
+
+この境界を設計上の主張だけで終わらせず、サイバーパンクシナリオ『ネオン喰いの地下データ書庫』を第2の利用例として使用し、ファンタジーとサイバーパンクの両方が同一のModule packageを利用できることを証明する。
+
+- [ ] ダイス判定Moduleのassembly、manifest、Runtime UI、private State、ViewStateおよびOutcomeに、Scenario IDや『星喰いの地下図書館』固有の名称・lore・進行codeを埋め込まない。
+- [ ] 成功・失敗のScenario固有Outcome code、Session flag、Narrative Hints、Forbidden Narrative Factsは、Moduleのハードコードではなく検証済みconfigurationまたはhost側のOutcome適用設定から与える。
+- [x] 『ネオン喰いの地下データ書庫』に独自の目的、場所、鍵、デバイス、開始signalを持つ進行設定を追加する。
+- [x] 『星喰いの地下図書館』と『ネオン喰いの地下データ書庫』が、同一のModule ID、version、digestを参照し、追加のModule packageを導入しないことをintegration testで確認する。
+- [ ] 『ネオン喰いの地下データ書庫』のNarrativeから同一ダイス判定Moduleへ移行し、サイバーパンク固有の表示と確定結果でautomatic Narrative handoffまで完了するE2Eテストを追加する。
+- [ ] 2つのScenarioでconfigurationとcontextがSession開始時に別々にsnapshotされ、一方の設定変更がもう一方または開始済みSessionへ影響しないことを確認する。
+- [ ] 将来の戦闘Moduleにも同じ非依存境界を適用し、図書館の守護者をModule内へ直接ハードコードしない。
 
 ### ダイス判定Module
 
@@ -125,6 +139,8 @@
 
 - [x] 固定乱数でダイス判定の成功経路を再現する。
 - [x] 固定乱数でダイス判定の失敗経路を再現する。
+- [ ] 同じダイス判定Module packageを『星喰いの地下図書館』と『ネオン喰いの地下データ書庫』から実行し、Scenario固有configuration、ViewState、Outcome、Effect、Narrative handoffが混線しないことを検証する。
+- [x] 2つのScenario progression transitionが同一Module ID、version、digestを参照し、catalogのModule package数が増えないことを検証する。
 - [ ] ダイス判定の中断・再開とrequest replayを検証する。
 - [ ] 戦闘の勝利経路を固定乱数で再現する。
 - [ ] 戦闘の敗北または逃走経路を固定乱数で再現する。
@@ -155,6 +171,8 @@
 
 ### フェーズ1: ダイス判定デモ
 
+- [ ] ダイス判定ModuleがScenario固有のID・lore・進行codeを持たず、異なるジャンルのScenarioからconfigurationによって再利用できる。
+- [ ] 『ネオン喰いの地下データ書庫』から、追加packageなしで同一Module identityのダイス判定を開始し、サイバーパンク固有の結果をNarrativeへ引き渡せる。
 - [x] Narrativeから星座の扉のダイス判定Moduleへ移行できる。
 - [x] 成功経路では扉が開き、自動Narrative handoff後に通常対話へ復帰する。
 - [x] 失敗経路では守護者の起動までを確定し、自動Narrative handoff後に戦闘開始予定の進行状態へ遷移する。
