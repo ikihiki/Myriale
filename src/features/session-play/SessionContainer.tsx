@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { toAppChromeAccount } from '../../account/accountPresentation';
 import { useAccountSession } from '../../account/hooks/useAccountSession';
 import { useAppNavigation } from '../../shared/nav';
+import { ActiveModuleTurnPanel } from './ActiveModuleTurnPanel';
 import { SessionPresentation, SessionPresentationStatus } from './SessionPresentation';
 import { sessionInfoNotice, toDialogueTurn, toSessionNotice, type SessionCommandResult, type SessionNotice } from './sessionModel';
 import {
@@ -158,6 +159,14 @@ export function SessionContainer({ sessionId }: { sessionId: string }) {
     }
   };
 
+  const headModuleTurn = session.turns.find((turn) => turn.id === session.headTurnId && turn.kind === 'module' && turn.execution);
+  const moduleHandoffPending = Boolean(headModuleTurn?.execution?.status === 'completed' && headModuleTurn.narrativeHandoff?.status !== 'succeeded');
+  const refreshAfterModuleAction = () => {
+    void getSession(sessionId).then(setSession).catch((reason: SessionApiError) => {
+      setLiveNotice(toSessionNotice(normalizeSessionApiError(reason, 'Module完了後のSessionを更新できませんでした。'), 'poll'));
+    });
+  };
+
   const resumableInput = session.pendingInputs.at(-1);
   return <SessionPresentation
     sessionId={sessionId}
@@ -166,6 +175,10 @@ export function SessionContainer({ sessionId }: { sessionId: string }) {
     headingLinks={session.turns.map(toDialogueTurn).map((turn) => ({ title: turn.turnTitle, startTurnId: turn.id, summary: 'Serverに保存された確定済みTurn' }))}
     sessionStateLabel="Active"
     activitySession={session}
+    activeModulePanel={headModuleTurn?.execution
+      ? <ActiveModuleTurnPanel execution={headModuleTurn.execution} onExecution={refreshAfterModuleAction} />
+      : undefined}
+    moduleHandoffPending={moduleHandoffPending}
     initialInput={resumableInput?.input}
     initialInteractionType={resumableInput?.interactionType}
     initialNotice={resumableInput?.errorMessage ?? (resumableInput ? '未完了のPlayer Inputを復元しました。同じRequest IDで再試行できます。' : 'Serverに保存された確定済みTurnを表示しています。')}

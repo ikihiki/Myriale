@@ -36,6 +36,10 @@ public sealed class HomeDashboardEndpointTests : IClassFixture<WebApplicationFac
 
         Assert.True(json.TryGetProperty("recommendedScenarios", out var recommendedScenarios));
         Assert.Equal(JsonValueKind.Array, recommendedScenarios.ValueKind);
+        Assert.Contains(
+            recommendedScenarios.EnumerateArray(),
+            scenario => scenario.GetProperty("id").GetString() == "SCN-NEON-ARCHIVE"
+                && scenario.GetProperty("genre").GetString() == "サイバーパンク潜入スリラー");
         Assert.NotEmpty(recommendedScenarios.EnumerateArray());
     }
 }

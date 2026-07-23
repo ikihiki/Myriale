@@ -197,6 +197,14 @@ using (var scope = app.Services.CreateScope())
 
     await db.Database.EnsureCreatedAsync();
     await ScenarioSeedData.SeedAsync(db);
+    if (app.Configuration.GetValue<bool>("DemoModules:Enabled")
+        && (!isTestHost || app.Configuration.GetValue<bool>("DemoModules:EnableInTestHost")))
+    {
+        await DemoModuleSeedData.SeedAsync(
+            db,
+            scope.ServiceProvider.GetRequiredService<IModulePackageService>(),
+            scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>());
+    }
 
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
     await AccountSeedData.SeedAsync(userManager, app.Configuration);

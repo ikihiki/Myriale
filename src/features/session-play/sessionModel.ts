@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { AppChromeAccount } from '../../account/accountPresentation';
 import type { TurnDisplayFlags } from '../../app/store';
 import type { NoteReviewRequest } from './SessionActivityFeed';
@@ -122,6 +123,8 @@ export type SessionPresentationProps = {
   headingLinks: HeadingLink[];
   sessionStateLabel: string;
   activitySession?: SessionApiResponse;
+  activeModulePanel?: ReactNode;
+  moduleHandoffPending?: boolean;
   initialInput?: string;
   initialInteractionType?: NarrativeInteractionType;
   initialNotice?: SessionNoticeInput;

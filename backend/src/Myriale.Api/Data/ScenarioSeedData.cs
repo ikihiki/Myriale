@@ -10,10 +10,10 @@ public static class ScenarioSeedData
         {
             Id = "SCN-STAR-LIBRARY",
             Title = "星喰いの地下図書館",
-            Summary = "地下に沈んだ王都で、禁書を読むたびに星座が書き換わる探索譚。",
+            Summary = "地下に沈んだ王都で、銀の鍵と星図灯を携え、記憶を奪う禁書と閉じた星座の扉に挑む探索譚。",
             Genre = "ダークファンタジー探索譚",
             Tone = "静かで不穏、淡い希望",
-            Lore = "星座は魔法体系の鍵。死者の名前を読むと記憶を失う。",
+            Lore = "星座は魔法体系の鍵。水没した閲覧室には銀の鍵と星図灯が残され、死者の名を記す禁書を読む者は記憶を奪われる。最深部の『閉じた星座』の扉は星図の判定に成功した者だけを通す。",
             AiFreedom = "中: 設定を守りつつ提案する",
             HeroMode = "select",
             HeroFreeGenerationAllowed = false,
@@ -27,6 +27,28 @@ public static class ScenarioSeedData
             AuthorId = "SEED-AUTHOR",
             CreatedAt = new DateTimeOffset(2026, 6, 10, 0, 0, 0, TimeSpan.Zero),
             UpdatedAt = new DateTimeOffset(2026, 7, 19, 0, 0, 0, TimeSpan.Zero),
+        },
+        new Scenario
+        {
+            Id = "SCN-NEON-ARCHIVE",
+            Title = "ネオン喰いの地下データ書庫",
+            Summary = "酸性雨に沈む企業都市の地下で、量子鍵と星図デッキを携え、記憶を焼く禁制アーカイブと閉鎖ゲートを突破するサイバーパンク潜入譚。",
+            Genre = "サイバーパンク潜入スリラー",
+            Tone = "冷たいネオン、監視下の緊張、反逆の微光",
+            Lore = "巨大企業オルフェウスは市民の記憶を星座形式のデータとして地下書庫へ保管している。浸水したサーバー閲覧層には量子鍵と星図デッキが残され、禁制アーカイブへ接続した者は自分の記憶をBlack ICEに焼かれる。最深部の『閉じた星座』ゲートは星図認証に成功した侵入者だけを通す。",
+            AiFreedom = "中: 企業都市と電脳侵入の法則を守りつつ提案する",
+            HeroMode = "select",
+            HeroFreeGenerationAllowed = false,
+            Hero = "レイ / 失われた記憶を追うネットランナー\nジン / 企業警備を裏切ったクローム傭兵\nミオ / 禁制アーカイブから逃げた合成人格",
+            Opening = "あなたは非常灯だけが明滅する浸水サーバー閲覧層で意識を取り戻す。頭蓋内端末には、覚えのない星座データが脈打っている。",
+            IllustrationStyle = "ネオノワール / 高密度サイバーパンク / シネマティック",
+            IllustrationMood = "シアンとマゼンタのネオン、酸性雨、濡れたクローム、深い影",
+            IllustrationNegative = "中世装備、牧歌的風景、明るい昼光、コミカルなデフォルメ",
+            SampleScene = "浸水した地下サーバー群の奥で、閉じた星座ゲートと企業Black ICEの輪郭がネオンに浮かぶ。",
+            Status = "published",
+            AuthorId = "SEED-AUTHOR",
+            CreatedAt = new DateTimeOffset(2026, 7, 23, 0, 0, 0, TimeSpan.Zero),
+            UpdatedAt = new DateTimeOffset(2026, 7, 23, 0, 0, 0, TimeSpan.Zero),
         },
         new Scenario
         {
@@ -108,6 +130,22 @@ public static class ScenarioSeedData
         },
         new ScenarioProgressionNode
         {
+            Id = "SPN-NEON-ARCHIVE-INFILTRATION",
+            ScenarioId = "SCN-NEON-ARCHIVE",
+            Code = "archive-infiltration",
+            IsInitial = true,
+            AllowedNarrativeSignalsJson = "[\"constellation-firewall-reached\"]",
+        },
+        new ScenarioProgressionNode
+        {
+            Id = "SPN-NEON-ARCHIVE-GATE-CHECK",
+            ScenarioId = "SCN-NEON-ARCHIVE",
+            Code = "constellation-gate-check",
+            IsInitial = false,
+            AllowedNarrativeSignalsJson = "[]",
+        },
+        new ScenarioProgressionNode
+        {
             Id = "SPN-STAR-LIBRARY-DOOR-CHECK",
             ScenarioId = "SCN-STAR-LIBRARY",
             Code = "constellation-door-check",
@@ -125,6 +163,14 @@ public static class ScenarioSeedData
             SignalCode = "constellation-door-reached",
             TriggerDescription = "Playerが閉じた星座の扉の場所まで実際に到達したときだけ発火する。扉について話す、尋ねる、遠くから見るだけでは発火しない。",
             TargetNodeId = "SPN-STAR-LIBRARY-DOOR-CHECK",
+        },
+        new ScenarioProgressionTransition
+        {
+            Id = "SPT-NEON-ARCHIVE-FIREWALL-REACHED",
+            SourceNodeId = "SPN-NEON-ARCHIVE-INFILTRATION",
+            SignalCode = "constellation-firewall-reached",
+            TriggerDescription = "Playerが地下データ書庫の最深部にある『閉じた星座』ファイアウォールへ実際に到達したときだけ発火する。ゲートについて調べる、遠隔スキャンする、噂を聞くだけでは発火しない。",
+            TargetNodeId = "SPN-NEON-ARCHIVE-GATE-CHECK",
         },
     ];
 

@@ -37,6 +37,28 @@ public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProv
             return SessionInputAcceptanceResult.Success(replayInput, replayExecution, replay: true);
         }
 
+        if (session.HeadTurnId is not null)
+        {
+            var headModule = await db.SessionTurns.AsNoTracking()
+                .Where(turn => turn.Id == session.HeadTurnId && turn.Kind == "module")
+                .Select(turn => new
+                {
+                    ExecutionStatus = turn.ModuleExecution == null ? null : turn.ModuleExecution.Status,
+                    HasNarrativeHandoff = turn.NarrativeTurn != null,
+                })
+                .SingleOrDefaultAsync(cancellationToken);
+            if (headModule is { HasNarrativeHandoff: false })
+            {
+                var code = headModule.ExecutionStatus == Myriale.ModuleSdk.ModuleExecutionStatuses.Completed
+                    ? "module_handoff_pending"
+                    : "forced_mode_active";
+                var message = code == "module_handoff_pending"
+                    ? "確定したモジュール結果をNarrativeへ引き渡しています。"
+                    : "プログラムによる進行中は自由入力できません。";
+                return SessionInputAcceptanceResult.Error(409, code, message);
+            }
+        }
+
         if (session.Status != "active") return SessionInputAcceptanceResult.Error(409, "session_not_active", "Sessionは入力を受け付けていません。");
         var cutoff = DateTimeOffset.UtcNow.AddMinutes(-1);
         var recentInputCount = db.Database.IsNpgsql()

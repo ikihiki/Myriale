@@ -90,6 +90,8 @@ export function SessionPresentation({
   headingLinks,
   sessionStateLabel,
   activitySession,
+  activeModulePanel,
+  moduleHandoffPending = false,
   initialInput = '',
   initialInteractionType = 'dialogue',
   initialNotice = '',
@@ -220,8 +222,8 @@ export function SessionPresentation({
     if (result.ok) setSelectedTurnId(turnId);
   };
 
-  const sessionMode = program.mode;
-  const sessionModeFlavor = program.flavor;
+  const sessionMode = activeModulePanel || moduleHandoffPending ? 'roll' : program.mode;
+  const sessionModeFlavor = activeModulePanel || moduleHandoffPending ? 'program' : program.flavor;
   const battle = program.battle;
   const rollResult = program.rollResult;
   const fixedRoll = program.fixedRoll;
@@ -411,6 +413,14 @@ export function SessionPresentation({
               <p className="m-0 max-w-none">指定ターン以降のログ、挿絵生成などの非同期処理を無効化またはキャンセルします。</p>
             </MyrialeDialogContent>
           </MyrialeDialogRoot>
+        )}
+
+        {activeModulePanel}
+        {moduleHandoffPending && !activeModulePanel && (
+          <section className="mx-auto mb-4 w-full max-w-myr-reading rounded-2xl border border-myr-gold/35 bg-myr-paper px-5 py-4" role="status" data-testid="module-handoff-pending">
+            <strong>確定結果をNarrativeへ引き渡しています</strong>
+            <p className="m-0 mt-1 text-myr-ui-sm text-myr-ink-soft">ダイス結果とSession Effectは保存済みです。描写が追加されるまで自由入力は無効です。</p>
+          </section>
         )}
 
         <section className="mx-auto mt-4 mb-1 w-full max-w-myr-reading justify-self-stretch px-3 max-sm:px-0" aria-label="自然言語入力">

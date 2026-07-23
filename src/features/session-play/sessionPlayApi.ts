@@ -1,9 +1,10 @@
+import type { ModuleExecution } from '../../modules/api/moduleExecutionApi';
 export type NarrativeTurnApiResponse = {
   id: string;
   position: number;
   previousTurnId?: string | null;
   kind: string;
-  execution?: unknown | null;
+  execution?: ModuleExecution | null;
   narrative?: {
     schemaVersion?: string | null;
     turnType?: string | null;
@@ -101,6 +102,8 @@ export type SessionApiResponse = {
   headTurnId?: string | null;
   revision: number;
   interpretationEnabled: boolean;
+  state?: { revision: number; flags: Record<string, boolean> };
+  progression?: { currentNode: string; revision: number; transitionStatus?: string | null; moduleTurnId?: string | null; errorCode?: string | null } | null;
   turns: NarrativeTurnApiResponse[];
   pendingInputs: PendingPlayerInputApiResponse[];
   inputs?: SessionPlayerInputApiResponse[];
@@ -241,7 +244,8 @@ export async function saveSessionLorebookEntry(
 }
 
 export const hasActiveSessionExecutions = (session: SessionApiResponse) =>
-  Boolean(session.executions?.some((execution) => ['queued', 'running', 'retry-wait', 'cancel-requested'].includes(execution.status)));
+  Boolean(session.executions?.some((execution) => ['queued', 'running', 'retry-wait', 'cancel-requested'].includes(execution.status))
+    || session.turns.some((turn) => turn.id === session.headTurnId && turn.kind === 'module' && !turn.narrativeHandoff));
 
 export async function recommendNextAction(
   sessionId: string,
