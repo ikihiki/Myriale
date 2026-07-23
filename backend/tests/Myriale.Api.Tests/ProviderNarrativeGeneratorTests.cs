@@ -130,6 +130,28 @@ public sealed class ProviderNarrativeGeneratorTests
     }
 
     [Fact]
+    public async Task RepeatedNarrowQuestionUsesDistinctSafeFallbackAfterQualityRetries()
+    {
+        const string question = "この星座模様は何を示している？銀の鍵との関係だけ、分かる範囲で教えて。";
+        const string previous = "この星座模様は銀の鍵の刻印と対応しており、扉の仕組みに関係しているのでございます。分かる範囲では、それ以上の由来はまだ確定できません。";
+        var provider = new QueueProvider(
+            Response(JsonSerializer.Serialize(new { body = previous })),
+            Response(JsonSerializer.Serialize(new { body = previous }), responseId: "repeated-again"));
+        var request = CreateRequest() with
+        {
+            PlayerInput = question,
+            RecentTurns = [new NarrativeDialogueTurnInput(question, previous)],
+        };
+
+        var generation = await CreateGenerator(provider).GenerateDialogueAsync(request, CancellationToken.None);
+
+        Assert.Equal(2, provider.Requests.Count);
+        Assert.Equal("safe_fallback", generation.Metadata.FinishReason);
+        Assert.Contains("付け加えられる新しい情報はございません", generation.Value.Body, StringComparison.Ordinal);
+        Assert.NotEqual(previous, generation.Value.Body);
+    }
+
+    [Fact]
     public async Task InvalidStructuredOutputIsRegeneratedOnceAndMetadataIsAggregated()
     {
         var provider = new QueueProvider(

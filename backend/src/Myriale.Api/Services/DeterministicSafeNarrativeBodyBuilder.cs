@@ -28,6 +28,9 @@ public static class DeterministicSafeNarrativeBodyBuilder
 
     private static string BuildNpcReply(NarrativeDialogueRequest request)
     {
+        if (request.RecentTurns.Any(turn => string.Equals(turn.PlayerInput?.Trim(), request.PlayerInput.Trim(), StringComparison.Ordinal)))
+            return BuildRepeatedQuestionReply(request);
+
         var npc = FindNpcName(request);
         var grounded = new List<string>();
         if (request.PlayerInput.Contains("灯", StringComparison.Ordinal))
@@ -48,6 +51,23 @@ public static class DeterministicSafeNarrativeBodyBuilder
             ? string.Empty
             : "。探索者はその答えを受け、次に確かめる事柄を自分で選べる";
         return $"{speaker}、『{answer}。未確認の事柄を事実とは申し上げられません。分かる範囲でお伝えできるのは以上でございます』と丁寧に答える{closing}。";
+    }
+
+    private static string BuildRepeatedQuestionReply(NarrativeDialogueRequest request)
+    {
+        var npc = FindNpcName(request);
+        var speaker = npc is null ? "問いかけに対し" : $"{npc}は同じ問いに静かに頷き";
+        var subjects = string.Join("と", new[] { "星座模様", "星図灯", "銀の鍵", "魔法灯" }
+            .Where(request.PlayerInput.Contains)
+            .Distinct(StringComparer.Ordinal));
+        var subject = subjects.Length > 0 ? subjects : "その問い";
+        var continuity = string.Join("、", new[] { "信頼", "守", "慎重" }
+            .Where(concept => request.Memory.Summary?.Contains(concept, StringComparison.Ordinal) == true));
+        var continuityClause = continuity.Length > 0 ? $"これまでの{continuity}という関係を保ちながら、" : string.Empty;
+        var lampClause = request.PlayerInput.Contains("灯", StringComparison.Ordinal)
+            ? "青い灯についても、"
+            : string.Empty;
+        return $"{speaker}、『{continuityClause}{lampClause}{subject}について先ほどお伝えした範囲から、確定して付け加えられる新しい情報はございません。未確認の内容を言い換えて事実のように重ねることはできません』と丁寧に答える。";
     }
 
     private static string BuildObservation(NarrativeDialogueRequest request)

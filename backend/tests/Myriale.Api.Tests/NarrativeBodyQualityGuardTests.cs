@@ -119,6 +119,26 @@ public sealed class NarrativeBodyQualityGuardTests
         Assert.Contains("銀の鍵", body, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void SafeFallbackForRepeatedNarrowQuestionDoesNotReplayThePreviousAnswer()
+    {
+        const string question = "この星座模様は何を示している？銀の鍵との関係だけ、分かる範囲で教えて。";
+        const string previous = "この星座模様は銀の鍵の刻印と対応しており、扉の仕組みに関係しているのでございます。分かる範囲では、それ以上の由来はまだ確定できません。";
+        var request = Request(NarrativeInteractionTypes.Dialogue, question) with
+        {
+            RecentTurns = [new NarrativeDialogueTurnInput(question, previous)],
+        };
+
+        var body = DeterministicSafeNarrativeBodyBuilder.Build(request);
+        var assessment = _guard.Assess(request, body);
+
+        Assert.True(assessment.IsAcceptable, string.Join(',', assessment.Violations));
+        Assert.NotEqual(previous, body);
+        Assert.Contains("付け加えられる新しい情報はございません", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("次の行動", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("選択肢", body, StringComparison.Ordinal);
+    }
+
     private static EvaluationCase Case(string id, NarrativeDialogueRequest request, int minimum, IReadOnlyList<IReadOnlyList<string>> required, IReadOnlyList<IReadOnlyList<string>> forbidden) =>
         new(id, request, minimum, required, forbidden);
 
