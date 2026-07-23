@@ -10,37 +10,23 @@ public sealed class DatabaseInitializationTests : IDisposable
     private readonly string dbPath = Path.Combine(Path.GetTempPath(), $"myriale-database-initialization-{Guid.NewGuid():N}.db");
 
     [Fact]
-    public async Task RestartPreservesTheExistingDatabase()
+    public async Task StartupRecreatesTheDatabaseByDefault()
     {
-        using (var firstFactory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:MyrialeAccounts", $"Data Source={dbPath}")))
-        {
-            using var firstClient = firstFactory.CreateClient();
-            using var response = await firstClient.GetAsync("/api/scenarios/SCN-STAR-LIBRARY");
-            response.EnsureSuccessStatusCode();
-        }
+        await StartApiAsync(recreateOnStartup: true);
+        await SetScenarioSummaryAsync("restart-marker");
+        await StartApiAsync(recreateOnStartup: true);
 
-        await using (var connection = new SqliteConnection($"Data Source={dbPath}"))
-        {
-            await connection.OpenAsync();
-            await using var marker = connection.CreateCommand();
-            marker.CommandText = "UPDATE Scenarios SET Summary = 'restart-marker' WHERE Id = 'SCN-STAR-LIBRARY'";
-            Assert.Equal(1, await marker.ExecuteNonQueryAsync());
-        }
+        Assert.NotEqual("restart-marker", await GetScenarioSummaryAsync());
+    }
 
-        using (var restartedFactory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:MyrialeAccounts", $"Data Source={dbPath}")))
-        {
-            using var restartedClient = restartedFactory.CreateClient();
-            using var response = await restartedClient.GetAsync("/api/scenarios/SCN-STAR-LIBRARY");
-            response.EnsureSuccessStatusCode();
-        }
+    [Fact]
+    public async Task FuturePersistentLifecycleCanDisableStartupRecreation()
+    {
+        await StartApiAsync(recreateOnStartup: true);
+        await SetScenarioSummaryAsync("restart-marker");
+        await StartApiAsync(recreateOnStartup: false);
 
-        await using var currentConnection = new SqliteConnection($"Data Source={dbPath}");
-        await currentConnection.OpenAsync();
-        await using var currentSummary = currentConnection.CreateCommand();
-        currentSummary.CommandText = "SELECT Summary FROM Scenarios WHERE Id = 'SCN-STAR-LIBRARY'";
-        Assert.Equal("restart-marker", (string)(await currentSummary.ExecuteScalarAsync())!);
+        Assert.Equal("restart-marker", await GetScenarioSummaryAsync());
     }
 
     [Fact]
@@ -105,6 +91,38 @@ public sealed class DatabaseInitializationTests : IDisposable
             WHERE Id IN ('SPT-STAR-LIBRARY-DOOR-REACHED', 'SPT-NEON-ARCHIVE-FIREWALL-REACHED')
             """;
         Assert.Equal(1L, (long)(await sharedDigest.ExecuteScalarAsync())!);
+    }
+
+    private async Task StartApiAsync(bool recreateOnStartup)
+    {
+        using var factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder =>
+            {
+                builder.UseSetting("ConnectionStrings:MyrialeAccounts", $"Data Source={dbPath}");
+                builder.UseSetting("Database:RecreateOnStartup", recreateOnStartup.ToString());
+            });
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/api/scenarios/SCN-STAR-LIBRARY");
+        response.EnsureSuccessStatusCode();
+    }
+
+    private async Task SetScenarioSummaryAsync(string summary)
+    {
+        await using var connection = new SqliteConnection($"Data Source={dbPath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE Scenarios SET Summary = $summary WHERE Id = 'SCN-STAR-LIBRARY'";
+        command.Parameters.AddWithValue("$summary", summary);
+        Assert.Equal(1, await command.ExecuteNonQueryAsync());
+    }
+
+    private async Task<string> GetScenarioSummaryAsync()
+    {
+        await using var connection = new SqliteConnection($"Data Source={dbPath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT Summary FROM Scenarios WHERE Id = 'SCN-STAR-LIBRARY'";
+        return (string)(await command.ExecuteScalarAsync())!;
     }
 
     public void Dispose()

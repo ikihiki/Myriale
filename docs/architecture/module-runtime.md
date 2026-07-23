@@ -47,7 +47,7 @@ Initialization and dispatch request IDs are recorded as durable receipts. Receip
 
 A module-declared failed dispatch does not mutate the execution snapshot or revision. Its transient error and `uiEvents` are retained in the request receipt for replay. A failed initialization is terminal. Ordinary API responses expose view state and available actions but not private module state, configuration, context, or recorded randomness.
 
-Sessions currently reference the scenario identity rather than an immutable published scenario version. Application startup uses non-destructive database initialization, so execution receipts, recorded host randomness, module state, and progression receipts survive process restarts. Schema upgrades still require an explicit migration strategy.
+Sessions currently reference the scenario identity rather than an immutable published scenario version. The current default `Database:RecreateOnStartup=true` recreates the database at application startup, so persistence across server restarts is not claimed yet. The startup path can be switched to non-destructive `EnsureCreated` with `Database:RecreateOnStartup=false`; doing so in production will also require an explicit schema migration and backfill strategy.
 
 ## Deferred work
 
