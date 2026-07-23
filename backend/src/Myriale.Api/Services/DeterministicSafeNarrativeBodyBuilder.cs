@@ -32,6 +32,9 @@ public static class DeterministicSafeNarrativeBodyBuilder
         if (heldItem is not null && NarrativeBodyQualityGuard.IsPossessionQuestion(request.PlayerInput))
             return BuildPossessionReply(request, heldItem);
 
+        if (NarrativeBodyQualityGuard.RequestsConditionalMovement(request.PlayerInput))
+            return BuildConditionalMovementReply(request, heldItem);
+
         if (request.RecentTurns.Any(turn => string.Equals(turn.PlayerInput?.Trim(), request.PlayerInput.Trim(), StringComparison.Ordinal)))
             return BuildRepeatedQuestionReply(request);
 
@@ -62,6 +65,14 @@ public static class DeterministicSafeNarrativeBodyBuilder
             ? "未確認の事柄を事実とは申し上げられません。分かる範囲でお伝えできるのは以上でございます"
             : "確かめられていないことまでは断言できない。今わかるのはここまでだ";
         return $"{speaker}、『{answer}。{uncertainty}』と答える{closing}。";
+    }
+
+    private static string BuildConditionalMovementReply(NarrativeDialogueRequest request, string? heldItem)
+    {
+        var npc = FindNpcName(request);
+        var speaker = npc is null ? "同行を頼まれた人物は" : $"{npc}は";
+        var itemClause = heldItem is null ? string.Empty : $"探索者は{heldItem}を握ったまま、";
+        return $"{speaker}示された印を確かめたが、道案内を引き受けるとはまだ答えていない。『この印だけでは道順を断言できない。同行するかは、もう少し確かめてから答えたい』と伝える。{itemClause}二人はまだ歩き出さず、その返答を待っている。";
     }
 
     private static string BuildPossessionReply(NarrativeDialogueRequest request, string heldItem)

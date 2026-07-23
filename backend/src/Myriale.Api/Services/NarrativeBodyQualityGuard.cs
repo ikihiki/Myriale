@@ -145,14 +145,26 @@ public sealed partial class NarrativeBodyQualityGuard
             var shortName = candidate.Length > 2 ? candidate[^2..] : candidate;
             if (request.PlayerInput.Contains(shortName, StringComparison.Ordinal)) return candidate;
         }
+        foreach (var turn in request.RecentTurns)
+        {
+            if (turn.Narrative is null) continue;
+            foreach (Match match in DeclaredNpcNameRegex().Matches(turn.Narrative))
+            {
+                var candidate = match.Groups[1].Value;
+                if (request.PlayerInput.Contains(candidate, StringComparison.Ordinal)) return candidate;
+            }
+        }
         foreach (Match match in AddressedNameRegex().Matches(request.PlayerInput))
         {
             var candidate = match.Groups[1].Value;
             if (candidate.Length is < 2 or > 8) continue;
-            if (request.RecentTurns.Any(turn => turn.Narrative?.Contains(candidate, StringComparison.Ordinal) == true)) return candidate;
+            if (request.RecentTurns.Any(turn => IsEstablishedNpcName(turn.Narrative, candidate))) return candidate;
         }
         return null;
     }
+
+    private static bool IsEstablishedNpcName(string? narrative, string candidate) => narrative is not null
+        && ContainsAny(narrative, $"名前は{candidate}", $"{candidate}は", $"{candidate}が", $"『{candidate}", $"「{candidate}");
 
     internal static string? FindPlayerHeldItem(NarrativeDialogueRequest request)
     {
@@ -176,13 +188,16 @@ public sealed partial class NarrativeBodyQualityGuard
             && new[] { "彼", "彼女", "旅人", "司書" }.Any(subject => references.Any(reference => holderMarkers.Any(marker => AssignsSubjectItem(narrative, subject, reference, marker))));
     }
 
+    internal static bool RequestsConditionalMovement(string input) =>
+        ContainsAny(input, "了承するなら", "同意するなら", "承諾するなら", "応じるなら", "頷いたら", "うなずいたら", "同意してくれるなら")
+        && ContainsAny(input, "歩き出", "歩き始め", "向かう", "移動する", "出発する", "進み始め", "乗り込");
+
     private static bool AgreedConditionalMovementWasOmitted(string input, string narrative)
     {
-        var conditional = ContainsAny(input, "了承するなら", "同意するなら", "承諾するなら", "応じるなら", "頷いたら", "うなずいたら");
-        var requestsMovement = ContainsAny(input, "歩き出", "向かう", "移動する", "出発する", "進み始め", "乗り込");
+        var conditionalMovement = RequestsConditionalMovement(input);
         var agreement = ContainsAny(narrative, "了承", "同意", "承諾", "応じ", "頷", "うなず");
         var movement = ContainsAny(narrative, "歩き出", "向かった", "向かい始め", "移動した", "出発した", "進み始め", "乗り込");
-        return conditional && requestsMovement && agreement && !movement;
+        return conditionalMovement && agreement && !movement;
     }
 
     internal static bool IsPossessionQuestion(string input) => ContainsAny(input,
@@ -311,6 +326,9 @@ public sealed partial class NarrativeBodyQualityGuard
 
     [GeneratedRegex(@"(?:あなた|探索者|Player|プレイヤー|主人公)(?:は|が).{0,32}?([\p{L}]{1,16}(?:切符|鍵|手紙|本|剣|杖))を(?:握って|持って|携えて|保持して)いる", RegexOptions.CultureInvariant)]
     private static partial Regex PlayerHeldItemRegex();
+
+    [GeneratedRegex(@"名前は([\p{L}]{2,8}?)(?:です|だ|と|。|』|」)", RegexOptions.CultureInvariant)]
+    private static partial Regex DeclaredNpcNameRegex();
 
     [GeneratedRegex(@"([\p{L}]{2,8})(?:に|へ|、)", RegexOptions.CultureInvariant)]
     private static partial Regex AddressedNameRegex();

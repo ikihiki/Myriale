@@ -154,6 +154,29 @@ public sealed class NarrativeBodyQualityGuardTests
     }
 
     [Fact]
+    public void ConditionalMovementFallbackUsesEstablishedNpcNameInsteadOfActionPhrase()
+    {
+        var request = AshStationRequest("私は切符をリオに渡さず、自分の手に持ったまま印を見せる。『道案内をしてくれる？もし一緒に行くことに同意してくれるなら、北門へ向かって歩き始めよう』") with
+        {
+            RecentTurns =
+            [
+                new NarrativeDialogueTurnInput(
+                    "名前と行き先を尋ねる。",
+                    "リオは『私の名前はリオです』と答えた。選択肢として、リオと一緒に町を探しに行くことを提案できる。"),
+            ],
+        };
+
+        var body = DeterministicSafeNarrativeBodyBuilder.Build(request);
+        var assessment = _guard.Assess(request, body);
+
+        Assert.True(assessment.IsAcceptable, string.Join(',', assessment.Violations));
+        Assert.StartsWith("リオは", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("行くことは問い", body, StringComparison.Ordinal);
+        Assert.Contains("宛名のない切符を握ったまま", body, StringComparison.Ordinal);
+        Assert.Contains("まだ歩き出さず", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SafeFallbackForRepeatedNarrowQuestionDoesNotReplayThePreviousAnswer()
     {
         const string question = "この星座模様は何を示している？銀の鍵との関係だけ、分かる範囲で教えて。";
