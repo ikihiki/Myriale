@@ -2,13 +2,14 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, waitFor, within } from '@storybook/test';
 import { MyrialeApp } from '../app/MyrialeApp';
 import { createDemoDb } from '../app/demoData';
+import { MockScenarioListContainer } from './start-session-page/MockScenarioListContainer';
 import { MockStartSessionContainer } from './start-session-page/MockStartSessionContainer';
 import '../styles.css';
 
 const meta = {
   title: 'ユーザーストーリー/Start session',
   component: MyrialeApp,
-  render: () => <MyrialeApp initialUrl="/scenarios" initialDb={createDemoDb('activeSession')} startSessionContainer={MockStartSessionContainer} />,
+  render: () => <MyrialeApp initialUrl="/scenarios" initialDb={createDemoDb('activeSession')} scenarioListContainer={MockScenarioListContainer} startSessionContainer={MockStartSessionContainer} />,
   parameters: {
     notes: 'docs/user-stories/start-session.md の各ユーザーストーリーを、Storybook Interactions の step と expect で操作説明できるアプリ画面にしたものです。',
   },
@@ -106,7 +107,7 @@ export const USS03CreateHeroWithAiAssistance: Story = {
 
 export const USS03SelectHeroWithOptionalFreeGeneration: Story = {
   name: 'US-S03B: 選択式で許可された場合だけ自由生成へ切り替える',
-  render: () => <MyrialeApp initialUrl="/scenarios" initialDb={createDemoDb('activeSession')} startSessionContainer={MockStartSessionContainer} />,
+  render: () => <MyrialeApp initialUrl="/scenarios" initialDb={createDemoDb('activeSession')} scenarioListContainer={MockScenarioListContainer} startSessionContainer={MockStartSessionContainer} />,
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await startPreparing(canvas, '月虹の庭と眠らない時計');

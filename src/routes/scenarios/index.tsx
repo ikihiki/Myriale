@@ -1,4 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { ScenarioListPage } from '../../features/session-start/ScenarioListPage';
 
-export const Route = createFileRoute('/scenarios/')({ component: ScenarioListPage });
+export const Route = createFileRoute('/scenarios/')({ component: ScenarioListRoute });
+
+function ScenarioListRoute() {
+  const { scenarioListContainer: ScenarioListContainer } = Route.useRouteContext();
+  return <ScenarioListContainer />;
+}

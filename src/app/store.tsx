@@ -74,6 +74,7 @@ export type AppDb = {
 };
 
 export type AppAction =
+  | { type: 'SCENARIOS_LOADED'; scenarios: ScenarioRecord[] }
   | { type: 'SCENARIO_DRAFT_UPDATED'; scenarioId: string; patch: Partial<ScenarioRecord> }
   | { type: 'SCENARIO_SAVED'; scenario: ScenarioRecord }
   | { type: 'SESSION_STARTED'; session: PlaySessionRecord }
@@ -93,6 +94,11 @@ export type AppAction =
 
 export function appReducer(db: AppDb, action: AppAction): AppDb {
   switch (action.type) {
+    case 'SCENARIOS_LOADED':
+      return {
+        ...db,
+        scenarios: Object.fromEntries(action.scenarios.map((scenario) => [scenario.id, scenario])),
+      };
     case 'SCENARIO_DRAFT_UPDATED': {
       const current = db.scenarios[action.scenarioId];
       if (!current) return db;
@@ -304,7 +310,7 @@ export function createDemoDb(kind: DemoDbKind = 'activeSession', overrides: Part
         { id: 'USR-1088', name: '天城レン', email: 'ren@example.com', role: '管理者', state: 'active' },
       ],
     },
-    scenarios,
+    scenarios: kind === 'empty' ? {} : scenarios,
     playSessions,
     notes: {
       proposals: [

@@ -15,6 +15,10 @@ public static class ScenarioEndpoints
             .WithTags("Scenarios")
             .RequireCors("MyrialeFrontend");
 
+        group.MapGet("/", ListScenariosAsync)
+            .WithName("ListScenarios")
+            .WithSummary("Returns scenarios available for starting a new play session.");
+
         group.MapGet("/{scenarioId}", GetScenarioAsync)
             .WithName("GetScenario")
             .WithSummary("Returns a scenario used to prepare a new play session.");
@@ -29,6 +33,23 @@ public static class ScenarioEndpoints
             .WithSummary("Creates a draft scenario owned by the authenticated author.");
 
         return group;
+    }
+
+    private static async Task<Ok<IReadOnlyList<ScenarioDraftResponse>>> ListScenariosAsync(
+        ClaimsPrincipal principal,
+        ApplicationDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var authorId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        var scenarios = await db.Scenarios.AsNoTracking()
+            .Where(item => item.Status == "published" || authorId != null && item.AuthorId == authorId)
+            .ToListAsync(cancellationToken);
+        var responses = scenarios
+            .OrderByDescending(item => item.UpdatedAt)
+            .ThenBy(item => item.Title)
+            .Select(ToResponse)
+            .ToList();
+        return TypedResults.Ok<IReadOnlyList<ScenarioDraftResponse>>(responses);
     }
 
     private static async Task<Results<Ok<ScenarioDraftResponse>, NotFound>> GetScenarioAsync(

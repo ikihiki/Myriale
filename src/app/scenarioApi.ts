@@ -55,6 +55,7 @@ export type ScenarioHeroRecommendation = {
 };
 
 export type ScenarioApi = {
+  getScenarios: (signal?: AbortSignal) => Promise<ScenarioDraftDto[]>;
   getScenario: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioDraftDto>;
   recommendHero: (scenarioId: string, payload: RecommendScenarioHeroPayload) => Promise<ScenarioHeroRecommendation>;
   createScenario: (payload: CreateScenarioPayload) => Promise<ScenarioDraftDto>;
@@ -73,6 +74,15 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
   if (!baseUrl) return createDemoScenarioApi();
 
   return {
+    async getScenarios(signal) {
+      const response = await fetch(`${baseUrl}/`, {
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+        signal,
+      });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<ScenarioDraftDto[]>;
+    },
     async getScenario(scenarioId, signal) {
       const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}`, {
         credentials: 'include',
@@ -115,7 +125,28 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
   };
 }
 
+const awakeningLaboratoryScenario: ScenarioDraftDto = {
+  id: 'SCN-AWAKENING-LAB',
+  title: '目覚めの研究室',
+  summary: '# あなたの役割\nあなたはTRPGのゲームマスターです。\n# シナリオ\nプレイヤーは閉鎖された地下研究施設で目を覚まします。記憶を失っており、自身の正体も施設の目的も知りません。探索や会話を通して真実を知り、最終的に施設から脱出することが目的です。\n# 描写\n- 緊張感のある静かな雰囲気を維持する',
+  genre: 'SFミステリー脱出劇',
+  tone: '',
+  lore: '',
+  aiFreedom: '低: 厳密に守る',
+  heroMode: 'free',
+  heroFreeGenerationAllowed: false,
+  hero: '',
+  opening: 'あなたは閉鎖された地下研究施設で目を覚ます。記憶は失われ、自身の正体も施設の目的も分からない。',
+  illustrationStyle: '',
+  illustrationMood: '',
+  illustrationNegative: '',
+  sampleScene: '',
+  status: 'published',
+  updatedAt: '2026-07-23',
+};
+
 const demoScenarios: Record<string, ScenarioDraftDto> = {
+  [awakeningLaboratoryScenario.id]: awakeningLaboratoryScenario,
   'SCN-STAR-LIBRARY': {
     id: 'SCN-STAR-LIBRARY',
     title: '星喰いの地下図書館',
@@ -196,6 +227,9 @@ const demoScenarios: Record<string, ScenarioDraftDto> = {
 
 export function createDemoScenarioApi(): ScenarioApi {
   return {
+    async getScenarios() {
+      return [{ ...awakeningLaboratoryScenario }];
+    },
     async getScenario(scenarioId) {
       const scenario = demoScenarios[scenarioId];
       if (!scenario) throw demoError('シナリオが見つかりません。', 404);

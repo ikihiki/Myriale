@@ -18,6 +18,19 @@ public sealed class ScenarioEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task ListScenarios_ReturnsAvailableScenarios()
+    {
+        var client = _factory.CreateClient();
+
+        using var response = await client.GetAsync("/api/scenarios/");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var scenarios = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(JsonValueKind.Array, scenarios.ValueKind);
+        Assert.Contains(scenarios.EnumerateArray(), scenario => scenario.GetProperty("id").GetString() == "SCN-STAR-LIBRARY");
+    }
+
+    [Fact]
     public async Task GetScenario_ReturnsNotFoundForUnknownId()
     {
         var client = _factory.CreateClient();
