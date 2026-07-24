@@ -42,3 +42,16 @@ test('不完全なルールでも警告付きでDraft保存できる', async ({ 
   await expect(page.getByTestId('scenario-notice')).toContainText('Draftとして保存しました');
   await expect(page.getByTestId('scenario-notice')).toContainText('未設定項目が1件');
 });
+
+test('保存済みObject Typeを編集してシナリオ変更を保存できる', async ({ page }) => {
+  await page.goto('/iframe.html?id=ユーザーストーリー-edit-scenario--use-11-edit-rule-data-with-stable-codes&viewMode=story');
+  await expect(page.getByRole('main', { name: 'シナリオ編集ウィザード' })).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: '種類と状態へ' }).click();
+
+  await expect(page.getByRole('heading', { name: '保存済みObject Typeを編集' })).toBeVisible();
+  await page.getByLabel('種類の表示名').fill('封印書庫の扉');
+  await expect(page.getByLabel('種類のstable code')).toHaveValue('archive-door');
+  await page.getByRole('button', { name: '変更を保存' }).click();
+
+  await expect(page.getByTestId('scenario-notice')).toContainText('変更を保存しました');
+});

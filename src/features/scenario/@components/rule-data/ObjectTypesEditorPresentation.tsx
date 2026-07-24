@@ -10,6 +10,7 @@ import {
 } from './scenarioRuleDataModel';
 
 type Props = {
+  mode: 'create' | 'edit';
   value: ScenarioRuleData;
   onChange: (value: ScenarioRuleData) => void;
   onNotice: (message: string, danger?: boolean) => void;
@@ -18,7 +19,7 @@ type Props = {
 const cardClass = 'grid gap-3 rounded-2xl border border-[#17151f]/15 bg-white/55 p-4 shadow-[0_12px_30px_rgba(23,21,31,.07)]';
 const miniClass = 'grid gap-2 rounded-xl border border-[#17151f]/12 bg-[#fffef9]/85 p-3';
 
-export function ObjectTypesEditorPresentation({ value, onChange, onNotice }: Props) {
+export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice }: Props) {
   const [selectedCode, setSelectedCode] = useState(value.objectTypes[0]?.code ?? '');
   const selectedIndex = value.objectTypes.findIndex((item) => item.code === selectedCode);
   const selected = value.objectTypes[selectedIndex];
@@ -49,7 +50,10 @@ export function ObjectTypesEditorPresentation({ value, onChange, onNotice }: Pro
 
   return (
     <section aria-label="オブジェクト種類" className="grid gap-4">
-      <header><h2>Object Type ledger</h2><p>種類は状態の辞書と、AI・手動UIへ公開するアクションの境界を定義します。raw JSONではなく項目ごとに契約を組み立てます。</p></header>
+      <header>
+        <h2>{mode === 'edit' ? '保存済みObject Typeを編集' : 'Object Type ledger'}</h2>
+        <p>{mode === 'edit' ? '保存済みの状態・アクション契約を読み込んでいます。stable codeと参照関係を保ちながら変更し、画面下の「変更を保存」で基本情報と一緒に保存します。' : '種類は状態の辞書と、AI・手動UIへ公開するアクションの境界を定義します。raw JSONではなく項目ごとに契約を組み立てます。'}</p>
+      </header>
       <div className="grid grid-cols-[minmax(180px,0.34fr)_minmax(0,1fr)] gap-4 max-lg:grid-cols-1">
         <aside className={`${cardClass} content-start`} aria-label="オブジェクト種類一覧">
           <div className="flex items-center justify-between gap-2"><strong>種類</strong><Button size="sm" variant="secondary" onClick={addType}>種類を追加</Button></div>

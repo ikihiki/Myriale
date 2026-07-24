@@ -36,7 +36,10 @@ export const emptyScenarioFormValues: ScenarioFormValues = {
   ruleData: emptyScenarioRuleData,
 };
 
-export function scenarioDraftToFormValues(scenario: ScenarioDraftDto): ScenarioFormValues {
+export function scenarioDraftToFormValues(
+  scenario: ScenarioDraftDto,
+  ruleData = scenario.ruleData ?? emptyScenarioRuleData,
+): ScenarioFormValues {
   return {
     title: scenario.title,
     summary: scenario.summary,
@@ -50,7 +53,7 @@ export function scenarioDraftToFormValues(scenario: ScenarioDraftDto): ScenarioF
     illustrationMood: scenario.illustrationMood,
     illustrationNegative: scenario.illustrationNegative,
     sampleScene: scenario.sampleScene,
-    ruleData: scenario.ruleData ?? emptyScenarioRuleData,
+    ruleData,
   };
 }
 

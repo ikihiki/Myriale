@@ -99,10 +99,13 @@ export const USE11EditRuleDataWithStableCodes: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await goToStep(canvas, '種類と状態');
-    await step('保存済みObject Typeのstate/action interfaceを読み込む', async () => {
+    await step('保存済みObject Typeのstate/action interfaceを読み込んで表示名を編集する', async () => {
+      await expect(canvas.getByRole('heading', { name: '保存済みObject Typeを編集' })).toBeVisible();
       await expect(canvas.getByLabelText('種類のstable code')).toHaveValue('archive-door');
       await expect(canvas.getByLabelText('状態1のcode')).toHaveValue('open');
       await expect(canvas.getByLabelText('アクション1のcode')).toHaveValue('open');
+      await userEvent.clear(canvas.getByLabelText('種類の表示名'));
+      await userEvent.type(canvas.getByLabelText('種類の表示名'), '封印書庫の扉');
     });
     await goToStep(canvas, '場所と配置');
     await step('LocationとObject placementのstable codeを保って表示名だけ改稿する', async () => {

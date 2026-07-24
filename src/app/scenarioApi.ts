@@ -1,6 +1,73 @@
+import { canonicalRuleDataToForm, formRuleDataToCanonical } from './scenarioRuleDataAdapters';
+
 export type ScenarioStateValueType = 'boolean' | 'string' | 'number';
 export type ScenarioStateVisibility = 'public' | 'private';
 export type ScenarioActionVisibility = 'ai-choice' | 'manual-ui' | 'system-only';
+export type ScenarioJsonValue = string | number | boolean | null | ScenarioJsonValue[] | { [key: string]: ScenarioJsonValue };
+export type ScenarioJsonObject = { [key: string]: ScenarioJsonValue };
+
+export type CanonicalScenarioLocationDto = {
+  code: string;
+  name: string;
+  description: string | null;
+  authoringData: ScenarioJsonObject;
+};
+
+export type CanonicalScenarioActionDto = {
+  code: string;
+  label: string;
+  description: string | null;
+  argumentSchema: ScenarioJsonObject;
+  availabilityCondition: ScenarioJsonObject;
+  visibility: ScenarioActionVisibility;
+  executionMode: 'rule' | 'extension-module';
+};
+
+export type CanonicalScenarioObjectTypeDto = {
+  code: string;
+  name: string;
+  description: string | null;
+  schemaVersion: number;
+  stateSchema: ScenarioJsonObject;
+  defaultState: ScenarioJsonObject;
+  publicProjection: ScenarioJsonObject;
+  actions: CanonicalScenarioActionDto[];
+};
+
+export type CanonicalScenarioActionRuleDto = {
+  actionCode: string;
+  condition: ScenarioJsonObject;
+  priority: number;
+  authoringNote: string | null;
+  effects: ScenarioJsonValue[];
+  moduleBinding: { moduleId: string; version: string; digest: string; configuration: ScenarioJsonObject } | null;
+};
+
+export type CanonicalScenarioObjectDto = {
+  code: string;
+  name: string;
+  objectTypeCode: string;
+  locationCode: string;
+  initialStateOverride: ScenarioJsonObject;
+  isGlobal: boolean;
+  actionRules: CanonicalScenarioActionRuleDto[];
+};
+
+export type CanonicalScenarioRuleDataRequest = {
+  schemaVersion: number;
+  locations: CanonicalScenarioLocationDto[];
+  objectTypes: CanonicalScenarioObjectTypeDto[];
+  objects: CanonicalScenarioObjectDto[];
+};
+
+export type CanonicalScenarioRuleDataResponse = CanonicalScenarioRuleDataRequest & {
+  scenarioId: string;
+  definitionVersionId: string;
+  version: number;
+  status: string;
+  updatedAt: string;
+  publishedAt: string | null;
+};
 
 export type ScenarioStateFieldPayload = {
   code: string;
@@ -8,6 +75,7 @@ export type ScenarioStateFieldPayload = {
   valueType: ScenarioStateValueType;
   defaultValue: string;
   visibility: ScenarioStateVisibility;
+  _canonical?: ScenarioJsonObject;
 };
 
 export type ScenarioActionArgumentFieldPayload = {
@@ -15,6 +83,7 @@ export type ScenarioActionArgumentFieldPayload = {
   label: string;
   valueType: ScenarioStateValueType;
   required: boolean;
+  _canonical?: ScenarioJsonObject;
 };
 
 export type ScenarioObjectTypeActionPayload = {
@@ -25,6 +94,7 @@ export type ScenarioObjectTypeActionPayload = {
   availability: 'always' | 'state-equals';
   availabilityStateCode: string;
   argumentFields: ScenarioActionArgumentFieldPayload[];
+  _canonical?: CanonicalScenarioActionDto;
 };
 
 export type ScenarioObjectTypePayload = {
@@ -34,6 +104,7 @@ export type ScenarioObjectTypePayload = {
   schemaVersion: 1;
   stateFields: ScenarioStateFieldPayload[];
   actions: ScenarioObjectTypeActionPayload[];
+  _canonical?: CanonicalScenarioObjectTypeDto;
 };
 
 export type ScenarioLocationPayload = {
@@ -42,13 +113,15 @@ export type ScenarioLocationPayload = {
   description: string;
   atmosphere: string;
   danger: string;
+  _canonical?: CanonicalScenarioLocationDto;
 };
 
+type CanonicalEffectSource = { _canonical?: ScenarioJsonObject };
 export type ScenarioRuleEffectPayload =
-  | { kind: 'set-state'; targetObjectCode: string; stateCode: string; value: string }
-  | { kind: 'move-object'; targetObjectCode: string; locationCode: string }
-  | { kind: 'emit-fact'; text: string }
-  | { kind: 'add-narrative-hint'; text: string };
+  | ({ kind: 'set-state'; targetObjectCode: string; stateCode: string; value: string } & CanonicalEffectSource)
+  | ({ kind: 'move-object'; targetObjectCode: string; locationCode: string } & CanonicalEffectSource)
+  | ({ kind: 'emit-fact'; text: string } & CanonicalEffectSource)
+  | ({ kind: 'add-narrative-hint'; text: string } & CanonicalEffectSource);
 
 export type ScenarioObjectActionResultPayload = {
   code: string;
@@ -58,6 +131,7 @@ export type ScenarioObjectActionResultPayload = {
   priority: number;
   note: string;
   effects: ScenarioRuleEffectPayload[];
+  _canonical?: CanonicalScenarioActionRuleDto;
 };
 
 export type ScenarioObjectPayload = {
@@ -68,6 +142,7 @@ export type ScenarioObjectPayload = {
   global: boolean;
   initialStateOverrides: Array<{ stateCode: string; value: string }>;
   actionResults: ScenarioObjectActionResultPayload[];
+  _canonical?: CanonicalScenarioObjectDto;
 };
 
 export type ScenarioRuleDataPayload = {
@@ -95,21 +170,18 @@ export type CreateScenarioPayload = {
   ruleData?: ScenarioRuleDataPayload;
 };
 
-export type ScenarioDraftDto = Required<CreateScenarioPayload> & {
+export type ScenarioDraftDto = Required<Omit<CreateScenarioPayload, 'ruleData'>> & {
   id: string;
   status: 'draft' | string;
   updatedAt: string;
-};
-
-export type ScenarioRuleDataIssueDto = {
-  path: string;
-  severity: 'warning' | 'error';
-  message: string;
+  /** Standalone demo compatibility only; the production detail endpoint does not wrap rule data. */
+  ruleData?: ScenarioRuleDataPayload;
 };
 
 export type ScenarioRuleDataReadinessDto = {
-  readyToPublish: boolean;
-  issues: ScenarioRuleDataIssueDto[];
+  definitionVersionId: string;
+  ready: boolean;
+  errors: Record<string, string[]>;
 };
 
 export type ScenarioApiError = Error & {
@@ -150,7 +222,7 @@ export type ScenarioApi = {
   getScenario: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioDraftDto>;
   getScenarioRuleData: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioRuleDataPayload>;
   putScenarioRuleData: (scenarioId: string, payload: ScenarioRuleDataPayload) => Promise<ScenarioRuleDataPayload>;
-  validateScenarioRuleData: (scenarioId: string, payload: ScenarioRuleDataPayload) => Promise<ScenarioRuleDataReadinessDto>;
+  getScenarioRuleDataReadiness: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioRuleDataReadinessDto>;
   recommendHero: (scenarioId: string, payload: RecommendScenarioHeroPayload) => Promise<ScenarioHeroRecommendation>;
   createScenario: (payload: CreateScenarioPayload) => Promise<ScenarioDraftDto>;
   updateScenario: (scenarioId: string, payload: CreateScenarioPayload) => Promise<ScenarioDraftDto>;
@@ -194,24 +266,23 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
         signal,
       });
       if (!response.ok) throw await toApiError(response);
-      return response.json() as Promise<ScenarioRuleDataPayload>;
+      return canonicalRuleDataToForm(await response.json() as CanonicalScenarioRuleDataResponse);
     },
     async putScenarioRuleData(scenarioId, payload) {
       const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/rule-data`, {
         method: 'PUT',
         credentials: 'include',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(formRuleDataToCanonical(payload)),
       });
       if (!response.ok) throw await toApiError(response);
-      return response.json() as Promise<ScenarioRuleDataPayload>;
+      return canonicalRuleDataToForm(await response.json() as CanonicalScenarioRuleDataResponse);
     },
-    async validateScenarioRuleData(scenarioId, payload) {
-      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/rule-data/validate`, {
-        method: 'POST',
+    async getScenarioRuleDataReadiness(scenarioId, signal) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/rule-data/readiness`, {
         credentials: 'include',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        headers: { Accept: 'application/json' },
+        signal,
       });
       if (!response.ok) throw await toApiError(response);
       return response.json() as Promise<ScenarioRuleDataReadinessDto>;
@@ -231,7 +302,7 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
         method: 'POST',
         credentials: 'include',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(toScenarioTransport(payload)),
       });
       if (!response.ok) throw await toApiError(response);
       return response.json() as Promise<ScenarioDraftDto>;
@@ -241,7 +312,7 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
         method: 'PUT',
         credentials: 'include',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(toScenarioTransport(payload)),
       });
       if (!response.ok) throw await toApiError(response);
       return response.json() as Promise<ScenarioDraftDto>;
@@ -416,7 +487,7 @@ export function createDemoScenarioApi(): ScenarioApi {
     async getScenarioRuleData(scenarioId) {
       const scenario = demoScenarios[scenarioId];
       if (!scenario) throw demoError('シナリオが見つかりません。', 404);
-      return structuredClone(scenario.ruleData);
+      return structuredClone(scenario.ruleData ?? emptyScenarioRuleData());
     },
     async putScenarioRuleData(scenarioId, payload) {
       const scenario = demoScenarios[scenarioId];
@@ -424,9 +495,9 @@ export function createDemoScenarioApi(): ScenarioApi {
       scenario.ruleData = structuredClone(payload);
       return structuredClone(payload);
     },
-    async validateScenarioRuleData(scenarioId) {
+    async getScenarioRuleDataReadiness(scenarioId) {
       if (!demoScenarios[scenarioId]) throw demoError('シナリオが見つかりません。', 404);
-      return { readyToPublish: true, issues: [] };
+      return { definitionVersionId: `demo-${scenarioId}`, ready: true, errors: {} };
     },
     async recommendHero(scenarioId) {
       const scenario = demoScenarios[scenarioId];
@@ -506,6 +577,11 @@ async function toApiError(response: Response): Promise<ScenarioApiError> {
   error.status = response.status;
   error.errors = body?.errors;
   return error;
+}
+
+function toScenarioTransport(payload: CreateScenarioPayload) {
+  const { ruleData: _ruleData, ...basicFields } = payload;
+  return basicFields;
 }
 
 function toAssistTransport(payload: ScenarioAiAssistPayload) {

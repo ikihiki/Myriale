@@ -294,6 +294,7 @@ export function ScenarioForm({
           {activeStep === 'object-types' && (
             <div className={`${wizardPanelClass} [&_textarea]:min-h-20`}>
               <ObjectTypesEditorPresentation
+                mode={mode}
                 value={values.ruleData}
                 onChange={(ruleData) => update('ruleData', ruleData)}
                 onNotice={presentRuleNotice}
