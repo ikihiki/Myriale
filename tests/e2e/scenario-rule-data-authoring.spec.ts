@@ -7,7 +7,7 @@ const openStory = async (page: Page, id: string) => {
 
 test('Object Typeの状態とAI向けアクションを定義できる', async ({ page }) => {
   await openStory(page, 'ユーザーストーリー-scenario-registration--us-23-define-object-type-states-and-actions');
-  await page.getByRole('button', { name: '種類と状態へ' }).click();
+  await page.getByRole('button', { name: '世界データへ' }).click();
   await page.getByRole('button', { name: '種類を追加' }).click();
   await page.getByLabel('種類のstable code').fill('sealed-door');
   await page.getByLabel('種類の表示名').fill('隔壁扉');
@@ -46,11 +46,13 @@ test('不完全なルールでも警告付きでDraft保存できる', async ({ 
 test('保存済みObject Typeを編集してシナリオ変更を保存できる', async ({ page }) => {
   await page.goto('/iframe.html?id=ユーザーストーリー-edit-scenario--use-11-edit-rule-data-with-stable-codes&viewMode=story');
   await expect(page.getByRole('main', { name: 'シナリオ編集ウィザード' })).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('button', { name: '種類と状態へ' }).click();
+  await page.getByRole('button', { name: '世界データへ' }).click();
+  await page.getByRole('button', { name: '書庫の扉を編集', exact: true }).click();
 
-  await expect(page.getByRole('heading', { name: '保存済みObject Typeを編集' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: '書庫の扉' })).toBeVisible();
   await page.getByLabel('種類の表示名').fill('封印書庫の扉');
   await expect(page.getByLabel('種類のstable code')).toHaveValue('archive-door');
+  await page.getByRole('button', { name: '編集を完了' }).click();
   await page.getByRole('button', { name: '変更を保存' }).click();
 
   await expect(page.getByTestId('scenario-notice')).toContainText('変更を保存しました');

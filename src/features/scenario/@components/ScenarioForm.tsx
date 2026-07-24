@@ -29,7 +29,7 @@ import {
 } from './scenarioFormModel';
 
 type SuggestionKind = '基本情報' | '挿絵テイスト' | '挿絵プロンプト';
-type WizardStep = 'cover' | 'ai' | 'hero' | 'opening' | 'illustration' | 'object-types' | 'world' | 'results';
+type WizardStep = 'cover' | 'ai' | 'hero' | 'opening' | 'illustration' | 'world' | 'results';
 
 const wizardSteps: Array<{ id: WizardStep; label: string; help: string }> = [
   { id: 'cover', label: '表紙', help: 'タイトル、ジャンル、基本情報' },
@@ -37,8 +37,7 @@ const wizardSteps: Array<{ id: WizardStep; label: string; help: string }> = [
   { id: 'hero', label: '主人公', help: '初期キャラクター条件' },
   { id: 'opening', label: '第一場面', help: '最初のNarrativeの固定' },
   { id: 'illustration', label: '挿絵', help: '画風、NG、プレビュー' },
-  { id: 'object-types', label: '種類と状態', help: 'Object Typeの状態・アクション契約' },
-  { id: 'world', label: '場所と配置', help: 'LocationとObjectの初期配置' },
+  { id: 'world', label: '世界データ', help: '場所・オブジェクト・種類を一覧で管理' },
   { id: 'results', label: 'アクション結果', help: '決定的な条件・effect' },
 ];
 
@@ -154,8 +153,7 @@ export function ScenarioForm({
     if (step === 'hero') return values.heroMode === 'fixed' ? '固定' : values.heroMode === 'select' ? '選択式' : '自由生成';
     if (step === 'opening') return values.opening ? '固定' : 'AI生成';
     if (step === 'illustration') return values.illustrationStyle ? '入力済み' : '未入力';
-    if (step === 'object-types') return `${values.ruleData.objectTypes.length}種類`;
-    if (step === 'world') return `${values.ruleData.locations.length}場所 / ${values.ruleData.objects.length}個`;
+    if (step === 'world') return `${values.ruleData.objectTypes.length}種類 / ${values.ruleData.locations.length}場所 / ${values.ruleData.objects.length}個`;
     const issues = validateScenarioRuleData(values.ruleData);
     return issues.length === 0 ? '公開準備OK' : `${issues.length}要確認`;
   };
@@ -291,24 +289,26 @@ export function ScenarioForm({
             </section>
           )}
 
-          {activeStep === 'object-types' && (
-            <div className={`${wizardPanelClass} [&_textarea]:min-h-20`}>
-              <ObjectTypesEditorPresentation
-                mode={mode}
-                value={values.ruleData}
-                onChange={(ruleData) => update('ruleData', ruleData)}
-                onNotice={presentRuleNotice}
-              />
-            </div>
-          )}
-
           {activeStep === 'world' && (
             <div className={`${wizardPanelClass} [&_textarea]:min-h-20`}>
-              <LocationsObjectsEditorPresentation
-                value={values.ruleData}
-                onChange={(ruleData) => update('ruleData', ruleData)}
-                onNotice={presentRuleNotice}
-              />
+              <section className="mb-7 border-b border-[#17151f]/12 pb-5" aria-labelledby="world-data-heading">
+                <p className={wizardKickerClass}>World data ledger</p>
+                <h2 id="world-data-heading">場所・オブジェクト・種類</h2>
+                <p>3つのデータを同じページで見渡し、各行の左端にある「編集」から詳細ペインを開きます。</p>
+              </section>
+              <div className="grid gap-9">
+                <LocationsObjectsEditorPresentation
+                  value={values.ruleData}
+                  onChange={(ruleData) => update('ruleData', ruleData)}
+                  onNotice={presentRuleNotice}
+                />
+                <ObjectTypesEditorPresentation
+                  mode={mode}
+                  value={values.ruleData}
+                  onChange={(ruleData) => update('ruleData', ruleData)}
+                  onNotice={presentRuleNotice}
+                />
+              </div>
             </div>
           )}
 

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Button, Input, Textarea } from '../../../../components/ui';
+import { EditPane } from '../../../../shared/EditPane';
 import { MyrialeSelect } from '../../../../ui/MyrialeRadix';
 import {
   createObjectType,
@@ -16,17 +17,16 @@ type Props = {
   onNotice: (message: string, danger?: boolean) => void;
 };
 
-const cardClass = 'grid gap-3 rounded-2xl border border-[#17151f]/15 bg-white/55 p-4 shadow-[0_12px_30px_rgba(23,21,31,.07)]';
+const cardClass = 'grid gap-3 rounded-2xl border border-[#17151f]/15 bg-white/55 p-4';
 const miniClass = 'grid gap-2 rounded-xl border border-[#17151f]/12 bg-[#fffef9]/85 p-3';
+const tableClass = 'w-full min-w-[640px] border-collapse text-left text-sm';
+const cellClass = 'border-b border-[#17151f]/10 px-3 py-3 align-middle';
 
 export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice }: Props) {
-  const [selectedCode, setSelectedCode] = useState(value.objectTypes[0]?.code ?? '');
+  const [selectedCode, setSelectedCode] = useState('');
+  const [paneOpen, setPaneOpen] = useState(false);
   const selectedIndex = value.objectTypes.findIndex((item) => item.code === selectedCode);
   const selected = value.objectTypes[selectedIndex];
-
-  useEffect(() => {
-    if (!selected && value.objectTypes[0]) setSelectedCode(value.objectTypes[0].code);
-  }, [selected, value.objectTypes]);
 
   const replaceSelected = (next: typeof selected) => {
     if (!next || selectedIndex < 0) return;
@@ -34,33 +34,40 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
     objectTypes[selectedIndex] = next;
     onChange({ ...value, objectTypes });
   };
+  const openType = (code: string) => { setSelectedCode(code); setPaneOpen(true); };
   const addType = () => {
     const next = createObjectType();
     onChange({ ...value, objectTypes: [...value.objectTypes, next] });
-    setSelectedCode(next.code);
+    openType(next.code);
   };
   const removeType = () => {
     if (!selected) return;
     const blocked = dependencyMessageForType(value, selected.code);
     if (blocked) return onNotice(blocked, true);
     onChange({ ...value, objectTypes: value.objectTypes.filter((item) => item !== selected) });
+    setPaneOpen(false);
     setSelectedCode('');
     onNotice(`オブジェクト種類「${selected.name}」を削除しました。`);
   };
 
   return (
     <section aria-label="オブジェクト種類" className="grid gap-4">
-      <header>
-        <h2>{mode === 'edit' ? '保存済みObject Typeを編集' : 'Object Type ledger'}</h2>
-        <p>{mode === 'edit' ? '保存済みの状態・アクション契約を読み込んでいます。stable codeと参照関係を保ちながら変更し、画面下の「変更を保存」で基本情報と一緒に保存します。' : '種類は状態の辞書と、AI・手動UIへ公開するアクションの境界を定義します。raw JSONではなく項目ごとに契約を組み立てます。'}</p>
+      <header className="flex items-end justify-between gap-4 max-md:items-start">
+        <div><h2>オブジェクト種類</h2><p>{mode === 'edit' ? '保存済みの状態・アクション契約を一覧から選んで編集します。' : '状態の辞書と公開アクションの境界を定義します。'}</p></div>
+        <Button size="sm" variant="secondary" onClick={addType}>種類を追加</Button>
       </header>
-      <div className="grid grid-cols-[minmax(180px,0.34fr)_minmax(0,1fr)] gap-4 max-lg:grid-cols-1">
-        <aside className={`${cardClass} content-start`} aria-label="オブジェクト種類一覧">
-          <div className="flex items-center justify-between gap-2"><strong>種類</strong><Button size="sm" variant="secondary" onClick={addType}>種類を追加</Button></div>
-          {value.objectTypes.length === 0 && <p>まだ種類がありません。扉、鍵、進行など、状態を持つものから登録します。</p>}
-          {value.objectTypes.map((type) => <button key={type.code} type="button" aria-pressed={type.code === selectedCode} onClick={() => setSelectedCode(type.code)} className="grid cursor-pointer gap-0.5 rounded-xl border border-[#17151f]/12 bg-white/70 px-3 py-2 text-left aria-pressed:border-[#7c5cff] aria-pressed:bg-[#7c5cff]/10"><strong>{type.name}</strong><span className="font-mono text-[11px] text-[#687182]">{type.code}</span></button>)}
-        </aside>
-        {!selected ? <div className={cardClass}><p>「種類を追加」から状態とアクションの契約を作成します。</p></div> : (
+      <div className="overflow-x-auto rounded-2xl border border-[#17151f]/15 bg-white/55 shadow-[0_12px_30px_rgba(23,21,31,.07)]">
+        <table className={tableClass}>
+          <thead className="bg-[#17151f]/[.045] text-xs text-myr-slate-muted"><tr><th className={cellClass}>編集</th><th className={cellClass}>表示名</th><th className={cellClass}>stable code</th><th className={cellClass}>状態</th><th className={cellClass}>アクション</th></tr></thead>
+          <tbody>
+            {value.objectTypes.map((type) => <tr key={type.code} className="hover:bg-white/65"><td className={cellClass}><Button size="sm" variant="secondary" onClick={() => openType(type.code)} aria-label={`${type.name}を編集`}>編集</Button></td><td className={cellClass}><strong>{type.name}</strong><span className="mt-0.5 block text-xs text-myr-ink-subtle">{type.description || '説明なし'}</span></td><td className={`${cellClass} font-mono text-xs`}>{type.code}</td><td className={cellClass}>{type.stateFields.length}件</td><td className={cellClass}>{type.actions.length}件</td></tr>)}
+          </tbody>
+        </table>
+        {value.objectTypes.length === 0 && <p className="p-5 text-sm text-myr-ink-subtle">まだ種類がありません。「種類を追加」から登録します。</p>}
+      </div>
+
+      <EditPane open={paneOpen && Boolean(selected)} onOpenChange={setPaneOpen} eyebrow="オブジェクト種類" title={selected?.name ?? '種類を編集'} description="状態定義とアクション契約を編集します。変更はシナリオ全体の保存時に反映されます。" footer={<Button onClick={() => setPaneOpen(false)}>編集を完了</Button>}>
+        {selected && (
           <div className={cardClass}>
             <div className="grid grid-cols-2 gap-3 max-md:grid-cols-1">
               <label>stable code<Input aria-label="種類のstable code" value={selected.code} onChange={(event) => { const code = event.target.value; replaceSelected({ ...selected, code }); setSelectedCode(code); }} /></label>
@@ -90,7 +97,7 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
             <div className="flex justify-end"><Button size="sm" variant="text" onClick={removeType}>この種類を削除</Button></div>
           </div>
         )}
-      </div>
+      </EditPane>
     </section>
   );
 }
