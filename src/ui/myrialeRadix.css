@@ -82,6 +82,11 @@
   font-weight: 900;
 }
 
+.myr-ui-select-content {
+  /* Select portals render at document.body; keep them above all EditPane layers. */
+  z-index: 120;
+}
+
 .myr-ui-select-viewport {
   display: grid;
   gap: 4px;
