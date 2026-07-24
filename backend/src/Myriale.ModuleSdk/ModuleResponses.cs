@@ -53,7 +53,25 @@ public sealed record ModuleAvailableAction(
     string Label,
     bool Enabled,
     string? DisabledReason = null,
-    int RandomValueCount = 0);
+    int RandomValueCount = 0,
+    IReadOnlyList<ModuleActionArgumentDescriptor>? Arguments = null);
+
+public sealed record ModuleActionArgumentDescriptor(
+    string Name,
+    ModuleActionArgumentKind Kind,
+    bool Required,
+    string? Description = null,
+    decimal? Minimum = null,
+    decimal? Maximum = null,
+    IReadOnlyList<string>? AllowedValues = null);
+
+public enum ModuleActionArgumentKind
+{
+    String,
+    Integer,
+    Number,
+    Boolean
+}
 
 public sealed record ModuleEvent(
     string Type,
@@ -65,10 +83,15 @@ public sealed record ModuleOutcome(
     string Title,
     string Summary,
     IReadOnlyList<ModuleFact> PublicFacts,
-    IReadOnlyList<ModuleEffect> Effects,
     IReadOnlyList<ModuleEvent> EmittedEvents,
     IReadOnlyList<string> NarrativeHints,
-    IReadOnlyList<string> ForbiddenNarrativeFacts);
+    IReadOnlyList<string> ForbiddenNarrativeFacts)
+{
+    // Compatibility for the current host effect applicator while Object-action runtime integration is replaced.
+    // Baseline contract 1 never accepts module-authored host mutations.
+    [JsonIgnore]
+    public IReadOnlyList<ModuleEffect> Effects => [];
+}
 
 public sealed record ModuleFact(
     string Type,

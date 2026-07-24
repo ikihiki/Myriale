@@ -24,8 +24,8 @@ public sealed class ModuleContractSerializationTests
                 new ModuleUiEntry("resources/runtime.mjs", "myriale-turn-battle", ["resources/module.css"]),
                 null,
                 null),
-            ["read:session-state", ModuleCapabilities.EmitSessionEffects],
-            new ModuleLimits(65_536, 1_048_576, 65_536, 100));
+            [],
+            new ModuleLimits(65_536, 1_048_576, 65_536, 0));
 
         using var document = JsonDocument.Parse(JsonSerializer.Serialize(manifest, JsonOptions));
         var root = document.RootElement;
@@ -46,9 +46,14 @@ public sealed class ModuleContractSerializationTests
             "REQ-1",
             7,
             Json("""{"boss":{"maxHp":36}}"""),
-            Json("""{"sessionId":"SES-1","clues":["clock-frequency"]}"""),
+            new ModuleObjectActionContext(
+                "guardian",
+                "turn-battle",
+                "engage",
+                Json("""{"stance":"bold"}"""),
+                Json("""{"alert":true}""")),
             Json("""{"round":3,"bossHp":24}"""),
-            Json("""{"type":"future-action","targets":["boss"]}"""),
+            Json("""{"id":"attack"}"""),
             [4, 2]);
 
         var json = JsonSerializer.Serialize(request, JsonOptions);
@@ -58,8 +63,10 @@ public sealed class ModuleContractSerializationTests
         Assert.Equal("REQ-1", restored.RequestId);
         Assert.Equal(7, restored.ExpectedRevision);
         Assert.Equal(36, restored.Configuration.GetProperty("boss").GetProperty("maxHp").GetInt32());
-        Assert.Equal("clock-frequency", restored.Context.GetProperty("clues")[0].GetString());
-        Assert.Equal("future-action", restored.Action.GetProperty("type").GetString());
+        Assert.Equal("guardian", restored.Binding.ObjectId);
+        Assert.Equal("engage", restored.Binding.ActionId);
+        Assert.Equal("bold", restored.Binding.Arguments.GetProperty("stance").GetString());
+        Assert.Equal("attack", restored.Action.GetProperty("id").GetString());
         Assert.Equal([4u, 2u], restored.RandomValues);
     }
 
@@ -72,10 +79,6 @@ public sealed class ModuleContractSerializationTests
             "戦闘終了",
             "館主を退けた。",
             [new ModuleFact("battle-result", "主人公が勝利した")],
-            [
-                new ModuleEffect("set-parameter", Json("""{"targetId":"hero","parameterId":"hp","value":7}""")),
-                new ModuleEffect(ModuleEffectTypes.SetFlag, Json("""{"flagId":"boss-defeated","value":true}"""))
-            ],
             [new ModuleEvent("machine-collapse", Json("""{"sceneId":"collapse"}"""))],
             ["戦闘直後の静寂を描写する"],
             ["主人公を無傷として描写しない"]);
@@ -98,9 +101,8 @@ public sealed class ModuleContractSerializationTests
 
         Assert.NotNull(restored?.Outcome);
         Assert.Equal("victory", restored.Outcome.Code);
-        Assert.Equal("set-parameter", restored.Outcome.Effects[0].Type);
-        Assert.Equal("set-flag", restored.Outcome.Effects[1].Type);
-        Assert.Equal(7, restored.Outcome.Effects[0].Payload.GetProperty("value").GetInt32());
+        Assert.False(document.RootElement.GetProperty("outcome").TryGetProperty("effects", out _));
+        Assert.Empty(restored.Outcome.Effects);
     }
 
     [Fact]

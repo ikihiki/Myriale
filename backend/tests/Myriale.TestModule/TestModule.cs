@@ -18,8 +18,8 @@ public sealed class TestModule : IMyrialeModule
             new ModuleUiEntry("resources/runtime.mjs", "myriale-test-module", ["resources/module.css"]),
             null,
             null),
-        ["read:session-state"],
-        new ModuleLimits(65_536, 65_536, 16_384, 10));
+        [],
+        new ModuleLimits(65_536, 65_536, 16_384, 0));
 
     public ValueTask<ModuleValidationResult> ValidateConfigAsync(ModuleValidationRequest request, CancellationToken cancellationToken) =>
         ValueTask.FromResult(new ModuleValidationResult([]));
