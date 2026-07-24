@@ -13,6 +13,10 @@ public sealed class Session
     [Required, MaxLength(40)]
     public string ScenarioId { get; set; } = string.Empty;
 
+    public string? ScenarioDefinitionVersionId { get; set; }
+
+    public string? CurrentLocationId { get; set; }
+
     [MaxLength(120)]
     public string? CreationRequestId { get; set; }
 
@@ -33,6 +37,8 @@ public sealed class Session
     public DateTimeOffset UpdatedAt { get; set; }
 
     public Scenario Scenario { get; set; } = null!;
+    public ScenarioDefinitionVersion? ScenarioDefinitionVersion { get; set; }
+    public ScenarioLocation? CurrentLocation { get; set; }
     public SessionTurn? HeadTurn { get; set; }
     public SessionState State { get; set; } = null!;
     public SessionProgressState? Progress { get; set; }
@@ -40,6 +46,8 @@ public sealed class Session
     public ICollection<ModuleOutcomeApplication> OutcomeApplications { get; set; } = [];
     public ICollection<SessionPlayerInput> PlayerInputs { get; set; } = [];
     public ICollection<SessionExecution> Executions { get; set; } = [];
+    public ICollection<SessionObjectState> ObjectStates { get; set; } = [];
+    public ICollection<SessionRuleActionStep> RuleActionSteps { get; set; } = [];
     public ICollection<SessionNote> Notes { get; set; } = [];
     public ICollection<SessionSummary> Summaries { get; set; } = [];
     public ICollection<SessionNarrativeSignal> NarrativeSignals { get; set; } = [];

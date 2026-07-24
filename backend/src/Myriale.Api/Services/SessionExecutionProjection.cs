@@ -28,7 +28,7 @@ public static class SessionExecutionProjection
             execution.Id, execution.SessionId, execution.Kind, execution.TriggerType, execution.TriggerId, execution.Status,
             execution.Revision, execution.IsRetryable, execution.AttemptCount, execution.MaxAttempts, execution.NextAttemptAt,
             execution.ErrorCode, execution.UserErrorMessage, execution.CreatedAt, execution.StartedAt, execution.CompletedAt,
-            execution.CancelRequestedAt, execution.DismissedAt, capabilities, diagnostics);
+            execution.CancelRequestedAt, execution.DismissedAt, capabilities, diagnostics, execution.Stage, execution.SchemaVersion);
     }
 
     public static SessionPlayerInputResponse ToResponse(SessionPlayerInput input) => new(

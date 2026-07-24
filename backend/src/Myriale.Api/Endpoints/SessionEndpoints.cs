@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
@@ -100,6 +101,19 @@ public static class SessionEndpoints
             .SingleOrDefaultAsync(item => item.Id == request.ScenarioId, cancellationToken);
         if (scenario is null) return Results.NotFound();
 
+        var definition = await db.ScenarioDefinitionVersions.AsNoTracking()
+            .Include(version => version.Locations)
+            .Include(version => version.Objects).ThenInclude(item => item.ObjectType)
+            .Where(version => version.ScenarioId == request.ScenarioId && version.Status == "published")
+            .OrderByDescending(version => version.Version)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (definition is null)
+            return Results.Conflict(new SessionErrorResponse("published_scenario_definition_required", "公開済みのScenario rule definitionが必要です。"));
+        var initialLocation = definition.Locations.SingleOrDefault(location => location.Code == "start")
+            ?? (definition.Locations.Count == 1 ? definition.Locations.Single() : null);
+        if (initialLocation is null)
+            return Results.Conflict(new SessionErrorResponse("initial_location_required", "開始Location(code: start)を1つ指定してください。"));
+
         var selectedHero = string.IsNullOrWhiteSpace(request.SelectedHero)
             ? scenario.Hero
             : request.SelectedHero.Trim();
@@ -140,6 +154,8 @@ public static class SessionEndpoints
             Id = NewSessionId(),
             OwnerId = ownerId,
             ScenarioId = request.ScenarioId,
+            ScenarioDefinitionVersionId = definition.Id,
+            CurrentLocationId = initialLocation.Id,
             CreationRequestId = requestId,
             SelectedHero = selectedHero,
             Status = "active",
@@ -153,6 +169,17 @@ public static class SessionEndpoints
                 UpdatedAt = now,
             },
         };
+        foreach (var scenarioObject in definition.Objects)
+        {
+            var state = JsonNode.Parse(scenarioObject.ObjectType.DefaultStateJson) as JsonObject ?? [];
+            var overrides = JsonNode.Parse(scenarioObject.InitialStateOverrideJson) as JsonObject ?? [];
+            foreach (var property in overrides) state[property.Key] = property.Value?.DeepClone();
+            session.ObjectStates.Add(new SessionObjectState
+            {
+                Id = $"SOS-{Guid.NewGuid():N}".ToUpperInvariant(), ScenarioObjectId = scenarioObject.Id,
+                LocationId = scenarioObject.LocationId, StateJson = state.ToJsonString(), Revision = 0, UpdatedAt = now,
+            });
+        }
         if (initialNode is not null)
         {
             session.Progress = new SessionProgressState
@@ -261,6 +288,18 @@ public static class SessionEndpoints
         var artifacts = (await db.SessionArtifacts.AsNoTracking().Where(item => item.SessionId == sessionId && item.Status == "committed").ToListAsync(cancellationToken)).OrderBy(item => item.CreatedAt).ToList();
         var images = await db.SessionImages.AsNoTracking().Where(item => item.SessionId == sessionId).ToDictionaryAsync(item => item.ArtifactId, cancellationToken);
         var proposals = (await db.SessionNoteProposals.AsNoTracking().Where(item => item.SessionId == sessionId).ToListAsync(cancellationToken)).OrderBy(item => item.CreatedAt).ToList();
+        var objectStates = await db.SessionObjectStates.AsNoTracking()
+            .Include(item => item.ScenarioObject).ThenInclude(item => item.ObjectType)
+            .Where(item => item.SessionId == sessionId).OrderBy(item => item.ScenarioObject.Code).ToListAsync(cancellationToken);
+        var publicProjector = new ScenarioPublicProjector();
+        var objectStateResponses = objectStates.Select(item => new SessionObjectStateResponse(
+            item.ScenarioObjectId, item.ScenarioObject.Code, item.ScenarioObject.Name, item.LocationId, item.ScenarioObject.IsGlobal,
+            item.Revision, publicProjector.Project(item.ScenarioObject.ObjectType, item.StateJson))).ToList();
+        var ruleSteps = (await db.SessionRuleActionSteps.AsNoTracking().Where(item => item.SessionId == sessionId).ToListAsync(cancellationToken)).OrderBy(item => item.CreatedAt).ToList();
+        var ruleStepResponses = ruleSteps.Select(item => new SessionRuleActionStepResponse(
+            item.Id, item.ExecutionId, item.Stage, ScenarioTurnSchemas.ActionStep,
+            DeserializeOrNull<RuleActionSnapshot>(item.ActionSnapshotJson), DeserializeOrNull<RuleActionDecisionResult>(item.DecisionJson),
+            DeserializeOrNull<RulePostState>(item.PublicPostStateJson), item.AppliedAt, item.NarrativePublishedAt)).ToList();
         var inputResponses = inputs.Select(SessionExecutionProjection.ToResponse).ToList();
         var executionResponses = storedExecutions.Select(item => SessionExecutionProjection.ToResponse(item, environment.IsDevelopment())).ToList();
         var artifactResponses = artifacts.Select(item => new SessionArtifactResponse(
@@ -278,6 +317,10 @@ public static class SessionEndpoints
                 Artifacts = artifactResponses,
                 Activity = activity,
                 NoteProposals = proposalResponses,
+                ScenarioDefinitionVersionId = session.ScenarioDefinitionVersionId,
+                CurrentLocationId = session.CurrentLocationId,
+                ObjectStates = objectStateResponses,
+                RuleActionSteps = ruleStepResponses,
             });
         }
         catch (JsonException)
@@ -538,7 +581,9 @@ public static class SessionEndpoints
             turns,
             pendingInputs,
             session.CreatedAt,
-            session.UpdatedAt);
+            session.UpdatedAt,
+            ScenarioDefinitionVersionId: session.ScenarioDefinitionVersionId,
+            CurrentLocationId: session.CurrentLocationId);
     }
 
     private static SessionTurnResponse ToOpeningTurnResponse(SessionTurn turn) =>
@@ -632,6 +677,9 @@ public static class SessionEndpoints
             execution.UserErrorMessage,
             execution.CompletedAt ?? execution.NextAttemptAt ?? execution.CreatedAt);
     }
+
+    private static T? DeserializeOrNull<T>(string? json) where T : class =>
+        string.IsNullOrWhiteSpace(json) ? null : JsonSerializer.Deserialize<T>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web));
 
     private static string NewSessionId() => $"SES-{Guid.NewGuid():N}".ToUpperInvariant();
 }

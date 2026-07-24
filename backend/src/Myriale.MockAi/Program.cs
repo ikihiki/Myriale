@@ -31,6 +31,19 @@ app.MapPost("/mock-ai/action-recommendation", (MockActionRecommendationRequest r
     return Results.Ok(new MockActionRecommendationResult(suggestion));
 });
 
+app.MapPost("/mock-ai/rule-action-decision", (MockRuleActionDecisionRequest request) =>
+{
+    var enabled = request.Snapshot.Actions.FirstOrDefault(action => action.Enabled && action.ObjectId != "system")
+        ?? request.Snapshot.Actions.First(action => action.Enabled);
+    return Results.Ok(new { schemaVersion = "rule-action-decision.v1", enabled.ObjectId, enabled.ActionId, arguments = new { } });
+});
+
+app.MapPost("/mock-ai/post-state-narrative", (MockPostStateNarrativeRequest request) =>
+{
+    var facts = request.Facts.Count == 0 ? "確定した状態" : string.Join("、", request.Facts);
+    return Results.Ok(new { schemaVersion = "post-state-narrative.v1", heading = request.SelectedAction.Label, body = $"{request.SelectedObject.Name}への行動が完了した。{facts}を踏まえて物語は続く。" });
+});
+
 app.MapPost("/mock-ai/narrative-dialogue", (MockNarrativeDialogueRequest request) =>
 {
     const string schemaVersion = "narrative-dialogue.v8";
@@ -134,6 +147,12 @@ public sealed record MockActionRecommendationRequest(
     MockNarrativeSessionState SessionState);
 
 public sealed record MockActionRecommendationResult(string Suggestion);
+
+public sealed record MockRuleActionDecisionRequest(string SchemaVersion, string PlayerInput, MockRuleActionSnapshot Snapshot);
+public sealed record MockRuleActionSnapshot(string SchemaVersion, string SnapshotId, object CurrentLocation, IReadOnlyList<object> Objects, IReadOnlyList<MockRulePublicAction> Actions);
+public sealed record MockRulePublicAction(string ObjectId, string ActionId, string Code, string Label, string Description, JsonElement ArgumentSchema, bool Enabled);
+public sealed record MockPostStateNarrativeRequest(string SchemaVersion, string PlayerInput, MockRulePublicObject SelectedObject, MockRulePublicAction SelectedAction, object PostState, IReadOnlyList<string> Facts, IReadOnlyList<JsonElement> Events, IReadOnlyList<string> NarrativeHints, IReadOnlyList<string> ForbiddenNarrativeFacts);
+public sealed record MockRulePublicObject(string Id, string Code, string Name, string LocationId, bool IsGlobal, long Revision, JsonElement State);
 
 public sealed record MockNarrativeDialogueRequest(
     string SchemaVersion,

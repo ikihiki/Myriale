@@ -37,12 +37,19 @@ builder.Services.AddScoped<INarrativeGenerator>(services =>
     string.Equals(builder.Configuration["AiProvider:Provider"], "mock", StringComparison.OrdinalIgnoreCase)
         ? services.GetRequiredService<MockAiNarrativeGenerator>()
         : services.GetRequiredService<ProviderNarrativeGenerator>());
+builder.Services.AddScoped<IScenarioTurnAi>(services => services.GetRequiredService<INarrativeGenerator>() as IScenarioTurnAi ?? new UnsupportedScenarioTurnAi());
 builder.Services.AddScoped<IActionRecommendationGenerator>(services => (IActionRecommendationGenerator)services.GetRequiredService<INarrativeGenerator>());
 builder.Services.AddScoped<SessionScenarioProgressionService>();
 builder.Services.AddScoped<ScenarioDefinitionAuthoringService>();
+builder.Services.AddScoped<ScenarioRuleEvaluator>();
+builder.Services.AddScoped<ScenarioPublicProjector>();
+builder.Services.AddScoped<ScenarioActionEnumerator>();
+builder.Services.AddScoped<ScenarioEffectApplier>();
+builder.Services.AddScoped<IScenarioExtensionAdapter, UnsupportedScenarioExtensionAdapter>();
 builder.Services.AddScoped<SessionInputService>();
 builder.Services.AddScoped<ISessionExecutionQueue, SessionExecutionQueue>();
 builder.Services.AddScoped<SessionExecutionFinalizer>();
+builder.Services.AddScoped<ISessionExecutionHandler, ScenarioTurnExecutionHandler>();
 builder.Services.AddScoped<ISessionExecutionHandler, NarrativeExecutionHandler>();
 builder.Services.AddScoped<ISessionExecutionHandler, ModuleHandoffExecutionHandler>();
 builder.Services.AddHostedService<SessionExecutionWorker>();

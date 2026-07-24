@@ -26,6 +26,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<SessionProgressionTransitionReceipt> SessionProgressionTransitionReceipts => Set<SessionProgressionTransitionReceipt>();
     public DbSet<SessionPlayerInput> SessionPlayerInputs => Set<SessionPlayerInput>();
     public DbSet<SessionExecution> SessionExecutions => Set<SessionExecution>();
+    public DbSet<SessionObjectState> SessionObjectStates => Set<SessionObjectState>();
+    public DbSet<SessionRuleActionStep> SessionRuleActionSteps => Set<SessionRuleActionStep>();
     public DbSet<SessionExecutionAttempt> SessionExecutionAttempts => Set<SessionExecutionAttempt>();
     public DbSet<SessionArtifact> SessionArtifacts => Set<SessionArtifact>();
     public DbSet<SessionNote> SessionNotes => Set<SessionNote>();
@@ -119,6 +121,44 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .WithMany()
             .HasForeignKey(session => session.ScenarioId)
             .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Session>()
+            .HasOne(session => session.ScenarioDefinitionVersion)
+            .WithMany()
+            .HasForeignKey(session => session.ScenarioDefinitionVersionId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Session>()
+            .HasOne(session => session.CurrentLocation)
+            .WithMany()
+            .HasForeignKey(session => session.CurrentLocationId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<SessionObjectState>()
+            .Property(state => state.Revision)
+            .IsConcurrencyToken();
+        builder.Entity<SessionObjectState>()
+            .HasIndex(state => new { state.SessionId, state.ScenarioObjectId })
+            .IsUnique();
+        builder.Entity<SessionObjectState>()
+            .HasOne(state => state.Session).WithMany(session => session.ObjectStates)
+            .HasForeignKey(state => state.SessionId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionObjectState>()
+            .HasOne(state => state.ScenarioObject).WithMany()
+            .HasForeignKey(state => state.ScenarioObjectId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<SessionObjectState>()
+            .HasOne(state => state.Location).WithMany()
+            .HasForeignKey(state => state.LocationId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<SessionRuleActionStep>()
+            .HasIndex(step => step.ExecutionId).IsUnique();
+        builder.Entity<SessionRuleActionStep>()
+            .HasIndex(step => step.PlayerInputId).IsUnique();
+        builder.Entity<SessionRuleActionStep>()
+            .HasOne(step => step.Session).WithMany(session => session.RuleActionSteps)
+            .HasForeignKey(step => step.SessionId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionRuleActionStep>()
+            .HasOne(step => step.Execution).WithOne()
+            .HasForeignKey<SessionRuleActionStep>(step => step.ExecutionId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionRuleActionStep>()
+            .HasOne(step => step.PlayerInput).WithOne()
+            .HasForeignKey<SessionRuleActionStep>(step => step.PlayerInputId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<SessionState>()
             .Property(state => state.Revision)
             .IsConcurrencyToken();

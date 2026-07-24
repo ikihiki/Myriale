@@ -11,13 +11,36 @@ public sealed class ProviderNarrativeGenerator(
     IAiTextProvider provider,
     NarrativeProviderRequestBudgeter requestBudgeter,
     NarrativeBodyQualityGuard bodyQualityGuard,
-    ILogger<ProviderNarrativeGenerator> logger) : INarrativeGenerator, IActionRecommendationGenerator
+    ILogger<ProviderNarrativeGenerator> logger) : INarrativeGenerator, IActionRecommendationGenerator, IScenarioTurnAi
 {
     private static readonly JsonSerializerOptions Strict = new(JsonSerializerDefaults.Web) { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
     private const int DialogueStructuredOutputAttempts = 2;
     private const string DialogueSchema = "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"body\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":20000}},\"required\":[\"body\"]}";
     private const string BodySchema = "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"body\":{\"type\":\"string\"}},\"required\":[\"body\"]}";
     private const string RecommendationSchema = "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"suggestion\":{\"type\":\"string\"}},\"required\":[\"suggestion\"]}";
+
+    private const string ActionDecisionSchema = "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"schemaVersion\":{\"const\":\"rule-action-decision.v1\"},\"objectId\":{\"type\":\"string\"},\"actionId\":{\"type\":\"string\"},\"arguments\":{\"type\":\"object\"}},\"required\":[\"schemaVersion\",\"objectId\",\"actionId\",\"arguments\"]}";
+    private const string PostStateNarrativeSchema = "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"schemaVersion\":{\"const\":\"post-state-narrative.v1\"},\"heading\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120},\"body\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":20000}},\"required\":[\"schemaVersion\",\"heading\",\"body\"]}";
+
+    public async Task<NarrativeGeneration<RuleActionDecisionResult>> DecideActionAsync(RuleActionDecisionRequest request, CancellationToken cancellationToken)
+    {
+        var response = await provider.GenerateAsync(CreateRequest("rule_action_decision", ActionDecisionSchema,
+            "候補に含まれる enabled な objectId/actionId を1つ選び、arguments と共にJSONだけを返す。状態、効果、module identityは返さない。",
+            JsonSerializer.Serialize(request, Strict)), cancellationToken);
+        var result = Deserialize<RuleActionDecisionResult>(response, "rule_action_decision");
+        return new(result, response.Metadata, JsonSerializer.Serialize(request, Strict), response.Text);
+    }
+
+    public async Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeAsync(PostStateNarrativeRequest request, CancellationToken cancellationToken)
+    {
+        var response = await provider.GenerateAsync(CreateRequest("post_state_narrative", PostStateNarrativeSchema,
+            "確定済みの事後公開状態とfactsだけを正史として、状態を変更しないナラティブJSONを返す。forbidden factsは記述しない。",
+            JsonSerializer.Serialize(request, Strict)), cancellationToken);
+        var result = Deserialize<PostStateNarrativeResult>(response, "post_state_narrative");
+        if (string.IsNullOrWhiteSpace(result.Heading) || string.IsNullOrWhiteSpace(result.Body))
+            throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "AI Provider returned invalid post-state narrative.", false);
+        return new(result with { Heading = result.Heading.Trim(), Body = result.Body.Trim() }, response.Metadata, JsonSerializer.Serialize(request, Strict), response.Text);
+    }
 
     public async Task<NarrativeGeneration<NarrativeDialogueResult>> GenerateDialogueAsync(NarrativeDialogueRequest request, CancellationToken cancellationToken)
     {
