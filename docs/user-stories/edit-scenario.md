@@ -1,224 +1,113 @@
-# edit-scenario.md
-## シナリオ編集に関するユーザーストーリー
+# シナリオ編集に関するユーザーストーリー
 
-本ドキュメントは、既存の Scenario（シナリオ）を編集・改善・管理するための
-ユーザーストーリーを定義する。
+## 前提
 
-前提用語  
-- Scenario: ユーザーが作成したシナリオ（設定・雛形）  
-- Session: シナリオから開始される実プレイ単位  
-- Narrative: セッション中に生成される語り文章  
+Scenario の published definition version は immutable である。編集は所有者の新しい draft version に対して行い、Location、Object Type、Object placement、action result を登録時と同じ editor/validation で変更する。publish 後の変更は新規 Session にだけ反映され、既存 Session は開始時に pin した version を使い続ける。
 
 ---
 
-## US-E01: 既存のシナリオを編集したい
+## US-E01: published Scenario から新しい draft を作りたい
 
-As a シナリオ作者  
-I want 既存のシナリオを編集したい  
-So that 内容を改善したり調整できる  
+As a シナリオ作者
+I want 現在の published definition を基に編集 draft を作りたい
+So that 稼働中 Session を壊さず改善できる
 
-背景・意図  
-- 初回作成時に完璧なシナリオを作るのは難しい  
-- テストプレイやフィードバックを反映したい  
+期待される結果
 
-前提条件  
-- ユーザーがシナリオの所有者、または編集権限を持っている  
+- published version 自体は変更されない。
+- 新 draft は Location/Object Type/action/Object/result の stable ID/code を維持する。
+- revision と競合制御により、古い editor からの上書きを `409` 相当で拒否する。
+- title-only または incomplete draft も保存できる。
 
-ユーザー行動  
-1. 自分のシナリオ一覧を表示する  
-2. 編集したいシナリオを選択する  
-3. 「編集」を選択する  
+## US-E02: Location と Object placement を編集したい
 
-期待される結果  
-- シナリオ編集画面が表示される  
-- 現在のシナリオ内容が読み込まれる  
+As a シナリオ作者
+I want Location の説明や Object の初期配置を変更したい
+So that 新しい Session の世界構成を改善できる
 
-補足  
-- 公開・非公開に関わらず編集可能  
-- 編集は下書きとして保存される  
+期待される結果
 
----
+- Location の追加・更新と Object の一つの初期 placement を編集できる。
+- 参照中 Location の削除は依存 Object を remap/delete するまで拒否される。
+- existing Session の現在 Location/placement は変更されない。
 
-## US-E02: シナリオの基本情報を編集したい
+## US-E03: Object Type の state/action を編集したい
 
-As a シナリオ作者  
-I want タイトルや概要を編集したい  
-So that 内容に合った説明に更新できる  
+As a シナリオ作者
+I want state schema/default/public projection/action interface を更新したい
+So that Object の能力と公開情報を改善できる
 
-背景・意図  
-- 物語の方向性が途中で変わることがある  
+期待される結果
 
-ユーザー行動  
-- タイトルを変更する  
-- 概要（あらすじ）を編集する  
+- type/action の stable code を維持して編集できる。
+- initial override と全 result/effect path が新 schema に適合するか検証される。
+- private property が public projection に意図せず追加された場合は review で明示する。
+- 参照中 type/action の削除は依存 Object/result の解消まで拒否される。
 
-期待される結果  
-- 基本情報が Scenario に反映される  
+## US-E04: Object action result を編集したい
 
-補足  
-- 変更は即時反映または下書き保存を選べる  
+As a シナリオ作者
+I want condition、priority、effects、extension binding を変更したい
+So that state ごとの振る舞いを修正できる
 
----
+期待される結果
 
-## US-E03: ジャンル・雰囲気・世界観を編集したい
+- typed form で versioned condition/effect AST を編集する。
+- raw script や任意 JSON Patch は登録できない。
+- extension binding は exact ID/version/digest/configuration を選択する。
+- draft では incomplete warning を許可し、publish では missing/ambiguous result や invalid target を blocking error にする。
 
-As a シナリオ作者  
-I want 世界観やトーンを調整したい  
-So that AIの挙動を安定させたい  
+## US-E05: runtime と同じ rule preview を確認したい
 
-背景・意図  
-- 実際に動かしてみて初めてズレに気づくことが多い  
+As a シナリオ作者
+I want 編集中の state/action/result を実行前に確認したい
+So that 分岐漏れと公開情報漏えいを防げる
 
-ユーザー行動  
-- ジャンルやトーンを変更する  
-- Lore（世界観設定）を修正する  
+期待される結果
 
-期待される結果  
-- 更新された設定が以降のセッションに使用される  
+- current Location、public Object state、enumerated actions を表示する。
+- `from state -> action -> selected result -> effects -> post-state` を表示する。
+- private state、hidden branches、module config が player/AI projection に出ないことを確認できる。
+- preview は draft data を使い、本番 Session を変更しない。
 
-非機能・制約  
-- 既存セッションには影響しない  
+## US-E06: nested validation error を修正したい
 
----
+As a シナリオ作者
+I want エラーが該当 row/field に表示されてほしい
+So that 大きな Scenario でも原因を特定できる
 
-## US-E04: AI関連設定を編集したい
+期待される結果
 
-As a シナリオ作者  
-I want AIの振る舞いを調整したい  
-So that 物語生成の品質を向上させたい  
+- API error path を `objectTypes[0].actions[1].code` や `objects[2].actionResults[0].effects[1]` のように UI field へ割り当てる。
+- draft-save error と publish-blocking readiness error を区別する。
+- 重複 stable code、broken reference、schema mismatch、invalid effect target を具体的に表示する。
 
-背景・意図  
-- AIの自由度や語り口は調整が必要  
+## US-E07: 新しい definition version を公開したい
 
-ユーザー行動  
-- AI裁量レベルを変更する  
-- Narrative生成方針を修正する  
+As a シナリオ作者
+I want readiness を満たした draft を publish したい
+So that 新規プレイヤーに確定した rule set を提供できる
 
-期待される結果  
-- 新しい設定が Scenario に保存される  
+期待される結果
 
-補足  
-- セッション開始前の設定として扱われる  
+- 全 enabled Object/state/action に決定的な result があることを検証する。
+- public projection、condition/effect AST、placement、extension identity/configuration を検証する。
+- 成功時は immutable published version を作成する。
+- 新規 Session は最新版を pin し、既存 Session は旧版を維持する。
 
----
+## US-E08: version と baseline の違いを理解したい
 
-## US-E05: 挿絵設定を編集したい
+As a 運用者
+I want contract baseline と Scenario revision/dependency version を区別したい
+So that 不適切な reset や暗黙 migration を避けられる
 
-As a シナリオ作者  
-I want 挿絵のテイストや雰囲気を変更したい  
-So that 視覚表現を改善できる  
+期待される結果
 
-背景・意図  
-- 挿絵は後から調整したくなることが多い  
-
-ユーザー行動  
-- 画風、ムード、NG要素を編集する  
-
-期待される結果  
-- IllustrationConfig が更新される  
-
-補足  
-- プレビューを使って確認可能  
-
----
-
-## US-E06: 編集内容をAIにチェックしてもらいたい
-
-As a シナリオ作者  
-I want 編集した内容をAIにレビューしてほしい  
-So that 矛盾や不備を事前に発見できる  
-
-背景・意図  
-- 設定変更が新たな矛盾を生むことがある  
-
-ユーザー行動  
-- 「AIにチェック」を選択する  
-
-期待される結果  
-- 矛盾点や改善案が提示される  
-- 自動確定は行われない  
-
----
-
-## US-E07: 編集内容をプレビューしたい
-
-As a シナリオ作者  
-I want 編集後のシナリオを試したい  
-So that 本番前に品質を確認できる  
-
-背景・意図  
-- 実際に動かさないと分からない問題がある  
-
-ユーザー行動  
-- プレビューまたはテストプレイを実行する  
-
-期待される結果  
-- 仮のセッションでイントロや序盤が生成される  
-- 本番セッションには影響しない  
-
----
-
-## US-E08: 編集内容を保存したい
-
-As a シナリオ作者  
-I want 編集内容を保存したい  
-So that 後で使えるようにしたい  
-
-ユーザー行動  
-- 「保存」を選択する  
-
-期待される結果  
-- 編集内容が Scenario に反映される  
-
-補足  
-- 下書き保存と確定保存を分けてもよい  
-
----
-
-## US-E09: 編集内容を公開・反映したい
-
-As a シナリオ作者  
-I want 編集内容を公開したい  
-So that 他のプレイヤーが最新版を使える  
-
-背景・意図  
-- 編集途中の内容を誤って使われたくない  
-
-ユーザー行動  
-- 公開状態を変更する  
-
-期待される結果  
-- 新しく開始されるセッションには最新版が使われる  
-- 既存セッションは影響を受けない  
-
----
-
-## US-E10: シナリオの編集履歴を管理したい
-
-As a シナリオ作者  
-I want 過去の編集履歴を確認したい  
-So that 変更内容を追跡できる  
-
-背景・意図  
-- 試行錯誤の過程を残したい  
-
-期待される結果  
-- 編集日時・変更概要が一覧表示される  
-
-補足  
-- 将来的にロールバック対応可能  
-
----
+- 新 Object-rule contract/schema/artifact は `1` / `.v1` から開始する。
+- 旧 wire/data shape、旧 package、旧 active execution の compatibility adapter は提供しない。
+- revision、sequence、SHA-256、dependency/toolchain/application version は reset しない。
+- rebuilt extension package は新しい `1.0.0` と新 digest を持つ。
 
 ## 総括
 
-- シナリオ編集は  
-  「改善 → 確認 → 公開」  
-  のサイクルを前提とする  
-- Session とは明確に分離し、  
-  **既存プレイを壊さない** 設計とする  
-- AIは  
-  - 補助  
-  - チェック  
-  - プレビュー  
-  に限定し、決定権は常にユーザーにある
+編集は `draft -> readiness preview -> publish` の cycle で行う。登録と編集は同じ stable ID、typed editor、validation、privacy boundary を共有し、published definition と既存 Session の再現性を守る。
