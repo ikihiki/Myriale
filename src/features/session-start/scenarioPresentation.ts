@@ -1,11 +1,12 @@
 import type { ScenarioDraftDto } from '../../app/scenarioApi';
 import type { ScenarioRecord } from '../../app/store';
+import { parseScenarioTags } from '../../app/scenarioTags';
 
 export type ScenarioSummary = {
   id: string;
   title: string;
   status: '公開中' | '自分用';
-  genre: string;
+  genreTags: string[];
   basicInformation: string;
   heroMode: 'fixed' | 'select' | 'free';
   heroFreeGenerationAllowed: boolean;
@@ -30,7 +31,7 @@ export function toScenarioSummary(scenario: ScenarioSource): ScenarioSummary {
     id: scenario.id,
     title: scenario.title,
     status: scenario.status === 'published' ? '公開中' : '自分用',
-    genre: scenario.genre,
+    genreTags: parseScenarioTags(scenario.genre),
     basicInformation: toPlainText(scenario.summary) || '基本情報はまだ登録されていません。',
     heroMode: scenario.heroMode === 'fixed' || scenario.heroMode === 'select' ? scenario.heroMode : 'free',
     heroFreeGenerationAllowed: scenario.heroMode === 'select' && (scenario.heroFreeGenerationAllowed ?? false),

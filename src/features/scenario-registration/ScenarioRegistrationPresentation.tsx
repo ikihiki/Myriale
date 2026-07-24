@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ScenarioAiAssistResponse, ScenarioAiKind } from '../../app/scenarioApi';
+import { parseScenarioTags, serializeScenarioTags } from '../../app/scenarioTags';
 import { Badge, Button, Input, Label, MarkdownEditor, Notice, SummaryCard, SummaryInset, Textarea } from '../../components/ui';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { WizardNavigation } from '../../shared/WizardNavigation';
@@ -59,6 +60,7 @@ export function ScenarioRegistrationPresentation({
 }: Props) {
   const [activeStep, setActiveStep] = useState<WizardStep>('cover');
   const [values, setValues] = useState<ScenarioRegistrationValues>(initialScenarioRegistrationValues);
+  const [genreTagDraft, setGenreTagDraft] = useState('');
   const [notice, setNotice] = useState('タイトルだけで下書き保存できます。');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]> | undefined>();
   const [aiTarget, setAiTarget] = useState('文章AI');
@@ -70,6 +72,17 @@ export function ScenarioRegistrationPresentation({
   const currentStep = wizardSteps[currentIndex];
   const update = <K extends keyof ScenarioRegistrationValues>(key: K, value: ScenarioRegistrationValues[K]) => {
     setValues((current) => ({ ...current, [key]: value }));
+  };
+
+  const genreTags = parseScenarioTags(values.genre);
+  const addGenreTags = () => {
+    const additions = parseScenarioTags(genreTagDraft);
+    if (additions.length === 0) return;
+    update('genre', serializeScenarioTags([...genreTags, ...additions]));
+    setGenreTagDraft('');
+  };
+  const removeGenreTag = (tag: string) => {
+    update('genre', serializeScenarioTags(genreTags.filter((current) => current !== tag)));
   };
 
   const saveDraft = async () => {
@@ -159,20 +172,42 @@ export function ScenarioRegistrationPresentation({
             <section className={wizardPanelClass} aria-label="表紙">
               <p><strong>{currentStep.help}。</strong>タイトルだけでDraftを作れます。世界観や雰囲気は基本情報へまとめて記述します。</p>
               <label>シナリオタイトル *<Input aria-label="シナリオタイトル" aria-invalid={firstScenarioFieldError(fieldErrors, 'title') ? true : undefined} value={values.title} onChange={(event) => update('title', event.target.value)} placeholder="星喰いの地下図書館" /></label>
-              <label className="!mt-1.5 !flex !flex-wrap !items-center !gap-2">
-                <span className="sr-only">ジャンルタグ</span>
-                <Badge tone="info" className="!gap-1.5 !px-3 !py-1.5">
-                  <span aria-hidden="true">#</span>
+              <div className="my-3 grid gap-2" aria-labelledby="genre-tags-label">
+                <span id="genre-tags-label" className="text-xs font-black tracking-[0.02em] text-[#4f5767]">ジャンルタグ</span>
+                {genreTags.length > 0 && (
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="登録済みジャンルタグ">
+                    {genreTags.map((tag) => (
+                      <Badge key={tag} tone="info" className="!gap-1.5 !px-3 !py-1.5">
+                        <span># {tag}</span>
+                        <button
+                          type="button"
+                          aria-label={`${tag}タグを削除`}
+                          className="grid size-4 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 text-current hover:bg-myr-iris/15 focus-visible:outline-2 focus-visible:outline-myr-iris"
+                          onClick={() => removeGenreTag(tag)}
+                        >
+                          ×
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
                   <Input
-                    aria-label="ジャンルタグ"
-                    value={values.genre}
-                    onChange={(event) => update('genre', event.target.value)}
+                    aria-label="ジャンルタグを追加"
+                    value={genreTagDraft}
+                    onChange={(event) => setGenreTagDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' && event.key !== ',' && event.key !== '、') return;
+                      event.preventDefault();
+                      addGenreTags();
+                    }}
                     placeholder="幻想ミステリ"
-                    className="!h-auto !min-w-36 !border-0 !bg-transparent !p-0 !text-xs !font-bold !text-current !shadow-none placeholder:!text-current/55 focus-visible:!outline-none"
+                    className="!min-w-48 !flex-1"
                   />
-                </Badge>
-                <span className="text-myr-caption font-medium text-[#687182]">タイトルを分類する短いタグ</span>
-              </label>
+                  <Button type="button" variant="secondary" size="sm" onClick={addGenreTags}>タグを追加</Button>
+                </div>
+                <span className="text-myr-caption font-medium text-[#687182]">Enter、読点、または追加ボタンで複数登録できます。</span>
+              </div>
               <MarkdownEditor
                 label="基本情報"
                 value={values.summary}
@@ -245,7 +280,7 @@ export function ScenarioRegistrationPresentation({
             { value: '挿絵AI', label: '挿絵AI' },
             { value: 'ルール確認AI', label: 'ルール確認AI' },
           ]} />
-          <SummaryCard as="article"><h3>表紙</h3><p>{values.title || 'タイトル未入力'}</p><p>{values.genre ? `# ${values.genre}` : 'ジャンルタグ未入力'}</p><p>{values.summary ? `基本情報: Markdown ${values.summary.length}文字` : '基本情報は空でも保存できます'}</p></SummaryCard>
+          <SummaryCard as="article"><h3>表紙</h3><p>{values.title || 'タイトル未入力'}</p><p>{genreTags.length > 0 ? genreTags.map((tag) => `# ${tag}`).join(' ') : 'ジャンルタグ未入力'}</p><p>{values.summary ? `基本情報: Markdown ${values.summary.length}文字` : '基本情報は空でも保存できます'}</p></SummaryCard>
           <SummaryCard as="article"><h3>AIが読む契約</h3><p>基本情報に世界観・雰囲気を記述</p><p>AI裁量: {values.aiFreedom}</p></SummaryCard>
           <SummaryCard as="article"><h3>主人公と第一場面</h3><p>{values.hero}</p><p>{values.opening}</p></SummaryCard>
           <SummaryCard as="article"><h3>挿絵</h3><p>{values.illustrationStyle}</p><p>NG: {values.illustrationNegative}</p></SummaryCard>

@@ -79,7 +79,9 @@ export function ScenarioListPresentation({
                     <Label as="h2" textRole="section" className="my-2 !text-[clamp(1.5rem,2vw,2.125rem)]">
                       {scenario.title}
                     </Label>
-                    <Badge tone="info" className="mb-3"># {scenario.genre}</Badge>
+                    <div className="mb-3 flex flex-wrap gap-1.5" aria-label="ジャンルタグ">
+                      {scenario.genreTags.map((tag) => <Badge key={tag} tone="info"># {tag}</Badge>)}
+                    </div>
                     <Label as="p" textRole="bodySm" className="mb-5 line-clamp-5 flex-1">{scenario.basicInformation}</Label>
                     <div className="flex flex-wrap gap-2">
                       <Button variant="secondary" onClick={() => onEdit(scenario.id)}>

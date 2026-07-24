@@ -99,9 +99,18 @@ export const US02SpecifyGenreTag: Story = {
   name: 'US-02: シナリオのジャンルをタグで指定したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await step('タイトル直下のジャンルタグを入力し、表紙サマリーへ反映する', async () => {
-      await userEvent.type(canvas.getByLabelText('ジャンルタグ'), 'ポストアポカリプス巡礼譚');
-      await expect(canvas.getByRole('complementary', { name: '入力サマリー' })).toHaveTextContent('# ポストアポカリプス巡礼譚');
+    await step('タイトル直下へ複数のジャンルタグを追加し、表紙サマリーへ反映する', async () => {
+      const input = canvas.getByLabelText('ジャンルタグを追加');
+      await userEvent.type(input, 'ポストアポカリプス{Enter}');
+      await userEvent.type(input, '巡礼譚');
+      await userEvent.click(canvas.getByRole('button', { name: 'タグを追加' }));
+      await expect(canvas.getByRole('group', { name: '登録済みジャンルタグ' })).toHaveTextContent('# ポストアポカリプス');
+      await expect(canvas.getByRole('group', { name: '登録済みジャンルタグ' })).toHaveTextContent('# 巡礼譚');
+      await expect(canvas.getByRole('complementary', { name: '入力サマリー' })).toHaveTextContent('# ポストアポカリプス # 巡礼譚');
+    });
+    await step('不要なタグを個別に削除できる', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: '巡礼譚タグを削除' }));
+      await expect(canvas.getByRole('group', { name: '登録済みジャンルタグ' })).not.toHaveTextContent('# 巡礼譚');
     });
   },
 };
