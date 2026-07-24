@@ -67,6 +67,40 @@ export const SignedIn: Story = {
   },
 };
 
+export const MobileNavigation: Story = {
+  name: 'スマホ — ハンバーガーから縦メニュー',
+  parameters: {
+    viewport: { defaultViewport: 'mobile1' },
+  },
+  args: {
+    section: 'library',
+    breadcrumbs: [
+      { label: 'Myriale', to: 'scenarioRegister' },
+      { label: 'ライブラリ', to: 'scenarioRegister' },
+      { label: 'シナリオを登録' },
+    ],
+    account: { name: '霧野しおり', email: 'author@myriale.example', initials: '霧野', role: '作者' },
+    children: demoScreen,
+  },
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await step('狭い画面では主要ナビをハンバーガーに格納する', async () => {
+      await expect(canvas.getByRole('navigation', { name: '主要セクション' })).not.toBeVisible();
+      const trigger = canvas.getByRole('button', { name: 'メニューを開く' });
+      await expect(trigger).toBeVisible();
+      await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+      await userEvent.click(trigger);
+    });
+    await step('セクションとアカウント操作を縦方向に表示する', async () => {
+      const mobileMenu = canvas.getByRole('navigation', { name: 'モバイルメニュー' });
+      await expect(mobileMenu).toBeVisible();
+      await expect(within(mobileMenu).getByRole('button', { name: /^ライブラリ/ })).toHaveAttribute('aria-current', 'page');
+      await expect(within(mobileMenu).getByRole('button', { name: /シナリオ登録/ })).toBeVisible();
+      await expect(within(mobileMenu).getByRole('button', { name: 'プロフィール' })).toBeVisible();
+    });
+  },
+};
+
 export const SignedOut: Story = {
   name: 'サインアウト（ログイン/新規登録）',
   args: {
