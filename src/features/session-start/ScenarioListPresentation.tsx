@@ -4,8 +4,8 @@ import type { ScenarioSummary } from './scenarioPresentation';
 
 const crumbs: Crumb[] = [
   { label: 'Myriale', to: 'home' },
-  { label: 'セッション', to: 'scenarioList' },
-  { label: 'シナリオを選ぶ' },
+  { label: 'ライブラリ', to: 'scenarioList' },
+  { label: 'シナリオ一覧' },
 ];
 
 type Props = {
@@ -15,6 +15,7 @@ type Props = {
   loadError?: string;
   onRetry: () => void;
   onRegistration: () => void;
+  onEdit: (scenarioId: string) => void;
   onStart: (scenarioId: string) => void;
   onLogout: () => void | Promise<void>;
 };
@@ -26,11 +27,12 @@ export function ScenarioListPresentation({
   loadError,
   onRetry,
   onRegistration,
+  onEdit,
   onStart,
   onLogout,
 }: Props) {
   return (
-    <AppChrome section="sessions" breadcrumbs={crumbs} account={account} onLogout={onLogout}>
+    <AppChrome section="library" breadcrumbs={crumbs} account={account} onLogout={onLogout}>
       <PageCanvas data-myriale-theme="archive">
         <PageShell width="content" aria-label="セッション開始前のシナリオ一覧">
           <Label as="p" textRole="eyebrow" className="mb-2">
@@ -79,9 +81,14 @@ export function ScenarioListPresentation({
                     </Label>
                     <Badge tone="info" className="mb-3"># {scenario.genre}</Badge>
                     <Label as="p" textRole="bodySm" className="mb-5 line-clamp-5 flex-1">{scenario.basicInformation}</Label>
-                    <Button variant="primary" onClick={() => onStart(scenario.id)}>
-                      {scenario.title}で開始
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="secondary" onClick={() => onEdit(scenario.id)}>
+                        編集
+                      </Button>
+                      <Button variant="primary" className="flex-1" onClick={() => onStart(scenario.id)}>
+                        {scenario.title}で開始
+                      </Button>
+                    </div>
                   </ArchiveCard>
                 ))}
               </div>

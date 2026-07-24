@@ -26,6 +26,9 @@ const navigationPaths: Record<StoryKey, string> = {
 };
 
 export function appPathForStoryKey(key: StoryKey, options?: AppNavigateOptions): string {
+  if (options?.scenarioId && (key === 'scenarioEdit' || key === 'advancedScenario')) {
+    return `/scenarios/${encodeURIComponent(options.scenarioId)}/edit`;
+  }
   if (options?.sessionId) {
     const session = `/sessions/${encodeURIComponent(options.sessionId)}`;
     if (key === 'programDriven') return `${session}/program`;

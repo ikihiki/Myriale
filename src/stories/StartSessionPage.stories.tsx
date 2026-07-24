@@ -34,6 +34,8 @@ export const USS01StartNewSessionFromScenario: Story = {
       await expect(canvas.getByRole('region', { name: 'シナリオ一覧' })).toBeVisible();
       await expect(canvas.getByTestId('scenario-list')).toHaveTextContent('星喰いの地下図書館');
       await expect(canvas.getByRole('button', { name: '新しいシナリオを登録' })).toBeVisible();
+      await expect(canvas.getAllByRole('button', { name: '編集' }).length).toBeGreaterThan(0);
+      await expect(canvas.getByRole('navigation', { name: '主要セクション' }).querySelector('[aria-current="page"]')).toHaveTextContent('ライブラリ');
       await expect(canvas.queryByRole('complementary', { name: 'シナリオ登録導線' })).not.toBeInTheDocument();
     });
     await step('Scenarioを選択すると、余分な状態表示を挟まずイントロと主人公選択を表示する', async () => {

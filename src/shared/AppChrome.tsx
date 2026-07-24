@@ -39,11 +39,10 @@ const sections: Section[] = [
   {
     id: 'library',
     label: 'ライブラリ',
-    to: 'scenarioRegister',
+    to: 'scenarioList',
     links: [
-      { label: 'シナリオを登録', to: 'scenarioRegister', hint: 'ウィザードで新規シナリオ' },
-      { label: 'シナリオを編集', to: 'scenarioEdit', hint: '既存シナリオを改善・公開' },
-      { label: '高度なシナリオ実行', to: 'advancedScenario', hint: '候補・条件・非公開情報でAI進行を制御' },
+      { label: 'シナリオ一覧', to: 'scenarioList', hint: '遊べるScenarioを確認・編集' },
+      { label: 'シナリオ登録', to: 'scenarioRegister', hint: 'ウィザードで新規シナリオ' },
     ],
   },
   {

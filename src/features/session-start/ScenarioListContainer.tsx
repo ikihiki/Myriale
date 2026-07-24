@@ -35,9 +35,10 @@ export function ScenarioListContainer({ api }: { api?: ScenarioApi } = {}) {
     [scenariosQuery.data],
   );
 
-  const navigateTo = (destination: 'scenarioRegister' | 'startSession' | 'login', scenarioId?: string) => {
+  const navigateTo = (destination: 'scenarioRegister' | 'scenarioEdit' | 'startSession' | 'login', scenarioId?: string) => {
     if (appNavigate) {
       if (destination === 'startSession') appNavigate(destination, { query: { scenarioId: scenarioId ?? '' } });
+      else if (destination === 'scenarioEdit') appNavigate(destination, { scenarioId: scenarioId ?? '' });
       else appNavigate(destination);
       return;
     }
@@ -57,6 +58,7 @@ export function ScenarioListContainer({ api }: { api?: ScenarioApi } = {}) {
     loadError={scenariosQuery.error instanceof Error ? scenariosQuery.error.message : undefined}
     onRetry={() => void scenariosQuery.refetch()}
     onRegistration={() => navigateTo('scenarioRegister')}
+    onEdit={(scenarioId) => navigateTo('scenarioEdit', scenarioId)}
     onStart={(scenarioId) => navigateTo('startSession', scenarioId)}
     onLogout={logout}
   />;

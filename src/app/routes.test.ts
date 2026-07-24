@@ -118,6 +118,7 @@ describe('TanStack app routing', () => {
     expect(appPathForStoryKey('playSession')).toBe('/sessions');
     expect(appPathForStoryKey('sessionList')).toBe('/sessions');
     expect(appPathForStoryKey('adminAiKeys')).toBe('/admin');
+    expect(appPathForStoryKey('scenarioEdit', { scenarioId: 'SCN-AWAKENING-LAB' })).toBe('/scenarios/SCN-AWAKENING-LAB/edit');
     expect(appHrefForStoryKey('startSession', { query: { scenarioId: 'SCN-001' } })).toBe('/sessions/start?scenarioId=SCN-001');
   });
 });

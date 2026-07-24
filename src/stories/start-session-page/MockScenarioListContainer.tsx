@@ -15,9 +15,10 @@ export function MockScenarioListContainer() {
   const { db } = useAppStore();
   const scenarios = Object.values(db.scenarios).map(toScenarioSummary);
 
-  const navigateTo = (destination: 'scenarioRegister' | 'startSession', scenarioId?: string) => {
+  const navigateTo = (destination: 'scenarioRegister' | 'scenarioEdit' | 'startSession', scenarioId?: string) => {
     if (appNavigate) {
       if (destination === 'startSession') appNavigate(destination, { query: { scenarioId: scenarioId ?? '' } });
+      else if (destination === 'scenarioEdit') appNavigate(destination, { scenarioId: scenarioId ?? '' });
       else appNavigate(destination);
       return;
     }
@@ -30,6 +31,7 @@ export function MockScenarioListContainer() {
     status="ready"
     onRetry={() => undefined}
     onRegistration={() => navigateTo('scenarioRegister')}
+    onEdit={(scenarioId) => navigateTo('scenarioEdit', scenarioId)}
     onStart={(scenarioId) => navigateTo('startSession', scenarioId)}
     onLogout={() => undefined}
   />;
