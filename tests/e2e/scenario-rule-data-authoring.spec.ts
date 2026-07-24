@@ -12,13 +12,20 @@ test('Object Typeの状態とAI向けアクションを定義できる', async (
   await page.getByLabel('種類のstable code').fill('sealed-door');
   await page.getByLabel('種類の表示名').fill('隔壁扉');
   await page.getByRole('button', { name: '状態を追加' }).click();
+  await expect(page.getByRole('dialog', { name: '新しい状態' })).toHaveAttribute('data-layer', '1');
   await page.getByLabel('状態1のcode').fill('open');
+  await page.getByRole('button', { name: '状態の編集を完了' }).click();
   await page.getByRole('button', { name: 'アクションを追加' }).click();
   await page.getByLabel('アクション1のcode').fill('open');
   await page.getByLabel('アクション1の表示名').fill('扉を開ける');
+  await page.getByRole('button', { name: '引数を追加' }).click();
+  await expect(page.getByRole('dialog', { name: '新しい引数' })).toHaveAttribute('data-layer', '2');
+  await page.getByLabel('アクション1の引数1code').fill('force');
+  await page.getByRole('button', { name: '引数の編集を完了' }).click();
 
   await expect(page.getByLabel('種類のstable code')).toHaveValue('sealed-door');
   await expect(page.getByRole('combobox', { name: 'アクション1の公開先' })).toContainText('AI候補');
+  await expect(page.getByRole('button', { name: '新しい引数を編集' })).toBeVisible();
 });
 
 test('Objectの決定的なアクション結果と公開準備を確認できる', async ({ page }) => {

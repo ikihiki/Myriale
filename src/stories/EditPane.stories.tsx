@@ -34,6 +34,39 @@ function PaneDemo() {
   );
 }
 
+function NestedPaneDemo() {
+  const [parentOpen, setParentOpen] = useState(false);
+  const [childOpen, setChildOpen] = useState(false);
+  return (
+    <main className="min-h-screen bg-[#eee7da] p-8">
+      <Button onClick={() => setParentOpen(true)}>種類を編集</Button>
+      <EditPane open={parentOpen} onOpenChange={setParentOpen} eyebrow="オブジェクト種類" title="書庫の扉">
+        <div className="grid gap-4">
+          <p>状態定義をテーブルで管理します。</p>
+          <Button onClick={() => setChildOpen(true)}>開いているを編集</Button>
+        </div>
+      </EditPane>
+      <EditPane layer={1} open={childOpen} onOpenChange={setChildOpen} eyebrow="状態定義" title="開いている" footer={<Button onClick={() => setChildOpen(false)}>状態の編集を完了</Button>}>
+        <label>状態code<Input defaultValue="open" /></label>
+      </EditPane>
+    </main>
+  );
+}
+
+export const NestedOverlappingPane: Story = {
+  name: 'デスクトップ — 編集ペインを重ねる',
+  render: () => <NestedPaneDemo />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
+    await userEvent.click(canvas.getByRole('button', { name: '種類を編集' }));
+    await userEvent.click(screen.getByRole('button', { name: '開いているを編集' }));
+    const child = screen.getByRole('dialog', { name: '開いている' });
+    await expect(child).toBeVisible();
+    await expect(child).toHaveAttribute('data-layer', '1');
+  },
+};
+
 export const DesktopRightPane: Story = {
   name: 'デスクトップ — 右編集ペイン',
   render: () => <PaneDemo />,

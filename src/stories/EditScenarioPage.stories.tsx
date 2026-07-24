@@ -104,8 +104,14 @@ export const USE11EditRuleDataWithStableCodes: Story = {
       await userEvent.click(canvas.getByRole('button', { name: /^書庫の扉を編集$/ }));
       await expect(screen.getByRole('dialog', { name: '書庫の扉' })).toBeVisible();
       await expect(screen.getByLabelText('種類のstable code')).toHaveValue('archive-door');
+      await userEvent.click(screen.getByRole('button', { name: '開いているを編集' }));
+      await expect(screen.getByRole('dialog', { name: '開いている' })).toHaveAttribute('data-layer', '1');
       await expect(screen.getByLabelText('状態1のcode')).toHaveValue('open');
+      await userEvent.click(screen.getByRole('button', { name: '状態の編集を完了' }));
+      await userEvent.click(screen.getByRole('button', { name: '扉を開けるを編集' }));
+      await expect(screen.getByRole('dialog', { name: '扉を開ける' })).toHaveAttribute('data-layer', '1');
       await expect(screen.getByLabelText('アクション1のcode')).toHaveValue('open');
+      await userEvent.click(screen.getByRole('button', { name: 'アクションの編集を完了' }));
       await userEvent.clear(screen.getByLabelText('種類の表示名'));
       await userEvent.type(screen.getByLabelText('種類の表示名'), '封印書庫の扉');
       await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));

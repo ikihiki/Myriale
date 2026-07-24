@@ -320,6 +320,8 @@ export const US23DefineObjectTypeStatesAndActions: Story = {
       await userEvent.clear(screen.getByLabelText('状態1のcode'));
       await userEvent.type(screen.getByLabelText('状態1のcode'), 'open');
       await expect(screen.getByRole('combobox', { name: '状態1の公開範囲' })).toHaveTextContent('公開');
+      await userEvent.click(screen.getByRole('button', { name: '状態の編集を完了' }));
+      await expect(screen.getByRole('button', { name: '新しい状態を編集' })).toBeVisible();
     });
     await step('AIへ列挙するアクションinterfaceを登録する', async () => {
       await userEvent.click(screen.getByRole('button', { name: 'アクションを追加' }));

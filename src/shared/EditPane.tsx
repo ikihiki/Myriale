@@ -10,6 +10,8 @@ export type EditPaneProps = {
   eyebrow?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
+  /** Raises nested editors above their parent pane. */
+  layer?: 0 | 1 | 2;
 };
 
 /**
@@ -17,12 +19,14 @@ export type EditPaneProps = {
  * occupies the full viewport on small screens. Radix Dialog provides focus
  * trapping, Escape dismissal, scroll locking, and trigger-focus restoration.
  */
-export function EditPane({ open, onOpenChange, title, description, eyebrow = '編集', children, footer }: EditPaneProps) {
+export function EditPane({ open, onOpenChange, title, description, eyebrow = '編集', children, footer, layer = 0 }: EditPaneProps) {
+  const overlayLayerClass = layer === 2 ? 'z-[90]' : layer === 1 ? 'z-[80]' : 'z-[70]';
+  const surfaceLayerClass = layer === 2 ? 'z-[91] w-[min(560px,calc(100vw-72px))]' : layer === 1 ? 'z-[81] w-[min(620px,calc(100vw-56px))]' : 'z-[71] w-[min(680px,calc(100vw-40px))]';
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[70] bg-[#17121d]/48 backdrop-blur-[2px] data-[state=closed]:animate-out data-[state=open]:animate-in motion-reduce:animate-none" />
-        <Dialog.Content className="fixed inset-y-0 right-0 z-[71] grid w-[min(680px,calc(100vw-40px))] grid-rows-[auto_minmax(0,1fr)_auto] border-l border-[#d9cfbd] bg-[#fffaf0] text-myr-ink shadow-[-24px_0_70px_rgba(23,18,29,.24)] outline-none data-[state=closed]:translate-x-full data-[state=open]:translate-x-0 data-[state=closed]:transition-transform data-[state=open]:transition-transform motion-reduce:transition-none max-md:inset-0 max-md:h-[100dvh] max-md:w-screen max-md:border-0">
+        <Dialog.Overlay className={`fixed inset-0 ${overlayLayerClass} bg-[#17121d]/48 backdrop-blur-[2px] data-[state=closed]:animate-out data-[state=open]:animate-in motion-reduce:animate-none`} />
+        <Dialog.Content data-layer={layer} className={`fixed inset-y-0 right-0 ${surfaceLayerClass} grid grid-rows-[auto_minmax(0,1fr)_auto] border-l border-[#d9cfbd] bg-[#fffaf0] text-myr-ink shadow-[-24px_0_70px_rgba(23,18,29,.24)] outline-none data-[state=closed]:translate-x-full data-[state=open]:translate-x-0 data-[state=closed]:transition-transform data-[state=open]:transition-transform motion-reduce:transition-none max-md:inset-0 max-md:h-[100dvh] max-md:w-screen max-md:border-0`}>
           <header className="grid grid-cols-[1fr_auto] gap-4 border-b border-[#d9cfbd] bg-[linear-gradient(135deg,#fffaf0,#f4eddf)] px-6 py-5 max-md:px-4 max-md:py-4">
             <div className="min-w-0">
               <p className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[.18em] text-myr-slate-muted">{eyebrow}</p>
