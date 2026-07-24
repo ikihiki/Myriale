@@ -6,6 +6,12 @@ namespace Myriale.Api.Data;
 public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext<ApplicationUser>(options)
 {
     public DbSet<Scenario> Scenarios => Set<Scenario>();
+    public DbSet<ScenarioDefinitionVersion> ScenarioDefinitionVersions => Set<ScenarioDefinitionVersion>();
+    public DbSet<ScenarioLocation> ScenarioLocations => Set<ScenarioLocation>();
+    public DbSet<ScenarioObjectType> ScenarioObjectTypes => Set<ScenarioObjectType>();
+    public DbSet<ScenarioObjectTypeAction> ScenarioObjectTypeActions => Set<ScenarioObjectTypeAction>();
+    public DbSet<ScenarioObject> ScenarioObjects => Set<ScenarioObject>();
+    public DbSet<ScenarioObjectActionRule> ScenarioObjectActionRules => Set<ScenarioObjectActionRule>();
     public DbSet<AiProviderKey> AiProviderKeys => Set<AiProviderKey>();
     public DbSet<AiProviderRuntimeSettings> AiProviderRuntimeSettings => Set<AiProviderRuntimeSettings>();
     public DbSet<ModulePackage> ModulePackages => Set<ModulePackage>();
@@ -35,6 +41,41 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.Entity<ScenarioDefinitionVersion>()
+            .HasIndex(version => new { version.ScenarioId, version.Version }).IsUnique();
+        builder.Entity<ScenarioDefinitionVersion>()
+            .HasOne(version => version.Scenario).WithMany().HasForeignKey(version => version.ScenarioId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<ScenarioLocation>()
+            .HasIndex(location => new { location.DefinitionVersionId, location.Code }).IsUnique();
+        builder.Entity<ScenarioLocation>()
+            .HasOne(location => location.DefinitionVersion).WithMany(version => version.Locations)
+            .HasForeignKey(location => location.DefinitionVersionId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<ScenarioObjectType>()
+            .HasIndex(type => new { type.DefinitionVersionId, type.Code }).IsUnique();
+        builder.Entity<ScenarioObjectType>()
+            .HasOne(type => type.DefinitionVersion).WithMany(version => version.ObjectTypes)
+            .HasForeignKey(type => type.DefinitionVersionId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<ScenarioObjectTypeAction>()
+            .HasIndex(action => new { action.ObjectTypeId, action.Code }).IsUnique();
+        builder.Entity<ScenarioObjectTypeAction>()
+            .HasOne(action => action.ObjectType).WithMany(type => type.Actions)
+            .HasForeignKey(action => action.ObjectTypeId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<ScenarioObject>()
+            .HasIndex(item => new { item.DefinitionVersionId, item.Code }).IsUnique();
+        builder.Entity<ScenarioObject>()
+            .HasOne(item => item.DefinitionVersion).WithMany(version => version.Objects)
+            .HasForeignKey(item => item.DefinitionVersionId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<ScenarioObject>()
+            .HasOne(item => item.ObjectType).WithMany().HasForeignKey(item => item.ObjectTypeId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<ScenarioObject>()
+            .HasOne(item => item.Location).WithMany().HasForeignKey(item => item.LocationId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<ScenarioObjectActionRule>()
+            .HasIndex(rule => new { rule.ObjectId, rule.ObjectTypeActionId, rule.Priority });
+        builder.Entity<ScenarioObjectActionRule>()
+            .HasOne(rule => rule.Object).WithMany(item => item.ActionRules)
+            .HasForeignKey(rule => rule.ObjectId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<ScenarioObjectActionRule>()
+            .HasOne(rule => rule.ObjectTypeAction).WithMany().HasForeignKey(rule => rule.ObjectTypeActionId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<ModulePackage>()
             .HasIndex(package => new { package.ModuleId, package.Version })
             .IsUnique();

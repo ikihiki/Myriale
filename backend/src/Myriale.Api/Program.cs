@@ -39,6 +39,7 @@ builder.Services.AddScoped<INarrativeGenerator>(services =>
         : services.GetRequiredService<ProviderNarrativeGenerator>());
 builder.Services.AddScoped<IActionRecommendationGenerator>(services => (IActionRecommendationGenerator)services.GetRequiredService<INarrativeGenerator>());
 builder.Services.AddScoped<SessionScenarioProgressionService>();
+builder.Services.AddScoped<ScenarioDefinitionAuthoringService>();
 builder.Services.AddScoped<SessionInputService>();
 builder.Services.AddScoped<ISessionExecutionQueue, SessionExecutionQueue>();
 builder.Services.AddScoped<SessionExecutionFinalizer>();
