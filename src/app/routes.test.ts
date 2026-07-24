@@ -66,6 +66,17 @@ describe('TanStack app routing', () => {
     });
   });
 
+  it('redirects anonymous scenario editing to login and preserves the scenario URL', async () => {
+    const accountApi = createDemoAccountApi();
+    await accountApi.logout();
+    const router = createAppRouter({ initialUrl: '/scenarios/SCN-AWAKENING-LAB/edit', accountApi });
+
+    await router.load();
+
+    expect(router.state.location.pathname).toBe('/account/login');
+    expect(router.state.location.search).toEqual({ redirect: '/scenarios/SCN-AWAKENING-LAB/edit' });
+  });
+
   it('returns to the requested local page after login and otherwise uses home', () => {
     expect(authenticatedRedirectTarget('/scenarios/new')).toBe('/scenarios/new');
     expect(authenticatedRedirectTarget(undefined)).toBe('/');

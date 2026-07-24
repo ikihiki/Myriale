@@ -1,44 +1,19 @@
-import type { ScenarioAiAssistResponse, ScenarioAiKind, CreateScenarioPayload } from '../../app/scenarioApi';
+import type {
+  ScenarioFormActions,
+  ScenarioFormAssistResult,
+  ScenarioFormCommandResult,
+  ScenarioFormSaveResult,
+  ScenarioFormValues,
+} from '../scenario/@components/scenarioFormModel';
+import { emptyScenarioFormValues, firstScenarioFormFieldError } from '../scenario/@components/scenarioFormModel';
 
-export type ScenarioRegistrationValues = Required<Omit<CreateScenarioPayload, 'tone' | 'lore'>>;
-
-export type ScenarioRegistrationCommandResult<T = undefined> = {
-  ok: boolean;
-  message: string;
-  value?: T;
-  fieldErrors?: Record<string, string[]>;
-};
-
-export type ScenarioRegistrationSaveResult = ScenarioRegistrationCommandResult<{ scenarioId: string }>;
-export type ScenarioRegistrationAssistResult = ScenarioRegistrationCommandResult<ScenarioAiAssistResponse>;
-
+export type ScenarioRegistrationValues = ScenarioFormValues;
+export type ScenarioRegistrationCommandResult<T = undefined> = ScenarioFormCommandResult<T>;
+export type ScenarioRegistrationSaveResult = ScenarioFormSaveResult;
+export type ScenarioRegistrationAssistResult = ScenarioFormAssistResult;
 export type ScenarioRegistrationActions = {
-  saveDraft: (values: ScenarioRegistrationValues) => Promise<ScenarioRegistrationSaveResult>;
-  assist: (
-    values: ScenarioRegistrationValues,
-    kind: ScenarioAiKind,
-    target: string,
-  ) => Promise<ScenarioRegistrationAssistResult>;
+  saveDraft: ScenarioFormActions['save'];
+  assist: ScenarioFormActions['assist'];
 };
-
-export const initialScenarioRegistrationValues: ScenarioRegistrationValues = {
-  title: '',
-  summary: '',
-  genre: '',
-  aiFreedom: '中: 設定を守りつつ提案する',
-  heroMode: 'free',
-  heroFreeGenerationAllowed: false,
-  hero: '',
-  opening: '',
-  illustrationStyle: '',
-  illustrationMood: '',
-  illustrationNegative: '',
-  sampleScene: '',
-};
-
-export function firstScenarioFieldError(
-  fieldErrors: Record<string, string[]> | undefined,
-  field: keyof ScenarioRegistrationValues,
-) {
-  return fieldErrors?.[field]?.[0];
-}
+export const initialScenarioRegistrationValues = emptyScenarioFormValues;
+export const firstScenarioFieldError = firstScenarioFormFieldError;

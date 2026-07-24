@@ -18,6 +18,21 @@ describe('scenario list API', () => {
     }));
   });
 
+  it('updates a scenario through the item endpoint', async () => {
+    const updated = { id: 'SCN-1', title: '更新後' };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(updated), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(createFetchScenarioApi('/api/scenarios').updateScenario('SCN-1', { title: '更新後' })).resolves.toEqual(updated);
+    expect(fetchMock).toHaveBeenCalledWith('/api/scenarios/SCN-1', expect.objectContaining({
+      method: 'PUT',
+      credentials: 'include',
+    }));
+  });
+
   it('uses only the current seed scenario in standalone demo mode', async () => {
     const scenarios = await createDemoScenarioApi().getScenarios();
 

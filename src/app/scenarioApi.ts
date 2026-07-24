@@ -59,6 +59,7 @@ export type ScenarioApi = {
   getScenario: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioDraftDto>;
   recommendHero: (scenarioId: string, payload: RecommendScenarioHeroPayload) => Promise<ScenarioHeroRecommendation>;
   createScenario: (payload: CreateScenarioPayload) => Promise<ScenarioDraftDto>;
+  updateScenario: (scenarioId: string, payload: CreateScenarioPayload) => Promise<ScenarioDraftDto>;
   assistScenario: (payload: ScenarioAiAssistPayload) => Promise<ScenarioAiAssistResponse>;
 };
 
@@ -105,6 +106,16 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
     async createScenario(payload) {
       const response = await fetch(`${baseUrl}/`, {
         method: 'POST',
+        credentials: 'include',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<ScenarioDraftDto>;
+    },
+    async updateScenario(scenarioId, payload) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}`, {
+        method: 'PUT',
         credentials: 'include',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -271,6 +282,22 @@ export function createDemoScenarioApi(): ScenarioApi {
         status: 'draft',
         updatedAt: '2026-06-29',
       };
+    },
+    async updateScenario(scenarioId, payload) {
+      const current = demoScenarios[scenarioId];
+      if (!current) throw demoError('シナリオが見つかりません。', 404);
+      const updated: ScenarioDraftDto = {
+        ...current,
+        ...payload,
+        title: payload.title.trim(),
+        summary: payload.summary?.trim() ?? '',
+        genre: payload.genre?.trim() || '未分類',
+        tone: payload.tone?.trim() ?? '',
+        lore: payload.lore?.trim() ?? '',
+        updatedAt: '2026-07-24',
+      } as ScenarioDraftDto;
+      demoScenarios[scenarioId] = updated;
+      return { ...updated };
     },
     async assistScenario(payload) {
       return demoAssist(payload);

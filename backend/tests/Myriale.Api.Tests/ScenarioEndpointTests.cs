@@ -95,6 +95,30 @@ public sealed class ScenarioEndpointTests : IDisposable
         Assert.Equal("銅版画風", json.GetProperty("illustrationStyle").GetString());
     }
 
+    [Fact]
+    public async Task UpdateScenario_UsesRegistrationFields()
+    {
+        var client = await CreateSignedInClientAsync();
+        using var created = await client.PostAsJsonAsync("/api/scenarios/", new { title = "更新前" });
+        var createdJson = await created.Content.ReadFromJsonAsync<JsonElement>();
+        var scenarioId = createdJson.GetProperty("id").GetString();
+
+        using var response = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}", new
+        {
+            title = "更新後",
+            summary = "# 基本情報\n研究施設から脱出する。",
+            genre = "SF,ミステリー",
+            aiFreedom = "低: 厳密に守る",
+            heroMode = "free"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("更新後", json.GetProperty("title").GetString());
+        Assert.Equal("SF,ミステリー", json.GetProperty("genre").GetString());
+        Assert.Equal("# 基本情報\n研究施設から脱出する。", json.GetProperty("summary").GetString());
+    }
+
     public void Dispose()
     {
         _factory.Dispose();

@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import { createBrowserHistory, createMemoryHistory, createRouter } from '@tanstack/react-router';
 import { createFetchAccountApi, type AccountApi } from './account/api/accountApi';
 import { ScenarioRegistrationContainer } from './features/scenario-registration/ScenarioRegistrationContainer';
+import { EditScenarioContainer } from './features/scenario-editor/EditScenarioContainer';
 import { ScenarioListContainer } from './features/session-start/ScenarioListContainer';
 import { SessionContainer } from './features/session-play/SessionContainer';
 import { StartSessionContainer } from './features/session-start/StartSessionContainer';
@@ -12,6 +13,7 @@ export type AppRouterContext = {
   accountApi: AccountApi;
   scenarioListContainer: ComponentType;
   scenarioRegistrationContainer: ComponentType;
+  editScenarioContainer: ComponentType<{ scenarioId: string }>;
   sessionContainer: ComponentType<{ sessionId: string }>;
   startSessionContainer: ComponentType<{ scenarioId: string }>;
 };
@@ -25,6 +27,7 @@ export function createAppRouter({
   accountApi = createFetchAccountApi(),
   scenarioListContainer = ScenarioListContainer,
   scenarioRegistrationContainer = ScenarioRegistrationContainer,
+  editScenarioContainer = EditScenarioContainer,
   sessionContainer = SessionContainer,
   startSessionContainer = StartSessionContainer,
 }: {
@@ -34,6 +37,7 @@ export function createAppRouter({
   accountApi?: AccountApi;
   scenarioListContainer?: ComponentType;
   scenarioRegistrationContainer?: ComponentType;
+  editScenarioContainer?: ComponentType<{ scenarioId: string }>;
   sessionContainer?: ComponentType<{ sessionId: string }>;
   startSessionContainer?: ComponentType<{ scenarioId: string }>;
 } = {}) {
@@ -44,7 +48,7 @@ export function createAppRouter({
   return createRouter({
     routeTree,
     history,
-    context: { showDebugPanel, accountApi, scenarioListContainer, scenarioRegistrationContainer, sessionContainer, startSessionContainer },
+    context: { showDebugPanel, accountApi, scenarioListContainer, scenarioRegistrationContainer, editScenarioContainer, sessionContainer, startSessionContainer },
     defaultPreload: 'intent',
   });
 }
