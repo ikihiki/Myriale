@@ -38,7 +38,7 @@ internal sealed class DotNetModuleRuntime(
         RequireRequestId(request.RequestId);
         var descriptor = await catalog.ResolveEnabledAsync(identity, cancellationToken);
         RequireJsonSize(request.Configuration, descriptor.Manifest.Limits.MaxConfigurationBytes, "configuration");
-        RequireJsonSize(request.Context, _options.MaxContextBytes, "context");
+        ValidateBinding(request.Binding);
         RequireRandomValues(request.RandomValues);
         var result = await InvokeAsync(descriptor, "initialize", (module, token) => module.InitializeAsync(request, token), cancellationToken);
         ValidateContract(() => ValidateExecutionResult(result, descriptor.Manifest.Limits));
@@ -56,7 +56,7 @@ internal sealed class DotNetModuleRuntime(
         if (request.ExpectedRevision < 0) throw Violation("ExpectedRevisionは0以上である必要があります。");
         var descriptor = await catalog.ResolveEnabledAsync(identity, cancellationToken);
         RequireJsonSize(request.Configuration, descriptor.Manifest.Limits.MaxConfigurationBytes, "configuration");
-        RequireJsonSize(request.Context, _options.MaxContextBytes, "context");
+        ValidateBinding(request.Binding);
         RequireJsonSize(request.State, descriptor.Manifest.Limits.MaxStateBytes, "state");
         RequireJsonSize(request.Action, descriptor.Manifest.Limits.MaxActionBytes, "action");
         RequireRandomValues(request.RandomValues);
@@ -159,6 +159,7 @@ internal sealed class DotNetModuleRuntime(
                 throw Violation("利用可能アクションの識別情報が不正です。");
             if (action.RandomValueCount < 0 || action.RandomValueCount > 4_096)
                 throw Violation("利用可能アクションのホスト乱数要求が範囲外です。");
+            ValidateActionArguments(action.Arguments);
         }
 
         switch (status)
@@ -182,17 +183,35 @@ internal sealed class DotNetModuleRuntime(
             || string.IsNullOrWhiteSpace(outcome.Title) || string.IsNullOrWhiteSpace(outcome.Summary))
             throw Violation("完了結果の識別情報が不正です。");
         RequireCollection(outcome.PublicFacts, "public facts");
-        RequireCollection(outcome.Effects, "effects");
         RequireCollection(outcome.EmittedEvents, "emitted events");
         RequireCollection(outcome.NarrativeHints, "narrative hints");
         RequireCollection(outcome.ForbiddenNarrativeFacts, "forbidden narrative facts");
-        if (outcome.Effects.Count > limits.MaxEffects) throw Violation("完了結果のeffect数が上限を超えています。");
-        foreach (var effect in outcome.Effects)
-        {
-            if (effect is null || string.IsNullOrWhiteSpace(effect.Type)) throw Violation("effect typeが空です。");
-            RequireDefinedJson(effect.Payload, "effect payload");
-        }
         ValidateEvents(outcome.EmittedEvents, "emitted event");
+    }
+
+    private void ValidateActionArguments(IReadOnlyList<ModuleActionArgumentDescriptor>? arguments)
+    {
+        RequireCollection(arguments, "action arguments");
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var argument in arguments!)
+        {
+            if (argument is null || !IsContractIdentifier(argument.Name) || !names.Add(argument.Name))
+                throw Violation("アクション引数名は一意な契約識別子である必要があります。");
+            if (argument.Minimum is { } minimum && argument.Maximum is { } maximum && minimum > maximum)
+                throw Violation("アクション引数の最小値が最大値を超えています。");
+            if (argument.Kind is ModuleActionArgumentKind.String or ModuleActionArgumentKind.Boolean
+                && (argument.Minimum is not null || argument.Maximum is not null))
+                throw Violation("文字列または真偽値のアクション引数に数値範囲は指定できません。");
+            if (argument.Kind is not ModuleActionArgumentKind.String && argument.AllowedValues is { Count: > 0 })
+                throw Violation("列挙値は文字列のアクション引数にだけ指定できます。");
+            if (argument.AllowedValues is { } allowedValues)
+            {
+                RequireCollection(allowedValues, "action argument allowed values");
+                if (allowedValues.Any(string.IsNullOrWhiteSpace)
+                    || allowedValues.Distinct(StringComparer.Ordinal).Count() != allowedValues.Count)
+                    throw Violation("アクション引数の列挙値は空でない一意な文字列である必要があります。");
+            }
+        }
     }
 
     private static void ValidateError(ModuleError error)
@@ -258,6 +277,25 @@ internal sealed class DotNetModuleRuntime(
             throw new ModuleRuntimeException(ModuleRuntimeErrorCodes.ContractViolation, "モジュールレスポンスがホスト契約に違反しています。", exception);
         }
     }
+
+    private void ValidateBinding(ModuleObjectActionContext binding)
+    {
+        if (binding is null
+            || !IsContractIdentifier(binding.ObjectId)
+            || !IsContractIdentifier(binding.ObjectTypeId)
+            || !IsContractIdentifier(binding.ActionId))
+            throw Violation("Object action bindingの識別情報が不正です。");
+        RequireJsonSize(binding.Arguments, _options.MaxContextBytes, "binding arguments");
+        RequireJsonSize(binding.ObjectState, _options.MaxContextBytes, "bound object state");
+        if (binding.Arguments.ValueKind != JsonValueKind.Object || binding.ObjectState.ValueKind != JsonValueKind.Object)
+            throw Violation("Object action bindingの引数と状態はJSON objectである必要があります。");
+    }
+
+    private static bool IsContractIdentifier(string value) =>
+        !string.IsNullOrWhiteSpace(value)
+        && value.Length <= 200
+        && char.IsLetterOrDigit(value[0])
+        && value.All(character => char.IsLetterOrDigit(character) || character is '-' or '_' or '.' or ':');
 
     private static void RequireRequestId(string requestId)
     {

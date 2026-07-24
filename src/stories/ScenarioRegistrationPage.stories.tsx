@@ -4,7 +4,7 @@ import { expect, userEvent, within } from '@storybook/test';
 import { createDemoAccountApi } from '../account/api/accountApi';
 import { MyrialeApp } from '../app/MyrialeApp';
 import { createDemoDb } from '../app/demoData';
-import { MockScenarioRegistrationContainer } from './scenario-registration-page/MockScenarioRegistrationContainer';
+import { MockScenarioRegistrationContainer, MockScenarioRegistrationWithRuleDataContainer } from './scenario-registration-page/MockScenarioRegistrationContainer';
 import '../styles.css';
 
 const meta = {
@@ -298,6 +298,119 @@ export const US22GenerateIllustrationPrompt: Story = {
       await userEvent.click(canvas.getByRole('button', { name: 'プロンプトを生成' }));
       await expect(canvas.getByTestId('ai-suggestion')).toHaveTextContent('ネガティブプロンプト');
       await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('挿絵プロンプトを相談しました');
+    });
+  },
+};
+
+const renderRuleDataFixture = () => <MyrialeApp initialUrl="/scenarios/new" initialDb={createDemoDb('registrationDraft')} scenarioRegistrationContainer={MockScenarioRegistrationWithRuleDataContainer} />;
+
+export const US23DefineObjectTypeStatesAndActions: Story = {
+  name: 'US-23: Object Typeの状態とアクションを定義したい',
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
+    await goToStep(canvas, '世界データ');
+    await step('新しい種類へstable code、状態、公開範囲を登録する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: '種類を追加' }));
+      await userEvent.clear(screen.getByLabelText('種類のstable code'));
+      await userEvent.type(screen.getByLabelText('種類のstable code'), 'sealed-door');
+      await userEvent.clear(screen.getByLabelText('種類の表示名'));
+      await userEvent.type(screen.getByLabelText('種類の表示名'), '隔壁扉');
+      await userEvent.click(screen.getByRole('button', { name: '状態を追加' }));
+      await userEvent.clear(screen.getByLabelText('状態1のcode'));
+      await userEvent.type(screen.getByLabelText('状態1のcode'), 'open');
+      await expect(screen.getByRole('combobox', { name: '状態1の公開範囲' })).toHaveTextContent('公開');
+    });
+    await step('AIへ列挙するアクションinterfaceを登録する', async () => {
+      await userEvent.click(screen.getByRole('button', { name: 'アクションを追加' }));
+      await userEvent.clear(screen.getByLabelText('アクション1のcode'));
+      await userEvent.type(screen.getByLabelText('アクション1のcode'), 'open');
+      await userEvent.clear(screen.getByLabelText('アクション1の表示名'));
+      await userEvent.type(screen.getByLabelText('アクション1の表示名'), '扉を開ける');
+      await expect(screen.getByRole('combobox', { name: 'アクション1の公開先' })).toHaveTextContent('AI候補');
+    });
+  },
+};
+
+export const US24CreateLocationsAndPlaceObjects: Story = {
+  name: 'US-24: Locationを作成してObjectを初期配置したい',
+  render: renderRuleDataFixture,
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
+    await goToStep(canvas, '世界データ');
+    await step('場所を追加してstable codeを維持する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: '場所を追加' }));
+      await userEvent.clear(screen.getByLabelText('場所のstable code'));
+      await userEvent.type(screen.getByLabelText('場所のstable code'), 'sealed-vault');
+      await userEvent.clear(screen.getByLabelText('場所の表示名'));
+      await userEvent.type(screen.getByLabelText('場所の表示名'), '封印書庫');
+      await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
+      await expect(canvas.getByRole('button', { name: '封印書庫を編集' })).toBeVisible();
+    });
+    await step('Objectが種類と1つの初期配置を参照する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: '北書庫の扉を編集' }));
+      await expect(screen.getByRole('combobox', { name: 'オブジェクト種類' })).toHaveTextContent('書庫の扉');
+      await expect(screen.getByRole('combobox', { name: '初期配置' })).toHaveTextContent('水没した閲覧室');
+    });
+  },
+};
+
+export const US25AuthorDeterministicActionResults: Story = {
+  name: 'US-25: 状態とアクションに決定的な結果を設定したい',
+  render: renderRuleDataFixture,
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await goToStep(canvas, 'アクション結果');
+    await step('from state、action、priorityと順序付きeffectを確認する', async () => {
+      await expect(canvas.getByTestId('rule-result-preview')).toHaveTextContent('北書庫の扉');
+      await expect(canvas.getByTestId('rule-result-preview')).toHaveTextContent('2 effect');
+      await expect(canvas.getByLabelText('結果の優先度')).toHaveValue(100);
+      await expect(canvas.getByText('1. set-state')).toBeVisible();
+      await expect(canvas.getByText('2. emit-fact')).toBeVisible();
+    });
+    await step('公開準備チェックが決定性を確認する', async () => {
+      await expect(canvas.getByTestId('rule-readiness')).toHaveTextContent('決定的です');
+    });
+  },
+};
+
+export const US26KeepDependenciesSafe: Story = {
+  name: 'US-26: 参照中の種類と場所を安全に削除したい',
+  render: renderRuleDataFixture,
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
+    await goToStep(canvas, '世界データ');
+    await step('Objectが参照中の種類は削除を拒否する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: /^書庫の扉を編集$/ }));
+      await userEvent.click(screen.getByRole('button', { name: 'この種類を削除' }));
+      await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('先に種類を変更するかオブジェクトを削除');
+      await userEvent.click(screen.getByRole('button', { name: '編集ペインを閉じる' }));
+    });
+    await step('同じページでObjectが配置中のLocationも削除を拒否する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: '水没した閲覧室を編集' }));
+      await userEvent.click(screen.getByRole('button', { name: 'この場所を削除' }));
+      await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('先に配置先を変更するかオブジェクトを削除');
+    });
+  },
+};
+
+export const US27SaveIncompleteRuleDataAsDraft: Story = {
+  name: 'US-27: 不完全なルールデータを警告付きでDraft保存したい',
+  render: renderRuleDataFixture,
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await goToStep(canvas, 'アクション結果');
+    await step('必須のaction resultを削除すると公開準備の警告を表示する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: 'この結果を削除' }));
+      await expect(canvas.getByRole('region', { name: '公開準備チェック' })).toHaveTextContent('下書き警告');
+      await expect(canvas.getByRole('region', { name: '公開準備チェック' })).toHaveTextContent('結果が未設定');
+    });
+    await step('警告があっても下書き保存できる', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: '下書き保存' }));
+      await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('Draftとして保存しました');
+      await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('未設定項目が1件');
     });
   },
 };

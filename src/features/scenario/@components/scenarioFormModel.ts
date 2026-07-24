@@ -1,6 +1,9 @@
 import type { CreateScenarioPayload, ScenarioAiAssistResponse, ScenarioAiKind, ScenarioDraftDto } from '../../../app/scenarioApi';
+import { emptyScenarioRuleData } from './rule-data/scenarioRuleDataModel';
 
-export type ScenarioFormValues = Required<Omit<CreateScenarioPayload, 'tone' | 'lore'>>;
+export type ScenarioFormValues = Required<Omit<CreateScenarioPayload, 'tone' | 'lore' | 'ruleData'>> & {
+  ruleData: NonNullable<CreateScenarioPayload['ruleData']>;
+};
 
 export type ScenarioFormCommandResult<T = undefined> = {
   ok: boolean;
@@ -30,9 +33,13 @@ export const emptyScenarioFormValues: ScenarioFormValues = {
   illustrationMood: '',
   illustrationNegative: '',
   sampleScene: '',
+  ruleData: emptyScenarioRuleData,
 };
 
-export function scenarioDraftToFormValues(scenario: ScenarioDraftDto): ScenarioFormValues {
+export function scenarioDraftToFormValues(
+  scenario: ScenarioDraftDto,
+  ruleData = scenario.ruleData ?? emptyScenarioRuleData,
+): ScenarioFormValues {
   return {
     title: scenario.title,
     summary: scenario.summary,
@@ -46,6 +53,7 @@ export function scenarioDraftToFormValues(scenario: ScenarioDraftDto): ScenarioF
     illustrationMood: scenario.illustrationMood,
     illustrationNegative: scenario.illustrationNegative,
     sampleScene: scenario.sampleScene,
+    ruleData,
   };
 }
 

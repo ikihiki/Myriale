@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { breadcrumbLinkClassName, Button, navigationRecipe } from '../components/ui';
 import {
   MyrialeMenuContent,
@@ -107,8 +107,11 @@ export type AppChromeProps = {
 
 export function AppChrome({ section, breadcrumbs, account = null, onNavigate, onLogout, children }: AppChromeProps) {
   const appNavigate = useAppNavigation();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const mobileMenuId = useId();
 
   const go = (to: StoryKey) => {
+    setIsMobileMenuOpen(false);
     if (onNavigate) {
       onNavigate(to);
       return;
@@ -123,7 +126,7 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
   return (
     <div className="min-h-screen [&_*]:box-border">
       <div className="sticky top-0 z-50 border-b border-[rgba(255,246,231,.14)] bg-[linear-gradient(120deg,rgba(18,16,25,.97),rgba(38,31,54,.97))] font-myr-body text-myr-cream shadow-[0_10px_30px_rgba(18,16,25,.28)] backdrop-blur-md">
-        <div className="mx-auto flex max-w-myr-chrome items-center gap-4 px-5 py-2.5 max-myr-chrome:flex-wrap max-myr-chrome:gap-x-3 max-myr-chrome:gap-y-2">
+        <div className="mx-auto flex max-w-myr-chrome items-center gap-4 px-5 py-2.5 max-myr-chrome:flex-wrap max-myr-chrome:gap-x-3 max-myr-chrome:gap-y-2 max-md:flex-nowrap">
           <Button
             type="button"
             className={`inline-flex cursor-pointer items-center gap-2.5 rounded-xl border-0 bg-transparent py-1 pr-2 pl-1 text-myr-cream hover:bg-[rgba(255,246,231,.08)] ${focusRingClassName}`}
@@ -139,7 +142,22 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
             <span className="font-myr-display text-xl tracking-[.02em] max-myr-chrome:hidden">Myriale</span>
           </Button>
 
-          <nav className="ml-2 flex gap-1" aria-label="主要セクション">
+          <Button
+            type="button"
+            className={`ml-auto hidden size-11 cursor-pointer place-items-center rounded-xl border border-[rgba(255,246,231,.18)] bg-[rgba(255,246,231,.06)] p-0 text-myr-cream hover:bg-[rgba(255,246,231,.14)] max-md:grid ${focusRingClassName}`}
+            aria-label={isMobileMenuOpen ? 'メニューを閉じる' : 'メニューを開く'}
+            aria-expanded={isMobileMenuOpen}
+            aria-controls={mobileMenuId}
+            onClick={() => setIsMobileMenuOpen((open) => !open)}
+          >
+            <span className="grid w-5 gap-1.25" aria-hidden="true">
+              <span className={`h-0.5 rounded-full bg-current transition-transform motion-reduce:transition-none ${isMobileMenuOpen ? 'translate-y-1.75 rotate-45' : ''}`} />
+              <span className={`h-0.5 rounded-full bg-current transition-opacity motion-reduce:transition-none ${isMobileMenuOpen ? 'opacity-0' : ''}`} />
+              <span className={`h-0.5 rounded-full bg-current transition-transform motion-reduce:transition-none ${isMobileMenuOpen ? '-translate-y-1.75 -rotate-45' : ''}`} />
+            </span>
+          </Button>
+
+          <nav className="ml-2 flex gap-1 max-md:hidden" aria-label="主要セクション">
             {sections.map((item) => {
               const isActive = section === item.id;
               return (
@@ -169,7 +187,7 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
             })}
           </nav>
 
-          <div className="relative ml-auto">
+          <div className="relative ml-auto max-md:hidden">
             {account ? (
               <MyrialeMenuRoot modal={false}>
                 <MyrialeMenuTrigger asChild>
@@ -229,6 +247,113 @@ export function AppChrome({ section, breadcrumbs, account = null, onNavigate, on
             )}
           </div>
         </div>
+
+        {isMobileMenuOpen && (
+          <div
+            id={mobileMenuId}
+            className="hidden border-t border-[rgba(255,246,231,.12)] bg-[rgba(18,16,25,.96)] px-4 py-4 shadow-[0_18px_35px_rgba(18,16,25,.32)] max-md:block"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') setIsMobileMenuOpen(false);
+            }}
+          >
+            <nav className="mx-auto grid max-h-[calc(100vh-8rem)] max-w-myr-chrome gap-4 overflow-y-auto pr-1" aria-label="モバイルメニュー">
+              <div className="grid gap-2">
+                {sections.map((item) => {
+                  const isActive = section === item.id;
+                  return (
+                    <section
+                      key={item.id}
+                      className={`overflow-hidden rounded-2xl border ${isActive ? 'border-[rgba(234,91,68,.72)] bg-[rgba(234,91,68,.08)]' : 'border-[rgba(255,246,231,.12)] bg-[rgba(255,246,231,.04)]'}`}
+                      aria-labelledby={`${mobileMenuId}-${item.id}`}
+                    >
+                      <Button
+                        id={`${mobileMenuId}-${item.id}`}
+                        type="button"
+                        className={`flex w-full cursor-pointer items-center justify-between border-0 bg-transparent px-4 py-3 text-left font-extrabold text-myr-cream hover:bg-[rgba(255,246,231,.08)] ${focusRingClassName}`}
+                        aria-current={isActive ? 'page' : undefined}
+                        onClick={() => go(item.to)}
+                      >
+                        <span>{item.label}</span>
+                        <span className="text-myr-caption text-[rgba(255,246,231,.52)]" aria-hidden="true">→</span>
+                      </Button>
+                      <div className="grid border-t border-[rgba(255,246,231,.1)] py-1">
+                        {item.links.map((link) => (
+                          <Button
+                            key={`${item.id}-${link.to}-${link.label}`}
+                            type="button"
+                            className={`grid cursor-pointer gap-0.5 border-0 bg-transparent px-4 py-2.5 text-left text-myr-cream hover:bg-[rgba(255,246,231,.08)] ${focusRingClassName}`}
+                            onClick={() => go(link.to)}
+                          >
+                            <span className="text-sm font-bold">{link.label}</span>
+                            {link.hint && <small className="text-xs leading-5 text-[rgba(255,246,231,.56)]">{link.hint}</small>}
+                          </Button>
+                        ))}
+                      </div>
+                    </section>
+                  );
+                })}
+              </div>
+
+              <section className="rounded-2xl border border-[rgba(255,246,231,.12)] bg-[rgba(255,246,231,.04)] p-3" aria-label="アカウント">
+                {account ? (
+                  <>
+                    <div className="flex items-center gap-3 border-b border-[rgba(255,246,231,.1)] px-1 pb-3">
+                      <span
+                        className="grid size-10 shrink-0 place-items-center rounded-full bg-[conic-gradient(from_180deg,var(--myr-color-iris),var(--myr-color-ember),var(--myr-color-mist),var(--myr-color-iris))] font-[Georgia,serif] text-myr-ui-sm font-extrabold text-[#17121d]"
+                        aria-hidden="true"
+                      >
+                        {account.initials}
+                      </span>
+                      <span className="min-w-0 leading-tight">
+                        <strong className="block text-sm">{account.name}</strong>
+                        <small className="block truncate text-xs text-[rgba(255,246,231,.56)]">{account.role ?? account.email}</small>
+                      </span>
+                    </div>
+                    <div className="grid pt-1">
+                      {accountLinks.map((link) => (
+                        <Button
+                          key={`mobile-account-${link.to}`}
+                          type="button"
+                          className={`cursor-pointer rounded-lg border-0 bg-transparent px-3 py-2.5 text-left text-sm font-bold text-myr-cream hover:bg-[rgba(255,246,231,.08)] ${focusRingClassName}`}
+                          onClick={() => go(link.to)}
+                        >
+                          {link.label}
+                        </Button>
+                      ))}
+                      <Button
+                        type="button"
+                        className={`mt-1 cursor-pointer rounded-lg border-0 bg-transparent px-3 py-2.5 text-left text-sm font-bold text-[#ff9b8a] hover:bg-[rgba(234,91,68,.12)] ${focusRingClassName}`}
+                        onClick={() => {
+                          setIsMobileMenuOpen(false);
+                          void (onLogout ? onLogout() : go('login'));
+                        }}
+                      >
+                        ログアウト
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      className={`cursor-pointer rounded-xl border border-[rgba(255,246,231,.18)] bg-transparent px-3 py-2.5 font-bold text-myr-cream hover:bg-[rgba(255,246,231,.08)] ${focusRingClassName}`}
+                      onClick={() => go('login')}
+                    >
+                      ログイン
+                    </Button>
+                    <Button
+                      type="button"
+                      className={`cursor-pointer rounded-xl border border-myr-ember bg-myr-paper px-3 py-2.5 font-extrabold text-myr-void hover:bg-white ${focusRingClassName}`}
+                      onClick={() => go('register')}
+                    >
+                      新規登録
+                    </Button>
+                  </div>
+                )}
+              </section>
+            </nav>
+          </div>
+        )}
 
         <nav className="border-t border-[rgba(255,246,231,.1)] bg-[rgba(18,16,25,.35)]" aria-label="現在地">
           <ol className="mx-auto flex max-w-myr-chrome list-none flex-wrap items-center gap-2 px-5 py-2 text-xs">

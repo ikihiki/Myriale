@@ -14,7 +14,7 @@ public sealed class ConstellationDoorModule : IMyrialeModule
         ModuleId,
         Version,
         "閉じた星座の扉",
-        "『星喰いの地下図書館』で星座の扉を開く権威的なダイス判定です。",
+        "Object action bindingから任意に利用できるダイス判定extensionです。通常の扉ルールはscenario dataで表現します。",
         ModuleContractVersions.V1,
         new ModuleConfigurationManifest(1, 1,
         [
@@ -28,8 +28,8 @@ public sealed class ConstellationDoorModule : IMyrialeModule
             new ModuleUiEntry("resources/runtime.mjs", "myriale-constellation-door", ["resources/module.css"]),
             null,
             null),
-        [ModuleCapabilities.EmitSessionEffects],
-        new ModuleLimits(16_384, 16_384, 4_096, 1));
+        [],
+        new ModuleLimits(16_384, 16_384, 4_096, 0));
 
     public ValueTask<ModuleValidationResult> ValidateConfigAsync(ModuleValidationRequest request, CancellationToken cancellationToken)
     {
@@ -50,14 +50,15 @@ public sealed class ConstellationDoorModule : IMyrialeModule
             ModuleExecutionStatuses.Active,
             Json(new { rolled = false }),
             View(config, null),
-            [new ModuleAvailableAction("roll", "判定する", true, RandomValueCount: 1)]));
+            [new ModuleAvailableAction("roll", "判定する", true, RandomValueCount: 1, Arguments: [])]));
     }
 
     public ValueTask<ModuleTransitionResult> DispatchAsync(ModuleDispatchRequest request, CancellationToken cancellationToken)
     {
         if (!TryReadConfig(request.Configuration, out var config, out var configError))
             return ValueTask.FromResult(Failed(request, configError.Code, configError.Message));
-        if (!request.Action.TryGetProperty("id", out var id) || id.GetString() != "roll")
+        if (request.Action.ValueKind != JsonValueKind.Object || request.Action.EnumerateObject().Count() != 1
+            || !request.Action.TryGetProperty("id", out var id) || id.ValueKind != JsonValueKind.String || id.GetString() != "roll")
             return ValueTask.FromResult(Failed(request, "invalid_action", "判定開始以外の操作は受け付けられません。"));
         if (request.State.TryGetProperty("rolled", out var rolled) && rolled.ValueKind == JsonValueKind.True)
             return ValueTask.FromResult(Failed(request, "already_rolled", "この判定はすでに完了しています。"));
@@ -78,7 +79,6 @@ public sealed class ConstellationDoorModule : IMyrialeModule
         var outcome = new ModuleOutcome(
             "constellation-door-check", code, title, summary,
             [new ModuleFact("dice-result", summary)],
-            [new ModuleEffect(ModuleEffectTypes.SetFlag, Json(new { flagId = code, value = true }))],
             [new ModuleEvent(code, Json(new { confirmed = true }))],
             succeeded
                 ? ["閉じた星座の扉が開いた確定結果を描写する。"]

@@ -109,6 +109,10 @@ async function installApiRoutes(page: Page) {
       });
     }
 
+    if (request.method() === 'GET' && path === '/api/scenarios/') {
+      return json(route, [scenario]);
+    }
+
     if (request.method() === 'GET' && path === `/api/scenarios/${scenarioId}`) {
       return json(route, scenario);
     }
@@ -160,10 +164,20 @@ async function installApiRoutes(page: Page) {
       const acceptedExecution = {
         id: executionId,
         sessionId,
-        kind: 'narrative',
+        kind: 'scenario-turn',
         triggerType: 'player-input',
         triggerId: inputId,
         status: 'queued',
+        stage: 'loading-world',
+        scenarioTurn: {
+          schemaVersion: 'scenario-turn.v1',
+          stage: 'loading-world',
+          currentLocation: { locationId: 'LOC-LIBRARY', label: '水没した閲覧室' },
+          objects: [],
+          availableActions: [],
+          selectedAction: null,
+          postState: null,
+        },
         revision: 1,
         isRetryable: false,
         attemptCount: 0,
@@ -174,6 +188,16 @@ async function installApiRoutes(page: Page) {
       const completedExecution = {
         ...acceptedExecution,
         status: 'succeeded',
+        stage: 'completed',
+        scenarioTurn: {
+          schemaVersion: 'scenario-turn.v1',
+          stage: 'completed',
+          currentLocation: { locationId: 'LOC-LIBRARY', label: '水没した閲覧室' },
+          objects: [{ objectId: 'OBJ-DOOR', label: '古い扉', locationId: 'LOC-LIBRARY', publicState: { inspected: true } }],
+          availableActions: [{ objectId: 'OBJ-DOOR', actionId: 'inspect', label: '紋章を調べる', visibility: 'ai-choice' }],
+          selectedAction: { objectId: 'OBJ-DOOR', actionId: 'inspect', objectLabel: '古い扉', actionLabel: '紋章を調べる', visibility: 'ai-choice' },
+          postState: { revision: session.revision + 1, currentLocation: { locationId: 'LOC-LIBRARY', label: '水没した閲覧室' }, objects: [{ objectId: 'OBJ-DOOR', label: '古い扉', publicState: { inspected: true } }], facts: ['古い扉の紋章を確認した'] },
+        },
         revision: 2,
         attemptCount: 1,
         startedAt: createdAt,
@@ -260,8 +284,10 @@ test('creates a session, completes multiple dialogues, reloads, and reuses the R
 
   const retryRequests = api.inputRequests.filter((request) => request.text === '古い扉の紋章を調べる');
   expect(retryRequests).toHaveLength(2);
-  expect(retryRequests[0].requestId).toMatch(/^narrative-/);
+  expect(retryRequests[0].requestId).toMatch(/^scenario-turn-/);
+  expect(retryRequests[0].requestedOutputs).toEqual(['scenario-turn']);
   expect(retryRequests[1].requestId).toBe(retryRequests[0].requestId);
+  expect(retryRequests[1].requestedOutputs).toEqual(['scenario-turn']);
 
   await page.reload();
   await expect(page.getByTestId('session-activity-feed')).toContainText('書架の奥から司書が現れ、静かに名乗った。');

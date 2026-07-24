@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
+using Myriale.Api.Services;
 
 namespace Myriale.Api.Endpoints;
 
@@ -37,6 +38,17 @@ public static class ScenarioEndpoints
             .WithName("CreateScenario")
             .WithSummary("Creates a draft scenario owned by the authenticated author.");
 
+        group.MapGet("/{scenarioId}/rule-data", GetRuleDataAsync).RequireAuthorization()
+            .WithName("GetScenarioRuleData");
+        group.MapPost("/{scenarioId}/rule-data/drafts", CreateRuleDataDraftAsync).RequireAuthorization()
+            .WithName("CreateScenarioRuleDataDraft");
+        group.MapPut("/{scenarioId}/rule-data", SaveRuleDataAsync).RequireAuthorization()
+            .WithName("SaveScenarioRuleData");
+        group.MapGet("/{scenarioId}/rule-data/readiness", GetRuleDataReadinessAsync).RequireAuthorization()
+            .WithName("GetScenarioRuleDataReadiness");
+        group.MapPost("/{scenarioId}/rule-data/publish", PublishRuleDataAsync).RequireAuthorization()
+            .WithName("PublishScenarioRuleData");
+
         return group;
     }
 
@@ -59,11 +71,14 @@ public static class ScenarioEndpoints
 
     private static async Task<Results<Ok<ScenarioDraftResponse>, NotFound>> GetScenarioAsync(
         string scenarioId,
+        ClaimsPrincipal principal,
         ApplicationDbContext db,
         CancellationToken cancellationToken)
     {
+        var authorId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         var scenario = await db.Scenarios.AsNoTracking()
-            .SingleOrDefaultAsync(item => item.Id == scenarioId, cancellationToken);
+            .SingleOrDefaultAsync(item => item.Id == scenarioId
+                && (item.Status == "published" || authorId != null && item.AuthorId == authorId), cancellationToken);
         return scenario is null ? TypedResults.NotFound() : TypedResults.Ok(ToResponse(scenario));
     }
 
@@ -81,7 +96,7 @@ public static class ScenarioEndpoints
         if (errors.Count > 0)
             return TypedResults.BadRequest(new ScenarioErrorResponse("入力内容を確認してください。", errors));
 
-        var scenario = await db.Scenarios.SingleOrDefaultAsync(item => item.Id == scenarioId, cancellationToken);
+        var scenario = await db.Scenarios.SingleOrDefaultAsync(item => item.Id == scenarioId && item.AuthorId == authorId, cancellationToken);
         if (scenario is null) return TypedResults.NotFound();
 
         scenario.Title = request.Title.Trim();
@@ -188,6 +203,79 @@ public static class ScenarioEndpoints
 
         var response = ToResponse(scenario);
         return TypedResults.Created($"/api/scenarios/{scenario.Id}", response);
+    }
+
+    private static async Task<IResult> GetRuleDataAsync(
+        string scenarioId, ClaimsPrincipal principal, ApplicationDbContext db,
+        ScenarioDefinitionAuthoringService authoring, CancellationToken cancellationToken)
+    {
+        if (!await IsOwnerAsync(scenarioId, principal, db, cancellationToken)) return TypedResults.NotFound();
+        var version = await authoring.GetLatestAsync(scenarioId, cancellationToken);
+        return version is null ? TypedResults.NotFound() : TypedResults.Ok(authoring.ToResponse(version));
+    }
+
+    private static async Task<IResult> CreateRuleDataDraftAsync(
+        string scenarioId, ClaimsPrincipal principal, ApplicationDbContext db,
+        ScenarioDefinitionAuthoringService authoring, CancellationToken cancellationToken)
+    {
+        if (!await IsOwnerAsync(scenarioId, principal, db, cancellationToken)) return TypedResults.NotFound();
+        var latest = await authoring.GetLatestAsync(scenarioId, cancellationToken);
+        if (latest?.Status == "draft") return TypedResults.Ok(authoring.ToResponse(latest));
+        var draft = await authoring.GetOrCreateDraftAsync(scenarioId, cancellationToken);
+        if (latest is not null && latest.Status == "published")
+            draft = await authoring.SaveAsync(draft, authoring.ToRequest(latest), cancellationToken);
+        return TypedResults.Created($"/api/scenarios/{scenarioId}/rule-data", authoring.ToResponse(draft));
+    }
+
+    private static async Task<IResult> SaveRuleDataAsync(
+        string scenarioId, ScenarioRuleDataRequest request, ClaimsPrincipal principal, ApplicationDbContext db,
+        ScenarioDefinitionAuthoringService authoring, CancellationToken cancellationToken)
+    {
+        if (!await IsOwnerAsync(scenarioId, principal, db, cancellationToken)) return TypedResults.NotFound();
+        var errors = authoring.Validate(request, false);
+        if (errors.Count > 0) return TypedResults.BadRequest(new ScenarioErrorResponse("Rule data is malformed.", errors));
+        var draft = await authoring.GetLatestAsync(scenarioId, cancellationToken);
+        if (draft is not null && draft.Status != "draft") return TypedResults.Conflict();
+        draft ??= await authoring.GetOrCreateDraftAsync(scenarioId, cancellationToken);
+        draft = await authoring.SaveAsync(draft, request, cancellationToken);
+        return TypedResults.Ok(authoring.ToResponse(draft));
+    }
+
+    private static async Task<IResult> GetRuleDataReadinessAsync(
+        string scenarioId, ClaimsPrincipal principal, ApplicationDbContext db,
+        ScenarioDefinitionAuthoringService authoring, CancellationToken cancellationToken)
+    {
+        if (!await IsOwnerAsync(scenarioId, principal, db, cancellationToken)) return TypedResults.NotFound();
+        var version = await authoring.GetLatestAsync(scenarioId, cancellationToken);
+        if (version is null) return TypedResults.NotFound();
+        var errors = authoring.Validate(authoring.ToRequest(version), true);
+        return TypedResults.Ok(new ScenarioDefinitionReadinessResponse(version.Id, errors.Count == 0, errors));
+    }
+
+    private static async Task<IResult> PublishRuleDataAsync(
+        string scenarioId, ClaimsPrincipal principal, ApplicationDbContext db,
+        ScenarioDefinitionAuthoringService authoring, CancellationToken cancellationToken)
+    {
+        if (!await IsOwnerAsync(scenarioId, principal, db, cancellationToken)) return TypedResults.NotFound();
+        var version = await authoring.GetLatestAsync(scenarioId, cancellationToken);
+        if (version is null) return TypedResults.NotFound();
+        if (version.Status != "draft") return TypedResults.Conflict();
+        var errors = authoring.Validate(authoring.ToRequest(version), true);
+        if (errors.Count > 0) return TypedResults.BadRequest(new ScenarioErrorResponse("Rule data is not ready to publish.", errors));
+        version.Status = "published";
+        version.PublishedAt = version.UpdatedAt = DateTimeOffset.UtcNow;
+        var scenario = await db.Scenarios.SingleAsync(item => item.Id == scenarioId, cancellationToken);
+        scenario.Status = "published";
+        scenario.UpdatedAt = version.UpdatedAt;
+        await db.SaveChangesAsync(cancellationToken);
+        return TypedResults.Ok(authoring.ToResponse(version));
+    }
+
+    private static async Task<bool> IsOwnerAsync(string scenarioId, ClaimsPrincipal principal, ApplicationDbContext db, CancellationToken cancellationToken)
+    {
+        var authorId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        return !string.IsNullOrWhiteSpace(authorId)
+            && await db.Scenarios.AnyAsync(item => item.Id == scenarioId && item.AuthorId == authorId, cancellationToken);
     }
 
     private static Dictionary<string, string[]> Validate(CreateScenarioRequest request)

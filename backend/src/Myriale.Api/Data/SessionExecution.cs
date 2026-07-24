@@ -4,6 +4,7 @@ namespace Myriale.Api.Data;
 
 public static class SessionExecutionKinds
 {
+    public const string ScenarioTurn = "scenario-turn";
     public const string Narrative = "narrative";
     public const string ModuleHandoff = "module-handoff";
     public const string NoteProposal = "note-proposal";
@@ -33,6 +34,8 @@ public sealed class SessionExecution
     [Required, MaxLength(32)] public string TriggerType { get; set; } = "player-input";
     [Required, MaxLength(40)] public string TriggerId { get; set; } = string.Empty;
     [Required, MaxLength(32)] public string Status { get; set; } = SessionExecutionStatuses.Queued;
+    [MaxLength(40)] public string? Stage { get; set; }
+    public int SchemaVersion { get; set; } = 1;
     public long Revision { get; set; }
     [Required, MaxLength(160)] public string IdempotencyKey { get; set; } = string.Empty;
     [Required, MaxLength(64)] public string PayloadHash { get; set; } = string.Empty;

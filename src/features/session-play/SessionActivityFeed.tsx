@@ -1,14 +1,26 @@
 import { useEffect, useState } from 'react';
 import { actionRowClassName, Button, Input, Textarea, toneTextClassNames, type BadgeTone } from '../../components/ui';
-import type { NarrativeTurnApiResponse, SessionApiResponse, SessionExecutionApiResponse, SessionNoteProposalApiResponse } from './sessionPlayApi';
+import type { NarrativeTurnApiResponse, ScenarioTurnProjection, ScenarioTurnStage, SessionApiResponse, SessionExecutionApiResponse, SessionNoteProposalApiResponse } from './sessionPlayApi';
 import './SessionActivityFeed.css';
 
 const statusCopy: Record<string, string> = {
-  queued: '生成待ちです。', running: '生成しています……', 'retry-wait': '一時的な問題のため再試行します。',
-  'cancel-requested': 'キャンセルしています……', failed: '生成できませんでした。', cancelled: 'キャンセルしました。',
-  succeeded: '生成が完了しました。', superseded: 'Sessionが先へ進んだため、この結果は適用されませんでした。',
+  queued: '処理待ちです。', running: '処理しています……', 'retry-wait': '一時的な問題のため再試行します。',
+  'cancel-requested': 'キャンセルしています……', failed: '処理を完了できませんでした。', cancelled: 'キャンセルしました。',
+  succeeded: '処理が完了しました。', superseded: 'Sessionが先へ進んだため、この結果は適用されませんでした。',
 };
-const kindCopy: Record<string, string> = { narrative: '物語', 'module-handoff': 'Module結果の物語', 'note-proposal': 'ノートの変更案', image: '場面の画像' };
+const kindCopy: Record<string, string> = { 'scenario-turn': 'Scenario Turn', 'note-proposal': 'ノートの変更案', image: '場面の画像' };
+
+export const scenarioTurnStageCopy: Record<ScenarioTurnStage, string> = {
+  'loading-world': '世界と現在地を読み込んでいます。',
+  'enumerating-actions': '利用可能なObjectアクションを列挙しています。',
+  'selecting-action': '入力に合うObjectアクションを選んでいます。',
+  'applying-rules': '選択したアクションのルールを適用しています。',
+  'running-extension': '確定済みの拡張アクションを実行しています。',
+  'generating-narrative': '確定済みの状態からNarrativeを生成しています。',
+  completed: 'Scenario Turnが完了しました。',
+  failed: 'Scenario Turnを完了できませんでした。',
+  cancelled: 'Scenario Turnをキャンセルしました。',
+};
 
 const executionStatusTone: Record<SessionExecutionApiResponse['status'], BadgeTone> = {
   queued: 'neutral',
@@ -64,9 +76,23 @@ const formatElapsed = (milliseconds: number) => {
   return `${seconds}秒`;
 };
 
+function ScenarioTurnProjectionSummary({ projection }: { projection: ScenarioTurnProjection }) {
+  const selected = projection.selectedAction;
+  const postState = projection.postState;
+  const location = postState?.currentLocation ?? projection.currentLocation;
+  return <div className="mt-2 ml-auto grid w-[min(100%,620px)] gap-1.5 rounded-xl border border-myr-ink/10 bg-myr-paper/55 px-3 py-2 text-left text-myr-caption text-myr-ink-soft" data-testid="scenario-turn-public-projection">
+    {location && <p className="m-0"><strong>現在地:</strong> {location.label}</p>}
+    {projection.availableActions && <p className="m-0"><strong>利用可能な行動:</strong> {projection.availableActions.map((action) => action.label).join('、') || 'なし'}</p>}
+    {selected && <p className="m-0"><strong>選択:</strong> {selected.objectLabel ? `${selected.objectLabel} / ` : ''}{selected.actionLabel ?? selected.actionId}</p>}
+    {postState && <p className="m-0"><strong>確定済み状態:</strong> Revision {postState.revision}{postState.facts?.length ? ` / ${postState.facts.join('、')}` : ''}</p>}
+  </div>;
+}
+
 function ExecutionStatusLine({ execution, elapsed }: { execution: SessionExecutionApiResponse; elapsed: string }) {
-  return <span className="execution-status-copy inline-flex items-baseline justify-end gap-2" key={`${execution.status}-${execution.revision}`}>
-    {kindCopy[execution.kind] ?? execution.kind}: {statusCopy[execution.status] ?? execution.status}
+  const stage = execution.stage ?? execution.scenarioTurn?.stage;
+  const status = execution.kind === 'scenario-turn' && stage ? scenarioTurnStageCopy[stage] : statusCopy[execution.status] ?? execution.status;
+  return <span className="execution-status-copy inline-flex items-baseline justify-end gap-2" key={`${execution.status}-${stage ?? ''}-${execution.revision}`}>
+    {kindCopy[execution.kind] ?? execution.kind}: {status}
     <span className="whitespace-nowrap text-[color-mix(in_srgb,currentColor_68%,transparent)] tabular-nums" aria-hidden="true">{elapsed}</span>
   </span>;
 }
@@ -121,6 +147,12 @@ export function SessionExecutionItem({ execution, onAction, keepSucceededStatusV
           </section>)}
         </div>
       </details> : <div className="min-h-5 text-inherit">{statusLine}</div>}
+      {execution.kind === 'scenario-turn' && execution.scenarioTurn && <ScenarioTurnProjectionSummary projection={execution.scenarioTurn} />}
+      {failed && execution.kind === 'scenario-turn' && execution.scenarioTurn?.postState && (
+        <p className="mt-2 mb-0 ml-auto w-[min(100%,620px)] rounded-xl border border-myr-gold/35 bg-myr-paper/70 px-3 py-2 text-left font-bold text-myr-ruby" data-testid="scenario-turn-committed-failure">
+          Narrativeの生成または公開に失敗しましたが、Objectの状態、配置、適用結果は確定済みです。再試行してもルールは再適用されません。
+        </p>
+      )}
       {actions}
     </article>
   );

@@ -35,14 +35,14 @@ export const SucceededStatusToggleStress: Story = {
       await new Promise((resolve) => window.setTimeout(resolve, 240));
       await userEvent.click(setting);
       await new Promise((resolve) => window.setTimeout(resolve, 800));
-      await expect(canvas.getByText(/物語: 生成が完了しました/)).toBeVisible();
+      await expect(canvas.getByText(/Scenario Turn: Scenario Turnが完了しました/)).toBeVisible();
     });
     await step('連続して切り替えても有効時には消失アニメーションを停止する', async () => {
       await userEvent.click(setting);
       await new Promise((resolve) => window.setTimeout(resolve, 240));
       await userEvent.click(setting);
       await new Promise((resolve) => window.setTimeout(resolve, 800));
-      const execution = canvas.getByTestId('execution-EXE-narrative-succeeded');
+      const execution = canvas.getByTestId('execution-EXE-scenario-turn-succeeded');
       await expect(execution).not.toHaveClass('execution-is-completing');
       await expect(execution).toBeVisible();
     });
@@ -66,7 +66,7 @@ export const FailedWithDevelopmentDiagnostics: Story = {
       await expect(args.onExecutionAction).toHaveBeenCalled();
     });
     await step('The status line toggles safe development diagnostics', async () => {
-      const status = canvas.getAllByText(/物語: 生成できませんでした/)[0];
+      const status = canvas.getAllByText(/Scenario Turn: 確定済みの状態からNarrativeを生成しています/)[0];
       await userEvent.click(status);
       await userEvent.click(canvas.getAllByText('例外情報')[0]);
       await expect(canvas.getAllByText(/Authorization=\[REDACTED\]/).length).toBeGreaterThan(0);
@@ -76,7 +76,7 @@ export const FailedWithDevelopmentDiagnostics: Story = {
       await expect(canvas.queryByText(/Bearer secret/i)).not.toBeInTheDocument();
     });
     await step('Narrative success and image failure remain partial success', async () => {
-      await expect(canvas.getByText(/場面の画像: 生成できませんでした/)).toBeInTheDocument();
+      await expect(canvas.getByText(/場面の画像: 処理を完了できませんでした/)).toBeInTheDocument();
       await expect(canvas.getByTestId('image-artifact-item')).toBeInTheDocument();
     });
     await step('Note proposal is reviewable but not auto-applied', async () => {

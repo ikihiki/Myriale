@@ -55,7 +55,7 @@ describe('sessionPlayApi', () => {
         kind: 'narrative',
         narrative: {
           body: '扉の前で立ち止まる。',
-          schemaVersion: 'narrative-dialogue.v8',
+          schemaVersion: 'post-state-narrative.v1',
           turnType: 'action-result',
           heading: '閉じた扉を確かめる',
         },
@@ -79,7 +79,7 @@ describe('sessionPlayApi', () => {
     const session = await getSession('SES-1', '/api/sessions');
 
     expect(session.turns[0].narrative).toMatchObject({
-      schemaVersion: 'narrative-dialogue.v8',
+      schemaVersion: 'post-state-narrative.v1',
       turnType: 'action-result',
       heading: '閉じた扉を確かめる',
     });
@@ -100,7 +100,11 @@ describe('sessionPlayApi', () => {
     await acceptSessionInput('SES-1', '扉を調べる', 'request-1', '/api/sessions');
     await mutateSessionExecution('EXE-1', 'retry', '/api/sessions');
 
-    expect(fetch).toHaveBeenNthCalledWith(1, '/api/sessions/SES-1/inputs', expect.objectContaining({ method: 'POST', credentials: 'include' }));
+    expect(fetch).toHaveBeenNthCalledWith(1, '/api/sessions/SES-1/inputs', expect.objectContaining({
+      method: 'POST',
+      credentials: 'include',
+      body: JSON.stringify({ requestId: 'request-1', text: '扉を調べる', interactionType: 'dialogue', requestedOutputs: ['scenario-turn'] }),
+    }));
     expect(fetch).toHaveBeenNthCalledWith(2, '/api/session-executions/EXE-1/retry', expect.objectContaining({ method: 'POST', credentials: 'include' }));
   });
 

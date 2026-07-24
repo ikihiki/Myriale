@@ -22,9 +22,9 @@ describe('SessionActivityFeed', () => {
     const onAction = vi.fn();
     render(<SessionActivityFeed session={sessionActivityFixture('failed')} onExecutionAction={onAction} />);
     fireEvent.click(screen.getAllByRole('button', { name: '再試行' })[0]);
-    expect(onAction).toHaveBeenCalledWith('EXE-narrative-failed', 'retry');
+    expect(onAction).toHaveBeenCalledWith('EXE-scenario-turn-failed', 'retry');
     fireEvent.click(screen.getByRole('button', { name: '入力取り消し' }));
-    expect(onAction).toHaveBeenCalledWith('EXE-narrative-failed', 'dismiss');
+    expect(onAction).toHaveBeenCalledWith('EXE-scenario-turn-failed', 'dismiss');
     expect(screen.queryByRole('button', { name: '閉じる' })).toBeNull();
     expect(screen.getAllByTestId(/^execution-/)).toHaveLength(3);
   });
@@ -50,19 +50,19 @@ describe('SessionActivityFeed', () => {
     render(<SessionActivityFeed session={sessionActivityFixture('failed')} />);
     const input = screen.getByTestId('session-input-item');
     expect(input.classList.contains('session-input-item')).toBe(true);
-    const error = screen.getByTestId('execution-EXE-narrative-failed');
-    expect(error.children[1].classList.contains('execution-actions')).toBe(true);
+    const error = screen.getByTestId('execution-EXE-scenario-turn-failed');
+    expect(error.querySelector('.execution-actions')).not.toBeNull();
   });
 
   it('updates elapsed generation time and toggles diagnostics from the status line', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-07-21T12:00:05Z'));
     render(<SessionActivityFeed session={sessionActivityFixture('running')} />);
-    const execution = screen.getByTestId('execution-EXE-narrative-running');
+    const execution = screen.getByTestId('execution-EXE-scenario-turn-running');
     expect(execution.textContent).toContain('5秒');
     const details = execution.querySelector('details');
     const summary = execution.querySelector('summary');
-    expect(summary?.textContent).toContain('物語: 生成しています');
+    expect(summary?.textContent).toContain('Scenario Turn: 入力に合うObjectアクションを選んでいます');
     expect(details?.open).toBe(false);
     fireEvent.click(summary!);
     expect(details?.open).toBe(true);
@@ -70,25 +70,52 @@ describe('SessionActivityFeed', () => {
     expect(execution.textContent).toContain('6秒');
   });
 
+  it.each([
+    ['loading-world', '世界と現在地を読み込んでいます'],
+    ['enumerating-actions', '利用可能なObjectアクションを列挙しています'],
+    ['selecting-action', '入力に合うObjectアクションを選んでいます'],
+    ['applying-rules', '選択したアクションのルールを適用しています'],
+    ['running-extension', '確定済みの拡張アクションを実行しています'],
+    ['generating-narrative', '確定済みの状態からNarrativeを生成しています'],
+  ] as const)('maps the %s scenario-turn stage to user-facing status', (stage, copy) => {
+    const session = sessionActivityFixture('running');
+    session.executions = session.executions?.map((execution) => execution.kind === 'scenario-turn'
+      ? { ...execution, stage, scenarioTurn: { ...execution.scenarioTurn!, stage } }
+      : execution);
+    render(<SessionActivityFeed session={session} />);
+    expect(screen.getByText(new RegExp(copy))).not.toBeNull();
+  });
+
+  it('renders only the safe public action and post-state projection', () => {
+    render(<SessionActivityFeed session={sessionActivityFixture('failed')} />);
+    const projection = screen.getByTestId('scenario-turn-public-projection');
+    expect(projection.textContent).toContain('水没した書庫');
+    expect(projection.textContent).toContain('銀の鍵をかざす');
+    expect(projection.textContent).toContain('星座の扉は開いている');
+    expect(projection.textContent).not.toContain('moduleId');
+    expect(screen.getByTestId('scenario-turn-committed-failure').textContent).toContain('状態、配置、適用結果は確定済み');
+    expect(screen.getByTestId('scenario-turn-committed-failure').textContent).toContain('ルールは再適用されません');
+  });
+
   it('removes a completed execution after its exit animation', () => {
     vi.useFakeTimers();
     render(<SessionActivityFeed session={sessionActivityFixture('succeeded')} />);
-    expect(screen.getByTestId('execution-EXE-narrative-succeeded')).not.toBeNull();
+    expect(screen.getByTestId('execution-EXE-scenario-turn-succeeded')).not.toBeNull();
     act(() => vi.advanceTimersByTime(720));
-    expect(screen.queryByTestId('execution-EXE-narrative-succeeded')).toBeNull();
+    expect(screen.queryByTestId('execution-EXE-scenario-turn-succeeded')).toBeNull();
   });
 
   it('keeps a completed execution visible without the exit animation when the debug setting is enabled', () => {
     vi.useFakeTimers();
     const { rerender } = render(<SessionActivityFeed session={sessionActivityFixture('succeeded')} />);
-    let execution = screen.getByTestId('execution-EXE-narrative-succeeded');
+    let execution = screen.getByTestId('execution-EXE-scenario-turn-succeeded');
     expect(execution.classList.contains('execution-is-completing')).toBe(true);
 
     rerender(<SessionActivityFeed session={sessionActivityFixture('succeeded')} keepSucceededStatusVisible />);
-    execution = screen.getByTestId('execution-EXE-narrative-succeeded');
+    execution = screen.getByTestId('execution-EXE-scenario-turn-succeeded');
     expect(execution.classList.contains('execution-is-completing')).toBe(false);
     act(() => vi.advanceTimersByTime(720));
-    expect(execution.textContent).toContain('生成が完了しました');
+    expect(execution.textContent).toContain('Scenario Turnが完了しました');
   });
 
   it('cancels and restarts the exit animation when the debug setting is toggled repeatedly', () => {
@@ -98,19 +125,19 @@ describe('SessionActivityFeed', () => {
     act(() => vi.advanceTimersByTime(300));
 
     rerender(<SessionActivityFeed session={session} keepSucceededStatusVisible />);
-    let execution = screen.getByTestId('execution-EXE-narrative-succeeded');
+    let execution = screen.getByTestId('execution-EXE-scenario-turn-succeeded');
     expect(execution.classList.contains('execution-is-completing')).toBe(false);
     act(() => vi.advanceTimersByTime(1000));
-    expect(screen.getByTestId('execution-EXE-narrative-succeeded')).not.toBeNull();
+    expect(screen.getByTestId('execution-EXE-scenario-turn-succeeded')).not.toBeNull();
 
     rerender(<SessionActivityFeed session={session} />);
-    execution = screen.getByTestId('execution-EXE-narrative-succeeded');
+    execution = screen.getByTestId('execution-EXE-scenario-turn-succeeded');
     expect(execution.classList.contains('execution-is-completing')).toBe(true);
     act(() => vi.advanceTimersByTime(300));
     rerender(<SessionActivityFeed session={session} keepSucceededStatusVisible />);
-    expect(screen.getByTestId('execution-EXE-narrative-succeeded').classList.contains('execution-is-completing')).toBe(false);
+    expect(screen.getByTestId('execution-EXE-scenario-turn-succeeded').classList.contains('execution-is-completing')).toBe(false);
     act(() => vi.advanceTimersByTime(1000));
-    expect(screen.getByTestId('execution-EXE-narrative-succeeded')).not.toBeNull();
+    expect(screen.getByTestId('execution-EXE-scenario-turn-succeeded')).not.toBeNull();
   });
 
   it('reveals only the modeled short public input interpretation for a server-backed turn', () => {

@@ -111,7 +111,7 @@ public sealed class ModuleUiEndpointTests : IDisposable
             var executions = scope.ServiceProvider.GetRequiredService<IModuleExecutionService>();
             var created = await executions.InitializeAsync(ownerId, new InitializeModuleExecutionRequest(
                 "headless-ui", installed.Package.ModuleId, installed.Package.Version, installed.Package.Digest,
-                JsonSerializer.SerializeToElement(new { }), JsonSerializer.SerializeToElement(new { }), 0), default);
+                JsonSerializer.SerializeToElement(new { }), Binding(), 0), default);
             Assert.NotNull(created.Response);
             using var response = await client.GetAsync($"/api/module-executions/{created.Response.Id}/ui/runtime/");
             Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
@@ -132,10 +132,19 @@ public sealed class ModuleUiEndpointTests : IDisposable
         var executions = scope.ServiceProvider.GetRequiredService<IModuleExecutionService>();
         var created = await executions.InitializeAsync(ownerId, new InitializeModuleExecutionRequest(
             $"init-{Guid.NewGuid():N}", installed.Package.ModuleId, installed.Package.Version, installed.Package.Digest,
-            JsonSerializer.SerializeToElement(new { }), JsonSerializer.SerializeToElement(new { }), 0), default);
+            JsonSerializer.SerializeToElement(new { }), Binding(), 0), default);
         Assert.NotNull(created.Response);
         return (client, created.Response.Id, installed.Package.Digest);
     }
+
+    private static JsonElement Binding() => JsonSerializer.SerializeToElement(new
+    {
+        objectId = "test-object",
+        objectTypeId = "test-object-type",
+        actionId = "test-action",
+        arguments = new { },
+        objectState = new { },
+    });
 
     private async Task<HttpClient> AuthenticateAsync(string email)
     {

@@ -1,54 +1,60 @@
-# Module runtime
+# Extension module runtime
 
-## Turn model
+## Purpose and boundary
 
-A session contains narrative turns and module turns. A module turn owns execution until it completes; battle rounds and other internal steps do not create additional session turns. Module state is persisted after every accepted action so execution can resume after navigation or disconnection.
+The Object rule engine is the default execution mechanism. Declarative Object action results handle state updates, counters, set membership, placement moves, Session flags, facts/events/hints, forbidden facts, and Session completion. Extension modules are reserved for bounded mechanics that need trusted code or a dedicated interactive UI, such as a multi-round battle.
 
-## Runtime boundary
-
-The session engine calls an internal `IModuleRuntime`. The first implementation will adapt this boundary to `IMyrialeModule` in a trusted .NET assembly. A future WebAssembly implementation can use the same JSON-compatible requests and responses.
+An extension is never selected by AI or by arbitrary client input. A published Object action result pins the exact module ID, semantic version, SHA-256 package digest, configuration, contract version, and schema versions. After an enumerated action is selected, the rule engine resolves that binding and is the only component allowed to initialize or dispatch it.
 
 ```text
-Session engine
+Pinned Object action result
+  -> rule engine validates selected Object/action/arguments
+  -> exact extension binding
   -> IModuleRuntime
-       -> DotNetModuleRuntime
-       -> WebAssemblyModuleRuntime (future)
+       -> trusted DotNetModuleRuntime
+       -> isolated worker/runtime (future)
 ```
 
-Modules receive immutable configuration, context, state, action, logical revision, and host-provided random values. They do not receive `DbContext`, `HttpContext`, service providers, credentials, file paths, or arbitrary callbacks.
+## Contract baseline
+
+The incompatible Object-action extension contract starts again at contract version `"1"`; package configuration/state schemas start at `1`, and rebuilt first-party/test packages start at `1.0.0` with digests calculated from their new contents. No adapter accepts the previous module/progression contracts, and existing active executions are not migrated implicitly.
+
+Package digests, execution revisions, receipt sequences, dependency versions, and toolchain/application versions retain their normal meanings and are not reset.
+
+## Request authority and privacy
+
+Modules receive only immutable, JSON-compatible inputs required by the bound action:
+
+- pinned Object/action/result identity and public action context;
+- validated arguments;
+- immutable bound configuration;
+- current private module state and logical revision;
+- explicitly allowed Object/Session context;
+- host-generated random values and request identity.
+
+Modules do not receive `DbContext`, `HttpContext`, service providers, credentials, filesystem paths, arbitrary callbacks, unrelated Objects, or authority to select another module. They cannot directly mutate the database, choose a Scenario destination, change an unbound Object, publish narrative, or manufacture host randomness.
+
+The host exposes only the module's safe public view/outcome to players and narrative generation. Private state, configuration, binding identity, package details, random receipts, diagnostics, and hidden effects stay server-side.
 
 ## Lifecycle
 
-1. `ValidateConfigAsync` validates authoring configuration.
-2. `InitializeAsync` creates module state, view state, and available actions. An immediate module may complete here with an outcome.
-3. `DispatchAsync` applies one player intent and returns the next module state. A completed transition carries the sole authoritative outcome.
+1. `ValidateConfigAsync` validates authoring-time configuration for the exact package.
+2. `InitializeAsync` creates module state, public view, and available manual actions. It may complete immediately.
+3. `DispatchAsync` accepts one host-authorized action and expected revision, then returns an active or completed transition.
+4. A completed transition returns a bounded extension outcome. The host validates and translates that outcome into the Object action step's atomic effect commit.
 
-Active transitions may carry transient `uiEvents` for rendering the accepted step. A completed outcome may carry durable `emittedEvents` for scenario progression; the two collections have separate semantics and are never interchangeable.
+An active transition may expose transient `uiEvents` and safe available actions. These render the current mechanic but are not durable Scenario facts. A completed outcome may provide public facts/events/hints and host-supported effects; the host remains responsible for validating targets, paths, counts, sizes, revisions, and capabilities.
 
-The host validates every response before persistence. Request IDs provide idempotency and expected revisions prevent stale writes.
+## Manual UI actions
 
-## .NET runtime implementation
+A Module UI is displayed only when the current immutable action snapshot exposes an Object Type action whose visibility is `manual-ui` and whose selected Object result binds the extension. The UI may dispatch only the available action IDs for that active execution and expected revision.
 
-The API resolves modules by the exact tuple of module ID, semantic version, and SHA-256 digest. Runtime calls require the package to remain enabled and installed. Before execution, the host verifies the canonical package digest and confirms that the expanded `module.dll` matches the canonical DLL or ZIP entry.
+The browser cannot create a play-session Module Execution, choose a module/version/digest, replace the Object/action binding, or dispatch an extension for an Object action that was not enumerated. Detached owner-scoped preview/tooling executions may exist, but they cannot mutate a play Session.
 
-`DotNetModuleRuntime` loads each invocation into a fresh collectible `AssemblyLoadContext` and unloads it after the call. Both module object fields and assembly static fields are therefore isolated between invocations; all durable state must enter through the explicit request and leave through the response.
+## Integrity, idempotency, and recovery
 
-The host enforces configuration, state, action, context, effect-count, and total-response limits. It also validates lifecycle status, outcome/error combinations, action and event identifiers, and dispatch revisions before results can reach persistence. Accepted active or completed dispatches advance the revision by exactly one; failed transitions retain the expected revision.
+The runtime resolves the exact ID/version/digest tuple, verifies package integrity, and applies host-wide request/response limits. Trusted .NET packages run in a fresh collectible `AssemblyLoadContext` per invocation; durable state must cross the explicit contract. In-process code is not a hard security boundary, so untrusted packages require a future worker process or container.
 
-Calls are bounded by a host-wide concurrency gate, including package integrity checks, assembly loading, invocation, response validation, and serialization. Caller cancellation is forwarded to modules, but the in-process runtime does not advertise a hard timeout: trusted code can ignore cancellation or block in constructors and static initializers. Untrusted modules therefore require a future worker process or container boundary.
+Initialization and dispatch use durable request receipts containing semantic fingerprints, input snapshots, host random values, and exact responses. Matching retries replay completed responses. A recovered pending invocation uses the same frozen inputs and randomness; revision and unique-receipt constraints ensure only one result becomes canonical.
 
-## Execution and Session Turn persistence
-
-The API retains an authenticated detached Module Execution seam for preview and tooling. Play-session Module Turns are not client-startable by default: validated Narrative progression creates them through the internal orchestrator. The legacy session-turn creation route is available only when the explicit development setting `Modules:EnableClientSessionTurnCreation` is enabled. Each execution is owner-scoped and pins module ID, semantic version, package digest, contract version, configuration/state schema versions, configuration, and context. State, view state, available actions, revision, and a completed outcome are persisted after every accepted lifecycle step.
-
-A play `Session` is owner-scoped to one existing scenario. A `SessionTurn` has a stable position and is currently either a Module Turn owning exactly one Module Execution or a Narrative Turn linked to the completed Module Turn that produced it. The session's next-position counter is an optimistic concurrency token, so competing API processes retry allocation instead of producing duplicate positions. Creating a Module Turn inserts its turn, execution, and initialization receipt atomically; every internal dispatch continues to update that same execution and never creates another turn. Detached executions remain valid and have no Session Turn.
-
-Initialization and dispatch request IDs are recorded as durable receipts. Receipts store semantic request fingerprints, host-generated random values, actions, and exact responses. Session ownership participates in initialization fingerprints, so a request ID cannot be replayed into a different session. Matching retries replay a completed response; a retry of a pending request reinvokes the pure module operation with the same snapshots and random values. Revision concurrency ensures that at most one competing action becomes the accepted state transition. A replay of a completed Session-owned request also converges its automatically prepared Narrative handoff, retrying failed or lease-expired generation without reapplying the Module Outcome.
-
-A module-declared failed dispatch does not mutate the execution snapshot or revision. Its transient error and `uiEvents` are retained in the request receipt for replay. A failed initialization is terminal. Ordinary API responses expose view state and available actions but not private module state, configuration, context, or recorded randomness.
-
-Sessions currently reference the scenario identity rather than an immutable published scenario version. The current default `Database:RecreateOnStartup=true` recreates the database at application startup, so persistence across server restarts is not claimed yet. The startup path can be switched to non-destructive `EnsureCreated` with `Database:RecreateOnStartup=false`; doing so in production will also require an explicit schema migration and backfill strategy.
-
-## Deferred work
-
-Additional effect vocabularies, player-input narrative turns, durable emitted-event processing, scenario-version snapshots, real AI provider selection, background generation, worker-process isolation, package-cache invalidation across API processes, and retained database lifecycle management remain deferred.
+Extension completion alone does not publish narrative. The rule engine commits the extension outcome with Object/Session/module state and the action-step checkpoint. Post-state narrative is generated afterward. If narrative fails, retry never reinitializes or redispatches the extension.
