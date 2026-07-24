@@ -1,3 +1,82 @@
+export type ScenarioStateValueType = 'boolean' | 'string' | 'number';
+export type ScenarioStateVisibility = 'public' | 'private';
+export type ScenarioActionVisibility = 'ai-choice' | 'manual-ui' | 'system-only';
+
+export type ScenarioStateFieldPayload = {
+  code: string;
+  label: string;
+  valueType: ScenarioStateValueType;
+  defaultValue: string;
+  visibility: ScenarioStateVisibility;
+};
+
+export type ScenarioActionArgumentFieldPayload = {
+  code: string;
+  label: string;
+  valueType: ScenarioStateValueType;
+  required: boolean;
+};
+
+export type ScenarioObjectTypeActionPayload = {
+  code: string;
+  label: string;
+  description: string;
+  visibility: ScenarioActionVisibility;
+  availability: 'always' | 'state-equals';
+  availabilityStateCode: string;
+  argumentFields: ScenarioActionArgumentFieldPayload[];
+};
+
+export type ScenarioObjectTypePayload = {
+  code: string;
+  name: string;
+  description: string;
+  schemaVersion: 1;
+  stateFields: ScenarioStateFieldPayload[];
+  actions: ScenarioObjectTypeActionPayload[];
+};
+
+export type ScenarioLocationPayload = {
+  code: string;
+  name: string;
+  description: string;
+  atmosphere: string;
+  danger: string;
+};
+
+export type ScenarioRuleEffectPayload =
+  | { kind: 'set-state'; targetObjectCode: string; stateCode: string; value: string }
+  | { kind: 'move-object'; targetObjectCode: string; locationCode: string }
+  | { kind: 'emit-fact'; text: string }
+  | { kind: 'add-narrative-hint'; text: string };
+
+export type ScenarioObjectActionResultPayload = {
+  code: string;
+  actionCode: string;
+  fromStateCode: string;
+  fromStateValue: string;
+  priority: number;
+  note: string;
+  effects: ScenarioRuleEffectPayload[];
+};
+
+export type ScenarioObjectPayload = {
+  code: string;
+  name: string;
+  objectTypeCode: string;
+  initialLocationCode: string;
+  global: boolean;
+  initialStateOverrides: Array<{ stateCode: string; value: string }>;
+  actionResults: ScenarioObjectActionResultPayload[];
+};
+
+export type ScenarioRuleDataPayload = {
+  schemaVersion: 1;
+  locations: ScenarioLocationPayload[];
+  objectTypes: ScenarioObjectTypePayload[];
+  objects: ScenarioObjectPayload[];
+};
+
 export type CreateScenarioPayload = {
   title: string;
   summary?: string;
@@ -13,12 +92,24 @@ export type CreateScenarioPayload = {
   illustrationMood?: string;
   illustrationNegative?: string;
   sampleScene?: string;
+  ruleData?: ScenarioRuleDataPayload;
 };
 
 export type ScenarioDraftDto = Required<CreateScenarioPayload> & {
   id: string;
   status: 'draft' | string;
   updatedAt: string;
+};
+
+export type ScenarioRuleDataIssueDto = {
+  path: string;
+  severity: 'warning' | 'error';
+  message: string;
+};
+
+export type ScenarioRuleDataReadinessDto = {
+  readyToPublish: boolean;
+  issues: ScenarioRuleDataIssueDto[];
 };
 
 export type ScenarioApiError = Error & {
@@ -57,6 +148,9 @@ export type ScenarioHeroRecommendation = {
 export type ScenarioApi = {
   getScenarios: (signal?: AbortSignal) => Promise<ScenarioDraftDto[]>;
   getScenario: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioDraftDto>;
+  getScenarioRuleData: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioRuleDataPayload>;
+  putScenarioRuleData: (scenarioId: string, payload: ScenarioRuleDataPayload) => Promise<ScenarioRuleDataPayload>;
+  validateScenarioRuleData: (scenarioId: string, payload: ScenarioRuleDataPayload) => Promise<ScenarioRuleDataReadinessDto>;
   recommendHero: (scenarioId: string, payload: RecommendScenarioHeroPayload) => Promise<ScenarioHeroRecommendation>;
   createScenario: (payload: CreateScenarioPayload) => Promise<ScenarioDraftDto>;
   updateScenario: (scenarioId: string, payload: CreateScenarioPayload) => Promise<ScenarioDraftDto>;
@@ -92,6 +186,35 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
       });
       if (!response.ok) throw await toApiError(response);
       return response.json() as Promise<ScenarioDraftDto>;
+    },
+    async getScenarioRuleData(scenarioId, signal) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/rule-data`, {
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+        signal,
+      });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<ScenarioRuleDataPayload>;
+    },
+    async putScenarioRuleData(scenarioId, payload) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/rule-data`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<ScenarioRuleDataPayload>;
+    },
+    async validateScenarioRuleData(scenarioId, payload) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/rule-data/validate`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<ScenarioRuleDataReadinessDto>;
     },
     async recommendHero(scenarioId, payload) {
       const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/hero-recommendation`, {
@@ -136,6 +259,45 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
   };
 }
 
+const emptyScenarioRuleData = (): ScenarioRuleDataPayload => ({ schemaVersion: 1, locations: [], objectTypes: [], objects: [] });
+
+const awakeningLaboratoryRuleData: ScenarioRuleDataPayload = {
+  schemaVersion: 1,
+  locations: [
+    { code: 'laboratory', name: '地下研究室', description: '非常灯だけが残る閉鎖研究室。', atmosphere: '静かな緊張感', danger: '隔壁が閉鎖されている' },
+    { code: 'service-corridor', name: '保守通路', description: '脱出経路へ続く狭い通路。', atmosphere: '機械音と冷気', danger: '電源復旧前は暗い' },
+  ],
+  objectTypes: [{
+    code: 'sealed-door',
+    name: '隔壁扉',
+    description: '開閉状態を持つ研究施設の扉。',
+    schemaVersion: 1,
+    stateFields: [{ code: 'open', label: '開いている', valueType: 'boolean', defaultValue: 'false', visibility: 'public' }],
+    actions: [{ code: 'open', label: '扉を開ける', description: '閉じた隔壁を開く。', visibility: 'ai-choice', availability: 'state-equals', availabilityStateCode: 'open', argumentFields: [] }],
+  }],
+  objects: [{
+    code: 'north-door',
+    name: '北側の隔壁',
+    objectTypeCode: 'sealed-door',
+    initialLocationCode: 'laboratory',
+    global: false,
+    initialStateOverrides: [],
+    actionResults: [{
+      code: 'open-north-door',
+      actionCode: 'open',
+      fromStateCode: 'open',
+      fromStateValue: 'false',
+      priority: 100,
+      note: '通常の開扉結果。',
+      effects: [
+        { kind: 'set-state', targetObjectCode: 'north-door', stateCode: 'open', value: 'true' },
+        { kind: 'emit-fact', text: '北側の隔壁が開いた。' },
+        { kind: 'add-narrative-hint', text: '冷たい空気が保守通路から流れ込む。' },
+      ],
+    }],
+  }],
+};
+
 const awakeningLaboratoryScenario: ScenarioDraftDto = {
   id: 'SCN-AWAKENING-LAB',
   title: '目覚めの研究室',
@@ -152,6 +314,7 @@ const awakeningLaboratoryScenario: ScenarioDraftDto = {
   illustrationMood: '',
   illustrationNegative: '',
   sampleScene: '',
+  ruleData: awakeningLaboratoryRuleData,
   status: 'published',
   updatedAt: '2026-07-23',
 };
@@ -174,6 +337,7 @@ const demoScenarios: Record<string, ScenarioDraftDto> = {
     illustrationMood: '孤独、湿った静けさ、薄い金色の灯り',
     illustrationNegative: '現代車両、銃器、過度な流血',
     sampleScene: '水没した閲覧室で、星図を抱えた司書が振り向く。',
+    ruleData: emptyScenarioRuleData(),
     status: 'published',
     updatedAt: '2026-07-19',
   },
@@ -193,6 +357,7 @@ const demoScenarios: Record<string, ScenarioDraftDto> = {
     illustrationMood: '郷愁、灰、遠い光',
     illustrationNegative: '鮮やかな原色、近未来都市',
     sampleScene: '灰の降る無人駅で、宛名のない切符が淡く光る。',
+    ruleData: emptyScenarioRuleData(),
     status: 'published',
     updatedAt: '2026-07-19',
   },
@@ -212,6 +377,7 @@ const demoScenarios: Record<string, ScenarioDraftDto> = {
     illustrationMood: '月虹、夜露、静かな祝祭',
     illustrationNegative: '現代的な電子機器、昼の青空、過度な恐怖表現',
     sampleScene: '月虹の花が揺れる庭園で、止まらない時計塔を三人の旅人が見上げる。',
+    ruleData: emptyScenarioRuleData(),
     status: 'published',
     updatedAt: '2026-07-19',
   },
@@ -231,6 +397,7 @@ const demoScenarios: Record<string, ScenarioDraftDto> = {
     illustrationMood: '透明、静寂、夜明け前',
     illustrationNegative: '現代建築、原色、コミカルな表現',
     sampleScene: '硝子の木々の間で、司書が割れた本を拾い上げる。',
+    ruleData: emptyScenarioRuleData(),
     status: 'published',
     updatedAt: '2026-07-19',
   },
@@ -245,6 +412,21 @@ export function createDemoScenarioApi(): ScenarioApi {
       const scenario = demoScenarios[scenarioId];
       if (!scenario) throw demoError('シナリオが見つかりません。', 404);
       return { ...scenario };
+    },
+    async getScenarioRuleData(scenarioId) {
+      const scenario = demoScenarios[scenarioId];
+      if (!scenario) throw demoError('シナリオが見つかりません。', 404);
+      return structuredClone(scenario.ruleData);
+    },
+    async putScenarioRuleData(scenarioId, payload) {
+      const scenario = demoScenarios[scenarioId];
+      if (!scenario) throw demoError('シナリオが見つかりません。', 404);
+      scenario.ruleData = structuredClone(payload);
+      return structuredClone(payload);
+    },
+    async validateScenarioRuleData(scenarioId) {
+      if (!demoScenarios[scenarioId]) throw demoError('シナリオが見つかりません。', 404);
+      return { readyToPublish: true, issues: [] };
     },
     async recommendHero(scenarioId) {
       const scenario = demoScenarios[scenarioId];
@@ -279,6 +461,7 @@ export function createDemoScenarioApi(): ScenarioApi {
         illustrationMood: payload.illustrationMood?.trim() ?? '',
         illustrationNegative: payload.illustrationNegative?.trim() ?? '',
         sampleScene: payload.sampleScene?.trim() ?? '',
+        ruleData: payload.ruleData ?? emptyScenarioRuleData(),
         status: 'draft',
         updatedAt: '2026-06-29',
       };

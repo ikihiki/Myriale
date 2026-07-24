@@ -29,7 +29,7 @@ export const USE01EditExistingScenario: Story = {
   name: 'US-E01: 作成画面と同じフォームで既存シナリオを編集したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await step('登録画面と同じ5ステップの編集ウィザードに保存済み内容を読み込む', async () => {
+    await step('登録画面と同じ8ステップの編集ウィザードに保存済み内容を読み込む', async () => {
       await expect(canvas.getByRole('main', { name: 'シナリオ編集ウィザード' })).toBeVisible();
       await expect(canvas.getByRole('complementary', { name: '契約の改稿' })).toBeVisible();
       await expect(canvas.getByLabelText('シナリオタイトル')).toHaveValue('目覚めの研究室');
@@ -90,6 +90,32 @@ export const USE04EditIllustration: Story = {
       await expect(canvas.getByLabelText('挿絵の画風')).toHaveValue('冷たい研究施設のコンセプトアート');
       await expect(canvas.getByLabelText('挿絵のムード')).toHaveValue('静かな緊張感');
       await expect(canvas.getByLabelText('挿絵の禁止要素')).toHaveValue('明るい屋外、コミカルな表現');
+    });
+  },
+};
+
+export const USE11EditRuleDataWithStableCodes: Story = {
+  name: 'US-E11: 既存ルールデータのstable codeを保って編集したい',
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await goToStep(canvas, '種類と状態');
+    await step('保存済みObject Typeのstate/action interfaceを読み込む', async () => {
+      await expect(canvas.getByLabelText('種類のstable code')).toHaveValue('archive-door');
+      await expect(canvas.getByLabelText('状態1のcode')).toHaveValue('open');
+      await expect(canvas.getByLabelText('アクション1のcode')).toHaveValue('open');
+    });
+    await goToStep(canvas, '場所と配置');
+    await step('LocationとObject placementのstable codeを保って表示名だけ改稿する', async () => {
+      await expect(canvas.getByLabelText('場所のstable code')).toHaveValue('sunken-library');
+      await userEvent.clear(canvas.getByLabelText('場所の表示名'));
+      await userEvent.type(canvas.getByLabelText('場所の表示名'), '水没した中央閲覧室');
+      await expect(canvas.getByLabelText('オブジェクトのstable code')).toHaveValue('north-archive-door');
+    });
+    await goToStep(canvas, 'アクション結果');
+    await step('決定的な結果を維持したまま変更を保存する', async () => {
+      await expect(canvas.getByTestId('rule-readiness')).toHaveTextContent('決定的です');
+      await userEvent.click(canvas.getByRole('button', { name: '変更を保存' }));
+      await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('変更を保存しました');
     });
   },
 };

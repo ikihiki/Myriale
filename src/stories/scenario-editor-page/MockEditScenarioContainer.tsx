@@ -1,22 +1,8 @@
 import { useState } from 'react';
 import { EditScenarioPresentation } from '../../features/scenario-editor/EditScenarioPresentation';
-import type { ScenarioFormActions, ScenarioFormValues } from '../../features/scenario/@components/scenarioFormModel';
+import type { ScenarioFormActions } from '../../features/scenario/@components/scenarioFormModel';
 
-const fixture: ScenarioFormValues = {
-  title: '目覚めの研究室',
-  summary: '# シナリオ\n閉鎖された地下研究施設から脱出します。\n# 描写\n- 緊張感のある静かな雰囲気を維持する',
-  genre: 'SF,ミステリー,脱出劇',
-  aiFreedom: '低: 厳密に守る',
-  heroMode: 'free',
-  heroFreeGenerationAllowed: false,
-  hero: '記憶を失った人物として自由に作成する。',
-  opening: 'あなたは閉鎖された地下研究施設で目を覚ます。',
-  illustrationStyle: '冷たい研究施設のコンセプトアート',
-  illustrationMood: '静かな緊張感',
-  illustrationNegative: '明るい屋外、コミカルな表現',
-  sampleScene: '非常灯だけが点滅する無人の実験室。',
-};
-
+import { editScenarioFixture } from './editScenarioFixtures';
 const account = { name: '霧野しおり', email: 'author@myriale.example', initials: '霧野', role: '作者' };
 
 export function MockEditScenarioContainer({ scenarioId }: { scenarioId: string }) {
@@ -39,7 +25,7 @@ export function MockEditScenarioContainer({ scenarioId }: { scenarioId: string }
   return <EditScenarioPresentation
     account={account}
     scenarioId={scenarioId}
-    initialValues={fixture}
+    initialValues={editScenarioFixture}
     status="ready"
     saving={saving}
     aiWorking={false}
