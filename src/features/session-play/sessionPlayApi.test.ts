@@ -100,7 +100,11 @@ describe('sessionPlayApi', () => {
     await acceptSessionInput('SES-1', '扉を調べる', 'request-1', '/api/sessions');
     await mutateSessionExecution('EXE-1', 'retry', '/api/sessions');
 
-    expect(fetch).toHaveBeenNthCalledWith(1, '/api/sessions/SES-1/inputs', expect.objectContaining({ method: 'POST', credentials: 'include' }));
+    expect(fetch).toHaveBeenNthCalledWith(1, '/api/sessions/SES-1/inputs', expect.objectContaining({
+      method: 'POST',
+      credentials: 'include',
+      body: JSON.stringify({ requestId: 'request-1', text: '扉を調べる', interactionType: 'dialogue', requestedOutputs: ['scenario-turn'] }),
+    }));
     expect(fetch).toHaveBeenNthCalledWith(2, '/api/session-executions/EXE-1/retry', expect.objectContaining({ method: 'POST', credentials: 'include' }));
   });
 

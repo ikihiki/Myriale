@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { toDialogueTurn, toSessionNotice } from './sessionModel';
+import { getManualUiAction, hasCommittedStateAwaitingNarrative, toDialogueTurn, toSessionNotice } from './sessionModel';
+import { executionFixture } from './sessionActivityFixtures';
+import type { ModuleExecution } from '../../modules/api/moduleExecutionApi';
 import type { SessionApiError, SessionApiErrorKind } from './sessionPlayApi';
 
 const baseTurn = {
@@ -40,6 +42,33 @@ describe('toDialogueTurn', () => {
 
     expect(turn.turnTitle).toBe('Player Inputを受けたNarrative');
     expect(turn.kind).toBe('action');
+  });
+});
+
+describe('scenario-turn presentation boundaries', () => {
+  it('allows manual UI only for the authored selected manual-ui Object action', () => {
+    const execution = executionFixture('running');
+    const moduleExecution = { id: 'MOD-EXEC-1' } as ModuleExecution;
+    execution.stage = 'running-extension';
+    execution.scenarioTurn = {
+      ...execution.scenarioTurn!,
+      stage: 'running-extension',
+      selectedAction: { objectId: 'OBJ-DOOR', actionId: 'roll', actionLabel: '判定する', visibility: 'manual-ui' },
+      manualUi: { objectId: 'OBJ-DOOR', actionId: 'roll', actionLabel: '判定する', visibility: 'manual-ui', execution: moduleExecution },
+    };
+    expect(getManualUiAction(execution)?.execution).toBe(moduleExecution);
+
+    execution.scenarioTurn.manualUi = { ...execution.scenarioTurn.manualUi!, actionId: 'different-action' };
+    expect(getManualUiAction(execution)).toBeNull();
+  });
+
+  it('recognizes narrative generation after state commit without treating rules as pending', () => {
+    const execution = executionFixture('running');
+    execution.stage = 'generating-narrative';
+    execution.scenarioTurn = { ...execution.scenarioTurn!, stage: 'generating-narrative', postState: { revision: 4, objects: [] } };
+    expect(hasCommittedStateAwaitingNarrative(execution)).toBe(true);
+    execution.scenarioTurn = { ...execution.scenarioTurn, postState: null };
+    expect(hasCommittedStateAwaitingNarrative(execution)).toBe(false);
   });
 });
 
