@@ -95,32 +95,13 @@ export const US01CreateDraftScenario: Story = {
   },
 };
 
-export const US02SpecifyGenreAndTone: Story = {
-  name: 'US-02: ジャンルや雰囲気を指定したい',
+export const US02SpecifyGenreTag: Story = {
+  name: 'US-02: シナリオのジャンルをタグで指定したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await goToStep(canvas, '世界の掟');
-    await step('ジャンルと雰囲気を入力し、AIが読む契約に即時反映する', async () => {
-      await userEvent.clear(canvas.getByLabelText('ジャンル'));
-      await userEvent.type(canvas.getByLabelText('ジャンル'), 'ポストアポカリプス巡礼譚');
-      await userEvent.clear(canvas.getByLabelText('雰囲気'));
-      await userEvent.type(canvas.getByLabelText('雰囲気'), '乾いた祈り、淡い希望');
-      await expect(canvas.getByRole('complementary', { name: '入力サマリー' })).toHaveTextContent('ポストアポカリプス巡礼譚');
-      await expect(canvas.getByRole('complementary', { name: '入力サマリー' })).toHaveTextContent('乾いた祈り、淡い希望');
-    });
-  },
-};
-
-export const US03DefineLoreContract: Story = {
-  name: 'US-03: 世界観や前提条件を設定したい',
-  play: async ({ canvasElement, step }) => {
-    const canvas = within(canvasElement);
-    await goToStep(canvas, '世界の掟');
-    await step('世界観やルールをLoreとして入力する', async () => {
-      await userEvent.clear(canvas.getByLabelText('世界観やルール'));
-      await userEvent.type(canvas.getByLabelText('世界観やルール'), '魔法は星図を燃料にする。\n王都の外では朝が来ない。');
-      await expect(canvas.getByText('世界の掟')).toBeVisible();
-      await expect(canvas.getByRole('complementary', { name: '入力サマリー' })).toHaveTextContent('Lore: 2項目');
+    await step('タイトル直下のジャンルタグを入力し、表紙サマリーへ反映する', async () => {
+      await userEvent.type(canvas.getByLabelText('ジャンルタグ'), 'ポストアポカリプス巡礼譚');
+      await expect(canvas.getByRole('complementary', { name: '入力サマリー' })).toHaveTextContent('# ポストアポカリプス巡礼譚');
     });
   },
 };
@@ -282,19 +263,6 @@ export const US19AiCompletesSummary: Story = {
       await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('採用しました');
       await userEvent.click(canvas.getByRole('button', { name: 'プレビュー' }));
       await expect(canvas.getByRole('article', { name: '基本情報のMarkdownプレビュー' })).toHaveTextContent('水没した書庫を探索する');
-    });
-  },
-};
-
-export const US20AiChecksLore: Story = {
-  name: 'US-20: 世界観設定をAIにチェックしてもらいたい',
-  play: async ({ canvasElement, step }) => {
-    const canvas = within(canvasElement);
-    await goToStep(canvas, '世界の掟');
-    await step('Loreの矛盾や不足をチェックし、理由を確認する', async () => {
-      await userEvent.click(canvas.getByRole('button', { name: '矛盾をチェック' }));
-      await expect(canvas.getByTestId('ai-suggestion')).toHaveTextContent('矛盾候補');
-      await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('自動確定はしません');
     });
   },
 };

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ScenarioAiAssistResponse, ScenarioAiKind } from '../../app/scenarioApi';
-import { Button, Input, Label, MarkdownEditor, Notice, SummaryCard, SummaryInset, Textarea } from '../../components/ui';
+import { Badge, Button, Input, Label, MarkdownEditor, Notice, SummaryCard, SummaryInset, Textarea } from '../../components/ui';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { WizardNavigation } from '../../shared/WizardNavigation';
 import {
@@ -23,12 +23,11 @@ import {
   type ScenarioRegistrationValues,
 } from './scenarioRegistrationModel';
 
-type SuggestionKind = '基本情報' | '世界観' | '挿絵テイスト' | '挿絵プロンプト';
-type WizardStep = 'cover' | 'lore' | 'ai' | 'hero' | 'opening' | 'illustration';
+type SuggestionKind = '基本情報' | '挿絵テイスト' | '挿絵プロンプト';
+type WizardStep = 'cover' | 'ai' | 'hero' | 'opening' | 'illustration';
 
 const wizardSteps: Array<{ id: WizardStep; label: string; help: string }> = [
-  { id: 'cover', label: '表紙', help: 'Draft保存のための最小入力' },
-  { id: 'lore', label: '世界の掟', help: 'ジャンル、雰囲気、Lore' },
+  { id: 'cover', label: '表紙', help: 'タイトル、ジャンル、基本情報' },
   { id: 'ai', label: 'AI裁量', help: 'AIが広げてよい範囲' },
   { id: 'hero', label: '主人公', help: '初期キャラクター条件' },
   { id: 'opening', label: '第一場面', help: '最初のNarrativeの固定' },
@@ -82,7 +81,6 @@ export function ScenarioRegistrationPresentation({
 
   const kindFor = (kind: SuggestionKind): ScenarioAiKind => {
     if (kind === '基本情報') return 'summary';
-    if (kind === '世界観') return 'lore-check';
     if (kind === '挿絵テイスト') return 'illustration-style';
     return 'illustration-prompt';
   };
@@ -119,7 +117,6 @@ export function ScenarioRegistrationPresentation({
 
   const statusFor = (step: WizardStep) => {
     if (step === 'cover') return values.title ? '保存候補' : '未入力';
-    if (step === 'lore') return values.lore ? '入力済み' : '未入力';
     if (step === 'ai') return values.aiFreedom;
     if (step === 'hero') return values.heroMode === 'fixed' ? '固定' : values.heroMode === 'select' ? '選択式' : '自由生成';
     if (step === 'opening') return values.opening ? '固定' : 'AI生成';
@@ -160,8 +157,22 @@ export function ScenarioRegistrationPresentation({
 
           {activeStep === 'cover' && (
             <section className={wizardPanelClass} aria-label="表紙">
-              <p><strong>{currentStep.help}。</strong>シナリオAPIへ保存する基本情報です。タイトルだけでDraftを作り、ほかの項目はあとから編集できます。</p>
+              <p><strong>{currentStep.help}。</strong>タイトルだけでDraftを作れます。世界観や雰囲気は基本情報へまとめて記述します。</p>
               <label>シナリオタイトル *<Input aria-label="シナリオタイトル" aria-invalid={firstScenarioFieldError(fieldErrors, 'title') ? true : undefined} value={values.title} onChange={(event) => update('title', event.target.value)} placeholder="星喰いの地下図書館" /></label>
+              <label className="!mt-1.5 !flex !flex-wrap !items-center !gap-2">
+                <span className="sr-only">ジャンルタグ</span>
+                <Badge tone="info" className="!gap-1.5 !px-3 !py-1.5">
+                  <span aria-hidden="true">#</span>
+                  <Input
+                    aria-label="ジャンルタグ"
+                    value={values.genre}
+                    onChange={(event) => update('genre', event.target.value)}
+                    placeholder="幻想ミステリ"
+                    className="!h-auto !min-w-36 !border-0 !bg-transparent !p-0 !text-xs !font-bold !text-current !shadow-none placeholder:!text-current/55 focus-visible:!outline-none"
+                  />
+                </Badge>
+                <span className="text-myr-caption font-medium text-[#687182]">タイトルを分類する短いタグ</span>
+              </label>
               <MarkdownEditor
                 label="基本情報"
                 value={values.summary}
@@ -171,16 +182,6 @@ export function ScenarioRegistrationPresentation({
                 placeholder={'## シナリオの目的\n\nこの物語で体験することを書きます。\n\n- 主な目的\n- 重要な前提'}
               />
               <div className={wizardButtonRowClass}><Button variant="primary" size="sm" onClick={() => void saveDraft()} disabled={saving}>{saving ? '保存中…' : '下書き保存'}</Button><Button variant="secondary" size="sm" onClick={() => void consultAi('基本情報')} disabled={aiWorking}>AIに基本情報案を出してもらう</Button><Button variant="secondary" size="sm" onClick={adoptSummary}>採用して編集</Button></div>
-            </section>
-          )}
-
-          {activeStep === 'lore' && (
-            <section className={wizardPanelClass} aria-label="世界の掟">
-              <p><strong>{currentStep.help}。</strong>ジャンル、雰囲気、LoreはシナリオAPIに保存され、文章AIと挿絵AIが共通して参照します。</p>
-              <label>ジャンル<Input aria-label="ジャンル" value={values.genre} onChange={(event) => update('genre', event.target.value)} /></label>
-              <label>雰囲気<Input aria-label="雰囲気" value={values.tone} onChange={(event) => update('tone', event.target.value)} /></label>
-              <label>Lore<Textarea aria-label="世界観やルール" value={values.lore} onChange={(event) => update('lore', event.target.value)} /></label>
-              <Button variant="secondary" size="sm" onClick={() => void consultAi('世界観')} disabled={aiWorking}>矛盾をチェック</Button>
             </section>
           )}
 
@@ -244,8 +245,8 @@ export function ScenarioRegistrationPresentation({
             { value: '挿絵AI', label: '挿絵AI' },
             { value: 'ルール確認AI', label: 'ルール確認AI' },
           ]} />
-          <SummaryCard as="article"><h3>表紙</h3><p>{values.title || 'タイトル未入力'}</p><p>{values.summary ? `基本情報: Markdown ${values.summary.length}文字` : '基本情報は空でも保存できます'}</p></SummaryCard>
-          <SummaryCard as="article"><h3>AIが読む契約</h3><p>Genre: {values.genre}</p><p>Tone: {values.tone}</p><p>Lore: {values.lore.split('\n').filter(Boolean).length}項目</p><p>AI裁量: {values.aiFreedom}</p></SummaryCard>
+          <SummaryCard as="article"><h3>表紙</h3><p>{values.title || 'タイトル未入力'}</p><p>{values.genre ? `# ${values.genre}` : 'ジャンルタグ未入力'}</p><p>{values.summary ? `基本情報: Markdown ${values.summary.length}文字` : '基本情報は空でも保存できます'}</p></SummaryCard>
+          <SummaryCard as="article"><h3>AIが読む契約</h3><p>基本情報に世界観・雰囲気を記述</p><p>AI裁量: {values.aiFreedom}</p></SummaryCard>
           <SummaryCard as="article"><h3>主人公と第一場面</h3><p>{values.hero}</p><p>{values.opening}</p></SummaryCard>
           <SummaryCard as="article"><h3>挿絵</h3><p>{values.illustrationStyle}</p><p>NG: {values.illustrationNegative}</p></SummaryCard>
           <SummaryCard as="article" data-testid="ai-suggestion"><h3>提案候補</h3><p>{suggestion}</p></SummaryCard>

@@ -34,8 +34,8 @@ export function MockScenarioRegistrationContainer() {
         genre: values.genre,
         updatedAt: '2026-07-23',
         summary: values.summary,
-        tone: values.tone,
-        lore: values.lore,
+        tone: '',
+        lore: '',
         aiFreedom: values.aiFreedom,
         heroMode: values.heroMode,
         heroFreeGenerationAllowed: values.heroFreeGenerationAllowed,
@@ -60,15 +60,7 @@ export function MockScenarioRegistrationContainer() {
       message: '基本情報案を3つ提示しました。採用、編集、破棄を選べます。',
       value: {
         message: '基本情報案を3つ提示しました。採用、編集、破棄を選べます。',
-        suggestions: [{ id: 'summary-1', body: '## 物語の目的\n\n地下に沈んだ王都で、禁書を読むたびに書き換わる星座の謎を追います。\n\n- 水没した書庫を探索する\n- 失われる記憶の代償を選ぶ', rationale: 'title/genre/loreからMarkdownの基本情報を生成しました。' }],
-      },
-    };
-    if (kind === 'lore-check') return {
-      ok: true,
-      message: '世界観の矛盾候補を2件見つけました。',
-      value: {
-        message: '世界観の矛盾候補を2件見つけました。',
-        suggestions: [{ id: 'lore-1', body: '死者の名前を読む条件と記憶喪失の範囲を明確化すると、セッション中の判定が安定します。', rationale: 'Loreの発火条件を明文化します。' }],
+        suggestions: [{ id: 'summary-1', body: '## 物語の目的\n\n地下に沈んだ王都で、禁書を読むたびに書き換わる星座の謎を追います。\n\n- 水没した書庫を探索する\n- 失われる記憶の代償を選ぶ', rationale: 'タイトル、ジャンル、基本情報からMarkdown案を生成しました。' }],
       },
     };
     if (kind === 'illustration-style') return {

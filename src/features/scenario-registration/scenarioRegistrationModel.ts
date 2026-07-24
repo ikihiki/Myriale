@@ -1,6 +1,6 @@
 import type { ScenarioAiAssistResponse, ScenarioAiKind, CreateScenarioPayload } from '../../app/scenarioApi';
 
-export type ScenarioRegistrationValues = Required<CreateScenarioPayload>;
+export type ScenarioRegistrationValues = Required<Omit<CreateScenarioPayload, 'tone' | 'lore'>>;
 
 export type ScenarioRegistrationCommandResult<T = undefined> = {
   ok: boolean;
@@ -25,8 +25,6 @@ export const initialScenarioRegistrationValues: ScenarioRegistrationValues = {
   title: '',
   summary: '',
   genre: '',
-  tone: '',
-  lore: '',
   aiFreedom: '中: 設定を守りつつ提案する',
   heroMode: 'free',
   heroFreeGenerationAllowed: false,
