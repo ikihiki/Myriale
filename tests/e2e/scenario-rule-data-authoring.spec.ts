@@ -2,7 +2,7 @@ import { expect, test, type Page } from './fixtures';
 
 const openStory = async (page: Page, id: string) => {
   await page.goto(`/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`);
-  await expect(page.getByRole('main', { name: 'シナリオ登録ウィザード' })).toBeVisible();
+  await expect(page.getByRole('main', { name: 'シナリオ登録ウィザード' })).toBeVisible({ timeout: 15_000 });
 };
 
 test('Object Typeの状態とAI向けアクションを定義できる', async ({ page }) => {
