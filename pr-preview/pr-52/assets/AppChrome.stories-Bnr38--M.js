@@ -1,4 +1,4 @@
-import{j as g}from"./jsx-runtime-BO8uF4Og.js";import{w as n,e,u as p}from"./index-C4S39nCK.js";import{A as E}from"./AppChrome-CG0vUER4.js";import"./index-D4H_InIO.js";import"./Surfaces-xpIMDkG0.js";import"./navigationRecipes-DkSbwkz5.js";import"./MyrialeToggle-BJ2tbK4f.js";import"./index-DzKAYa42.js";import"./MyrialeMenu-CtcPHE9S.js";const L={title:"コンポーネント/AppChrome",component:E,parameters:{layout:"fullscreen",notes:"全ワイヤー共通のアプリ・ナビゲーション。上部バー（ブランド / セクション / アカウントメニュー）とパンくずで、実アプリと同じ移動ができます。各セクションやアカウントメニューから対応ワイヤーのストーリーへ遷移します。",docs:{description:{component:`AppChrome — the global application navigation shared by every page.
+import{j as g}from"./jsx-runtime-BO8uF4Og.js";import{w as n,e,u as p}from"./index-C4S39nCK.js";import{A as E}from"./AppChrome-BkdY0wXO.js";import"./index-D4H_InIO.js";import"./Surfaces-xpIMDkG0.js";import"./navigationRecipes-DkSbwkz5.js";import"./MyrialeToggle-CqDS5xl9.js";import"./index-BIT3Y9dO.js";import"./index-DzKAYa42.js";import"./MyrialeMenu-BTf3rYTM.js";const N={title:"コンポーネント/AppChrome",component:E,parameters:{layout:"fullscreen",notes:"全ワイヤー共通のアプリ・ナビゲーション。上部バー（ブランド / セクション / アカウントメニュー）とパンくずで、実アプリと同じ移動ができます。各セクションやアカウントメニューから対応ワイヤーのストーリーへ遷移します。",docs:{description:{component:`AppChrome — the global application navigation shared by every page.
 
 This is the real product chrome (top app bar with brand + sections + account
 menu, plus a breadcrumb row) that wraps each screen, replacing the earlier
@@ -184,4 +184,4 @@ and its menus can be reviewed in isolation.`}}}},b=g.jsx("div",{style:{padding:2
       name: '現在地'
     })).toHaveTextContent('ユーザー一覧');
   }
-}`,...(A=(f=m.parameters)==null?void 0:f.docs)==null?void 0:A.source}}};const N=["SignedIn","MobileNavigation","SignedOut","OperationsConsole"];export{l as MobileNavigation,m as OperationsConsole,r as SignedIn,c as SignedOut,N as __namedExportsOrder,L as default};
+}`,...(A=(f=m.parameters)==null?void 0:f.docs)==null?void 0:A.source}}};const U=["SignedIn","MobileNavigation","SignedOut","OperationsConsole"];export{l as MobileNavigation,m as OperationsConsole,r as SignedIn,c as SignedOut,U as __namedExportsOrder,N as default};
