@@ -74,12 +74,13 @@ export const UM03LoginWithEmail: Story = {
   args: { initialView: 'login' },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await step('Identity cookieセッションを開始しプロフィールへ進む', async () => {
+    await step('Identity cookieセッションを開始し、戻り先がなければホームへ進む', async () => {
       await userEvent.clear(canvas.getByLabelText('メールアドレス'));
       await userEvent.type(canvas.getByLabelText('メールアドレス'), 'reader@myriale.example');
-      await userEvent.type(canvas.getByTestId('login-password'), 'mist-library-2026');
+      await userEvent.type(canvas.getByTestId('login-password'), 'a');
       await userEvent.click(canvas.getByRole('button', { name: 'ログインする' }));
-      await expect(canvas.getByRole('region', { name: 'プロフィール' })).toBeVisible();
+      await expect(await canvas.findByRole('main', { name: 'Myrialeトップページ' })).toBeVisible();
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/');
     });
   },
 };

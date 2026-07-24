@@ -27,7 +27,7 @@ export const STORY_IDS = {
   // Library / authoring
   scenarioRegister: 'ユーザーストーリー-scenario-registration--us-01-create-draft-scenario',
   scenarioEdit: 'ユーザーストーリー-edit-scenario--use-01-edit-existing-scenario',
-  advancedScenario: 'ユーザーストーリー-scenario-registration--us-04-as-use-advanced-controls-during-registration',
+  advancedScenario: 'ユーザーストーリー-edit-scenario--use-01-edit-existing-scenario',
   // Sessions
   scenarioList: 'ユーザーストーリー-start-session--uss-01-start-new-session-from-scenario',
   startSession: 'ユーザーストーリー-start-session--uss-02-read-intro-before-hero',
@@ -43,6 +43,7 @@ export type StoryKey = keyof typeof STORY_IDS;
 
 export type AppNavigateOptions = {
   query?: Record<string, string>;
+  scenarioId?: string;
   sessionId?: string;
 };
 

@@ -22,8 +22,21 @@ describe('app reducer', () => {
     expect(db.scenarios['SCN-DRAFT-0427']).toBeUndefined();
   });
 
-  it('does not seed sessions into the production default DB', () => {
-    expect(Object.keys(createDemoDb('empty').playSessions)).toHaveLength(0);
+  it('does not seed scenarios or sessions into the production default DB', () => {
+    const db = createDemoDb('empty');
+    expect(Object.keys(db.scenarios)).toHaveLength(0);
+    expect(Object.keys(db.playSessions)).toHaveLength(0);
+  });
+
+  it('replaces stale scenarios with the API result', () => {
+    const db = createDemoDb('activeSession');
+    const next = appReducer(db, {
+      type: 'SCENARIOS_LOADED',
+      scenarios: [{ id: 'SCN-AWAKENING-LAB', title: '目覚めの研究室', status: 'published', genre: 'SFミステリー脱出劇', updatedAt: '2026-07-23' }],
+    });
+
+    expect(Object.keys(next.scenarios)).toEqual(['SCN-AWAKENING-LAB']);
+    expect(next.scenarios['SCN-STAR-LIBRARY']).toBeUndefined();
   });
 
   it('updates session turns without mutating the previous DB', () => {

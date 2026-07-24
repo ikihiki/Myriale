@@ -1,5 +1,5 @@
 import { createFileRoute, useRouter } from '@tanstack/react-router';
-import { safeRedirectTarget } from '../../auth/requireAuthenticated';
+import { authenticatedRedirectTarget, safeRedirectTarget } from '../../auth/requireAuthenticated';
 import { UserManagementPage } from '../../features/user-management/UserManagementPage';
 
 export type LoginSearch = {
@@ -19,7 +19,7 @@ function LoginRoute() {
   return (
     <UserManagementPage
       initialView="login"
-      onAuthenticated={() => router.history.replace(search.redirect ?? '/account/profile')}
+      onAuthenticated={() => router.history.replace(authenticatedRedirectTarget(search.redirect))}
     />
   );
 }

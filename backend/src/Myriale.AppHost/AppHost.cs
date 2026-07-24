@@ -69,7 +69,7 @@ if (isPublishMode)
         .WithEnvironment("SeedAccount__Enabled", "true")
         .WithEnvironment("SeedAccount__DisplayName", "霧野しおり")
         .WithEnvironment("SeedAccount__Email", "reader@myriale.example")
-        .WithEnvironment("SeedAccount__Password", "mist-library-2026")
+        .WithEnvironment("SeedAccount__Password", "a")
         .WaitFor(mockAi)
         .WithContainerRegistry(registry)
         .WithHttpEndpoint(targetPort: 8080, name: "http");

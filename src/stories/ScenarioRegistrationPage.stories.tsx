@@ -1,13 +1,16 @@
+import { useMemo } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
+import { createDemoAccountApi } from '../account/api/accountApi';
 import { MyrialeApp } from '../app/MyrialeApp';
 import { createDemoDb } from '../app/demoData';
+import { MockScenarioRegistrationContainer } from './scenario-registration-page/MockScenarioRegistrationContainer';
 import '../styles.css';
 
 const meta = {
   title: 'ユーザーストーリー/Scenario registration',
   component: MyrialeApp,
-  render: () => <MyrialeApp initialUrl="/scenarios/new" initialDb={createDemoDb('registrationDraft')} />,
+  render: () => <MyrialeApp initialUrl="/scenarios/new" initialDb={createDemoDb('registrationDraft')} scenarioRegistrationContainer={MockScenarioRegistrationContainer} />,
   parameters: {
     notes: 'docs/user-stories/scenario-registration.md の各ユーザーストーリーを、Storybook Interactions の step と expect で操作説明できるアプリ画面にしたものです。',
   },
@@ -16,8 +19,63 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+function AnonymousApp({ initialUrl }: { initialUrl: string }) {
+  const accountApi = useMemo(() => {
+    const api = createDemoAccountApi();
+    void api.logout();
+    return api;
+  }, []);
+
+  return <MyrialeApp
+    initialUrl={initialUrl}
+    initialDb={createDemoDb('registrationDraft')}
+    accountApi={accountApi}
+    scenarioRegistrationContainer={MockScenarioRegistrationContainer}
+  />;
+}
+
 const goToStep = async (canvas: ReturnType<typeof within>, stepName: string) => {
   await userEvent.click(canvas.getByRole('button', { name: `${stepName}へ` }));
+};
+
+export const AuthenticationReturnsToScenarioCreation: Story = {
+  name: '認証: ログイン後にシナリオ作成へ戻る',
+  render: () => <AnonymousApp initialUrl="/scenarios/new" />,
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await step('未ログインではログイン画面へ移動し、元のURLを保持する', async () => {
+      await expect(await canvas.findByRole('main', { name: 'ログイン' })).toBeVisible();
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/account/login');
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('redirect=%2Fscenarios%2Fnew');
+    });
+    await step('ログインすると元のシナリオ作成画面へ戻る', async () => {
+      await userEvent.clear(canvas.getByLabelText('メールアドレス'));
+      await userEvent.type(canvas.getByLabelText('メールアドレス'), 'reader@myriale.example');
+      await userEvent.type(canvas.getByTestId('login-password'), 'a');
+      await userEvent.click(canvas.getByRole('button', { name: 'ログインする' }));
+      await expect(await canvas.findByRole('main', { name: 'シナリオ登録ウィザード' })).toBeVisible();
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/scenarios/new');
+    });
+  },
+};
+
+export const AuthenticationDefaultsToHome: Story = {
+  name: '認証: 戻り先がなければホームへ進む',
+  render: () => <AnonymousApp initialUrl="/account/login" />,
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await step('戻り先なしでログインする', async () => {
+      await expect(await canvas.findByRole('main', { name: 'ログイン' })).toBeVisible();
+      await userEvent.clear(canvas.getByLabelText('メールアドレス'));
+      await userEvent.type(canvas.getByLabelText('メールアドレス'), 'reader@myriale.example');
+      await userEvent.type(canvas.getByTestId('login-password'), 'a');
+      await userEvent.click(canvas.getByRole('button', { name: 'ログインする' }));
+    });
+    await step('デフォルトのホーム画面へ移動する', async () => {
+      await expect(await canvas.findByRole('main', { name: 'Myrialeトップページ' })).toBeVisible();
+      await expect(canvas.getByTestId('app-url')).toHaveTextContent('/');
+    });
+  },
 };
 
 export const US01CreateDraftScenario: Story = {
@@ -37,32 +95,22 @@ export const US01CreateDraftScenario: Story = {
   },
 };
 
-export const US02SpecifyGenreAndTone: Story = {
-  name: 'US-02: ジャンルや雰囲気を指定したい',
+export const US02SpecifyGenreTag: Story = {
+  name: 'US-02: シナリオのジャンルをタグで指定したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await goToStep(canvas, '世界の掟');
-    await step('ジャンルと雰囲気を入力し、AIが読む契約に即時反映する', async () => {
-      await userEvent.clear(canvas.getByLabelText('ジャンル'));
-      await userEvent.type(canvas.getByLabelText('ジャンル'), 'ポストアポカリプス巡礼譚');
-      await userEvent.clear(canvas.getByLabelText('雰囲気'));
-      await userEvent.type(canvas.getByLabelText('雰囲気'), '乾いた祈り、淡い希望');
-      await expect(canvas.getByRole('complementary', { name: '入力サマリー' })).toHaveTextContent('ポストアポカリプス巡礼譚');
-      await expect(canvas.getByRole('complementary', { name: '入力サマリー' })).toHaveTextContent('乾いた祈り、淡い希望');
+    await step('タイトル直下へ複数のジャンルタグを追加し、表紙サマリーへ反映する', async () => {
+      const input = canvas.getByLabelText('ジャンルタグを追加');
+      await userEvent.type(input, 'ポストアポカリプス{Enter}');
+      await userEvent.type(input, '巡礼譚');
+      await userEvent.click(canvas.getByRole('button', { name: 'タグを追加' }));
+      await expect(canvas.getByRole('group', { name: '登録済みジャンルタグ' })).toHaveTextContent('# ポストアポカリプス');
+      await expect(canvas.getByRole('group', { name: '登録済みジャンルタグ' })).toHaveTextContent('# 巡礼譚');
+      await expect(canvas.getByRole('complementary', { name: '入力サマリー' })).toHaveTextContent('# ポストアポカリプス # 巡礼譚');
     });
-  },
-};
-
-export const US03DefineLoreContract: Story = {
-  name: 'US-03: 世界観や前提条件を設定したい',
-  play: async ({ canvasElement, step }) => {
-    const canvas = within(canvasElement);
-    await goToStep(canvas, '世界の掟');
-    await step('世界観やルールをLoreとして入力する', async () => {
-      await userEvent.clear(canvas.getByLabelText('世界観やルール'));
-      await userEvent.type(canvas.getByLabelText('世界観やルール'), '魔法は星図を燃料にする。\n王都の外では朝が来ない。');
-      await expect(canvas.getByText('世界の掟')).toBeVisible();
-      await expect(canvas.getByRole('complementary', { name: '入力サマリー' })).toHaveTextContent('Lore: 2項目');
+    await step('不要なタグを個別に削除できる', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: '巡礼譚タグを削除' }));
+      await expect(canvas.getByRole('group', { name: '登録済みジャンルタグ' })).not.toHaveTextContent('# 巡礼譚');
     });
   },
 };
@@ -79,109 +127,6 @@ export const US04TuneAiFreedom: Story = {
       await userEvent.click(await screen.findByRole('option', { name: '高: 展開を広げる' }));
       await expect(aiFreedomField).toHaveTextContent('高: 展開を広げる');
       await expect(canvas.getByRole('complementary', { name: '契約の背表紙' })).toHaveTextContent('高: 展開を広げる');
-    });
-  },
-};
-
-export const US04ASUseAdvancedControlsDuringRegistration: Story = {
-  name: 'US-04/AS: 登録中に高度な進行制御を設定したい',
-  play: async ({ canvasElement, step }) => {
-    const canvas = within(canvasElement);
-    await goToStep(canvas, 'Cast候補');
-    await step('登録ウィザード内の独立ステップとしてUS-ASのCast設計項目を開ける', async () => {
-      await expect(canvas.getByRole('region', { name: 'US-AS01: AIが使ってよい人物候補' })).toBeVisible();
-      await expect(canvas.getByTestId('advanced-summary')).toHaveTextContent('Cast候補');
-      await expect(canvas.queryByText('Advanced scenario execution / Controlled AI')).not.toBeInTheDocument();
-      await expect(canvas.queryByText('複数登録できる設計項目を、テーブル一覧と追加ダイアログで管理します。')).not.toBeInTheDocument();
-      await expect(canvas.getByRole('table', { name: 'Cast候補テーブル' })).toHaveTextContent('月読ミナト');
-    });
-    await step('登録中でもUS-AS01のようにCast候補を追加できる', async () => {
-      await userEvent.click(canvas.getByRole('button', { name: '新規Cast' }));
-      await userEvent.clear(canvas.getByLabelText('人物名'));
-      await userEvent.type(canvas.getByLabelText('人物名'), '登録中の案内人');
-      await userEvent.click(canvas.getByRole('button', { name: 'Castを登録' }));
-      await expect(canvas.getByRole('table', { name: 'Cast候補テーブル' })).toHaveTextContent('登録中の案内人');
-      await expect(canvas.getByTestId('advanced-notice')).toHaveTextContent('候補プールに登録しました');
-    });
-  },
-};
-
-export const USAS02ManageLocationsDuringRegistration: Story = {
-  name: 'US-AS02: 登録中に場所候補を管理したい',
-  play: async ({ canvasElement, step }) => {
-    const canvas = within(canvasElement);
-    await goToStep(canvas, 'Location候補');
-    await step('登録ウィザードのLocation候補ステップで、場所候補を追加する', async () => {
-      await userEvent.click(canvas.getByRole('button', { name: '新規Location' }));
-      await userEvent.clear(canvas.getByLabelText('場所名'));
-      await userEvent.type(canvas.getByLabelText('場所名'), '地下天文台');
-      await userEvent.click(canvas.getByRole('button', { name: 'Locationを登録' }));
-      await expect(canvas.getByTestId('advanced-notice')).toHaveTextContent('未定義場所は仮扱い');
-      await expect(canvas.getByRole('table', { name: 'Location候補テーブル' })).toHaveTextContent('地下天文台');
-    });
-  },
-};
-
-export const USAS03ControlChaptersAndBeatsDuringRegistration: Story = {
-  name: 'US-AS03: 登録中に章・ビート単位で制御したい',
-  play: async ({ canvasElement, step }) => {
-    const canvas = within(canvasElement);
-    await goToStep(canvas, 'Chapter / Beat');
-    await step('登録ウィザードのChapter / Beatステップで、ビートを追加する', async () => {
-      await userEvent.click(canvas.getByRole('button', { name: '新規Beat' }));
-      await userEvent.clear(canvas.getByLabelText('Chapter'));
-      await userEvent.type(canvas.getByLabelText('Chapter'), 'Chapter 3: 地下天文台');
-      await userEvent.click(canvas.getByRole('button', { name: 'Beatを固定' }));
-      await expect(canvas.getByTestId('advanced-notice')).toHaveTextContent('次のビートへ進みません');
-      await expect(canvas.getByRole('table', { name: 'Beatテーブル' })).toHaveTextContent('Chapter 3');
-    });
-  },
-};
-
-export const USAS04SetBeatConstraintsDuringRegistration: Story = {
-  name: 'US-AS04: 登録中にビート条件と禁止事項を設定したい',
-  play: async ({ canvasElement, step }) => {
-    const canvas = within(canvasElement);
-    await goToStep(canvas, 'Chapter / Beat');
-    await step('Entry/Exit条件と禁止事項をダイアログで追加し、テーブルで確認する', async () => {
-      await userEvent.click(canvas.getByRole('button', { name: '新規Beat' }));
-      await userEvent.clear(canvas.getByLabelText('禁止事項'));
-      await userEvent.type(canvas.getByLabelText('禁止事項'), '黒幕の名前をまだ出さない');
-      await userEvent.click(canvas.getByRole('button', { name: 'Beatを固定' }));
-      await expect(canvas.getByRole('table', { name: 'Beatテーブル' })).toHaveTextContent('黒幕の名前をまだ出さない');
-    });
-  },
-};
-
-export const USAS05DefineHiddenBriefDuringRegistration: Story = {
-  name: 'US-AS05: 登録中にプレイヤーに見せない裏要約を定義したい',
-  play: async ({ canvasElement, step }) => {
-    const canvas = within(canvasElement);
-    await goToStep(canvas, 'HiddenBrief');
-    await step('HiddenBriefステップで、非公開の真相を項目登録する', async () => {
-      await userEvent.click(canvas.getByRole('button', { name: '新規HiddenBrief' }));
-      const hiddenBriefField = canvas.getAllByLabelText('HiddenBrief')[0];
-      await userEvent.clear(hiddenBriefField);
-      await userEvent.type(hiddenBriefField, '鐘楼の主は主人公の未来の姿。');
-      await userEvent.click(canvas.getByRole('button', { name: '非公開情報を保存' }));
-      await expect(canvas.getByRole('table', { name: 'HiddenBriefテーブル' })).toHaveTextContent('未来の姿');
-      await expect(canvas.getByTestId('advanced-notice')).toHaveTextContent('HiddenBrief');
-    });
-  },
-};
-
-export const USAS06GateSecretRevealDuringRegistration: Story = {
-  name: 'US-AS06: 登録中に裏要約の公開条件を設定したい',
-  play: async ({ canvasElement, step }) => {
-    const canvas = within(canvasElement);
-    await goToStep(canvas, 'HiddenBrief');
-    await step('公開条件を秘密ごとに設定し、テーブルで条件を確認する', async () => {
-      await userEvent.click(canvas.getByRole('button', { name: '新規HiddenBrief' }));
-      await userEvent.clear(canvas.getByLabelText('公開条件'));
-      await userEvent.type(canvas.getByLabelText('公開条件'), '信頼値80以上、かつChapter 5到達');
-      await userEvent.click(canvas.getByRole('button', { name: '非公開情報を保存' }));
-      await expect(canvas.getByTestId('advanced-notice')).toHaveTextContent('示唆止まり');
-      await expect(canvas.getByRole('table', { name: 'HiddenBriefテーブル' })).toHaveTextContent('信頼値80以上');
     });
   },
 };
@@ -293,8 +238,8 @@ export const US17ConsultAiAboutRegistration: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await step('AIに相談しても、提案は自動確定しない', async () => {
-      await userEvent.click(canvas.getByRole('button', { name: 'AIに概要案を出してもらう' }));
-      await expect(canvas.getByTestId('ai-suggestion')).toHaveTextContent('概要案を3つ提示しました');
+      await userEvent.click(canvas.getByRole('button', { name: 'AIに基本情報案を出してもらう' }));
+      await expect(canvas.getByTestId('ai-suggestion')).toHaveTextContent('基本情報案を3つ提示しました');
       await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('自動確定はしません');
     });
   },
@@ -317,27 +262,16 @@ export const US18SelectAiByPurpose: Story = {
 };
 
 export const US19AiCompletesSummary: Story = {
-  name: 'US-19: シナリオ概要をAIに補完してもらいたい',
+  name: 'US-19: シナリオの基本情報をAIに補完してもらいたい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await step('概要候補を見て、採用してから編集可能な本文に入れる', async () => {
-      await userEvent.click(canvas.getByRole('button', { name: 'AIに概要案を出してもらう' }));
+    await step('基本情報候補を見て、採用してからMarkdown本文に入れる', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: 'AIに基本情報案を出してもらう' }));
       await userEvent.click(canvas.getByRole('button', { name: '採用して編集' }));
-      expect((canvas.getByLabelText('概要') as HTMLTextAreaElement).value).toContain('地下に沈んだ王都');
+      expect((canvas.getByLabelText('基本情報') as HTMLTextAreaElement).value).toContain('## 物語の目的');
       await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('採用しました');
-    });
-  },
-};
-
-export const US20AiChecksLore: Story = {
-  name: 'US-20: 世界観設定をAIにチェックしてもらいたい',
-  play: async ({ canvasElement, step }) => {
-    const canvas = within(canvasElement);
-    await goToStep(canvas, '世界の掟');
-    await step('Loreの矛盾や不足をチェックし、理由を確認する', async () => {
-      await userEvent.click(canvas.getByRole('button', { name: '矛盾をチェック' }));
-      await expect(canvas.getByTestId('ai-suggestion')).toHaveTextContent('矛盾候補');
-      await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('自動確定はしません');
+      await userEvent.click(canvas.getByRole('button', { name: 'プレビュー' }));
+      await expect(canvas.getByRole('article', { name: '基本情報のMarkdownプレビュー' })).toHaveTextContent('水没した書庫を探索する');
     });
   },
 };

@@ -201,7 +201,17 @@ using (var scope = app.Services.CreateScope())
     }
 
     await db.Database.EnsureCreatedAsync();
-    await ScenarioSeedData.SeedAsync(db);
+    if (isTestHost)
+    {
+        if (app.Configuration.GetValue("TestScenarioFixtures:Enabled", true))
+        {
+            await ScenarioTestFixtureData.CreateAsync(db);
+        }
+    }
+    else
+    {
+        await ScenarioSeedData.SeedAsync(db);
+    }
     if (app.Configuration.GetValue<bool>("DemoModules:Enabled")
         && (!isTestHost || app.Configuration.GetValue<bool>("DemoModules:EnableInTestHost")))
     {

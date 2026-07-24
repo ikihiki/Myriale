@@ -18,68 +18,16 @@ public sealed class ScenarioEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task GetScenario_ReturnsSeededScenario()
+    public async Task ListScenarios_ReturnsAvailableScenarios()
     {
         var client = _factory.CreateClient();
 
-        using var response = await client.GetAsync("/api/scenarios/SCN-STAR-LIBRARY");
+        using var response = await client.GetAsync("/api/scenarios/");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("星喰いの地下図書館", json.GetProperty("title").GetString());
-        Assert.Equal("select", json.GetProperty("heroMode").GetString());
-        Assert.Contains("ミラ", json.GetProperty("hero").GetString());
-        Assert.Equal("あなたは水没した閲覧室で目を覚ます。", json.GetProperty("opening").GetString());
-    }
-
-    [Fact]
-    public async Task GetScenario_ReturnsCyberpunkArchiveSeed()
-    {
-        var client = _factory.CreateClient();
-
-        using var response = await client.GetAsync("/api/scenarios/SCN-NEON-ARCHIVE");
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("ネオン喰いの地下データ書庫", json.GetProperty("title").GetString());
-        Assert.Equal("サイバーパンク潜入スリラー", json.GetProperty("genre").GetString());
-        Assert.Equal("select", json.GetProperty("heroMode").GetString());
-        Assert.Contains("ネットランナー", json.GetProperty("hero").GetString());
-        Assert.Contains("浸水サーバー閲覧層", json.GetProperty("opening").GetString());
-        Assert.Contains("Black ICE", json.GetProperty("lore").GetString());
-    }
-
-    [Fact]
-    public async Task GetScenario_ReturnsSelectableScenarioWithFreeGenerationEnabled()
-    {
-        var client = _factory.CreateClient();
-
-        using var response = await client.GetAsync("/api/scenarios/SCN-MOONLIT-GARDEN");
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("月虹の庭と眠らない時計", json.GetProperty("title").GetString());
-        Assert.Equal("select", json.GetProperty("heroMode").GetString());
-        Assert.True(json.GetProperty("heroFreeGenerationAllowed").GetBoolean());
-        Assert.Contains("イリス", json.GetProperty("hero").GetString());
-    }
-
-    [Fact]
-    public async Task RecommendHero_ReturnsAiRecommendationForSeededScenario()
-    {
-        var client = _factory.CreateClient();
-
-        using var response = await client.PostAsJsonAsync("/api/scenarios/SCN-MOONLIT-GARDEN/hero-recommendation", new
-        {
-            currentName = "アオイ",
-            currentProfile = "この世界の掟にまだ不慣れな旅人。"
-        });
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.False(string.IsNullOrWhiteSpace(json.GetProperty("name").GetString()));
-        Assert.Contains("月虹の庭と眠らない時計", json.GetProperty("profile").GetString());
-        Assert.Contains("推薦", json.GetProperty("message").GetString());
+        var scenarios = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(JsonValueKind.Array, scenarios.ValueKind);
+        Assert.Contains(scenarios.EnumerateArray(), scenario => scenario.GetProperty("id").GetString() == "SCN-STAR-LIBRARY");
     }
 
     [Fact]
@@ -145,6 +93,30 @@ public sealed class ScenarioEndpointTests : IDisposable
         Assert.Equal("select", json.GetProperty("heroMode").GetString());
         Assert.True(json.GetProperty("heroFreeGenerationAllowed").GetBoolean());
         Assert.Equal("銅版画風", json.GetProperty("illustrationStyle").GetString());
+    }
+
+    [Fact]
+    public async Task UpdateScenario_UsesRegistrationFields()
+    {
+        var client = await CreateSignedInClientAsync();
+        using var created = await client.PostAsJsonAsync("/api/scenarios/", new { title = "更新前" });
+        var createdJson = await created.Content.ReadFromJsonAsync<JsonElement>();
+        var scenarioId = createdJson.GetProperty("id").GetString();
+
+        using var response = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}", new
+        {
+            title = "更新後",
+            summary = "# 基本情報\n研究施設から脱出する。",
+            genre = "SF,ミステリー",
+            aiFreedom = "低: 厳密に守る",
+            heroMode = "free"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("更新後", json.GetProperty("title").GetString());
+        Assert.Equal("SF,ミステリー", json.GetProperty("genre").GetString());
+        Assert.Equal("# 基本情報\n研究施設から脱出する。", json.GetProperty("summary").GetString());
     }
 
     public void Dispose()

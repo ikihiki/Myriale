@@ -1,6 +1,8 @@
 import { redirect, type ParsedLocation } from '@tanstack/react-router';
 import type { AccountApi, AccountUser } from '../account/api/accountApi';
 
+export const defaultAuthenticatedPath = '/';
+
 export async function requireAuthenticated(
   accountApi: AccountApi,
   location: ParsedLocation,
@@ -13,6 +15,10 @@ export async function requireAuthenticated(
     search: { redirect: location.href },
     replace: true,
   });
+}
+
+export function authenticatedRedirectTarget(value: unknown): string {
+  return safeRedirectTarget(value) ?? defaultAuthenticatedPath;
 }
 
 export function safeRedirectTarget(value: unknown): string | undefined {

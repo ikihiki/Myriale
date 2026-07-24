@@ -26,7 +26,7 @@ export type ScenarioApiError = Error & {
   errors?: Record<string, string[]>;
 };
 
-export type ScenarioAiKind = 'summary' | 'lore-check' | 'illustration-style' | 'illustration-prompt' | 'illustration-preview';
+export type ScenarioAiKind = 'summary' | 'illustration-style' | 'illustration-prompt' | 'illustration-preview';
 
 export type ScenarioAiAssistPayload = CreateScenarioPayload & {
   kind: ScenarioAiKind;
@@ -55,9 +55,11 @@ export type ScenarioHeroRecommendation = {
 };
 
 export type ScenarioApi = {
+  getScenarios: (signal?: AbortSignal) => Promise<ScenarioDraftDto[]>;
   getScenario: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioDraftDto>;
   recommendHero: (scenarioId: string, payload: RecommendScenarioHeroPayload) => Promise<ScenarioHeroRecommendation>;
   createScenario: (payload: CreateScenarioPayload) => Promise<ScenarioDraftDto>;
+  updateScenario: (scenarioId: string, payload: CreateScenarioPayload) => Promise<ScenarioDraftDto>;
   assistScenario: (payload: ScenarioAiAssistPayload) => Promise<ScenarioAiAssistResponse>;
 };
 
@@ -73,6 +75,15 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
   if (!baseUrl) return createDemoScenarioApi();
 
   return {
+    async getScenarios(signal) {
+      const response = await fetch(`${baseUrl}/`, {
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+        signal,
+      });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<ScenarioDraftDto[]>;
+    },
     async getScenario(scenarioId, signal) {
       const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}`, {
         credentials: 'include',
@@ -102,6 +113,16 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
       if (!response.ok) throw await toApiError(response);
       return response.json() as Promise<ScenarioDraftDto>;
     },
+    async updateScenario(scenarioId, payload) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<ScenarioDraftDto>;
+    },
     async assistScenario(payload) {
       const response = await fetch(`${baseUrl}/ai/assist`, {
         method: 'POST',
@@ -115,7 +136,28 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
   };
 }
 
+const awakeningLaboratoryScenario: ScenarioDraftDto = {
+  id: 'SCN-AWAKENING-LAB',
+  title: '目覚めの研究室',
+  summary: '# あなたの役割\nあなたはTRPGのゲームマスターです。\n# シナリオ\nプレイヤーは閉鎖された地下研究施設で目を覚まします。記憶を失っており、自身の正体も施設の目的も知りません。探索や会話を通して真実を知り、最終的に施設から脱出することが目的です。\n# 描写\n- 緊張感のある静かな雰囲気を維持する',
+  genre: 'SFミステリー脱出劇',
+  tone: '',
+  lore: '',
+  aiFreedom: '低: 厳密に守る',
+  heroMode: 'free',
+  heroFreeGenerationAllowed: false,
+  hero: '',
+  opening: 'あなたは閉鎖された地下研究施設で目を覚ます。記憶は失われ、自身の正体も施設の目的も分からない。',
+  illustrationStyle: '',
+  illustrationMood: '',
+  illustrationNegative: '',
+  sampleScene: '',
+  status: 'published',
+  updatedAt: '2026-07-23',
+};
+
 const demoScenarios: Record<string, ScenarioDraftDto> = {
+  [awakeningLaboratoryScenario.id]: awakeningLaboratoryScenario,
   'SCN-STAR-LIBRARY': {
     id: 'SCN-STAR-LIBRARY',
     title: '星喰いの地下図書館',
@@ -196,6 +238,9 @@ const demoScenarios: Record<string, ScenarioDraftDto> = {
 
 export function createDemoScenarioApi(): ScenarioApi {
   return {
+    async getScenarios() {
+      return [{ ...awakeningLaboratoryScenario }];
+    },
     async getScenario(scenarioId) {
       const scenario = demoScenarios[scenarioId];
       if (!scenario) throw demoError('シナリオが見つかりません。', 404);
@@ -237,6 +282,22 @@ export function createDemoScenarioApi(): ScenarioApi {
         status: 'draft',
         updatedAt: '2026-06-29',
       };
+    },
+    async updateScenario(scenarioId, payload) {
+      const current = demoScenarios[scenarioId];
+      if (!current) throw demoError('シナリオが見つかりません。', 404);
+      const updated: ScenarioDraftDto = {
+        ...current,
+        ...payload,
+        title: payload.title.trim(),
+        summary: payload.summary?.trim() ?? '',
+        genre: payload.genre?.trim() || '未分類',
+        tone: payload.tone?.trim() ?? '',
+        lore: payload.lore?.trim() ?? '',
+        updatedAt: '2026-07-24',
+      } as ScenarioDraftDto;
+      demoScenarios[scenarioId] = updated;
+      return { ...updated };
     },
     async assistScenario(payload) {
       return demoAssist(payload);
@@ -286,8 +347,7 @@ function toAssistTransport(payload: ScenarioAiAssistPayload) {
 }
 
 function demoAssist(payload: ScenarioAiAssistPayload): ScenarioAiAssistResponse {
-  if (payload.kind === 'summary') return { message: '概要案を3つ提示しました。採用、編集、破棄を選べます。', suggestions: [{ id: 'summary-1', body: '地下に沈んだ王都で、禁書を読むたびに星座が書き換わる探索譚。', rationale: 'title/genre/loreから安全なDraft概要を生成しました。' }] };
-  if (payload.kind === 'lore-check') return { message: 'モックAIが世界観の矛盾候補を2件見つけました。', suggestions: [{ id: 'lore-1', body: '死者の名前を読む条件と記憶喪失の範囲を明確化すると、セッション中の判定が安定します。', rationale: 'Loreの発火条件を明文化します。' }] };
+  if (payload.kind === 'summary') return { message: '基本情報案を3つ提示しました。採用、編集、破棄を選べます。', suggestions: [{ id: 'summary-1', body: '## 物語の目的\n\n地下に沈んだ王都で、禁書を読むたびに書き換わる星座の謎を追います。\n\n- 水没した書庫を探索する\n- 失われる記憶の代償を選ぶ', rationale: 'タイトル、ジャンル、基本情報からMarkdown案を生成しました。' }] };
   if (payload.kind === 'illustration-style') return { message: 'モックAIがシナリオに合う画風候補を提示しました。', suggestions: [{ id: 'style-1', body: '銅版画風、影絵、水彩写本。低彩度で星図の金線だけを強調。', rationale: '既存のムードとNG要素に合わせました。' }] };
   if (payload.kind === 'illustration-prompt') return { message: 'モックAIが画像生成用プロンプトとネガティブプロンプトを分離して生成しました。', suggestions: [{ id: 'prompt-1', body: 'submerged archive, apprentice librarian, antique star map, copperplate engraving, muted palette', rationale: 'プロンプトとNG要素を分離しました。' }], prompt: 'submerged archive, apprentice librarian, antique star map, copperplate engraving, muted palette', negativePrompt: payload.illustrationNegative };
   if (payload.kind === 'illustration-preview') return { message: 'モックAIがサンプルシーンのテキストプレビューを生成しました。', suggestions: [], previewText: `[Mock preview / 保存対象外] ${payload.sampleScene} / ${payload.illustrationStyle} / ${payload.illustrationMood}` };

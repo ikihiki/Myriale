@@ -15,9 +15,18 @@ public static class ScenarioEndpoints
             .WithTags("Scenarios")
             .RequireCors("MyrialeFrontend");
 
+        group.MapGet("/", ListScenariosAsync)
+            .WithName("ListScenarios")
+            .WithSummary("Returns scenarios available for starting a new play session.");
+
         group.MapGet("/{scenarioId}", GetScenarioAsync)
             .WithName("GetScenario")
             .WithSummary("Returns a scenario used to prepare a new play session.");
+
+        group.MapPut("/{scenarioId}", UpdateScenarioAsync)
+            .RequireAuthorization()
+            .WithName("UpdateScenario")
+            .WithSummary("Updates an existing scenario using the same fields as scenario registration.");
 
         group.MapPost("/{scenarioId}/hero-recommendation", RecommendHeroAsync)
             .WithName("RecommendScenarioHero")
@@ -31,6 +40,23 @@ public static class ScenarioEndpoints
         return group;
     }
 
+    private static async Task<Ok<IReadOnlyList<ScenarioDraftResponse>>> ListScenariosAsync(
+        ClaimsPrincipal principal,
+        ApplicationDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var authorId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        var scenarios = await db.Scenarios.AsNoTracking()
+            .Where(item => item.Status == "published" || authorId != null && item.AuthorId == authorId)
+            .ToListAsync(cancellationToken);
+        var responses = scenarios
+            .OrderByDescending(item => item.UpdatedAt)
+            .ThenBy(item => item.Title)
+            .Select(ToResponse)
+            .ToList();
+        return TypedResults.Ok<IReadOnlyList<ScenarioDraftResponse>>(responses);
+    }
+
     private static async Task<Results<Ok<ScenarioDraftResponse>, NotFound>> GetScenarioAsync(
         string scenarioId,
         ApplicationDbContext db,
@@ -39,6 +65,43 @@ public static class ScenarioEndpoints
         var scenario = await db.Scenarios.AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == scenarioId, cancellationToken);
         return scenario is null ? TypedResults.NotFound() : TypedResults.Ok(ToResponse(scenario));
+    }
+
+    private static async Task<Results<Ok<ScenarioDraftResponse>, BadRequest<ScenarioErrorResponse>, NotFound, UnauthorizedHttpResult>> UpdateScenarioAsync(
+        string scenarioId,
+        CreateScenarioRequest request,
+        ClaimsPrincipal principal,
+        ApplicationDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var authorId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(authorId)) return TypedResults.Unauthorized();
+
+        var errors = Validate(request);
+        if (errors.Count > 0)
+            return TypedResults.BadRequest(new ScenarioErrorResponse("入力内容を確認してください。", errors));
+
+        var scenario = await db.Scenarios.SingleOrDefaultAsync(item => item.Id == scenarioId, cancellationToken);
+        if (scenario is null) return TypedResults.NotFound();
+
+        scenario.Title = request.Title.Trim();
+        scenario.Summary = Clean(request.Summary);
+        scenario.Genre = Clean(request.Genre, "未分類");
+        scenario.Tone = Clean(request.Tone);
+        scenario.Lore = Clean(request.Lore);
+        scenario.AiFreedom = Clean(request.AiFreedom);
+        scenario.HeroMode = NormalizeHeroMode(request.HeroMode);
+        scenario.HeroFreeGenerationAllowed = request.HeroMode == "select" && request.HeroFreeGenerationAllowed == true;
+        scenario.Hero = Clean(request.Hero);
+        scenario.Opening = Clean(request.Opening);
+        scenario.IllustrationStyle = Clean(request.IllustrationStyle);
+        scenario.IllustrationMood = Clean(request.IllustrationMood);
+        scenario.IllustrationNegative = Clean(request.IllustrationNegative);
+        scenario.SampleScene = Clean(request.SampleScene);
+        scenario.UpdatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+
+        return TypedResults.Ok(ToResponse(scenario));
     }
 
     private static async Task<Results<Ok<ScenarioHeroRecommendationResponse>, NotFound>> RecommendHeroAsync(
@@ -132,7 +195,7 @@ public static class ScenarioEndpoints
         var errors = new Dictionary<string, string[]>();
         if (string.IsNullOrWhiteSpace(request.Title)) errors["title"] = ["シナリオタイトルを入力してください。"];
         if (request.Title?.Trim().Length > 160) errors["title"] = ["シナリオタイトルは160文字以内で入力してください。"];
-        if (request.Summary?.Length > 2000) errors["summary"] = ["概要は2000文字以内で入力してください。"];
+        if (request.Summary?.Length > 2000) errors["summary"] = ["基本情報は2000文字以内で入力してください。"];
         if (request.HeroMode is not null && request.HeroMode is not ("fixed" or "select" or "free")) errors["heroMode"] = ["主人公の扱いを選択してください。"];
         if (request.HeroMode is "fixed" or "select" && string.IsNullOrWhiteSpace(request.Hero)) errors["hero"] = ["固定または選択式では主人公データを入力してください。"];
         return errors;

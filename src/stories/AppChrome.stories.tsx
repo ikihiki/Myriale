@@ -51,10 +51,13 @@ export const SignedIn: Story = {
       await expect(sections).toBeVisible();
       await expect(within(sections).getByRole('button', { name: /ライブラリ/ })).toHaveAttribute('aria-current', 'page');
     });
-    await step('セクションを開くとページ一覧（メニュー）が出る', async () => {
-      await userEvent.click(within(sections).getByRole('button', { name: /セッション/ }));
-      await expect(screen.getByRole('menu')).toBeVisible();
-      await expect(screen.getByRole('menuitem', { name: /セッションを開始/ })).toBeVisible();
+    await step('ライブラリにはシナリオ一覧と登録だけが並ぶ', async () => {
+      await userEvent.click(within(sections).getByRole('button', { name: /ライブラリ/ }));
+      const menu = screen.getByRole('menu');
+      await expect(menu).toBeVisible();
+      await expect(within(menu).getAllByRole('menuitem')).toHaveLength(2);
+      await expect(within(menu).getByRole('menuitem', { name: /シナリオ一覧/ })).toBeVisible();
+      await expect(within(menu).getByRole('menuitem', { name: /シナリオ登録/ })).toBeVisible();
     });
     await step('アカウントメニューを開ける', async () => {
       await userEvent.click(canvas.getByRole('button', { name: /アカウントメニュー: 霧野しおり/ }));
