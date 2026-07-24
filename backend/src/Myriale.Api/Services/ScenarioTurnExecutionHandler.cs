@@ -42,7 +42,8 @@ public sealed class ScenarioTurnExecutionHandler(
                 step = new SessionRuleActionStep
                 {
                     Id = $"RST-{Guid.NewGuid():N}".ToUpperInvariant(), SessionId = execution.SessionId, ExecutionId = execution.Id,
-                    PlayerInputId = input.Id, ScenarioDefinitionVersionId = world.Session.ScenarioDefinitionVersionId,
+                    PlayerInputId = input.Id, ScenarioDefinitionVersionId = world.Session.ScenarioDefinitionVersionId
+                        ?? throw new ScenarioTurnValidationException("scenario_definition_not_pinned"),
                     Stage = ScenarioTurnStages.SelectingAction, SchemaVersion = 1, PreSessionRevision = world.Session.Revision,
                     ObjectRevisionsJson = JsonSerializer.Serialize(world.States.ToDictionary(item => item.ScenarioObjectId, item => item.Revision), Json),
                     ActionSnapshotJson = JsonSerializer.Serialize(snapshot, Json), EnumeratedAt = now, CreatedAt = now, UpdatedAt = now,
@@ -81,8 +82,22 @@ public sealed class ScenarioTurnExecutionHandler(
                 if (resolution.Rule?.ModuleId is { } moduleId)
                 {
                     step.Stage = ScenarioTurnStages.RunningExtension; execution.Stage = ScenarioTurnStages.RunningExtension;
-                    extensionResult = await extensions.ExecuteAsync(new(execution.SessionId, decision.ObjectId, decision.ActionId, resolution.Rule.Id,
-                        moduleId, resolution.Rule.ModuleVersion!, resolution.Rule.ModuleDigest!, Parse(resolution.Rule.ModuleConfigurationJson ?? "{}")), cancellationToken);
+                    var boundObject = world.Definition.Objects.Single(item => item.Id == decision.ObjectId);
+                    var boundState = world.States.Single(item => item.ScenarioObjectId == decision.ObjectId);
+                    extensionResult = await extensions.ExecuteAsync(new(
+                        step.Id,
+                        world.Session.OwnerId,
+                        execution.SessionId,
+                        decision.ObjectId,
+                        boundObject.ObjectTypeId,
+                        decision.ActionId,
+                        resolution.Rule.Id,
+                        moduleId,
+                        resolution.Rule.ModuleVersion!,
+                        resolution.Rule.ModuleDigest!,
+                        Parse(resolution.Rule.ModuleConfigurationJson ?? "{}"),
+                        decision.Arguments,
+                        Parse(boundState.StateJson)), cancellationToken);
                     step.ExtensionReceiptJson = JsonSerializer.Serialize(extensionResult, Json);
                 }
                 world.Session.Revision++; world.Session.UpdatedAt = DateTimeOffset.UtcNow;

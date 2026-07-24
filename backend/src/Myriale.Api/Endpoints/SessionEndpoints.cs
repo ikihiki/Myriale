@@ -299,7 +299,8 @@ public static class SessionEndpoints
         var ruleStepResponses = ruleSteps.Select(item => new SessionRuleActionStepResponse(
             item.Id, item.ExecutionId, item.Stage, ScenarioTurnSchemas.ActionStep,
             DeserializeOrNull<RuleActionSnapshot>(item.ActionSnapshotJson), DeserializeOrNull<RuleActionDecisionResult>(item.DecisionJson),
-            DeserializeOrNull<RulePostState>(item.PublicPostStateJson), item.AppliedAt, item.NarrativePublishedAt)).ToList();
+            DeserializeOrNull<RulePostState>(item.PublicPostStateJson), DeserializeOrNull<ScenarioExtensionResult>(item.ExtensionReceiptJson),
+            item.AppliedAt, item.NarrativePublishedAt)).ToList();
         var inputResponses = inputs.Select(SessionExecutionProjection.ToResponse).ToList();
         var executionResponses = storedExecutions.Select(item => SessionExecutionProjection.ToResponse(item, environment.IsDevelopment())).ToList();
         var artifactResponses = artifacts.Select(item => new SessionArtifactResponse(

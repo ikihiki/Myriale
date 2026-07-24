@@ -21,6 +21,8 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseSetting("ConnectionStrings:MyrialeAccounts", $"Data Source={dbPath}");
+            builder.UseSetting("DemoModules:Enabled", "true");
+            builder.UseSetting("DemoModules:EnableInTestHost", "true");
             builder.ConfigureServices(services =>
             {
                 services.RemoveAll<IScenarioTurnAi>();
@@ -63,6 +65,47 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         Assert.Equal(2, ai.NarrativeCalls);
         Assert.All(ai.NarrativeRequests, request => Assert.True(request.PostState.Objects.Single(item => item.Code == "north-door").State.GetProperty("open").GetBoolean()));
         Assert.Equal(2, session.GetProperty("turns").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task AuthoredExtensionBinding_InvokesExactGuardianPackageWithTypedObjectActionContext()
+    {
+        var client = await SignedInClientAsync();
+        string digest;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+            digest = (await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
+                db.ModulePackages.Where(item => item.ModuleId == "com.myriale.rules.turn-battle" && item.Version == "1.0.0"))).Digest;
+        }
+        var scenarioId = await CreatePublishedGuardianScenarioAsync(client, digest);
+        using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-guardian" });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
+
+        using var accepted = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", new { requestId = "engage-guardian", text = "守護者と戦う" });
+        Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
+        var session = await WaitForExecutionAsync(client, sessionId, "succeeded");
+
+        var step = Assert.Single(session.GetProperty("ruleActionSteps").EnumerateArray().ToArray());
+        var extension = step.GetProperty("extension");
+        Assert.Equal("active", extension.GetProperty("status").GetString());
+        Assert.Contains(extension.GetProperty("availableActions").EnumerateArray(), item => item.GetProperty("id").GetString() == "attack");
+        var moduleExecutionId = extension.GetProperty("executionId").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(moduleExecutionId));
+
+        await using var verificationScope = factory.Services.CreateAsyncScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+        var moduleExecution = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
+            verificationDb.ModuleExecutions.Where(item => item.Id == moduleExecutionId));
+        Assert.Equal("com.myriale.rules.turn-battle", moduleExecution.ModuleId);
+        Assert.Equal("1.0.0", moduleExecution.ModuleVersion);
+        Assert.Equal(digest, moduleExecution.ModuleDigest);
+        using var binding = JsonDocument.Parse(moduleExecution.ContextJson);
+        Assert.Equal(step.GetProperty("decision").GetProperty("objectId").GetString(), binding.RootElement.GetProperty("objectId").GetString());
+        Assert.Equal(step.GetProperty("decision").GetProperty("actionId").GetString(), binding.RootElement.GetProperty("actionId").GetString());
+        Assert.Equal(JsonValueKind.Object, binding.RootElement.GetProperty("arguments").ValueKind);
+        Assert.Equal(JsonValueKind.Object, binding.RootElement.GetProperty("objectState").ValueKind);
     }
 
     [Fact]
@@ -142,6 +185,84 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         """);
         using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload); Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
         using var published = await client.PostAsync($"/api/scenarios/{scenarioId}/rule-data/publish", null); Assert.Equal(HttpStatusCode.OK, published.StatusCode);
+        return scenarioId;
+    }
+
+    private static async Task<string> CreatePublishedGuardianScenarioAsync(HttpClient client, string digest)
+    {
+        using var scenario = await client.PostAsJsonAsync("/api/scenarios/", new { title = "Guardian runtime" });
+        var scenarioId = (await scenario.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
+        var payload = new
+        {
+            schemaVersion = 1,
+            locations = new[] { new { code = "start", name = "Hall", description = "", authoringData = new { } } },
+            objectTypes = new[]
+            {
+                new
+                {
+                    code = "guardian",
+                    name = "Guardian",
+                    description = "",
+                    schemaVersion = 1,
+                    stateSchema = new { type = "object", additionalProperties = false, properties = new { alert = new { type = "boolean" } }, required = new[] { "alert" } },
+                    defaultState = new { alert = true },
+                    publicProjection = new { include = new[] { "alert" } },
+                    actions = new[]
+                    {
+                        new { code = "engage", label = "Engage", description = "Begin battle", argumentSchema = new { type = "object", additionalProperties = false }, availabilityCondition = new { }, visibility = "ai-choice", executionMode = "extension-module" },
+                    },
+                },
+            },
+            objects = new[]
+            {
+                new
+                {
+                    code = "north-door",
+                    name = "Library guardian",
+                    objectTypeCode = "guardian",
+                    locationCode = "start",
+                    initialStateOverride = new { },
+                    isGlobal = false,
+                    actionRules = new[]
+                    {
+                        new
+                        {
+                            actionCode = "engage",
+                            condition = new { },
+                            priority = 100,
+                            authoringNote = "",
+                            effects = Array.Empty<object>(),
+                            moduleBinding = new
+                            {
+                                moduleId = "com.myriale.rules.turn-battle",
+                                version = "1.0.0",
+                                digest,
+                                configuration = new
+                                {
+                                    playerName = "Player",
+                                    enemyName = "Guardian",
+                                    playerHp = 24,
+                                    enemyHp = 22,
+                                    playerAttack = 6,
+                                    enemyAttack = 5,
+                                    skillName = "Flash",
+                                    skillPower = 10,
+                                    skillUses = 2,
+                                    fleeChance = 35,
+                                    victoryCode = "guardian-defeated",
+                                    defeatCode = "guardian-victorious",
+                                    fleeCode = "guardian-escaped",
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+        using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        using var published = await client.PostAsync($"/api/scenarios/{scenarioId}/rule-data/publish", null);
+        Assert.Equal(HttpStatusCode.OK, published.StatusCode);
         return scenarioId;
     }
 

@@ -208,10 +208,31 @@ public sealed class ScenarioEffectApplier(ScenarioRuleEvaluator evaluator, Scena
 
 public sealed class ScenarioTurnValidationException(string code) : Exception(code) { public string Code { get; } = code; }
 
-public sealed record ScenarioExtensionRequest(string SessionId, string ObjectId, string ActionId, string RuleId, string ModuleId, string Version, string Digest, JsonElement Configuration);
-public sealed record ScenarioExtensionResult(IReadOnlyList<RuleAppliedEffect> Effects, IReadOnlyList<string> Facts, IReadOnlyList<JsonElement> Events, IReadOnlyList<string> NarrativeHints, IReadOnlyList<string> ForbiddenNarrativeFacts, JsonElement PublicState);
+public sealed record ScenarioExtensionRequest(
+    string InvocationId,
+    string OwnerId,
+    string SessionId,
+    string ObjectId,
+    string ObjectTypeId,
+    string ActionId,
+    string RuleId,
+    string ModuleId,
+    string Version,
+    string Digest,
+    JsonElement Configuration,
+    JsonElement Arguments,
+    JsonElement ObjectState);
+
+public sealed record ScenarioExtensionResult(
+    string ExecutionId,
+    string Status,
+    long Revision,
+    IReadOnlyList<Myriale.ModuleSdk.ModuleAvailableAction> AvailableActions,
+    IReadOnlyList<RuleAppliedEffect> Effects,
+    IReadOnlyList<string> Facts,
+    IReadOnlyList<JsonElement> Events,
+    IReadOnlyList<string> NarrativeHints,
+    IReadOnlyList<string> ForbiddenNarrativeFacts,
+    JsonElement PublicState);
+
 public interface IScenarioExtensionAdapter { Task<ScenarioExtensionResult> ExecuteAsync(ScenarioExtensionRequest request, CancellationToken cancellationToken); }
-public sealed class UnsupportedScenarioExtensionAdapter : IScenarioExtensionAdapter
-{
-    public Task<ScenarioExtensionResult> ExecuteAsync(ScenarioExtensionRequest request, CancellationToken cancellationToken) => throw new ScenarioTurnValidationException("extension_not_configured");
-}

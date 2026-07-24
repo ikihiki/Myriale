@@ -1,5 +1,7 @@
 using System.Text.Json;
 
+using Myriale.Api.Services;
+
 namespace Myriale.Api.Contracts;
 
 public static class ScenarioTurnSchemas
@@ -25,4 +27,14 @@ public sealed record PostStateNarrativeRequest(string SchemaVersion, string Play
 public sealed record PostStateNarrativeResult(string SchemaVersion, string Heading, string Body);
 
 public sealed record SessionObjectStateResponse(string ObjectId, string Code, string Name, string LocationId, bool IsGlobal, long Revision, JsonElement State);
-public sealed record SessionRuleActionStepResponse(string Id, string ExecutionId, string Stage, string SchemaVersion, RuleActionSnapshot? ActionSnapshot, RuleActionDecisionResult? Decision, RulePostState? PostState, DateTimeOffset? AppliedAt, DateTimeOffset? NarrativePublishedAt);
+public sealed record SessionRuleActionStepResponse(
+    string Id,
+    string ExecutionId,
+    string Stage,
+    string SchemaVersion,
+    RuleActionSnapshot? ActionSnapshot,
+    RuleActionDecisionResult? Decision,
+    RulePostState? PostState,
+    ScenarioExtensionResult? Extension,
+    DateTimeOffset? AppliedAt,
+    DateTimeOffset? NarrativePublishedAt);

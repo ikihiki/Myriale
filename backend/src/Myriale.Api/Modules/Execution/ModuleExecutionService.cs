@@ -395,7 +395,7 @@ public sealed class ModuleExecutionService(
                 new ModuleInitializationRequest(
                     receipt.RequestId,
                     configuration,
-                    Parse(execution.ContextJson),
+                    ParseBinding(execution.ContextJson),
                     randomValues),
                 cancellationToken);
             if (result.Status == ModuleExecutionStatuses.Completed)
@@ -535,7 +535,7 @@ public sealed class ModuleExecutionService(
                     receipt.RequestId,
                     receipt.ExpectedRevision!.Value,
                     Parse(execution.ConfigurationJson),
-                    Parse(execution.ContextJson),
+                    ParseBinding(execution.ContextJson),
                     Parse(execution.StateJson),
                     Parse(receipt.ActionJson!),
                     randomValues),
@@ -846,6 +846,22 @@ public sealed class ModuleExecutionService(
         RandomNumberGenerator.Fill(bytes);
         for (var index = 0; index < count; index++) values[index] = BitConverter.ToUInt32(bytes, index * sizeof(uint));
         return values;
+    }
+
+    private ModuleObjectActionContext ParseBinding(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<ModuleObjectActionContext>(json, _json)
+                ?? throw new JsonException("Object action binding is empty.");
+        }
+        catch (JsonException exception)
+        {
+            throw new ModuleRuntimeException(
+                ModuleRuntimeErrorCodes.ContractViolation,
+                "Object action bindingを読み込めません。",
+                exception);
+        }
     }
 
     private static JsonElement Parse(string json)
