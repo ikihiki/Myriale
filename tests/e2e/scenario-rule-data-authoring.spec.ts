@@ -12,9 +12,12 @@ test('Object Typeの状態とAI向けアクションを定義できる', async (
   await page.getByLabel('種類のstable code').fill('sealed-door');
   await page.getByLabel('種類の表示名').fill('隔壁扉');
   await page.getByRole('button', { name: '状態を追加' }).click();
+  await expect(page.locator('[role="dialog"][data-layer="0"]')).toHaveCSS('z-index', '110');
   await expect(page.getByRole('dialog', { name: '新しい状態' })).toHaveAttribute('data-layer', '1');
+  await expect(page.getByRole('dialog', { name: '新しい状態' })).toHaveCSS('z-index', '210');
   await page.getByRole('combobox', { name: '状態1の型' }).click();
   await expect(page.getByRole('option', { name: '文字列' })).toBeVisible();
+  await expect(page.locator('.myr-ui-select-content')).toHaveCSS('z-index', '220');
   await page.getByRole('option', { name: '真偽' }).click();
   await page.getByLabel('状態1のcode').fill('open');
   await page.getByRole('button', { name: '状態の編集を完了' }).click();
