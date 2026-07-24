@@ -10,19 +10,19 @@ public sealed class NarrativeTokenEstimatorTests
     [Fact]
     public void EmptyTurnStillHasStructuralCost()
     {
-        Assert.Equal(8, _estimator.EstimateTokens(new NarrativeDialogueTurnInput(null, null)));
+        Assert.Equal(8, _estimator.EstimateTokens(new NarrativeRecentTurnInput(null, null)));
     }
 
     [Fact]
     public void EstimateCountsUtf8BytesFromBothFields()
     {
-        Assert.Equal(12, _estimator.EstimateTokens(new NarrativeDialogueTurnInput("abc", "あいう")));
+        Assert.Equal(12, _estimator.EstimateTokens(new NarrativeRecentTurnInput("abc", "あいう")));
     }
 
     [Fact]
     public void EstimateIsDeterministic()
     {
-        var turn = new NarrativeDialogueTurnInput("銀の鍵", "扉へ進む");
+        var turn = new NarrativeRecentTurnInput("銀の鍵", "扉へ進む");
         Assert.Equal(_estimator.EstimateTokens(turn), _estimator.EstimateTokens(turn));
     }
 }

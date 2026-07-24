@@ -55,7 +55,7 @@ describe('sessionPlayApi', () => {
         kind: 'narrative',
         narrative: {
           body: '扉の前で立ち止まる。',
-          schemaVersion: 'narrative-dialogue.v8',
+          schemaVersion: 'post-state-narrative.v1',
           turnType: 'action-result',
           heading: '閉じた扉を確かめる',
         },
@@ -79,7 +79,7 @@ describe('sessionPlayApi', () => {
     const session = await getSession('SES-1', '/api/sessions');
 
     expect(session.turns[0].narrative).toMatchObject({
-      schemaVersion: 'narrative-dialogue.v8',
+      schemaVersion: 'post-state-narrative.v1',
       turnType: 'action-result',
       heading: '閉じた扉を確かめる',
     });

@@ -16,7 +16,7 @@ describe('toDialogueTurn', () => {
     const turn = toDialogueTurn({
       ...baseTurn,
       narrative: {
-        schemaVersion: 'narrative-dialogue.v8',
+        schemaVersion: 'post-state-narrative.v1',
         turnType: 'clarification',
         heading: '現在の状況を整理する',
         body: '現在地と手掛かりを整理した。',
@@ -31,18 +31,6 @@ describe('toDialogueTurn', () => {
     });
   });
 
-  it('keeps a fallback title for legacy responses without structured metadata', () => {
-    const turn = toDialogueTurn({
-      ...baseTurn,
-      narrative: {
-        body: '物語が続く。',
-        playerInput: '扉を調べる',
-      },
-    });
-
-    expect(turn.turnTitle).toBe('Player Inputを受けたNarrative');
-    expect(turn.kind).toBe('action');
-  });
 });
 
 describe('scenario-turn presentation boundaries', () => {

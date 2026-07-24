@@ -212,7 +212,7 @@ public static class SessionEndpoints
             SessionId = session.Id,
             Position = 1,
             Kind = "narrative",
-            DialogueSchemaVersion = NarrativeDialogueSchema.Version,
+            DialogueSchemaVersion = NarrativeDocumentSchemas.ScenarioOpening,
             DialogueTurnType = "opening",
             Heading = scenario.Title,
             NarrativeBody = scenario.Opening,
@@ -353,13 +353,13 @@ public static class SessionEndpoints
             .Where(turn => turn.SessionId == sessionId)
             .Include(turn => turn.PlayerInput)
             .OrderByDescending(turn => turn.Position)
-            .Select(turn => new NarrativeDialogueTurnInput(
+            .Select(turn => new NarrativeRecentTurnInput(
                 turn.PlayerInput == null ? null : turn.PlayerInput.Text,
                 turn.NarrativeBody))
             .ToListAsync(cancellationToken);
         var recentTurns = recentTurnSelector.Select(newestTurns).ToList();
         if (recentTurns.Count == 0)
-            recentTurns.Add(new NarrativeDialogueTurnInput(null, session.Scenario.Opening));
+            recentTurns.Add(new NarrativeRecentTurnInput(null, session.Scenario.Opening));
         IReadOnlyDictionary<string, bool> flags;
         try
         {

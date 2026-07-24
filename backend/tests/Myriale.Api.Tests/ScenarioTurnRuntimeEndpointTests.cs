@@ -68,6 +68,27 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task LegacyNarrativeOutputCannotBypassScenarioTurn()
+    {
+        var client = await SignedInClientAsync();
+        var scenarioId = await CreatePublishedDoorScenarioAsync(client);
+        using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-legacy-output-check" });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
+
+        using var response = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", new
+        {
+            requestId = "legacy-output-check",
+            text = "北の扉を調べる",
+            requestedOutputs = new[] { "narrative" },
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var error = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("unsupported_output", error.GetProperty("code").GetString());
+    }
+
+    [Fact]
     public async Task AuthoredExtensionBinding_InvokesExactGuardianPackageWithTypedObjectActionContext()
     {
         var client = await SignedInClientAsync();

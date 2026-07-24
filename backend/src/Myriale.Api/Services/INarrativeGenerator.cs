@@ -15,14 +15,7 @@ public interface IScenarioTurnAi
     Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeAsync(PostStateNarrativeRequest request, CancellationToken cancellationToken);
 }
 
-public sealed class UnsupportedScenarioTurnAi : IScenarioTurnAi
-{
-    public Task<NarrativeGeneration<RuleActionDecisionResult>> DecideActionAsync(RuleActionDecisionRequest request, CancellationToken cancellationToken) => throw new NarrativeGenerationException("Scenario-turn AI is not configured.");
-    public Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeAsync(PostStateNarrativeRequest request, CancellationToken cancellationToken) => throw new NarrativeGenerationException("Scenario-turn AI is not configured.");
-}
-
 public interface INarrativeGenerator
 {
     Task<NarrativeGeneration<string>> GenerateAsync(NarrativeHandoffRequest request, CancellationToken cancellationToken);
-    Task<NarrativeGeneration<NarrativeDialogueResult>> GenerateDialogueAsync(NarrativeDialogueRequest request, CancellationToken cancellationToken);
 }

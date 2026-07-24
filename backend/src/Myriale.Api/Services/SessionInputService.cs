@@ -8,7 +8,7 @@ using Myriale.Api.Data;
 
 namespace Myriale.Api.Services;
 
-public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProviderOptions> aiOptions, INarrativeGenerator narrativeGenerator)
+public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProviderOptions> aiOptions)
 {
     public async Task<SessionInputAcceptanceResult> AcceptAsync(string ownerId, string sessionId, CreateSessionInputRequest request, CancellationToken cancellationToken)
     {
@@ -19,7 +19,7 @@ public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProv
         var interactionType = request.InteractionType?.Trim() ?? string.Empty;
         if (!NarrativeInteractionTypes.Allowed.Contains(interactionType))
             return SessionInputAcceptanceResult.Error(400, "invalid_interaction_type", "InteractionTypeが不正です。");
-        if (request.RequestedOutputs is { Count: > 0 } && request.RequestedOutputs.Any(output => output is not (SessionExecutionKinds.Narrative or SessionExecutionKinds.ScenarioTurn)))
+        if (request.RequestedOutputs is { Count: > 0 } && request.RequestedOutputs.Any(output => output != SessionExecutionKinds.ScenarioTurn))
             return SessionInputAcceptanceResult.Error(400, "unsupported_output", "現在リクエストできる生成結果はscenario-turnだけです。");
 
         var payloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{interactionType}\n{text}"))).ToLowerInvariant();
@@ -71,9 +71,7 @@ public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProv
         if (recentInputCount >= aiOptions.Value.SessionRequestsPerMinute)
             return SessionInputAcceptanceResult.Error(429, "session_rate_limited", "SessionのAI入力上限に達しました。しばらく待って再試行してください。");
 
-        // Legacy test/application adapters that do not implement the new decision contract keep the
-        // unrelated narrative path. All configured production generators implement IScenarioTurnAi.
-        var executionKind = narrativeGenerator is IScenarioTurnAi ? SessionExecutionKinds.ScenarioTurn : SessionExecutionKinds.Narrative;
+        const string executionKind = SessionExecutionKinds.ScenarioTurn;
         var now = DateTimeOffset.UtcNow;
         var input = new SessionPlayerInput
         {
@@ -95,7 +93,7 @@ public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProv
             SessionId = sessionId,
             Kind = executionKind,
             TriggerType = "player-input",
-            Stage = executionKind == SessionExecutionKinds.ScenarioTurn ? ScenarioTurnStages.LoadingWorld : null,
+            Stage = ScenarioTurnStages.LoadingWorld,
             SchemaVersion = 1,
             TriggerId = input.Id,
             Status = SessionExecutionStatuses.Queued,

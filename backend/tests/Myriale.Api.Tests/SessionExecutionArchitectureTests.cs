@@ -46,7 +46,7 @@ public sealed class SessionExecutionArchitectureTests
     [Fact]
     public void RedactionRemovesCredentialLikeValues()
     {
-        var redacted = NarrativeExecutionHandler.Redact("Authorization: Bearer-secret api_key=top-secret Cookie=session-secret");
+        var redacted = SessionExecutionDiagnostics.Redact("Authorization: Bearer-secret api_key=top-secret Cookie=session-secret");
         Assert.DoesNotContain("Bearer-secret", redacted);
         Assert.DoesNotContain("top-secret", redacted);
         Assert.DoesNotContain("session-secret", redacted);
