@@ -63,6 +63,26 @@ describe('scenario rule-data API', () => {
     expect(requestBody).toEqual({ title: '扉のテスト' });
   });
 
+  it('creates or reuses an editable rule-data draft through the draft endpoint', async () => {
+    const payload = { schemaVersion: 1 as const, locations: [], objectTypes: [], objects: [] };
+    const canonicalResponse = {
+      scenarioId: 'SCN-1', definitionVersionId: 'SDV-2', version: 2, status: 'draft', schemaVersion: 1,
+      updatedAt: '2026-07-25T00:00:00Z', publishedAt: null, locations: [], objectTypes: [], objects: [],
+    };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(canonicalResponse), {
+      status: 201,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(createFetchScenarioApi('/api/scenarios').createScenarioRuleDataDraft('SCN-1')).resolves.toEqual(payload);
+    expect(fetchMock).toHaveBeenCalledWith('/api/scenarios/SCN-1/rule-data/drafts', expect.objectContaining({
+      method: 'POST',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+    }));
+  });
+
   it('converts editor rule-data to the canonical aggregate endpoint contract', async () => {
     const payload = { schemaVersion: 1 as const, locations: [], objectTypes: [], objects: [] };
     const canonicalResponse = {

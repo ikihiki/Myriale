@@ -10,7 +10,7 @@ import { EditScenarioContainer } from './EditScenarioContainer';
 const scenario: ScenarioDraftDto = {
   id: 'SCN-1', title: '保存済みシナリオ', summary: '', genre: 'ミステリ', tone: '', lore: '', aiFreedom: '',
   heroMode: 'free', heroFreeGenerationAllowed: false, hero: '', opening: '', illustrationStyle: '', illustrationMood: '',
-  illustrationNegative: '', sampleScene: '', ruleData: { schemaVersion: 1, locations: [], objectTypes: [], objects: [] }, status: 'draft', updatedAt: '2026-07-24',
+  illustrationNegative: '', sampleScene: '', ruleData: { schemaVersion: 1, locations: [], objectTypes: [], objects: [] }, status: 'published', updatedAt: '2026-07-24',
 };
 const ruleData: ScenarioRuleDataPayload = {
   schemaVersion: 1,
@@ -35,7 +35,8 @@ describe('EditScenarioContainer', () => {
     const putScenarioRuleData = vi.fn(async (_id: string, values: ScenarioRuleDataPayload) => values);
     const api = {
       getScenario: vi.fn(async () => { await scenarioGate; return scenario; }),
-      getScenarioRuleData: vi.fn(async () => { await ruleDataGate; return ruleData; }),
+      getScenarioRuleData: vi.fn(),
+      createScenarioRuleDataDraft: vi.fn(async () => { await ruleDataGate; return ruleData; }),
       updateScenario,
       putScenarioRuleData,
       assistScenario: vi.fn(),
@@ -54,7 +55,8 @@ describe('EditScenarioContainer', () => {
     );
 
     expect(api.getScenario).toHaveBeenCalledTimes(1);
-    expect(api.getScenarioRuleData).toHaveBeenCalledTimes(1);
+    expect(api.createScenarioRuleDataDraft).toHaveBeenCalledTimes(1);
+    expect(api.getScenarioRuleData).not.toHaveBeenCalled();
     releaseScenario();
     await Promise.resolve();
     expect(screen.getByText('シナリオを読み込んでいます。')).toBeVisible();
@@ -81,7 +83,8 @@ describe('EditScenarioContainer', () => {
   it('reports a safe partial failure when only the basic scenario update succeeds', async () => {
     const api = {
       getScenario: vi.fn(async () => scenario),
-      getScenarioRuleData: vi.fn(async () => ruleData),
+      getScenarioRuleData: vi.fn(),
+      createScenarioRuleDataDraft: vi.fn(async () => ruleData),
       updateScenario: vi.fn(async () => ({ ...scenario, title: '更新済み' })),
       putScenarioRuleData: vi.fn(async () => { throw new Error('rule-data conflict'); }),
       assistScenario: vi.fn(),

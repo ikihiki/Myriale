@@ -222,6 +222,7 @@ export type ScenarioApi = {
   getScenarios: (signal?: AbortSignal) => Promise<ScenarioDraftDto[]>;
   getScenario: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioDraftDto>;
   getScenarioRuleData: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioRuleDataPayload>;
+  createScenarioRuleDataDraft: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioRuleDataPayload>;
   putScenarioRuleData: (scenarioId: string, payload: ScenarioRuleDataPayload) => Promise<ScenarioRuleDataPayload>;
   getScenarioRuleDataReadiness: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioRuleDataReadinessDto>;
   recommendHero: (scenarioId: string, payload: RecommendScenarioHeroPayload) => Promise<ScenarioHeroRecommendation>;
@@ -262,6 +263,16 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
     },
     async getScenarioRuleData(scenarioId, signal) {
       const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/rule-data`, {
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+        signal,
+      });
+      if (!response.ok) throw await toApiError(response);
+      return canonicalRuleDataToForm(await response.json() as CanonicalScenarioRuleDataResponse);
+    },
+    async createScenarioRuleDataDraft(scenarioId, signal) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/rule-data/drafts`, {
+        method: 'POST',
         credentials: 'include',
         headers: { Accept: 'application/json' },
         signal,
@@ -486,6 +497,11 @@ export function createDemoScenarioApi(): ScenarioApi {
       return { ...scenario };
     },
     async getScenarioRuleData(scenarioId) {
+      const scenario = demoScenarios[scenarioId];
+      if (!scenario) throw demoError('シナリオが見つかりません。', 404);
+      return structuredClone(scenario.ruleData ?? emptyScenarioRuleData());
+    },
+    async createScenarioRuleDataDraft(scenarioId) {
       const scenario = demoScenarios[scenarioId];
       if (!scenario) throw demoError('シナリオが見つかりません。', 404);
       return structuredClone(scenario.ruleData ?? emptyScenarioRuleData());
