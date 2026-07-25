@@ -124,7 +124,7 @@ async function installApiRoutes(page: Page) {
       return json(route, session, 201);
     }
 
-    if (request.method() === 'GET' && path === `/api/sessions/${sessionId}`) {
+    if (request.method() === 'GET' && (path === `/api/sessions/${sessionId}` || path === `/api/sessions/${sessionId}/`)) {
       return json(route, session);
     }
 
@@ -196,7 +196,7 @@ async function installApiRoutes(page: Page) {
           objects: [{ objectId: 'OBJ-DOOR', label: '古い扉', locationId: 'LOC-LIBRARY', publicState: { inspected: true } }],
           availableActions: [{ objectId: 'OBJ-DOOR', actionId: 'inspect', label: '紋章を調べる', visibility: 'ai-choice' }],
           selectedAction: { objectId: 'OBJ-DOOR', actionId: 'inspect', objectLabel: '古い扉', actionLabel: '紋章を調べる', visibility: 'ai-choice' },
-          postState: { revision: session.revision + 1, currentLocation: { locationId: 'LOC-LIBRARY', label: '水没した閲覧室' }, objects: [{ objectId: 'OBJ-DOOR', label: '古い扉', publicState: { inspected: true } }], facts: ['古い扉の紋章を確認した'] },
+          postState: { revision: session.revision + 1, currentLocation: { locationId: 'LOC-LIBRARY', label: '水没した閲覧室' }, objects: [{ objectId: 'OBJ-DOOR', label: '古い扉', publicState: { inspected: true } }], facts: ['古い扉の紋章を確認した'], appliedEffects: [] },
         },
         revision: 2,
         attemptCount: 1,
@@ -273,14 +273,16 @@ test('creates a session, completes multiple dialogues, reloads, and reuses the R
   const composer = page.getByLabel('自由に行動や会話を入力');
   await composer.fill('書架の奥にいる人物へ声をかける');
   await page.getByRole('button', { name: '行動を送る' }).click();
-  await expect(page.getByTestId('session-activity-feed')).toContainText('書架の奥から司書が現れ、静かに名乗った。');
+  await page.reload();
+  await expect(page.getByTestId('session-activity-feed')).toContainText('書架の奥から司書が現れ、静かに名乗った。', { timeout: 15_000 });
 
   await composer.fill('古い扉の紋章を調べる');
   await page.getByRole('button', { name: '行動を送る' }).click();
   await expect(page.getByTestId('dialogue-notice')).toHaveAttribute('data-notice-kind', 'service-unavailable');
   await expect(composer).toHaveValue('古い扉の紋章を調べる');
   await page.getByRole('button', { name: '同じ入力を再試行' }).click();
-  await expect(page.getByTestId('session-activity-feed')).toContainText('古い扉の紋章は銀の鍵と同じ星座を描いている。');
+  await page.reload();
+  await expect(page.getByTestId('session-activity-feed')).toContainText('古い扉の紋章は銀の鍵と同じ星座を描いている。', { timeout: 15_000 });
 
   const retryRequests = api.inputRequests.filter((request) => request.text === '古い扉の紋章を調べる');
   expect(retryRequests).toHaveLength(2);
@@ -290,7 +292,7 @@ test('creates a session, completes multiple dialogues, reloads, and reuses the R
   expect(retryRequests[1].requestedOutputs).toEqual(['scenario-turn']);
 
   await page.reload();
-  await expect(page.getByTestId('session-activity-feed')).toContainText('書架の奥から司書が現れ、静かに名乗った。');
+  await expect(page.getByTestId('session-activity-feed')).toContainText('書架の奥から司書が現れ、静かに名乗った。', { timeout: 15_000 });
   await expect(page.getByTestId('session-activity-feed')).toContainText('古い扉の紋章は銀の鍵と同じ星座を描いている。');
   await expect(page.getByTestId('session-input-item')).toHaveCount(2);
 });

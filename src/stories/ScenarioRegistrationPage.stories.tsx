@@ -35,7 +35,7 @@ function AnonymousApp({ initialUrl }: { initialUrl: string }) {
 }
 
 const goToStep = async (canvas: ReturnType<typeof within>, stepName: string) => {
-  await userEvent.click(canvas.getByRole('button', { name: `${stepName}へ` }));
+  await userEvent.click(await canvas.findByRole('button', { name: `${stepName}へ` }));
 };
 
 export const AuthenticationReturnsToScenarioCreation: Story = {
@@ -350,9 +350,9 @@ export const US24CreateLocationsAndPlaceObjects: Story = {
       await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
       await expect(canvas.getByRole('button', { name: '封印書庫を編集' })).toBeVisible();
     });
-    await step('Objectが種類と1つの初期配置を参照する', async () => {
+    await step('Objectがordered mixinと1つの初期配置を参照する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '北書庫の扉を編集' }));
-      await expect(screen.getByRole('combobox', { name: 'オブジェクト種類' })).toHaveTextContent('書庫の扉');
+      await expect(screen.getByRole('region', { name: 'ordered Type mixins' })).toHaveTextContent('書庫の扉');
       await expect(screen.getByRole('combobox', { name: '初期配置' })).toHaveTextContent('水没した閲覧室');
     });
   },

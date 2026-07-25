@@ -22,7 +22,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const goToStep = async (canvas: ReturnType<typeof within>, stepName: string) => {
-  await userEvent.click(canvas.getByRole('button', { name: `${stepName}へ` }));
+  await userEvent.click(await canvas.findByRole('button', { name: `${stepName}へ` }));
 };
 
 export const USE01EditExistingScenario: Story = {
