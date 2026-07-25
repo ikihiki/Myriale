@@ -3,6 +3,7 @@ import { Button, Input, Textarea } from '../../../../components/ui';
 import { EditPane } from '../../../../shared/EditPane';
 import { MyrialeSelect } from '../../../../ui/MyrialeRadix';
 import { ObjectActionRuleEditorPresentation } from './ObjectActionRuleEditorPresentation';
+import { RuleConfigurationEditorPresentation } from './RuleConfigurationEditorPresentation';
 import {
   createActionResult,
   createObjectType,
@@ -156,6 +157,7 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
 
       <EditPane open={paneOpen && Boolean(selected)} onOpenChange={(open) => { setPaneOpen(open); if (!open) setNestedEditor(null); }} eyebrow="オブジェクト種類" title={selected?.name ?? '種類を編集'} description="状態定義とアクション契約を編集します。各項目は行の編集ボタンから重ねて開きます。" footer={<Button onClick={() => setPaneOpen(false)}>編集を完了</Button>}>
         {selected && <div className={cardClass}>
+          <details className="rounded-xl border border-[#17151f]/12 bg-white/55 p-3"><summary className="cursor-pointer font-semibold">共通rule configuration editor</summary><div className="mt-3"><RuleConfigurationEditorPresentation label="Type generic configuration" stateFields={selected.stateFields} actions={selected.actions} onChange={(configuration) => replaceSelected({ ...selected, ...configuration })} /></div></details>
           <div className="grid grid-cols-2 gap-3 max-md:grid-cols-1">
             <label>stable code<Input aria-label="種類のstable code" value={selected.code} onChange={(event) => replaceSelected({ ...selected, code: event.target.value })} /></label>
             <label>表示名<Input aria-label="種類の表示名" value={selected.name} onChange={(event) => replaceSelected({ ...selected, name: event.target.value })} /></label>

@@ -13,7 +13,7 @@ export function RuleConfigurationEditorPresentation({ label, stateFields, action
   return <section aria-label={`${label} rule configuration`} className="grid gap-4 rounded-xl border border-[#17151f]/12 bg-[#fffef9]/80 p-3">
     <header><strong>{label}</strong><p className="text-xs text-myr-ink-subtle">状態・default・公開範囲・Action契約を同じeditorで編集します。</p></header>
     <div className="grid gap-2">
-      <div className="flex items-center justify-between"><strong className="text-sm">状態 fields</strong><Button size="sm" variant="secondary" onClick={() => onChange({ stateFields: [...stateFields, createStateField()], actions })}>状態を追加</Button></div>
+      <div className="flex items-center justify-between"><strong className="text-sm">状態 fields</strong><Button size="sm" variant="secondary" onClick={() => onChange({ stateFields: [...stateFields, createStateField()], actions })}>{label}へ状態を追加</Button></div>
       {stateFields.map((field, index) => <div key={`${field.code}-${index}`} className="grid grid-cols-[1fr_1fr_120px_110px_auto] gap-2 max-lg:grid-cols-2">
         <Input aria-label={`${label} state code ${index + 1}`} value={field.code} onChange={(event) => onChange({ stateFields: stateFields.map((item, i) => i === index ? { ...item, code: event.target.value } : item), actions })} />
         <Input aria-label={`${label} state label ${index + 1}`} value={field.label} onChange={(event) => onChange({ stateFields: stateFields.map((item, i) => i === index ? { ...item, label: event.target.value } : item), actions })} />
@@ -24,7 +24,7 @@ export function RuleConfigurationEditorPresentation({ label, stateFields, action
       {stateFields.length === 0 && <span className="text-xs text-myr-ink-subtle">local stateはありません。</span>}
     </div>
     <div className="grid gap-2">
-      <div className="flex items-center justify-between"><strong className="text-sm">Actions</strong><Button size="sm" variant="secondary" onClick={() => onChange({ stateFields, actions: [...actions, createTypeAction()] })}>Actionを追加</Button></div>
+      <div className="flex items-center justify-between"><strong className="text-sm">Actions</strong><Button size="sm" variant="secondary" onClick={() => onChange({ stateFields, actions: [...actions, createTypeAction()] })}>{label}へActionを追加</Button></div>
       {actions.map((action, index) => <div key={`${action.code}-${index}`} className="grid grid-cols-[1fr_1fr_140px_auto] gap-2 max-lg:grid-cols-2">
         <Input aria-label={`${label} action code ${index + 1}`} value={action.code} onChange={(event) => onChange({ stateFields, actions: actions.map((item, i) => i === index ? { ...item, code: event.target.value } : item) })} />
         <Input aria-label={`${label} action label ${index + 1}`} value={action.label} onChange={(event) => onChange({ stateFields, actions: actions.map((item, i) => i === index ? { ...item, label: event.target.value } : item) })} />
