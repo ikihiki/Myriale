@@ -4,7 +4,7 @@ import { ScenarioRegistrationPresentation } from '../../features/scenario-regist
 import type { ScenarioRegistrationActions } from '../../features/scenario-registration/scenarioRegistrationModel';
 
 import { emptyScenarioFormValues } from '../../features/scenario/@components/scenarioFormModel';
-import { completeDoorRuleDataFixture } from './scenarioRegistrationFixtures';
+import { completeDoorRuleDataFixture, westDoorAuthoringFixture } from './scenarioRegistrationFixtures';
 
 const demoAccount = {
   name: '霧野しおり',
@@ -13,7 +13,7 @@ const demoAccount = {
   role: '作者',
 };
 
-function MockScenarioRegistrationContainerBase({ withRuleData = false }: { withRuleData?: boolean }) {
+function MockScenarioRegistrationContainerBase({ ruleData }: { ruleData?: typeof completeDoorRuleDataFixture }) {
   const store = useOptionalAppStore();
   const [scenarioId, setScenarioId] = useState('未発行');
 
@@ -98,7 +98,7 @@ function MockScenarioRegistrationContainerBase({ withRuleData = false }: { withR
   return <ScenarioRegistrationPresentation
     account={demoAccount}
     scenarioId={scenarioId}
-    initialValues={withRuleData ? { ...emptyScenarioFormValues, title: '星喰いの地下図書館', ruleData: structuredClone(completeDoorRuleDataFixture) } : undefined}
+    initialValues={ruleData ? { ...emptyScenarioFormValues, title: '星喰いの地下図書館', ruleData: structuredClone(ruleData) } : undefined}
     saving={false}
     aiWorking={false}
     actions={{ saveDraft, assist }}
@@ -111,5 +111,9 @@ export function MockScenarioRegistrationContainer() {
 }
 
 export function MockScenarioRegistrationWithRuleDataContainer() {
-  return <MockScenarioRegistrationContainerBase withRuleData />;
+  return <MockScenarioRegistrationContainerBase ruleData={completeDoorRuleDataFixture} />;
+}
+
+export function MockWestDoorAuthoringContainer() {
+  return <MockScenarioRegistrationContainerBase ruleData={westDoorAuthoringFixture} />;
 }

@@ -122,7 +122,10 @@ export type ScenarioRuleEffectPayload =
   | ({ kind: 'move-object'; targetObjectCode: string; locationCode: string } & CanonicalEffectSource)
   | ({ kind: 'move-session'; locationCode: string } & CanonicalEffectSource)
   | ({ kind: 'emit-fact'; text: string } & CanonicalEffectSource)
-  | ({ kind: 'add-narrative-hint'; text: string } & CanonicalEffectSource);
+  | ({ kind: 'emit-event'; event: string; locationCode: string } & CanonicalEffectSource)
+  | ({ kind: 'add-narrative-hint'; text: string } & CanonicalEffectSource)
+  | ({ kind: 'forbid-narrative-fact'; text: string } & CanonicalEffectSource)
+  | ({ kind: 'unsupported'; type: string; _canonical: ScenarioJsonObject });
 
 export type ScenarioObjectActionResultPayload = {
   code: string;

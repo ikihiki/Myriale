@@ -50,8 +50,9 @@ describe('scenario rule-data adapters', () => {
     expect(form.objectTypes[0].stateFields[0]).toMatchObject({ code: 'open', label: '開いている', valueType: 'boolean', defaultValue: 'false', visibility: 'public' });
     expect(form.objectTypes[0].actions[0]).toMatchObject({ availability: 'state-equals', availabilityStateCode: 'open' });
     expect(form.objectTypes[0].actions[0].argumentFields[0]).toMatchObject({ code: 'key', label: '鍵', required: true });
-    expect(form.objects[0].actionResults[0].effects).toHaveLength(3);
+    expect(form.objects[0].actionResults[0].effects).toHaveLength(4);
     expect(form.objects[0].actionResults[0].effects[2]).toMatchObject({ kind: 'move-session', locationCode: 'outside' });
+    expect(form.objects[0].actionResults[0].effects[3]).toMatchObject({ kind: 'unsupported', type: 'set-session-flag' });
   });
 
   it('preserves locations, objects, action results, and unsupported canonical data while editing a type', () => {
@@ -69,5 +70,26 @@ describe('scenario rule-data adapters', () => {
     expect(request.objects[0].actionRules[0].effects).toContainEqual({ type: 'move-session', locationCode: 'outside' });
     expect(request.objects[0].actionRules[0].effects).toContainEqual({ type: 'set-session-flag', flag: 'opened', value: true });
     expect(request.objects[0].actionRules[0].moduleBinding).toEqual(canonicalFixture.objects[0].actionRules[0].moduleBinding);
+  });
+
+  it('round-trips all west-door effects and unsupported effects in their exact order', () => {
+    const fixture = structuredClone(canonicalFixture);
+    fixture.objects[0].actionRules[0].effects = [
+      { type: 'set-state', path: 'state.open', value: true },
+      { type: 'move-session', locationCode: 'outside' },
+      { type: 'emit-fact', text: '西の扉が開いた。' },
+      { type: 'set-session-flag', flag: 'opaque-middle', value: true },
+      { type: 'emit-fact', text: 'プレイヤーは外へ出た。' },
+      { type: 'emit-event', event: 'session-moved', locationCode: 'outside' },
+      { type: 'add-narrative-hint', text: '冷たい夜風を描写する。' },
+      { type: 'forbid-narrative-fact', text: 'まだ室内にいる' },
+      { type: 'forbid-narrative-fact', text: '扉は閉じたまま' },
+    ];
+
+    const form = canonicalRuleDataToForm(fixture);
+    expect(form.objects[0].actionResults[0].effects.map((effect) => effect.kind)).toEqual([
+      'set-state', 'move-session', 'emit-fact', 'unsupported', 'emit-fact', 'emit-event', 'add-narrative-hint', 'forbid-narrative-fact', 'forbid-narrative-fact',
+    ]);
+    expect(formRuleDataToCanonical(form).objects[0].actionRules[0].effects).toEqual(fixture.objects[0].actionRules[0].effects);
   });
 });

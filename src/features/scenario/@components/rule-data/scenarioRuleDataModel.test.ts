@@ -32,6 +32,25 @@ describe('scenario rule-data authoring model', () => {
     expect(issues.some((issue) => issue.message.includes('決定性') && issue.severity === 'error')).toBe(true);
   });
 
+  it('validates event, referenced location, and narrative text fields', () => {
+    const fixture = structuredClone(completeDoorRuleDataFixture);
+    fixture.objects[0].actionResults[0].effects.push(
+      { kind: 'emit-event', event: '', locationCode: 'missing' },
+      { kind: 'emit-fact', text: '   ' },
+      { kind: 'add-narrative-hint', text: '' },
+      { kind: 'forbid-narrative-fact', text: '' },
+    );
+
+    const issues = validateScenarioRuleData(fixture);
+    expect(issues.map((issue) => issue.path)).toEqual(expect.arrayContaining([
+      'ruleData.objects[0].actionResults[0].effects[2].event',
+      'ruleData.objects[0].actionResults[0].effects[2].locationCode',
+      'ruleData.objects[0].actionResults[0].effects[3].text',
+      'ruleData.objects[0].actionResults[0].effects[4].text',
+      'ruleData.objects[0].actionResults[0].effects[5].text',
+    ]));
+  });
+
   it('blocks deletion while objects reference a type or location', () => {
     expect(dependencyMessageForType(completeDoorRuleDataFixture, 'archive-door')).toContain('北書庫の扉');
     expect(dependencyMessageForLocation(completeDoorRuleDataFixture, 'sunken-library')).toContain('北書庫の扉');

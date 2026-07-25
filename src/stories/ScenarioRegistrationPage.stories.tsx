@@ -4,7 +4,7 @@ import { expect, userEvent, within } from '@storybook/test';
 import { createDemoAccountApi } from '../account/api/accountApi';
 import { MyrialeApp } from '../app/MyrialeApp';
 import { createDemoDb } from '../app/demoData';
-import { MockScenarioRegistrationContainer, MockScenarioRegistrationWithRuleDataContainer } from './scenario-registration-page/MockScenarioRegistrationContainer';
+import { MockScenarioRegistrationContainer, MockScenarioRegistrationWithRuleDataContainer, MockWestDoorAuthoringContainer } from './scenario-registration-page/MockScenarioRegistrationContainer';
 import '../styles.css';
 
 const meta = {
@@ -368,8 +368,8 @@ export const US25AuthorDeterministicActionResults: Story = {
       await expect(canvas.getByTestId('rule-result-preview')).toHaveTextContent('北書庫の扉');
       await expect(canvas.getByTestId('rule-result-preview')).toHaveTextContent('2 effect');
       await expect(canvas.getByLabelText('結果の優先度')).toHaveValue(100);
-      await expect(canvas.getByText('1. set-state')).toBeVisible();
-      await expect(canvas.getByText('2. emit-fact')).toBeVisible();
+      await expect(canvas.getByText('1. 状態を更新')).toBeVisible();
+      await expect(canvas.getByText('2. 確定した事実を追加')).toBeVisible();
     });
     await step('公開準備チェックが決定性を確認する', async () => {
       await expect(canvas.getByTestId('rule-readiness')).toHaveTextContent('決定的です');
@@ -413,6 +413,49 @@ export const US27SaveIncompleteRuleDataAsDraft: Story = {
       await userEvent.click(canvas.getByRole('button', { name: '下書き保存' }));
       await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('Draftとして保存しました');
       await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('未設定項目が1件');
+    });
+  },
+};
+
+export const AuthorWestDoorSeedWithEightOrderedEffects: Story = {
+  name: '西の扉seed: 8つの実行内容を編集・並べ替え・保存する',
+  render: () => <MyrialeApp initialUrl="/scenarios/new" initialDb={createDemoDb('registrationDraft')} scenarioRegistrationContainer={MockWestDoorAuthoringContainer} />,
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+
+    await step('Scenario Editorだけで作成したinside / outside、exit-door、open-and-exit、west-doorを確認する', async () => {
+      await goToStep(canvas, '世界データ');
+      await expect(canvas.getByRole('button', { name: '地下研究室を編集' })).toBeVisible();
+      await expect(canvas.getByRole('button', { name: '研究施設の外を編集' })).toBeVisible();
+      await expect(canvas.getByRole('button', { name: /^出口の扉を編集$/ })).toBeVisible();
+      await expect(canvas.getByRole('button', { name: '西の扉を編集' })).toBeVisible();
+    });
+
+    await step('closed条件と、状態更新から描写禁止までの8項目を順序どおり表示する', async () => {
+      await goToStep(canvas, 'アクション結果');
+      await expect(canvas.getByLabelText('結果の条件値')).toHaveValue('false');
+      await expect(canvas.getByTestId('rule-result-preview')).toHaveTextContent('8 effect');
+      const effects = canvas.getByRole('list', { name: '順序付きの実行内容' });
+      await expect(effects).toHaveTextContent('1. 状態を更新');
+      await expect(effects).toHaveTextContent('2. プレイヤーの現在地を移動');
+      await expect(effects).toHaveTextContent('5. 出来事を記録');
+      await expect(effects).toHaveTextContent('7. 矛盾する描写を禁止');
+      await expect(canvas.getByLabelText('5番目の出来事の名前')).toHaveValue('session-moved');
+      await expect(canvas.getByLabelText('5番目の出来事の場所code')).toHaveValue('outside');
+    });
+
+    await step('出来事と禁止描写を編集し、キーボード操作できる順序変更ボタンで並べ替える', async () => {
+      await userEvent.clear(canvas.getByLabelText('5番目の出来事の名前'));
+      await userEvent.type(canvas.getByLabelText('5番目の出来事の名前'), 'player-left-building');
+      await userEvent.click(canvas.getByRole('button', { name: '7番目を上へ移動' }));
+      await expect(canvas.getByRole('list', { name: '順序付きの実行内容' })).toHaveTextContent('6. 矛盾する描写を禁止');
+      await expect(canvas.getByLabelText('6番目の文章')).toHaveValue('まだ室内にいる');
+    });
+
+    await step('公開準備を満たした8項目を下書き保存する', async () => {
+      await expect(canvas.getByTestId('rule-readiness')).toHaveTextContent('決定的です');
+      await userEvent.click(canvas.getByRole('button', { name: '下書き保存' }));
+      await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('Draftとして保存しました');
     });
   },
 };

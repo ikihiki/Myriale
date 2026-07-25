@@ -130,6 +130,26 @@ export function validateScenarioRuleData(ruleData: ScenarioRuleData): RuleDataIs
       const key = `${result.actionCode}:${result.fromStateCode}:${result.fromStateValue}:${result.priority}`;
       if (keys.has(key)) issues.push({ path: `ruleData.objects[${objectIndex}].actionResults[${resultIndex}].priority`, message: '同じ条件・優先度の結果があり、決定性がありません。', severity: 'error' });
       keys.add(key);
+      result.effects.forEach((effect, effectIndex) => {
+        const effectPath = `ruleData.objects[${objectIndex}].actionResults[${resultIndex}].effects[${effectIndex}]`;
+        if (effect.kind === 'move-object' || effect.kind === 'move-session') {
+          if (!effect.locationCode.trim() || !ruleData.locations.some((location) => location.code === effect.locationCode)) {
+            issues.push({ path: `${effectPath}.locationCode`, message: '移動先の場所を選択してください。', severity: 'error' });
+          }
+        }
+        if (effect.kind === 'move-object' && effect.targetObjectCode && !ruleData.objects.some((candidate) => candidate.code === effect.targetObjectCode)) {
+          issues.push({ path: `${effectPath}.targetObjectCode`, message: '移動するオブジェクトを選択してください。', severity: 'error' });
+        }
+        if (effect.kind === 'emit-event') {
+          if (!effect.event.trim()) issues.push({ path: `${effectPath}.event`, message: '記録する出来事の名前を入力してください。', severity: 'error' });
+          if (effect.locationCode && !ruleData.locations.some((location) => location.code === effect.locationCode)) {
+            issues.push({ path: `${effectPath}.locationCode`, message: '出来事に関連する場所を選択してください。', severity: 'error' });
+          }
+        }
+        if ((effect.kind === 'emit-fact' || effect.kind === 'add-narrative-hint' || effect.kind === 'forbid-narrative-fact') && !effect.text.trim()) {
+          issues.push({ path: `${effectPath}.text`, message: '文章を入力してください。', severity: 'error' });
+        }
+      });
     });
   });
   return issues;

@@ -81,7 +81,7 @@ function typeFromCanonical(type: CanonicalScenarioObjectTypeDto): ScenarioObject
   };
 }
 
-function effectFromCanonical(effectValue: ScenarioJsonValue): ScenarioRuleEffectPayload | null {
+function effectFromCanonical(effectValue: ScenarioJsonValue): ScenarioRuleEffectPayload {
   const effect = asObject(effectValue);
   if (effect.type === 'set-state' && typeof effect.path === 'string') return {
     kind: 'set-state',
@@ -101,9 +101,16 @@ function effectFromCanonical(effectValue: ScenarioJsonValue): ScenarioRuleEffect
     locationCode: typeof effect.locationCode === 'string' ? effect.locationCode : '',
     _canonical: effect,
   };
-  if (effect.type === 'emit-fact' && typeof effect.text === 'string') return { kind: 'emit-fact', text: effect.text, _canonical: effect };
-  if (effect.type === 'add-narrative-hint' && typeof effect.text === 'string') return { kind: 'add-narrative-hint', text: effect.text, _canonical: effect };
-  return null;
+  if (effect.type === 'emit-fact') return { kind: 'emit-fact', text: typeof effect.text === 'string' ? effect.text : '', _canonical: effect };
+  if (effect.type === 'emit-event') return {
+    kind: 'emit-event',
+    event: typeof effect.event === 'string' ? effect.event : '',
+    locationCode: typeof effect.locationCode === 'string' ? effect.locationCode : '',
+    _canonical: effect,
+  };
+  if (effect.type === 'add-narrative-hint') return { kind: 'add-narrative-hint', text: typeof effect.text === 'string' ? effect.text : '', _canonical: effect };
+  if (effect.type === 'forbid-narrative-fact') return { kind: 'forbid-narrative-fact', text: typeof effect.text === 'string' ? effect.text : '', _canonical: effect };
+  return { kind: 'unsupported', type: typeof effect.type === 'string' ? effect.type : 'unknown', _canonical: effect };
 }
 
 export function canonicalRuleDataToForm(response: CanonicalScenarioRuleDataResponse): ScenarioRuleDataPayload {
@@ -132,7 +139,7 @@ export function canonicalRuleDataToForm(response: CanonicalScenarioRuleDataRespo
         fromStateValue: scalarToString(rule.condition.value),
         priority: rule.priority,
         note: rule.authoringNote ?? '',
-        effects: rule.effects.map(effectFromCanonical).filter((effect): effect is ScenarioRuleEffectPayload => effect !== null),
+        effects: rule.effects.map(effectFromCanonical),
         _canonical: rule,
       })),
       _canonical: object,
@@ -196,15 +203,17 @@ function effectToCanonical(effect: ScenarioRuleEffectPayload, ruleData: Scenario
     type: 'move-session',
     locationCode: effect.locationCode,
   };
+  if (effect.kind === 'emit-event') return {
+    ...effect._canonical,
+    type: 'emit-event',
+    event: effect.event,
+    ...(effect.locationCode ? { locationCode: effect.locationCode } : {}),
+  };
+  if (effect.kind === 'unsupported') return effect._canonical;
   return { ...effect._canonical, type: effect.kind, text: effect.text };
 }
 
 function ruleToCanonical(rule: ScenarioObjectActionResultPayload, ruleData: ScenarioRuleDataPayload, objectTypeCode: string): CanonicalScenarioActionRuleDto {
-  const representedSources = new Set(rule.effects.map((effect) => effect._canonical).filter(Boolean));
-  const unrepresentedEffects = (rule._canonical?.effects ?? []).filter((effect) => {
-    const object = asObject(effect);
-    return !representedSources.has(object) && !['set-state', 'move-object', 'move-session', 'emit-fact', 'add-narrative-hint'].includes(String(object.type));
-  });
   return {
     actionCode: rule.actionCode,
     condition: rule.fromStateCode ? {
@@ -215,7 +224,7 @@ function ruleToCanonical(rule: ScenarioObjectActionResultPayload, ruleData: Scen
     } : rule._canonical?.condition ?? {},
     priority: rule.priority,
     authoringNote: rule.note,
-    effects: [...rule.effects.map((effect) => effectToCanonical(effect, ruleData, objectTypeCode)), ...unrepresentedEffects],
+    effects: rule.effects.map((effect) => effectToCanonical(effect, ruleData, objectTypeCode)),
     moduleBinding: rule._canonical?.moduleBinding ?? null,
   };
 }

@@ -361,12 +361,21 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
             }
             if (type == "move-object")
             {
-                if (effect.TryGetProperty("objectCode", out var objectCode) && !objects.Contains(objectCode.GetString() ?? string.Empty)) add($"{effectPath}.objectCode", "Referenced object does not exist.");
-                if (!effect.TryGetProperty("locationCode", out var locationCode) || !locations.Contains(locationCode.GetString() ?? string.Empty)) add($"{effectPath}.locationCode", "Referenced location does not exist.");
+                if (effect.TryGetProperty("objectCode", out var objectCode) && (objectCode.ValueKind != JsonValueKind.String || !objects.Contains(objectCode.GetString() ?? string.Empty))) add($"{effectPath}.objectCode", "Referenced object does not exist.");
+                if (!effect.TryGetProperty("locationCode", out var locationCode) || locationCode.ValueKind != JsonValueKind.String || !locations.Contains(locationCode.GetString() ?? string.Empty)) add($"{effectPath}.locationCode", "Referenced location does not exist.");
             }
             if (type == "move-session")
             {
-                if (!effect.TryGetProperty("locationCode", out var locationCode) || !locations.Contains(locationCode.GetString() ?? string.Empty)) add($"{effectPath}.locationCode", "Referenced location does not exist.");
+                if (!effect.TryGetProperty("locationCode", out var locationCode) || locationCode.ValueKind != JsonValueKind.String || !locations.Contains(locationCode.GetString() ?? string.Empty)) add($"{effectPath}.locationCode", "Referenced location does not exist.");
+            }
+            if (type == "emit-event")
+            {
+                if (!effect.TryGetProperty("event", out var eventName) || eventName.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(eventName.GetString())) add($"{effectPath}.event", "Event name is required.");
+                if (effect.TryGetProperty("locationCode", out var locationCode) && (locationCode.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(locationCode.GetString()) || !locations.Contains(locationCode.GetString()!))) add($"{effectPath}.locationCode", "Referenced location does not exist.");
+            }
+            if (type is "emit-fact" or "add-narrative-hint" or "forbid-narrative-fact")
+            {
+                if (!effect.TryGetProperty("text", out var text) || text.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(text.GetString())) add($"{effectPath}.text", "Text is required.");
             }
         }
     }

@@ -122,6 +122,70 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task WestDoorEffects_SaveReadinessPublishAndReadBackInExactOrder()
+    {
+        var client = await CreateSignedInClientAsync();
+        var scenarioId = await CreateScenarioAsync(client);
+        var payload = ValidRuleData();
+        payload["locations"]!.AsArray().Add(JsonNode.Parse("{\"code\":\"outside\",\"name\":\"屋外\",\"description\":\"\",\"authoringData\":{}}"));
+        payload["objects"]![0]!["actionRules"]![0]!["effects"] = JsonNode.Parse("""
+          [
+            { "type": "set-state", "path": "state.open", "value": true },
+            { "type": "move-session", "locationCode": "outside" },
+            { "type": "emit-fact", "text": "西の扉が開いた。" },
+            { "type": "emit-fact", "text": "プレイヤーは外へ出た。" },
+            { "type": "emit-event", "event": "session-moved", "locationCode": "outside" },
+            { "type": "add-narrative-hint", "text": "冷たい夜風を描写する。" },
+            { "type": "forbid-narrative-fact", "text": "まだ室内にいる" },
+            { "type": "forbid-narrative-fact", "text": "扉は閉じたまま" }
+          ]
+          """);
+
+        using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        using var readiness = await client.GetAsync($"/api/scenarios/{scenarioId}/rule-data/readiness");
+        var readinessBody = await readiness.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(readinessBody.GetProperty("ready").GetBoolean());
+        using var published = await client.PostAsync($"/api/scenarios/{scenarioId}/rule-data/publish", null);
+        Assert.Equal(HttpStatusCode.OK, published.StatusCode);
+        using var read = await client.GetAsync($"/api/scenarios/{scenarioId}/rule-data");
+        var body = await read.Content.ReadFromJsonAsync<JsonElement>();
+        var effects = body.GetProperty("objects")[0].GetProperty("actionRules")[0].GetProperty("effects");
+
+        Assert.Equal(new[] { "set-state", "move-session", "emit-fact", "emit-fact", "emit-event", "add-narrative-hint", "forbid-narrative-fact", "forbid-narrative-fact" },
+            effects.EnumerateArray().Select(effect => effect.GetProperty("type").GetString()).ToArray());
+        Assert.Equal("session-moved", effects[4].GetProperty("event").GetString());
+        Assert.Equal("outside", effects[4].GetProperty("locationCode").GetString());
+    }
+
+    [Fact]
+    public async Task DraftSave_RejectsMalformedEventAndNarrativeEffectsWithNestedPaths()
+    {
+        var client = await CreateSignedInClientAsync();
+        var scenarioId = await CreateScenarioAsync(client);
+        var payload = ValidRuleData();
+        payload["objects"]![0]!["actionRules"]![0]!["effects"] = JsonNode.Parse("""
+          [
+            { "type": "emit-event", "event": "", "locationCode": "missing" },
+            { "type": "emit-fact", "text": " " },
+            { "type": "add-narrative-hint" },
+            { "type": "forbid-narrative-fact", "text": "" }
+          ]
+          """);
+
+        using var response = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var errors = json.GetProperty("errors");
+        Assert.True(errors.TryGetProperty("objects[0].actionRules[0].effects[0].event", out _));
+        Assert.True(errors.TryGetProperty("objects[0].actionRules[0].effects[0].locationCode", out _));
+        Assert.True(errors.TryGetProperty("objects[0].actionRules[0].effects[1].text", out _));
+        Assert.True(errors.TryGetProperty("objects[0].actionRules[0].effects[2].text", out _));
+        Assert.True(errors.TryGetProperty("objects[0].actionRules[0].effects[3].text", out _));
+    }
+
+    [Fact]
     public async Task RuleDataAndScenarioUpdates_AreRestrictedToAuthor()
     {
         var owner = await CreateSignedInClientAsync();
