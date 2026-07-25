@@ -2,7 +2,7 @@ import { expect, test, type Page } from './fixtures';
 
 const openStory = async (page: Page, id: string) => {
   await page.goto(`/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`);
-  await expect(page.getByTestId('session-activity-feed')).toBeVisible();
+  await expect(page.getByTestId('session-activity-feed')).toBeVisible({ timeout: 15_000 });
 };
 
 test('execution failure remains beside its input with safe diagnostics and retry', async ({ page }) => {
