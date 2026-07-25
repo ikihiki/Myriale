@@ -138,9 +138,11 @@ else
 
     var api = builder.AddProject<Projects.Myriale_Api>("myriale-api")
         .WithReference(mockAi)
-        // Temporary: keep local Aspire and published preview behavior aligned for AI diagnostics.
+        // Local Aspire is a deterministic, credential-free demo path. Published/provider-backed
+        // environments keep the explicit provider and credential semantics configured above.
         .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
         .WithEnvironment("DOTNET_ENVIRONMENT", "Development")
+        .WithEnvironment("AiProvider__Provider", "mock")
         .WithEnvironment("MockAi__BaseUrl", mockAi.GetEndpoint("http"))
         .WaitFor(mockAi)
         .WithExternalHttpEndpoints();
