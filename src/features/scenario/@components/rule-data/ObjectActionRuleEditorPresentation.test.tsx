@@ -1,52 +1,77 @@
 import '@testing-library/jest-dom/vitest';
 import { useState } from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
 import { westDoorAuthoringFixture } from '../../../../stories/scenario-registration-page/scenarioRegistrationFixtures';
+import { LocationsObjectsEditorPresentation } from './LocationsObjectsEditorPresentation';
 import { ObjectTypesEditorPresentation } from './ObjectTypesEditorPresentation';
 import type { ScenarioRuleData } from './scenarioRuleDataModel';
 
-function Harness() {
+function TypeHarness() {
   const [value, setValue] = useState<ScenarioRuleData>(() => structuredClone(westDoorAuthoringFixture));
   const [notice, setNotice] = useState('');
-  return <>
-    <ObjectTypesEditorPresentation mode="edit" value={value} onChange={setValue} onNotice={(message) => setNotice(message)} />
-    <output data-testid="rule-data-json">{JSON.stringify(value)}</output>
-    <output data-testid="rule-notice">{notice}</output>
-  </>;
+  return <><ObjectTypesEditorPresentation mode="edit" value={value} onChange={setValue} onNotice={setNotice} /><output data-testid="rule-data-json">{JSON.stringify(value)}</output><output data-testid="rule-notice">{notice}</output></>;
 }
 
-describe('Object action rule authoring', () => {
-  it('opens a rule from the selected action table, edits effects, and keeps the action fixed', async () => {
-    render(<Harness />);
+function ObjectHarness() {
+  const [value, setValue] = useState<ScenarioRuleData>(() => structuredClone(westDoorAuthoringFixture));
+  return <><LocationsObjectsEditorPresentation value={value} onChange={setValue} onNotice={() => undefined} /><output data-testid="rule-data-json">{JSON.stringify(value)}</output></>;
+}
 
-    fireEvent.click(screen.getByRole('button', { name: '出口の扉を編集' }));
-    fireEvent.click(screen.getByRole('button', { name: '扉を開けて外へ出るを編集' }));
-    expect(screen.getByRole('heading', { name: 'オブジェクト別の実行ルール' })).toBeVisible();
-    expect(screen.getByRole('cell', { name: /西の扉/ })).toBeVisible();
+afterEach(() => cleanup());
 
-    fireEvent.click(screen.getByRole('button', { name: '西の扉の実行ルールを編集' }));
-    expect(await screen.findByLabelText('実行ルールのアクション')).toHaveAttribute('readonly');
-    expect(screen.getByLabelText('5番目の出来事の名前')).toHaveValue('session-moved');
-    fireEvent.change(screen.getByLabelText('5番目の出来事の名前'), { target: { value: 'player-left-building' } });
-    expect(screen.getByLabelText('5番目の出来事の名前')).toHaveValue('player-left-building');
-
-    fireEvent.click(screen.getByRole('button', { name: '7番目を上へ移動' }));
-    await waitFor(() => expect(screen.getByLabelText('6番目の文章')).toHaveValue('まだ室内にいる'));
-    fireEvent.click(screen.getByRole('button', { name: '6番目を削除' }));
-    await waitFor(() => expect(screen.getByTestId('rule-result-preview')).toHaveTextContent('7 effect'));
+describe('strict v2 rule authoring', () => {
+  it('edits a Type generic rule without Object-specific execution UI', async () => {
+    render(<TypeHarness />);
+    fireEvent.click(screen.getByRole('button', { name: '開閉可能を編集' }));
+    expect(screen.getByRole('heading', { name: 'Type generic rules' })).toBeVisible();
+    expect(screen.queryByText('Object個別')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'generic-open generic ruleを編集' }));
+    expect(screen.getByLabelText('実行ルールのstable code')).toHaveValue('generic-open');
+    expect((screen.getByLabelText('実行ルールのcondition JSON') as HTMLTextAreaElement).value).toContain('state.open');
+    fireEvent.change(screen.getByLabelText('実行ルールの優先度'), { target: { value: '175' } });
+    fireEvent.click(screen.getByRole('button', { name: 'bindingを追加' }));
+    fireEvent.change(screen.getByLabelText('module binding id'), { target: { value: 'door-module' } });
+    await waitFor(() => expect(screen.getByTestId('rule-data-json')).toHaveTextContent('"priority":175'));
+    expect(screen.getByTestId('rule-data-json')).toHaveTextContent('door-module');
   });
 
-  it('cascades action code renames and blocks deletion while rules reference the action', async () => {
-    render(<Harness />);
-
+  it('cascades action and generic rule code renames and blocks referenced rule deletion', async () => {
+    render(<TypeHarness />);
     fireEvent.click(screen.getByRole('button', { name: '出口の扉を編集' }));
     fireEvent.click(screen.getByRole('button', { name: '扉を開けて外へ出るを編集' }));
-    fireEvent.change(screen.getAllByLabelText('アクション1のcode')[0], { target: { value: 'leave-through-door' } });
-    await waitFor(() => expect(screen.getAllByTestId('rule-data-json').some((element) => element.textContent?.includes('\"actionCode\":\"leave-through-door\"'))).toBe(true));
+    fireEvent.change(screen.getByLabelText('Type generic configuration action code 1'), { target: { value: 'leave-through-door' } });
+    await waitFor(() => expect(screen.getByTestId('rule-data-json')).toHaveTextContent('"actionCode":"leave-through-door"'));
+    fireEvent.click(screen.getByRole('button', { name: 'アクションの編集を完了' }));
+    fireEvent.click(screen.getByRole('button', { name: 'generic-open-and-exit generic ruleを編集' }));
+    fireEvent.change(screen.getByLabelText('実行ルールのstable code'), { target: { value: 'generic-leave' } });
+    await waitFor(() => expect(screen.getByTestId('rule-data-json')).toHaveTextContent('"targetRuleCode":"generic-leave"'));
+    fireEvent.click(screen.getByRole('button', { name: 'この実行ルールを削除' }));
+    expect(screen.getByTestId('rule-notice')).toHaveTextContent('Object rule operation');
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: 'このアクションを削除' }));
-    expect(screen.getAllByTestId('rule-notice').some((element) => element.textContent?.includes('先にルールを削除'))).toBe(true);
-    expect(screen.getAllByTestId('rule-data-json').some((element) => element.textContent?.includes('\"code\":\"leave-through-door\"'))).toBe(true);
+  it('shows effective source/state and starts adjust with per-field inheritance controls', async () => {
+    render(<ObjectHarness />);
+    fireEvent.click(screen.getByRole('button', { name: '西の扉を編集' }));
+    expect(screen.getByRole('heading', { name: 'Effective rules' })).toBeVisible();
+    expect(screen.getByRole('cell', { name: 'inherited' })).toBeVisible();
+    expect(screen.getByRole('cell', { name: 'overridden' })).toBeVisible();
+    fireEvent.click(screen.getAllByRole('button', { name: 'adjust' })[0]);
+    expect(screen.getByRole('heading', { name: '調整するfield' })).toBeVisible();
+    expect(screen.getByLabelText('conditionをadjust')).not.toBeChecked();
+    expect(screen.getByLabelText('priorityをadjust')).toBeChecked();
+    fireEvent.change(screen.getByLabelText('実行ルールの優先度'), { target: { value: '250' } });
+    await waitFor(() => expect(screen.getByTestId('rule-data-json')).toHaveTextContent('"adjustments":{"priority":250}'));
+  });
+
+  it('edits ordered effects on a local override operation', async () => {
+    render(<ObjectHarness />);
+    fireEvent.click(screen.getByRole('button', { name: '西の扉を編集' }));
+    fireEvent.click(screen.getByRole('button', { name: 'generic-open-and-exit operationを編集' }));
+    expect(screen.getByLabelText('実行ルールのアクション')).toHaveAttribute('readonly');
+    fireEvent.change(screen.getByLabelText('5番目の出来事の名前'), { target: { value: 'player-left-building' } });
+    fireEvent.click(screen.getByRole('button', { name: '8番目を上へ移動' }));
+    await waitFor(() => expect(screen.getByLabelText('7番目の文章')).toHaveValue('扉は閉じたまま'));
+    expect(screen.getByTestId('rule-data-json')).toHaveTextContent('player-left-building');
   });
 });

@@ -19,8 +19,9 @@ const ruleData: ScenarioRuleDataPayload = {
     code: 'door', name: '保存済みの扉', description: '', schemaVersion: 1,
     stateFields: [{ code: 'open', label: '開いている', valueType: 'boolean', defaultValue: 'false', visibility: 'public' }],
     actions: [],
+    actionRules: [],
   }],
-  objects: [{ code: 'north-door', name: '北の扉', mixinTypeCodes: ['door'], initialLocationCode: 'hall', global: false, initialStateOverrides: [], actionResults: [] }],
+  objects: [{ code: 'north-door', name: '北の扉', mixinTypeCodes: ['door'], initialLocationCode: 'hall', global: false, stateFields: [], actions: [], initialStateOverrides: [], actionRules: [] }],
 };
 
 afterEach(() => cleanup());
