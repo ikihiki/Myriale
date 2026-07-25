@@ -1,6 +1,6 @@
 import { useId } from 'react';
 import * as Select from '@radix-ui/react-select';
-import { getEditPaneFloatingZIndex, useEditPaneLayer } from '../../shared/editPaneLayer';
+import { getEditPaneFloatingZIndex, useEditPaneLayer, useEditPanePortalHost } from '../../shared/editPaneLayer';
 import type { MyrialeOption } from './types';
 
 export function MyrialeSelect({
@@ -25,6 +25,7 @@ export function MyrialeSelect({
   const generatedId = useId();
   const triggerId = id ?? generatedId;
   const editPaneLayer = useEditPaneLayer();
+  const editPanePortalHost = useEditPanePortalHost();
   const floatingZIndex = editPaneLayer === null ? undefined : getEditPaneFloatingZIndex(editPaneLayer);
 
   return (
@@ -35,7 +36,7 @@ export function MyrialeSelect({
           <Select.Value placeholder={placeholder} />
           <Select.Icon className="myr-ui-select-icon" aria-hidden="true">⌄</Select.Icon>
         </Select.Trigger>
-        <Select.Portal>
+        <Select.Portal container={editPanePortalHost}>
           <Select.Content
             className="myr-ui-surface myr-ui-select-content"
             data-edit-pane-floating-layer={editPaneLayer ?? undefined}
