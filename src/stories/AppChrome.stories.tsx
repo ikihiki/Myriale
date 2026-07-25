@@ -85,9 +85,10 @@ export const MobileNavigation: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await step('狭い画面では主要ナビをハンバーガーに格納する', async () => {
-      await expect(canvas.getByRole('navigation', { name: '主要セクション' })).not.toBeVisible();
+      const primaryNavigation = canvas.getByRole('navigation', { name: '主要セクション' });
+      await expect(primaryNavigation).toHaveClass('max-md:hidden');
       const trigger = canvas.getByRole('button', { name: 'メニューを開く' });
-      await expect(trigger).toBeVisible();
+      await expect(trigger).toHaveClass('max-md:grid');
       await expect(trigger).toHaveAttribute('aria-expanded', 'false');
       await userEvent.click(trigger);
     });
