@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Button, Input, Textarea } from '../../../../components/ui';
 import { EditPane } from '../../../../shared/EditPane';
 import { MyrialeSelect } from '../../../../ui/MyrialeRadix';
+import { ObjectActionRuleEditorPresentation } from './ObjectActionRuleEditorPresentation';
 import {
+  createActionResult,
   createObjectType,
   createStateField,
   createTypeAction,
@@ -23,6 +25,7 @@ type NestedEditor =
   | { kind: 'state'; index: number }
   | { kind: 'action'; index: number }
   | { kind: 'argument'; actionIndex: number; argumentIndex: number }
+  | { kind: 'rule'; actionIndex: number; objectCode: string; resultCode: string }
   | null;
 
 const cardClass = 'grid gap-3 rounded-2xl border border-[#17151f]/15 bg-white/55 p-4';
@@ -34,19 +37,26 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [paneOpen, setPaneOpen] = useState(false);
   const [nestedEditor, setNestedEditor] = useState<NestedEditor>(null);
+  const [newRuleObjectCode, setNewRuleObjectCode] = useState('');
   const selected = selectedIndex === null ? undefined : value.objectTypes[selectedIndex];
   const stateIndex = nestedEditor?.kind === 'state' ? nestedEditor.index : -1;
-  const actionIndex = nestedEditor?.kind === 'action' ? nestedEditor.index : nestedEditor?.kind === 'argument' ? nestedEditor.actionIndex : -1;
+  const actionIndex = nestedEditor?.kind === 'action' ? nestedEditor.index : nestedEditor?.kind === 'argument' || nestedEditor?.kind === 'rule' ? nestedEditor.actionIndex : -1;
   const argumentIndex = nestedEditor?.kind === 'argument' ? nestedEditor.argumentIndex : -1;
   const stateField = selected?.stateFields[stateIndex];
   const action = selected?.actions[actionIndex];
   const argument = action?.argumentFields[argumentIndex];
+  const typeObjects = selected ? value.objects.filter((object) => object.objectTypeCode === selected.code) : [];
+  const actionRules = action ? typeObjects.flatMap((object) => object.actionResults
+    .filter((result) => result.actionCode === action.code)
+    .map((result) => ({ object, result }))) : [];
+  const selectedRuleObjectCode = newRuleObjectCode || typeObjects[0]?.code || '';
 
   const replaceSelected = (next: typeof selected) => {
-    if (!next || selectedIndex === null) return;
+    if (!next || !selected || selectedIndex === null) return;
     const objectTypes = [...value.objectTypes];
     objectTypes[selectedIndex] = next;
-    onChange({ ...value, objectTypes });
+    const objects = next.code === selected.code ? value.objects : value.objects.map((object) => object.objectTypeCode === selected.code ? { ...object, objectTypeCode: next.code } : object);
+    onChange({ ...value, objectTypes, objects });
   };
   const openType = (index: number) => { setSelectedIndex(index); setNestedEditor(null); setPaneOpen(true); };
   const addType = () => {
@@ -64,22 +74,61 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
     onNotice(`オブジェクト種類「${selected.name}」を削除しました。`);
   };
   const replaceState = (index: number, patch: Partial<ScenarioStateField>) => {
-    if (!selected) return;
-    replaceSelected({ ...selected, stateFields: selected.stateFields.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item) });
+    if (!selected || selectedIndex === null) return;
+    const previous = selected.stateFields[index];
+    const nextState = { ...previous, ...patch };
+    const nextType = { ...selected, stateFields: selected.stateFields.map((item, itemIndex) => itemIndex === index ? nextState : item) };
+    const objectTypes = value.objectTypes.map((item, itemIndex) => itemIndex === selectedIndex ? nextType : item);
+    const objects = previous.code === nextState.code ? value.objects : value.objects.map((object) => object.objectTypeCode !== selected.code ? object : ({
+      ...object,
+      initialStateOverrides: object.initialStateOverrides.map((override) => override.stateCode === previous.code ? { ...override, stateCode: nextState.code } : override),
+      actionResults: object.actionResults.map((result) => ({
+        ...result,
+        fromStateCode: result.fromStateCode === previous.code ? nextState.code : result.fromStateCode,
+        effects: result.effects.map((effect) => effect.kind === 'set-state' && (!effect.targetObjectCode || effect.targetObjectCode === object.code) && effect.stateCode === previous.code ? { ...effect, stateCode: nextState.code } : effect),
+      })),
+    }));
+    const cascadedType = previous.code === nextState.code ? nextType : {
+      ...nextType,
+      actions: nextType.actions.map((item) => item.availabilityStateCode === previous.code ? { ...item, availabilityStateCode: nextState.code } : item),
+    };
+    objectTypes[selectedIndex] = cascadedType;
+    onChange({ ...value, objectTypes, objects });
   };
   const replaceAction = (index: number, patch: Partial<ScenarioTypeAction>) => {
-    if (!selected) return;
-    replaceSelected({ ...selected, actions: selected.actions.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item) });
+    if (!selected || selectedIndex === null) return;
+    const previous = selected.actions[index];
+    const nextAction = { ...previous, ...patch };
+    const objectTypes = value.objectTypes.map((item, itemIndex) => itemIndex === selectedIndex ? {
+      ...selected,
+      actions: selected.actions.map((candidate, candidateIndex) => candidateIndex === index ? nextAction : candidate),
+    } : item);
+    const objects = previous.code === nextAction.code ? value.objects : value.objects.map((object) => object.objectTypeCode === selected.code ? {
+      ...object,
+      actionResults: object.actionResults.map((result) => result.actionCode === previous.code ? { ...result, actionCode: nextAction.code } : result),
+    } : object);
+    onChange({ ...value, objectTypes, objects });
   };
   const replaceArgument = (targetActionIndex: number, targetArgumentIndex: number, patch: Partial<ScenarioTypeAction['argumentFields'][number]>) => {
     if (!selected) return;
-    replaceSelected({
-      ...selected,
-      actions: selected.actions.map((item, itemIndex) => itemIndex === targetActionIndex ? {
-        ...item,
-        argumentFields: item.argumentFields.map((field, fieldIndex) => fieldIndex === targetArgumentIndex ? { ...field, ...patch } : field),
-      } : item),
+    replaceAction(targetActionIndex, {
+      argumentFields: selected.actions[targetActionIndex].argumentFields.map((field, fieldIndex) => fieldIndex === targetArgumentIndex ? { ...field, ...patch } : field),
     });
+  };
+  const addRule = () => {
+    if (!action || !selectedRuleObjectCode) return;
+    const objectIndex = value.objects.findIndex((object) => object.code === selectedRuleObjectCode && object.objectTypeCode === selected?.code);
+    const object = value.objects[objectIndex];
+    if (!object) return;
+    const result = createActionResult(object, value, action.code);
+    const objects = [...value.objects];
+    objects[objectIndex] = { ...object, actionResults: [...object.actionResults, result] };
+    onChange({ ...value, objects });
+    setNestedEditor({ kind: 'rule', actionIndex, objectCode: object.code, resultCode: result.code });
+  };
+  const deleteRule = (objectCode: string, resultCode: string) => {
+    onChange({ ...value, objects: value.objects.map((object) => object.code === objectCode ? { ...object, actionResults: object.actionResults.filter((result) => result.code !== resultCode) } : object) });
+    setNestedEditor({ kind: 'action', index: actionIndex });
   };
 
   return (
@@ -131,17 +180,40 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
         </div>}
       </EditPane>
 
-      <EditPane layer={1} open={nestedEditor?.kind === 'action' && Boolean(action)} onOpenChange={(open) => { if (!open) setNestedEditor(null); }} eyebrow="アクション" title={action?.label ?? 'アクションを編集'} description="公開先、利用条件、引数schemaを編集します。" footer={<Button onClick={() => setNestedEditor(null)}>アクションの編集を完了</Button>}>
+      <EditPane layer={1} open={(nestedEditor?.kind === 'action' || nestedEditor?.kind === 'argument' || nestedEditor?.kind === 'rule') && Boolean(action)} onOpenChange={(open) => { if (!open) setNestedEditor(null); }} eyebrow="アクション" title={action?.label ?? 'アクションを編集'} description="種類共通の提示条件と、Objectごとの実行ルールを編集します。" footer={<Button onClick={() => setNestedEditor(null)}>アクションの編集を完了</Button>}>
         {selected && action && <div className={cardClass}>
           <div className="grid grid-cols-2 gap-3 max-md:grid-cols-1"><label>action code<Input aria-label={`アクション${actionIndex + 1}のcode`} value={action.code} onChange={(event) => replaceAction(actionIndex, { code: event.target.value })} /></label><label>表示名<Input aria-label={`アクション${actionIndex + 1}の表示名`} value={action.label} onChange={(event) => replaceAction(actionIndex, { label: event.target.value })} /></label></div>
           <label>AI向け説明<Input aria-label={`アクション${actionIndex + 1}の説明`} value={action.description} onChange={(event) => replaceAction(actionIndex, { description: event.target.value })} /></label>
-          <div className="grid grid-cols-2 gap-3 max-md:grid-cols-1"><MyrialeSelect label={`アクション${actionIndex + 1}の公開先`} value={action.visibility} onValueChange={(next) => replaceAction(actionIndex, { visibility: next as typeof action.visibility })} options={[{ value: 'ai-choice', label: 'AI候補' }, { value: 'manual-ui', label: '手動UI' }, { value: 'system-only', label: 'システムのみ' }]} /><MyrialeSelect label={`アクション${actionIndex + 1}の利用条件`} value={action.availability} onValueChange={(next) => replaceAction(actionIndex, { availability: next as typeof action.availability })} options={[{ value: 'always', label: '常に利用可能' }, { value: 'state-equals', label: '状態が一致' }]} /></div>
-          {action.availability === 'state-equals' && <label>条件に使う状態code<Input aria-label={`アクション${actionIndex + 1}の条件状態code`} value={action.availabilityStateCode} onChange={(event) => replaceAction(actionIndex, { availabilityStateCode: event.target.value })} /></label>}
+          <section className="grid gap-2 rounded-xl border border-[#17151f]/12 bg-[#fffef9]/75 p-3" aria-labelledby="availability-heading">
+            <div><h3 id="availability-heading">種類共通のアクション提示条件</h3><p className="text-sm text-[#5e596b]">この種類の全Objectで、AIやUIへアクション候補を提示する条件です。Object個別の実行条件は下のテーブルで設定します。</p></div>
+            <div className="grid grid-cols-2 gap-3 max-md:grid-cols-1"><MyrialeSelect label={`アクション${actionIndex + 1}の公開先`} value={action.visibility} onValueChange={(next) => replaceAction(actionIndex, { visibility: next as typeof action.visibility })} options={[{ value: 'ai-choice', label: 'AI候補' }, { value: 'manual-ui', label: '手動UI' }, { value: 'system-only', label: 'システムのみ' }]} /><MyrialeSelect label={`アクション${actionIndex + 1}の種類共通の提示条件`} value={action.availability} onValueChange={(next) => replaceAction(actionIndex, { availability: next as typeof action.availability })} options={[{ value: 'always', label: '常に提示' }, { value: 'state-equals', label: '状態が一致するとき提示' }]} /></div>
+            {action.availability === 'state-equals' && <label>提示条件に使う状態code<Input aria-label={`アクション${actionIndex + 1}の提示条件状態code`} value={action.availabilityStateCode} onChange={(event) => replaceAction(actionIndex, { availabilityStateCode: event.target.value })} /></label>}
+          </section>
           <section className="grid gap-3 border-t border-[#17151f]/12 pt-4" aria-labelledby="argument-table-heading">
             <div className="flex items-center justify-between gap-2"><h3 id="argument-table-heading">引数schema</h3><Button size="sm" variant="secondary" onClick={() => { const index = action.argumentFields.length; replaceAction(actionIndex, { argumentFields: [...action.argumentFields, { code: `argument-${index + 1}`, label: '新しい引数', valueType: 'string', required: false }] }); setNestedEditor({ kind: 'argument', actionIndex, argumentIndex: index }); }}>引数を追加</Button></div>
             <div className="overflow-x-auto rounded-xl border border-[#17151f]/12 bg-[#fffef9]/80"><table className={compactTableClass}><thead className="bg-[#17151f]/[.04] text-xs text-myr-slate-muted"><tr><th className={cellClass}>編集</th><th className={cellClass}>表示名</th><th className={cellClass}>code</th><th className={cellClass}>型</th><th className={cellClass}>必須</th></tr></thead><tbody>{action.argumentFields.map((item, index) => <tr key={`${item.code}-${index}`}><td className={cellClass}><Button size="sm" variant="secondary" aria-label={`${item.label}を編集`} onClick={() => setNestedEditor({ kind: 'argument', actionIndex, argumentIndex: index })}>編集</Button></td><td className={cellClass}>{item.label}</td><td className={`${cellClass} font-mono text-xs`}>{item.code}</td><td className={cellClass}>{item.valueType}</td><td className={cellClass}>{item.required ? '必須' : '任意'}</td></tr>)}</tbody></table>{action.argumentFields.length === 0 && <p className="p-4 text-sm text-myr-ink-subtle">引数はありません。</p>}</div>
           </section>
-          <Button size="sm" variant="text" onClick={() => { replaceSelected({ ...selected, actions: selected.actions.filter((_, index) => index !== actionIndex) }); setNestedEditor(null); }}>このアクションを削除</Button>
+          <section className="grid gap-3 border-t border-[#17151f]/12 pt-4" aria-labelledby="object-rules-heading">
+            <div><h3 id="object-rules-heading">オブジェクト別の実行ルール</h3><p className="text-sm text-[#5e596b]">この種類・このアクションに一致するObject個別ルールです。1ルールを1行で表示し、effectの順序は編集ペインで管理します。</p></div>
+            {typeObjects.length === 0 ? <div className="rounded-xl border border-dashed border-[#17151f]/20 bg-[#17151f]/[.025] p-4"><strong>対象Objectがありません</strong><p className="mt-1 text-sm text-[#5e596b]">世界データでこの種類のObjectを登録すると、実行ルールを追加できます。</p><Button className="mt-3" size="sm" variant="secondary" disabled>実行ルールを追加</Button></div> : <>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 max-md:grid-cols-1">
+                <MyrialeSelect label="対象Objectを選択" value={selectedRuleObjectCode} onValueChange={setNewRuleObjectCode} options={typeObjects.map((object) => ({ value: object.code, label: `${object.name} / ${object.code}` }))} />
+                <Button size="sm" variant="secondary" onClick={addRule}>このObjectへ実行ルールを追加</Button>
+              </div>
+              <div className="overflow-x-auto rounded-xl border border-[#17151f]/12 bg-[#fffef9]/80">
+                <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+                  <thead className="bg-[#17151f]/[.04] text-xs text-myr-slate-muted"><tr><th className={cellClass}>対象Object</th><th className={cellClass}>Object個別の実行条件</th><th className={cellClass}>priority</th><th className={cellClass}>effects</th><th className={cellClass}>編集</th></tr></thead>
+                  <tbody>{actionRules.map(({ object, result }) => <tr key={`${object.code}-${result.code}`}><td className={cellClass}><strong>{object.name}</strong><span className="block font-mono text-xs">{object.code}</span></td><td className={cellClass}><span className="font-mono text-xs">{result.fromStateCode || 'any'} = {result.fromStateValue || 'any'}</span></td><td className={cellClass}>{result.priority}</td><td className={cellClass}>{result.effects.length}件</td><td className={cellClass}><Button size="sm" variant="secondary" aria-label={`${object.name}の実行ルールを編集`} onClick={() => setNestedEditor({ kind: 'rule', actionIndex, objectCode: object.code, resultCode: result.code })}>編集</Button></td></tr>)}</tbody>
+                </table>
+                {actionRules.length === 0 && <p className="p-4 text-sm text-myr-ink-subtle">このアクションの実行ルールはまだありません。対象Objectを選んで追加してください。</p>}
+              </div>
+            </>}
+          </section>
+          <Button size="sm" variant="text" onClick={() => {
+            if (actionRules.length > 0) return onNotice(`このアクションは${actionRules.length}件の実行ルールから参照されています。先にルールを削除してください。`, true);
+            replaceSelected({ ...selected, actions: selected.actions.filter((_, index) => index !== actionIndex) });
+            setNestedEditor(null);
+          }}>このアクションを削除</Button>
         </div>}
       </EditPane>
 
@@ -153,6 +225,17 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
           <label className="!grid-cols-[1fr_auto] items-center"><span>必須引数</span><input type="checkbox" aria-label={`アクション${actionIndex + 1}の引数${argumentIndex + 1}を必須にする`} checked={argument.required} onChange={(event) => replaceArgument(actionIndex, argumentIndex, { required: event.target.checked })} /></label>
           <Button size="sm" variant="text" onClick={() => { replaceAction(actionIndex, { argumentFields: action.argumentFields.filter((_, index) => index !== argumentIndex) }); setNestedEditor({ kind: 'action', index: actionIndex }); }}>この引数を削除</Button>
         </div>}
+      </EditPane>
+
+      <EditPane layer={2} open={nestedEditor?.kind === 'rule'} onOpenChange={(open) => { if (!open && action) setNestedEditor({ kind: 'action', index: actionIndex }); }} eyebrow="Object別実行ルール" title={nestedEditor?.kind === 'rule' ? `${value.objects.find((object) => object.code === nestedEditor.objectCode)?.name ?? 'Object'} / ${action?.label ?? 'アクション'}` : '実行ルールを編集'} description="対象Objectとアクションは固定です。条件、priority、effectの内容と実行順を編集します。" footer={<Button onClick={() => setNestedEditor({ kind: 'action', index: actionIndex })}>実行ルールの編集を完了</Button>}>
+        {nestedEditor?.kind === 'rule' && action && <ObjectActionRuleEditorPresentation
+          value={value}
+          objectCode={nestedEditor.objectCode}
+          actionCode={action.code}
+          resultCode={nestedEditor.resultCode}
+          onChange={onChange}
+          onDelete={() => deleteRule(nestedEditor.objectCode, nestedEditor.resultCode)}
+        />}
       </EditPane>
     </section>
   );

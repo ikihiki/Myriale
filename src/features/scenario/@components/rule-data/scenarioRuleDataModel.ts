@@ -73,12 +73,12 @@ export function createObject(ruleData: ScenarioRuleData): ScenarioObject {
   };
 }
 
-export function createActionResult(object: ScenarioObject, ruleData: ScenarioRuleData): ScenarioActionResult {
+export function createActionResult(object: ScenarioObject, ruleData: ScenarioRuleData, actionCode: string): ScenarioActionResult {
   const type = ruleData.objectTypes.find((candidate) => candidate.code === object.objectTypeCode);
   const state = type?.stateFields[0];
   return {
     code: nextAuthoringCode('result'),
-    actionCode: type?.actions[0]?.code ?? '',
+    actionCode,
     fromStateCode: state?.code ?? '',
     fromStateValue: state?.defaultValue ?? '',
     priority: 100,
@@ -121,12 +121,21 @@ export function validateScenarioRuleData(ruleData: ScenarioRuleData): RuleDataIs
       issues.push({ path: `ruleData.objects[${objectIndex}].initialLocationCode`, message: '初期配置する場所を選択してください。', severity: 'error' });
     }
     type?.actions.forEach((action) => {
+      if (action.availability === 'state-equals' && !type.stateFields.some((state) => state.code === action.availabilityStateCode)) {
+        issues.push({ path: `ruleData.objectTypes[${ruleData.objectTypes.indexOf(type)}].actions[${type.actions.indexOf(action)}].availabilityStateCode`, message: '種類共通の提示条件で参照する状態が見つかりません。', severity: 'error' });
+      }
       if (!object.actionResults.some((result) => result.actionCode === action.code)) {
-        issues.push({ path: `ruleData.objects[${objectIndex}].actionResults`, message: `「${action.label}」の結果が未設定です。`, severity: 'warning' });
+        issues.push({ path: `ruleData.objects[${objectIndex}].actionResults`, message: `「${action.label}」の実行ルールが未設定です。`, severity: 'warning' });
       }
     });
     const keys = new Set<string>();
     object.actionResults.forEach((result, resultIndex) => {
+      if (!type?.actions.some((action) => action.code === result.actionCode)) {
+        issues.push({ path: `ruleData.objects[${objectIndex}].actionResults[${resultIndex}].actionCode`, message: `参照先のアクション「${result.actionCode || '(未設定)'}」が見つかりません。`, severity: 'error' });
+      }
+      if (result.fromStateCode && !type?.stateFields.some((state) => state.code === result.fromStateCode)) {
+        issues.push({ path: `ruleData.objects[${objectIndex}].actionResults[${resultIndex}].fromStateCode`, message: `Object個別の実行条件で参照する状態「${result.fromStateCode}」が見つかりません。`, severity: 'error' });
+      }
       const key = `${result.actionCode}:${result.fromStateCode}:${result.fromStateValue}:${result.priority}`;
       if (keys.has(key)) issues.push({ path: `ruleData.objects[${objectIndex}].actionResults[${resultIndex}].priority`, message: '同じ条件・優先度の結果があり、決定性がありません。', severity: 'error' });
       keys.add(key);

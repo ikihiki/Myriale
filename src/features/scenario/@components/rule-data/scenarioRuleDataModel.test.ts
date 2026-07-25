@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { completeDoorRuleDataFixture } from '../../../../stories/scenario-registration-page/scenarioRegistrationFixtures';
 import {
+  createActionResult,
   dependencyMessageForLocation,
   dependencyMessageForType,
   emptyScenarioRuleData,
@@ -48,6 +49,25 @@ describe('scenario rule-data authoring model', () => {
       'ruleData.objects[0].actionResults[0].effects[3].text',
       'ruleData.objects[0].actionResults[0].effects[4].text',
       'ruleData.objects[0].actionResults[0].effects[5].text',
+    ]));
+  });
+
+  it('requires an explicit action code when creating a rule', () => {
+    const fixture = structuredClone(completeDoorRuleDataFixture);
+    const result = createActionResult(fixture.objects[0], fixture, 'explicit-action');
+
+    expect(result.actionCode).toBe('explicit-action');
+  });
+
+  it('reports orphan action and state references instead of hiding the rule', () => {
+    const fixture = structuredClone(completeDoorRuleDataFixture);
+    fixture.objects[0].actionResults[0].actionCode = 'missing-action';
+    fixture.objects[0].actionResults[0].fromStateCode = 'missing-state';
+
+    const issues = validateScenarioRuleData(fixture);
+    expect(issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: 'ruleData.objects[0].actionResults[0].actionCode', severity: 'error' }),
+      expect.objectContaining({ path: 'ruleData.objects[0].actionResults[0].fromStateCode', severity: 'error' }),
     ]));
   });
 

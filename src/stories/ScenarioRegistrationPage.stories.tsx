@@ -363,16 +363,26 @@ export const US25AuthorDeterministicActionResults: Story = {
   render: renderRuleDataFixture,
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await goToStep(canvas, 'アクション結果');
-    await step('from state、action、priorityと順序付きeffectを確認する', async () => {
-      await expect(canvas.getByTestId('rule-result-preview')).toHaveTextContent('北書庫の扉');
-      await expect(canvas.getByTestId('rule-result-preview')).toHaveTextContent('2 effect');
-      await expect(canvas.getByLabelText('結果の優先度')).toHaveValue(100);
-      await expect(canvas.getByText('1. 状態を更新')).toBeVisible();
-      await expect(canvas.getByText('2. 確定した事実を追加')).toBeVisible();
+    const screen = within(canvasElement.ownerDocument.body);
+    await goToStep(canvas, '世界データ');
+    await step('Object TypeのAction paneからObject個別ルールを開く', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: /^書庫の扉を編集$/ }));
+      await userEvent.click(screen.getByRole('button', { name: '扉を開けるを編集' }));
+      await expect(screen.getByRole('heading', { name: 'オブジェクト別の実行ルール' })).toBeVisible();
+      await expect(screen.getByRole('cell', { name: /北書庫の扉/ })).toBeVisible();
+      await userEvent.click(screen.getByRole('button', { name: '北書庫の扉の実行ルールを編集' }));
     });
-    await step('公開準備チェックが決定性を確認する', async () => {
+    await step('Object個別条件、priorityと順序付きeffectを確認する', async () => {
+      await expect(screen.getByTestId('rule-result-preview')).toHaveTextContent('北書庫の扉');
+      await expect(screen.getByTestId('rule-result-preview')).toHaveTextContent('2 effect');
+      await expect(screen.getByLabelText('実行ルールの優先度')).toHaveValue(100);
+      await expect(screen.getByLabelText('実行ルールのアクション')).toHaveAttribute('readonly');
+      await expect(screen.getByText('1. 状態を更新')).toBeVisible();
+      await expect(screen.getByText('2. 確定した事実を追加')).toBeVisible();
+    });
+    await step('世界データ末尾の公開準備チェックが決定性を確認する', async () => {
       await expect(canvas.getByTestId('rule-readiness')).toHaveTextContent('決定的です');
+      await expect(canvas.queryByRole('button', { name: 'アクション結果へ' })).not.toBeInTheDocument();
     });
   },
 };
@@ -403,11 +413,17 @@ export const US27SaveIncompleteRuleDataAsDraft: Story = {
   render: renderRuleDataFixture,
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await goToStep(canvas, 'アクション結果');
-    await step('必須のaction resultを削除すると公開準備の警告を表示する', async () => {
-      await userEvent.click(canvas.getByRole('button', { name: 'この結果を削除' }));
+    const screen = within(canvasElement.ownerDocument.body);
+    await goToStep(canvas, '世界データ');
+    await step('必須のObject個別ルールを削除すると公開準備の警告を表示する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: /^書庫の扉を編集$/ }));
+      await userEvent.click(screen.getByRole('button', { name: '扉を開けるを編集' }));
+      await userEvent.click(screen.getByRole('button', { name: '北書庫の扉の実行ルールを編集' }));
+      await userEvent.click(screen.getByRole('button', { name: 'この実行ルールを削除' }));
+      await userEvent.click(screen.getByRole('button', { name: 'アクションの編集を完了' }));
+      await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
       await expect(canvas.getByRole('region', { name: '公開準備チェック' })).toHaveTextContent('下書き警告');
-      await expect(canvas.getByRole('region', { name: '公開準備チェック' })).toHaveTextContent('結果が未設定');
+      await expect(canvas.getByRole('region', { name: '公開準備チェック' })).toHaveTextContent('実行ルールが未設定');
     });
     await step('警告があっても下書き保存できる', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '下書き保存' }));
@@ -422,6 +438,7 @@ export const AuthorWestDoorSeedWithEightOrderedEffects: Story = {
   render: () => <MyrialeApp initialUrl="/scenarios/new" initialDb={createDemoDb('registrationDraft')} scenarioRegistrationContainer={MockWestDoorAuthoringContainer} />,
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
 
     await step('Scenario Editorだけで作成したinside / outside、exit-door、open-and-exit、west-doorを確認する', async () => {
       await goToStep(canvas, '世界データ');
@@ -431,28 +448,35 @@ export const AuthorWestDoorSeedWithEightOrderedEffects: Story = {
       await expect(canvas.getByRole('button', { name: '西の扉を編集' })).toBeVisible();
     });
 
-    await step('closed条件と、状態更新から描写禁止までの8項目を順序どおり表示する', async () => {
-      await goToStep(canvas, 'アクション結果');
-      await expect(canvas.getByLabelText('結果の条件値')).toHaveValue('false');
-      await expect(canvas.getByTestId('rule-result-preview')).toHaveTextContent('8 effect');
-      const effects = canvas.getByRole('list', { name: '順序付きの実行内容' });
+    await step('Action paneのtableから西の扉ルールを開き、8項目を順序どおり表示する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: /^出口の扉を編集$/ }));
+      await userEvent.click(screen.getByRole('button', { name: '扉を開けて外へ出るを編集' }));
+      await expect(screen.getByRole('heading', { name: 'オブジェクト別の実行ルール' })).toBeVisible();
+      await userEvent.click(screen.getByRole('button', { name: '西の扉の実行ルールを編集' }));
+      await expect(screen.getByLabelText('実行ルールの条件値')).toHaveValue('false');
+      await expect(screen.getByLabelText('実行ルールのアクション')).toHaveAttribute('readonly');
+      await expect(screen.getByTestId('rule-result-preview')).toHaveTextContent('8 effect');
+      const effects = screen.getByRole('list', { name: '順序付きの実行内容' });
       await expect(effects).toHaveTextContent('1. 状態を更新');
       await expect(effects).toHaveTextContent('2. プレイヤーの現在地を移動');
       await expect(effects).toHaveTextContent('5. 出来事を記録');
       await expect(effects).toHaveTextContent('7. 矛盾する描写を禁止');
-      await expect(canvas.getByLabelText('5番目の出来事の名前')).toHaveValue('session-moved');
-      await expect(canvas.getByLabelText('5番目の出来事の場所code')).toHaveValue('outside');
+      await expect(screen.getByLabelText('5番目の出来事の名前')).toHaveValue('session-moved');
+      await expect(screen.getByLabelText('5番目の出来事の場所code')).toHaveValue('outside');
     });
 
     await step('出来事と禁止描写を編集し、キーボード操作できる順序変更ボタンで並べ替える', async () => {
-      await userEvent.clear(canvas.getByLabelText('5番目の出来事の名前'));
-      await userEvent.type(canvas.getByLabelText('5番目の出来事の名前'), 'player-left-building');
-      await userEvent.click(canvas.getByRole('button', { name: '7番目を上へ移動' }));
-      await expect(canvas.getByRole('list', { name: '順序付きの実行内容' })).toHaveTextContent('6. 矛盾する描写を禁止');
-      await expect(canvas.getByLabelText('6番目の文章')).toHaveValue('まだ室内にいる');
+      await userEvent.clear(screen.getByLabelText('5番目の出来事の名前'));
+      await userEvent.type(screen.getByLabelText('5番目の出来事の名前'), 'player-left-building');
+      await userEvent.click(screen.getByRole('button', { name: '7番目を上へ移動' }));
+      await expect(screen.getByRole('list', { name: '順序付きの実行内容' })).toHaveTextContent('6. 矛盾する描写を禁止');
+      await expect(screen.getByLabelText('6番目の文章')).toHaveValue('まだ室内にいる');
     });
 
     await step('公開準備を満たした8項目を下書き保存する', async () => {
+      await userEvent.click(screen.getByRole('button', { name: '実行ルールの編集を完了' }));
+      await userEvent.click(screen.getByRole('button', { name: 'アクションの編集を完了' }));
+      await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
       await expect(canvas.getByTestId('rule-readiness')).toHaveTextContent('決定的です');
       await userEvent.click(canvas.getByRole('button', { name: '下書き保存' }));
       await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('Draftとして保存しました');

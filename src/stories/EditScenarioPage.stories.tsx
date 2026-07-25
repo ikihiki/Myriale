@@ -126,11 +126,16 @@ export const USE11EditRuleDataWithStableCodes: Story = {
       await expect(screen.getByLabelText('オブジェクトのstable code')).toHaveValue('north-archive-door');
       await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
     });
-    await goToStep(canvas, 'アクション結果');
-    await step('決定的な結果を維持したまま変更を保存する', async () => {
+    await step('Action pane内のObject個別ルールを維持したまま変更を保存する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: /^封印書庫の扉を編集$/ }));
+      await userEvent.click(screen.getByRole('button', { name: '扉を開けるを編集' }));
+      await expect(screen.getByRole('button', { name: '北書庫の扉の実行ルールを編集' })).toBeVisible();
+      await userEvent.click(screen.getByRole('button', { name: 'アクションの編集を完了' }));
+      await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
       await expect(canvas.getByTestId('rule-readiness')).toHaveTextContent('決定的です');
       await userEvent.click(canvas.getByRole('button', { name: '変更を保存' }));
       await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('変更を保存しました');
+      await expect(canvas.queryByRole('button', { name: 'アクション結果へ' })).not.toBeInTheDocument();
     });
   },
 };
