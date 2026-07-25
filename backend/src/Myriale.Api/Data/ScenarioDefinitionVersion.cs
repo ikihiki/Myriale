@@ -74,24 +74,6 @@ public sealed class ScenarioObject
     public string LocalDefaultStateJson { get; set; } = "{}";
     public string LocalPublicProjectionJson { get; set; } = "{}";
     public string LocalActionsJson { get; set; } = "[]";
-    public string LocalActionRulesJson { get; set; } = "[]";
+    public string ActionRuleMutationsJson { get; set; } = "[]";
     public bool IsGlobal { get; set; }
-    public ICollection<ScenarioObjectActionRule> ActionRules { get; set; } = [];
-}
-
-public sealed class ScenarioObjectActionRule
-{
-    [Key] public string Id { get; set; } = string.Empty;
-    [Required] public string ObjectId { get; set; } = string.Empty;
-    public ScenarioObject Object { get; set; } = null!;
-    [Required] public string ObjectTypeActionId { get; set; } = string.Empty;
-    public ScenarioObjectTypeAction ObjectTypeAction { get; set; } = null!;
-    public string ConditionJson { get; set; } = "{}";
-    public int Priority { get; set; }
-    public string AuthoringNote { get; set; } = string.Empty;
-    public string EffectsJson { get; set; } = "[]";
-    [MaxLength(160)] public string? ModuleId { get; set; }
-    [MaxLength(40)] public string? ModuleVersion { get; set; }
-    [MaxLength(128)] public string? ModuleDigest { get; set; }
-    public string? ModuleConfigurationJson { get; set; }
 }

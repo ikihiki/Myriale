@@ -232,10 +232,12 @@ public static class ScenarioEndpoints
         ScenarioDefinitionAuthoringService authoring, CancellationToken cancellationToken)
     {
         if (!await IsOwnerAsync(scenarioId, principal, db, cancellationToken)) return TypedResults.NotFound();
-        var errors = authoring.Validate(request, false);
-        if (errors.Count > 0) return TypedResults.BadRequest(new ScenarioErrorResponse("Rule data is malformed.", errors));
         var draft = await authoring.GetLatestAsync(scenarioId, cancellationToken);
         if (draft is not null && draft.Status != "draft") return TypedResults.Conflict();
+        var errors = authoring.PreparePut(draft, request);
+        foreach (var pair in authoring.Validate(request, false))
+            errors[pair.Key] = errors.TryGetValue(pair.Key, out var existing) ? existing.Concat(pair.Value).Distinct().ToArray() : pair.Value;
+        if (errors.Count > 0) return TypedResults.BadRequest(new ScenarioErrorResponse("Rule data is malformed.", errors));
         draft ??= await authoring.GetOrCreateDraftAsync(scenarioId, cancellationToken);
         draft = await authoring.SaveAsync(draft, request, cancellationToken);
         return TypedResults.Ok(authoring.ToResponse(draft));

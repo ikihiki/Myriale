@@ -12,7 +12,7 @@ internal static class ScenarioDefinitionSeedFactory
         var type = NewBooleanType(version, slug, "FEATURE", "feature", "調査対象", "調査できるシナリオオブジェクト。", "examined");
         var action = NewAction(type, slug, "EXAMINE", "examine", "調べる", "対象を詳しく調べる。");
         var item = NewObject(version, slug, "FOCUS", "focus", "注目すべき対象", type, location);
-        AddRule(item, slug, "EXAMINE", action, "{}", "[{\"type\":\"set-state\",\"path\":\"state.examined\",\"value\":true}]");
+        AddRule(type, "examine-default", action, "{}", "[{\"type\":\"set-state\",\"path\":\"state.examined\",\"value\":true}]");
         return version;
     }
 
@@ -31,13 +31,15 @@ internal static class ScenarioDefinitionSeedFactory
         var examine = NewAction(landmark, slug, "EXAMINE", "examine", "調べる", "目印を詳しく調べる。");
 
         var eastDoor = NewObject(version, slug, "EAST-DOOR", "east-door", "東の扉", ordinaryDoor, inside);
-        AddRule(eastDoor, slug, "EAST-OPEN", open, "{\"op\":\"eq\",\"path\":\"state.open\",\"value\":false}", "[{\"type\":\"set-state\",\"path\":\"state.open\",\"value\":true},{\"type\":\"emit-fact\",\"text\":\"東の扉が開いた。\"}]");
+        AddRule(ordinaryDoor, "open-default", open, "{\"op\":\"eq\",\"path\":\"state.open\",\"value\":false}", "[{\"type\":\"set-state\",\"path\":\"state.open\",\"value\":true},{\"type\":\"emit-fact\",\"text\":\"扉が開いた。\"}]");
+
+        _ = NewObject(version, slug, "SERVICE-DOOR", "service-door", "整備区画の扉", ordinaryDoor, inside);
 
         var westDoor = NewObject(version, slug, "WEST-DOOR", "west-door", "西の扉", exitDoor, inside);
-        AddRule(westDoor, slug, "WEST-OPEN-AND-EXIT", openAndExit, "{\"op\":\"eq\",\"path\":\"state.open\",\"value\":false}", "[{\"type\":\"set-state\",\"path\":\"state.open\",\"value\":true},{\"type\":\"move-session\",\"locationCode\":\"outside\"},{\"type\":\"emit-fact\",\"text\":\"西の扉が開いた。\"},{\"type\":\"emit-fact\",\"text\":\"プレイヤーは研究施設の外へ出た。\"},{\"type\":\"emit-event\",\"event\":\"session-moved\",\"locationCode\":\"outside\"},{\"type\":\"add-narrative-hint\",\"text\":\"冷たい夜風と星空を描写する。\"},{\"type\":\"forbid-narrative-fact\",\"text\":\"まだ室内にいる\"},{\"type\":\"forbid-narrative-fact\",\"text\":\"扉は閉じたまま\"}]");
+        AddRule(exitDoor, "open-and-exit-default", openAndExit, "{\"op\":\"eq\",\"path\":\"state.open\",\"value\":false}", "[{\"type\":\"set-state\",\"path\":\"state.open\",\"value\":true},{\"type\":\"move-session\",\"locationCode\":\"outside\"},{\"type\":\"emit-fact\",\"text\":\"西の扉が開いた。\"},{\"type\":\"emit-fact\",\"text\":\"プレイヤーは研究施設の外へ出た。\"},{\"type\":\"emit-event\",\"event\":\"session-moved\",\"locationCode\":\"outside\"},{\"type\":\"add-narrative-hint\",\"text\":\"冷たい夜風と星空を描写する。\"},{\"type\":\"forbid-narrative-fact\",\"text\":\"まだ室内にいる\"},{\"type\":\"forbid-narrative-fact\",\"text\":\"扉は閉じたまま\"}]");
 
         var antenna = NewObject(version, slug, "OUTSIDE-ANTENNA", "outside-antenna", "風に鳴る観測アンテナ", landmark, outside);
-        AddRule(antenna, slug, "ANTENNA-EXAMINE", examine, "{\"op\":\"eq\",\"path\":\"state.examined\",\"value\":false}", "[{\"type\":\"set-state\",\"path\":\"state.examined\",\"value\":true}]");
+        AddRule(landmark, "examine-default", examine, "{\"op\":\"eq\",\"path\":\"state.examined\",\"value\":false}", "[{\"type\":\"set-state\",\"path\":\"state.examined\",\"value\":true}]");
         return version;
     }
 
@@ -84,8 +86,6 @@ internal static class ScenarioDefinitionSeedFactory
         return item;
     }
 
-    private static void AddRule(ScenarioObject item, string slug, string idSuffix, ScenarioObjectTypeAction action, string condition, string effects) => item.ActionRules.Add(new ScenarioObjectActionRule
-    {
-        Id = $"SOAR-{slug}-{idSuffix}", ObjectId = item.Id, ObjectTypeActionId = action.Id, ConditionJson = condition, Priority = 100, EffectsJson = effects,
-    });
+    private static void AddRule(ScenarioObjectType type, string code, ScenarioObjectTypeAction action, string condition, string effects) =>
+        type.GenericActionRulesJson = $"[{{\"code\":\"{code}\",\"actionCode\":\"{action.Code}\",\"condition\":{condition},\"priority\":100,\"authoringNote\":\"\",\"effects\":{effects},\"moduleBinding\":null}}]";
 }

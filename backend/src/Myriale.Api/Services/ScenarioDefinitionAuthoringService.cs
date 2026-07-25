@@ -8,6 +8,7 @@ namespace Myriale.Api.Services;
 
 public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbContext db)
 {
+    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
     private static readonly HashSet<string> EffectTypes =
     [
         "set-state", "increment-state", "append-set", "remove-set", "move-object", "move-session",
@@ -86,10 +87,21 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                 if (string.IsNullOrWhiteSpace(action.Label)) Add($"objectTypes[{i}].actions[{j}].label", "Label is required.");
                 RequireObject(action.ArgumentSchema, $"objectTypes[{i}].actions[{j}].argumentSchema", Add);
                 ValidateAstObject(action.AvailabilityCondition, $"objectTypes[{i}].actions[{j}].availabilityCondition", Add);
-                if (action.Visibility is not ("ai-choice" or "manual-ui" or "system-only"))
-                    Add($"objectTypes[{i}].actions[{j}].visibility", "Visibility is invalid.");
-                if (action.ExecutionMode is not ("rule" or "extension-module"))
-                    Add($"objectTypes[{i}].actions[{j}].executionMode", "Execution mode is invalid.");
+                if (action.Visibility is not ("ai-choice" or "manual-ui" or "system-only")) Add($"objectTypes[{i}].actions[{j}].visibility", "Visibility is invalid.");
+                if (action.ExecutionMode is not ("rule" or "extension-module")) Add($"objectTypes[{i}].actions[{j}].executionMode", "Execution mode is invalid.");
+            }
+
+            var actionCodes = typeActions.Select(action => action.Code).ToHashSet(StringComparer.Ordinal);
+            var genericRules = type.ActionRules ?? [];
+            ValidateCodes(genericRules.Select(rule => rule.Code), $"objectTypes[{i}].actionRules", Add);
+            for (var j = 0; j < genericRules.Count; j++)
+            {
+                var rule = genericRules[j];
+                var path = $"objectTypes[{i}].actionRules[{j}]";
+                if (!actionCodes.Contains(rule.ActionCode)) Add($"{path}.actionCode", "Referenced type action does not exist.");
+                ValidateAstObject(rule.Condition, $"{path}.condition", Add);
+                ValidateEffects(rule.Effects, $"{path}.effects", locationCodes, objectCodes, GetSchemaProperties(type.StateSchema).Keys, Add);
+                ValidateModuleBinding(rule.ModuleBinding, $"{path}.moduleBinding", Add);
             }
         }
 
@@ -100,7 +112,7 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
             if (!locationCodes.Contains(item.LocationCode)) Add($"objects[{i}].locationCode", "Referenced location does not exist.");
             if (item.MixinTypeCodes is null) Add($"objects[{i}].mixinTypeCodes", "Mixin type codes are required; use an empty array for Object-only configuration.");
             if (item.Actions is null) Add($"objects[{i}].actions", "Object-local actions are required; use an empty array when none are defined.");
-            if (item.ActionRules is null) Add($"objects[{i}].actionRules", "Action rules are required; use an empty array when none are defined.");
+            if (item.ActionRules is null) Add($"objects[{i}].actionRules", "Action rule mutations are required; use an empty array when none are defined.");
             var mixinCodes = (item.MixinTypeCodes ?? []).Select(code => code.Trim()).Where(code => code.Length > 0).ToList();
             var localActions = item.Actions ?? [];
             if (mixinCodes.Count != mixinCodes.Distinct(StringComparer.Ordinal).Count()) Add($"objects[{i}].mixinTypeCodes", "Duplicate mixins are not allowed.");
@@ -121,36 +133,65 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
             var actionContracts = resolvedTypes.SelectMany(type => type.Actions ?? []).Concat(localActions).GroupBy(action => action.Code, StringComparer.Ordinal);
             foreach (var collision in actionContracts.Where(group => group.Select(ActionContract).Distinct(StringComparer.Ordinal).Count() > 1)) Add($"objects[{i}].mixinTypeCodes", $"Action '{collision.Key}' has incompatible contracts.");
             var actions = actionContracts.Select(group => group.Key).ToHashSet(StringComparer.Ordinal);
+            var genericTargets = resolvedTypes.SelectMany(type => (type.ActionRules ?? []).Select(rule => (Key: (type.Code, rule.Code), Rule: rule)))
+                .GroupBy(pair => pair.Key).ToDictionary(group => group.Key, group => group.Select(pair => pair.Rule).ToList());
             var rules = item.ActionRules ?? [];
+            var targeted = new HashSet<(string TypeCode, string RuleCode)>();
+            var addCodes = new HashSet<string>(StringComparer.Ordinal);
             for (var j = 0; j < rules.Count; j++)
             {
                 var rule = rules[j];
-                if (!actions.Contains(rule.ActionCode)) Add($"objects[{i}].actionRules[{j}].actionCode", "Referenced type action does not exist.");
-                ValidateAstObject(rule.Condition, $"objects[{i}].actionRules[{j}].condition", Add);
-                ValidateEffects(rule.Effects, $"objects[{i}].actionRules[{j}].effects", locationCodes, objectCodes, stateProperties.Keys, Add);
-                if (rule.ModuleBinding is not null)
+                var path = $"objects[{i}].actionRules[{j}]";
+                if (rule.Operation is not ("add" or "override" or "delete" or "adjust")) { Add($"{path}.operation", "Operation must be add, override, delete, or adjust."); continue; }
+                if (rule.Operation == "add")
                 {
-                    var bindingPath = $"objects[{i}].actionRules[{j}].moduleBinding";
-                    if (string.IsNullOrWhiteSpace(rule.ModuleBinding.ModuleId)) Add($"{bindingPath}.moduleId", "Module ID is required.");
-                    if (string.IsNullOrWhiteSpace(rule.ModuleBinding.Version)) Add($"{bindingPath}.version", "Module version is required.");
-                    if (string.IsNullOrWhiteSpace(rule.ModuleBinding.Digest)) Add($"{bindingPath}.digest", "Module digest is required.");
-                    RequireObject(rule.ModuleBinding.Configuration, $"{bindingPath}.configuration", Add);
+                    if (string.IsNullOrWhiteSpace(rule.Code) || !StableCodeRegex().IsMatch(rule.Code)) Add($"{path}.code", "Code must use lowercase letters, numbers, and hyphens.");
+                    else if (!addCodes.Add(rule.Code)) Add($"{path}.code", "Add rule code must be unique within the object.");
+                    if (rule.TargetTypeCode is not null || rule.TargetRuleCode is not null) Add(path, "Add rules cannot specify an inherited target.");
+                    ValidateFullMutationRule(rule, path, actions, locationCodes, objectCodes, stateProperties.Keys, Add);
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(rule.TargetTypeCode)) Add($"{path}.targetTypeCode", "Inherited target type code is required.");
+                if (string.IsNullOrWhiteSpace(rule.TargetRuleCode)) Add($"{path}.targetRuleCode", "Inherited target rule code is required.");
+                var key = (rule.TargetTypeCode ?? string.Empty, rule.TargetRuleCode ?? string.Empty);
+                if (!targeted.Add(key)) Add(path, $"Conflicting mutation chain targets '{key.Item1}/{key.Item2}' more than once.");
+                genericTargets.TryGetValue(key, out var targets);
+                if (targets is null || targets.Count == 0) Add(path, $"Inherited target '{key.Item1}/{key.Item2}' does not exist on this object.");
+                else if (targets.Count > 1) Add(path, $"Inherited target '{key.Item1}/{key.Item2}' is duplicated.");
+                var target = targets?.Count == 1 ? targets[0] : null;
+
+                if (rule.Code is not null) Add($"{path}.code", "Only add rules define a local code.");
+                if (rule.Operation == "delete")
+                {
+                    if (rule.ActionCode is not null || rule.Condition is not null || rule.Priority is not null || rule.AuthoringNoteSpecified || rule.Effects is not null || rule.ModuleBindingSpecified)
+                        Add(path, "Delete rules may only specify operation and inherited target.");
+                }
+                else if (rule.Operation == "override")
+                {
+                    ValidateFullMutationRule(rule, path, actions, locationCodes, objectCodes, stateProperties.Keys, Add);
+                    if (target is not null && rule.ActionCode != target.ActionCode) Add($"{path}.actionCode", "Override action must match the inherited target action.");
+                }
+                else
+                {
+                    if (rule.ActionCode is not null) Add($"{path}.actionCode", "Adjust cannot change the inherited target action.");
+                    if (rule.Condition is { } condition) ValidateAstObject(condition, $"{path}.condition", Add);
+                    if (rule.Effects is { } effects) ValidateEffects(effects, $"{path}.effects", locationCodes, objectCodes, stateProperties.Keys, Add);
+                    if (rule.ModuleBindingSpecified) ValidateModuleBinding(rule.ModuleBinding, $"{path}.moduleBinding", Add);
+                    if (rule.Condition is null && rule.Priority is null && !rule.AuthoringNoteSpecified && rule.Effects is null && !rule.ModuleBindingSpecified)
+                        Add(path, "Adjust must specify at least one patch field.");
                 }
             }
 
             if (forPublish)
             {
+                var effective = EffectiveRules(resolvedTypes, rules);
                 foreach (var action in resolvedTypes.SelectMany(type => type.Actions ?? []).Concat(localActions).GroupBy(action => action.Code).Select(group => group.Last()))
                 {
-                    var localMatching = rules.Where(rule => rule.ActionCode == action.Code).ToList();
-                    var genericBySource = resolvedTypes.Select(type => (type.Code, Rules: (type.ActionRules ?? []).Where(rule => rule.ActionCode == action.Code).ToList())).ToList();
-                    var matching = localMatching.Concat(genericBySource.SelectMany(source => source.Rules)).ToList();
+                    var matching = effective.Where(rule => rule.ActionCode == action.Code).ToList();
                     if (matching.Count == 0) Add($"objects[{i}].actionRules", $"Action '{action.Code}' has no deterministic result.");
-                    foreach (var ambiguity in localMatching.GroupBy(rule => rule.Priority).Where(group => group.Count() > 1))
-                        Add($"objects[{i}].actionRules", $"Action '{action.Code}' has ambiguous Object-local priority {ambiguity.Key}.");
-                    foreach (var source in genericBySource)
-                        foreach (var ambiguity in source.Rules.GroupBy(rule => rule.Priority).Where(group => group.Count() > 1))
-                            Add($"objects[{i}].actionRules", $"Action '{action.Code}' has ambiguous priority {ambiguity.Key} in Type '{source.Code}'.");
+                    foreach (var ambiguity in matching.GroupBy(rule => (rule.Priority, rule.SourceRank)).Where(group => group.Count() > 1))
+                        Add($"objects[{i}].actionRules", $"Action '{action.Code}' has ambiguous priority {ambiguity.Key.Priority} at source rank {ambiguity.Key.SourceRank}.");
                     if (action.ExecutionMode == "extension-module" && matching.Any(rule => rule.ModuleBinding is null))
                         Add($"objects[{i}].actionRules", $"Action '{action.Code}' requires a module binding.");
                 }
@@ -166,9 +207,55 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
         return errors.ToDictionary(pair => pair.Key, pair => pair.Value.Distinct().ToArray(), StringComparer.Ordinal);
     }
 
+    public Dictionary<string, string[]> PreparePut(ScenarioDefinitionVersion? persistedDraft, ScenarioRuleDataRequest request)
+    {
+        if (persistedDraft is null) return [];
+        var errors = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        void Add(string path, string message)
+        {
+            if (!errors.TryGetValue(path, out var messages)) errors[path] = messages = [];
+            messages.Add(message);
+        }
+
+        var persisted = ToRequest(persistedDraft);
+        var incomingTypes = (request.ObjectTypes ?? []).Where(type => !string.IsNullOrWhiteSpace(type.Code))
+            .GroupBy(type => type.Code, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+        var persistedReferences = (persisted.Objects ?? []).SelectMany((item, index) => (item.ActionRules ?? [])
+            .Where(rule => rule.Operation != "add")
+            .Select(rule => (ObjectIndex: index, rule.TargetTypeCode, rule.TargetRuleCode))).ToList();
+
+        foreach (var oldType in persisted.ObjectTypes ?? [])
+        {
+            incomingTypes.TryGetValue(oldType.Code, out var newType);
+            var oldRules = (oldType.ActionRules ?? []).GroupBy(rule => rule.Code, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+            var newRules = (newType?.ActionRules ?? []).Where(rule => !string.IsNullOrWhiteSpace(rule.Code))
+                .GroupBy(rule => rule.Code, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+            var removed = oldRules.Values.Where(rule => !newRules.ContainsKey(rule.Code)).ToList();
+            var added = newRules.Values.Where(rule => !oldRules.ContainsKey(rule.Code)).ToList();
+            foreach (var oldRule in removed)
+            {
+                var matches = added.Where(candidate => RuleFingerprint(candidate) == RuleFingerprint(oldRule)).ToList();
+                if (matches.Count == 1)
+                {
+                    var replacement = matches[0];
+                    foreach (var mutation in (request.Objects ?? []).SelectMany(item => item.ActionRules ?? [])
+                        .Where(rule => rule.Operation != "add" && rule.TargetTypeCode == oldType.Code && rule.TargetRuleCode == oldRule.Code))
+                        mutation.TargetRuleCode = replacement.Code;
+                    added.Remove(replacement);
+                    continue;
+                }
+                foreach (var reference in persistedReferences.Where(reference => reference.TargetTypeCode == oldType.Code && reference.TargetRuleCode == oldRule.Code))
+                    Add($"objects[{reference.ObjectIndex}].actionRules", $"Type rule '{oldType.Code}/{oldRule.Code}' cannot be deleted while an object mutation references it.");
+            }
+        }
+        return errors.ToDictionary(pair => pair.Key, pair => pair.Value.Distinct().ToArray(), StringComparer.Ordinal);
+    }
+
     public async Task<ScenarioDefinitionVersion> SaveAsync(ScenarioDefinitionVersion version, ScenarioRuleDataRequest request, CancellationToken cancellationToken)
     {
-        db.ScenarioObjectActionRules.RemoveRange(version.Objects.SelectMany(item => item.ActionRules));
         db.ScenarioObjects.RemoveRange(version.Objects);
         db.ScenarioObjectTypeActions.RemoveRange(version.ObjectTypes.SelectMany(item => item.Actions));
         db.ScenarioObjectTypes.RemoveRange(version.ObjectTypes);
@@ -182,8 +269,6 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
             Id = $"SLOC-{Guid.NewGuid():N}", DefinitionVersionId = version.Id, Code = item.Code.Trim(), Name = item.Name.Trim(),
             Description = item.Description?.Trim() ?? string.Empty, AuthoringDataJson = Json(item.AuthoringData, "{}"),
         }).ToDictionary(item => item.Code, StringComparer.Ordinal);
-        var types = new Dictionary<string, ScenarioObjectType>(StringComparer.Ordinal);
-        var actionMaps = new Dictionary<string, Dictionary<string, ScenarioObjectTypeAction>>(StringComparer.Ordinal);
         foreach (var input in request.ObjectTypes ?? [])
         {
             var type = new ScenarioObjectType
@@ -191,9 +276,8 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                 Id = $"SOT-{Guid.NewGuid():N}", DefinitionVersionId = version.Id, Code = input.Code.Trim(), Name = input.Name.Trim(),
                 Description = input.Description?.Trim() ?? string.Empty, SchemaVersion = input.SchemaVersion,
                 StateSchemaJson = Json(input.StateSchema, "{}"), DefaultStateJson = Json(input.DefaultState, "{}"),
-                PublicProjectionJson = Json(input.PublicProjection, "{}"), GenericActionRulesJson = JsonSerializer.Serialize(input.ActionRules ?? []),
+                PublicProjectionJson = Json(input.PublicProjection, "{}"), GenericActionRulesJson = JsonSerializer.Serialize(input.ActionRules ?? [], SerializerOptions),
             };
-            var actions = new Dictionary<string, ScenarioObjectTypeAction>(StringComparer.Ordinal);
             foreach (var actionInput in input.Actions ?? [])
             {
                 var action = new ScenarioObjectTypeAction
@@ -203,9 +287,9 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                     AvailabilityConditionJson = Json(actionInput.AvailabilityCondition, "{}"), Visibility = actionInput.Visibility,
                     ExecutionMode = actionInput.ExecutionMode,
                 };
-                type.Actions.Add(action); actions[action.Code] = action;
+                type.Actions.Add(action);
             }
-            types[type.Code] = type; actionMaps[type.Code] = actions; version.ObjectTypes.Add(type);
+            version.ObjectTypes.Add(type);
         }
         foreach (var location in locations.Values) version.Locations.Add(location);
         foreach (var input in request.Objects ?? [])
@@ -217,26 +301,9 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                 LocationId = locations[input.LocationCode].Id,
                 InitialStateOverrideJson = Json(input.InitialStateOverride, "{}"), MixinTypeCodesJson = JsonSerializer.Serialize(mixinCodes),
                 LocalStateSchemaJson = Json(input.StateSchema, "{}"), LocalDefaultStateJson = Json(input.DefaultState, "{}"),
-                LocalPublicProjectionJson = Json(input.PublicProjection, "{}"), LocalActionsJson = JsonSerializer.Serialize(input.Actions ?? []),
-                IsGlobal = input.IsGlobal,
+                LocalPublicProjectionJson = Json(input.PublicProjection, "{}"), LocalActionsJson = JsonSerializer.Serialize(input.Actions ?? [], SerializerOptions),
+                ActionRuleMutationsJson = JsonSerializer.Serialize(input.ActionRules ?? [], SerializerOptions), IsGlobal = input.IsGlobal,
             };
-            foreach (var ruleInput in input.ActionRules ?? [])
-            {
-                var inheritedAction = mixinCodes.Select(code => actionMaps[code]).SelectMany(map => map)
-                    .FirstOrDefault(pair => pair.Key == ruleInput.ActionCode).Value;
-                if (inheritedAction is null) continue;
-                var binding = ruleInput.ModuleBinding;
-                item.ActionRules.Add(new ScenarioObjectActionRule
-                {
-                    Id = $"SOAR-{Guid.NewGuid():N}", ObjectId = item.Id,
-                    ObjectTypeActionId = inheritedAction.Id,
-                    ConditionJson = Json(ruleInput.Condition, "{}"), Priority = ruleInput.Priority,
-                    AuthoringNote = ruleInput.AuthoringNote?.Trim() ?? string.Empty, EffectsJson = Json(ruleInput.Effects, "[]"),
-                    ModuleId = binding?.ModuleId, ModuleVersion = binding?.Version, ModuleDigest = binding?.Digest,
-                    ModuleConfigurationJson = binding is null ? null : Json(binding.Configuration, "{}"),
-                });
-            }
-            item.LocalActionRulesJson = JsonSerializer.Serialize((input.ActionRules ?? []).Where(rule => !mixinCodes.Any(code => actionMaps[code].ContainsKey(rule.ActionCode))));
             version.Objects.Add(item);
         }
         await db.SaveChangesAsync(cancellationToken);
@@ -246,24 +313,20 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
     public ScenarioRuleDataResponse ToResponse(ScenarioDefinitionVersion version)
     {
         var locationCodes = version.Locations.ToDictionary(item => item.Id, item => item.Code);
-        var actionCodes = version.ObjectTypes.SelectMany(item => item.Actions).ToDictionary(item => item.Id, item => item.Code);
         return new(version.ScenarioId, version.Id, version.Version, version.Status, version.SchemaVersion, version.UpdatedAt, version.PublishedAt,
             version.Locations.OrderBy(item => item.Code).Select(item => new ScenarioLocationInput(item.Code, item.Name, item.Description, Parse(item.AuthoringDataJson))).ToList(),
             version.ObjectTypes.OrderBy(item => item.Code).Select(item => new ScenarioObjectTypeInput(item.Code, item.Name, item.Description, item.SchemaVersion,
                 Parse(item.StateSchemaJson), Parse(item.DefaultStateJson), Parse(item.PublicProjectionJson),
                 item.Actions.OrderBy(action => action.Code).Select(action => new ScenarioObjectTypeActionInput(action.Code, action.Label, action.Description,
                     Parse(action.ArgumentSchemaJson), Parse(action.AvailabilityConditionJson), action.Visibility, action.ExecutionMode)).ToList(),
-                JsonSerializer.Deserialize<List<ScenarioObjectActionRuleInput>>(item.GenericActionRulesJson) ?? [])).ToList(),
+                JsonSerializer.Deserialize<List<ScenarioGenericActionRuleInput>>(item.GenericActionRulesJson, SerializerOptions) ?? [])).ToList(),
             version.Objects.OrderBy(item => item.Code).Select(item =>
             {
                 var mixins = JsonSerializer.Deserialize<List<string>>(item.MixinTypeCodesJson) ?? [];
-                var rules = item.ActionRules.OrderByDescending(rule => rule.Priority).Select(rule =>
-                    new ScenarioObjectActionRuleInput(actionCodes[rule.ObjectTypeActionId], Parse(rule.ConditionJson), rule.Priority, rule.AuthoringNote, Parse(rule.EffectsJson),
-                        rule.ModuleId is null ? null : new ScenarioModuleBindingInput(rule.ModuleId, rule.ModuleVersion!, rule.ModuleDigest!, Parse(rule.ModuleConfigurationJson ?? "{}")))).ToList();
-                rules.AddRange(JsonSerializer.Deserialize<List<ScenarioObjectActionRuleInput>>(item.LocalActionRulesJson) ?? []);
+                var rules = JsonSerializer.Deserialize<List<ScenarioObjectRuleMutationInput>>(item.ActionRuleMutationsJson, SerializerOptions) ?? [];
                 return new ScenarioObjectInput(item.Code, item.Name, locationCodes[item.LocationId],
                     Parse(item.InitialStateOverrideJson), item.IsGlobal, rules, mixins, Parse(item.LocalStateSchemaJson), Parse(item.LocalDefaultStateJson),
-                    Parse(item.LocalPublicProjectionJson), JsonSerializer.Deserialize<List<ScenarioObjectTypeActionInput>>(item.LocalActionsJson) ?? []);
+                    Parse(item.LocalPublicProjectionJson), JsonSerializer.Deserialize<List<ScenarioObjectTypeActionInput>>(item.LocalActionsJson, SerializerOptions) ?? []);
             }).ToList());
     }
 
@@ -276,9 +339,80 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
     private IQueryable<ScenarioDefinitionVersion> Query() => db.ScenarioDefinitionVersions
         .Include(version => version.Locations)
         .Include(version => version.ObjectTypes).ThenInclude(type => type.Actions)
-        .Include(version => version.Objects).ThenInclude(item => item.ActionRules).ThenInclude(rule => rule.ObjectTypeAction);
+        .Include(version => version.Objects);
 
 
+
+    private sealed record EffectiveAuthoringRule(string ActionCode, int Priority, int SourceRank, ScenarioModuleBindingInput? ModuleBinding);
+
+    private static IReadOnlyList<EffectiveAuthoringRule> EffectiveRules(
+        IReadOnlyList<ScenarioObjectTypeInput> types, IReadOnlyList<ScenarioObjectRuleMutationInput> mutations)
+    {
+        var candidates = new Dictionary<(string TypeCode, string RuleCode), EffectiveAuthoringRule>();
+        for (var rank = 0; rank < types.Count; rank++)
+            foreach (var rule in types[rank].ActionRules ?? [])
+                candidates.TryAdd((types[rank].Code, rule.Code), new(rule.ActionCode, rule.Priority, rank, rule.ModuleBinding));
+
+        foreach (var mutation in mutations.Where(rule => rule.Operation != "add"))
+        {
+            var key = (mutation.TargetTypeCode ?? string.Empty, mutation.TargetRuleCode ?? string.Empty);
+            if (!candidates.TryGetValue(key, out var generic)) continue;
+            if (mutation.Operation == "delete") candidates.Remove(key);
+            else if (mutation.Operation == "override" && mutation.ActionCode is not null && mutation.Priority is not null)
+                candidates[key] = new(mutation.ActionCode, mutation.Priority.Value, generic.SourceRank, mutation.ModuleBinding);
+            else if (mutation.Operation == "adjust")
+                candidates[key] = generic with
+                {
+                    Priority = mutation.Priority ?? generic.Priority,
+                    ModuleBinding = mutation.ModuleBindingSpecified ? mutation.ModuleBinding : generic.ModuleBinding,
+                };
+        }
+
+        var result = candidates.Values.ToList();
+        var localRank = types.Count;
+        result.AddRange(mutations.Where(rule => rule.Operation == "add" && rule.ActionCode is not null && rule.Priority is not null)
+            .Select(rule => new EffectiveAuthoringRule(rule.ActionCode!, rule.Priority!.Value, localRank, rule.ModuleBinding)));
+        return result;
+    }
+
+    private static void ValidateFullMutationRule(
+        ScenarioObjectRuleMutationInput rule, string path, ISet<string> actions, ISet<string> locations, ISet<string> objects,
+        IEnumerable<string> stateProperties, Action<string, string> add)
+    {
+        if (string.IsNullOrWhiteSpace(rule.ActionCode)) add($"{path}.actionCode", "Action code is required for a full rule.");
+        else if (!actions.Contains(rule.ActionCode)) add($"{path}.actionCode", "Referenced action does not exist.");
+        if (rule.Condition is not { } condition) add($"{path}.condition", "Condition is required for a full rule.");
+        else ValidateAstObject(condition, $"{path}.condition", add);
+        if (rule.Priority is null) add($"{path}.priority", "Priority is required for a full rule.");
+        if (rule.Effects is not { } effects) add($"{path}.effects", "Effects are required for a full rule.");
+        else ValidateEffects(effects, $"{path}.effects", locations, objects, stateProperties, add);
+        if (rule.ModuleBindingSpecified) ValidateModuleBinding(rule.ModuleBinding, $"{path}.moduleBinding", add);
+    }
+
+    private static void ValidateModuleBinding(ScenarioModuleBindingInput? binding, string path, Action<string, string> add)
+    {
+        if (binding is null) return;
+        if (string.IsNullOrWhiteSpace(binding.ModuleId)) add($"{path}.moduleId", "Module ID is required.");
+        if (string.IsNullOrWhiteSpace(binding.Version)) add($"{path}.version", "Module version is required.");
+        if (string.IsNullOrWhiteSpace(binding.Digest)) add($"{path}.digest", "Module digest is required.");
+        RequireObject(binding.Configuration, $"{path}.configuration", add);
+    }
+
+    private static string RuleFingerprint(ScenarioGenericActionRuleInput rule) => JsonSerializer.Serialize(new
+    {
+        rule.ActionCode,
+        Condition = Json(rule.Condition, "{}"),
+        rule.Priority,
+        rule.AuthoringNote,
+        Effects = Json(rule.Effects, "[]"),
+        ModuleBinding = rule.ModuleBinding is null ? null : new
+        {
+            rule.ModuleBinding.ModuleId,
+            rule.ModuleBinding.Version,
+            rule.ModuleBinding.Digest,
+            Configuration = Json(rule.ModuleBinding.Configuration, "{}"),
+        },
+    });
 
     private static string ActionContract(ScenarioObjectTypeActionInput action) => JsonSerializer.Serialize(new
     {

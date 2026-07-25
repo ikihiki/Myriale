@@ -234,12 +234,13 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
             "code":"door","name":"Door","description":"","schemaVersion":1,
             "stateSchema":{"type":"object","additionalProperties":false,"properties":{"open":{"type":"boolean"}},"required":["open"]},
             "defaultState":{"open":false},"publicProjection":{"include":["open"]},
-            "actions":[{"code":"open","label":"Open","description":"Open the door","argumentSchema":{"type":"object","additionalProperties":false},"availabilityCondition":{},"visibility":"ai-choice","executionMode":"rule"}]
+            "actions":[{"code":"open","label":"Open","description":"Open the door","argumentSchema":{"type":"object","additionalProperties":false},"availabilityCondition":{},"visibility":"ai-choice","executionMode":"rule"}],
+            "actionRules":[{"code":"open-default","actionCode":"open","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true},{"type":"emit-fact","text":"The door is open."}],"moduleBinding":null}]
           }],
           "objects":[
-            {"code":"north-door","name":"North door","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"start","initialStateOverride":{},"isGlobal":false,"actionRules":[{"actionCode":"open","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true},{"type":"emit-fact","text":"The north door is open."}],"moduleBinding":null}]},
-            {"code":"cellar-door","name":"Cellar door","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"cellar","initialStateOverride":{},"isGlobal":false,"actionRules":[{"actionCode":"open","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true}],"moduleBinding":null}]},
-            {"code":"world-clock","name":"World clock","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"cellar","initialStateOverride":{},"isGlobal":true,"actionRules":[{"actionCode":"open","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true}],"moduleBinding":null}]}
+            {"code":"north-door","name":"North door","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"start","initialStateOverride":{},"isGlobal":false,"actionRules":[]},
+            {"code":"cellar-door","name":"Cellar door","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"cellar","initialStateOverride":{},"isGlobal":false,"actionRules":[]},
+            {"code":"world-clock","name":"World clock","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"cellar","initialStateOverride":{},"isGlobal":true,"actionRules":[]}
           ]
         }
         """);
@@ -260,13 +261,13 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
             {"code":"outside","name":"研究施設の外","description":"","authoringData":{}}
           ],
           "objectTypes":[
-            {"code":"door","name":"Door","description":"","schemaVersion":1,"stateSchema":{"type":"object","additionalProperties":false,"properties":{"open":{"type":"boolean"}},"required":["open"]},"defaultState":{"open":false},"publicProjection":{"include":["open"]},"actions":[{"code":"open-and-exit","label":"扉を開けて外へ出る","description":"","argumentSchema":{"type":"object","additionalProperties":false},"availabilityCondition":{},"visibility":"ai-choice","executionMode":"rule"}]},
-            {"code":"landmark","name":"Landmark","description":"","schemaVersion":1,"stateSchema":{"type":"object","additionalProperties":false,"properties":{"examined":{"type":"boolean"}},"required":["examined"]},"defaultState":{"examined":false},"publicProjection":{"include":["examined"]},"actions":[{"code":"examine","label":"調べる","description":"","argumentSchema":{"type":"object","additionalProperties":false},"availabilityCondition":{},"visibility":"ai-choice","executionMode":"rule"}]}
+            {"code":"door","name":"Door","description":"","schemaVersion":1,"stateSchema":{"type":"object","additionalProperties":false,"properties":{"open":{"type":"boolean"}},"required":["open"]},"defaultState":{"open":false},"publicProjection":{"include":["open"]},"actions":[{"code":"open-and-exit","label":"扉を開けて外へ出る","description":"","argumentSchema":{"type":"object","additionalProperties":false},"availabilityCondition":{},"visibility":"ai-choice","executionMode":"rule"}],"actionRules":[{"code":"open-and-exit-default","actionCode":"open-and-exit","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true}],"moduleBinding":null}]},
+            {"code":"landmark","name":"Landmark","description":"","schemaVersion":1,"stateSchema":{"type":"object","additionalProperties":false,"properties":{"examined":{"type":"boolean"}},"required":["examined"]},"defaultState":{"examined":false},"publicProjection":{"include":["examined"]},"actions":[{"code":"examine","label":"調べる","description":"","argumentSchema":{"type":"object","additionalProperties":false},"availabilityCondition":{},"visibility":"ai-choice","executionMode":"rule"}],"actionRules":[{"code":"examine-default","actionCode":"examine","condition":{},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.examined","value":true}],"moduleBinding":null}]}
           ],
           "objects":[
-            {"code":"east-door","name":"東の扉","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"inside","initialStateOverride":{},"isGlobal":false,"actionRules":[{"actionCode":"open-and-exit","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true}],"moduleBinding":null}]},
-            {"code":"west-door","name":"西の扉","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"inside","initialStateOverride":{},"isGlobal":false,"actionRules":[{"actionCode":"open-and-exit","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true},{"type":"move-session","locationCode":"outside"},{"type":"emit-fact","text":"西の扉が開いた。"},{"type":"emit-fact","text":"プレイヤーは研究施設の外へ出た。"}],"moduleBinding":null}]},
-            {"code":"outside-antenna","name":"観測アンテナ","mixinTypeCodes":["landmark"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"outside","initialStateOverride":{},"isGlobal":false,"actionRules":[{"actionCode":"examine","condition":{},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.examined","value":true}],"moduleBinding":null}]}
+            {"code":"east-door","name":"東の扉","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"inside","initialStateOverride":{},"isGlobal":false,"actionRules":[]},
+            {"code":"west-door","name":"西の扉","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"inside","initialStateOverride":{},"isGlobal":false,"actionRules":[{"operation":"override","targetTypeCode":"door","targetRuleCode":"open-and-exit-default","actionCode":"open-and-exit","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true},{"type":"move-session","locationCode":"outside"},{"type":"emit-fact","text":"西の扉が開いた。"},{"type":"emit-fact","text":"プレイヤーは研究施設の外へ出た。"}],"moduleBinding":null}]},
+            {"code":"outside-antenna","name":"観測アンテナ","mixinTypeCodes":["landmark"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"outside","initialStateOverride":{},"isGlobal":false,"actionRules":[]}
           ]
         }
         """);
@@ -300,6 +301,18 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
                     {
                         new { code = "engage", label = "Engage", description = "Begin battle", argumentSchema = new { type = "object", additionalProperties = false }, availabilityCondition = new { }, visibility = "ai-choice", executionMode = "extension-module" },
                     },
+                    actionRules = new[]
+                    {
+                        new
+                        {
+                            code = "engage-default", actionCode = "engage", condition = new { }, priority = 100, authoringNote = "", effects = Array.Empty<object>(),
+                            moduleBinding = new
+                            {
+                                moduleId = "com.myriale.rules.turn-battle", version = "1.0.0", digest,
+                                configuration = new { playerName = "Player", enemyName = "Guardian", playerHp = 24, enemyHp = 22, playerAttack = 6, enemyAttack = 5, skillName = "Flash", skillPower = 10, skillUses = 2, fleeChance = 35, victoryCode = "guardian-defeated", defeatCode = "guardian-victorious", fleeCode = "guardian-escaped" },
+                            },
+                        },
+                    },
                 },
             },
             objects = new[]
@@ -316,39 +329,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
                     locationCode = "start",
                     initialStateOverride = new { },
                     isGlobal = false,
-                    actionRules = new[]
-                    {
-                        new
-                        {
-                            actionCode = "engage",
-                            condition = new { },
-                            priority = 100,
-                            authoringNote = "",
-                            effects = Array.Empty<object>(),
-                            moduleBinding = new
-                            {
-                                moduleId = "com.myriale.rules.turn-battle",
-                                version = "1.0.0",
-                                digest,
-                                configuration = new
-                                {
-                                    playerName = "Player",
-                                    enemyName = "Guardian",
-                                    playerHp = 24,
-                                    enemyHp = 22,
-                                    playerAttack = 6,
-                                    enemyAttack = 5,
-                                    skillName = "Flash",
-                                    skillPower = 10,
-                                    skillUses = 2,
-                                    fleeChance = 35,
-                                    victoryCode = "guardian-defeated",
-                                    defeatCode = "guardian-victorious",
-                                    fleeCode = "guardian-escaped",
-                                },
-                            },
-                        },
-                    },
+                    actionRules = Array.Empty<object>(),
                 },
             },
         };

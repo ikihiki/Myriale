@@ -105,7 +105,7 @@ public static class SessionEndpoints
         var definition = await db.ScenarioDefinitionVersions.AsNoTracking()
             .Include(version => version.Locations)
             .Include(version => version.ObjectTypes).ThenInclude(type => type.Actions)
-            .Include(version => version.Objects).ThenInclude(item => item.ActionRules).ThenInclude(rule => rule.ObjectTypeAction)
+            .Include(version => version.Objects)
             .Where(version => version.ScenarioId == request.ScenarioId && version.Status == "published")
             .OrderByDescending(version => version.Version)
             .FirstOrDefaultAsync(cancellationToken);
@@ -297,7 +297,7 @@ public static class SessionEndpoints
             .Where(item => item.SessionId == sessionId).OrderBy(item => item.ScenarioObject.Code).ToListAsync(cancellationToken);
         var definition = await db.ScenarioDefinitionVersions.AsNoTracking()
             .Include(version => version.ObjectTypes).ThenInclude(type => type.Actions)
-            .Include(version => version.Objects).ThenInclude(item => item.ActionRules).ThenInclude(rule => rule.ObjectTypeAction)
+            .Include(version => version.Objects)
             .SingleAsync(version => version.Id == session.ScenarioDefinitionVersionId, cancellationToken);
         var publicProjector = new ScenarioPublicProjector(ruleResolver);
         var objectsById = definition.Objects.ToDictionary(item => item.Id);

@@ -177,7 +177,7 @@ public sealed class ScenarioTurnExecutionHandler(
         var session = await sessions.Include(item => item.State).SingleAsync(item => item.Id == sessionId, cancellationToken);
         var definition = await db.ScenarioDefinitionVersions.Include(item => item.Locations)
             .Include(item => item.ObjectTypes).ThenInclude(type => type.Actions)
-            .Include(item => item.Objects).ThenInclude(item => item.ActionRules).ThenInclude(rule => rule.ObjectTypeAction)
+            .Include(item => item.Objects)
             .SingleAsync(item => item.Id == session.ScenarioDefinitionVersionId && item.Status == "published", cancellationToken);
         var statesQuery = db.SessionObjectStates.Include(item => item.ScenarioObject);
         var states = tracking ? await statesQuery.Where(item => item.SessionId == sessionId).ToListAsync(cancellationToken) : await statesQuery.AsNoTracking().Where(item => item.SessionId == sessionId).ToListAsync(cancellationToken);
