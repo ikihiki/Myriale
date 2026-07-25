@@ -97,6 +97,17 @@ describe('SessionActivityFeed', () => {
     expect(screen.getByTestId('scenario-turn-committed-failure').textContent).toContain('ルールは再適用されません');
   });
 
+  it('shows the west-door interpretation, committed open state, and inside-to-outside movement', async () => {
+    const { westDoorSessionFixture } = await import('../../stories/session-page/westDoorFixtures');
+    render(<SessionActivityFeed session={westDoorSessionFixture('generating-narrative')} />);
+
+    const projection = screen.getByTestId('scenario-turn-public-projection');
+    expect(projection.textContent).toContain('西の扉 / 扉を開けて外へ出る');
+    expect(screen.getByTestId('scenario-turn-selected-state').textContent).toContain('open=true');
+    expect(screen.getByTestId('scenario-turn-location-transition').textContent).toContain('地下研究室 → 研究施設の外');
+    expect(projection.textContent).toContain('プレイヤーは研究施設の外へ出た');
+  });
+
   it('removes a completed execution after its exit animation', () => {
     vi.useFakeTimers();
     render(<SessionActivityFeed session={sessionActivityFixture('succeeded')} />);

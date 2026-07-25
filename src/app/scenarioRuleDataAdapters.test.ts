@@ -10,7 +10,7 @@ const canonicalFixture: CanonicalScenarioRuleDataResponse = {
   schemaVersion: 1,
   updatedAt: '2026-07-24T00:00:00Z',
   publishedAt: null,
-  locations: [{ code: 'hall', name: '広間', description: '', authoringData: { atmosphere: '静寂', danger: '崩落', custom: 'keep-me' } }],
+  locations: [{ code: 'hall', name: '広間', description: '', authoringData: { atmosphere: '静寂', danger: '崩落', custom: 'keep-me' } }, { code: 'outside', name: '屋外', description: '', authoringData: {} }],
   objectTypes: [{
     code: 'door',
     name: '扉',
@@ -35,6 +35,7 @@ const canonicalFixture: CanonicalScenarioRuleDataResponse = {
       effects: [
         { type: 'set-state', path: 'state.open', value: true },
         { type: 'emit-fact', text: '扉が開いた' },
+        { type: 'move-session', locationCode: 'outside' },
         { type: 'set-session-flag', flag: 'opened', value: true },
       ],
       moduleBinding: { moduleId: 'module', version: '1.0.0', digest: 'sha256:test', configuration: { mode: 'safe' } },
@@ -49,7 +50,8 @@ describe('scenario rule-data adapters', () => {
     expect(form.objectTypes[0].stateFields[0]).toMatchObject({ code: 'open', label: '開いている', valueType: 'boolean', defaultValue: 'false', visibility: 'public' });
     expect(form.objectTypes[0].actions[0]).toMatchObject({ availability: 'state-equals', availabilityStateCode: 'open' });
     expect(form.objectTypes[0].actions[0].argumentFields[0]).toMatchObject({ code: 'key', label: '鍵', required: true });
-    expect(form.objects[0].actionResults[0].effects).toHaveLength(2);
+    expect(form.objects[0].actionResults[0].effects).toHaveLength(3);
+    expect(form.objects[0].actionResults[0].effects[2]).toMatchObject({ kind: 'move-session', locationCode: 'outside' });
   });
 
   it('preserves locations, objects, action results, and unsupported canonical data while editing a type', () => {
@@ -64,6 +66,7 @@ describe('scenario rule-data adapters', () => {
     expect(request.objectTypes[0].publicProjection).toMatchObject({ include: ['open'], customProjection: 'keep-me' });
     expect(request.objects[0]).toMatchObject({ code: 'north-door', locationCode: 'hall', initialStateOverride: { open: false } });
     expect(request.objects[0].actionRules[0].condition).toEqual({ op: 'eq', path: 'state.open', value: false });
+    expect(request.objects[0].actionRules[0].effects).toContainEqual({ type: 'move-session', locationCode: 'outside' });
     expect(request.objects[0].actionRules[0].effects).toContainEqual({ type: 'set-session-flag', flag: 'opened', value: true });
     expect(request.objects[0].actionRules[0].moduleBinding).toEqual(canonicalFixture.objects[0].actionRules[0].moduleBinding);
   });

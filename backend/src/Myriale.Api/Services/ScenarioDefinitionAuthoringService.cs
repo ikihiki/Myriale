@@ -10,7 +10,7 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
 {
     private static readonly HashSet<string> EffectTypes =
     [
-        "set-state", "increment-state", "append-set", "remove-set", "move-object",
+        "set-state", "increment-state", "append-set", "remove-set", "move-object", "move-session",
         "set-session-flag", "emit-fact", "emit-event", "add-narrative-hint",
         "forbid-narrative-fact", "complete-session"
     ];
@@ -362,6 +362,10 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
             if (type == "move-object")
             {
                 if (effect.TryGetProperty("objectCode", out var objectCode) && !objects.Contains(objectCode.GetString() ?? string.Empty)) add($"{effectPath}.objectCode", "Referenced object does not exist.");
+                if (!effect.TryGetProperty("locationCode", out var locationCode) || !locations.Contains(locationCode.GetString() ?? string.Empty)) add($"{effectPath}.locationCode", "Referenced location does not exist.");
+            }
+            if (type == "move-session")
+            {
                 if (!effect.TryGetProperty("locationCode", out var locationCode) || !locations.Contains(locationCode.GetString() ?? string.Empty)) add($"{effectPath}.locationCode", "Referenced location does not exist.");
             }
         }

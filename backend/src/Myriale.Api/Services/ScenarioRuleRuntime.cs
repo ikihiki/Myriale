@@ -131,20 +131,26 @@ public sealed class ScenarioEffectApplier(ScenarioRuleEvaluator evaluator, Scena
         foreach (var effect in effects)
         {
             var type = effect.GetProperty("type").GetString()!;
-            var targetId = effect.TryGetProperty("objectId", out var target) ? target.GetString() : item.Id;
+            var targetId = ResolveObjectId(world, item, effect);
             var path = effect.TryGetProperty("path", out var pathElement) ? pathElement.GetString() : null;
             JsonElement? value = effect.TryGetProperty("value", out var valueElement) ? valueElement.Clone() : null;
             switch (type)
             {
-                case "set-state": SetState(world, targetId!, path!, value!.Value); break;
-                case "increment-state": IncrementState(world, targetId!, path!, value!.Value); break;
-                case "append-set": AppendSet(world, targetId!, path!, value!.Value, false); break;
-                case "remove-set": AppendSet(world, targetId!, path!, value!.Value, true); break;
+                case "set-state": SetState(world, targetId, path!, value!.Value); break;
+                case "increment-state": IncrementState(world, targetId, path!, value!.Value); break;
+                case "append-set": AppendSet(world, targetId, path!, value!.Value, false); break;
+                case "remove-set": AppendSet(world, targetId, path!, value!.Value, true); break;
                 case "move-object":
                     var moved = world.States.Single(s => s.ScenarioObjectId == targetId);
-                    var locationValue = effect.GetProperty("locationId").GetString()!;
-                    moved.LocationId = world.Definition.Locations.Single(location => location.Id == locationValue || location.Code == locationValue).Id;
+                    var destination = ResolveLocation(world, effect);
+                    moved.LocationId = destination.Id;
                     moved.Revision++; moved.UpdatedAt = DateTimeOffset.UtcNow;
+                    path = "locationId"; value = JsonSerializer.SerializeToElement(destination.Code);
+                    break;
+                case "move-session":
+                    var sessionDestination = ResolveLocation(world, effect);
+                    world.Session.CurrentLocationId = sessionDestination.Id;
+                    targetId = sessionDestination.Id; path = "currentLocationId"; value = JsonSerializer.SerializeToElement(sessionDestination.Code);
                     break;
                 case "set-session-flag": flags[effect.GetProperty("flag").GetString()!] = effect.GetProperty("value").GetBoolean(); break;
                 case "emit-fact": facts.Add(effect.GetProperty("text").GetString()!); break;
@@ -169,12 +175,35 @@ public sealed class ScenarioEffectApplier(ScenarioRuleEvaluator evaluator, Scena
                 var path = effect.GetProperty("path").GetString() ?? "";
                 if (!path.StartsWith("state.", StringComparison.Ordinal)) throw new ScenarioTurnValidationException("invalid_effect_path");
             }
+            if (type is "move-object" or "move-session")
+            {
+                _ = ResolveLocation(world, effect);
+            }
             if (type == "move-object")
             {
-                var locationId = effect.GetProperty("locationId").GetString();
-                if (!world.Definition.Locations.Any(location => location.Id == locationId || location.Code == locationId)) throw new ScenarioTurnValidationException("invalid_move_target");
+                _ = ResolveObjectId(world, source, effect);
             }
         }
+    }
+
+    private static string ResolveObjectId(ScenarioRuleWorld world, ScenarioObject source, JsonElement effect)
+    {
+        var reference = effect.TryGetProperty("objectCode", out var objectCode)
+            ? objectCode.GetString()
+            : effect.TryGetProperty("objectId", out var objectId) ? objectId.GetString() : null;
+        if (string.IsNullOrWhiteSpace(reference)) return source.Id;
+        var target = world.Definition.Objects.SingleOrDefault(item => item.Code == reference || item.Id == reference);
+        if (target is null || !world.States.Any(state => state.ScenarioObjectId == target.Id)) throw new ScenarioTurnValidationException("invalid_effect_object");
+        return target.Id;
+    }
+
+    private static ScenarioLocation ResolveLocation(ScenarioRuleWorld world, JsonElement effect)
+    {
+        var reference = effect.TryGetProperty("locationCode", out var locationCode)
+            ? locationCode.GetString()
+            : effect.TryGetProperty("locationId", out var locationId) ? locationId.GetString() : null;
+        return world.Definition.Locations.SingleOrDefault(location => location.Code == reference || location.Id == reference)
+            ?? throw new ScenarioTurnValidationException("invalid_move_target");
     }
 
     private static void SetState(ScenarioRuleWorld world, string objectId, string path, JsonElement value)

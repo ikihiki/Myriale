@@ -110,9 +110,10 @@ public static class SessionEndpoints
         if (definition is null)
             return Results.Conflict(new SessionErrorResponse("published_scenario_definition_required", "公開済みのScenario rule definitionが必要です。"));
         var initialLocation = definition.Locations.SingleOrDefault(location => location.Code == "start")
+            ?? definition.Locations.SingleOrDefault(location => location.Code == "inside")
             ?? (definition.Locations.Count == 1 ? definition.Locations.Single() : null);
         if (initialLocation is null)
-            return Results.Conflict(new SessionErrorResponse("initial_location_required", "開始Location(code: start)を1つ指定してください。"));
+            return Results.Conflict(new SessionErrorResponse("initial_location_required", "開始Location(code: start または inside)を1つ指定してください。"));
 
         var selectedHero = string.IsNullOrWhiteSpace(request.SelectedHero)
             ? scenario.Hero
@@ -302,7 +303,11 @@ public static class SessionEndpoints
             DeserializeOrNull<RulePostState>(item.PublicPostStateJson), DeserializeOrNull<ScenarioExtensionResult>(item.ExtensionReceiptJson),
             item.AppliedAt, item.NarrativePublishedAt)).ToList();
         var inputResponses = inputs.Select(SessionExecutionProjection.ToResponse).ToList();
-        var executionResponses = storedExecutions.Select(item => SessionExecutionProjection.ToResponse(item, environment.IsDevelopment())).ToList();
+        var stepsByExecutionId = ruleSteps.ToDictionary(item => item.ExecutionId, StringComparer.Ordinal);
+        var executionResponses = storedExecutions.Select(item => SessionExecutionProjection.ToResponse(
+            item,
+            environment.IsDevelopment(),
+            stepsByExecutionId.GetValueOrDefault(item.Id))).ToList();
         var artifactResponses = artifacts.Select(item => new SessionArtifactResponse(
             item.Id, item.ExecutionId, item.Kind, item.Status, item.ContentType,
             images.TryGetValue(item.Id, out var image) ? $"/api/session-artifacts/media/{image.Id}" : null,

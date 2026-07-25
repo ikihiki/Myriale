@@ -94,6 +94,34 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task Publish_PreservesMoveSessionAndMoveObjectStableCodeReferences()
+    {
+        var client = await CreateSignedInClientAsync();
+        var scenarioId = await CreateScenarioAsync(client);
+        var payload = ValidRuleData();
+        payload["locations"]!.AsArray().Add(JsonNode.Parse("{\"code\":\"outside\",\"name\":\"屋外\",\"description\":\"\",\"authoringData\":{}}"));
+        payload["objects"]![0]!["actionRules"]![0]!["effects"] = JsonNode.Parse("""
+          [
+            { "type": "set-state", "path": "state.open", "value": true },
+            { "type": "move-object", "objectCode": "north-door", "locationCode": "outside" },
+            { "type": "move-session", "locationCode": "outside" }
+          ]
+          """);
+
+        using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        using var published = await client.PostAsync($"/api/scenarios/{scenarioId}/rule-data/publish", null);
+        Assert.Equal(HttpStatusCode.OK, published.StatusCode);
+        using var read = await client.GetAsync($"/api/scenarios/{scenarioId}/rule-data");
+        var body = await read.Content.ReadFromJsonAsync<JsonElement>();
+        var effects = body.GetProperty("objects")[0].GetProperty("actionRules")[0].GetProperty("effects");
+
+        Assert.Equal("north-door", effects[1].GetProperty("objectCode").GetString());
+        Assert.Equal("outside", effects[1].GetProperty("locationCode").GetString());
+        Assert.Equal("outside", effects[2].GetProperty("locationCode").GetString());
+    }
+
+    [Fact]
     public async Task RuleDataAndScenarioUpdates_AreRestrictedToAuthor()
     {
         var owner = await CreateSignedInClientAsync();

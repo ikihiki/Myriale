@@ -174,7 +174,8 @@ public sealed record SessionExecutionResponse(
     SessionExecutionCapabilities Capabilities,
     SessionExecutionDiagnosticsResponse? DevelopmentDiagnostics,
     string? Stage = null,
-    int SchemaVersion = 1);
+    int SchemaVersion = 1,
+    SessionScenarioTurnProjectionResponse? ScenarioTurn = null);
 
 public sealed record SessionArtifactResponse(
     string Id,

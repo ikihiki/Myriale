@@ -126,7 +126,7 @@ public sealed class ScenarioTurnExecutionHandler(
             var postStateForNarrative = JsonSerializer.Deserialize<RulePostState>(step.PublicPostStateJson!, Json)!;
             var selectedObject = decision.ObjectId == "system"
                 ? new RulePublicObject("system", "system", "システム", postStateForNarrative.CurrentLocation.Id, true, 0, Parse("{}"))
-                : postStateForNarrative.Objects.Single(item => item.Id == decision.ObjectId);
+                : snapshotForNarrative.Objects.Single(item => item.Id == decision.ObjectId);
             var narrativeRequest = new PostStateNarrativeRequest(ScenarioTurnSchemas.PostStateNarrative, input.Text, selectedObject, selectedAction, postStateForNarrative,
                 DeserializeList<string>(step.FactsJson), DeserializeList<JsonElement>(step.EventsJson), DeserializeList<string>(step.NarrativeHintsJson), DeserializeList<string>(step.ForbiddenNarrativeFactsJson));
             var narrative = await ai.GeneratePostStateNarrativeAsync(narrativeRequest, cancellationToken);

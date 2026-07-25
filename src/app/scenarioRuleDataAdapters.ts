@@ -96,6 +96,11 @@ function effectFromCanonical(effectValue: ScenarioJsonValue): ScenarioRuleEffect
     locationCode: typeof effect.locationCode === 'string' ? effect.locationCode : '',
     _canonical: effect,
   };
+  if (effect.type === 'move-session') return {
+    kind: 'move-session',
+    locationCode: typeof effect.locationCode === 'string' ? effect.locationCode : '',
+    _canonical: effect,
+  };
   if (effect.type === 'emit-fact' && typeof effect.text === 'string') return { kind: 'emit-fact', text: effect.text, _canonical: effect };
   if (effect.type === 'add-narrative-hint' && typeof effect.text === 'string') return { kind: 'add-narrative-hint', text: effect.text, _canonical: effect };
   return null;
@@ -186,6 +191,11 @@ function effectToCanonical(effect: ScenarioRuleEffectPayload, ruleData: Scenario
     locationCode: effect.locationCode,
     ...(effect.targetObjectCode ? { objectCode: effect.targetObjectCode } : {}),
   };
+  if (effect.kind === 'move-session') return {
+    ...effect._canonical,
+    type: 'move-session',
+    locationCode: effect.locationCode,
+  };
   return { ...effect._canonical, type: effect.kind, text: effect.text };
 }
 
@@ -193,7 +203,7 @@ function ruleToCanonical(rule: ScenarioObjectActionResultPayload, ruleData: Scen
   const representedSources = new Set(rule.effects.map((effect) => effect._canonical).filter(Boolean));
   const unrepresentedEffects = (rule._canonical?.effects ?? []).filter((effect) => {
     const object = asObject(effect);
-    return !representedSources.has(object) && !['set-state', 'move-object', 'emit-fact', 'add-narrative-hint'].includes(String(object.type));
+    return !representedSources.has(object) && !['set-state', 'move-object', 'move-session', 'emit-fact', 'add-narrative-hint'].includes(String(object.type));
   });
   return {
     actionCode: rule.actionCode,

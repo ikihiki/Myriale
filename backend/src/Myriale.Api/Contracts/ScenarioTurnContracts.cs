@@ -38,3 +38,30 @@ public sealed record SessionRuleActionStepResponse(
     ScenarioExtensionResult? Extension,
     DateTimeOffset? AppliedAt,
     DateTimeOffset? NarrativePublishedAt);
+
+public sealed record SessionScenarioTurnSelectedActionResponse(
+    string ObjectId,
+    string ActionId,
+    string? ObjectCode,
+    string? ObjectLabel,
+    string? ActionCode,
+    string? ActionLabel,
+    JsonElement? Arguments);
+
+public sealed record SessionScenarioTurnPostStateResponse(
+    long Revision,
+    RulePublicLocation CurrentLocation,
+    IReadOnlyList<RulePublicObject> Objects,
+    IReadOnlyList<string> Facts,
+    IReadOnlyList<JsonElement> Events,
+    IReadOnlyList<string> Hints,
+    IReadOnlyList<RuleAppliedEffect> AppliedEffects);
+
+public sealed record SessionScenarioTurnProjectionResponse(
+    string SchemaVersion,
+    string Stage,
+    RulePublicLocation? CurrentLocation,
+    IReadOnlyList<RulePublicObject> Objects,
+    IReadOnlyList<RulePublicAction> AvailableActions,
+    SessionScenarioTurnSelectedActionResponse? SelectedAction,
+    SessionScenarioTurnPostStateResponse? PostState);

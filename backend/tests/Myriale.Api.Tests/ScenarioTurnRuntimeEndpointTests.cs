@@ -68,6 +68,45 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task WestDoor_OpenAndExit_MovesSessionAndProjectsCommittedExecutionAfterRetry()
+    {
+        ai.NarrativeFailuresRemaining = 1;
+        var client = await SignedInClientAsync();
+        var scenarioId = await CreatePublishedWestDoorScenarioAsync(client);
+        using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-west-door" });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
+
+        using var accepted = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", new { requestId = "open-west-door", text = "西の扉を開けて外に出る" });
+        Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
+        var session = await WaitForExecutionAsync(client, sessionId, "succeeded");
+
+        var currentLocationId = session.GetProperty("currentLocationId").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(currentLocationId));
+        var westDoor = session.GetProperty("objectStates").EnumerateArray().Single(item => item.GetProperty("code").GetString() == "west-door");
+        Assert.True(westDoor.GetProperty("state").GetProperty("open").GetBoolean());
+        Assert.Equal(1, westDoor.GetProperty("revision").GetInt64());
+
+        var executionProjection = session.GetProperty("executions")[0].GetProperty("scenarioTurn");
+        Assert.Equal("west-door", executionProjection.GetProperty("selectedAction").GetProperty("objectCode").GetString());
+        Assert.Equal("open-and-exit", executionProjection.GetProperty("selectedAction").GetProperty("actionCode").GetString());
+        var postState = executionProjection.GetProperty("postState");
+        Assert.Equal(currentLocationId, postState.GetProperty("currentLocation").GetProperty("id").GetString());
+        Assert.Equal("outside", postState.GetProperty("currentLocation").GetProperty("code").GetString());
+        Assert.Contains(postState.GetProperty("objects").EnumerateArray(), item => item.GetProperty("code").GetString() == "outside-antenna");
+        Assert.DoesNotContain(postState.GetProperty("objects").EnumerateArray(), item => item.GetProperty("code").GetString() == "west-door");
+        Assert.Contains(postState.GetProperty("facts").EnumerateArray(), item => item.GetString() == "プレイヤーは研究施設の外へ出た。");
+
+        Assert.Equal(1, ai.DecisionCalls);
+        Assert.Equal(2, ai.NarrativeCalls);
+        Assert.All(ai.NarrativeRequests, request =>
+        {
+            Assert.Equal("west-door", request.SelectedObject.Code);
+            Assert.Equal("outside", request.PostState.CurrentLocation.Code);
+        });
+    }
+
+    [Fact]
     public async Task LegacyNarrativeOutputCannotBypassScenarioTurn()
     {
         var client = await SignedInClientAsync();
@@ -209,6 +248,35 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         return scenarioId;
     }
 
+    private static async Task<string> CreatePublishedWestDoorScenarioAsync(HttpClient client)
+    {
+        using var scenario = await client.PostAsJsonAsync("/api/scenarios/", new { title = "West door runtime" });
+        var scenarioId = (await scenario.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
+        var payload = JsonSerializer.Deserialize<JsonElement>("""
+        {
+          "schemaVersion":1,
+          "locations":[
+            {"code":"inside","name":"地下研究室","description":"","authoringData":{}},
+            {"code":"outside","name":"研究施設の外","description":"","authoringData":{}}
+          ],
+          "objectTypes":[
+            {"code":"door","name":"Door","description":"","schemaVersion":1,"stateSchema":{"type":"object","additionalProperties":false,"properties":{"open":{"type":"boolean"}},"required":["open"]},"defaultState":{"open":false},"publicProjection":{"include":["open"]},"actions":[{"code":"open-and-exit","label":"扉を開けて外へ出る","description":"","argumentSchema":{"type":"object","additionalProperties":false},"availabilityCondition":{},"visibility":"ai-choice","executionMode":"rule"}]},
+            {"code":"landmark","name":"Landmark","description":"","schemaVersion":1,"stateSchema":{"type":"object","additionalProperties":false,"properties":{"examined":{"type":"boolean"}},"required":["examined"]},"defaultState":{"examined":false},"publicProjection":{"include":["examined"]},"actions":[{"code":"examine","label":"調べる","description":"","argumentSchema":{"type":"object","additionalProperties":false},"availabilityCondition":{},"visibility":"ai-choice","executionMode":"rule"}]}
+          ],
+          "objects":[
+            {"code":"east-door","name":"東の扉","objectTypeCode":"door","locationCode":"inside","initialStateOverride":{},"isGlobal":false,"actionRules":[{"actionCode":"open-and-exit","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true}],"moduleBinding":null}]},
+            {"code":"west-door","name":"西の扉","objectTypeCode":"door","locationCode":"inside","initialStateOverride":{},"isGlobal":false,"actionRules":[{"actionCode":"open-and-exit","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true},{"type":"move-session","locationCode":"outside"},{"type":"emit-fact","text":"西の扉が開いた。"},{"type":"emit-fact","text":"プレイヤーは研究施設の外へ出た。"}],"moduleBinding":null}]},
+            {"code":"outside-antenna","name":"観測アンテナ","objectTypeCode":"landmark","locationCode":"outside","initialStateOverride":{},"isGlobal":false,"actionRules":[{"actionCode":"examine","condition":{},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.examined","value":true}],"moduleBinding":null}]}
+          ]
+        }
+        """);
+        using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        using var published = await client.PostAsync($"/api/scenarios/{scenarioId}/rule-data/publish", null);
+        Assert.Equal(HttpStatusCode.OK, published.StatusCode);
+        return scenarioId;
+    }
+
     private static async Task<string> CreatePublishedGuardianScenarioAsync(HttpClient client, string digest)
     {
         using var scenario = await client.PostAsJsonAsync("/api/scenarios/", new { title = "Guardian runtime" });
@@ -328,8 +396,9 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
                 DecisionEntered.TrySetResult();
                 await DecisionRelease.Task.WaitAsync(cancellationToken);
             }
-            var northDoorId = request.Snapshot.Objects.Single(item => item.Code == "north-door").Id;
-            var action = request.Snapshot.Actions.First(item => item.Enabled && item.ObjectId == northDoorId);
+            var targetCode = request.PlayerInput.Contains("西", StringComparison.Ordinal) ? "west-door" : "north-door";
+            var targetId = request.Snapshot.Objects.Single(item => item.Code == targetCode).Id;
+            var action = request.Snapshot.Actions.First(item => item.Enabled && item.ObjectId == targetId);
             var result = new RuleActionDecisionResult(ScenarioTurnSchemas.ActionDecision, action.ObjectId, ReturnUnknownAction ? "missing" : action.ActionId, JsonSerializer.Deserialize<JsonElement>("{}"));
             return new NarrativeGeneration<RuleActionDecisionResult>(result, Metadata());
         }

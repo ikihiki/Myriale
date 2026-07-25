@@ -151,7 +151,7 @@ export function getManualUiAction(execution: import('./sessionPlayApi').SessionE
   const projection = execution.scenarioTurn;
   const manualUi = projection?.manualUi;
   const selected = projection?.selectedAction;
-  if (!manualUi || manualUi.visibility !== 'manual-ui' || selected?.visibility !== 'manual-ui') return null;
+  if (!manualUi || manualUi.visibility !== 'manual-ui' || !selected) return null;
   if (manualUi.objectId !== selected.objectId || manualUi.actionId !== selected.actionId) return null;
   return manualUi;
 }

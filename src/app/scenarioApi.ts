@@ -120,6 +120,7 @@ type CanonicalEffectSource = { _canonical?: ScenarioJsonObject };
 export type ScenarioRuleEffectPayload =
   | ({ kind: 'set-state'; targetObjectCode: string; stateCode: string; value: string } & CanonicalEffectSource)
   | ({ kind: 'move-object'; targetObjectCode: string; locationCode: string } & CanonicalEffectSource)
+  | ({ kind: 'move-session'; locationCode: string } & CanonicalEffectSource)
   | ({ kind: 'emit-fact'; text: string } & CanonicalEffectSource)
   | ({ kind: 'add-narrative-hint'; text: string } & CanonicalEffectSource);
 
