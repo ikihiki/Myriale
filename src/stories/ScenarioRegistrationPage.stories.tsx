@@ -447,11 +447,26 @@ export const AuthorWestDoorSeedWithEightOrderedEffects: Story = {
       await expect(canvas.getByRole('button', { name: '西の扉を編集' })).toBeVisible();
     });
 
-    await step('Object paneでordered mixin、effective source/state、Object local ruleを確認する', async () => {
+    await step('検索ペインで追加済みTypeを確認し、候補を検索してordered mixin末尾へ追加する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '西の扉を編集' }));
       const mixins = screen.getByRole('region', { name: 'ordered Type mixins' });
+      await userEvent.click(screen.getByRole('button', { name: '出口の扉を削除' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Type mixinを追加' }));
+      const searchPane = screen.getByRole('dialog', { name: '追加するType mixinを選ぶ' });
+      await expect(searchPane).toHaveAttribute('data-layer', '1');
+      await expect(within(searchPane).getByRole('button', { name: '開閉可能は追加済み' })).toBeDisabled();
+      const search = within(searchPane).getByRole('searchbox', { name: '種類を検索' });
+      await userEvent.type(search, 'EXIT-DOOR');
+      await expect(within(searchPane).getByRole('cell', { name: /^出口の扉$/ })).toBeVisible();
+      await expect(within(searchPane).getByRole('cell', { name: '開閉状態を持ち、外へ出るための扉。' })).toBeVisible();
+      await userEvent.click(within(searchPane).getByRole('button', { name: '出口の扉を追加' }));
+      await expect(screen.queryByRole('dialog', { name: '追加するType mixinを選ぶ' })).not.toBeInTheDocument();
       await expect(mixins).toHaveTextContent('開閉可能');
       await expect(mixins).toHaveTextContent('出口の扉');
+      await expect(mixins.textContent?.indexOf('開閉可能')).toBeLessThan(mixins.textContent?.indexOf('出口の扉') ?? -1);
+    });
+
+    await step('Object paneでeffective source/stateとObject local ruleを確認する', async () => {
       const rules = screen.getByRole('region', { name: 'Object effective rules' });
       await expect(rules).toHaveTextContent('inherited');
       await expect(rules).toHaveTextContent('overridden');

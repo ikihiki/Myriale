@@ -7,6 +7,7 @@ import {
   dependencyMessageForTypeRule,
   effectiveObjectRules,
   emptyScenarioRuleData,
+  filterObjectTypesForMixin,
   renameTypeActionCode,
   renameTypeRuleCode,
   validateScenarioRuleData,
@@ -68,6 +69,14 @@ describe('scenario rule-data authoring model', () => {
     const paths = validateScenarioRuleData(fixture).map((issue) => issue.path);
     expect(paths).toContain('ruleData.objects[0].actionRules[1]');
     expect(paths).toContain('ruleData.objectTypes[0].actionRules[0].effects[1].event');
+  });
+
+  it('filters Type mixin candidates by name, stable code, and description without case sensitivity', () => {
+    expect(filterObjectTypesForMixin(westDoorAuthoringFixture.objectTypes, '開閉可能')).toEqual([westDoorAuthoringFixture.objectTypes[0]]);
+    expect(filterObjectTypesForMixin(westDoorAuthoringFixture.objectTypes, 'EXIT-DOOR')).toEqual([westDoorAuthoringFixture.objectTypes[1]]);
+    expect(filterObjectTypesForMixin(westDoorAuthoringFixture.objectTypes, '外へ出る')).toEqual([westDoorAuthoringFixture.objectTypes[1]]);
+    expect(filterObjectTypesForMixin(westDoorAuthoringFixture.objectTypes, 'missing')).toEqual([]);
+    expect(filterObjectTypesForMixin(westDoorAuthoringFixture.objectTypes, '  ')).toEqual(westDoorAuthoringFixture.objectTypes);
   });
 
   it('creates a required stable code for new rules', () => {

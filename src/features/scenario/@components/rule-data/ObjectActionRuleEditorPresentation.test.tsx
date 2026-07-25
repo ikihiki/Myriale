@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { useState } from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { westDoorAuthoringFixture } from '../../../../stories/scenario-registration-page/scenarioRegistrationFixtures';
 import { LocationsObjectsEditorPresentation } from './LocationsObjectsEditorPresentation';
@@ -15,6 +15,16 @@ function TypeHarness() {
 
 function ObjectHarness() {
   const [value, setValue] = useState<ScenarioRuleData>(() => structuredClone(westDoorAuthoringFixture));
+  return <><LocationsObjectsEditorPresentation value={value} onChange={setValue} onNotice={() => undefined} /><output data-testid="rule-data-json">{JSON.stringify(value)}</output></>;
+}
+
+function MixinHarness({ emptyTypes = false }: { emptyTypes?: boolean }) {
+  const [value, setValue] = useState<ScenarioRuleData>(() => {
+    const fixture = structuredClone(westDoorAuthoringFixture);
+    fixture.objects[0].mixinTypeCodes = emptyTypes ? [] : [fixture.objectTypes[0].code];
+    if (emptyTypes) fixture.objectTypes = [];
+    return fixture;
+  });
   return <><LocationsObjectsEditorPresentation value={value} onChange={setValue} onNotice={() => undefined} /><output data-testid="rule-data-json">{JSON.stringify(value)}</output></>;
 }
 
@@ -62,6 +72,47 @@ describe('strict v2 rule authoring', () => {
     expect(screen.getByLabelText('priorityをadjust')).toBeChecked();
     fireEvent.change(screen.getByLabelText('実行ルールの優先度'), { target: { value: '250' } });
     await waitFor(() => expect(screen.getByTestId('rule-data-json')).toHaveTextContent('"adjustments":{"priority":250}'));
+  });
+
+  it('searches Type mixins in a nested pane, marks existing Types, and appends without losing Object local data', async () => {
+    render(<MixinHarness />);
+    fireEvent.click(screen.getByRole('button', { name: '西の扉を編集' }));
+    const mixinRegion = screen.getByRole('region', { name: 'ordered Type mixins' });
+    expect(within(mixinRegion).queryByRole('combobox', { name: 'Type mixinを追加' })).not.toBeInTheDocument();
+    fireEvent.click(within(mixinRegion).getByRole('button', { name: 'Type mixinを追加' }));
+
+    const searchPane = await screen.findByRole('dialog', { name: '追加するType mixinを選ぶ' });
+    expect(searchPane).toHaveAttribute('data-layer', '1');
+    const search = within(searchPane).getByRole('searchbox', { name: '種類を検索' });
+    await waitFor(() => expect(search).toHaveFocus());
+    expect(within(searchPane).getByRole('button', { name: '開閉可能は追加済み' })).toBeDisabled();
+
+    fireEvent.change(search, { target: { value: 'EXIT-DOOR' } });
+    expect(within(searchPane).getByRole('cell', { name: /^出口の扉$/ })).toBeVisible();
+    expect(within(searchPane).getByRole('cell', { name: '開閉状態を持ち、外へ出るための扉。' })).toBeVisible();
+    fireEvent.change(search, { target: { value: 'missing' } });
+    expect(within(searchPane).getByRole('status')).toHaveTextContent('検索条件に一致するTypeはありません');
+    fireEvent.change(search, { target: { value: '外へ出る' } });
+    fireEvent.click(within(searchPane).getByRole('button', { name: '出口の扉を追加' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '追加するType mixinを選ぶ' })).not.toBeInTheDocument());
+    expect(mixinRegion.textContent?.indexOf('開閉可能')).toBeLessThan(mixinRegion.textContent?.indexOf('出口の扉') ?? -1);
+    const saved = JSON.parse(screen.getByTestId('rule-data-json').textContent ?? '{}') as ScenarioRuleData;
+    expect(saved.objects[0].mixinTypeCodes).toEqual(['openable', 'exit-door']);
+    expect(saved.objects[0].stateFields).toEqual(westDoorAuthoringFixture.objects[0].stateFields);
+    expect(saved.objects[0].actions).toEqual(westDoorAuthoringFixture.objects[0].actions);
+    expect(saved.objects[0].actionRules).toEqual(westDoorAuthoringFixture.objects[0].actionRules);
+
+    fireEvent.click(within(mixinRegion).getByRole('button', { name: 'Type mixinを追加' }));
+    expect(await screen.findByRole('button', { name: '出口の扉は追加済み' })).toBeDisabled();
+  });
+
+  it('shows a dedicated empty state when no Type exists', async () => {
+    render(<MixinHarness emptyTypes />);
+    fireEvent.click(screen.getByRole('button', { name: '西の扉を編集' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Type mixinを追加' }));
+    const searchPane = await screen.findByRole('dialog', { name: '追加するType mixinを選ぶ' });
+    expect(within(searchPane).getByRole('status')).toHaveTextContent('追加できるTypeがまだ登録されていません');
   });
 
   it('edits ordered effects on a local override operation', async () => {

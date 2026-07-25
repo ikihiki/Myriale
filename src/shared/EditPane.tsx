@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode, type RefObject } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '../components/ui';
 import { EditPaneLayerProvider, getEditPaneOverlayZIndex, getEditPaneSurfaceZIndex } from './editPaneLayer';
@@ -16,6 +16,7 @@ export type EditPaneProps = {
   eyebrow?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
+  initialFocusRef?: RefObject<HTMLElement>;
   /**
    * Nesting depth. Every level automatically receives another 100-point
    * z-index band: 100, 200, 300, and so on.
@@ -67,7 +68,7 @@ function persistPaneWidth(layer: number, width: number) {
  * occupies the full viewport on small screens. Radix Dialog provides focus
  * trapping, Escape dismissal, scroll locking, and trigger-focus restoration.
  */
-export function EditPane({ open, onOpenChange, title, description, eyebrow = '編集', children, footer, layer = 0 }: EditPaneProps) {
+export function EditPane({ open, onOpenChange, title, description, eyebrow = '編集', children, footer, initialFocusRef, layer = 0 }: EditPaneProps) {
   const [viewportWidth, setViewportWidth] = useState(() => typeof window === 'undefined' ? 1280 : window.innerWidth);
   const [paneWidth, setPaneWidth] = useState(() => readPaneWidth(layer, typeof window === 'undefined' ? 1280 : window.innerWidth));
   const [isResizing, setIsResizing] = useState(false);
@@ -144,7 +145,7 @@ export function EditPane({ open, onOpenChange, title, description, eyebrow = '�
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay data-edit-pane-overlay-layer={layer} style={{ zIndex: overlayZIndex }} className="fixed inset-0 bg-[#17121d]/48 backdrop-blur-[2px] data-[state=closed]:animate-out data-[state=open]:animate-in motion-reduce:animate-none" />
-        <Dialog.Content ref={setPortalHost} data-layer={layer} data-edit-pane-layer={layer} style={contentStyle} className="fixed inset-y-0 right-0 grid w-[var(--edit-pane-width)] grid-rows-[auto_minmax(0,1fr)_auto] border-l border-[#d9cfbd] bg-[#fffaf0] text-myr-ink shadow-[-24px_0_70px_rgba(23,18,29,.24)] outline-none data-[state=closed]:translate-x-full data-[state=open]:translate-x-0 data-[state=closed]:transition-transform data-[state=open]:transition-transform motion-reduce:transition-none max-md:inset-0 max-md:h-[100dvh] max-md:w-screen max-md:border-0">
+        <Dialog.Content ref={setPortalHost} onOpenAutoFocus={(event) => { if (initialFocusRef?.current) { event.preventDefault(); initialFocusRef.current.focus(); } }} data-layer={layer} data-edit-pane-layer={layer} style={contentStyle} className="fixed inset-y-0 right-0 grid w-[var(--edit-pane-width)] grid-rows-[auto_minmax(0,1fr)_auto] border-l border-[#d9cfbd] bg-[#fffaf0] text-myr-ink shadow-[-24px_0_70px_rgba(23,18,29,.24)] outline-none data-[state=closed]:translate-x-full data-[state=open]:translate-x-0 data-[state=closed]:transition-transform data-[state=open]:transition-transform motion-reduce:transition-none max-md:inset-0 max-md:h-[100dvh] max-md:w-screen max-md:border-0">
           <div
             role="separator"
             aria-label="編集ペインの幅を変更"

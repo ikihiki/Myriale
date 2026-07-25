@@ -67,6 +67,13 @@ export function createObject(ruleData: ScenarioRuleData): ScenarioObject {
   };
 }
 
+export function filterObjectTypesForMixin(types: ScenarioObjectType[], query: string): ScenarioObjectType[] {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  if (!normalizedQuery) return types;
+  return types.filter((type) => [type.name, type.code, type.description]
+    .some((field) => field.toLocaleLowerCase().includes(normalizedQuery)));
+}
+
 export function createActionRule(actionCode: string): ScenarioActionRule {
   return {
     code: nextAuthoringCode('rule'),
