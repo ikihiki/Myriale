@@ -358,12 +358,10 @@ public sealed partial class ModulePackageService(
         if (string.IsNullOrWhiteSpace(manifest.DisplayName) || manifest.DisplayName.Length > 200) throw new ModulePackageValidationException("表示名が不正です。");
         if (manifest.Description.Length > 2000) throw new ModulePackageValidationException("説明が長すぎます。");
         if (manifest.Configuration.SchemaVersion < 1 || manifest.Configuration.StateSchemaVersion < 1) throw new ModulePackageValidationException("設定と状態のスキーマバージョンは1以上にしてください。");
-        if (manifest.Capabilities is null
-            || manifest.Capabilities.Any(string.IsNullOrWhiteSpace)
-            || manifest.Capabilities.Distinct(StringComparer.Ordinal).Count() != manifest.Capabilities.Count)
-            throw new ModulePackageValidationException("Capabilityは空でない一意な識別子として指定してください。");
-        if (manifest.Limits.MaxConfigurationBytes <= 0 || manifest.Limits.MaxStateBytes <= 0 || manifest.Limits.MaxActionBytes <= 0 || manifest.Limits.MaxEffects <= 0)
-            throw new ModulePackageValidationException("モジュール制限値は正数で指定してください。");
+        if (manifest.Capabilities is null || manifest.Capabilities.Count != 0)
+            throw new ModulePackageValidationException("Object action extensionはホスト権限を要求できません。");
+        if (manifest.Limits.MaxConfigurationBytes <= 0 || manifest.Limits.MaxStateBytes <= 0 || manifest.Limits.MaxActionBytes <= 0 || manifest.Limits.MaxEffects != 0)
+            throw new ModulePackageValidationException("モジュール制限値がObject action extension契約と一致しません。");
     }
 
     private static void AddUiResources(ModuleUiEntry? entry, HashSet<string> allowed)

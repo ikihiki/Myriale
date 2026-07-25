@@ -45,7 +45,7 @@ public sealed class ModuleRuntimeTests : IDisposable
         var validation = await runtime.ValidateConfigAsync(identity, new ModuleValidationRequest("validate-2", Json(new { invalid = true })), default);
         Assert.False(validation.IsValid);
 
-        var initialized = await runtime.InitializeAsync(identity, new ModuleInitializationRequest("initialize-1", Json(new { }), Json(new { scene = "test" }), [1]), default);
+        var initialized = await runtime.InitializeAsync(identity, new ModuleInitializationRequest("initialize-1", Json(new { }), Binding(), [1]), default);
         Assert.Equal(ModuleExecutionStatuses.Active, initialized.Status);
         Assert.Equal(1, initialized.State.GetProperty("instanceInvocations").GetInt32());
 
@@ -105,9 +105,9 @@ public sealed class ModuleRuntimeTests : IDisposable
             runtime.DispatchAsync(identity, Dispatch("revision", 3, new { mode = "invalid-revision" }), default));
         Assert.Equal(ModuleRuntimeErrorCodes.ContractViolation, revision.Code);
 
-        var effects = await Assert.ThrowsAsync<ModuleRuntimeException>(() =>
-            runtime.DispatchAsync(identity, Dispatch("effects", 0, new { mode = "too-many-effects" }), default));
-        Assert.Equal(ModuleRuntimeErrorCodes.ContractViolation, effects.Code);
+        var descriptor = await Assert.ThrowsAsync<ModuleRuntimeException>(() =>
+            runtime.DispatchAsync(identity, Dispatch("descriptor", 0, new { mode = "invalid-action-descriptor" }), default));
+        Assert.Equal(ModuleRuntimeErrorCodes.ContractViolation, descriptor.Code);
     }
 
     [Fact]
@@ -138,6 +138,11 @@ public sealed class ModuleRuntimeTests : IDisposable
             runtime.ValidateConfigAsync(identity, new ModuleValidationRequest("oversized", Json(new { oversized })), default));
         Assert.Equal(ModuleRuntimeErrorCodes.ContractViolation, violation.Code);
 
+        var unbound = Initialize("unbound") with { Binding = Binding() with { ObjectId = string.Empty } };
+        var unboundViolation = await Assert.ThrowsAsync<ModuleRuntimeException>(() =>
+            runtime.InitializeAsync(identity, unbound, default));
+        Assert.Equal(ModuleRuntimeErrorCodes.ContractViolation, unboundViolation.Code);
+
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
@@ -162,10 +167,13 @@ public sealed class ModuleRuntimeTests : IDisposable
     }
 
     private static ModuleInitializationRequest Initialize(string requestId) =>
-        new(requestId, Json(new { }), Json(new { scene = "test" }), [1, 2]);
+        new(requestId, Json(new { }), Binding(), [1, 2]);
 
     private static ModuleDispatchRequest Dispatch<T>(string requestId, long revision, T action) =>
-        new(requestId, revision, Json(new { }), Json(new { scene = "test" }), Json(new { hp = 10 }), Json(action), [3, 4]);
+        new(requestId, revision, Json(new { }), Binding(), Json(new { hp = 10 }), Json(action), [3, 4]);
+
+    private static ModuleObjectActionContext Binding() =>
+        new("test-object", "test-object-type", "test-action", Json(new { difficulty = 2 }), Json(new { phase = "ready" }));
 
     private static JsonElement Json<T>(T value) => JsonSerializer.SerializeToElement(value);
 

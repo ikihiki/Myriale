@@ -1,20 +1,11 @@
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
-using Myriale.Api.Contracts;
 
 namespace Myriale.Api.Services;
 
-public sealed record ValidatedNarrativeProgressionSignal(string Code, string ServerEvidence);
-
 public static partial class NarrativeSemanticGuard
 {
-    private static readonly IReadOnlyDictionary<string, Func<string, NarrativeSessionStateInput, string?, bool>> SignalEvidenceRules =
-        new Dictionary<string, Func<string, NarrativeSessionStateInput, string?, bool>>(StringComparer.Ordinal)
-        {
-            ["constellation-door-reached"] = HasConstellationDoorArrivalEvidence,
-        };
-
     private static readonly IReadOnlyDictionary<string, string> SemanticAliases = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["fabricated"] = "invent",
@@ -58,73 +49,6 @@ public static partial class NarrativeSemanticGuard
         ["ひとりでに"] = "理由なく",
     };
 
-    public static IReadOnlyList<ValidatedNarrativeProgressionSignal> DeriveProgressionSignals(
-        IReadOnlyList<NarrativeAllowedSignal> allowedSignals,
-        string playerInput,
-        NarrativeSessionStateInput sessionState,
-        string? currentProgressionNode)
-    {
-        var derived = allowedSignals
-            .Select(signal => signal.Code)
-            .Where(code => !string.IsNullOrWhiteSpace(code))
-            .Distinct(StringComparer.Ordinal)
-            .Where(code => SignalEvidenceRules.TryGetValue(code, out var rule)
-                && rule(playerInput, sessionState, currentProgressionNode))
-            .Select(code => CreateValidatedSignal(code, sessionState, currentProgressionNode))
-            .ToArray();
-
-        if (derived.Length > 1)
-            throw new NarrativeSignalValidationException($"Authoritative narrative evidence matched too many progression signals: count={derived.Length}, max=1.");
-
-        return derived;
-    }
-
-    public static IReadOnlyList<ValidatedNarrativeProgressionSignal> ValidateProgressionSignals(
-        IReadOnlyList<NarrativeProgressionSignal> signals,
-        IReadOnlyList<NarrativeAllowedSignal> allowedSignals,
-        string playerInput,
-        NarrativeSessionStateInput sessionState,
-        string? currentProgressionNode)
-    {
-        if (signals.Count > 1)
-            throw new NarrativeSignalValidationException($"Narrative provider returned too many progression signals: count={signals.Count}, max=1.");
-
-        var allowedCodes = allowedSignals.Select(signal => signal.Code).ToHashSet(StringComparer.Ordinal);
-        var validated = new List<ValidatedNarrativeProgressionSignal>(signals.Count);
-        foreach (var signal in signals)
-        {
-            var violations = new List<string>();
-            if (string.IsNullOrWhiteSpace(signal.Code)) violations.Add("code is empty");
-            else
-            {
-                if (signal.Code.Length > 80) violations.Add($"code length={signal.Code.Length} max=80");
-                if (signal.Code.Any(character => !(char.IsLower(character) || char.IsDigit(character) || character == '-')))
-                    violations.Add("code contains invalid characters");
-                if (!allowedCodes.Contains(signal.Code)) violations.Add($"code is not allowed code={signal.Code}");
-                if (!SignalEvidenceRules.TryGetValue(signal.Code, out var rule))
-                    violations.Add($"code has no server evidence rule code={signal.Code}");
-                else if (!rule(playerInput, sessionState, currentProgressionNode))
-                    violations.Add($"authoritative player input/state does not satisfy code={signal.Code}");
-            }
-            if (string.IsNullOrWhiteSpace(signal.Evidence)) violations.Add("provider evidence is empty");
-            else if (signal.Evidence.Length > 500) violations.Add($"provider evidence length={signal.Evidence.Length} max=500");
-
-            if (violations.Count > 0)
-                throw new NarrativeSignalValidationException($"Narrative provider returned an invalid progression signal: {string.Join("; ", violations)}");
-
-            validated.Add(CreateValidatedSignal(signal.Code, sessionState, currentProgressionNode));
-        }
-
-        return validated;
-    }
-
-    private static ValidatedNarrativeProgressionSignal CreateValidatedSignal(
-        string code,
-        NarrativeSessionStateInput sessionState,
-        string? currentProgressionNode) => new(
-            code,
-            $"server-rule:{code};state-revision:{sessionState.Revision};node:{currentProgressionNode ?? "none"}");
-
     public static IReadOnlyList<string> MatchForbiddenFacts(string narrative, IEnumerable<string> forbiddenFacts)
     {
         var normalizedNarrative = Normalize(narrative);
@@ -148,37 +72,6 @@ public static partial class NarrativeSemanticGuard
             })
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
-    }
-
-    private static bool HasConstellationDoorArrivalEvidence(
-        string playerInput,
-        NarrativeSessionStateInput sessionState,
-        string? currentProgressionNode)
-    {
-        if (!string.Equals(currentProgressionNode, "exploration", StringComparison.Ordinal)) return false;
-        if (sessionState.Revision < 0) return false;
-
-        var normalized = Normalize(playerInput);
-        var compact = Compact(normalized);
-        var hasTarget = compact.Contains("星座", StringComparison.Ordinal)
-            && compact.Contains("扉", StringComparison.Ordinal)
-            || compact.Contains("constellationdoor", StringComparison.Ordinal);
-        if (!hasTarget) return false;
-
-        string[] rejected =
-        [
-            "行かない", "進まない", "向かわない", "到達していない", "着いていない", "まだ", "遠くから", "見るだけ", "眺める", "観察", "尋ね", "聞く", "話す", "ふり", "つもり", "予定",
-            "donot", "dont", "wont", "cannot", "cant", "notreach", "notarrive", "lookat", "observe", "askabout", "talkabout", "fromafar", "pretend", "plan", "intend", "wantto"
-        ];
-        if (rejected.Any(compact.Contains)) return false;
-
-        string[] arrivalOrDoorCheckActions =
-        [
-            "到達", "辿り着", "たどり着", "着いた", "着く", "前まで進", "場所まで進", "扉へ進", "扉に進", "扉へ向か", "扉に向か", "扉まで歩", "扉へ移動",
-            "扉を開け", "扉を開く", "鍵を差し込", "鍵を使", "星図灯をかざ", "星図灯の光を合わせ", "判定を行", "判定する",
-            "reach", "arrive", "proceedtothe", "gotothe", "walktothe", "movetothe", "traveltothe", "opentheconstellationdoor", "usethekey", "attempttoopenthe"
-        ];
-        return arrivalOrDoorCheckActions.Any(compact.Contains);
     }
 
     private static HashSet<string> Concepts(string normalized)

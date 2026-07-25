@@ -24,25 +24,26 @@ public sealed class ConstellationDoorModuleTests
     [InlineData(19u, true, "constellation-door-opened")]
     public async Task HostRandomValueDeterminesAuthoritativeOutcome(uint randomValue, bool succeeded, string code)
     {
-        var initialized = await _module.InitializeAsync(new("init", Configuration, Json("{}"), []), default);
-        var action = JsonSerializer.SerializeToElement(new { id = "roll", dice = 20, succeeded = !succeeded });
-        var result = await _module.DispatchAsync(new("dispatch", 0, Configuration, Json("{}"), initialized.State, action, [randomValue]), default);
+        var initialized = await _module.InitializeAsync(new("init", Configuration, Binding(), []), default);
+        var action = JsonSerializer.SerializeToElement(new { id = "roll" });
+        var result = await _module.DispatchAsync(new("dispatch", 0, Configuration, Binding(), initialized.State, action, [randomValue]), default);
         Assert.Equal(ModuleExecutionStatuses.Completed, result.Status);
         Assert.Equal(code, result.Outcome?.Code);
         Assert.Equal(succeeded, result.ViewState.GetProperty("result").GetProperty("succeeded").GetBoolean());
-        Assert.Equal(code, result.Outcome?.Effects.Single().Payload.GetProperty("flagId").GetString());
+        Assert.Empty(result.Outcome!.Effects);
     }
 
     [Fact]
     public async Task SameSnapshotsAndRandomValuesAreDeterministic()
     {
         var state = JsonSerializer.SerializeToElement(new { rolled = false });
-        var request = new ModuleDispatchRequest("one", 4, Configuration, Json("{}"), state, JsonSerializer.SerializeToElement(new { id = "roll" }), [7]);
+        var request = new ModuleDispatchRequest("one", 4, Configuration, Binding(), state, JsonSerializer.SerializeToElement(new { id = "roll" }), [7]);
         var first = await _module.DispatchAsync(request, default);
         var second = await _module.DispatchAsync(request with { RequestId = "two" }, default);
         Assert.Equal(first.ViewState.GetRawText(), second.ViewState.GetRawText());
         Assert.Equal(JsonSerializer.Serialize(first.Outcome), JsonSerializer.Serialize(second.Outcome));
     }
 
+    private static ModuleObjectActionContext Binding() => new("door", "door", "check", Json("{}"), Json("{}"));
     private static JsonElement Json(string json) => JsonDocument.Parse(json).RootElement.Clone();
 }

@@ -1,217 +1,130 @@
-# program-driven-narrative-user-stories.md
-## プログラム主導で実行されるナラティブ（非AI対話モード）のユーザーストーリー
+# プログラム主導ナラティブのユーザーストーリー
 
-本ドキュメントは、セッション進行中に発生する
-「AIの自由対話では処理できない、または処理すべきでない場面」
-（バトル、サイコロ、強制イベント等）を、
-プログラム主導で安全かつ再現性をもって実行するための
-ユーザーストーリーを定義する。
+## 目的と責務境界
 
-対象となる場面例  
-- バトルシーン  
-- 能力判定・ダイスロール  
-- 強制イベント（崩落・逮捕・カットシーン）  
-- UI選択を伴う重要分岐  
-- ルール厳守が必要な処理  
+本ドキュメントは、バトル、判定、強制イベント、専用 UI など、事実を AI に決めさせない場面を定義する。通常の世界変化はシナリオに登録された Object action result をルールエンジンが適用する。複雑な計算や対話 UI が必要な場合だけ、その結果に固定された extension module を実行する。
 
-前提用語  
-- Program-driven Scene: プログラム主導の進行シーン  
-- AI Narrative: 演出・語りのみを担当するAI出力  
-- Forced Mode: 自由入力が無効化される進行状態  
+共通の処理順序は次のとおりである。
 
----
+```text
+プレイヤー入力または manual-ui 操作
+  -> pinned Scenario/Object state
+  -> 公開 Object/action snapshot
+  -> 列挙済み action の選択
+  -> Object rule または bound extension
+  -> committed post-state
+  -> post-state を描写する narrative
+```
 
-## US-PG01: システムが自由入力を禁止し、進行モードを切り替えたい
-
-As a システム  
-I want 特定の場面で自由入力を無効化したい  
-So that ルール破綻や不正確な進行を防げる  
-
-背景・意図  
-- バトルや判定は自由入力だと処理不能  
-- モード切替を明示しないとUXが混乱する  
-
-トリガー  
-- バトル開始  
-- 判定イベント開始  
-- 強制イベント発生  
-
-期待される結果  
-- 入力欄が無効化される  
-- 現在が「Forced Mode」であることがUI上で明示される  
-
-補足  
-- AI対話モードへは明示的に戻る  
+AI は列挙済みの `{objectId, actionId, arguments}` を選ぶか、確定済み結果を語るだけである。状態、配置、成否、乱数、効果、extension identity は決定しない。
 
 ---
 
-## US-PG02: バトルシーンをボタン操作で進行したい
+## US-PG01: 制約された Object action をボタンで選びたい
 
-As a プレイヤー  
-I want バトル中はボタン操作で行動を選びたい  
-So that ルールに沿った戦闘ができる  
+As a プレイヤー
+I want バトルや判定では実行可能な操作だけを選びたい
+So that ルールに反する入力をせずに進行できる
 
-背景・意図  
-- 自然言語では戦闘解釈が不安定  
-- 選択肢は制約された方が分かりやすい  
+期待される結果
 
-ユーザー行動  
-- 表示された行動ボタンを選択する  
-  - 攻撃  
-  - 防御  
-  - スキル  
-  - 逃走  
+- UI は現在の action snapshot に `manual-ui` として公開された操作だけを表示する。
+- 操作は Object ID、action ID、必要な arguments、expected revision として送信される。
+- UI は module ID、結果、出目、状態差分を送信しない。
+- snapshot にない操作、無効な引数、古い revision は mutation 前に拒否される。
 
-期待される結果  
-- 選択結果がプログラムに渡される  
-- 行動は即座に確定される  
+## US-PG02: バトル結果を再現可能な extension で決めたい
 
-制約  
-- 自由入力は不可  
-- 行動はルールで検証される  
+As a システム
+I want 複雑な戦闘を固定された extension で判定したい
+So that 成否と状態変化が公平で監査可能になる
 
----
+期待される結果
 
-## US-PG03: バトル結果をプログラムで判定してほしい
+- 公開済み Object action result に固定された exact module ID/version/digest だけが起動する。
+- extension は host が保存した乱数、入力 snapshot、private module state から結果を計算する。
+- AI、プレイヤー、ブラウザは extension を選択・差し替えできない。
+- 完了 outcome は host が検証し、Object/Session/module state と同じ commit boundary で一度だけ適用する。
 
-As a システム  
-I want バトルの成否やダメージをプログラムで判定したい  
-So that 公平性と再現性を保てる  
+## US-PG03: ダイスロールを視覚的に実行したい
 
-背景・意図  
-- AI判定は一貫性に欠ける  
-- ロジックはコードで担保したい  
+As a プレイヤー
+I want 「ダイスを振る」操作と結果を UI で確認したい
+So that 判定に納得感を持てる
 
-期待される結果  
-- 命中・ダメージ・状態変化がプログラムで確定される  
-- 結果が Session State に反映される  
+期待される結果
 
-補足  
-- 判定ロジックは将来差し替え可能  
+- ボタンは active extension が公開した action のときだけ有効になる。
+- 出目は host が生成・receipt に固定し、再読み込みや worker retry でも変わらない。
+- transient animation は状態権威ではなく、確定結果と revision はサーバー応答から表示する。
+- 同じ request ID の再送は保存済み応答を返し、二度振りしない。
 
----
+## US-PG04: 強制イベントを Object rule で進めたい
 
-## US-PG04: 判定（ダイスロール）を明示的に実行したい
+As a シナリオ作者
+I want 回避不能なイベントを条件付き Object action result として定義したい
+So that 必須の展開を決定論的に発生させられる
 
-As a プレイヤー  
-I want ダイスロールを視覚的に実行したい  
-So that 成功・失敗に納得感がある  
+期待される結果
 
-ユーザー行動  
-- 「ダイスを振る」ボタンを押す  
+- system-only action の availability と result condition が成立した場合だけ実行される。
+- 章やビートが必要な場合も progression 用 Object の state/action/effects として表現する。
+- AI が未登録イベントを状態遷移として発生させることはない。
+- イベントの facts/events/forbidden facts は state commit と同時に確定する。
 
-期待される結果  
-- ダイス結果がUI上で表示される  
-- 判定成功/失敗が即時に分かる  
+## US-PG05: 状態を変えない質問にも応答してほしい
 
-制約  
-- ダイス結果はプログラムが生成する  
-- AIは結果を変更できない  
+As a プレイヤー
+I want 質問や確認に自然な返答がほしい
+So that 不要な世界状態変更なしに会話を続けられる
 
----
+期待される結果
 
-## US-PG05: ダイス結果に基づく処理を強制的に進めたい
+- action snapshot に system-owned `clarify` または `no-op` が含まれる。
+- 選択は監査されるが Object state、配置、Session state は変化しない。
+- narrative は変更のない post-state と確定済み公開情報から生成される。
 
-As a システム  
-I want 判定結果に基づいて自動的に進行したい  
-So that 分岐ミスを防げる  
+## US-PG06: 確定結果を AI に演出してほしい
 
-背景・意図  
-- 成功/失敗で展開が固定される場面がある  
+As a プレイヤー
+I want プログラムで確定した結果を自然な文章で読みたい
+So that 再現性と没入感を両立できる
 
-期待される結果  
-- 成功時・失敗時の分岐がプログラムで決定される  
-- プレイヤー操作なしで次のシーンへ進む  
+期待される結果
 
----
+- narrative は state/effect/extension commit の後にのみ生成される。
+- AI には public post-state、facts/events/hints、forbidden facts、safe extension outcome だけを渡す。
+- AI は成否、状態、配置、発生済み事実を変更できない。
+- narrative failure 後の retry は判定や効果を再実行しない。
 
-## US-PG06: 強制イベントを中断不可で実行したい
+## US-PG07: extension 終了後に通常入力へ戻りたい
 
-As a シナリオ作者  
-I want 特定イベントを強制的に発生させたい  
-So that 物語上必須の展開を保証できる  
+As a プレイヤー
+I want 専用 UI の処理が完了したら通常入力へ戻りたい
+So that 続きの行動を自然言語で指定できる
 
-背景・意図  
-- 崩落・逮捕・気絶などは回避不可  
+期待される結果
 
-期待される結果  
-- 自由入力や分岐選択が表示されない  
-- イベントが最後まで自動再生される  
+- completed extension は active manual UI を閉じる。
+- committed post-state から narrative が公開された後、次の input を受理できる。
+- 次の入力では最新 Object revisions から新しい action snapshot を列挙する。
 
-補足  
-- プレイヤーには「制御不能な状況」であることを明示する  
+## US-PG08: program-driven action を単体テストしたい
 
----
+As a シナリオ作者
+I want Object rule と extension action を固定条件で試したい
+So that 公開前に条件、結果、UI、文章化を確認できる
 
-## US-PG07: 強制イベント中もナラティブはAIに語らせたい
+期待される結果
 
-As a システム  
-I want 強制進行でも物語表現はAIに任せたい  
-So that 没入感を保てる  
-
-背景・意図  
-- プログラムは事実、AIは演出  
-
-期待される結果  
-- プログラム確定結果を元に  
-  - 描写  
-  - 心情  
-  - 演出  
-  がAIから生成される  
-
-制約  
-- AIは結果を変更しない  
-
----
-
-## US-PG08: プログラム主導シーンが終了したらAI対話に戻りたい
-
-As a プレイヤー  
-I want イベント終了後に自然対話へ戻りたい  
-So that 自由に行動できる  
-
-期待される結果  
-- Forced Mode が解除される  
-- 自由入力欄が再表示される  
-
----
-
-## US-PG09: 現在がどの進行モードか分かるようにしたい
-
-As a プレイヤー  
-I want 今が自由対話か強制進行か分かりたい  
-So that 操作に迷わない  
-
-期待される結果  
-- UI上に現在モードが明示される  
-  - AI対話  
-  - バトル  
-  - 判定  
-  - イベント  
-
----
-
-## US-PG10: プログラム主導シーンをテストしやすくしたい
-
-As a シナリオ作者  
-I want 強制進行シーンを単体でテストしたい  
-So that 実装・演出を確認できる  
-
-期待される結果  
-- 特定イベントやバトルからテスト実行できる  
-- 判定値を固定/再現できる  
-
----
+- preview は pinned draft snapshot と固定初期 state/placement/arguments/random values を使用できる。
+- `from state -> action -> selected result -> effects -> post-state` を表示する。
+- private state と module configuration はプレイヤー向け preview に露出しない。
+- preview 実行は本番 Session を変更しない。
 
 ## 総括
 
-- 自由入力は「常時有効」ではない  
-- バトル・判定・強制イベントでは  
-  **プログラムが事実を決定し、AIは語るだけ**  
-- モード切替を明示することで  
-  UXの混乱と設計の破綻を防ぐ  
-- 本設計により  
-  - 公平性  
-  - 再現性  
-  - デバッグ性  
-  を確保したAIナラティブが実現できる
+- 通常の事実変更は declarative Object rule が担当する。
+- extension module は bound action の複雑な mechanics/manual UI に限定する。
+- AI は列挙済み action の選択と committed post-state の表現だけを担当する。
+- durable receipts、revisions、checkpoint retry により公平性、再現性、復旧性を保証する。

@@ -2,46 +2,67 @@
 
 ## Boundary
 
-Session processing follows four durable concepts:
+Session processing follows five durable concepts:
 
-> Input is a fact. Execution is a process. Artifact is a result. Turn is published canon.
+> Input is a fact. Execution is a process. Action step is the state transition audit. Artifact is a versioned result. Turn is published narrative canon.
 
-- `SessionPlayerInput` is immutable at acceptance and remains visible after provider failure, cancellation, retry, or Session advancement.
-- `SessionExecution` is the mutable, owner-scoped lifecycle for `narrative`, `module-handoff`, `note-proposal`, and `image` work.
-- `SessionExecutionAttempt` is append-only provider/worker diagnostic history.
-- `SessionArtifact` is a typed result envelope. Only validated, committed artifacts may update typed domain records.
-- `SessionTurn` contains only successfully published Narrative or Module canon. Operational errors are never Turns.
+- `SessionPlayerInput` is immutable after acceptance.
+- `SessionExecution` owns the mutable `scenario-turn` lifecycle, lease, retry schedule, and terminal status.
+- `SessionExecutionAttempt` is append-only worker/provider diagnostics.
+- `SessionRuleActionStep` links one input to its immutable snapshot, decision, configured result/extension, effect commit, post-state, and narrative checkpoint.
+- `SessionArtifact` stores explicitly versioned envelopes for durable intermediate/final results.
+- `SessionTurn` contains only successfully published narrative canon; operational errors are not Turns.
 
-The Session API returns separate collections plus an ordered causal `activity` projection. Persistence is not flattened into a single event table.
+Note and image work may retain separate execution kinds and domain records, but they do not participate in the Object-rule state authority chain.
 
-## Acceptance, idempotency, and publication
+## Scenario-turn checkpoints
 
-`POST /api/sessions/{sessionId}/inputs` validates owner/session state, computes a normalized payload hash, then creates `SessionPlayerInput` and queued `SessionExecution` in one transaction. `(SessionId, RequestId)` and `(SessionId, IdempotencyKey)` are unique. Replays return the same resources; a different payload returns `409 idempotency_key_reused`.
+One accepted input queues one `scenario-turn` execution with these durable checkpoints:
 
-A worker claim moves eligible queued, retry-wait, or expired-running work to running, assigns a lease owner/token/expiry, increments the fencing revision, and appends an Attempt. Publication verifies the running status, lease token, accepted Session head, and unique Turn/Artifact guards. A late worker cannot publish after cancellation, lease replacement, or Session advancement. Session advancement produces `superseded`; it does not create an error Turn.
+1. **accepted** — fence Session head/revision and load the pinned Scenario definition, Location, Objects, and private Object states.
+2. **enumerated** — evaluate availability/result conditions and persist one immutable public Object/action snapshot plus pre-state revisions.
+3. **selected** — obtain and validate exactly `{objectId, actionId, arguments}` against that snapshot and persist one canonical decision.
+4. **resolved** — recheck current revisions/conditions and identify the configured Object result and optional exact extension binding.
+5. **extension-completed** — when required, persist the canonical extension invocation/result using frozen inputs and random receipt.
+6. **state-committed** — atomically persist ordered effects, post-state revisions/placement, facts/events/hints, module state, and a unique commit receipt.
+7. **narrative-published** — generate from the stored public post-state, persist the narrative artifact, and append one canonical Turn.
 
-Allowed statuses are `queued`, `running`, `retry-wait`, `cancel-requested`, `succeeded`, `failed`, `cancelled`, and `superseded`. Retry uses bounded exponential delay with jitter and a maximum attempt count. Retry/cancel/dismiss endpoints are idempotent and owner-scoped.
+Public stages may be projected as `loading-world`, `enumerating-actions`, `selecting-action`, `applying-rules`, `running-extension`, `generating-narrative`, and a terminal status. Public payloads expose safe status and projections, not hidden rules, module bindings, private state, randomness, or diagnostics.
 
-## Artifact-specific domains
+## Idempotency, leases, and fencing
 
-Narrative text is committed as a `narrative-text` artifact before/with its canonical `SessionTurn`. Note generation is represented by `note-proposal` Execution, `note-patch` Artifact, `SessionNoteProposal`, `SessionNote`, and append-only `SessionNoteRevision`. Apply and edit-apply require the expected Note revision; reject and snooze never change canon. There is intentionally no note AI handler/provider in this implementation.
+Input acceptance computes a normalized payload hash and creates the input/execution atomically. `(SessionId, RequestId)` and `(SessionId, IdempotencyKey)` are unique. Same-key/same-payload retries return the existing resources; changed payloads are rejected.
 
-Images use `image` Execution, `SessionArtifact`, and `SessionImage`. Binary data is stored through `ISessionObjectStorage`; the database stores the authorized storage key, MIME type, size, dimensions, checksum, and moderation metadata. `POST /api/session-artifacts/images/attach` is authenticated and accepts an existing owner-scoped image Execution/Attempt plus a PNG upload. It verifies declared and signature MIME, configured byte and dimension limits, SHA-256 checksum, and an approved moderation result before storing and committing the Artifact. The media endpoint verifies Session ownership. Image failure never rolls back Narrative. There is intentionally no image AI handler/provider.
+Workers claim queued, retry-wait, or expired-running work with a bounded lease token and fencing revision. Every checkpoint publication verifies ownership of the current lease and applicable Session/Object revisions. A late worker cannot overwrite a replacement worker or commit from a stale action snapshot.
 
-Development seeds a deterministic owner-scoped fixture Session when `SessionArtifactFixture:Enabled` is true. The fixture includes a pending note proposal and a persisted one-pixel PNG image with stable IDs, timestamp, checksum, moderation metadata, and storage key. Test hosts do not seed globally unless `SessionArtifactFixture:EnableInTestHost` is explicitly enabled, so tests can opt in without changing unrelated database counts.
+Database uniqueness ensures one canonical snapshot, decision, extension invocation, state commit, and narrative per action step. Checkpoint completion is recorded in the same transaction as its artifact/domain mutation so recovery can skip completed work safely.
 
-## Diagnostics and telemetry
+## Retry boundaries
 
-`IHostEnvironment.IsDevelopment()` is the only diagnostics gate. Development responses may include safe lease hints, Attempt metadata, provider/model IDs, timing/token counts, exception type chains, redacted excerpts, trace/span IDs, the exact narrative prompt payload, the received structured result, and validation outcomes. Production omits the entire diagnostics object. Development payloads are bounded and credential-like values are redacted. Credentials, Authorization/Cookie headers, and private Module state remain forbidden in every environment.
+Retries are checkpoint-aware:
 
-`Myriale.SessionExecution` supplies ActivitySource and Meter instrumentation for acceptance, execution, provider, artifact validation/persistence/reconciliation, and Turn publication. Metrics use bounded labels only (`kind`, `status`, provider/model, normalized error code); Session/Input/Execution IDs and player text are never metric labels. Queue depth, running, retry-wait, oldest queued age, and stuck gauges read an in-memory snapshot refreshed by `SessionExecutionMetricsSampler`, so observable callbacks never query the database. The API stores W3C trace parent information so worker work remains causally linked after the request ends.
+- before **enumerated**, loading/enumeration may run again against the same accepted fence;
+- after **enumerated**, action-decision retries reuse only the same immutable snapshot while it remains current;
+- stale revisions invalidate the snapshot before mutation and restart at fresh enumeration;
+- after **selected**, the canonical decision is reused rather than asking for a different action;
+- after **extension-completed**, the stored outcome/random receipt is reused;
+- after **state-committed**, neither rules, AI selection, random generation, extension invocation, nor effects may run again;
+- narrative failures retry only post-state narrative generation/publication from stored public post-state and facts.
 
-ServiceDefaults attaches service name/version, deployment environment, and the configured `GIT_COMMIT_SHA`, `SOURCE_VERSION`, or `OpenTelemetry:Resource:GitCommitSha` to telemetry resources. `OpenTelemetry:Tracing:Sampler` supports `always-on`, `always-off`, and parent-based trace-ID ratio sampling with `OpenTelemetry:Tracing:Ratio`; Development defaults to always-on and other environments default to a 0.1 parent-based ratio. Collector-side tail sampling can still be applied after OTLP export. OTLP trace, metric, and log export is enabled when `OTEL_EXPORTER_OTLP_ENDPOINT` is configured; exporter failure must not affect domain commits.
+A Session can therefore report **state committed, narrative pending/failed** without implying rollback. Cancellation or supersession before commit creates no Turn and no state transition. Once state is committed, finalization cannot undo it; it either publishes the unique narrative later or exposes a terminal narrative error for retry.
 
-## UI and accessibility
+## Artifacts and contract versions
 
-`SessionActivityFeed` renders `SessionInputItem`, `SessionExecutionItem`, `NarrativeTurnItem`, `NoteProposalItem`, and `ImageArtifactItem` as separate DOM elements. The feed is a `role="log"`; active status uses polite status announcements, and terminal actionable failure uses `role="alert"`. Polling runs only while an active Execution exists and stops at terminal state. Retry updates one stable Execution slot. Reduced-motion styles disable nonessential animation.
+New incompatible Scenario rule, action snapshot/decision/action-step/post-state narrative, execution payload, Module SDK, and Module UI shapes begin at schema `1` or a `.v1` identifier such as `rule-action-decision.v1` and `post-state-narrative.v1`. Old execution, dialogue, progression, and handoff wire shapes are not accepted and have no compatibility adapter.
 
-## Retention
+This baseline reset does not reset database revisions/sequences, SHA-256 semantics, module package digests, dependency versions, toolchain versions, application/deployment versions, or telemetry schema versions unrelated to the contract.
 
-Player inputs and published Turns follow Session retention. Attempts and text artifacts are retained for operational diagnosis according to deployment policy. Image objects use `RetainUntil`. `ISessionObjectStorage.ListAsync` exposes object metadata to the reconciliation worker, which removes expired image rows/objects, deletes unreferenced objects only after the configured orphan grace period, and reports database rows whose objects are missing. Dismiss is UI folding metadata, never deletion. Reconciliation procedures are documented in the operations runbook.
+Each artifact records its schema explicitly rather than relying only on a generic `kind` string. Audit data includes the pinned Scenario definition version, snapshot ID/revisions, provider metadata, selected rule/result, effect schema version, exact extension identity when used, ordered effects, random receipt, and pre/post revisions.
+
+## Diagnostics, telemetry, and retention
+
+Development-only diagnostics may expose bounded, redacted worker/provider timing and validation details to authorized owners. Production omits diagnostic payloads. Credentials, private Object/module state, hidden rule branches, package configuration, and player secrets remain forbidden in every environment.
+
+Telemetry uses bounded labels such as execution kind, checkpoint, status, provider/model, and normalized error code. Session/Input/Execution/Object IDs and player text are not metric labels. Export failure cannot affect domain commits.
+
+Inputs, action-step audit records, committed artifacts, and published Turns follow Session retention policy. Dismissal is UI folding metadata, never deletion of authority records.

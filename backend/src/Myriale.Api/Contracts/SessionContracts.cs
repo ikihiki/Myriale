@@ -88,7 +88,11 @@ public sealed record SessionResponse(
     IReadOnlyList<SessionExecutionResponse>? Executions = null,
     IReadOnlyList<SessionArtifactResponse>? Artifacts = null,
     IReadOnlyList<SessionActivityResponse>? Activity = null,
-    IReadOnlyList<SessionNoteProposalResponse>? NoteProposals = null);
+    IReadOnlyList<SessionNoteProposalResponse>? NoteProposals = null,
+    string? ScenarioDefinitionVersionId = null,
+    string? CurrentLocationId = null,
+    IReadOnlyList<SessionObjectStateResponse>? ObjectStates = null,
+    IReadOnlyList<SessionRuleActionStepResponse>? RuleActionSteps = null);
 
 public sealed record CreateSessionInputRequest(
     string RequestId,
@@ -168,7 +172,9 @@ public sealed record SessionExecutionResponse(
     DateTimeOffset? CancelRequestedAt,
     DateTimeOffset? DismissedAt,
     SessionExecutionCapabilities Capabilities,
-    SessionExecutionDiagnosticsResponse? DevelopmentDiagnostics);
+    SessionExecutionDiagnosticsResponse? DevelopmentDiagnostics,
+    string? Stage = null,
+    int SchemaVersion = 1);
 
 public sealed record SessionArtifactResponse(
     string Id,

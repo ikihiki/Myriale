@@ -1,89 +1,85 @@
-# Session events and mutable state
+# Session events and object-rule state
 
-## Boundary
+## Authority chain
 
-A Session separates immutable facts from mutable aggregate and worker state.
+Every accepted player input is processed through one causal chain:
 
-Immutable facts:
+```text
+Input
+  -> pinned Scenario definition + current Object state
+  -> immutable public Object/action snapshot
+  -> AI decision { objectId, actionId, arguments }
+  -> configured Object result or bound extension
+  -> committed post-state
+  -> narrative generated from that post-state
+```
 
-- `SessionPlayerInput`: accepted player text and the Session head observed at acceptance.
-- `SessionTurn`: one committed narrative or module turn and its predecessor.
-- `SessionNarrativeSignal`: one host-validated signal emitted with a Narrative Turn.
+Only the pinned Scenario definition, Session runtime state, rule evaluator, effect applier, and a bound extension outcome can change state. The action-selection AI chooses only from enumerated actions. Narrative generation describes committed facts and has no field that can select a module, advance progression, or mutate state.
+
+## Immutable facts and mutable state
+
+Immutable facts and audit records:
+
+- `SessionPlayerInput`: accepted text, idempotency identity, and observed Session head/revision.
+- `SessionRuleActionStep`: the action snapshot, accepted decision, selected rule/result, applied effects, extension reference, pre/post revisions, public post-state, and checkpoint receipts.
+- `SessionTurn`: one published canonical narrative and its predecessor.
+- versioned `SessionArtifact` records for action snapshots, decisions, effect commits, extension outcomes, and post-state narrative.
 
 Mutable Session-owned state:
 
-- `Session.HeadTurnId`: the authoritative final committed Turn.
-- `Session.Revision`: optimistic concurrency token for accepting inputs and appending Turns.
-- `SessionState`: current flags and their revision.
-- `SessionProgressState`: current Scenario node and its revision.
+- `Session.HeadTurnId` and `Session.Revision` for canonical publication and optimistic concurrency.
+- pinned `Session.ScenarioDefinitionVersionId` and current `LocationId`.
+- `SessionObjectState`: private state JSON, current placement, and revision for each pinned Object.
+- `SessionState`: host-owned flags/completion state and revision.
+- `ModuleExecution`: private state and revision only while a configured extension action is active.
+- `SessionExecution`: durable processing status, lease, retry scheduling, and checkpoint progress.
 
-Mutable processing state is not stored on immutable events:
+Published Scenario definitions are immutable. Starting a Session pins one published definition version and initializes Object state and placement from that version. Later authoring or publishing creates a new definition version and affects only new Sessions.
 
-- `SessionExecution`: shared Narrative, Module handoff, note proposal, image, and summary lifecycle.
-- `SessionExecutionAttempt`: append-only provider/worker attempt diagnostics.
-- `SessionArtifact`: generated result envelope before typed domain publication.
-- `SessionProgressionTransitionReceipt`: signal-to-Module processing.
+## Public and private projections
 
-See `session-executions-and-artifacts.md` for leases, fencing, retry, safe diagnostics, telemetry, note/image domains, and the ordered UI projection.
+An Object Type defines its strict state schema, default state, public projection, and action interfaces. An Object supplies its initial location/state override and conditional action results.
 
-## Player Input lifecycle
+The public action snapshot contains only:
 
-`SessionPlayerInput.AcceptedAfterTurnId` records `Session.HeadTurnId` when the input is accepted. The input row is not updated after insertion.
+- current Location's public description;
+- Objects in the current Location plus explicitly global Objects;
+- each Object's whitelisted public state;
+- enabled or safely explainable disabled action descriptors;
+- action argument schemas and relevant state revisions;
+- system-owned `clarify` and `no-op` choices when applicable.
 
-The domain state of an input is derived:
+It excludes private Object properties, Objects in other Locations, hidden result branches, condition/effect ASTs, extension bindings/configuration, private module state, and random values. Player/session responses and narrative prompts apply the same safe projection.
 
-- completed: a `SessionTurn` exists whose `PlayerInputId` is the input ID;
-- pending: no result Turn exists and `Session.HeadTurnId == AcceptedAfterTurnId` using null-safe equality;
-- stale: no result Turn exists and the two head IDs differ.
+## Input lifecycle and concurrency
 
-Operational failure and retry information belongs to `SessionExecution` and append-only `SessionExecutionAttempt`, not to the Player Input event. A failed, cancelled, or superseded Execution never creates a Session Turn.
+`POST /api/sessions/{sessionId}/inputs` atomically stores one `SessionPlayerInput` and queues one `scenario-turn` execution. Request and idempotency keys are unique per Session; a replay with the same payload returns the same work, while key reuse with a different payload is rejected.
 
-## Turn ordering
+Acceptance fences the observed Session head/revision. Before mutation, the engine also compares the Object and Session revisions captured by the action snapshot with current revisions and re-evaluates action availability. A stale snapshot is rejected before effects or extension dispatch; processing restarts from enumeration against fresh state rather than asking the AI to reuse the old snapshot.
 
-`Session.HeadTurnId` and `SessionTurn.PreviousTurnId` are authoritative. `SessionTurn.Position` remains an immutable display ordinal calculated from the predecessor (`1` for the root, otherwise predecessor position plus one). It is not an allocation cursor or concurrency boundary.
+An input is:
 
-Appending a Turn requires:
+- **pending** while its canonical scenario-turn has not reached a terminal state;
+- **completed** when its canonical narrative Turn has been published;
+- **state-committed / narrative-pending** when action effects are durable but narrative publication still needs retry;
+- **superseded or failed** when processing terminates without a canonical Turn.
 
-1. reading the expected Session head;
-2. creating a Turn whose `PreviousTurnId` is that head;
-3. updating `Session.HeadTurnId` to the new Turn and incrementing `Session.Revision`;
-4. saving the Turn and Session update atomically.
+## Commit and publication ordering
 
-Unique predecessor/root constraints prevent forks. `Session.Revision` provides optimistic compare-and-swap across workers and API instances.
+The rule/effect commit is the state authority boundary. The complete declarative effect batch and any bound extension result are validated before mutation. Object state, placement, Session state, module state, random receipt, facts/events/hints, and their before/after revisions are committed atomically with a unique effect-commit receipt.
+
+Narrative generation starts only after that commit. Its input is the stored public post-state and authoritative facts/events/hints/forbidden facts. A narrative failure never rolls back committed state. Retrying narrative publication reuses the committed post-state and does not repeat enumeration, AI selection, random generation, extension invocation, or effects.
+
+`Session.HeadTurnId` and `SessionTurn.PreviousTurnId` order published canon. Turn append uses compare-and-swap on `Session.Revision`, and unique input/action-step/source constraints prevent duplicate canonical narratives.
 
 ## Revision meanings
 
-The word `Revision` is scoped to its aggregate or projection:
+Revisions remain monotonic concurrency values and are not reset by the new contract baseline:
 
-- `Session.Revision`: Session aggregate concurrency for input acceptance and Turn append.
-- `SessionState.Revision`: current flags version; only changes when Session effects change flags.
-- `SessionProgressState.Revision`: current Scenario-node projection version.
-- `ModuleExecution.Revision`: Module-private state-machine version used by action dispatch.
-- revisions on work/receipt entities: worker lease concurrency only.
+- `Session.Revision`: input acceptance and canonical Turn publication.
+- `SessionObjectState.Revision`: private Object state or placement changes.
+- `SessionState.Revision`: host-owned flags/completion changes.
+- `ModuleExecution.Revision`: active extension state-machine changes.
+- execution/lease revisions: worker fencing only.
 
-Appending a Narrative Turn does not increment `SessionState.Revision` unless flags actually change.
-
-## Causal links
-
-Player Narrative:
-
-```text
-SessionPlayerInput.AcceptedAfterTurnId = previous head
-SessionTurn.PreviousTurnId             = previous head
-SessionTurn.PlayerInputId              = input ID
-```
-
-Module Outcome Narrative:
-
-```text
-SessionTurn.PreviousTurnId     = source Module Turn ID
-SessionTurn.SourceModuleTurnId = source Module Turn ID
-```
-
-Narrative signal to Module:
-
-```text
-Narrative Turn -> SessionNarrativeSignal -> SessionProgressionTransitionReceipt -> Module Turn
-```
-
-The signal and Turn are immutable. Retry and completion state remains on the transition receipt.
+Contract and artifact schemas restart at `1` / `.v1`; revisions, sequences, SHA-256 digests, dependency versions, and application/toolchain versions do not restart.

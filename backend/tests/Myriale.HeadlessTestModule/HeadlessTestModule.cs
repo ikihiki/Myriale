@@ -18,8 +18,8 @@ public sealed class HeadlessTestModule : IMyrialeModule
         ModuleContractVersions.V1,
         new ModuleConfigurationManifest(1, 1, []),
         new ModuleUiManifest(null, null, null),
-        [ModuleCapabilities.EmitSessionEffects],
-        new ModuleLimits(65_536, 65_536, 16_384, 2));
+        [],
+        new ModuleLimits(65_536, 65_536, 16_384, 0));
 
     public ValueTask<ModuleValidationResult> ValidateConfigAsync(ModuleValidationRequest request, CancellationToken cancellationToken)
     {
@@ -48,7 +48,7 @@ public sealed class HeadlessTestModule : IMyrialeModule
             ModuleExecutionStatuses.Active,
             Json(new { initialized = true, instanceInvocations = _invocations, staticInvocations = _staticInvocations }),
             Json(new { screen = "runtime" }),
-            [new ModuleAvailableAction("continue", "Continue", true, RandomValueCount: 4)]);
+            [new ModuleAvailableAction("continue", "Continue", true, RandomValueCount: 4, Arguments: [])]);
     }
 
     public async ValueTask<ModuleTransitionResult> DispatchAsync(ModuleDispatchRequest request, CancellationToken cancellationToken)
@@ -97,33 +97,16 @@ public sealed class HeadlessTestModule : IMyrialeModule
         {
             return Active(request, request.ExpectedRevision + 2);
         }
-        if (mode == "too-many-effects")
+        if (mode == "invalid-action-descriptor")
         {
             return new ModuleTransitionResult(
-                ModuleExecutionStatuses.Completed,
+                ModuleExecutionStatuses.Active,
                 request.ExpectedRevision + 1,
                 request.State,
-                Json(new { completed = true }),
-                [],
-                [],
-                new ModuleOutcome(
-                    "test",
-                    "complete",
-                    "Complete",
-                    "Completed.",
-                    [],
-                    [new ModuleEffect("one", Json(new { })), new ModuleEffect("two", Json(new { })), new ModuleEffect("three", Json(new { }))],
-                    [],
-                    [],
-                    []));
-        }
-        if (mode == "complete-unknown-effect")
-        {
-            return Completed(request, new ModuleEffect("unknown-effect", Json(new { })));
-        }
-        if (mode == "complete-malformed-effect")
-        {
-            return Completed(request, new ModuleEffect(ModuleEffectTypes.SetFlag, Json(new { flagId = "bad flag", value = true })));
+                Json(new { }),
+                [new ModuleAvailableAction("continue", "Continue", true, Arguments:
+                    [new ModuleActionArgumentDescriptor("bad name", ModuleActionArgumentKind.String, false)])],
+                []);
         }
         if (mode == "failed")
         {
@@ -150,21 +133,12 @@ public sealed class HeadlessTestModule : IMyrialeModule
         return Active(request, request.ExpectedRevision + 1);
     }
 
-    private static ModuleTransitionResult Completed(ModuleDispatchRequest request, ModuleEffect effect) => new(
-        ModuleExecutionStatuses.Completed,
-        request.ExpectedRevision + 1,
-        request.State,
-        Json(new { completed = true }),
-        [],
-        [],
-        new ModuleOutcome("test", "complete", "Complete", "Completed.", [], [effect], [], [], []));
-
     private ModuleTransitionResult Active(ModuleDispatchRequest request, long revision) => new(
         ModuleExecutionStatuses.Active,
         revision,
         Json(new { instanceInvocations = _invocations, staticInvocations = _staticInvocations }),
         Json(new { screen = "runtime" }),
-        [new ModuleAvailableAction("continue", "Continue", true, RandomValueCount: 4)],
+        [new ModuleAvailableAction("continue", "Continue", true, RandomValueCount: 4, Arguments: [])],
         [new ModuleEvent("updated", Json(new { }))]);
 
     private static ModuleOutcome CompletedOutcome() => new(
@@ -173,10 +147,6 @@ public sealed class HeadlessTestModule : IMyrialeModule
         "Complete",
         "Completed.",
         [new ModuleFact("result", "The module completed.")],
-        [
-            new ModuleEffect(ModuleEffectTypes.SetFlag, Json(new { flagId = "module-completed", value = false })),
-            new ModuleEffect(ModuleEffectTypes.SetFlag, Json(new { flagId = "module-completed", value = true })),
-        ],
         [new ModuleEvent("completed", Json(new { durable = true }))],
         ["Describe the confirmed result."],
         ["Do not invent another outcome."]);

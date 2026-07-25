@@ -19,8 +19,8 @@ public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProv
         var interactionType = request.InteractionType?.Trim() ?? string.Empty;
         if (!NarrativeInteractionTypes.Allowed.Contains(interactionType))
             return SessionInputAcceptanceResult.Error(400, "invalid_interaction_type", "InteractionTypeが不正です。");
-        if (request.RequestedOutputs is { Count: > 0 } && request.RequestedOutputs.Any(output => output != SessionExecutionKinds.Narrative))
-            return SessionInputAcceptanceResult.Error(400, "unsupported_output", "現在リクエストできる生成結果はnarrativeだけです。");
+        if (request.RequestedOutputs is { Count: > 0 } && request.RequestedOutputs.Any(output => output != SessionExecutionKinds.ScenarioTurn))
+            return SessionInputAcceptanceResult.Error(400, "unsupported_output", "現在リクエストできる生成結果はscenario-turnだけです。");
 
         var payloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{interactionType}\n{text}"))).ToLowerInvariant();
 
@@ -71,6 +71,7 @@ public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProv
         if (recentInputCount >= aiOptions.Value.SessionRequestsPerMinute)
             return SessionInputAcceptanceResult.Error(429, "session_rate_limited", "SessionのAI入力上限に達しました。しばらく待って再試行してください。");
 
+        const string executionKind = SessionExecutionKinds.ScenarioTurn;
         var now = DateTimeOffset.UtcNow;
         var input = new SessionPlayerInput
         {
@@ -90,8 +91,10 @@ public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProv
         {
             Id = $"EXE-{Guid.NewGuid():N}".ToUpperInvariant(),
             SessionId = sessionId,
-            Kind = SessionExecutionKinds.Narrative,
+            Kind = executionKind,
             TriggerType = "player-input",
+            Stage = ScenarioTurnStages.LoadingWorld,
+            SchemaVersion = 1,
             TriggerId = input.Id,
             Status = SessionExecutionStatuses.Queued,
             Revision = 0,

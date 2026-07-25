@@ -42,6 +42,70 @@ export type PendingPlayerInputApiResponse = {
 
 export type SessionExecutionStatus = 'queued' | 'running' | 'retry-wait' | 'cancel-requested' | 'succeeded' | 'failed' | 'cancelled' | 'superseded';
 
+export type ScenarioTurnStage =
+  | 'loading-world'
+  | 'enumerating-actions'
+  | 'selecting-action'
+  | 'applying-rules'
+  | 'running-extension'
+  | 'generating-narrative'
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
+
+export type ScenarioTurnPublicObject = {
+  objectId: string;
+  objectTypeId?: string | null;
+  label: string;
+  description?: string | null;
+  locationId?: string | null;
+  publicState?: Record<string, unknown> | null;
+};
+
+export type ScenarioTurnPublicAction = {
+  objectId: string;
+  actionId: string;
+  label: string;
+  description?: string | null;
+  visibility: 'ai-choice' | 'manual-ui';
+  argumentSchema?: Record<string, unknown> | null;
+};
+
+export type ScenarioTurnSelectedAction = {
+  objectId: string;
+  actionId: string;
+  objectLabel?: string | null;
+  actionLabel?: string | null;
+  arguments?: Record<string, unknown> | null;
+  visibility: 'ai-choice' | 'manual-ui';
+};
+
+export type ScenarioTurnPublicPostState = {
+  revision: number;
+  currentLocation?: { locationId: string; label: string } | null;
+  objects: ScenarioTurnPublicObject[];
+  facts?: string[];
+  events?: string[];
+  hints?: string[];
+};
+
+export type ScenarioTurnProjection = {
+  schemaVersion: 'scenario-turn.v1' | '1' | string;
+  stage: ScenarioTurnStage;
+  currentLocation?: { locationId: string; label: string } | null;
+  objects?: ScenarioTurnPublicObject[];
+  availableActions?: ScenarioTurnPublicAction[];
+  selectedAction?: ScenarioTurnSelectedAction | null;
+  postState?: ScenarioTurnPublicPostState | null;
+  manualUi?: {
+    objectId: string;
+    actionId: string;
+    actionLabel: string;
+    visibility: 'manual-ui';
+    execution: ModuleExecution;
+  } | null;
+};
+
 export type SessionPlayerInputApiResponse = {
   id: string; requestId: string; text: string; interactionType: NarrativeInteractionType;
   acceptedAfterTurnId?: string | null; acceptedSessionRevision: number; supersedesInputId?: string | null; createdAt: string;
@@ -57,8 +121,8 @@ export type SessionExecutionAttemptApiResponse = {
 };
 
 export type SessionExecutionApiResponse = {
-  id: string; sessionId: string; kind: 'narrative' | 'module-handoff' | 'note-proposal' | 'image' | string;
-  triggerType: string; triggerId: string; status: SessionExecutionStatus; revision: number; isRetryable: boolean;
+  id: string; sessionId: string; kind: 'scenario-turn' | 'note-proposal' | 'image' | string;
+  triggerType: string; triggerId: string; status: SessionExecutionStatus; stage?: ScenarioTurnStage | null; scenarioTurn?: ScenarioTurnProjection | null; revision: number; isRetryable: boolean;
   attemptCount: number; maxAttempts: number; nextAttemptAt?: string | null; errorCode?: string | null; userErrorMessage?: string | null;
   createdAt: string; startedAt?: string | null; completedAt?: string | null; cancelRequestedAt?: string | null; dismissedAt?: string | null;
   capabilities: { canRetry: boolean; canCancel: boolean; canDismiss: boolean };
@@ -176,7 +240,7 @@ export async function acceptSessionInput(
   if (!baseUrl) throw sessionApiError('Session APIが設定されていません。', 503, 'session_api_unavailable');
   const response = await sessionFetch(`${baseUrl}/${encodeURIComponent(sessionId)}/inputs`, {
     method: 'POST', credentials: 'include', headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ requestId, text, interactionType, requestedOutputs: ['narrative'], supersedesInputId }),
+    body: JSON.stringify({ requestId, text, interactionType, requestedOutputs: ['scenario-turn'], supersedesInputId }),
   });
   if (!response.ok) throw await toSessionApiError(response, 'Player Inputを受け付けられませんでした。');
   return response.json() as Promise<SessionInputAcceptedApiResponse>;
@@ -244,8 +308,7 @@ export async function saveSessionLorebookEntry(
 }
 
 export const hasActiveSessionExecutions = (session: SessionApiResponse) =>
-  Boolean(session.executions?.some((execution) => ['queued', 'running', 'retry-wait', 'cancel-requested'].includes(execution.status))
-    || session.turns.some((turn) => turn.id === session.headTurnId && turn.kind === 'module' && !turn.narrativeHandoff));
+  Boolean(session.executions?.some((execution) => ['queued', 'running', 'retry-wait', 'cancel-requested'].includes(execution.status)));
 
 export async function recommendNextAction(
   sessionId: string,

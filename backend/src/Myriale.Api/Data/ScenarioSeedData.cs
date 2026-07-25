@@ -52,6 +52,7 @@ public static class ScenarioSeedData
             CreatedAt = timestamp,
             UpdatedAt = timestamp,
         });
+        db.ScenarioDefinitionVersions.Add(ScenarioDefinitionSeedFactory.CreatePublished(AwakeningLaboratoryId, timestamp));
         await db.SaveChangesAsync(cancellationToken);
     }
 }

@@ -124,8 +124,8 @@ export type SessionPresentationProps = {
   sessionStateLabel: string;
   readOnly?: boolean;
   activitySession?: SessionApiResponse;
-  activeModulePanel?: ReactNode;
-  moduleHandoffPending?: boolean;
+  activeManualActionPanel?: ReactNode;
+  committedStateNarrativePending?: boolean;
   initialInput?: string;
   initialInteractionType?: NarrativeInteractionType;
   initialNotice?: SessionNoticeInput;
@@ -145,6 +145,24 @@ export type SessionPresentationProps = {
   onNoteReview?: (artifactId: string, action: 'apply' | 'edit-apply' | 'reject' | 'snooze', request: NoteReviewRequest) => Promise<SessionCommandResult>;
   onRewind?: (turnId: number) => Promise<SessionCommandResult> | SessionCommandResult;
 };
+
+export function getManualUiAction(execution: import('./sessionPlayApi').SessionExecutionApiResponse | undefined) {
+  if (execution?.kind !== 'scenario-turn') return null;
+  const projection = execution.scenarioTurn;
+  const manualUi = projection?.manualUi;
+  const selected = projection?.selectedAction;
+  if (!manualUi || manualUi.visibility !== 'manual-ui' || selected?.visibility !== 'manual-ui') return null;
+  if (manualUi.objectId !== selected.objectId || manualUi.actionId !== selected.actionId) return null;
+  return manualUi;
+}
+
+export const hasCommittedStateAwaitingNarrative = (execution: import('./sessionPlayApi').SessionExecutionApiResponse | undefined) =>
+  Boolean(
+    execution?.kind === 'scenario-turn'
+    && execution.scenarioTurn?.postState
+    && (execution.stage ?? execution.scenarioTurn.stage) === 'generating-narrative'
+    && ['queued', 'running', 'retry-wait', 'cancel-requested'].includes(execution.status),
+  );
 
 export const toDialogueTurn = (turn: NarrativeTurnApiResponse): DialogueTurn => ({
   id: turn.position,

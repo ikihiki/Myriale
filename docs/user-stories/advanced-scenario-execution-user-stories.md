@@ -1,242 +1,143 @@
-# advanced-scenario-execution-user-stories.md
-## 高度なシナリオ実行（制御可能なAI進行）に関するユーザーストーリー
+# 高度なシナリオ実行のユーザーストーリー
 
-本ドキュメントは、AI任せの即興物語ではなく、
-シナリオ作者が「候補・条件・進行・非公開情報」を用いて
-物語を制御しながら実行できる高度なシナリオ実行体験を
-ユーザーストーリーとして定義する。
+## 前提
 
-前提用語  
-- Scenario: 物語の設計図  
-- Session: 実際のプレイ単位  
-- Cast: 人物候補プール  
-- Location: 場所候補プール  
-- Chapter / Beat: シナリオ進行単位  
-- HiddenBrief: プレイヤー非公開の裏要約・秘密情報  
-- Canon: 確定情報（AIが優先的に守る）  
+高度なシナリオ実行は、Location、Object Type、Object placement、Object action result によって世界を制御する。Session は開始時の published Scenario definition version を pin し、Object ごとの private state、現在配置、revision を保持する。
+
+Object Type は state schema/default/public projection と action interface を定義する。Object は type と初期 Location を参照し、state/action ごとの条件付き result/effects/extension binding を定義する。ルールエンジンだけが result を選び、AI は公開された action 候補から `{objectId, actionId, arguments}` を選択する。
 
 ---
 
-## US-AS01: シナリオ作者として、AIに使ってよい人物候補を定義したい
+## US-AS01: 場所と Object の配置を定義したい
 
-As a シナリオ作者  
-I want 人物候補（Cast）を事前に定義したい  
-So that AIが無秩序にNPCを生成するのを防げる  
+As a シナリオ作者
+I want stable code を持つ Location を作り、Object を一つの初期 Location に配置したい
+So that 世界の地理と操作対象を決定論的に構成できる
 
-背景・意図  
-- 即興生成だけだと人物設定がブレやすい  
-- 登場人物は「役割」を持つ設計要素である  
+期待される結果
 
-ユーザー行動  
-- 人物候補を登録する  
-- 役割・口調・性格・秘密・登場条件を設定する  
+- Object は一つの初期 `LocationId` を持つ。
+- 実行中の移動は検証済み `move-object` effect として現在配置を更新する。
+- 現在 Location と global Object 以外は、明示的な遠隔公開ルールなしに action snapshot へ出ない。
+- 参照中 Location の削除は Object の remap/delete が完了するまで拒否される。
 
-期待される結果  
-- AIは原則として候補からNPCを選択する  
-- 新規生成は許可制または例外扱いになる  
+## US-AS02: 再利用可能な Object Type を定義したい
 
----
+As a シナリオ作者
+I want Object Type に状態と action interface を定義したい
+So that 同じ種類の扉、人物、装置を一貫した規則で作れる
 
-## US-AS02: シナリオ作者として、場所候補を管理したい
+期待される結果
 
-As a シナリオ作者  
-I want 場所候補（Location）を定義したい  
-So that 世界観と地理が一貫する  
+- strict state schema、default state、public projection を定義できる。
+- action ごとに stable code、label、説明、argument schema、availability、visibility を定義できる。
+- private properties は AI、プレイヤー、通常 API payload に含まれない。
+- Object は schema-valid な initial state override だけを持てる。
 
-背景・意図  
-- 場所はイベント発生条件と強く結びつく  
+## US-AS03: 状態ごとの action result を設定したい
 
-ユーザー行動  
-- 場所候補を登録する  
-- 雰囲気・危険度・関連人物・アクセス条件を設定する  
+As a シナリオ作者
+I want `(Object, from-state, action)` ごとに条件と結果を定義したい
+So that AI の即興ではなく Scenario data が世界変化を決める
 
-期待される結果  
-- AIは定義済み場所を優先して使用する  
-- 未定義場所は仮扱いまたは生成提案になる  
+期待される結果
 
----
+- condition/effect は許可された path/operator の versioned AST で保存される。
+- result は priority 順に決定され、同 priority ambiguity は publish できない。
+- enabled action に result がない状態も publish-blocking error になる。
+- state 更新、数値増減、set 操作、配置移動、flags、facts/events/hints、completion を構成できる。
 
-## US-AS03: シナリオ進行を章・ビート単位で制御したい
+## US-AS04: 公開情報と秘密情報を分離したい
 
-As a シナリオ作者  
-I want シナリオの進行を章・ビートで定義したい  
-So that 重要な展開を飛ばされずに済む  
+As a シナリオ作者
+I want Object state の公開範囲を whitelist で指定したい
+So that 謎の答えや hidden condition を漏らさずに AI と UI を動かせる
 
-背景・意図  
-- AIは重要イベントを省略しがち  
-- 節目は作者が握りたい  
+期待される結果
 
-ユーザー行動  
-- Chapter を定義する  
-- 各 Chapter に必須の Beat を設定する  
+- AI action chooser には public projection、action descriptors、argument schemas だけを渡す。
+- private state、hidden result branches、effect AST、extension binding/configuration、乱数は渡さない。
+- narrative には commit 後の public state と明示的な facts/hints/forbidden facts だけを渡す。
+- author/debug UI は権限付きで private definition を確認できるが、player projection と明確に分離する。
 
-期待される結果  
-- AIは現在の Chapter / Beat を認識して物語を生成する  
-- Beatの出口条件を満たさない限り先に進まない  
+## US-AS05: 章・ビートや強制イベントをデータで表現したい
 
----
+As a シナリオ作者
+I want 長編進行を専用 Object の state/actions/results で表現したい
+So that 進行条件も他の世界ルールと同じ方法で検証・監査できる
 
-## US-AS04: ビートごとに必須条件と禁止事項を設定したい
+期待される結果
 
-As a シナリオ作者  
-I want 各ビートに条件と禁止事項を設定したい  
-So that ネタバレや順序破綻を防げる  
+- chapter/beat/access/mandatory event は progression 用 Object Type/Object として定義できる。
+- 条件成立時の system-only action と effects が進行 state を変更する。
+- narrative 自体は進行を変更しない。
+- 現在 state、未成立条件、適用 result を author-only preview で確認できる。
 
-背景・意図  
-- 早すぎる真相開示は物語を壊す  
+## US-AS06: 複雑な mechanics だけ extension に委譲したい
 
-ユーザー行動  
-- Entry条件 / Exit条件を設定する  
-- この段階で明かしてはいけない情報を指定する  
+As a シナリオ作者
+I want battle 等の action result に exact extension を bind したい
+So that 汎用 rule を保ちながら専用ロジックを利用できる
 
-期待される結果  
-- AIは条件未達の場合、補完行動や誘導を行う  
-- 禁止事項は示唆までに留められる  
+期待される結果
 
----
+- binding は exact ID/version/digest/configuration を published definition に保存する。
+- ルールエンジンだけが binding を実行する。
+- extension は別 module、進行先、任意 DB mutation、narrative を選べない。
+- declarative action と extension action は同じ atomic post-state commit と narrative ordering を使う。
 
-## US-AS05: プレイヤーに見せない「裏要約（HiddenBrief）」を定義したい
+## US-AS07: Session ごとに Scenario version を固定したい
 
-As a シナリオ作者  
-I want プレイヤー非公開の情報をAIに伝えたい  
-So that 伏線回収や整合性を安定させられる  
+As a プレイヤー
+I want プレイ中の世界ルールが編集で突然変わらないようにしたい
+So that 長期 Session を同じ条件で続けられる
 
-背景・意図  
-- 黒幕・真相・嘘はプレイヤーに見せられない  
-- しかしAIは知っている必要がある  
+期待される結果
 
-ユーザー行動  
-- HiddenBrief を編集する  
-- 秘密・真相・裏目的・伏線を記述する  
+- Session 作成時に immutable published definition version を pin する。
+- Object の merged initial state と placement を Session runtime state に初期化する。
+- 新しい publish は新規 Session だけに使われる。
+- 既存 Session は pinned Location/Object Type/Object/result/extension identity を使い続ける。
 
-期待される結果  
-- AIは HiddenBrief を前提に行動・描写する  
-- プレイヤーには直接開示されない  
+## US-AS08: stale な action を安全に拒否したい
 
-制約  
-- HiddenBriefはネタバレ制約付きで扱われる  
+As a プレイヤー
+I want 別操作で状況が変わった場合に古い選択を適用しないでほしい
+So that 二重実行や矛盾した状態を防げる
 
----
+期待される結果
 
-## US-AS06: 裏要約の情報に「公開条件」を設定したい
+- snapshot は relevant Object/Session revisions を含む。
+- 適用直前に revision、availability、condition を再検証する。
+- stale selection は mutation 前に拒否し、最新 state から再列挙する。
+- 古い snapshot に対する AI decision や manual-ui dispatch を再利用しない。
 
-As a シナリオ作者  
-I want 秘密が明かされる条件を設定したい  
-So that AIが早出ししない  
+## US-AS09: action 適用後の narrative 障害から復旧したい
 
-背景・意図  
-- 条件なしだとAIが真相を漏らしがち  
+As a プレイヤー
+I want 文章生成が失敗しても確定済み action を失わず再試行したい
+So that 二重判定や二重効果なしに物語を続けられる
 
-ユーザー行動  
-- 各秘密に公開条件（フラグ・関係値・章進行）を設定する  
+期待される結果
 
-期待される結果  
-- 条件未達の秘密は示唆止まりになる  
-- 条件達成後のみ明示的に扱われる  
+- UI は `state committed / narrative pending` を区別して表示する。
+- retry は保存済み public post-state/facts だけを使う。
+- enumeration、action decision、random、extension、effects は再実行しない。
+- canonical narrative は action step ごとに一件だけ公開される。
 
----
+## US-AS10: Scenario rule を途中状態からテストしたい
 
-## US-AS07: シナリオ進行中にAIが逸脱したら軌道修正してほしい
+As a シナリオ作者
+I want Location、Object state、flags を指定して rule を preview したい
+So that 分岐漏れと private/public projection を公開前に確認できる
 
-As a シナリオ作者  
-I want AIが進行から外れたら自動補正してほしい  
-So that シナリオが破綻しない  
+期待される結果
 
-背景・意図  
-- プレイヤーの自由行動で脱線は避けられない  
-
-期待される結果  
-- AIが  
-  - 誘導イベント  
-  - 情報不足を補う出会い  
-  を生成してビートに戻す  
-
----
-
-## US-AS08: 必須情報が不足している場合、補完イベントを出してほしい
-
-As a シナリオ作者  
-I want 手がかり不足をAIが検知して補完してほしい  
-So that 詰み状態を防げる  
-
-背景・意図  
-- プレイヤーが重要情報を取り逃すことがある  
-
-期待される結果  
-- AIが  
-  - NPCの助言  
-  - 偶発イベント  
-  を生成する  
-- 既存候補（人物・場所）を優先使用する  
-
----
-
-## US-AS09: シナリオ作者として、実行中の進行状態を確認したい
-
-As a シナリオ作者  
-I want 今どの章・ビートにいるか確認したい  
-So that デバッグや調整ができる  
-
-期待される結果  
-- 現在の Chapter / Beat / 未達条件が可視化される  
-
-補足  
-- 通常プレイヤーUIでは非表示  
-
----
-
-## US-AS10: 特定の条件で必ず発生するイベントを定義したい
-
-As a シナリオ作者  
-I want 条件付き強制イベントを設定したい  
-So that 物語の山場を逃さない  
-
-背景・意図  
-- クライマックスは確実に起こしたい  
-
-ユーザー行動  
-- トリガー条件とイベント内容を定義する  
-
-期待される結果  
-- 条件達成時、AIが必ずイベントを発火させる  
-
----
-
-## US-AS11: シナリオを途中のビートからテスト実行したい
-
-As a シナリオ作者  
-I want 任意の進行地点からテストしたい  
-So that 検証を効率化できる  
-
-期待される結果  
-- 指定した Chapter / Beat を現在地としてセッションを開始できる  
-- 条件は満たした扱いにできる  
-
----
-
-## US-AS12: AIが参照している非公開情報を把握したい（デバッグ）
-
-As a シナリオ作者  
-I want AIが何を前提に動いているか知りたい  
-So that 誤動作の原因を特定できる  
-
-期待される結果  
-- HiddenBrief / Canon / 現在ビートの参照状況が確認できる  
-
-制約  
-- プレイヤー向けUIでは使用不可  
-
----
+- runtime と同じ evaluator で action enumeration/result selection/effects を表示する。
+- fixed random values により extension path も再現できる。
+- missing result、ambiguous result、invalid path/target、hidden-data leakage を検出する。
+- preview は本番 Session と published version を変更しない。
 
 ## 総括
 
-- 高度なシナリオ実行は  
-  「候補プール + 進行制御 + 非公開情報」  
-  の三点で成立する  
-- AIは  
-  - 自由に語る存在  
-  - 監督された演者  
-  の両立を目指す  
-- 本設計により  
-  「長編・伏線回収・再現性のある物語」  
-  が安定して実現できる
+高度な進行の権威は pinned Scenario definition、Session Object state、Object rules、必要時の bound extension にある。AI は候補選択と post-state narrative に限定され、秘密情報、状態差分、module identity を確定しない。

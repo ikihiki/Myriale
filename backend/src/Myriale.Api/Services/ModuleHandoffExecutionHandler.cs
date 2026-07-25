@@ -133,7 +133,7 @@ public sealed class ModuleHandoffExecutionHandler(
             PreviousTurnId = source!.Id,
             Position = source.Position + 1,
             Kind = "narrative",
-            DialogueSchemaVersion = NarrativeDialogueSchema.Version,
+            DialogueSchemaVersion = NarrativeDocumentSchemas.ModuleHandoff,
             DialogueTurnType = "module-handoff",
             Heading = "確定した結果を受ける",
             NarrativeBody = generation.Value,
@@ -348,7 +348,7 @@ public sealed class ModuleHandoffExecutionHandler(
         {
             attempt.ExceptionChain = string.Join(" -> ", Enumerate(exception).Select(item => item.GetType().Name));
             attempt.RedactedResponseExcerpt = DevelopmentErrorDetails.From(environment, exception) is { } details
-                ? NarrativeExecutionHandler.Redact(details)
+                ? SessionExecutionDiagnostics.Redact(details)
                 : null;
         }
         await db.SaveChangesAsync(cancellationToken);

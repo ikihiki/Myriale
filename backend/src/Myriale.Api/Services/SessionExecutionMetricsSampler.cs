@@ -24,6 +24,7 @@ public sealed class SessionExecutionMetricSnapshot
 {
     private static readonly string[] KnownKinds =
     [
+        SessionExecutionKinds.ScenarioTurn,
         SessionExecutionKinds.Narrative,
         SessionExecutionKinds.ModuleHandoff,
         SessionExecutionKinds.NoteProposal,

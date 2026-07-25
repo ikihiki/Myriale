@@ -17,8 +17,14 @@ export function EditScenarioContainer({ scenarioId, api }: { scenarioId: string;
   const [saving, setSaving] = useState(false);
   const [aiWorking, setAiWorking] = useState(false);
   const scenarioQuery = useQuery({
-    queryKey: ['scenarios', 'detail', scenarioId],
-    queryFn: ({ signal }) => scenarioApi.getScenario(scenarioId, signal),
+    queryKey: ['scenarios', 'editor', scenarioId],
+    queryFn: async ({ signal }) => {
+      const [scenario, ruleData] = await Promise.all([
+        scenarioApi.getScenario(scenarioId, signal),
+        scenarioApi.getScenarioRuleData(scenarioId, signal),
+      ]);
+      return { scenario, ruleData };
+    },
     staleTime: 30_000,
   });
 
@@ -28,20 +34,44 @@ export function EditScenarioContainer({ scenarioId, api }: { scenarioId: string;
     }
     setSaving(true);
     try {
-      const updated = await scenarioApi.updateScenario(scenarioId, values);
-      queryClient.setQueryData(['scenarios', 'detail', scenarioId], updated);
-      await queryClient.invalidateQueries({ queryKey: ['scenarios', 'list'] });
-      store?.dispatch({
-        type: 'SCENARIO_SAVED',
-        scenario: {
-          ...updated,
-          status: updated.status === 'published' || updated.status === 'private' ? updated.status : 'draft',
-        },
-      });
-      return { ok: true, message: `「${updated.title}」の変更を保存しました。`, value: { scenarioId: updated.id } };
-    } catch (caught) {
-      const error = caught as ScenarioApiError;
-      return { ok: false, message: error.errors?.title?.[0] ?? error.message ?? 'シナリオを更新できませんでした。', fieldErrors: error.errors };
+      const [scenarioResult, ruleDataResult] = await Promise.allSettled([
+        scenarioApi.updateScenario(scenarioId, values),
+        scenarioApi.putScenarioRuleData(scenarioId, values.ruleData),
+      ]);
+
+      if (scenarioResult.status === 'fulfilled') {
+        queryClient.setQueryData(['scenarios', 'detail', scenarioId], scenarioResult.value);
+        store?.dispatch({
+          type: 'SCENARIO_SAVED',
+          scenario: {
+            ...scenarioResult.value,
+            status: scenarioResult.value.status === 'published' || scenarioResult.value.status === 'private' ? scenarioResult.value.status : 'draft',
+          },
+        });
+        await queryClient.invalidateQueries({ queryKey: ['scenarios', 'list'] });
+      }
+
+      if (scenarioResult.status === 'fulfilled' && ruleDataResult.status === 'fulfilled') {
+        queryClient.setQueryData(['scenarios', 'editor', scenarioId], {
+          scenario: scenarioResult.value,
+          ruleData: ruleDataResult.value,
+        });
+        return { ok: true, message: `「${scenarioResult.value.title}」の基本情報とObject Typeを保存しました。`, value: { scenarioId: scenarioResult.value.id } };
+      }
+
+      const scenarioError = scenarioResult.status === 'rejected' ? scenarioResult.reason as ScenarioApiError : null;
+      const ruleDataError = ruleDataResult.status === 'rejected' ? ruleDataResult.reason as ScenarioApiError : null;
+      if (scenarioResult.status === 'fulfilled') {
+        return { ok: false, message: `基本情報は保存されましたが、Object Typeを保存できませんでした。再読み込み前に内容を控え、もう一度保存してください。${ruleDataError?.message ? ` (${ruleDataError.message})` : ''}` };
+      }
+      if (ruleDataResult.status === 'fulfilled') {
+        return { ok: false, message: `Object Typeは保存されましたが、基本情報を保存できませんでした。もう一度保存してください。${scenarioError?.message ? ` (${scenarioError.message})` : ''}`, fieldErrors: scenarioError?.errors };
+      }
+      return {
+        ok: false,
+        message: scenarioError?.errors?.title?.[0] ?? scenarioError?.message ?? ruleDataError?.message ?? '基本情報とObject Typeを保存できませんでした。',
+        fieldErrors: scenarioError?.errors ?? ruleDataError?.errors,
+      };
     } finally {
       setSaving(false);
     }
@@ -68,7 +98,7 @@ export function EditScenarioContainer({ scenarioId, api }: { scenarioId: string;
   return <EditScenarioPresentation
     account={toAppChromeAccount(accountSession.user)}
     scenarioId={scenarioId}
-    initialValues={scenarioQuery.data ? scenarioDraftToFormValues(scenarioQuery.data) : null}
+    initialValues={scenarioQuery.data ? scenarioDraftToFormValues(scenarioQuery.data.scenario, scenarioQuery.data.ruleData) : null}
     status={scenarioQuery.isPending ? 'loading' : scenarioQuery.isError ? 'error' : 'ready'}
     loadError={scenarioQuery.error instanceof Error ? scenarioQuery.error.message : undefined}
     saving={saving}

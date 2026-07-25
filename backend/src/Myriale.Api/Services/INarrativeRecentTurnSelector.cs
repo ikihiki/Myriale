@@ -5,18 +5,18 @@ namespace Myriale.Api.Services;
 
 public interface INarrativeRecentTurnSelector
 {
-    IReadOnlyList<NarrativeDialogueTurnInput> Select(IReadOnlyList<NarrativeDialogueTurnInput> newestTurns);
+    IReadOnlyList<NarrativeRecentTurnInput> Select(IReadOnlyList<NarrativeRecentTurnInput> newestTurns);
 }
 
 public sealed class NarrativeRecentTurnSelector(
     INarrativeTokenEstimator tokenEstimator,
     IOptions<NarrativeContextOptions> options) : INarrativeRecentTurnSelector
 {
-    public IReadOnlyList<NarrativeDialogueTurnInput> Select(IReadOnlyList<NarrativeDialogueTurnInput> newestTurns)
+    public IReadOnlyList<NarrativeRecentTurnInput> Select(IReadOnlyList<NarrativeRecentTurnInput> newestTurns)
     {
         var tokenBudget = options.Value.RecentTurnsTokenBudget;
         if (tokenBudget <= 0) return [];
-        var selected = new List<NarrativeDialogueTurnInput>();
+        var selected = new List<NarrativeRecentTurnInput>();
         var usedTokens = 0;
         foreach (var turn in newestTurns)
         {

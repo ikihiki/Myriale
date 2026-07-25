@@ -17,9 +17,9 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const ActiveDiceModule: Story = {
+export const ActiveManualObjectAction: Story = {
   args: {
-    activeModulePanel: <section data-testid="active-module-turn" aria-label="現在のモジュール判定"><strong>銀の鍵と星図灯で『閉じた星座』の扉を開く</strong><p>1d20 / 目標値13 / 補正+2</p><button type="button">星図灯を掲げて判定する</button></section>,
+    activeManualActionPanel: <section data-testid="active-module-turn" aria-label="現在のモジュール判定"><strong>列挙済みアクション: 星図灯を掲げる</strong><p>対象ObjectとActionはScenario Turnが確定済みです。</p><button type="button">判定する</button></section>,
   },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
@@ -34,12 +34,12 @@ export const ActiveDiceModule: Story = {
   },
 };
 
-export const PersistedHandoffPending: Story = {
-  args: { moduleHandoffPending: true },
+export const CommittedStateNarrativePending: Story = {
+  args: { committedStateNarrativePending: true },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await step('再読み込み後も保存済み結果を失わずNarrative handoff待ちを表示する', async () => {
-      await expect(canvas.getByTestId('module-handoff-pending')).toHaveTextContent('ダイス結果とSession Effectは保存済み');
+    await step('再読み込み後も確定済みObject状態を失わずNarrative生成待ちを表示する', async () => {
+      await expect(canvas.getByTestId('committed-state-narrative-pending')).toHaveTextContent('状態、配置、適用結果はすでに保存');
       await expect(canvas.getByLabelText('自由に行動や会話を入力')).toBeDisabled();
     });
   },

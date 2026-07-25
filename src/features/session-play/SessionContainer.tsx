@@ -4,7 +4,7 @@ import { useAccountSession } from '../../account/hooks/useAccountSession';
 import { useAppNavigation } from '../../shared/nav';
 import { ActiveModuleTurnPanel } from './ActiveModuleTurnPanel';
 import { SessionPresentation, SessionPresentationStatus } from './SessionPresentation';
-import { sessionInfoNotice, toDialogueTurn, toSessionNotice, type SessionCommandResult, type SessionNotice } from './sessionModel';
+import { getManualUiAction, hasCommittedStateAwaitingNarrative, sessionInfoNotice, toDialogueTurn, toSessionNotice, type SessionCommandResult, type SessionNotice } from './sessionModel';
 import {
   acceptSessionInput,
   getSession,
@@ -84,12 +84,12 @@ export function SessionContainer({ sessionId }: { sessionId: string }) {
   }
 
   const submit = async (input: string, interactionType: NarrativeInteractionType): Promise<SessionCommandResult> => {
-    if (submitInFlight.current) return { ok: false, notice: sessionInfoNotice('Narrativeを生成中です。') };
+    if (submitInFlight.current) return { ok: false, notice: sessionInfoNotice('Scenario Turnを処理中です。') };
     submitInFlight.current = true;
     const reusable = draftRequest.current?.input === input && draftRequest.current.interactionType === interactionType
       ? draftRequest.current
       : null;
-    const requestId = reusable?.requestId ?? `narrative-${crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
+    const requestId = reusable?.requestId ?? `scenario-turn-${crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
     draftRequest.current = { input, requestId, interactionType };
     setIsSubmitting(true);
     try {
@@ -104,9 +104,9 @@ export function SessionContainer({ sessionId }: { sessionId: string }) {
           { type: 'execution', id: accepted.execution.id, order: nextOrder + 1, causalId: accepted.input.id }],
       });
       draftRequest.current = null;
-      return { ok: true, notice: 'Player Inputを保存し、Narrative生成を開始しました。ブラウザを閉じても処理は継続します。' };
+      return { ok: true, notice: 'Player Inputを保存し、Scenario Turnを開始しました。ブラウザを閉じても処理は継続します。' };
     } catch (reason) {
-      const error = normalizeSessionApiError(reason, 'Narrativeの生成に失敗しました。');
+      const error = normalizeSessionApiError(reason, 'Scenario Turnを開始できませんでした。');
       if (error.kind === 'unauthorized') accountSession.clearUser();
       return { ok: false, notice: toSessionNotice(error, 'submit') };
     } finally {
@@ -159,11 +159,14 @@ export function SessionContainer({ sessionId }: { sessionId: string }) {
     }
   };
 
-  const headModuleTurn = session.turns.find((turn) => turn.id === session.headTurnId && turn.kind === 'module' && turn.execution);
-  const moduleHandoffPending = Boolean(headModuleTurn?.execution?.status === 'completed' && headModuleTurn.narrativeHandoff?.status !== 'succeeded');
-  const refreshAfterModuleAction = () => {
+  const activeScenarioTurn = session.executions
+    ?.filter((execution) => execution.kind === 'scenario-turn')
+    .at(-1);
+  const manualUiAction = getManualUiAction(activeScenarioTurn);
+  const committedStateNarrativePending = hasCommittedStateAwaitingNarrative(activeScenarioTurn);
+  const refreshAfterManualAction = () => {
     void getSession(sessionId).then(setSession).catch((reason: SessionApiError) => {
-      setLiveNotice(toSessionNotice(normalizeSessionApiError(reason, 'Module完了後のSessionを更新できませんでした。'), 'poll'));
+      setLiveNotice(toSessionNotice(normalizeSessionApiError(reason, '手動アクション後のSessionを更新できませんでした。'), 'poll'));
     });
   };
 
@@ -177,10 +180,10 @@ export function SessionContainer({ sessionId }: { sessionId: string }) {
     sessionStateLabel={readOnly ? 'Completed' : 'Active'}
     readOnly={readOnly}
     activitySession={session}
-    activeModulePanel={!readOnly && headModuleTurn?.execution
-      ? <ActiveModuleTurnPanel execution={headModuleTurn.execution} onExecution={refreshAfterModuleAction} />
+    activeManualActionPanel={!readOnly && manualUiAction
+      ? <ActiveModuleTurnPanel action={manualUiAction} onExecution={refreshAfterManualAction} />
       : undefined}
-    moduleHandoffPending={!readOnly && moduleHandoffPending}
+    committedStateNarrativePending={!readOnly && committedStateNarrativePending}
     initialInput={readOnly ? undefined : pendingInput?.input}
     initialInteractionType={pendingInput?.interactionType}
     initialNotice={readOnly

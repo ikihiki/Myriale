@@ -91,8 +91,8 @@ export function SessionPresentation({
   sessionStateLabel,
   readOnly = false,
   activitySession,
-  activeModulePanel,
-  moduleHandoffPending = false,
+  activeManualActionPanel,
+  committedStateNarrativePending = false,
   initialInput = '',
   initialInteractionType = 'dialogue',
   initialNotice = '',
@@ -225,8 +225,8 @@ export function SessionPresentation({
     if (result.ok) setSelectedTurnId(turnId);
   };
 
-  const sessionMode = activeModulePanel || moduleHandoffPending ? 'roll' : program.mode;
-  const sessionModeFlavor = activeModulePanel || moduleHandoffPending ? 'program' : program.flavor;
+  const sessionMode = activeManualActionPanel || committedStateNarrativePending ? 'roll' : program.mode;
+  const sessionModeFlavor = activeManualActionPanel || committedStateNarrativePending ? 'program' : program.flavor;
   const battle = program.battle;
   const rollResult = program.rollResult;
   const fixedRoll = program.fixedRoll;
@@ -423,11 +423,11 @@ export function SessionPresentation({
           </MyrialeDialogRoot>
         )}
 
-        {!readOnly && activeModulePanel}
-        {!readOnly && moduleHandoffPending && !activeModulePanel && (
-          <section className="mx-auto mb-4 w-full max-w-myr-reading rounded-2xl border border-myr-gold/35 bg-myr-paper px-5 py-4" role="status" data-testid="module-handoff-pending">
-            <strong>確定結果をNarrativeへ引き渡しています</strong>
-            <p className="m-0 mt-1 text-myr-ui-sm text-myr-ink-soft">ダイス結果とSession Effectは保存済みです。描写が追加されるまで自由入力は無効です。</p>
+        {!readOnly && activeManualActionPanel}
+        {!readOnly && committedStateNarrativePending && !activeManualActionPanel && (
+          <section className="mx-auto mb-4 w-full max-w-myr-reading rounded-2xl border border-myr-gold/35 bg-myr-paper px-5 py-4" role="status" data-testid="committed-state-narrative-pending">
+            <strong>確定済みの状態からNarrativeを生成しています</strong>
+            <p className="m-0 mt-1 text-myr-ui-sm text-myr-ink-soft">Objectの状態、配置、適用結果はすでに保存されています。描写の生成に失敗しても状態は巻き戻りません。</p>
           </section>
         )}
 

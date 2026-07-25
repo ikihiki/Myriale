@@ -1,48 +1,55 @@
-# Module effects and outcomes
+# Object effects and extension outcomes
 
-## Internal state versus session state
+## State authority
 
-A module owns its internal state while active. It does not directly mutate the session aggregate. A completed initialization or dispatch transition returns the sole authoritative `ModuleOutcome`, containing public facts, ordered effects, events, and narrative guidance.
+Configured Object action results are the source of state transitions. A result consists of a versioned condition AST, deterministic priority, an ordered effect batch, and optionally one exact extension binding. AI selects an already enumerated `{objectId, actionId, arguments}`; it cannot return effects, state patches, destinations, or module identities.
 
-Effects use a stable string discriminator plus JSON payload. This keeps the SDK transport-neutral and allows unknown future effects to be rejected safely by an older host.
+When multiple rules exist for the same Object state/action, the evaluator chooses the first satisfied result by priority. Equal-priority ambiguity and an enabled state/action without a deterministic result are publish-blocking errors. Runtime never chooses a branch by undocumented randomness.
 
-The first host-owned effect vocabulary contains `set-flag`:
+## Declarative effect vocabulary
 
-```json
-{
-  "type": "set-flag",
-  "payload": {
-    "flagId": "boss-defeated",
-    "value": true
-  }
-}
-```
+Baseline schema `1` supports typed effects such as:
 
-A package must declare the `emit:session-effects` capability before a Session-owned execution may emit effects. The capability list is snapshotted onto the execution at initialization, so later catalog changes cannot rewrite authorization for an in-flight turn. Flag IDs are bounded host identifiers, values are Boolean, and unknown effect types or payload properties are rejected. Parameter, inventory, clue, and arbitrary JSON-patch effects remain unsupported until their host domain schemas exist.
+- `set-state` and `increment-state` on schema-valid Object state paths;
+- `append-set` / `remove-set` for bounded set-like properties;
+- `move-object` to one valid Location (an Object has one current placement);
+- `set-session-flag`;
+- `emit-fact` and `emit-event`;
+- `add-narrative-hint` and `forbid-narrative-fact`;
+- `complete-session`.
 
-Transition `uiEvents` are transient instructions for rendering the accepted internal step, such as damage or animation cues. They do not change session state and are not authoritative after completion. Outcome `emittedEvents` are durable scenario-level facts used for history and subsequent scene evaluation.
+Conditions and effects are versioned JSON ASTs, not author-provided scripts or arbitrary JSON Patch. Allowed roots and operators are explicit. References must belong to the pinned Scenario definition, and private values are not copied into public facts or hints.
 
-## Host responsibilities
+## Validation and atomic application
 
-The host validates that:
+Before mutation, the host:
 
-- the module declared the required capability;
-- referenced scenario and session entities exist;
-- values satisfy host-owned constraints;
-- inventory and clue operations are legal;
-- effects have not already been applied;
-- the session revision still matches.
+1. verifies the action belongs to the immutable snapshot and arguments match its schema;
+2. rechecks Object/Session revisions, location visibility, availability, and result conditions;
+3. resolves exactly one configured result;
+4. validates every effect target, path, value, and cross-reference against pinned schemas;
+5. validates any extension outcome and capability limits;
+6. stages the complete ordered batch;
+7. commits Object state/placement, Session state, module state, random receipt, facts/events/hints, revisions, and one unique application receipt atomically.
 
-For a Session-owned execution, the host validates the complete ordered batch before staging any mutation. It records the expected Session State revision with the pending module request, applies the batch in order, increments the state revision once, and inserts a unique `ModuleOutcomeApplication` receipt. The execution completion, request completion, state update, and application receipt are committed by one `SaveChanges` transaction. Replays return the stored response without applying effects again.
+A failure in any item rejects the whole batch. No partial effects become visible. Replaying the same action step returns the committed receipt rather than applying the batch again.
 
-Detached Module Executions continue to persist outcomes without applying effects. A stale Session revision returns `session_revision_conflict`; unsupported effects, malformed payloads, and missing capabilities are rejected without changing an active execution or Session State. Failed initialization is terminal, while a rejected dispatch retains its prior active snapshot.
+`clarify` and `no-op` are system-owned actions for questions or inputs that should not mutate world state. They still produce an auditable selected/applied checkpoint and a narrative based on the unchanged post-state.
 
-## Narrative handoff
+## Extension outcome limits
 
-When a Session-owned Module Turn completes, the host automatically prepares a durable Narrative handoff in the same transaction that commits the authoritative outcome, request receipt, effects, and `ModuleOutcomeApplication`. No public API starts the handoff. After that transaction commits and the module invocation gate is released, the host claims the handoff with a bounded lease and invokes the Narrative generator. Immediate-completion initialization and completed dispatch follow the same lifecycle.
+An extension may calculate bounded mechanics and return only contract-approved public view/outcome data and host-supported effect proposals. It cannot directly persist data, target unrelated Objects, select another extension, change the pinned Scenario definition, or publish narrative. The host validates its outcome using the same effect rules and commit boundary as a declarative result.
 
-The handoff records `pending`, `failed`, or `completed` state. Provider failures leave the completed Module Turn and applied effects untouched; replaying the matching module request retries a retryable failed handoff. Expired leases allow another API process to recover work after a crash. The final append revalidates the frozen post-effect Session State revision and Session turn position, and updates both optimistic-concurrency boundaries before inserting one uniquely linked `narrative` Session Turn.
+Transient extension `uiEvents` may animate an accepted interactive step but do not alter Scenario state and are not narrative facts. Durable facts/events/hints enter the action-step commit only after host validation.
 
-AI receives only scenario guidance, public facts, durable emitted events, final public module view state, post-effect flags, narrative hints, and forbidden facts. Private module state, configuration, context, randomness, request receipts, diagnostics, capabilities, leases, and transient UI events are excluded. A unique source-turn relationship guarantees that only one Narrative Turn is persisted. Session GET responses expose only safe handoff status and error information; they do not trigger generation.
+## Post-state narrative
 
-Durable `emittedEvents` processing beyond prompt projection, scenario-defined flag catalogs, additional effect handlers, player-input narrative turns, real provider selection, and background generation are deferred to later changes.
+After the state commit, narrative generation receives:
+
+- accepted input and the public selected Object/action;
+- current Location and public Object state/placement after effects;
+- authoritative public facts/events and narrative hints;
+- forbidden facts;
+- safe public extension view/outcome, if used.
+
+The Object Type public projection is applied before this payload is built. Narrative generation never receives private Object state, hidden branches, effect programs, module configuration/state, or random receipts. Generated prose cannot modify committed facts. Provider or validation failure leaves the committed action intact and retries from the stored post-state only.

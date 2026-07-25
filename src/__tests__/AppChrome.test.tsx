@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppChrome } from '../shared/AppChrome';
 
 afterEach(() => cleanup());
@@ -54,6 +54,36 @@ describe('AppChrome — global app navigation', () => {
     );
     expect(screen.getByRole('button', { name: 'ログイン' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '新規登録' })).toBeInTheDocument();
+  });
+
+  it('opens a vertical mobile menu and closes it after navigation', () => {
+    const onNavigate = vi.fn();
+    render(
+      <AppChrome
+        section="library"
+        breadcrumbs={crumbs}
+        account={{ name: '霧野しおり', email: 'a@b.c', initials: '霧野' }}
+        onNavigate={onNavigate}
+      >
+        <div>screen</div>
+      </AppChrome>,
+    );
+
+    const trigger = screen.getByRole('button', { name: 'メニューを開く' });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(trigger);
+
+    const mobileNavigation = screen.getByRole('navigation', { name: 'モバイルメニュー' });
+    expect(screen.getByRole('button', { name: 'メニューを閉じる' })).toHaveAttribute('aria-expanded', 'true');
+    expect(mobileNavigation).toHaveClass('grid');
+    expect(within(mobileNavigation).getByRole('button', { name: /^ライブラリ/ })).toHaveAttribute('aria-current', 'page');
+    expect(within(mobileNavigation).getByRole('button', { name: /シナリオ登録/ })).toBeInTheDocument();
+    expect(within(mobileNavigation).getByRole('button', { name: 'プロフィール' })).toBeInTheDocument();
+
+    fireEvent.click(within(mobileNavigation).getByRole('button', { name: /シナリオ登録/ }));
+    expect(onNavigate).toHaveBeenCalledWith('scenarioRegister');
+    expect(screen.queryByRole('navigation', { name: 'モバイルメニュー' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'メニューを開く' })).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('renders the breadcrumb trail with the current page last', () => {

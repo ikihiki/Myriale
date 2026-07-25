@@ -195,6 +195,8 @@ internal static class ScenarioTestFixtureData
     {
         if (await db.Scenarios.AnyAsync(cancellationToken)) return;
         db.Scenarios.AddRange(Scenarios.Select(Clone));
+        db.ScenarioDefinitionVersions.AddRange(Scenarios.Select(scenario =>
+            ScenarioDefinitionSeedFactory.CreatePublished(scenario.Id, scenario.UpdatedAt)));
         db.ScenarioProgressionNodes.AddRange(ProgressionNodes.Select(Clone));
         db.ScenarioProgressionTransitions.AddRange(ProgressionTransitions.Select(Clone));
         await db.SaveChangesAsync(cancellationToken);
