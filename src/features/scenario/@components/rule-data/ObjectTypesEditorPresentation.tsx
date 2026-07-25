@@ -45,7 +45,8 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
   const stateField = selected?.stateFields[stateIndex];
   const action = selected?.actions[actionIndex];
   const argument = action?.argumentFields[argumentIndex];
-  const typeObjects = selected ? value.objects.filter((object) => object.objectTypeCode === selected.code) : [];
+  const typeObjects = selected ? value.objects.filter((object) => (object.mixinTypeCodes ?? [object.objectTypeCode]).includes(selected.code)) : [];
+  const genericRules = action ? (selected?.actionResults ?? []).filter((result) => result.actionCode === action.code) : [];
   const actionRules = action ? typeObjects.flatMap((object) => object.actionResults
     .filter((result) => result.actionCode === action.code)
     .map((result) => ({ object, result }))) : [];
@@ -55,7 +56,12 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
     if (!next || !selected || selectedIndex === null) return;
     const objectTypes = [...value.objectTypes];
     objectTypes[selectedIndex] = next;
-    const objects = next.code === selected.code ? value.objects : value.objects.map((object) => object.objectTypeCode === selected.code ? { ...object, objectTypeCode: next.code } : object);
+    const objects = next.code === selected.code ? value.objects : value.objects.map((object) => {
+      const mixins = object.mixinTypeCodes ?? (object.objectTypeCode ? [object.objectTypeCode] : []);
+      if (!mixins.includes(selected.code)) return object;
+      const mixinTypeCodes = mixins.map((code) => code === selected.code ? next.code : code);
+      return { ...object, mixinTypeCodes, objectTypeCode: mixinTypeCodes[0] ?? '' };
+    });
     onChange({ ...value, objectTypes, objects });
   };
   const openType = (index: number) => { setSelectedIndex(index); setNestedEditor(null); setPaneOpen(true); };
@@ -77,9 +83,11 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
     if (!selected || selectedIndex === null) return;
     const previous = selected.stateFields[index];
     const nextState = { ...previous, ...patch };
-    const nextType = { ...selected, stateFields: selected.stateFields.map((item, itemIndex) => itemIndex === index ? nextState : item) };
+    const nextType = { ...selected, stateFields: selected.stateFields.map((item, itemIndex) => itemIndex === index ? nextState : item),
+      actionResults: (selected.actionResults ?? []).map((result) => ({ ...result, fromStateCode: result.fromStateCode === previous.code ? nextState.code : result.fromStateCode,
+        effects: result.effects.map((effect) => effect.kind === 'set-state' && effect.stateCode === previous.code ? { ...effect, stateCode: nextState.code } : effect) })) };
     const objectTypes = value.objectTypes.map((item, itemIndex) => itemIndex === selectedIndex ? nextType : item);
-    const objects = previous.code === nextState.code ? value.objects : value.objects.map((object) => object.objectTypeCode !== selected.code ? object : ({
+    const objects = previous.code === nextState.code ? value.objects : value.objects.map((object) => !(object.mixinTypeCodes ?? [object.objectTypeCode]).includes(selected.code) ? object : ({
       ...object,
       initialStateOverrides: object.initialStateOverrides.map((override) => override.stateCode === previous.code ? { ...override, stateCode: nextState.code } : override),
       actionResults: object.actionResults.map((result) => ({
@@ -102,8 +110,9 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
     const objectTypes = value.objectTypes.map((item, itemIndex) => itemIndex === selectedIndex ? {
       ...selected,
       actions: selected.actions.map((candidate, candidateIndex) => candidateIndex === index ? nextAction : candidate),
+      actionResults: (selected.actionResults ?? []).map((result) => result.actionCode === previous.code ? { ...result, actionCode: nextAction.code } : result),
     } : item);
-    const objects = previous.code === nextAction.code ? value.objects : value.objects.map((object) => object.objectTypeCode === selected.code ? {
+    const objects = previous.code === nextAction.code ? value.objects : value.objects.map((object) => (object.mixinTypeCodes ?? [object.objectTypeCode]).includes(selected.code) ? {
       ...object,
       actionResults: object.actionResults.map((result) => result.actionCode === previous.code ? { ...result, actionCode: nextAction.code } : result),
     } : object);
@@ -117,7 +126,7 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
   };
   const addRule = () => {
     if (!action || !selectedRuleObjectCode) return;
-    const objectIndex = value.objects.findIndex((object) => object.code === selectedRuleObjectCode && object.objectTypeCode === selected?.code);
+    const objectIndex = value.objects.findIndex((object) => object.code === selectedRuleObjectCode && (object.mixinTypeCodes ?? [object.objectTypeCode]).includes(selected?.code ?? ''));
     const object = value.objects[objectIndex];
     if (!object) return;
     const result = createActionResult(object, value, action.code);
@@ -193,6 +202,15 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
             <div className="flex items-center justify-between gap-2"><h3 id="argument-table-heading">引数schema</h3><Button size="sm" variant="secondary" onClick={() => { const index = action.argumentFields.length; replaceAction(actionIndex, { argumentFields: [...action.argumentFields, { code: `argument-${index + 1}`, label: '新しい引数', valueType: 'string', required: false }] }); setNestedEditor({ kind: 'argument', actionIndex, argumentIndex: index }); }}>引数を追加</Button></div>
             <div className="overflow-x-auto rounded-xl border border-[#17151f]/12 bg-[#fffef9]/80"><table className={compactTableClass}><thead className="bg-[#17151f]/[.04] text-xs text-myr-slate-muted"><tr><th className={cellClass}>編集</th><th className={cellClass}>表示名</th><th className={cellClass}>code</th><th className={cellClass}>型</th><th className={cellClass}>必須</th></tr></thead><tbody>{action.argumentFields.map((item, index) => <tr key={`${item.code}-${index}`}><td className={cellClass}><Button size="sm" variant="secondary" aria-label={`${item.label}を編集`} onClick={() => setNestedEditor({ kind: 'argument', actionIndex, argumentIndex: index })}>編集</Button></td><td className={cellClass}>{item.label}</td><td className={`${cellClass} font-mono text-xs`}>{item.code}</td><td className={cellClass}>{item.valueType}</td><td className={cellClass}>{item.required ? '必須' : '任意'}</td></tr>)}</tbody></table>{action.argumentFields.length === 0 && <p className="p-4 text-sm text-myr-ink-subtle">引数はありません。</p>}</div>
           </section>
+          <section className="grid gap-3 border-t border-[#17151f]/12 pt-4" aria-labelledby="generic-rules-heading">
+            <div className="flex items-center justify-between gap-2"><div><h3 id="generic-rules-heading">Type generic action rules</h3><p className="text-sm text-[#5e596b]">このTypeをmixinする全Objectへ適用し、Object local ruleより低いsource rankで解決します。</p></div><Button size="sm" variant="secondary" onClick={() => replaceSelected({ ...selected, actionResults: [...(selected.actionResults ?? []), { code: `generic-${action.code}-${Date.now()}`, actionCode: action.code, fromStateCode: selected.stateFields[0]?.code ?? '', fromStateValue: selected.stateFields[0]?.defaultValue ?? '', priority: 100, note: '', effects: [{ kind: 'emit-fact', text: '' }] }] })}>generic ruleを追加</Button></div>
+            {genericRules.map((rule) => <div key={rule.code} className="grid gap-2 rounded-xl border border-[#17151f]/12 bg-[#fffef9]/80 p-3">
+              <div className="grid grid-cols-3 gap-2 max-md:grid-cols-1"><label>条件state<Input aria-label={`${action.label} generic rule condition state`} value={rule.fromStateCode} onChange={(event) => replaceSelected({ ...selected, actionResults: (selected.actionResults ?? []).map((item) => item.code === rule.code ? { ...item, fromStateCode: event.target.value } : item) })} /></label><label>条件値<Input aria-label={`${action.label} generic rule condition value`} value={rule.fromStateValue} onChange={(event) => replaceSelected({ ...selected, actionResults: (selected.actionResults ?? []).map((item) => item.code === rule.code ? { ...item, fromStateValue: event.target.value } : item) })} /></label><label>priority<Input aria-label={`${action.label} generic rule priority`} type="number" value={rule.priority} onChange={(event) => replaceSelected({ ...selected, actionResults: (selected.actionResults ?? []).map((item) => item.code === rule.code ? { ...item, priority: Number(event.target.value) } : item) })} /></label></div>
+              <label>authoring note<Input aria-label={`${action.label} generic rule note`} value={rule.note} onChange={(event) => replaceSelected({ ...selected, actionResults: (selected.actionResults ?? []).map((item) => item.code === rule.code ? { ...item, note: event.target.value } : item) })} /></label>
+              <label>確定fact<Input aria-label={`${action.label} generic rule fact`} value={rule.effects.find((effect) => effect.kind === 'emit-fact')?.text ?? ''} onChange={(event) => replaceSelected({ ...selected, actionResults: (selected.actionResults ?? []).map((item) => item.code === rule.code ? { ...item, effects: [{ kind: 'emit-fact', text: event.target.value }] } : item) })} /></label>
+              <Button size="sm" variant="text" onClick={() => replaceSelected({ ...selected, actionResults: (selected.actionResults ?? []).filter((item) => item.code !== rule.code) })}>generic ruleを削除</Button>
+            </div>)}
+          </section>
           <section className="grid gap-3 border-t border-[#17151f]/12 pt-4" aria-labelledby="object-rules-heading">
             <div><h3 id="object-rules-heading">オブジェクト別の実行ルール</h3><p className="text-sm text-[#5e596b]">この種類・このアクションに一致するObject個別ルールです。1ルールを1行で表示し、effectの順序は編集ペインで管理します。</p></div>
             {typeObjects.length === 0 ? <div className="rounded-xl border border-dashed border-[#17151f]/20 bg-[#17151f]/[.025] p-4"><strong>対象Objectがありません</strong><p className="mt-1 text-sm text-[#5e596b]">世界データでこの種類のObjectを登録すると、実行ルールを追加できます。</p><Button className="mt-3" size="sm" variant="secondary" disabled>実行ルールを追加</Button></div> : <>
@@ -210,7 +228,7 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
             </>}
           </section>
           <Button size="sm" variant="text" onClick={() => {
-            if (actionRules.length > 0) return onNotice(`このアクションは${actionRules.length}件の実行ルールから参照されています。先にルールを削除してください。`, true);
+            if (actionRules.length > 0 || genericRules.length > 0) return onNotice(`このアクションは${actionRules.length}件の実行ルールから参照されています。先にルールを削除してください。`, true);
             replaceSelected({ ...selected, actions: selected.actions.filter((_, index) => index !== actionIndex) });
             setNestedEditor(null);
           }}>このアクションを削除</Button>

@@ -6,7 +6,7 @@ using Myriale.Api.Data;
 namespace Myriale.Api.Services;
 
 public sealed record ScenarioRuleWorld(Session Session, ScenarioDefinitionVersion Definition, IReadOnlyList<SessionObjectState> States);
-public sealed record ScenarioRuleResolution(ScenarioObjectActionRule? Rule, IReadOnlyList<RuleAppliedEffect> Effects, IReadOnlyList<string> Facts, IReadOnlyList<JsonElement> Events, IReadOnlyList<string> Hints, IReadOnlyList<string> ForbiddenFacts);
+public sealed record ScenarioRuleResolution(ResolvedScenarioRule? Rule, IReadOnlyList<RuleAppliedEffect> Effects, IReadOnlyList<string> Facts, IReadOnlyList<JsonElement> Events, IReadOnlyList<string> Hints, IReadOnlyList<string> ForbiddenFacts);
 
 public sealed class ScenarioRuleEvaluator
 {
@@ -56,7 +56,7 @@ public sealed class ScenarioRuleEvaluator
     private static decimal Number(JsonNode? node) => node is JsonValue value && value.TryGetValue<decimal>(out var number) ? number : decimal.MinValue;
 }
 
-public sealed class ScenarioPublicProjector
+public sealed class ScenarioPublicProjector(ScenarioRuleConfigurationResolver resolver)
 {
     public JsonElement Project(ScenarioObjectType type, string stateJson)
     {
@@ -68,9 +68,18 @@ public sealed class ScenarioPublicProjector
                 if (item.GetString() is { } name && state[name] is { } value) result[name] = value.DeepClone();
         return JsonSerializer.SerializeToElement(result);
     }
+
+    public JsonElement Project(ScenarioDefinitionVersion definition, ScenarioObject item, string stateJson)
+    {
+        var state = JsonNode.Parse(stateJson) as JsonObject ?? [];
+        var resolved = resolver.Resolve(definition, item);
+        var result = new JsonObject();
+        foreach (var name in resolved.PublicFields) if (state[name] is { } value) result[name] = value.DeepClone();
+        return JsonSerializer.SerializeToElement(result);
+    }
 }
 
-public sealed class ScenarioActionEnumerator(ScenarioRuleEvaluator evaluator, ScenarioPublicProjector projector)
+public sealed class ScenarioActionEnumerator(ScenarioRuleEvaluator evaluator, ScenarioPublicProjector projector, ScenarioRuleConfigurationResolver resolver)
 {
     public RuleActionSnapshot Enumerate(ScenarioRuleWorld world, string snapshotId)
     {
@@ -85,18 +94,20 @@ public sealed class ScenarioActionEnumerator(ScenarioRuleEvaluator evaluator, Sc
         var objects = visibleStates.Select(state =>
         {
             var item = definitionObjects[state.ScenarioObjectId];
-            return new RulePublicObject(item.Id, item.Code, item.Name, state.LocationId, item.IsGlobal, state.Revision, projector.Project(item.ObjectType, state.StateJson));
+            return new RulePublicObject(item.Id, item.Code, item.Name, state.LocationId, item.IsGlobal, state.Revision, projector.Project(world.Definition, item, state.StateJson));
         }).ToList();
         var actions = new List<RulePublicAction>();
         foreach (var state in visibleStates)
         {
             var item = definitionObjects[state.ScenarioObjectId];
             var stateObject = JsonNode.Parse(state.StateJson) as JsonObject ?? [];
-            foreach (var action in item.ObjectType.Actions.Where(action => action.Visibility == "ai-choice"))
+            var configuration = resolver.Resolve(world.Definition, item);
+            if (configuration.Conflicts.Count > 0) throw new ScenarioTurnValidationException("invalid_rule_configuration");
+            foreach (var action in configuration.Actions.Where(action => action.Visibility == "ai-choice"))
             {
                 using var emptyArguments = JsonDocument.Parse("{}");
                 var enabled = evaluator.Evaluate(action.AvailabilityConditionJson, stateObject, flags, emptyArguments.RootElement)
-                    && item.ActionRules.Any(rule => rule.ObjectTypeActionId == action.Id && evaluator.Evaluate(rule.ConditionJson, stateObject, flags, emptyArguments.RootElement));
+                    && configuration.Rules.Any(rule => rule.ActionCode == action.Code && evaluator.Evaluate(rule.ConditionJson, stateObject, flags, emptyArguments.RootElement));
                 actions.Add(new(item.Id, action.Id, action.Code, action.Label, action.Description, Parse(action.ArgumentSchemaJson), enabled));
             }
         }
@@ -109,20 +120,22 @@ public sealed class ScenarioActionEnumerator(ScenarioRuleEvaluator evaluator, Sc
     private static JsonElement Parse(string json) { using var document = JsonDocument.Parse(json); return document.RootElement.Clone(); }
 }
 
-public sealed class ScenarioEffectApplier(ScenarioRuleEvaluator evaluator, ScenarioPublicProjector projector)
+public sealed class ScenarioEffectApplier(ScenarioRuleEvaluator evaluator, ScenarioPublicProjector projector, ScenarioRuleConfigurationResolver resolver)
 {
     public ScenarioRuleResolution ResolveAndApply(ScenarioRuleWorld world, RuleActionDecisionResult decision)
     {
         if (decision.ObjectId == "system") return new(null, [], [], [], [], []);
         var state = world.States.Single(item => item.ScenarioObjectId == decision.ObjectId);
         var item = world.Definition.Objects.Single(objectItem => objectItem.Id == decision.ObjectId);
-        var action = item.ObjectType.Actions.Single(typeAction => typeAction.Id == decision.ActionId);
+        var configuration = resolver.Resolve(world.Definition, item);
+        if (configuration.Conflicts.Count > 0) throw new ScenarioTurnValidationException("invalid_rule_configuration");
+        var action = configuration.Actions.Single(typeAction => typeAction.Id == decision.ActionId);
         var stateObject = JsonNode.Parse(state.StateJson) as JsonObject ?? [];
         var flags = JsonSerializer.Deserialize<Dictionary<string, bool>>(world.Session.State.FlagsJson) ?? [];
-        var matches = item.ActionRules.Where(rule => rule.ObjectTypeActionId == action.Id && evaluator.Evaluate(rule.ConditionJson, stateObject, flags, decision.Arguments))
-            .OrderByDescending(rule => rule.Priority).ToList();
+        var matches = configuration.Rules.Where(rule => rule.ActionCode == action.Code && evaluator.Evaluate(rule.ConditionJson, stateObject, flags, decision.Arguments))
+            .OrderByDescending(rule => rule.Priority).ThenByDescending(rule => rule.SourceRank).ToList();
         if (matches.Count == 0) throw new ScenarioTurnValidationException("action_no_longer_available");
-        if (matches.Count > 1 && matches[0].Priority == matches[1].Priority) throw new ScenarioTurnValidationException("ambiguous_action_rule");
+        if (matches.Count > 1 && matches[0].Priority == matches[1].Priority && matches[0].SourceRank == matches[1].SourceRank) throw new ScenarioTurnValidationException("ambiguous_action_rule");
         var rule = matches[0];
         using var effectsDocument = JsonDocument.Parse(rule.EffectsJson);
         var effects = effectsDocument.RootElement.EnumerateArray().Select(effect => effect.Clone()).ToList();
@@ -244,7 +257,7 @@ public sealed class ScenarioEffectApplier(ScenarioRuleEvaluator evaluator, Scena
     {
         var location = world.Definition.Locations.Single(item => item.Id == world.Session.CurrentLocationId);
         var objects = world.States.Where(state => state.LocationId == world.Session.CurrentLocationId || state.ScenarioObject.IsGlobal)
-            .Select(state => new RulePublicObject(state.ScenarioObjectId, state.ScenarioObject.Code, state.ScenarioObject.Name, state.LocationId, state.ScenarioObject.IsGlobal, state.Revision, projector.Project(state.ScenarioObject.ObjectType, state.StateJson))).ToList();
+            .Select(state => new RulePublicObject(state.ScenarioObjectId, state.ScenarioObject.Code, state.ScenarioObject.Name, state.LocationId, state.ScenarioObject.IsGlobal, state.Revision, projector.Project(world.Definition, state.ScenarioObject, state.StateJson))).ToList();
         var flags = JsonSerializer.Deserialize<Dictionary<string, bool>>(world.Session.State.FlagsJson) ?? [];
         return new("rule-post-state.v1", new(location.Id, location.Code, location.Name, location.Description), objects, flags, world.Session.State.Revision);
     }

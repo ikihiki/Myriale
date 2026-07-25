@@ -41,6 +41,7 @@ public sealed class ScenarioObjectType
     public string StateSchemaJson { get; set; } = "{}";
     public string DefaultStateJson { get; set; } = "{}";
     public string PublicProjectionJson { get; set; } = "{}";
+    public string GenericActionRulesJson { get; set; } = "[]";
     public ICollection<ScenarioObjectTypeAction> Actions { get; set; } = [];
 }
 
@@ -70,6 +71,12 @@ public sealed class ScenarioObject
     [Required] public string LocationId { get; set; } = string.Empty;
     public ScenarioLocation Location { get; set; } = null!;
     public string InitialStateOverrideJson { get; set; } = "{}";
+    public string MixinTypeCodesJson { get; set; } = string.Empty;
+    public string LocalStateSchemaJson { get; set; } = "{}";
+    public string LocalDefaultStateJson { get; set; } = "{}";
+    public string LocalPublicProjectionJson { get; set; } = "{}";
+    public string LocalActionsJson { get; set; } = "[]";
+    public string LocalActionRulesJson { get; set; } = "[]";
     public bool IsGlobal { get; set; }
     public ICollection<ScenarioObjectActionRule> ActionRules { get; set; } = [];
 }

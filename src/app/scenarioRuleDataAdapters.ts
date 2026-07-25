@@ -77,6 +77,7 @@ function typeFromCanonical(type: CanonicalScenarioObjectTypeDto): ScenarioObject
       _canonical: asObject(schema),
     })),
     actions: type.actions.map(actionFromCanonical),
+    actionResults: (type.actionRules ?? []).map((rule, index) => ruleFromCanonical(rule, `type-${type.code}-${index + 1}`)),
     _canonical: type,
   };
 }
@@ -113,6 +114,19 @@ function effectFromCanonical(effectValue: ScenarioJsonValue): ScenarioRuleEffect
   return { kind: 'unsupported', type: typeof effect.type === 'string' ? effect.type : 'unknown', _canonical: effect };
 }
 
+function ruleFromCanonical(rule: CanonicalScenarioActionRuleDto, code: string): ScenarioObjectActionResultPayload {
+  return {
+    code,
+    actionCode: rule.actionCode,
+    fromStateCode: conditionStateCode(rule.condition),
+    fromStateValue: scalarToString(rule.condition.value),
+    priority: rule.priority,
+    note: rule.authoringNote ?? '',
+    effects: rule.effects.map(effectFromCanonical),
+    _canonical: rule,
+  };
+}
+
 export function canonicalRuleDataToForm(response: CanonicalScenarioRuleDataResponse): ScenarioRuleDataPayload {
   return {
     schemaVersion: 1,
@@ -129,19 +143,13 @@ export function canonicalRuleDataToForm(response: CanonicalScenarioRuleDataRespo
       code: object.code,
       name: object.name,
       objectTypeCode: object.objectTypeCode,
+      mixinTypeCodes: object.mixinTypeCodes ?? (object.objectTypeCode ? [object.objectTypeCode] : []),
       initialLocationCode: object.locationCode,
       global: object.isGlobal,
+      stateFields: typeFromCanonical({ code: object.code, name: object.name, description: null, schemaVersion: 1, stateSchema: object.stateSchema ?? {}, defaultState: object.defaultState ?? {}, publicProjection: object.publicProjection ?? {}, actions: object.actions ?? [] }).stateFields,
+      actions: (object.actions ?? []).map(actionFromCanonical),
       initialStateOverrides: Object.entries(object.initialStateOverride).map(([stateCode, value]) => ({ stateCode, value: scalarToString(value) })),
-      actionResults: object.actionRules.map((rule, index) => ({
-        code: `rule-${object.code}-${index + 1}`,
-        actionCode: rule.actionCode,
-        fromStateCode: conditionStateCode(rule.condition),
-        fromStateValue: scalarToString(rule.condition.value),
-        priority: rule.priority,
-        note: rule.authoringNote ?? '',
-        effects: rule.effects.map(effectFromCanonical),
-        _canonical: rule,
-      })),
+      actionResults: object.actionRules.map((rule, index) => ruleFromCanonical(rule, `rule-${object.code}-${index + 1}`)),
       _canonical: object,
     })),
   };
@@ -152,7 +160,10 @@ function typeByCode(ruleData: ScenarioRuleDataPayload, code: string) {
 }
 
 function stateValue(ruleData: ScenarioRuleDataPayload, objectTypeCode: string, stateCode: string, value: string) {
-  const state = typeByCode(ruleData, objectTypeCode)?.stateFields.find((field) => field.code === stateCode);
+  const object = ruleData.objects.find((candidate) => candidate.objectTypeCode === objectTypeCode || candidate.code === objectTypeCode);
+  const state = (object?.stateFields ?? []).find((field) => field.code === stateCode)
+    ?? (object?.mixinTypeCodes ?? []).map((code) => typeByCode(ruleData, code)?.stateFields.find((field) => field.code === stateCode)).find(Boolean)
+    ?? typeByCode(ruleData, objectTypeCode)?.stateFields.find((field) => field.code === stateCode);
   return parseValue(value, state?.valueType ?? 'string');
 }
 
@@ -253,15 +264,21 @@ export function formRuleDataToCanonical(ruleData: ScenarioRuleDataPayload): Cano
       defaultState: Object.fromEntries(type.stateFields.map((field) => [field.code, parseValue(field.defaultValue, field.valueType)])),
       publicProjection: { ...(type._canonical?.publicProjection ?? {}), include: type.stateFields.filter((field) => field.visibility === 'public').map((field) => field.code) },
       actions: type.actions.map((action) => actionToCanonical(action, type)),
+      actionRules: (type.actionResults ?? []).map((rule) => ruleToCanonical(rule, ruleData, type.code)),
     })),
     objects: ruleData.objects.map((object) => ({
       code: object.code,
       name: object.name,
-      objectTypeCode: object.objectTypeCode,
+      objectTypeCode: (object.mixinTypeCodes ?? (object.objectTypeCode ? [object.objectTypeCode] : []))[0] ?? '',
+      mixinTypeCodes: object.mixinTypeCodes ?? (object.objectTypeCode ? [object.objectTypeCode] : []),
       locationCode: object.initialLocationCode,
-      initialStateOverride: Object.fromEntries(object.initialStateOverrides.map((item) => [item.stateCode, stateValue(ruleData, object.objectTypeCode, item.stateCode, item.value)])),
+      stateSchema: { type: 'object', additionalProperties: false, properties: Object.fromEntries((object.stateFields ?? []).map((field) => [field.code, { ...field._canonical, type: field.valueType, title: field.label }])), required: (object.stateFields ?? []).map((field) => field.code) },
+      defaultState: Object.fromEntries((object.stateFields ?? []).map((field) => [field.code, parseValue(field.defaultValue, field.valueType)])),
+      publicProjection: { include: (object.stateFields ?? []).filter((field) => field.visibility === 'public').map((field) => field.code) },
+      actions: (object.actions ?? []).map((action) => actionToCanonical(action, { code: object.code, name: object.name, description: '', schemaVersion: 1, stateFields: object.stateFields ?? [], actions: object.actions ?? [], actionResults: [] })),
+      initialStateOverride: Object.fromEntries(object.initialStateOverrides.map((item) => [item.stateCode, stateValue(ruleData, object.code, item.stateCode, item.value)])),
       isGlobal: object.global,
-      actionRules: object.actionResults.map((rule) => ruleToCanonical(rule, ruleData, object.objectTypeCode)),
+      actionRules: object.actionResults.map((rule) => ruleToCanonical(rule, ruleData, object.code)),
     })),
   };
 }

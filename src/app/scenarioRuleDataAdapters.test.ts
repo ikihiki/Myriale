@@ -92,4 +92,29 @@ describe('scenario rule-data adapters', () => {
     ]);
     expect(formRuleDataToCanonical(form).objects[0].actionRules[0].effects).toEqual(fixture.objects[0].actionRules[0].effects);
   });
+
+  it('round-trips ordered mixins, Object local configuration, and Type generic rules', () => {
+    const fixture = structuredClone(canonicalFixture);
+    fixture.schemaVersion = 2;
+    fixture.objectTypes.push({
+      code: 'exit', name: '出口', description: '', schemaVersion: 1,
+      stateSchema: { type: 'object', additionalProperties: false, properties: {} }, defaultState: {}, publicProjection: { include: [] },
+      actions: [{ code: 'leave', label: '出る', description: '', argumentSchema: {}, availabilityCondition: {}, visibility: 'ai-choice', executionMode: 'rule' }],
+      actionRules: [{ actionCode: 'leave', condition: {}, priority: 10, authoringNote: 'generic', effects: [{ type: 'emit-fact', text: '外へ出た' }], moduleBinding: null }],
+    });
+    fixture.objects[0] = {
+      ...fixture.objects[0], objectTypeCode: 'door', mixinTypeCodes: ['door', 'exit'],
+      stateSchema: { type: 'object', additionalProperties: false, properties: { direction: { type: 'string', title: '方向' } } },
+      defaultState: { direction: 'north' }, publicProjection: { include: ['direction'] },
+      actions: [{ code: 'inspect', label: '調べる', description: '', argumentSchema: {}, availabilityCondition: {}, visibility: 'ai-choice', executionMode: 'rule' }],
+    };
+
+    const request = formRuleDataToCanonical(canonicalRuleDataToForm(fixture));
+
+    expect(request.schemaVersion).toBe(2);
+    expect(request.objects[0].mixinTypeCodes).toEqual(['door', 'exit']);
+    expect(request.objects[0].defaultState).toEqual({ direction: 'north' });
+    expect(request.objects[0].actions?.[0].code).toBe('inspect');
+    expect(request.objectTypes[1].actionRules?.[0].authoringNote).toBe('generic');
+  });
 });

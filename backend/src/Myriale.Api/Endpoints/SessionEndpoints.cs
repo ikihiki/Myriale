@@ -62,6 +62,7 @@ public static class SessionEndpoints
         ClaimsPrincipal principal,
         ApplicationDbContext db,
         IModuleExecutionService executions,
+        ScenarioRuleConfigurationResolver ruleResolver,
         CancellationToken cancellationToken)
     {
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -103,7 +104,9 @@ public static class SessionEndpoints
 
         var definition = await db.ScenarioDefinitionVersions.AsNoTracking()
             .Include(version => version.Locations)
+            .Include(version => version.ObjectTypes).ThenInclude(type => type.Actions)
             .Include(version => version.Objects).ThenInclude(item => item.ObjectType)
+            .Include(version => version.Objects).ThenInclude(item => item.ActionRules).ThenInclude(rule => rule.ObjectTypeAction)
             .Where(version => version.ScenarioId == request.ScenarioId && version.Status == "published")
             .OrderByDescending(version => version.Version)
             .FirstOrDefaultAsync(cancellationToken);
@@ -172,9 +175,9 @@ public static class SessionEndpoints
         };
         foreach (var scenarioObject in definition.Objects)
         {
-            var state = JsonNode.Parse(scenarioObject.ObjectType.DefaultStateJson) as JsonObject ?? [];
-            var overrides = JsonNode.Parse(scenarioObject.InitialStateOverrideJson) as JsonObject ?? [];
-            foreach (var property in overrides) state[property.Key] = property.Value?.DeepClone();
+            var configuration = ruleResolver.Resolve(definition, scenarioObject);
+            if (configuration.Conflicts.Count > 0) return Results.Conflict(new SessionErrorResponse("invalid_rule_configuration", string.Join("; ", configuration.Conflicts)));
+            var state = ruleResolver.InitialState(definition, scenarioObject);
             session.ObjectStates.Add(new SessionObjectState
             {
                 Id = $"SOS-{Guid.NewGuid():N}".ToUpperInvariant(), ScenarioObjectId = scenarioObject.Id,
@@ -262,6 +265,7 @@ public static class SessionEndpoints
         ApplicationDbContext db,
         IModuleExecutionService executions,
         IHostEnvironment environment,
+        ScenarioRuleConfigurationResolver ruleResolver,
         CancellationToken cancellationToken)
     {
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -292,10 +296,15 @@ public static class SessionEndpoints
         var objectStates = await db.SessionObjectStates.AsNoTracking()
             .Include(item => item.ScenarioObject).ThenInclude(item => item.ObjectType)
             .Where(item => item.SessionId == sessionId).OrderBy(item => item.ScenarioObject.Code).ToListAsync(cancellationToken);
-        var publicProjector = new ScenarioPublicProjector();
+        var definition = await db.ScenarioDefinitionVersions.AsNoTracking()
+            .Include(version => version.ObjectTypes).ThenInclude(type => type.Actions)
+            .Include(version => version.Objects).ThenInclude(item => item.ActionRules).ThenInclude(rule => rule.ObjectTypeAction)
+            .SingleAsync(version => version.Id == session.ScenarioDefinitionVersionId, cancellationToken);
+        var publicProjector = new ScenarioPublicProjector(ruleResolver);
+        var objectsById = definition.Objects.ToDictionary(item => item.Id);
         var objectStateResponses = objectStates.Select(item => new SessionObjectStateResponse(
             item.ScenarioObjectId, item.ScenarioObject.Code, item.ScenarioObject.Name, item.LocationId, item.ScenarioObject.IsGlobal,
-            item.Revision, publicProjector.Project(item.ScenarioObject.ObjectType, item.StateJson))).ToList();
+            item.Revision, publicProjector.Project(definition, objectsById[item.ScenarioObjectId], item.StateJson))).ToList();
         var ruleSteps = (await db.SessionRuleActionSteps.AsNoTracking().Where(item => item.SessionId == sessionId).ToListAsync(cancellationToken)).OrderBy(item => item.CreatedAt).ToList();
         var ruleStepResponses = ruleSteps.Select(item => new SessionRuleActionStepResponse(
             item.Id, item.ExecutionId, item.Stage, ScenarioTurnSchemas.ActionStep,

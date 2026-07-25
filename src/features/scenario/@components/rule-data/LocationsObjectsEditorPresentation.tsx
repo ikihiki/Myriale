@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import { Button, Input, Textarea } from '../../../../components/ui';
 import { EditPane } from '../../../../shared/EditPane';
+import { ObjectActionRuleEditorPresentation } from './ObjectActionRuleEditorPresentation';
+import { RuleConfigurationEditorPresentation } from './RuleConfigurationEditorPresentation';
 import { MyrialeSelect } from '../../../../ui/MyrialeRadix';
 import {
   createLocation,
   createObject,
+  createActionResult,
   dependencyMessageForLocation,
+  resolvedObjectConfiguration,
   type ScenarioRuleData,
 } from './scenarioRuleDataModel';
 
@@ -17,10 +21,12 @@ const cellClass = 'border-b border-[#17151f]/10 px-3 py-3 align-middle';
 
 export function LocationsObjectsEditorPresentation({ value, onChange, onNotice }: Props) {
   const [editing, setEditing] = useState<EditingEntity>(null);
+  const [editingRule, setEditingRule] = useState<{ actionCode: string; resultCode: string } | null>(null);
   const locationIndex = editing?.kind === 'location' ? value.locations.findIndex((item) => item.code === editing.code) : -1;
   const objectIndex = editing?.kind === 'object' ? value.objects.findIndex((item) => item.code === editing.code) : -1;
   const location = value.locations[locationIndex];
   const object = value.objects[objectIndex];
+  const resolved = object ? resolvedObjectConfiguration(value, object) : null;
 
   const replaceLocation = (next: typeof location) => {
     if (!next || locationIndex < 0) return;
@@ -78,10 +84,31 @@ export function LocationsObjectsEditorPresentation({ value, onChange, onNotice }
         {object && <div className={editorClass}>
           <label>stable code<Input aria-label="オブジェクトのstable code" value={object.code} onChange={(event) => { const code = event.target.value; replaceObject({ ...object, code }); setEditing({ kind: 'object', code }); }} /></label>
           <label>表示名<Input aria-label="オブジェクトの表示名" value={object.name} onChange={(event) => replaceObject({ ...object, name: event.target.value })} /></label>
-          <MyrialeSelect label="オブジェクト種類" value={object.objectTypeCode} onValueChange={(objectTypeCode) => replaceObject({ ...object, objectTypeCode, initialStateOverrides: [], actionResults: [] })} options={value.objectTypes.map((type) => ({ value: type.code, label: `${type.name} / ${type.code}` }))} />
+          <section aria-label="ordered Type mixins" className="grid gap-2 rounded-xl border border-[#17151f]/12 p-3">
+            <strong>ordered Type mixins</strong>
+            {(object.mixinTypeCodes ?? (object.objectTypeCode ? [object.objectTypeCode] : [])).map((code, index, codes) => <div key={`${code}-${index}`} className="flex items-center gap-2 rounded-lg bg-white/70 p-2">
+              <span className="min-w-0 flex-1">{value.objectTypes.find((type) => type.code === code)?.name ?? code} {index === 0 && <b className="ml-2 rounded-full bg-[#9b6cff]/15 px-2 py-0.5 text-xs">primary</b>}</span>
+              <Button size="sm" variant="text" disabled={index === 0} onClick={() => { const next = [...codes]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; replaceObject({ ...object, mixinTypeCodes: next, objectTypeCode: next[0] ?? '' }); }}>↑</Button>
+              <Button size="sm" variant="text" disabled={index === codes.length - 1} onClick={() => { const next = [...codes]; [next[index + 1], next[index]] = [next[index], next[index + 1]]; replaceObject({ ...object, mixinTypeCodes: next, objectTypeCode: next[0] ?? '' }); }}>↓</Button>
+              <Button size="sm" variant="text" onClick={() => { const next = codes.filter((_, itemIndex) => itemIndex !== index); replaceObject({ ...object, mixinTypeCodes: next, objectTypeCode: next[0] ?? '' }); }}>削除</Button>
+            </div>)}
+            <MyrialeSelect label="Type mixinを追加" value="" onValueChange={(code) => { const current = object.mixinTypeCodes ?? (object.objectTypeCode ? [object.objectTypeCode] : []); if (!current.includes(code)) { const next = [...current, code]; replaceObject({ ...object, mixinTypeCodes: next, objectTypeCode: next[0] ?? '' }); } }} options={value.objectTypes.filter((type) => !(object.mixinTypeCodes ?? [object.objectTypeCode]).includes(type.code)).map((type) => ({ value: type.code, label: `${type.name} / ${type.code}` }))} />
+            <span className="text-xs text-myr-ink-subtle">legacy objectTypeCode: {(object.mixinTypeCodes ?? [object.objectTypeCode])[0] || 'なし'}</span>
+          </section>
           <label className="!grid-cols-[1fr_auto] items-center"><span>すべての場所で公開</span><input type="checkbox" aria-label="globalオブジェクト" checked={object.global} onChange={(event) => replaceObject({ ...object, global: event.target.checked })} /></label>
           {!object.global && <MyrialeSelect label="初期配置" value={object.initialLocationCode} onValueChange={(initialLocationCode) => replaceObject({ ...object, initialLocationCode })} options={value.locations.map((item) => ({ value: item.code, label: `${item.name} / ${item.code}` }))} />}
-          <div className="grid gap-2 rounded-xl border border-[#17151f]/12 bg-[#fffef9]/80 p-3"><strong>初期状態override</strong>{(value.objectTypes.find((type) => type.code === object.objectTypeCode)?.stateFields ?? []).map((field) => { const override = object.initialStateOverrides.find((item) => item.stateCode === field.code); return <label key={field.code}>{field.label}<Input aria-label={`${field.label}の初期override`} placeholder={`default: ${field.defaultValue}`} value={override?.value ?? ''} onChange={(event) => replaceObject({ ...object, initialStateOverrides: [...object.initialStateOverrides.filter((item) => item.stateCode !== field.code), ...(event.target.value ? [{ stateCode: field.code, value: event.target.value }] : [])] })} /></label>; })}</div>
+          <div className="grid gap-2 rounded-xl border border-[#17151f]/12 bg-[#fffef9]/80 p-3"><strong>初期状態override</strong>{(resolved?.stateFields ?? []).map((field) => { const override = object.initialStateOverrides.find((item) => item.stateCode === field.code); return <label key={field.code}>{field.label}<Input aria-label={`${field.label}の初期override`} placeholder={`default: ${field.defaultValue}`} value={override?.value ?? ''} onChange={(event) => replaceObject({ ...object, initialStateOverrides: [...object.initialStateOverrides.filter((item) => item.stateCode !== field.code), ...(event.target.value ? [{ stateCode: field.code, value: event.target.value }] : [])] })} /></label>; })}</div>
+          <RuleConfigurationEditorPresentation label="Object local configuration" stateFields={object.stateFields ?? []} actions={object.actions ?? []} onChange={(configuration) => replaceObject({ ...object, ...configuration })} />
+          <section aria-label="解決済み設定preview" className="grid gap-2 rounded-xl border border-[#17151f]/12 bg-white/70 p-3"><strong>解決済み設定 preview</strong>
+            {(resolved?.conflicts ?? []).map((conflict) => <p key={conflict} role="alert" className="text-sm text-[#a8324a]">衝突: {conflict}</p>)}
+            {(resolved?.stateFields ?? []).map((field) => <p key={`state-${field.code}`} className="text-sm"><code>{field.code}</code> default={field.defaultValue} <span className="text-myr-ink-subtle">source: {field.source}</span></p>)}
+            {(resolved?.actions ?? []).map((action) => <p key={`action-${action.code}`} className="text-sm"><code>{action.code}</code> {action.label} <span className="text-myr-ink-subtle">source: {action.source}</span></p>)}
+          </section>
+          <section aria-label="Object action rules" className="grid gap-2 rounded-xl border border-[#17151f]/12 p-3"><strong>Object local action rules</strong>
+            <div className="flex flex-wrap gap-2">{(resolved?.actions ?? []).map((action) => <Button key={action.code} size="sm" variant="secondary" onClick={() => { const result = createActionResult(object, value, action.code); replaceObject({ ...object, actionResults: [...object.actionResults, result] }); setEditingRule({ actionCode: action.code, resultCode: result.code }); }}>{action.label}のruleを追加</Button>)}</div>
+            {object.actionResults.map((result) => <Button key={result.code} size="sm" variant="text" onClick={() => setEditingRule({ actionCode: result.actionCode, resultCode: result.code })}>{result.actionCode} / priority {result.priority}</Button>)}
+            {editingRule && <ObjectActionRuleEditorPresentation value={value} objectCode={object.code} actionCode={editingRule.actionCode} resultCode={editingRule.resultCode} onChange={onChange} onDelete={() => { replaceObject({ ...object, actionResults: object.actionResults.filter((result) => result.code !== editingRule.resultCode) }); setEditingRule(null); }} />}
+          </section>
           <Button size="sm" variant="text" onClick={removeObject}>このオブジェクトを削除</Button>
         </div>}
       </EditPane>

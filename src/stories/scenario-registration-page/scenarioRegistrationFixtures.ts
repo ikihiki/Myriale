@@ -46,19 +46,30 @@ export const westDoorAuthoringFixture: ScenarioRuleDataPayload = {
     { code: 'outside', name: '研究施設の外', description: '冷たい夜風が吹く屋外。', atmosphere: '星空と夜風', danger: '' },
   ],
   objectTypes: [{
+    code: 'openable',
+    name: '開閉可能',
+    description: '開閉状態を提供するmixin。',
+    schemaVersion: 1,
+    stateFields: [{ code: 'open', label: '開いている', valueType: 'boolean', defaultValue: 'false', visibility: 'public' }],
+    actions: [{ code: 'open', label: '開ける', description: '対象を開く。', visibility: 'ai-choice', availability: 'state-equals', availabilityStateCode: 'open', argumentFields: [] }],
+    actionResults: [{ code: 'generic-open', actionCode: 'open', fromStateCode: 'open', fromStateValue: 'false', priority: 100, note: 'Type generic rule', effects: [{ kind: 'set-state', targetObjectCode: '', stateCode: 'open', value: 'true' }] }],
+  }, {
     code: 'exit-door',
     name: '出口の扉',
     description: '開閉状態を持ち、外へ出るための扉。',
     schemaVersion: 1,
-    stateFields: [{ code: 'open', label: '開いている', valueType: 'boolean', defaultValue: 'false', visibility: 'public' }],
+    stateFields: [],
     actions: [{ code: 'open-and-exit', label: '扉を開けて外へ出る', description: '扉を開き、そのまま屋外へ移動する。', visibility: 'ai-choice', availability: 'state-equals', availabilityStateCode: 'open', argumentFields: [] }],
   }],
   objects: [{
     code: 'west-door',
     name: '西の扉',
-    objectTypeCode: 'exit-door',
+    objectTypeCode: 'openable',
+    mixinTypeCodes: ['openable', 'exit-door'],
     initialLocationCode: 'inside',
     global: false,
+    stateFields: [{ code: 'direction', label: '方向', valueType: 'string', defaultValue: 'west', visibility: 'public' }],
+    actions: [{ code: 'inspect-exit', label: '出口を確認する', description: '出口の様子を確認するObject local action。', visibility: 'ai-choice', availability: 'always', availabilityStateCode: '', argumentFields: [] }],
     initialStateOverrides: [],
     actionResults: [{
       code: 'west-open-and-exit',
@@ -77,6 +88,9 @@ export const westDoorAuthoringFixture: ScenarioRuleDataPayload = {
         { kind: 'forbid-narrative-fact', text: 'まだ室内にいる' },
         { kind: 'forbid-narrative-fact', text: '扉は閉じたまま' },
       ],
+    }, {
+      code: 'west-inspect-exit', actionCode: 'inspect-exit', fromStateCode: 'direction', fromStateValue: 'west', priority: 90,
+      note: 'Object local actionをObject local ruleで処理する。', effects: [{ kind: 'emit-fact', text: '西の扉は屋外への出口だ。' }],
     }],
   }],
 };

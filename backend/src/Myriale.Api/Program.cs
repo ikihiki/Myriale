@@ -46,6 +46,7 @@ builder.Services.AddScoped<IActionRecommendationGenerator>(services =>
 builder.Services.AddScoped<SessionScenarioProgressionService>();
 builder.Services.AddScoped<ScenarioDefinitionAuthoringService>();
 builder.Services.AddScoped<ScenarioRuleEvaluator>();
+builder.Services.AddScoped<ScenarioRuleConfigurationResolver>();
 builder.Services.AddScoped<ScenarioPublicProjector>();
 builder.Services.AddScoped<ScenarioActionEnumerator>();
 builder.Services.AddScoped<ScenarioEffectApplier>();
@@ -207,6 +208,7 @@ using (var scope = app.Services.CreateScope())
     }
 
     await db.Database.EnsureCreatedAsync();
+    await ScenarioRuleSchemaUpgrade.ApplyAsync(db);
 
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
     var developmentSeedUser = await AccountSeedData.SeedAsync(userManager, app.Configuration);

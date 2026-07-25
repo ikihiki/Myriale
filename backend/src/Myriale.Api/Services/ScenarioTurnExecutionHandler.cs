@@ -89,7 +89,7 @@ public sealed class ScenarioTurnExecutionHandler(
                         world.Session.OwnerId,
                         execution.SessionId,
                         decision.ObjectId,
-                        boundObject.ObjectTypeId,
+                        resolution.Rule.SourceCode == "object" ? boundObject.ObjectTypeId : world.Definition.ObjectTypes.Single(type => type.Code == resolution.Rule.SourceCode).Id,
                         decision.ActionId,
                         resolution.Rule.Id,
                         moduleId,
@@ -178,7 +178,7 @@ public sealed class ScenarioTurnExecutionHandler(
         var definition = await db.ScenarioDefinitionVersions.Include(item => item.Locations)
             .Include(item => item.ObjectTypes).ThenInclude(type => type.Actions)
             .Include(item => item.Objects).ThenInclude(item => item.ObjectType).ThenInclude(type => type.Actions)
-            .Include(item => item.Objects).ThenInclude(item => item.ActionRules)
+            .Include(item => item.Objects).ThenInclude(item => item.ActionRules).ThenInclude(rule => rule.ObjectTypeAction)
             .SingleAsync(item => item.Id == session.ScenarioDefinitionVersionId && item.Status == "published", cancellationToken);
         var statesQuery = db.SessionObjectStates.Include(item => item.ScenarioObject).ThenInclude(item => item.ObjectType);
         var states = tracking ? await statesQuery.Where(item => item.SessionId == sessionId).ToListAsync(cancellationToken) : await statesQuery.AsNoTracking().Where(item => item.SessionId == sessionId).ToListAsync(cancellationToken);

@@ -40,6 +40,14 @@ test('西の扉seedの8 effectを表示・編集・並べ替え・保存でき�
   await openStory(page, 'ユーザーストーリー-scenario-registration--author-west-door-seed-with-eight-ordered-effects');
 
   await expect(page.getByTestId('scenario-notice')).toContainText('Draftとして保存しました', { timeout: 15_000 });
+  await page.getByRole('button', { name: '西の扉を編集' }).click();
+  const mixins = page.getByRole('region', { name: 'ordered Type mixins' });
+  await expect(mixins).toContainText('開閉可能');
+  await expect(mixins).toContainText('出口の扉');
+  await expect(mixins).toContainText('primary');
+  await expect(page.getByRole('region', { name: '解決済み設定preview' })).toContainText('source: Object local');
+  await expect(page.getByRole('region', { name: 'Object action rules' })).toContainText('inspect-exit');
+  await page.getByRole('button', { name: '編集を完了' }).click();
   await page.getByRole('button', { name: /^出口の扉を編集$/ }).click();
   await page.getByRole('button', { name: '扉を開けて外へ出るを編集' }).click();
   await page.getByRole('button', { name: '西の扉の実行ルールを編集' }).click();

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Button, Input, Textarea } from '../../../../components/ui';
 import { MyrialeSelect } from '../../../../ui/MyrialeRadix';
-import type { ScenarioRuleData, ScenarioRuleEffect } from './scenarioRuleDataModel';
+import { resolvedObjectConfiguration, type ScenarioRuleData, type ScenarioRuleEffect } from './scenarioRuleDataModel';
 
 type Props = { value: ScenarioRuleData; onChange: (value: ScenarioRuleData) => void };
 const cardClass = 'grid content-start gap-3 rounded-2xl border border-[#17151f]/15 bg-white/55 p-4 shadow-[0_12px_30px_rgba(23,21,31,.07)]';
@@ -36,7 +36,8 @@ export type ObjectActionRuleEditorProps = {
 export function ObjectActionRuleEditorPresentation({ value, objectCode, actionCode, resultCode, onChange, onDelete }: ObjectActionRuleEditorProps) {
   const objectIndex = value.objects.findIndex((item) => item.code === objectCode);
   const object = value.objects[objectIndex];
-  const type = value.objectTypes.find((item) => item.code === object?.objectTypeCode);
+  const configuration = object ? resolvedObjectConfiguration(value, object) : null;
+  const type = configuration ? { stateFields: configuration.stateFields, actions: configuration.actions } : undefined;
   const action = type?.actions.find((item) => item.code === actionCode);
   const resultIndex = object?.actionResults.findIndex((item) => item.code === resultCode) ?? -1;
   const result = object?.actionResults[resultIndex];

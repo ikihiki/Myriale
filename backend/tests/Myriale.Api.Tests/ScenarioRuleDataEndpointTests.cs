@@ -227,6 +227,45 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
         return json.GetProperty("id").GetString()!;
     }
 
+    [Fact]
+    public async Task V2_RoundTripsOrderedMixinsAndObjectLocalConfiguration()
+    {
+        var client = await CreateSignedInClientAsync();
+        var scenarioId = await CreateScenarioAsync(client);
+        var payload = ValidRuleData();
+        payload["schemaVersion"] = 2;
+        payload["objectTypes"]!.AsArray().Add(JsonNode.Parse("""
+          { "code":"exit", "name":"出口", "description":"", "schemaVersion":1,
+            "stateSchema":{"type":"object","additionalProperties":false,"properties":{"destination":{"type":"string"}}},
+            "defaultState":{"destination":"outside"}, "publicProjection":{"include":["destination"]},
+            "actions":[{"code":"leave","label":"出る","description":"","argumentSchema":{},"availabilityCondition":{},"visibility":"ai-choice","executionMode":"rule"}],
+            "actionRules":[{"actionCode":"leave","condition":{},"priority":10,"authoringNote":"generic","effects":[{"type":"emit-fact","text":"外へ出た"}],"moduleBinding":null}] }
+          """));
+        var item = payload["objects"]![0]!;
+        item["mixinTypeCodes"] = new JsonArray("door", "exit");
+        item["stateSchema"] = JsonNode.Parse("{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"direction\":{\"type\":\"string\"}}}");
+        item["defaultState"] = JsonNode.Parse("{\"direction\":\"north\"}");
+        item["publicProjection"] = JsonNode.Parse("{\"include\":[\"direction\"]}");
+        item["actions"] = JsonNode.Parse("[{\"code\":\"inspect\",\"label\":\"調べる\",\"description\":\"\",\"argumentSchema\":{},\"availabilityCondition\":{},\"visibility\":\"ai-choice\",\"executionMode\":\"rule\"}]");
+        item["actionRules"]!.AsArray().Add(JsonNode.Parse("{\"actionCode\":\"inspect\",\"condition\":{},\"priority\":20,\"authoringNote\":\"local\",\"effects\":[{\"type\":\"emit-fact\",\"text\":\"調べた\"}],\"moduleBinding\":null}"));
+
+        using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        var json = await saved.Content.ReadFromJsonAsync<JsonElement>();
+        var savedObject = json.GetProperty("objects")[0];
+        Assert.Equal(["door", "exit"], savedObject.GetProperty("mixinTypeCodes").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal("door", savedObject.GetProperty("objectTypeCode").GetString());
+        Assert.Equal("inspect", savedObject.GetProperty("actions")[0].GetProperty("code").GetString());
+        Assert.Contains(savedObject.GetProperty("actionRules").EnumerateArray(), rule => rule.GetProperty("actionCode").GetString() == "inspect");
+
+        using var published = await client.PostAsync($"/api/scenarios/{scenarioId}/rule-data/publish", null);
+        Assert.Equal(HttpStatusCode.OK, published.StatusCode);
+        using var cloned = await client.PostAsync($"/api/scenarios/{scenarioId}/rule-data/drafts", null);
+        Assert.Equal(HttpStatusCode.Created, cloned.StatusCode);
+        var clone = await cloned.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(["door", "exit"], clone.GetProperty("objects")[0].GetProperty("mixinTypeCodes").EnumerateArray().Select(value => value.GetString()));
+    }
+
     private static JsonNode ValidRuleData() => JsonNode.Parse("""
         {
           "schemaVersion": 1,

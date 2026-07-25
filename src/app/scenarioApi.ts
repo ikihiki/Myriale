@@ -32,6 +32,7 @@ export type CanonicalScenarioObjectTypeDto = {
   defaultState: ScenarioJsonObject;
   publicProjection: ScenarioJsonObject;
   actions: CanonicalScenarioActionDto[];
+  actionRules?: CanonicalScenarioActionRuleDto[];
 };
 
 export type CanonicalScenarioActionRuleDto = {
@@ -47,7 +48,12 @@ export type CanonicalScenarioObjectDto = {
   code: string;
   name: string;
   objectTypeCode: string;
+  mixinTypeCodes?: string[];
   locationCode: string;
+  stateSchema?: ScenarioJsonObject;
+  defaultState?: ScenarioJsonObject;
+  publicProjection?: ScenarioJsonObject;
+  actions?: CanonicalScenarioActionDto[];
   initialStateOverride: ScenarioJsonObject;
   isGlobal: boolean;
   actionRules: CanonicalScenarioActionRuleDto[];
@@ -104,6 +110,7 @@ export type ScenarioObjectTypePayload = {
   schemaVersion: 1;
   stateFields: ScenarioStateFieldPayload[];
   actions: ScenarioObjectTypeActionPayload[];
+  actionResults?: ScenarioObjectActionResultPayload[];
   _canonical?: CanonicalScenarioObjectTypeDto;
 };
 
@@ -142,15 +149,18 @@ export type ScenarioObjectPayload = {
   code: string;
   name: string;
   objectTypeCode: string;
+  mixinTypeCodes?: string[];
   initialLocationCode: string;
   global: boolean;
+  stateFields?: ScenarioStateFieldPayload[];
+  actions?: ScenarioObjectTypeActionPayload[];
   initialStateOverrides: Array<{ stateCode: string; value: string }>;
   actionResults: ScenarioObjectActionResultPayload[];
   _canonical?: CanonicalScenarioObjectDto;
 };
 
 export type ScenarioRuleDataPayload = {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   locations: ScenarioLocationPayload[];
   objectTypes: ScenarioObjectTypePayload[];
   objects: ScenarioObjectPayload[];

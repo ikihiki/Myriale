@@ -2,6 +2,8 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Myriale.Api.Data;
 
 namespace Myriale.Api.Tests;
 
@@ -27,6 +29,35 @@ public sealed class DatabaseInitializationTests : IDisposable
         await StartApiAsync(recreateOnStartup: false);
 
         Assert.Equal("restart-marker", await GetScenarioSummaryAsync());
+    }
+
+    [Fact]
+    public async Task AdditiveRuleSchemaUpgradeBackfillsLegacyPrimaryType()
+    {
+        var legacyPath = Path.Combine(Path.GetTempPath(), $"myriale-legacy-rule-schema-{Guid.NewGuid():N}.db");
+        try
+        {
+            await using (var connection = new SqliteConnection($"Data Source={legacyPath}"))
+            {
+                await connection.OpenAsync();
+                await using var command = connection.CreateCommand();
+                command.CommandText = """
+                    CREATE TABLE "ScenarioObjectTypes" ("Id" TEXT PRIMARY KEY, "Code" TEXT NOT NULL);
+                    CREATE TABLE "ScenarioObjects" ("Id" TEXT PRIMARY KEY, "ObjectTypeId" TEXT NOT NULL);
+                    INSERT INTO "ScenarioObjectTypes" ("Id", "Code") VALUES ('type-door', 'door');
+                    INSERT INTO "ScenarioObjects" ("Id", "ObjectTypeId") VALUES ('object-west', 'type-door');
+                    """;
+                await command.ExecuteNonQueryAsync();
+            }
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite($"Data Source={legacyPath}").Options;
+            await using (var db = new ApplicationDbContext(options)) await ScenarioRuleSchemaUpgrade.ApplyAsync(db);
+            await using var verify = new SqliteConnection($"Data Source={legacyPath}");
+            await verify.OpenAsync();
+            await using var query = verify.CreateCommand();
+            query.CommandText = "SELECT MixinTypeCodesJson FROM ScenarioObjects WHERE Id = 'object-west'";
+            Assert.Equal("[\"door\"]", (string)(await query.ExecuteScalarAsync())!);
+        }
+        finally { if (File.Exists(legacyPath)) File.Delete(legacyPath); }
     }
 
     [Fact]
