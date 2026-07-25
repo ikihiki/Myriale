@@ -32,7 +32,7 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
         draft = new ScenarioDefinitionVersion
         {
             Id = $"SDV-{Guid.NewGuid():N}", ScenarioId = scenarioId, Version = nextVersion,
-            Status = "draft", SchemaVersion = 1, CreatedAt = now, UpdatedAt = now,
+            Status = "draft", SchemaVersion = 2, CreatedAt = now, UpdatedAt = now,
         };
         db.ScenarioDefinitionVersions.Add(draft);
         await db.SaveChangesAsync(cancellationToken);
@@ -48,7 +48,7 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
             messages.Add(message);
         }
 
-        if (request.SchemaVersion is not (1 or 2)) Add("schemaVersion", "Schema version must be 1 or 2.");
+        if (request.SchemaVersion != 2) Add("schemaVersion", "Schema version must be 2.");
         var locations = request.Locations ?? [];
         var objectTypes = request.ObjectTypes ?? [];
         var objects = request.Objects ?? [];
@@ -98,7 +98,11 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
             var item = objects[i];
             if (string.IsNullOrWhiteSpace(item.Name)) Add($"objects[{i}].name", "Name is required.");
             if (!locationCodes.Contains(item.LocationCode)) Add($"objects[{i}].locationCode", "Referenced location does not exist.");
-            var mixinCodes = NormalizeMixinCodes(item);
+            if (item.MixinTypeCodes is null) Add($"objects[{i}].mixinTypeCodes", "Mixin type codes are required; use an empty array for Object-only configuration.");
+            if (item.Actions is null) Add($"objects[{i}].actions", "Object-local actions are required; use an empty array when none are defined.");
+            if (item.ActionRules is null) Add($"objects[{i}].actionRules", "Action rules are required; use an empty array when none are defined.");
+            var mixinCodes = (item.MixinTypeCodes ?? []).Select(code => code.Trim()).Where(code => code.Length > 0).ToList();
+            var localActions = item.Actions ?? [];
             if (mixinCodes.Count != mixinCodes.Distinct(StringComparer.Ordinal).Count()) Add($"objects[{i}].mixinTypeCodes", "Duplicate mixins are not allowed.");
             foreach (var code in mixinCodes.Where(code => !typesByCode.ContainsKey(code))) Add($"objects[{i}].mixinTypeCodes", $"Referenced object type '{code}' does not exist.");
             var resolvedTypes = mixinCodes.Where(typesByCode.ContainsKey).Select(code => typesByCode[code].item).ToList();
@@ -112,7 +116,9 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                 if (stateProperties.TryGetValue(property.Key, out var existing) && existing.GetRawText() != property.Value.GetRawText()) Add($"objects[{i}].stateSchema", $"State '{property.Key}' has an incompatible contract.");
                 else stateProperties[property.Key] = property.Value;
             ValidateStateObject(item.InitialStateOverride, stateProperties, $"objects[{i}].initialStateOverride", false, Add);
-            var actionContracts = resolvedTypes.SelectMany(type => type.Actions ?? []).Concat(item.Actions ?? []).GroupBy(action => action.Code, StringComparer.Ordinal);
+            foreach (var localAction in localActions.Where(action => action.ExecutionMode == "extension-module"))
+                Add($"objects[{i}].actions", $"Object-local extension action '{localAction.Code}' is not supported.");
+            var actionContracts = resolvedTypes.SelectMany(type => type.Actions ?? []).Concat(localActions).GroupBy(action => action.Code, StringComparer.Ordinal);
             foreach (var collision in actionContracts.Where(group => group.Select(ActionContract).Distinct(StringComparer.Ordinal).Count() > 1)) Add($"objects[{i}].mixinTypeCodes", $"Action '{collision.Key}' has incompatible contracts.");
             var actions = actionContracts.Select(group => group.Key).ToHashSet(StringComparer.Ordinal);
             var rules = item.ActionRules ?? [];
@@ -134,7 +140,7 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
 
             if (forPublish)
             {
-                foreach (var action in resolvedTypes.SelectMany(type => type.Actions ?? []).Concat(item.Actions ?? []).GroupBy(action => action.Code).Select(group => group.Last()))
+                foreach (var action in resolvedTypes.SelectMany(type => type.Actions ?? []).Concat(localActions).GroupBy(action => action.Code).Select(group => group.Last()))
                 {
                     var localMatching = rules.Where(rule => rule.ActionCode == action.Code).ToList();
                     var genericBySource = resolvedTypes.Select(type => (type.Code, Rules: (type.ActionRules ?? []).Where(rule => rule.ActionCode == action.Code).ToList())).ToList();
@@ -145,8 +151,6 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                     foreach (var source in genericBySource)
                         foreach (var ambiguity in source.Rules.GroupBy(rule => rule.Priority).Where(group => group.Count() > 1))
                             Add($"objects[{i}].actionRules", $"Action '{action.Code}' has ambiguous priority {ambiguity.Key} in Type '{source.Code}'.");
-                    if ((item.Actions ?? []).Any(local => local.Code == action.Code && local.ExecutionMode == "extension-module"))
-                        Add($"objects[{i}].actions", $"Object-local extension action '{action.Code}' is not supported.");
                     if (action.ExecutionMode == "extension-module" && matching.Any(rule => rule.ModuleBinding is null))
                         Add($"objects[{i}].actionRules", $"Action '{action.Code}' requires a module binding.");
                 }
@@ -156,7 +160,6 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
         if (forPublish)
         {
             if (locations.Count == 0) Add("locations", "At least one location is required.");
-            if (objectTypes.Count == 0) Add("objectTypes", "At least one object type is required.");
             if (objects.Count == 0) Add("objects", "At least one object is required.");
         }
 
@@ -207,12 +210,11 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
         foreach (var location in locations.Values) version.Locations.Add(location);
         foreach (var input in request.Objects ?? [])
         {
-            var mixinCodes = NormalizeMixinCodes(input);
-            var type = mixinCodes.Count > 0 ? types[mixinCodes[0]] : types.Values.First();
+            var mixinCodes = input.MixinTypeCodes.Select(code => code.Trim()).Where(code => code.Length > 0).ToList();
             var item = new ScenarioObject
             {
                 Id = $"SOBJ-{Guid.NewGuid():N}", DefinitionVersionId = version.Id, Code = input.Code.Trim(), Name = input.Name.Trim(),
-                ObjectTypeId = type.Id, LocationId = locations[input.LocationCode].Id,
+                LocationId = locations[input.LocationCode].Id,
                 InitialStateOverrideJson = Json(input.InitialStateOverride, "{}"), MixinTypeCodesJson = JsonSerializer.Serialize(mixinCodes),
                 LocalStateSchemaJson = Json(input.StateSchema, "{}"), LocalDefaultStateJson = Json(input.DefaultState, "{}"),
                 LocalPublicProjectionJson = Json(input.PublicProjection, "{}"), LocalActionsJson = JsonSerializer.Serialize(input.Actions ?? []),
@@ -243,7 +245,6 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
 
     public ScenarioRuleDataResponse ToResponse(ScenarioDefinitionVersion version)
     {
-        var typeCodes = version.ObjectTypes.ToDictionary(item => item.Id, item => item.Code);
         var locationCodes = version.Locations.ToDictionary(item => item.Id, item => item.Code);
         var actionCodes = version.ObjectTypes.SelectMany(item => item.Actions).ToDictionary(item => item.Id, item => item.Code);
         return new(version.ScenarioId, version.Id, version.Version, version.Status, version.SchemaVersion, version.UpdatedAt, version.PublishedAt,
@@ -255,12 +256,12 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                 JsonSerializer.Deserialize<List<ScenarioObjectActionRuleInput>>(item.GenericActionRulesJson) ?? [])).ToList(),
             version.Objects.OrderBy(item => item.Code).Select(item =>
             {
-                var mixins = NormalizePersistedMixinCodes(item, typeCodes[item.ObjectTypeId]);
+                var mixins = JsonSerializer.Deserialize<List<string>>(item.MixinTypeCodesJson) ?? [];
                 var rules = item.ActionRules.OrderByDescending(rule => rule.Priority).Select(rule =>
                     new ScenarioObjectActionRuleInput(actionCodes[rule.ObjectTypeActionId], Parse(rule.ConditionJson), rule.Priority, rule.AuthoringNote, Parse(rule.EffectsJson),
                         rule.ModuleId is null ? null : new ScenarioModuleBindingInput(rule.ModuleId, rule.ModuleVersion!, rule.ModuleDigest!, Parse(rule.ModuleConfigurationJson ?? "{}")))).ToList();
                 rules.AddRange(JsonSerializer.Deserialize<List<ScenarioObjectActionRuleInput>>(item.LocalActionRulesJson) ?? []);
-                return new ScenarioObjectInput(item.Code, item.Name, mixins.FirstOrDefault() ?? string.Empty, locationCodes[item.LocationId],
+                return new ScenarioObjectInput(item.Code, item.Name, locationCodes[item.LocationId],
                     Parse(item.InitialStateOverrideJson), item.IsGlobal, rules, mixins, Parse(item.LocalStateSchemaJson), Parse(item.LocalDefaultStateJson),
                     Parse(item.LocalPublicProjectionJson), JsonSerializer.Deserialize<List<ScenarioObjectTypeActionInput>>(item.LocalActionsJson) ?? []);
             }).ToList());
@@ -285,17 +286,6 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
         AvailabilityCondition = Json(action.AvailabilityCondition, "{}"), action.Visibility, action.ExecutionMode,
     });
 
-    private static IReadOnlyList<string> NormalizeMixinCodes(ScenarioObjectInput item)
-    {
-        if (item.MixinTypeCodes is { } explicitCodes) return explicitCodes.Select(code => code.Trim()).Where(code => code.Length > 0).ToList();
-        return string.IsNullOrWhiteSpace(item.ObjectTypeCode) ? [] : [item.ObjectTypeCode.Trim()];
-    }
-
-    private static IReadOnlyList<string> NormalizePersistedMixinCodes(ScenarioObject item, string legacyCode)
-    {
-        if (string.IsNullOrWhiteSpace(item.MixinTypeCodesJson)) return [legacyCode];
-        return JsonSerializer.Deserialize<List<string>>(item.MixinTypeCodesJson) ?? [];
-    }
 
     private static void ValidateCodes(IEnumerable<string> codes, string path, Action<string, string> add)
     {

@@ -46,7 +46,7 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
   const stateField = selected?.stateFields[stateIndex];
   const action = selected?.actions[actionIndex];
   const argument = action?.argumentFields[argumentIndex];
-  const typeObjects = selected ? value.objects.filter((object) => (object.mixinTypeCodes ?? [object.objectTypeCode]).includes(selected.code)) : [];
+  const typeObjects = selected ? value.objects.filter((object) => object.mixinTypeCodes.includes(selected.code)) : [];
   const genericRules = action ? (selected?.actionResults ?? []).filter((result) => result.actionCode === action.code) : [];
   const actionRules = action ? typeObjects.flatMap((object) => object.actionResults
     .filter((result) => result.actionCode === action.code)
@@ -58,10 +58,10 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
     const objectTypes = [...value.objectTypes];
     objectTypes[selectedIndex] = next;
     const objects = next.code === selected.code ? value.objects : value.objects.map((object) => {
-      const mixins = object.mixinTypeCodes ?? (object.objectTypeCode ? [object.objectTypeCode] : []);
+      const mixins = object.mixinTypeCodes;
       if (!mixins.includes(selected.code)) return object;
       const mixinTypeCodes = mixins.map((code) => code === selected.code ? next.code : code);
-      return { ...object, mixinTypeCodes, objectTypeCode: mixinTypeCodes[0] ?? '' };
+      return { ...object, mixinTypeCodes };
     });
     onChange({ ...value, objectTypes, objects });
   };
@@ -88,7 +88,7 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
       actionResults: (selected.actionResults ?? []).map((result) => ({ ...result, fromStateCode: result.fromStateCode === previous.code ? nextState.code : result.fromStateCode,
         effects: result.effects.map((effect) => effect.kind === 'set-state' && effect.stateCode === previous.code ? { ...effect, stateCode: nextState.code } : effect) })) };
     const objectTypes = value.objectTypes.map((item, itemIndex) => itemIndex === selectedIndex ? nextType : item);
-    const objects = previous.code === nextState.code ? value.objects : value.objects.map((object) => !(object.mixinTypeCodes ?? [object.objectTypeCode]).includes(selected.code) ? object : ({
+    const objects = previous.code === nextState.code ? value.objects : value.objects.map((object) => !object.mixinTypeCodes.includes(selected.code) ? object : ({
       ...object,
       initialStateOverrides: object.initialStateOverrides.map((override) => override.stateCode === previous.code ? { ...override, stateCode: nextState.code } : override),
       actionResults: object.actionResults.map((result) => ({
@@ -113,7 +113,7 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
       actions: selected.actions.map((candidate, candidateIndex) => candidateIndex === index ? nextAction : candidate),
       actionResults: (selected.actionResults ?? []).map((result) => result.actionCode === previous.code ? { ...result, actionCode: nextAction.code } : result),
     } : item);
-    const objects = previous.code === nextAction.code ? value.objects : value.objects.map((object) => (object.mixinTypeCodes ?? [object.objectTypeCode]).includes(selected.code) ? {
+    const objects = previous.code === nextAction.code ? value.objects : value.objects.map((object) => object.mixinTypeCodes.includes(selected.code) ? {
       ...object,
       actionResults: object.actionResults.map((result) => result.actionCode === previous.code ? { ...result, actionCode: nextAction.code } : result),
     } : object);
@@ -127,7 +127,7 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
   };
   const addRule = () => {
     if (!action || !selectedRuleObjectCode) return;
-    const objectIndex = value.objects.findIndex((object) => object.code === selectedRuleObjectCode && (object.mixinTypeCodes ?? [object.objectTypeCode]).includes(selected?.code ?? ''));
+    const objectIndex = value.objects.findIndex((object) => object.code === selectedRuleObjectCode && object.mixinTypeCodes.includes(selected?.code ?? ''));
     const object = value.objects[objectIndex];
     if (!object) return;
     const result = createActionResult(object, value, action.code);

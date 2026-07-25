@@ -208,7 +208,6 @@ using (var scope = app.Services.CreateScope())
     }
 
     await db.Database.EnsureCreatedAsync();
-    await ScenarioRuleSchemaUpgrade.ApplyAsync(db);
 
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
     var developmentSeedUser = await AccountSeedData.SeedAsync(userManager, app.Configuration);

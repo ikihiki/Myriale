@@ -44,7 +44,7 @@ internal static class ScenarioDefinitionSeedFactory
     private static ScenarioDefinitionVersion NewVersion(string scenarioId, string slug, DateTimeOffset timestamp) => new()
     {
         Id = $"SDV-{slug}-1", ScenarioId = scenarioId, Version = 1, Status = "published",
-        SchemaVersion = 1, CreatedAt = timestamp, UpdatedAt = timestamp, PublishedAt = timestamp,
+        SchemaVersion = 2, CreatedAt = timestamp, UpdatedAt = timestamp, PublishedAt = timestamp,
     };
 
     private static ScenarioLocation NewLocation(ScenarioDefinitionVersion version, string slug, string idSuffix, string code, string name, string description)
@@ -79,7 +79,7 @@ internal static class ScenarioDefinitionSeedFactory
 
     private static ScenarioObject NewObject(ScenarioDefinitionVersion version, string slug, string idSuffix, string code, string name, ScenarioObjectType type, ScenarioLocation location)
     {
-        var item = new ScenarioObject { Id = $"SOBJ-{slug}-{idSuffix}", DefinitionVersionId = version.Id, Code = code, Name = name, ObjectTypeId = type.Id, LocationId = location.Id, InitialStateOverrideJson = "{}" };
+        var item = new ScenarioObject { Id = $"SOBJ-{slug}-{idSuffix}", DefinitionVersionId = version.Id, Code = code, Name = name, LocationId = location.Id, InitialStateOverrideJson = "{}", MixinTypeCodesJson = $"[\"{type.Code}\"]" };
         version.Objects.Add(item);
         return item;
     }

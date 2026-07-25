@@ -26,12 +26,65 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
 
         using var response = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", new
         {
-            schemaVersion = 1, locations = Array.Empty<object>(), objectTypes = Array.Empty<object>(), objects = Array.Empty<object>()
+            schemaVersion = 2, locations = Array.Empty<object>(), objectTypes = Array.Empty<object>(), objects = Array.Empty<object>()
         });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("draft", json.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task DraftSave_RejectsTopLevelSchemaVersionOne()
+    {
+        var client = await CreateSignedInClientAsync();
+        var scenarioId = await CreateScenarioAsync(client);
+        var payload = ValidRuleData();
+        payload["schemaVersion"] = 1;
+
+        using var response = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(json.GetProperty("errors").TryGetProperty("schemaVersion", out _));
+    }
+
+    [Fact]
+    public async Task ObjectOnlyConfiguration_RoundTripsWithoutMixinFallback()
+    {
+        var client = await CreateSignedInClientAsync();
+        var scenarioId = await CreateScenarioAsync(client);
+        var payload = ValidRuleData();
+        payload["objectTypes"] = new JsonArray();
+        var item = payload["objects"]![0]!;
+        item["mixinTypeCodes"] = new JsonArray();
+        item["stateSchema"] = JsonNode.Parse("{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"open\":{\"type\":\"boolean\"}}}");
+        item["defaultState"] = JsonNode.Parse("{\"open\":false}");
+        item["publicProjection"] = JsonNode.Parse("{\"include\":[\"open\"]}");
+        item["actions"] = JsonNode.Parse("[{\"code\":\"open\",\"label\":\"開ける\",\"description\":\"\",\"argumentSchema\":{},\"availabilityCondition\":{},\"visibility\":\"ai-choice\",\"executionMode\":\"rule\"}]");
+
+        using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        using var published = await client.PostAsync($"/api/scenarios/{scenarioId}/rule-data/publish", null);
+        Assert.Equal(HttpStatusCode.OK, published.StatusCode);
+        var json = await published.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Empty(json.GetProperty("objects")[0].GetProperty("mixinTypeCodes").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task DraftSave_RejectsObjectLocalExtensionActions()
+    {
+        var client = await CreateSignedInClientAsync();
+        var scenarioId = await CreateScenarioAsync(client);
+        var payload = ValidRuleData();
+        var item = payload["objects"]![0]!;
+        item["actions"] = JsonNode.Parse("[{\"code\":\"inspect\",\"label\":\"調べる\",\"description\":\"\",\"argumentSchema\":{},\"availabilityCondition\":{},\"visibility\":\"ai-choice\",\"executionMode\":\"extension-module\"}]");
+
+        using var response = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(json.GetProperty("errors").TryGetProperty("objects[0].actions", out _));
     }
 
     [Fact]
@@ -254,7 +307,7 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
         var json = await saved.Content.ReadFromJsonAsync<JsonElement>();
         var savedObject = json.GetProperty("objects")[0];
         Assert.Equal(["door", "exit"], savedObject.GetProperty("mixinTypeCodes").EnumerateArray().Select(value => value.GetString()));
-        Assert.Equal("door", savedObject.GetProperty("objectTypeCode").GetString());
+        Assert.False(savedObject.TryGetProperty("objectTypeCode", out _));
         Assert.Equal("inspect", savedObject.GetProperty("actions")[0].GetProperty("code").GetString());
         Assert.Contains(savedObject.GetProperty("actionRules").EnumerateArray(), rule => rule.GetProperty("actionCode").GetString() == "inspect");
 
@@ -268,7 +321,7 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
 
     private static JsonNode ValidRuleData() => JsonNode.Parse("""
         {
-          "schemaVersion": 1,
+          "schemaVersion": 2,
           "locations": [{ "code": "hall", "name": "広間", "description": "", "authoringData": {} }],
           "objectTypes": [{
             "code": "door", "name": "扉", "description": "", "schemaVersion": 1,
@@ -281,7 +334,8 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
             }]
           }],
           "objects": [{
-            "code": "north-door", "name": "北の扉", "objectTypeCode": "door", "locationCode": "hall",
+            "code": "north-door", "name": "北の扉", "mixinTypeCodes": ["door"], "locationCode": "hall",
+            "stateSchema": {}, "defaultState": {}, "publicProjection": {}, "actions": [],
             "initialStateOverride": {}, "isGlobal": false,
             "actionRules": [{
               "actionCode": "open", "condition": { "op": "eq", "path": "state.open", "value": false },

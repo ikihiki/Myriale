@@ -448,12 +448,11 @@ export const AuthorWestDoorSeedWithEightOrderedEffects: Story = {
       await expect(canvas.getByRole('button', { name: '西の扉を編集' })).toBeVisible();
     });
 
-    await step('Object paneでordered mixin、primary、解決済みsource、Object local ruleを確認する', async () => {
+    await step('Object paneでordered mixin、解決済みsource、Object local ruleを確認する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '西の扉を編集' }));
       const mixins = screen.getByRole('region', { name: 'ordered Type mixins' });
       await expect(mixins).toHaveTextContent('開閉可能');
       await expect(mixins).toHaveTextContent('出口の扉');
-      await expect(mixins).toHaveTextContent('primary');
       const preview = screen.getByRole('region', { name: '解決済み設定preview' });
       await expect(preview).toHaveTextContent('source: 開閉可能');
       await expect(preview).toHaveTextContent('source: Object local');

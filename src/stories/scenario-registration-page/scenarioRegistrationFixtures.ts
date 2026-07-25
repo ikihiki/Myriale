@@ -1,7 +1,7 @@
 import type { ScenarioRuleDataPayload } from '../../app/scenarioApi';
 
 export const completeDoorRuleDataFixture: ScenarioRuleDataPayload = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   locations: [
     { code: 'sunken-library', name: '水没した閲覧室', description: '禁書と星図が残る開始地点。', atmosphere: '湿った静けさ', danger: '水位が上がり続ける' },
     { code: 'astral-stair', name: '星見の階段', description: '地上へ続く螺旋階段。', atmosphere: '薄い金色の灯り', danger: '扉が閉じている' },
@@ -20,7 +20,7 @@ export const completeDoorRuleDataFixture: ScenarioRuleDataPayload = {
   objects: [{
     code: 'north-archive-door',
     name: '北書庫の扉',
-    objectTypeCode: 'archive-door',
+    mixinTypeCodes: ['archive-door'],
     initialLocationCode: 'sunken-library',
     global: false,
     initialStateOverrides: [],
@@ -40,7 +40,7 @@ export const completeDoorRuleDataFixture: ScenarioRuleDataPayload = {
 };
 
 export const westDoorAuthoringFixture: ScenarioRuleDataPayload = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   locations: [
     { code: 'inside', name: '地下研究室', description: '西と東に扉がある室内。', atmosphere: '機械音が低く響く', danger: '出口が閉ざされている' },
     { code: 'outside', name: '研究施設の外', description: '冷たい夜風が吹く屋外。', atmosphere: '星空と夜風', danger: '' },
@@ -64,7 +64,6 @@ export const westDoorAuthoringFixture: ScenarioRuleDataPayload = {
   objects: [{
     code: 'west-door',
     name: '西の扉',
-    objectTypeCode: 'openable',
     mixinTypeCodes: ['openable', 'exit-door'],
     initialLocationCode: 'inside',
     global: false,

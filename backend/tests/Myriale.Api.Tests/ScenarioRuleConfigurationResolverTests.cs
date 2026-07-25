@@ -14,7 +14,7 @@ public sealed class ScenarioRuleConfigurationResolverTests
         var second = Type("exit", "{\"destination\":\"outside\"}", "{\"include\":[\"destination\"]}", Action("leave", "出る"));
         var item = new ScenarioObject
         {
-            Id = "object-1", ObjectTypeId = first.Id, ObjectType = first,
+            Id = "object-1",
             MixinTypeCodesJson = "[\"openable\",\"exit\"]",
             LocalStateSchemaJson = "{\"type\":\"object\",\"properties\":{\"direction\":{\"type\":\"string\"}}}",
             LocalDefaultStateJson = "{\"direction\":\"west\"}", LocalPublicProjectionJson = "{\"include\":[\"direction\"]}",
@@ -42,7 +42,7 @@ public sealed class ScenarioRuleConfigurationResolverTests
         var second = Type("two", "{\"value\":\"no\"}", "{}", Action("use", "別の使い方"));
         first.StateSchemaJson = "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"boolean\"}}}";
         second.StateSchemaJson = "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}}}";
-        var item = new ScenarioObject { Id = "object-1", ObjectTypeId = first.Id, ObjectType = first, MixinTypeCodesJson = "[\"one\",\"two\"]" };
+        var item = new ScenarioObject { Id = "object-1", MixinTypeCodesJson = "[\"one\",\"two\"]" };
         var resolved = new ScenarioRuleConfigurationResolver().Resolve(new ScenarioDefinitionVersion { ObjectTypes = [first, second], Objects = [item] }, item);
         Assert.Contains(resolved.Conflicts, conflict => conflict.Contains("state 'value'"));
         Assert.Contains(resolved.Conflicts, conflict => conflict.Contains("action 'use'"));

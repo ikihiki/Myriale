@@ -105,7 +105,6 @@ public static class SessionEndpoints
         var definition = await db.ScenarioDefinitionVersions.AsNoTracking()
             .Include(version => version.Locations)
             .Include(version => version.ObjectTypes).ThenInclude(type => type.Actions)
-            .Include(version => version.Objects).ThenInclude(item => item.ObjectType)
             .Include(version => version.Objects).ThenInclude(item => item.ActionRules).ThenInclude(rule => rule.ObjectTypeAction)
             .Where(version => version.ScenarioId == request.ScenarioId && version.Status == "published")
             .OrderByDescending(version => version.Version)
@@ -294,7 +293,7 @@ public static class SessionEndpoints
         var images = await db.SessionImages.AsNoTracking().Where(item => item.SessionId == sessionId).ToDictionaryAsync(item => item.ArtifactId, cancellationToken);
         var proposals = (await db.SessionNoteProposals.AsNoTracking().Where(item => item.SessionId == sessionId).ToListAsync(cancellationToken)).OrderBy(item => item.CreatedAt).ToList();
         var objectStates = await db.SessionObjectStates.AsNoTracking()
-            .Include(item => item.ScenarioObject).ThenInclude(item => item.ObjectType)
+            .Include(item => item.ScenarioObject)
             .Where(item => item.SessionId == sessionId).OrderBy(item => item.ScenarioObject.Code).ToListAsync(cancellationToken);
         var definition = await db.ScenarioDefinitionVersions.AsNoTracking()
             .Include(version => version.ObjectTypes).ThenInclude(type => type.Actions)

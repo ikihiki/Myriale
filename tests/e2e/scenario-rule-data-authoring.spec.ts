@@ -44,7 +44,6 @@ test('西の扉seedの8 effectを表示・編集・並べ替え・保存でき�
   const mixins = page.getByRole('region', { name: 'ordered Type mixins' });
   await expect(mixins).toContainText('開閉可能');
   await expect(mixins).toContainText('出口の扉');
-  await expect(mixins).toContainText('primary');
   await expect(page.getByRole('region', { name: '解決済み設定preview' })).toContainText('source: Object local');
   await expect(page.getByRole('region', { name: 'Object action rules' })).toContainText('inspect-exit');
   await page.getByRole('button', { name: '編集を完了' }).click();

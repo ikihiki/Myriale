@@ -68,8 +68,6 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .HasOne(item => item.DefinitionVersion).WithMany(version => version.Objects)
             .HasForeignKey(item => item.DefinitionVersionId).OnDelete(DeleteBehavior.Cascade);
         builder.Entity<ScenarioObject>()
-            .HasOne(item => item.ObjectType).WithMany().HasForeignKey(item => item.ObjectTypeId).OnDelete(DeleteBehavior.Restrict);
-        builder.Entity<ScenarioObject>()
             .HasOne(item => item.Location).WithMany().HasForeignKey(item => item.LocationId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<ScenarioObjectActionRule>()
             .HasIndex(rule => new { rule.ObjectId, rule.ObjectTypeActionId, rule.Priority });

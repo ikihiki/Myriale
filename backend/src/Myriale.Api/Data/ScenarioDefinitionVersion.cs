@@ -9,7 +9,7 @@ public sealed class ScenarioDefinitionVersion
     public Scenario Scenario { get; set; } = null!;
     public int Version { get; set; }
     [MaxLength(20)] public string Status { get; set; } = "draft";
-    public int SchemaVersion { get; set; } = 1;
+    public int SchemaVersion { get; set; } = 2;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public DateTimeOffset? PublishedAt { get; set; }
@@ -66,8 +66,6 @@ public sealed class ScenarioObject
     public ScenarioDefinitionVersion DefinitionVersion { get; set; } = null!;
     [MaxLength(80)] public string Code { get; set; } = string.Empty;
     [MaxLength(160)] public string Name { get; set; } = string.Empty;
-    [Required] public string ObjectTypeId { get; set; } = string.Empty;
-    public ScenarioObjectType ObjectType { get; set; } = null!;
     [Required] public string LocationId { get; set; } = string.Empty;
     public ScenarioLocation Location { get; set; } = null!;
     public string InitialStateOverrideJson { get; set; } = "{}";

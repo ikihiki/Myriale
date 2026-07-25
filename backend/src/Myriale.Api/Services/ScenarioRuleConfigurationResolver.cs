@@ -26,13 +26,8 @@ public sealed class ScenarioRuleConfigurationResolver
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    public IReadOnlyList<string> MixinCodes(ScenarioObject item)
-    {
-        var legacy = string.IsNullOrWhiteSpace(item.MixinTypeCodesJson);
-        var codes = Deserialize<List<string>>(item.MixinTypeCodesJson) ?? [];
-        if (legacy && item.ObjectType is not null) codes.Add(item.ObjectType.Code);
-        return codes;
-    }
+    public IReadOnlyList<string> MixinCodes(ScenarioObject item) =>
+        Deserialize<List<string>>(item.MixinTypeCodesJson) ?? [];
 
     public ResolvedRuleConfiguration Resolve(ScenarioDefinitionVersion definition, ScenarioObject item)
     {
@@ -78,7 +73,7 @@ public sealed class ScenarioRuleConfigurationResolver
         {
             var resolved = new ResolvedScenarioAction(OpaqueId(item.Id, action.Code), action.Code, action.Label, action.Description ?? string.Empty,
                 Raw(action.ArgumentSchema, "{}"), Raw(action.AvailabilityCondition, "{}"), action.Visibility, action.ExecutionMode,
-                localRank, "object", item.ObjectTypeId);
+                localRank, "object", item.Id);
             if (actions.TryGetValue(action.Code, out var existing) && !SameContract(existing, resolved))
                 conflicts.Add($"action '{action.Code}' differs between '{existing.SourceCode}' and object");
             else actions[action.Code] = resolved;
@@ -90,7 +85,7 @@ public sealed class ScenarioRuleConfigurationResolver
                 rule.ModuleId, rule.ModuleVersion, rule.ModuleDigest, rule.ModuleConfigurationJson, rule));
         }
         foreach (var rule in Deserialize<List<ScenarioObjectActionRuleInput>>(item.LocalActionRulesJson) ?? [])
-            rules.Add(FromInput(rule, localRank, "object", item.ObjectTypeId));
+            rules.Add(FromInput(rule, localRank, "object", item.Id));
 
         return new(mixins, schema, defaults, visibility.Where(pair => pair.Value).Select(pair => pair.Key).ToHashSet(StringComparer.Ordinal),
             actions.Values.OrderBy(action => action.Code).ToList(), rules, conflicts);

@@ -49,4 +49,4 @@ Audit telemetry/log output for forbidden data: player text, full prompt/Narrativ
 
 ## Database initialization
 
-PostgreSQL、SQLiteともに起動時はEntity Framework Coreの`EnsureCreated`で現在のschemaを作成する。既存schemaのupgradeやbackfillは行わないため、model変更時は開発・Preview環境のdatabaseを再作成する。Session Executionの運用開始前に空のdatabaseであることを確認する。
+PostgreSQL、SQLiteともに起動時にdatabaseを再作成し、Entity Framework Coreの`EnsureCreated`で現在のschemaを作成する。この起動方式では既存データを保持しない。Session Executionの運用開始前に、再作成後の空のdatabaseへseedが投入されたことを確認する。

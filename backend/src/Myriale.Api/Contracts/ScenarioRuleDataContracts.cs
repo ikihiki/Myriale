@@ -33,16 +33,15 @@ public sealed record ScenarioObjectTypeActionInput(
 public sealed record ScenarioObjectInput(
     string Code,
     string Name,
-    string ObjectTypeCode,
     string LocationCode,
     JsonElement InitialStateOverride,
     bool IsGlobal,
     IReadOnlyList<ScenarioObjectActionRuleInput> ActionRules,
-    IReadOnlyList<string>? MixinTypeCodes = null,
-    JsonElement StateSchema = default,
-    JsonElement DefaultState = default,
-    JsonElement PublicProjection = default,
-    IReadOnlyList<ScenarioObjectTypeActionInput>? Actions = null);
+    IReadOnlyList<string> MixinTypeCodes,
+    JsonElement StateSchema,
+    JsonElement DefaultState,
+    JsonElement PublicProjection,
+    IReadOnlyList<ScenarioObjectTypeActionInput> Actions);
 
 public sealed record ScenarioObjectActionRuleInput(
     string ActionCode,

@@ -7,7 +7,7 @@ const canonicalFixture: CanonicalScenarioRuleDataResponse = {
   definitionVersionId: 'SDV-1',
   version: 2,
   status: 'draft',
-  schemaVersion: 1,
+  schemaVersion: 2,
   updatedAt: '2026-07-24T00:00:00Z',
   publishedAt: null,
   locations: [{ code: 'hall', name: '広間', description: '', authoringData: { atmosphere: '静寂', danger: '崩落', custom: 'keep-me' } }, { code: 'outside', name: '屋外', description: '', authoringData: {} }],
@@ -29,7 +29,7 @@ const canonicalFixture: CanonicalScenarioRuleDataResponse = {
     }],
   }],
   objects: [{
-    code: 'north-door', name: '北の扉', objectTypeCode: 'door', locationCode: 'hall', initialStateOverride: { open: false }, isGlobal: false,
+    code: 'north-door', name: '北の扉', mixinTypeCodes: ['door'], stateSchema: { type: 'object', additionalProperties: false, properties: {}, required: [] }, defaultState: {}, publicProjection: { include: [] }, actions: [], locationCode: 'hall', initialStateOverride: { open: false }, isGlobal: false,
     actionRules: [{
       actionCode: 'open', condition: { op: 'eq', path: 'state.open', value: false }, priority: 100, authoringNote: '通常結果',
       effects: [
@@ -44,6 +44,10 @@ const canonicalFixture: CanonicalScenarioRuleDataResponse = {
 };
 
 describe('scenario rule-data adapters', () => {
+  it('rejects top-level schema version 1', () => {
+    expect(() => canonicalRuleDataToForm({ ...canonicalFixture, schemaVersion: 1 })).toThrow('Unsupported scenario rule schema version: 1');
+  });
+
   it('maps canonical rule data into the editor model', () => {
     const form = canonicalRuleDataToForm(canonicalFixture);
 
@@ -103,7 +107,7 @@ describe('scenario rule-data adapters', () => {
       actionRules: [{ actionCode: 'leave', condition: {}, priority: 10, authoringNote: 'generic', effects: [{ type: 'emit-fact', text: '外へ出た' }], moduleBinding: null }],
     });
     fixture.objects[0] = {
-      ...fixture.objects[0], objectTypeCode: 'door', mixinTypeCodes: ['door', 'exit'],
+      ...fixture.objects[0], mixinTypeCodes: ['door', 'exit'],
       stateSchema: { type: 'object', additionalProperties: false, properties: { direction: { type: 'string', title: '方向' } } },
       defaultState: { direction: 'north' }, publicProjection: { include: ['direction'] },
       actions: [{ code: 'inspect', label: '調べる', description: '', argumentSchema: {}, availabilityCondition: {}, visibility: 'ai-choice', executionMode: 'rule' }],

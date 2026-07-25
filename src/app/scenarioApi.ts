@@ -47,13 +47,12 @@ export type CanonicalScenarioActionRuleDto = {
 export type CanonicalScenarioObjectDto = {
   code: string;
   name: string;
-  objectTypeCode: string;
-  mixinTypeCodes?: string[];
+  mixinTypeCodes: string[];
   locationCode: string;
-  stateSchema?: ScenarioJsonObject;
-  defaultState?: ScenarioJsonObject;
-  publicProjection?: ScenarioJsonObject;
-  actions?: CanonicalScenarioActionDto[];
+  stateSchema: ScenarioJsonObject;
+  defaultState: ScenarioJsonObject;
+  publicProjection: ScenarioJsonObject;
+  actions: CanonicalScenarioActionDto[];
   initialStateOverride: ScenarioJsonObject;
   isGlobal: boolean;
   actionRules: CanonicalScenarioActionRuleDto[];
@@ -148,8 +147,7 @@ export type ScenarioObjectActionResultPayload = {
 export type ScenarioObjectPayload = {
   code: string;
   name: string;
-  objectTypeCode: string;
-  mixinTypeCodes?: string[];
+  mixinTypeCodes: string[];
   initialLocationCode: string;
   global: boolean;
   stateFields?: ScenarioStateFieldPayload[];
@@ -160,7 +158,7 @@ export type ScenarioObjectPayload = {
 };
 
 export type ScenarioRuleDataPayload = {
-  schemaVersion: 1 | 2;
+  schemaVersion: 2;
   locations: ScenarioLocationPayload[];
   objectTypes: ScenarioObjectTypePayload[];
   objects: ScenarioObjectPayload[];
@@ -355,10 +353,10 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
   };
 }
 
-const emptyScenarioRuleData = (): ScenarioRuleDataPayload => ({ schemaVersion: 1, locations: [], objectTypes: [], objects: [] });
+const emptyScenarioRuleData = (): ScenarioRuleDataPayload => ({ schemaVersion: 2, locations: [], objectTypes: [], objects: [] });
 
 const awakeningLaboratoryRuleData: ScenarioRuleDataPayload = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   locations: [
     { code: 'laboratory', name: '地下研究室', description: '非常灯だけが残る閉鎖研究室。', atmosphere: '静かな緊張感', danger: '隔壁が閉鎖されている' },
     { code: 'service-corridor', name: '保守通路', description: '脱出経路へ続く狭い通路。', atmosphere: '機械音と冷気', danger: '電源復旧前は暗い' },
@@ -374,7 +372,9 @@ const awakeningLaboratoryRuleData: ScenarioRuleDataPayload = {
   objects: [{
     code: 'north-door',
     name: '北側の隔壁',
-    objectTypeCode: 'sealed-door',
+    mixinTypeCodes: ['sealed-door'],
+    stateFields: [],
+    actions: [],
     initialLocationCode: 'laboratory',
     global: false,
     initialStateOverrides: [],

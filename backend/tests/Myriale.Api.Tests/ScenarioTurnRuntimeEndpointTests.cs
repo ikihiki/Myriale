@@ -225,7 +225,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         var scenarioId = (await scenario.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
         var payload = JsonSerializer.Deserialize<JsonElement>("""
         {
-          "schemaVersion":1,
+          "schemaVersion":2,
           "locations":[
             {"code":"start","name":"Hall","description":"","authoringData":{}},
             {"code":"cellar","name":"Cellar","description":"","authoringData":{}}
@@ -237,9 +237,9 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
             "actions":[{"code":"open","label":"Open","description":"Open the door","argumentSchema":{"type":"object","additionalProperties":false},"availabilityCondition":{},"visibility":"ai-choice","executionMode":"rule"}]
           }],
           "objects":[
-            {"code":"north-door","name":"North door","objectTypeCode":"door","locationCode":"start","initialStateOverride":{},"isGlobal":false,"actionRules":[{"actionCode":"open","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true},{"type":"emit-fact","text":"The north door is open."}],"moduleBinding":null}]},
-            {"code":"cellar-door","name":"Cellar door","objectTypeCode":"door","locationCode":"cellar","initialStateOverride":{},"isGlobal":false,"actionRules":[{"actionCode":"open","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true}],"moduleBinding":null}]},
-            {"code":"world-clock","name":"World clock","objectTypeCode":"door","locationCode":"cellar","initialStateOverride":{},"isGlobal":true,"actionRules":[{"actionCode":"open","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true}],"moduleBinding":null}]}
+            {"code":"north-door","name":"North door","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"start","initialStateOverride":{},"isGlobal":false,"actionRules":[{"actionCode":"open","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true},{"type":"emit-fact","text":"The north door is open."}],"moduleBinding":null}]},
+            {"code":"cellar-door","name":"Cellar door","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"cellar","initialStateOverride":{},"isGlobal":false,"actionRules":[{"actionCode":"open","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true}],"moduleBinding":null}]},
+            {"code":"world-clock","name":"World clock","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"cellar","initialStateOverride":{},"isGlobal":true,"actionRules":[{"actionCode":"open","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true}],"moduleBinding":null}]}
           ]
         }
         """);
@@ -254,7 +254,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         var scenarioId = (await scenario.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
         var payload = JsonSerializer.Deserialize<JsonElement>("""
         {
-          "schemaVersion":1,
+          "schemaVersion":2,
           "locations":[
             {"code":"inside","name":"地下研究室","description":"","authoringData":{}},
             {"code":"outside","name":"研究施設の外","description":"","authoringData":{}}
@@ -264,9 +264,9 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
             {"code":"landmark","name":"Landmark","description":"","schemaVersion":1,"stateSchema":{"type":"object","additionalProperties":false,"properties":{"examined":{"type":"boolean"}},"required":["examined"]},"defaultState":{"examined":false},"publicProjection":{"include":["examined"]},"actions":[{"code":"examine","label":"調べる","description":"","argumentSchema":{"type":"object","additionalProperties":false},"availabilityCondition":{},"visibility":"ai-choice","executionMode":"rule"}]}
           ],
           "objects":[
-            {"code":"east-door","name":"東の扉","objectTypeCode":"door","locationCode":"inside","initialStateOverride":{},"isGlobal":false,"actionRules":[{"actionCode":"open-and-exit","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true}],"moduleBinding":null}]},
-            {"code":"west-door","name":"西の扉","objectTypeCode":"door","locationCode":"inside","initialStateOverride":{},"isGlobal":false,"actionRules":[{"actionCode":"open-and-exit","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true},{"type":"move-session","locationCode":"outside"},{"type":"emit-fact","text":"西の扉が開いた。"},{"type":"emit-fact","text":"プレイヤーは研究施設の外へ出た。"}],"moduleBinding":null}]},
-            {"code":"outside-antenna","name":"観測アンテナ","objectTypeCode":"landmark","locationCode":"outside","initialStateOverride":{},"isGlobal":false,"actionRules":[{"actionCode":"examine","condition":{},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.examined","value":true}],"moduleBinding":null}]}
+            {"code":"east-door","name":"東の扉","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"inside","initialStateOverride":{},"isGlobal":false,"actionRules":[{"actionCode":"open-and-exit","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true}],"moduleBinding":null}]},
+            {"code":"west-door","name":"西の扉","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"inside","initialStateOverride":{},"isGlobal":false,"actionRules":[{"actionCode":"open-and-exit","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true},{"type":"move-session","locationCode":"outside"},{"type":"emit-fact","text":"西の扉が開いた。"},{"type":"emit-fact","text":"プレイヤーは研究施設の外へ出た。"}],"moduleBinding":null}]},
+            {"code":"outside-antenna","name":"観測アンテナ","mixinTypeCodes":["landmark"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"outside","initialStateOverride":{},"isGlobal":false,"actionRules":[{"actionCode":"examine","condition":{},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.examined","value":true}],"moduleBinding":null}]}
           ]
         }
         """);
@@ -283,7 +283,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         var scenarioId = (await scenario.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
         var payload = new
         {
-            schemaVersion = 1,
+            schemaVersion = 2,
             locations = new[] { new { code = "start", name = "Hall", description = "", authoringData = new { } } },
             objectTypes = new[]
             {
@@ -308,7 +308,11 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
                 {
                     code = "north-door",
                     name = "Library guardian",
-                    objectTypeCode = "guardian",
+                    mixinTypeCodes = new[] { "guardian" },
+                    stateSchema = new { },
+                    defaultState = new { },
+                    publicProjection = new { },
+                    actions = Array.Empty<object>(),
                     locationCode = "start",
                     initialStateOverride = new { },
                     isGlobal = false,

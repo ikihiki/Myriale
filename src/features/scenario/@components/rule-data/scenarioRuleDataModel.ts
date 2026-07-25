@@ -10,7 +10,7 @@ export type ScenarioActionResult = ScenarioObject['actionResults'][number];
 export type ScenarioRuleEffect = ScenarioActionResult['effects'][number];
 
 export const emptyScenarioRuleData: ScenarioRuleData = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   locations: [],
   objectTypes: [],
   objects: [],
@@ -66,7 +66,6 @@ export function createObject(ruleData: ScenarioRuleData): ScenarioObject {
   return {
     code: nextAuthoringCode('object'),
     name: '新しいオブジェクト',
-    objectTypeCode: ruleData.objectTypes[0]?.code ?? '',
     mixinTypeCodes: ruleData.objectTypes[0] ? [ruleData.objectTypes[0].code] : [],
     initialLocationCode: ruleData.locations[0]?.code ?? '',
     global: false,
@@ -118,7 +117,7 @@ export function validateScenarioRuleData(ruleData: ScenarioRuleData): RuleDataIs
   });
 
   ruleData.objects.forEach((object, objectIndex) => {
-    const mixinCodes = object.mixinTypeCodes ?? (object.objectTypeCode ? [object.objectTypeCode] : []);
+    const mixinCodes = object.mixinTypeCodes;
     if (new Set(mixinCodes).size !== mixinCodes.length) issues.push({ path: `ruleData.objects[${objectIndex}].mixinTypeCodes`, message: '同じ種類を複数回mixinできません。', severity: 'error' });
     mixinCodes.forEach((code) => { if (!ruleData.objectTypes.some((type) => type.code === code)) issues.push({ path: `ruleData.objects[${objectIndex}].mixinTypeCodes`, message: `参照する種類「${code}」が見つかりません。`, severity: 'error' }); });
     const resolved = resolvedObjectConfiguration(ruleData, object);
@@ -130,7 +129,7 @@ export function validateScenarioRuleData(ruleData: ScenarioRuleData): RuleDataIs
       if (action.availability === 'state-equals' && !type.stateFields.some((state) => state.code === action.availabilityStateCode)) {
         issues.push({ path: `ruleData.objectTypes[${ruleData.objectTypes.indexOf(type)}].actions[${type.actions.indexOf(action)}].availabilityStateCode`, message: '種類共通の提示条件で参照する状態が見つかりません。', severity: 'error' });
       }
-      const genericRuleExists = (object.mixinTypeCodes ?? [object.objectTypeCode]).some((code) => ruleData.objectTypes.find((candidate) => candidate.code === code)?.actionResults?.some((result) => result.actionCode === action.code));
+      const genericRuleExists = object.mixinTypeCodes.some((code) => ruleData.objectTypes.find((candidate) => candidate.code === code)?.actionResults?.some((result) => result.actionCode === action.code));
       if (!genericRuleExists && !object.actionResults.some((result) => result.actionCode === action.code)) {
         issues.push({ path: `ruleData.objects[${objectIndex}].actionResults`, message: `「${action.label}」の実行ルールが未設定です。`, severity: 'warning' });
       }
@@ -172,7 +171,7 @@ export function validateScenarioRuleData(ruleData: ScenarioRuleData): RuleDataIs
 }
 
 export function dependencyMessageForType(ruleData: ScenarioRuleData, code: string) {
-  const dependent = ruleData.objects.find((object) => (object.mixinTypeCodes ?? [object.objectTypeCode]).includes(code));
+  const dependent = ruleData.objects.find((object) => object.mixinTypeCodes.includes(code));
   return dependent ? `「${dependent.name}」が参照しています。先に種類を変更するかオブジェクトを削除してください。` : null;
 }
 
@@ -187,7 +186,7 @@ export function resolvedObjectConfiguration(ruleData: ScenarioRuleData, object: 
   const conflicts: string[] = [];
   const stateFields = new Map<string, ResolvedConfigurationEntry<ScenarioStateField>>();
   const actions = new Map<string, ResolvedConfigurationEntry<ScenarioTypeAction>>();
-  const codes = object.mixinTypeCodes ?? (object.objectTypeCode ? [object.objectTypeCode] : []);
+  const codes = object.mixinTypeCodes;
   [...codes.map((code) => ruleData.objectTypes.find((type) => type.code === code)).filter(Boolean), object].forEach((source, rank) => {
     if (!source) return;
     const sourceName = source === object ? 'Object local' : source.name;

@@ -89,7 +89,7 @@ public sealed class ScenarioTurnExecutionHandler(
                         world.Session.OwnerId,
                         execution.SessionId,
                         decision.ObjectId,
-                        resolution.Rule.SourceCode == "object" ? boundObject.ObjectTypeId : world.Definition.ObjectTypes.Single(type => type.Code == resolution.Rule.SourceCode).Id,
+                        world.Definition.ObjectTypes.SelectMany(type => type.Actions).Single(action => action.Id == decision.ActionId).ObjectTypeId,
                         decision.ActionId,
                         resolution.Rule.Id,
                         moduleId,
@@ -177,10 +177,9 @@ public sealed class ScenarioTurnExecutionHandler(
         var session = await sessions.Include(item => item.State).SingleAsync(item => item.Id == sessionId, cancellationToken);
         var definition = await db.ScenarioDefinitionVersions.Include(item => item.Locations)
             .Include(item => item.ObjectTypes).ThenInclude(type => type.Actions)
-            .Include(item => item.Objects).ThenInclude(item => item.ObjectType).ThenInclude(type => type.Actions)
             .Include(item => item.Objects).ThenInclude(item => item.ActionRules).ThenInclude(rule => rule.ObjectTypeAction)
             .SingleAsync(item => item.Id == session.ScenarioDefinitionVersionId && item.Status == "published", cancellationToken);
-        var statesQuery = db.SessionObjectStates.Include(item => item.ScenarioObject).ThenInclude(item => item.ObjectType);
+        var statesQuery = db.SessionObjectStates.Include(item => item.ScenarioObject);
         var states = tracking ? await statesQuery.Where(item => item.SessionId == sessionId).ToListAsync(cancellationToken) : await statesQuery.AsNoTracking().Where(item => item.SessionId == sessionId).ToListAsync(cancellationToken);
         foreach (var state in states) state.ScenarioObject = definition.Objects.Single(item => item.Id == state.ScenarioObjectId);
         return new(session, definition, states);

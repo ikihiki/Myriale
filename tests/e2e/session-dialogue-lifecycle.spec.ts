@@ -109,7 +109,7 @@ async function installApiRoutes(page: Page) {
       });
     }
 
-    if (request.method() === 'GET' && path === '/api/scenarios/') {
+    if (request.method() === 'GET' && (path === '/api/scenarios' || path === '/api/scenarios/')) {
       return json(route, [scenario]);
     }
 
