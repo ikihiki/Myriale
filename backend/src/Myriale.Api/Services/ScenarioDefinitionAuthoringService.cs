@@ -86,7 +86,8 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                 var action = typeActions[j];
                 if (string.IsNullOrWhiteSpace(action.Label)) Add($"objectTypes[{i}].actions[{j}].label", "Label is required.");
                 RequireObject(action.ArgumentSchema, $"objectTypes[{i}].actions[{j}].argumentSchema", Add);
-                ValidateAstObject(action.AvailabilityCondition, $"objectTypes[{i}].actions[{j}].availabilityCondition", Add);
+                ValidateCondition(action.AvailabilityCondition, $"objectTypes[{i}].actions[{j}].availabilityCondition",
+                    GetSchemaProperties(type.StateSchema), null, allowArguments: false, Add);
                 if (action.Visibility is not ("ai-choice" or "manual-ui" or "system-only")) Add($"objectTypes[{i}].actions[{j}].visibility", "Visibility is invalid.");
                 if (action.ExecutionMode is not ("rule" or "extension-module")) Add($"objectTypes[{i}].actions[{j}].executionMode", "Execution mode is invalid.");
             }
@@ -99,7 +100,9 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                 var rule = genericRules[j];
                 var path = $"objectTypes[{i}].actionRules[{j}]";
                 if (!actionCodes.Contains(rule.ActionCode)) Add($"{path}.actionCode", "Referenced type action does not exist.");
-                ValidateAstObject(rule.Condition, $"{path}.condition", Add);
+                var argumentSchema = typeActions.FirstOrDefault(action => action.Code == rule.ActionCode)?.ArgumentSchema;
+                ValidateCondition(rule.Condition, $"{path}.condition", GetSchemaProperties(type.StateSchema),
+                    argumentSchema is { } schema ? GetSchemaProperties(schema) : null, allowArguments: true, Add);
                 ValidateEffects(rule.Effects, $"{path}.effects", locationCodes, objectCodes, GetSchemaProperties(type.StateSchema).Keys, Add);
                 ValidateModuleBinding(rule.ModuleBinding, $"{path}.moduleBinding", Add);
             }
@@ -128,11 +131,22 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                 if (stateProperties.TryGetValue(property.Key, out var existing) && existing.GetRawText() != property.Value.GetRawText()) Add($"objects[{i}].stateSchema", $"State '{property.Key}' has an incompatible contract.");
                 else stateProperties[property.Key] = property.Value;
             ValidateStateObject(item.InitialStateOverride, stateProperties, $"objects[{i}].initialStateOverride", false, Add);
-            foreach (var localAction in localActions.Where(action => action.ExecutionMode == "extension-module"))
-                Add($"objects[{i}].actions", $"Object-local extension action '{localAction.Code}' is not supported.");
-            var actionContracts = resolvedTypes.SelectMany(type => type.Actions ?? []).Concat(localActions).GroupBy(action => action.Code, StringComparer.Ordinal);
+            ValidateCodes(localActions.Select(action => action.Code), $"objects[{i}].actions", Add);
+            for (var j = 0; j < localActions.Count; j++)
+            {
+                var action = localActions[j];
+                var path = $"objects[{i}].actions[{j}]";
+                if (string.IsNullOrWhiteSpace(action.Label)) Add($"{path}.label", "Label is required.");
+                RequireObject(action.ArgumentSchema, $"{path}.argumentSchema", Add);
+                ValidateCondition(action.AvailabilityCondition, $"{path}.availabilityCondition", stateProperties, null, allowArguments: false, Add);
+                if (action.Visibility is not ("ai-choice" or "manual-ui" or "system-only")) Add($"{path}.visibility", "Visibility is invalid.");
+                if (action.ExecutionMode is not ("rule" or "extension-module")) Add($"{path}.executionMode", "Execution mode is invalid.");
+                if (action.ExecutionMode == "extension-module") Add($"objects[{i}].actions", $"Object-local extension action '{action.Code}' is not supported.");
+            }
+            var actionContracts = resolvedTypes.SelectMany(type => type.Actions ?? []).Concat(localActions).GroupBy(action => action.Code, StringComparer.Ordinal).ToList();
             foreach (var collision in actionContracts.Where(group => group.Select(ActionContract).Distinct(StringComparer.Ordinal).Count() > 1)) Add($"objects[{i}].mixinTypeCodes", $"Action '{collision.Key}' has incompatible contracts.");
             var actions = actionContracts.Select(group => group.Key).ToHashSet(StringComparer.Ordinal);
+            var actionArgumentSchemas = actionContracts.ToDictionary(group => group.Key, group => group.First().ArgumentSchema, StringComparer.Ordinal);
             var genericTargets = resolvedTypes.SelectMany(type => (type.ActionRules ?? []).Select(rule => (Key: (type.Code, rule.Code), Rule: rule)))
                 .GroupBy(pair => pair.Key).ToDictionary(group => group.Key, group => group.Select(pair => pair.Rule).ToList());
             var rules = item.ActionRules ?? [];
@@ -148,7 +162,7 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                     if (string.IsNullOrWhiteSpace(rule.Code) || !StableCodeRegex().IsMatch(rule.Code)) Add($"{path}.code", "Code must use lowercase letters, numbers, and hyphens.");
                     else if (!addCodes.Add(rule.Code)) Add($"{path}.code", "Add rule code must be unique within the object.");
                     if (rule.TargetTypeCode is not null || rule.TargetRuleCode is not null) Add(path, "Add rules cannot specify an inherited target.");
-                    ValidateFullMutationRule(rule, path, actions, locationCodes, objectCodes, stateProperties.Keys, Add);
+                    ValidateFullMutationRule(rule, path, actions, actionArgumentSchemas, locationCodes, objectCodes, stateProperties, Add);
                     continue;
                 }
 
@@ -169,13 +183,18 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                 }
                 else if (rule.Operation == "override")
                 {
-                    ValidateFullMutationRule(rule, path, actions, locationCodes, objectCodes, stateProperties.Keys, Add);
+                    ValidateFullMutationRule(rule, path, actions, actionArgumentSchemas, locationCodes, objectCodes, stateProperties, Add);
                     if (target is not null && rule.ActionCode != target.ActionCode) Add($"{path}.actionCode", "Override action must match the inherited target action.");
                 }
                 else
                 {
                     if (rule.ActionCode is not null) Add($"{path}.actionCode", "Adjust cannot change the inherited target action.");
-                    if (rule.Condition is { } condition) ValidateAstObject(condition, $"{path}.condition", Add);
+                    if (rule.Condition is { } condition)
+                    {
+                        var targetArgumentSchema = target is not null && actionArgumentSchemas.TryGetValue(target.ActionCode, out var schema)
+                            ? GetSchemaProperties(schema) : null;
+                        ValidateCondition(condition, $"{path}.condition", stateProperties, targetArgumentSchema, allowArguments: true, Add);
+                    }
                     if (rule.Effects is { } effects) ValidateEffects(effects, $"{path}.effects", locationCodes, objectCodes, stateProperties.Keys, Add);
                     if (rule.ModuleBindingSpecified) ValidateModuleBinding(rule.ModuleBinding, $"{path}.moduleBinding", Add);
                     if (rule.Condition is null && rule.Priority is null && !rule.AuthoringNoteSpecified && rule.Effects is null && !rule.ModuleBindingSpecified)
@@ -376,16 +395,22 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
     }
 
     private static void ValidateFullMutationRule(
-        ScenarioObjectRuleMutationInput rule, string path, ISet<string> actions, ISet<string> locations, ISet<string> objects,
-        IEnumerable<string> stateProperties, Action<string, string> add)
+        ScenarioObjectRuleMutationInput rule, string path, ISet<string> actions,
+        IReadOnlyDictionary<string, JsonElement> actionArgumentSchemas, ISet<string> locations, ISet<string> objects,
+        IReadOnlyDictionary<string, JsonElement> stateProperties, Action<string, string> add)
     {
         if (string.IsNullOrWhiteSpace(rule.ActionCode)) add($"{path}.actionCode", "Action code is required for a full rule.");
         else if (!actions.Contains(rule.ActionCode)) add($"{path}.actionCode", "Referenced action does not exist.");
         if (rule.Condition is not { } condition) add($"{path}.condition", "Condition is required for a full rule.");
-        else ValidateAstObject(condition, $"{path}.condition", add);
+        else
+        {
+            var argumentProperties = rule.ActionCode is not null && actionArgumentSchemas.TryGetValue(rule.ActionCode, out var schema)
+                ? GetSchemaProperties(schema) : null;
+            ValidateCondition(condition, $"{path}.condition", stateProperties, argumentProperties, allowArguments: true, add);
+        }
         if (rule.Priority is null) add($"{path}.priority", "Priority is required for a full rule.");
         if (rule.Effects is not { } effects) add($"{path}.effects", "Effects are required for a full rule.");
-        else ValidateEffects(effects, $"{path}.effects", locations, objects, stateProperties, add);
+        else ValidateEffects(effects, $"{path}.effects", locations, objects, stateProperties.Keys, add);
         if (rule.ModuleBindingSpecified) ValidateModuleBinding(rule.ModuleBinding, $"{path}.moduleBinding", add);
     }
 
@@ -438,13 +463,181 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
         if (value.ValueKind != JsonValueKind.Object) add(path, "A JSON object is required.");
     }
 
-    private static void ValidateAstObject(JsonElement value, string path, Action<string, string> add)
+    private static void ValidateCondition(
+        JsonElement value,
+        string path,
+        IReadOnlyDictionary<string, JsonElement> stateProperties,
+        IReadOnlyDictionary<string, JsonElement>? argumentProperties,
+        bool allowArguments,
+        Action<string, string> add)
     {
-        RequireObject(value, path, add);
-        if (value.ValueKind == JsonValueKind.Object && value.TryGetProperty("path", out var property)
-            && (!property.GetString()!.StartsWith("state.", StringComparison.Ordinal) && !property.GetString()!.StartsWith("session.flags.", StringComparison.Ordinal)))
-            add($"{path}.path", "Condition paths must start with state. or session.flags.");
+        if (value.ValueKind != JsonValueKind.Object)
+        {
+            add(path, "A condition must be a JSON object.");
+            return;
+        }
+
+        var properties = value.EnumerateObject().ToList();
+        if (properties.Count == 0) return;
+
+        var logicalProperties = properties.Where(property => property.Name is "and" or "or" or "not").ToList();
+        if (logicalProperties.Count > 0)
+        {
+            if (logicalProperties.Count != 1 || properties.Count != 1)
+            {
+                add(path, "A logical condition must contain exactly one of and, or, or not.");
+                return;
+            }
+
+            var logical = logicalProperties[0];
+            if (logical.Name == "not")
+            {
+                if (logical.Value.ValueKind != JsonValueKind.Object) add($"{path}.not", "Not must contain a condition object.");
+                else ValidateCondition(logical.Value, $"{path}.not", stateProperties, argumentProperties, allowArguments, add);
+                return;
+            }
+
+            if (logical.Value.ValueKind != JsonValueKind.Array)
+            {
+                add($"{path}.{logical.Name}", $"{logical.Name} must contain an array of conditions.");
+                return;
+            }
+
+            var index = 0;
+            foreach (var child in logical.Value.EnumerateArray())
+                ValidateCondition(child, $"{path}.{logical.Name}[{index++}]", stateProperties, argumentProperties, allowArguments, add);
+            return;
+        }
+
+        if (!value.TryGetProperty("op", out var opElement) || opElement.ValueKind != JsonValueKind.String)
+        {
+            add($"{path}.op", "Condition operator is required.");
+            return;
+        }
+
+        var op = opElement.GetString();
+        if (op is not ("eq" or "ne" or "lt" or "lte" or "gt" or "gte" or "in" or "exists"))
+            add($"{path}.op", "Condition operator is invalid.");
+
+        if (!value.TryGetProperty("path", out var pathElement) || pathElement.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(pathElement.GetString()))
+        {
+            add($"{path}.path", "Condition path is required.");
+            return;
+        }
+
+        var conditionPath = pathElement.GetString()!;
+        var referencedSchema = ResolveConditionPathSchema(conditionPath, stateProperties, argumentProperties, allowArguments, out var pathError);
+        if (pathError is not null) add($"{path}.path", pathError);
+
+        if (op == "exists")
+        {
+            if (value.TryGetProperty("value", out _)) add($"{path}.value", "Exists conditions do not accept a value.");
+        }
+        else if (!value.TryGetProperty("value", out var expected))
+        {
+            add($"{path}.value", "Condition value is required.");
+        }
+        else if (op is "lt" or "lte" or "gt" or "gte")
+        {
+            if (expected.ValueKind != JsonValueKind.Number) add($"{path}.value", "Numeric conditions require a numeric value.");
+            if (referencedSchema is { } schema && !IsNumericSchema(schema)) add($"{path}.path", "Numeric conditions require a numeric state or argument path.");
+        }
+        else if (op == "in" && expected.ValueKind != JsonValueKind.Array)
+        {
+            add($"{path}.value", "In conditions require an array value.");
+        }
+
+        var expectedPropertyCount = op == "exists" ? 2 : 3;
+        if (properties.Count != expectedPropertyCount || properties.Select(property => property.Name).Distinct(StringComparer.Ordinal).Count() != properties.Count)
+            add(path, op == "exists"
+                ? "Exists conditions must contain exactly op and path."
+                : "Comparison conditions must contain exactly op, path, and value.");
+
+        foreach (var property in properties)
+        {
+            var allowed = property.Name is "op" or "path" || (property.Name == "value" && op != "exists");
+            if (!allowed) add($"{path}.{property.Name}", "Condition property is not allowed.");
+        }
     }
+
+    private static JsonElement? ResolveConditionPathSchema(
+        string path,
+        IReadOnlyDictionary<string, JsonElement> stateProperties,
+        IReadOnlyDictionary<string, JsonElement>? argumentProperties,
+        bool allowArguments,
+        out string? error)
+    {
+        error = null;
+        if (path.StartsWith("session.flags.", StringComparison.Ordinal))
+        {
+            if (path.Length == "session.flags.".Length || path["session.flags.".Length..].Contains('.', StringComparison.Ordinal))
+                error = "Session flag paths must reference exactly one flag name.";
+            return null;
+        }
+
+        IReadOnlyDictionary<string, JsonElement>? properties;
+        string prefix;
+        string subject;
+        if (path.StartsWith("state.", StringComparison.Ordinal))
+        {
+            properties = stateProperties;
+            prefix = "state.";
+            subject = "state property";
+        }
+        else if (path.StartsWith("arguments.", StringComparison.Ordinal))
+        {
+            if (!allowArguments)
+            {
+                error = "Availability condition paths may only start with state. or session.flags.";
+                return null;
+            }
+            properties = argumentProperties;
+            prefix = "arguments.";
+            subject = "action argument";
+        }
+        else
+        {
+            error = allowArguments
+                ? "Condition paths must start with state., arguments., or session.flags."
+                : "Availability condition paths may only start with state. or session.flags.";
+            return null;
+        }
+
+        var segments = path[prefix.Length..].Split('.', StringSplitOptions.None);
+        if (segments.Any(string.IsNullOrWhiteSpace))
+        {
+            error = "Condition paths must reference a named property.";
+            return null;
+        }
+        if (properties is null) return null;
+        if (!properties.TryGetValue(segments[0], out var schema))
+        {
+            error = $"Referenced {subject} does not exist.";
+            return null;
+        }
+
+        for (var index = 1; index < segments.Length; index++)
+        {
+            var nested = GetSchemaProperties(schema);
+            if (nested.Count == 0)
+            {
+                error = $"Referenced {subject} does not exist.";
+                return null;
+            }
+            if (!nested.TryGetValue(segments[index], out schema))
+            {
+                error = $"Referenced {subject} does not exist.";
+                return null;
+            }
+        }
+        return schema;
+    }
+
+    private static bool IsNumericSchema(JsonElement schema) =>
+        schema.ValueKind == JsonValueKind.Object
+        && schema.TryGetProperty("type", out var type)
+        && type.ValueKind == JsonValueKind.String
+        && type.GetString() is "integer" or "number";
 
     private static void ValidateStateDefinition(ScenarioObjectTypeInput type, int index, Action<string, string> add)
     {

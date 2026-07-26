@@ -104,6 +104,83 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task DraftSave_AcceptsRecursiveConditionsForAllowedContexts()
+    {
+        var client = await CreateSignedInClientAsync();
+        var scenarioId = await CreateScenarioAsync(client);
+        var payload = ValidRuleData();
+        payload["objectTypes"]![0]!["actions"]![0]!["argumentSchema"] = JsonNode.Parse("""
+            {"type":"object","additionalProperties":false,"properties":{"amount":{"type":"number"}}}
+            """);
+        payload["objectTypes"]![0]!["actions"]![0]!["availabilityCondition"] = JsonNode.Parse("""
+            {"or":[{"op":"eq","path":"state.open","value":false},{"op":"exists","path":"session.flags.override"}]}
+            """);
+        payload["objectTypes"]![0]!["actionRules"]![0]!["condition"] = JsonNode.Parse("""
+            {"and":[
+              {"op":"eq","path":"state.open","value":false},
+              {"op":"gte","path":"arguments.amount","value":1},
+              {"not":{"op":"eq","path":"session.flags.blocked","value":true}}
+            ]}
+            """);
+
+        using var response = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DraftSave_RejectsInvalidRecursiveConditionsWithNestedPaths()
+    {
+        var client = await CreateSignedInClientAsync();
+        var scenarioId = await CreateScenarioAsync(client);
+        var payload = ValidRuleData();
+        payload["objectTypes"]![0]!["actions"]![0]!["argumentSchema"] = JsonNode.Parse("""
+            {"type":"object","additionalProperties":false,"properties":{"amount":{"type":"number"},"mode":{"type":"string"}}}
+            """);
+        payload["objectTypes"]![0]!["actions"]![0]!["availabilityCondition"] = JsonNode.Parse("""
+            {"and":[{}, {"op":"eq","path":"arguments.amount","value":1}]}
+            """);
+        payload["objectTypes"]![0]!["actionRules"]![0]!["condition"] = JsonNode.Parse("""
+            {"and":[
+              {"op":"eq","path":"state.missing","value":true},
+              {"op":"gt","path":"arguments.mode","value":2},
+              {"op":"lt","path":"arguments.amount","value":"2"}
+            ]}
+            """);
+
+        using var response = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var errors = json.GetProperty("errors");
+        Assert.True(errors.TryGetProperty("objectTypes[0].actions[0].availabilityCondition.and[1].path", out _));
+        Assert.True(errors.TryGetProperty("objectTypes[0].actionRules[0].condition.and[0].path", out _));
+        Assert.True(errors.TryGetProperty("objectTypes[0].actionRules[0].condition.and[1].path", out _));
+        Assert.True(errors.TryGetProperty("objectTypes[0].actionRules[0].condition.and[2].value", out _));
+    }
+
+    [Fact]
+    public async Task DraftSave_ValidatesObjectLocalAvailabilityAgainstResolvedState()
+    {
+        var client = await CreateSignedInClientAsync();
+        var scenarioId = await CreateScenarioAsync(client);
+        var payload = ValidRuleData();
+        payload["objects"]![0]!["actions"] = JsonNode.Parse("""
+            [{
+              "code":"inspect","label":"調べる","description":"","argumentSchema":{},
+              "availabilityCondition":{"not":{"op":"exists","path":"state.missing"}},
+              "visibility":"manual-ui","executionMode":"rule"
+            }]
+            """);
+
+        using var response = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(json.GetProperty("errors").TryGetProperty("objects[0].actions[0].availabilityCondition.not.path", out _));
+    }
+
+    [Fact]
     public async Task Readiness_RejectsIncompleteAndAmbiguousMappings()
     {
         var client = await CreateSignedInClientAsync();

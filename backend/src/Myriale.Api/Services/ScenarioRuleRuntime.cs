@@ -12,48 +12,173 @@ public sealed class ScenarioRuleEvaluator
 {
     public bool Evaluate(string json, JsonObject objectState, IReadOnlyDictionary<string, bool> flags, JsonElement arguments)
     {
-        using var document = JsonDocument.Parse(string.IsNullOrWhiteSpace(json) ? "{}" : json);
-        return Evaluate(document.RootElement, objectState, flags, arguments);
-    }
-
-    private bool Evaluate(JsonElement condition, JsonObject state, IReadOnlyDictionary<string, bool> flags, JsonElement arguments)
-    {
-        if (condition.ValueKind != JsonValueKind.Object || !condition.EnumerateObject().Any()) return true;
-        if (condition.TryGetProperty("and", out var and)) return and.EnumerateArray().All(item => Evaluate(item, state, flags, arguments));
-        if (condition.TryGetProperty("or", out var or)) return or.EnumerateArray().Any(item => Evaluate(item, state, flags, arguments));
-        if (condition.TryGetProperty("not", out var not)) return !Evaluate(not, state, flags, arguments);
-        var op = condition.TryGetProperty("op", out var opElement) ? opElement.GetString() : null;
-        if (string.IsNullOrWhiteSpace(op)) return true;
-        var path = condition.TryGetProperty("path", out var pathElement) ? pathElement.GetString() ?? string.Empty : string.Empty;
-        var actual = Resolve(path, state, flags, arguments);
-        if (op == "exists") return actual is not null;
-        var expected = condition.TryGetProperty("value", out var value) ? JsonNode.Parse(value.GetRawText()) : null;
-        return op switch
+        try
         {
-            "eq" => JsonNode.DeepEquals(actual, expected),
-            "ne" => !JsonNode.DeepEquals(actual, expected),
-            "lt" => Number(actual) < Number(expected),
-            "lte" => Number(actual) <= Number(expected),
-            "gt" => Number(actual) > Number(expected),
-            "gte" => Number(actual) >= Number(expected),
-            "in" => expected is JsonArray array && array.Any(item => JsonNode.DeepEquals(item, actual)),
-            _ => false,
-        };
+            using var document = JsonDocument.Parse(string.IsNullOrWhiteSpace(json) ? "{}" : json);
+            return TryEvaluate(document.RootElement, objectState, flags, arguments, out var result) && result;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
     }
 
-    private static JsonNode? Resolve(string path, JsonObject state, IReadOnlyDictionary<string, bool> flags, JsonElement arguments)
+    private bool TryEvaluate(
+        JsonElement condition,
+        JsonObject state,
+        IReadOnlyDictionary<string, bool> flags,
+        JsonElement arguments,
+        out bool result)
     {
+        result = false;
+        if (condition.ValueKind != JsonValueKind.Object) return false;
+        var properties = condition.EnumerateObject().ToList();
+        if (properties.Count == 0)
+        {
+            result = true;
+            return true;
+        }
+
+        var logical = properties.Where(property => property.Name is "and" or "or" or "not").ToList();
+        if (logical.Count > 0)
+        {
+            if (logical.Count != 1 || properties.Count != 1) return false;
+            var property = logical[0];
+            if (property.Name == "not")
+            {
+                if (!TryEvaluate(property.Value, state, flags, arguments, out var child)) return false;
+                result = !child;
+                return true;
+            }
+            if (property.Value.ValueKind != JsonValueKind.Array) return false;
+
+            result = property.Name == "and";
+            foreach (var item in property.Value.EnumerateArray())
+            {
+                if (!TryEvaluate(item, state, flags, arguments, out var child)) return false;
+                result = property.Name == "and" ? result && child : result || child;
+            }
+            return true;
+        }
+
+        if (properties.Any(property => property.Name is not ("op" or "path" or "value"))) return false;
+        if (!condition.TryGetProperty("op", out var opElement) || opElement.ValueKind != JsonValueKind.String) return false;
+        if (!condition.TryGetProperty("path", out var pathElement) || pathElement.ValueKind != JsonValueKind.String) return false;
+        var op = opElement.GetString();
+        var path = pathElement.GetString();
+        if (string.IsNullOrWhiteSpace(op) || string.IsNullOrWhiteSpace(path) || !IsConditionPathSyntaxValid(path)) return false;
+        if (!TryResolve(path, state, flags, arguments, out var actual))
+        {
+            // A syntactically valid exists check over a missing path is false; every other operation also fails closed.
+            return op == "exists" && properties.Count == 2;
+        }
+
+        if (op == "exists")
+        {
+            if (properties.Count != 2) return false;
+            result = true;
+            return true;
+        }
+        if (!condition.TryGetProperty("value", out var value) || properties.Count != 3) return false;
+        var expected = JsonNode.Parse(value.GetRawText());
+        switch (op)
+        {
+            case "eq": result = JsonNode.DeepEquals(actual, expected); return true;
+            case "ne": result = !JsonNode.DeepEquals(actual, expected); return true;
+            case "lt": return CompareNumbers(actual, expected, (left, right) => left < right, out result);
+            case "lte": return CompareNumbers(actual, expected, (left, right) => left <= right, out result);
+            case "gt": return CompareNumbers(actual, expected, (left, right) => left > right, out result);
+            case "gte": return CompareNumbers(actual, expected, (left, right) => left >= right, out result);
+            case "in":
+                if (expected is not JsonArray array) return false;
+                result = array.Any(item => JsonNode.DeepEquals(item, actual));
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static bool IsConditionPathSyntaxValid(string path)
+    {
+        if (path.StartsWith("session.flags.", StringComparison.Ordinal))
+        {
+            var flag = path["session.flags.".Length..];
+            return !string.IsNullOrWhiteSpace(flag) && !flag.Contains('.');
+        }
+
+        var remainder = path.StartsWith("state.", StringComparison.Ordinal)
+            ? path["state.".Length..]
+            : path.StartsWith("arguments.", StringComparison.Ordinal)
+                ? path["arguments.".Length..]
+                : string.Empty;
+        return remainder.Length > 0 && !remainder.Split('.', StringSplitOptions.None).Any(string.IsNullOrWhiteSpace);
+    }
+
+    private static bool CompareNumbers(JsonNode? actual, JsonNode? expected, Func<decimal, decimal, bool> compare, out bool result)
+    {
+        result = false;
+        if (!TryNumber(actual, out var left) || !TryNumber(expected, out var right)) return false;
+        result = compare(left, right);
+        return true;
+    }
+
+    private static bool TryResolve(
+        string path,
+        JsonObject state,
+        IReadOnlyDictionary<string, bool> flags,
+        JsonElement arguments,
+        out JsonNode? value)
+    {
+        value = null;
         JsonNode? root;
         string remainder;
-        if (path == "state" || path.StartsWith("state.", StringComparison.Ordinal)) { root = state; remainder = path.Length == 5 ? "" : path[6..]; }
-        else if (path == "arguments" || path.StartsWith("arguments.", StringComparison.Ordinal)) { root = JsonNode.Parse(arguments.GetRawText()); remainder = path.Length == 9 ? "" : path[10..]; }
-        else if (path.StartsWith("session.flags.", StringComparison.Ordinal)) return JsonValue.Create(flags.GetValueOrDefault(path[14..]));
-        else return null;
-        foreach (var segment in remainder.Split('.', StringSplitOptions.RemoveEmptyEntries)) root = root?[segment];
-        return root;
+        if (path.StartsWith("state.", StringComparison.Ordinal))
+        {
+            root = state;
+            remainder = path["state.".Length..];
+        }
+        else if (path.StartsWith("arguments.", StringComparison.Ordinal))
+        {
+            if (arguments.ValueKind != JsonValueKind.Object) return false;
+            root = JsonNode.Parse(arguments.GetRawText());
+            remainder = path["arguments.".Length..];
+        }
+        else if (path.StartsWith("session.flags.", StringComparison.Ordinal))
+        {
+            var flag = path["session.flags.".Length..];
+            if (string.IsNullOrWhiteSpace(flag) || flag.Contains('.') || !flags.TryGetValue(flag, out var enabled)) return false;
+            value = JsonValue.Create(enabled);
+            return true;
+        }
+        else return false;
+
+        var segments = remainder.Split('.', StringSplitOptions.None);
+        if (segments.Any(string.IsNullOrWhiteSpace)) return false;
+        foreach (var segment in segments)
+        {
+            if (root is not JsonObject current || !current.TryGetPropertyValue(segment, out root)) return false;
+        }
+        value = root;
+        return true;
     }
 
-    private static decimal Number(JsonNode? node) => node is JsonValue value && value.TryGetValue<decimal>(out var number) ? number : decimal.MinValue;
+    private static bool TryNumber(JsonNode? node, out decimal number)
+    {
+        number = default;
+        return node is JsonValue value && value.TryGetValue(out number);
+    }
 }
 
 public sealed class ScenarioPublicProjector(ScenarioRuleConfigurationResolver resolver)
