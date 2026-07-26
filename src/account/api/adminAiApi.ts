@@ -28,7 +28,7 @@ export type AdminAiApi = {
   deleteKey: (provider: string) => Promise<void>;
   testKey: (provider: string) => Promise<AiProviderKey>;
   activateProvider: (provider: string) => Promise<AiProviderKey>;
-  testPrompt: (prompt: string) => Promise<AiPromptTestResult>;
+  testPrompt: (provider: string, prompt: string) => Promise<AiPromptTestResult>;
 };
 
 const ADMIN_AI_PATH = '/api/admin/ai-keys';
@@ -59,7 +59,7 @@ export function createFetchAdminAiApi(baseUrl = getAdminAiApiBaseUrl()): AdminAi
     deleteKey: (provider) => request<void>(`/${encodeURIComponent(provider)}`, { method: 'DELETE' }),
     testKey: (provider) => request<AiProviderKey>(`/${encodeURIComponent(provider)}/test`, { method: 'POST' }),
     activateProvider: (provider) => request<AiProviderKey>('/active-provider', { method: 'PUT', body: JSON.stringify({ provider }) }),
-    testPrompt: (prompt) => request<AiPromptTestResult>('/active-provider/prompt-test', { method: 'POST', body: JSON.stringify({ prompt }) }),
+    testPrompt: (provider, prompt) => request<AiPromptTestResult>(`/${encodeURIComponent(provider)}/prompt-test`, { method: 'POST', body: JSON.stringify({ prompt }) }),
   };
 }
 
@@ -82,12 +82,12 @@ export function createDemoAdminAiApi(): AdminAiApi {
       if (!key) throw demoError('AIキーが見つかりません。', 404);
       return key;
     },
-    async testPrompt(prompt) {
-      const active = keys.find((item) => item.active);
-      if (!active?.configured) throw demoError('使用中のAI Providerを設定してください。', 409);
+    async testPrompt(provider, prompt) {
+      const target = keys.find((item) => item.provider === provider);
+      if (!target?.configured) throw demoError('先にAIキーを登録してください。', 409);
       return {
-        provider: active.provider,
-        model: active.provider === 'runpod' ? 'Qwen/Qwen3-8B' : 'gpt-4.1-mini',
+        provider: target.provider,
+        model: target.provider === 'runpod' ? 'Qwen/Qwen3-8B' : 'gpt-4.1-mini',
         response: `テスト応答: ${prompt.trim()}`,
         inputTokens: Math.max(1, Math.ceil(prompt.length / 4)),
         outputTokens: 12,

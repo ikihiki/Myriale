@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Inset, Input, Label, Notice, PageCanvas, PageShell, Panel, Textarea } from '../../components/ui';
 import { toAppChromeAccount } from '../../account/accountPresentation';
 import { createFetchAdminAiApi, type AdminAiApiError, type AiPromptTestResult, type AiProviderKey } from '../../account/api/adminAiApi';
@@ -32,6 +32,7 @@ export function AdminAiKeysPage() {
   const [provider, setProvider] = useState('openai');
   const [displayName, setDisplayName] = useState('OpenAI');
   const [secret, setSecret] = useState('');
+  const [testProvider, setTestProvider] = useState<string | null>(null);
   const [testPrompt, setTestPrompt] = useState('このAIが利用可能か、日本語で短く応答してください。');
   const [promptResult, setPromptResult] = useState<AiPromptTestResult | null>(null);
   const [notice, setNotice] = useState('デプロイ設定と管理画面で登録したAIキーを確認できます。キー本体は再表示しません。');
@@ -96,12 +97,18 @@ export function AdminAiKeysPage() {
     }
   };
 
-  const sendTestPrompt = async () => {
+  const openPromptTest = (target: string) => {
+    setTestProvider((current) => current === target ? null : target);
+    setPromptResult(null);
+    setError(null);
+  };
+
+  const sendTestPrompt = async (target: string) => {
     setBusy(true);
     setError(null);
     setPromptResult(null);
     try {
-      const result = await api.testPrompt(testPrompt);
+      const result = await api.testPrompt(target, testPrompt);
       setPromptResult(result);
       setNotice(`${result.provider} / ${result.model}へテストプロンプトを送信しました。`);
     } catch (caught) {
@@ -181,46 +188,39 @@ export function AdminAiKeysPage() {
               <table className="w-full min-w-190 border-collapse text-left text-sm">
                 <thead className="bg-myr-iris/10 font-myr-mono text-myr-caption tracking-[0.1em] text-myr-slate uppercase"><tr><th className="px-4 py-3">Provider</th><th className="px-4 py-3">接続設定</th><th className="px-4 py-3">キー</th><th className="px-4 py-3">検証状態</th><th className="px-4 py-3">操作</th></tr></thead>
                 <tbody>{keys.map((key) => (
-                  <tr className="border-t border-myr-ink/10" key={key.provider} data-testid={`ai-key-row-${key.provider}`}>
-                    <td className="px-4 py-4"><strong className="block font-extrabold">{key.displayName}</strong><span className="font-myr-mono text-xs text-myr-slate">{key.provider}</span></td>
-                    <td className="px-4 py-4"><div className="flex flex-wrap gap-1.5">{key.active && <Badge className="!border-myr-ink !bg-myr-ink !text-myr-paper">使用中</Badge>}<Badge tone={key.credentialSource === 'environment' ? 'info' : key.credentialSource === 'database' ? 'warning' : 'neutral'}>{sourceLabel(key.credentialSource)}</Badge></div></td>
-                    <td className="px-4 py-4 font-myr-mono text-xs">{key.maskedKey}</td>
-                    <td className="px-4 py-4"><Badge tone={key.status === 'valid' ? 'success' : 'neutral'}>{statusLabel(key.status)}</Badge></td>
-                    <td className="px-4 py-4"><div className="flex flex-wrap gap-2"><Button variant="secondary" size="sm" onClick={() => void activate(key.provider)} disabled={busy || !key.configured || key.active}>{key.active ? '使用中' : 'このAIを使用'}</Button><Button variant="ghost" size="sm" onClick={() => void test(key.provider)} disabled={busy || !key.configured}>接続テスト</Button>{key.credentialSource === 'database' && <Button variant="danger" size="sm" onClick={() => void remove(key.provider)} disabled={busy}>削除</Button>}</div></td>
-                  </tr>
+                  <Fragment key={key.provider}>
+                    <tr className="border-t border-myr-ink/10" data-testid={`ai-key-row-${key.provider}`}>
+                      <td className="px-4 py-4"><strong className="block font-extrabold">{key.displayName}</strong><span className="font-myr-mono text-xs text-myr-slate">{key.provider}</span></td>
+                      <td className="px-4 py-4"><div className="flex flex-wrap gap-1.5">{key.active && <Badge className="!border-myr-ink !bg-myr-ink !text-myr-paper">使用中</Badge>}<Badge tone={key.credentialSource === 'environment' ? 'info' : key.credentialSource === 'database' ? 'warning' : 'neutral'}>{sourceLabel(key.credentialSource)}</Badge></div></td>
+                      <td className="px-4 py-4 font-myr-mono text-xs">{key.maskedKey}</td>
+                      <td className="px-4 py-4"><Badge tone={key.status === 'valid' ? 'success' : 'neutral'}>{statusLabel(key.status)}</Badge></td>
+                      <td className="px-4 py-4"><div className="flex flex-wrap gap-2"><Button variant="secondary" size="sm" onClick={() => void activate(key.provider)} disabled={busy || !key.configured || key.active}>{key.active ? '使用中' : 'このAIを使用'}</Button><Button variant="ghost" size="sm" onClick={() => void test(key.provider)} disabled={busy || !key.configured}>接続テスト</Button><Button variant="ghost" size="sm" onClick={() => openPromptTest(key.provider)} disabled={busy || !key.configured}>{testProvider === key.provider ? 'プロンプトテストを閉じる' : 'プロンプトテスト'}</Button>{key.credentialSource === 'database' && <Button variant="danger" size="sm" onClick={() => void remove(key.provider)} disabled={busy}>削除</Button>}</div></td>
+                    </tr>
+                    {testProvider === key.provider && <tr className="border-t border-myr-ink/10 bg-myr-iris/5" data-testid={`ai-prompt-row-${key.provider}`}>
+                      <td colSpan={5} className="p-4">
+                        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]" role="region" aria-label={`${key.displayName}のプロンプトテスト`}>
+                          <Panel as="div">
+                            <Label as="p" textRole="eyebrowData" className="mb-2">Live prompt probe / {key.provider}</Label>
+                            <Label as="h3" textRole="section" className="m-0">{key.displayName}へプロンプトを送る</Label>
+                            <p className="mt-3 text-sm leading-6 text-myr-slate">使用中への切り替えは行わず、このProviderの登録済みキーへ直接送信します。結果は保存されません。</p>
+                            <label className="mt-4 grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">{key.displayName}のテスト用プロンプト
+                              <Textarea className="!min-h-36" aria-label={`${key.displayName}のテスト用プロンプト`} value={testPrompt} onChange={(event) => setTestPrompt(event.target.value)} maxLength={10000} />
+                            </label>
+                            <div className="mt-3 flex flex-wrap items-center justify-between gap-3"><span className="font-myr-mono text-xs text-myr-slate">{testPrompt.length.toLocaleString()} / 10,000</span><Button variant="primary" onClick={() => void sendTestPrompt(key.provider)} disabled={busy || !testPrompt.trim()}>{busy ? '送信中…' : `${key.displayName}へ送信`}</Button></div>
+                          </Panel>
+                          <Inset as="aside" aria-label={`${key.displayName}のプロンプトテスト結果`}>
+                            <Label as="p" textRole="eyebrowData" className="mb-2">Provider response</Label>
+                            <Label as="h3" textRole="section" className="m-0">応答</Label>
+                            {!promptResult && <p className="mt-4 text-sm leading-6 text-myr-slate">応答本文、Model、token数、処理時間を表示します。</p>}
+                            {promptResult && <div className="mt-4 grid gap-4" data-testid="ai-prompt-result"><div className="flex flex-wrap gap-2"><Badge>{promptResult.provider}</Badge><Badge tone="info">{promptResult.model}</Badge></div><pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-myr-card bg-myr-ink p-4 font-myr-mono text-sm leading-6 text-myr-paper">{promptResult.response}</pre><dl className="grid grid-cols-2 gap-3 text-xs"><div><dt className="font-black text-myr-slate">Input tokens</dt><dd className="mt-1 font-myr-mono">{promptResult.inputTokens ?? '—'}</dd></div><div><dt className="font-black text-myr-slate">Output tokens</dt><dd className="mt-1 font-myr-mono">{promptResult.outputTokens ?? '—'}</dd></div><div><dt className="font-black text-myr-slate">Latency</dt><dd className="mt-1 font-myr-mono">{promptResult.latencyMilliseconds} ms</dd></div><div><dt className="font-black text-myr-slate">Finish reason</dt><dd className="mt-1 font-myr-mono">{promptResult.finishReason ?? '—'}</dd></div></dl></div>}
+                          </Inset>
+                        </div>
+                      </td>
+                    </tr>}
+                  </Fragment>
                 ))}</tbody>
               </table>
             </div>
-          </section>
-          <section className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]" aria-label="AIプロンプトテスト">
-            <Panel as="div">
-              <Label as="p" textRole="eyebrowData" className="mb-2">Live prompt probe</Label>
-              <Label as="h2" textRole="section" className="m-0">使用中のAIへプロンプトを送る</Label>
-              <p className="mt-3 text-sm leading-6 text-myr-slate">現在「使用中」のProviderへ、その場でテスト用プロンプトを送信します。会話やシナリオには保存されません。</p>
-              <label className="mt-4 grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">テスト用プロンプト
-                <Textarea className="!min-h-40" aria-label="テスト用プロンプト" value={testPrompt} onChange={(event) => setTestPrompt(event.target.value)} maxLength={10000} />
-              </label>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                <span className="font-myr-mono text-xs text-myr-slate">{testPrompt.length.toLocaleString()} / 10,000</span>
-                <Button variant="primary" onClick={() => void sendTestPrompt()} disabled={busy || !testPrompt.trim()}>{busy ? '送信中…' : 'プロンプトを送信'}</Button>
-              </div>
-            </Panel>
-
-            <Inset as="aside" aria-label="AIプロンプトテスト結果">
-              <Label as="p" textRole="eyebrowData" className="mb-2">Provider response</Label>
-              <Label as="h2" textRole="section" className="m-0">応答</Label>
-              {!promptResult && <p className="mt-4 text-sm leading-6 text-myr-slate">送信すると応答本文、Provider、Model、token数、処理時間を表示します。</p>}
-              {promptResult && <div className="mt-4 grid gap-4" data-testid="ai-prompt-result">
-                <div className="flex flex-wrap gap-2"><Badge>{promptResult.provider}</Badge><Badge tone="info">{promptResult.model}</Badge></div>
-                <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-myr-card bg-myr-ink p-4 font-myr-mono text-sm leading-6 text-myr-paper">{promptResult.response}</pre>
-                <dl className="grid grid-cols-2 gap-3 text-xs">
-                  <div><dt className="font-black text-myr-slate">Input tokens</dt><dd className="mt-1 font-myr-mono">{promptResult.inputTokens ?? '—'}</dd></div>
-                  <div><dt className="font-black text-myr-slate">Output tokens</dt><dd className="mt-1 font-myr-mono">{promptResult.outputTokens ?? '—'}</dd></div>
-                  <div><dt className="font-black text-myr-slate">Latency</dt><dd className="mt-1 font-myr-mono">{promptResult.latencyMilliseconds} ms</dd></div>
-                  <div><dt className="font-black text-myr-slate">Finish reason</dt><dd className="mt-1 font-myr-mono">{promptResult.finishReason ?? '—'}</dd></div>
-                </dl>
-              </div>}
-            </Inset>
           </section>
         </PageShell>
       </PageCanvas>

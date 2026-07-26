@@ -17,7 +17,7 @@ public static class AiAdminEndpoints
             .RequireAuthorization("AiAdministration");
         group.MapGet("/", ListAsync);
         group.MapPut("/active-provider", ActivateAsync);
-        group.MapPost("/active-provider/prompt-test", PromptTestAsync);
+        group.MapPost("/{provider}/prompt-test", PromptTestAsync);
         group.MapPut("/{provider}", UpsertAsync);
         group.MapDelete("/{provider}", DeleteAsync);
         group.MapPost("/{provider}/test", TestAsync);
@@ -106,11 +106,20 @@ public static class AiAdminEndpoints
     }
 
     private static async Task<IResult> PromptTestAsync(
+        string provider,
         AiPromptTestRequest request,
+        IAiCredentialStore store,
         IAiTextProvider textProvider,
         IHostEnvironment environment,
         CancellationToken cancellationToken)
     {
+        provider = Normalize(provider);
+        if (provider is not ("openai" or "runpod")) return Results.NotFound();
+        var credential = await store.GetAsync(provider, cancellationToken);
+        if (string.IsNullOrWhiteSpace(credential))
+            return Results.Conflict(new AiAdminErrorResponse(
+                "先にAIキーを登録してください。",
+                new Dictionary<string, string[]> { ["provider"] = ["未設定のProviderはテストできません。"] }));
         var prompt = request.Prompt?.Trim();
         if (string.IsNullOrWhiteSpace(prompt) || prompt.Length > 10_000)
             return Results.BadRequest(new AiAdminErrorResponse(
@@ -120,7 +129,7 @@ public static class AiAdminEndpoints
         using var schema = JsonDocument.Parse("{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"response\":{\"type\":\"string\"}},\"required\":[\"response\"]}");
         try
         {
-            var generated = await textProvider.GenerateAsync(new AiTextRequest(
+            var generated = await textProvider.GenerateForProviderAsync(provider, credential, new AiTextRequest(
                 [
                     new ChatMessage(ChatRole.System, "Return JSON that matches the response schema. Put your answer to the administrator's test prompt in the response field."),
                     new ChatMessage(ChatRole.User, prompt),

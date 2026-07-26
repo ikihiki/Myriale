@@ -58,18 +58,21 @@ public sealed class AiEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task AdminAiKeys_SendsPromptToActiveProviderAndReturnsDiagnostics()
+    public async Task AdminAiKeys_SendsPromptToInactiveConfiguredProviderAndReturnsDiagnostics()
     {
         var client = await CreateSignedInClientAsync(grantAdmin: true);
+        using var saved = await client.PutAsJsonAsync("/api/admin/ai-keys/runpod", new { displayName = "Runpod Serverless", secret = "runpod-secret-5678" });
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        Assert.False((await saved.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("active").GetBoolean());
 
-        using var response = await client.PostAsJsonAsync("/api/admin/ai-keys/active-provider/prompt-test", new
+        using var response = await client.PostAsJsonAsync("/api/admin/ai-keys/runpod/prompt-test", new
         {
             prompt = "日本語で短く応答してください。"
         });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("openai", json.GetProperty("provider").GetString());
+        Assert.Equal("runpod", json.GetProperty("provider").GetString());
         Assert.Equal("test-model", json.GetProperty("model").GetString());
         Assert.Equal("テスト応答です。", json.GetProperty("response").GetString());
         Assert.Equal(12, json.GetProperty("inputTokens").GetInt32());
@@ -216,9 +219,11 @@ public sealed class AiEndpointTests : IDisposable
     private sealed class SuccessfulTextProvider : IAiTextProvider
     {
         public Task<AiTextResponse> GenerateAsync(AiTextRequest request, CancellationToken cancellationToken) =>
+            GenerateForProviderAsync("openai", "test", request, cancellationToken);
+        public Task<AiTextResponse> GenerateForProviderAsync(string provider, string credential, AiTextRequest request, CancellationToken cancellationToken) =>
             Task.FromResult(new AiTextResponse(
                 "{\"response\":\"テスト応答です。\"}",
-                new AiGenerationMetadata("openai", "test-model", "response-1", 12, 7, 42, 1, "stop")));
+                new AiGenerationMetadata(provider, "test-model", "response-1", 12, 7, 42, 1, "stop")));
         public Task TestConnectionAsync(string provider, string credential, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 

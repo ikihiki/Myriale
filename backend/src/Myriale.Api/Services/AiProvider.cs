@@ -55,6 +55,7 @@ public sealed record NarrativeGeneration<T>(
 public interface IAiTextProvider
 {
     Task<AiTextResponse> GenerateAsync(AiTextRequest request, CancellationToken cancellationToken);
+    Task<AiTextResponse> GenerateForProviderAsync(string provider, string credential, AiTextRequest request, CancellationToken cancellationToken);
     Task TestConnectionAsync(string provider, string credential, CancellationToken cancellationToken);
 }
 
@@ -117,6 +118,16 @@ public sealed class OpenAiCompatibleTextProvider(
         if (string.IsNullOrWhiteSpace(credential))
             throw new AiProviderException(AiProviderErrorCodes.InvalidCredential, "AI Provider credentialが設定されていません。", false);
         return await SendWithRetryAsync(provider, options, credential, request, cancellationToken);
+    }
+
+    public async Task<AiTextResponse> GenerateForProviderAsync(string provider, string credential, AiTextRequest request, CancellationToken cancellationToken)
+    {
+        provider = Normalize(provider);
+        if (provider is not ("openai" or "runpod"))
+            throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "未対応のAI Providerです。", false);
+        if (string.IsNullOrWhiteSpace(credential))
+            throw new AiProviderException(AiProviderErrorCodes.InvalidCredential, "AI Provider credentialが設定されていません。", false);
+        return await SendWithRetryAsync(provider, ResolveOptions(configuredOptions.Value, provider), credential, request, cancellationToken);
     }
 
     public async Task TestConnectionAsync(string provider, string credential, CancellationToken cancellationToken)
