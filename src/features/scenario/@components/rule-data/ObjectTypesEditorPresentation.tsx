@@ -87,13 +87,12 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
             const previous = selected.stateFields[index];
             replaceSelected({ ...selected,
               stateFields: selected.stateFields.map((field, fieldIndex) => fieldIndex === index ? { ...field, code } : field),
-              actions: selected.actions.map((action) => action.availabilityStateCode === previous.code ? { ...action, availabilityStateCode: code } : action),
+              actions: selected.actions,
             });
           }}
           onRenameAction={(index, code) => { onChange(renameTypeActionCode(value, selected.code, selected.actions[index].code, code)); }}
           onDeleteState={(index) => {
             const state = selected.stateFields[index];
-            if (selected.actions.some((action) => action.availabilityStateCode === state.code)) return onNotice('この状態を参照するAction提示条件があります。先に参照を解除してください。', true);
             replaceSelected({ ...selected, stateFields: selected.stateFields.filter((_, fieldIndex) => fieldIndex !== index) });
           }}
           onDeleteAction={(index) => {
@@ -111,7 +110,7 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
     </EditPane>
 
     <EditPane layer={1} open={Boolean(editingRule)} onOpenChange={(open) => { if (!open) setEditingRuleCode(null); }} eyebrow="Type generic rule" title={editingRule?.code ?? 'generic ruleを編集'} description="condition、priority、note、ordered effects、module bindingを編集します。" footer={<Button onClick={() => setEditingRuleCode(null)}>ruleの編集を完了</Button>}>
-      {selected && editingRule && <ObjectActionRuleEditorPresentation value={value} rule={editingRule} actions={selected.actions} onChange={replaceRule} onDelete={deleteRule} />}
+      {selected && editingRule && <ObjectActionRuleEditorPresentation value={value} rule={editingRule} actions={selected.actions} stateFields={selected.stateFields} onChange={replaceRule} onDelete={deleteRule} />}
     </EditPane>
   </section>;
 }

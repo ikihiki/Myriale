@@ -14,6 +14,7 @@ import type {
   ScenarioRuleEffectPayload,
   ScenarioStateValueType,
 } from './scenarioApi';
+import { conditionFromCanonical, conditionToCanonical } from './scenarioConditionAdapters';
 
 const asObject = (value: ScenarioJsonValue | undefined): ScenarioJsonObject =>
   value && typeof value === 'object' && !Array.isArray(value) ? value : {};
@@ -37,17 +38,12 @@ function schemaType(value: ScenarioJsonValue | undefined): ScenarioStateValueTyp
 function actionFromCanonical(action: CanonicalScenarioActionDto) {
   const argumentProperties = asObject(action.argumentSchema.properties);
   const required = new Set(asArray(action.argumentSchema.required).filter((item): item is string => typeof item === 'string'));
-  const condition = action.availabilityCondition;
-  const availabilityStateCode = condition.op === 'eq' && typeof condition.path === 'string' && condition.path.startsWith('state.')
-    ? condition.path.slice('state.'.length)
-    : '';
   return {
     code: action.code,
     label: action.label,
     description: action.description ?? '',
     visibility: action.visibility,
-    availability: availabilityStateCode ? 'state-equals' as const : 'always' as const,
-    availabilityStateCode,
+    availabilityCondition: conditionFromCanonical(action.availabilityCondition),
     argumentFields: Object.entries(argumentProperties).map(([code, schema]) => ({
       code,
       label: typeof asObject(schema).title === 'string' ? String(asObject(schema).title) : code,
@@ -89,7 +85,7 @@ function ruleFromCanonical(rule: CanonicalScenarioActionRuleDto): ScenarioAction
   return {
     code: rule.code,
     actionCode: rule.actionCode,
-    condition: structuredClone(rule.condition),
+    condition: conditionFromCanonical(rule.condition),
     priority: rule.priority,
     note: rule.authoringNote ?? '',
     effects: rule.effects.map(effectFromCanonical),
@@ -115,7 +111,7 @@ function objectOperationFromCanonical(operation: CanonicalScenarioObjectRuleOper
     targetTypeCode: operation.targetTypeCode,
     targetRuleCode: operation.targetRuleCode,
     adjustments: {
-      ...('condition' in operation ? { condition: structuredClone(operation.condition) } : {}),
+      ...('condition' in operation && operation.condition ? { condition: conditionFromCanonical(operation.condition) } : {}),
       ...('priority' in operation ? { priority: operation.priority } : {}),
       ...('authoringNote' in operation ? { note: operation.authoringNote } : {}),
       ...('effects' in operation ? { effects: (operation.effects ?? []).map(effectFromCanonical) } : {}),
@@ -184,7 +180,6 @@ function stateValue(ruleData: ScenarioRuleDataPayload, sourceCode: string, state
 
 function actionToCanonical(action: ScenarioObjectTypePayload['actions'][number], type: Pick<ScenarioObjectTypePayload, 'stateFields'>): CanonicalScenarioActionDto {
   const argumentProperties = Object.fromEntries(action.argumentFields.map((field) => [field.code, { type: field.valueType, title: field.label }]));
-  const state = type.stateFields.find((field) => field.code === action.availabilityStateCode);
   return {
     code: action.code,
     label: action.label,
@@ -195,11 +190,7 @@ function actionToCanonical(action: ScenarioObjectTypePayload['actions'][number],
       properties: argumentProperties,
       required: action.argumentFields.filter((field) => field.required).map((field) => field.code),
     },
-    availabilityCondition: action.availability === 'always' ? {} : {
-      op: 'eq',
-      path: `state.${action.availabilityStateCode}`,
-      value: parseValue(state?.defaultValue ?? '', state?.valueType ?? 'string'),
-    },
+    availabilityCondition: conditionToCanonical(action.availabilityCondition),
     visibility: action.visibility,
     executionMode: 'rule',
   };
@@ -231,7 +222,7 @@ function ruleToCanonical(rule: ScenarioActionRulePayload, ruleData: ScenarioRule
   return {
     code: rule.code,
     actionCode: rule.actionCode,
-    condition: structuredClone(rule.condition),
+    condition: conditionToCanonical(rule.condition),
     priority: rule.priority,
     authoringNote: rule.note || null,
     effects: rule.effects.map((effect) => effectToCanonical(effect, ruleData, sourceCode)),
@@ -259,7 +250,7 @@ function objectOperationToCanonical(operation: ScenarioObjectRuleOperationPayloa
     operation: 'adjust',
     targetTypeCode: operation.targetTypeCode,
     targetRuleCode: operation.targetRuleCode,
-    ...('condition' in operation.adjustments ? { condition: structuredClone(operation.adjustments.condition) } : {}),
+    ...('condition' in operation.adjustments ? { condition: conditionToCanonical(operation.adjustments.condition!) } : {}),
     ...('priority' in operation.adjustments ? { priority: operation.adjustments.priority } : {}),
     ...('note' in operation.adjustments ? { authoringNote: operation.adjustments.note } : {}),
     ...('effects' in operation.adjustments ? { effects: operation.adjustments.effects?.map((effect) => effectToCanonical(effect, ruleData, sourceCode)) ?? [] } : {}),

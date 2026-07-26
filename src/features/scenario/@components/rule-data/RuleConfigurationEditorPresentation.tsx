@@ -3,6 +3,7 @@ import { Button, Input, Textarea } from '../../../../components/ui';
 import { EditPane } from '../../../../shared/EditPane';
 import { MyrialeSelect } from '../../../../ui/MyrialeRadix';
 import { createStateField, createTypeAction, nextAuthoringCode, type ScenarioStateField, type ScenarioTypeAction } from './scenarioRuleDataModel';
+import { ConditionBuilderPresentation } from './ConditionBuilderPresentation';
 
 type Props = {
   label: string;
@@ -61,8 +62,7 @@ export function RuleConfigurationEditorPresentation({ label, stateFields, action
         <label>表示名<Input aria-label={`${label} action label ${editing.index + 1}`} value={action.label} onChange={(event) => replaceAction(editing.index, { label: event.target.value })} /></label>
         <label>説明<Textarea aria-label={`${label} action description ${editing.index + 1}`} value={action.description} onChange={(event) => replaceAction(editing.index, { description: event.target.value })} /></label>
         <MyrialeSelect label="visibility" value={action.visibility} onValueChange={(visibility) => replaceAction(editing.index, { visibility: visibility as ScenarioTypeAction['visibility'] })} options={[{ value: 'ai-choice', label: 'AI choice' }, { value: 'manual-ui', label: 'manual UI' }, { value: 'system-only', label: 'system only' }]} />
-        <MyrialeSelect label="提示条件" value={action.availability} onValueChange={(availability) => replaceAction(editing.index, { availability: availability as ScenarioTypeAction['availability'] })} options={[{ value: 'always', label: '常に提示' }, { value: 'state-equals', label: '状態がdefaultと一致' }]} />
-        {action.availability === 'state-equals' && <MyrialeSelect label="提示条件に使う状態" value={action.availabilityStateCode} onValueChange={(availabilityStateCode) => replaceAction(editing.index, { availabilityStateCode })} options={stateFields.map((field) => ({ value: field.code, label: `${field.label} / ${field.code}` }))} />}
+        <ConditionBuilderPresentation label="提示条件" value={action.availabilityCondition} onChange={(availabilityCondition) => replaceAction(editing.index, { availabilityCondition })} stateFields={stateFields} argumentFields={action.argumentFields} allowArguments={false} />
         <section className="grid gap-2 rounded-xl border border-[#17151f]/12 p-3"><div className="flex items-center justify-between"><strong>引数</strong><Button size="sm" variant="secondary" onClick={() => { const index = action.argumentFields.length; replaceAction(editing.index, { argumentFields: [...action.argumentFields, { code: nextAuthoringCode('argument'), label: '新しい引数', valueType: 'string', required: false }] }); setEditing({ kind: 'argument', actionIndex: editing.index, index }); }}>引数を追加</Button></div>
           {action.argumentFields.map((field, index) => <Button key={`${field.code}-${index}`} size="sm" variant="text" onClick={() => setEditing({ kind: 'argument', actionIndex: editing.index, index })}>{field.label} / {field.code}</Button>)}
         </section>

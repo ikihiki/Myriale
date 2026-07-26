@@ -38,7 +38,8 @@ describe('strict v2 rule authoring', () => {
     expect(screen.queryByText('Object個別')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'generic-open generic ruleを編集' }));
     expect(screen.getByLabelText('実行ルールのstable code')).toHaveValue('generic-open');
-    expect((screen.getByLabelText('実行ルールのcondition JSON') as HTMLTextAreaElement).value).toContain('state.open');
+    expect(screen.getByRole('region', { name: '実行条件' })).toHaveTextContent('実行条件');
+    expect(screen.queryByLabelText('実行ルールのcondition JSON')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('実行ルールの優先度'), { target: { value: '175' } });
     fireEvent.click(screen.getByRole('button', { name: 'bindingを追加' }));
     fireEvent.change(screen.getByLabelText('module binding id'), { target: { value: 'door-module' } });

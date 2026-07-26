@@ -12,9 +12,9 @@ export const completeDoorRuleDataFixture: ScenarioRuleDataPayload = {
       { code: 'open', label: '開いている', valueType: 'boolean', defaultValue: 'false', visibility: 'public' },
       { code: 'seal-name', label: '封印名', valueType: 'string', defaultValue: 'Aster', visibility: 'private' },
     ],
-    actions: [{ code: 'open', label: '扉を開ける', description: '閉じた扉を開く。', visibility: 'ai-choice', availability: 'state-equals', availabilityStateCode: 'open', argumentFields: [] }],
+    actions: [{ code: 'open', label: '扉を開ける', description: '閉じた扉を開く。', visibility: 'ai-choice', availabilityCondition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'open', valueType: 'boolean', value: false }, argumentFields: [] }],
     actionRules: [{
-      code: 'generic-open', actionCode: 'open', condition: { op: 'eq', path: 'state.open', value: false }, priority: 100,
+      code: 'generic-open', actionCode: 'open', condition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'open', valueType: 'boolean', value: false }, priority: 100,
       note: '通常の開扉結果。', effects: [{ kind: 'set-state', targetObjectCode: '', stateCode: 'open', value: 'true' }], moduleBinding: null,
     }],
   }],
@@ -40,23 +40,23 @@ export const westDoorAuthoringFixture: ScenarioRuleDataPayload = {
   objectTypes: [{
     code: 'openable', name: '開閉可能', description: '開閉状態を提供するmixin。', schemaVersion: 1,
     stateFields: [{ code: 'open', label: '開いている', valueType: 'boolean', defaultValue: 'false', visibility: 'public' }],
-    actions: [{ code: 'open', label: '開ける', description: '対象を開く。', visibility: 'ai-choice', availability: 'state-equals', availabilityStateCode: 'open', argumentFields: [] }],
-    actionRules: [{ code: 'generic-open', actionCode: 'open', condition: { op: 'eq', path: 'state.open', value: false }, priority: 100, note: 'Type generic rule', effects: [{ kind: 'set-state', targetObjectCode: '', stateCode: 'open', value: 'true' }], moduleBinding: null }],
+    actions: [{ code: 'open', label: '開ける', description: '対象を開く。', visibility: 'ai-choice', availabilityCondition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'open', valueType: 'boolean', value: false }, argumentFields: [] }],
+    actionRules: [{ code: 'generic-open', actionCode: 'open', condition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'open', valueType: 'boolean', value: false }, priority: 100, note: 'Type generic rule', effects: [{ kind: 'set-state', targetObjectCode: '', stateCode: 'open', value: 'true' }], moduleBinding: null }],
   }, {
     code: 'exit-door', name: '出口の扉', description: '開閉状態を持ち、外へ出るための扉。', schemaVersion: 1,
     stateFields: [],
-    actions: [{ code: 'open-and-exit', label: '扉を開けて外へ出る', description: '扉を開き、そのまま屋外へ移動する。', visibility: 'ai-choice', availability: 'state-equals', availabilityStateCode: 'open', argumentFields: [] }],
-    actionRules: [{ code: 'generic-open-and-exit', actionCode: 'open-and-exit', condition: { op: 'eq', path: 'state.open', value: false }, priority: 100, note: '出口共通のrule', effects: [{ kind: 'set-state', targetObjectCode: '', stateCode: 'open', value: 'true' }], moduleBinding: null }],
+    actions: [{ code: 'open-and-exit', label: '扉を開けて外へ出る', description: '扉を開き、そのまま屋外へ移動する。', visibility: 'ai-choice', availabilityCondition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'open', valueType: 'boolean', value: false }, argumentFields: [] }],
+    actionRules: [{ code: 'generic-open-and-exit', actionCode: 'open-and-exit', condition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'open', valueType: 'boolean', value: false }, priority: 100, note: '出口共通のrule', effects: [{ kind: 'set-state', targetObjectCode: '', stateCode: 'open', value: 'true' }], moduleBinding: null }],
   }],
   objects: [{
     code: 'west-door', name: '西の扉', mixinTypeCodes: ['openable', 'exit-door'], initialLocationCode: 'inside', global: false,
     stateFields: [{ code: 'direction', label: '方向', valueType: 'string', defaultValue: 'west', visibility: 'public' }],
-    actions: [{ code: 'inspect-exit', label: '出口を確認する', description: '出口の様子を確認するObject local action。', visibility: 'ai-choice', availability: 'always', availabilityStateCode: '', argumentFields: [] }],
+    actions: [{ code: 'inspect-exit', label: '出口を確認する', description: '出口の様子を確認するObject local action。', visibility: 'ai-choice', availabilityCondition: { kind: 'always' }, argumentFields: [] }],
     initialStateOverrides: [],
     actionRules: [{
       operation: 'override', targetTypeCode: 'exit-door', targetRuleCode: 'generic-open-and-exit',
       rule: {
-        code: 'generic-open-and-exit', actionCode: 'open-and-exit', condition: { op: 'eq', path: 'state.open', value: false }, priority: 100,
+        code: 'generic-open-and-exit', actionCode: 'open-and-exit', condition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'open', valueType: 'boolean', value: false }, priority: 100,
         note: '西の扉を開けて屋外へ出る決定的な結果。', moduleBinding: null,
         effects: [
           { kind: 'set-state', targetObjectCode: 'west-door', stateCode: 'open', value: 'true' },
@@ -71,7 +71,7 @@ export const westDoorAuthoringFixture: ScenarioRuleDataPayload = {
       },
     }, {
       operation: 'add',
-      rule: { code: 'west-inspect-exit', actionCode: 'inspect-exit', condition: { op: 'eq', path: 'state.direction', value: 'west' }, priority: 90, note: 'Object local actionをObject local ruleで処理する。', effects: [{ kind: 'emit-fact', text: '西の扉は屋外への出口だ。' }], moduleBinding: null },
+      rule: { code: 'west-inspect-exit', actionCode: 'inspect-exit', condition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'direction', valueType: 'string', value: 'west' }, priority: 90, note: 'Object local actionをObject local ruleで処理する。', effects: [{ kind: 'emit-fact', text: '西の扉は屋外への出口だ。' }], moduleBinding: null },
     }],
   }],
 };

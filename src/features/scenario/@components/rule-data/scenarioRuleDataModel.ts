@@ -42,8 +42,7 @@ export function createTypeAction(): ScenarioTypeAction {
     label: '新しいアクション',
     description: '',
     visibility: 'ai-choice',
-    availability: 'always',
-    availabilityStateCode: '',
+    availabilityCondition: { kind: 'always' },
     argumentFields: [],
   };
 }
@@ -78,7 +77,7 @@ export function createActionRule(actionCode: string): ScenarioActionRule {
   return {
     code: nextAuthoringCode('rule'),
     actionCode,
-    condition: {},
+    condition: { kind: 'always' },
     priority: 100,
     note: '',
     effects: [],
@@ -135,7 +134,7 @@ export function effectiveObjectRules(ruleData: ScenarioRuleData, object: Scenari
       operationIndex,
       rule: {
         ...inherited.rule,
-        ...('condition' in operation.adjustments ? { condition: structuredClone(operation.adjustments.condition ?? {}) } : {}),
+        ...('condition' in operation.adjustments && operation.adjustments.condition ? { condition: structuredClone(operation.adjustments.condition) } : {}),
         ...('priority' in operation.adjustments ? { priority: operation.adjustments.priority ?? inherited.rule.priority } : {}),
         ...('note' in operation.adjustments ? { note: operation.adjustments.note ?? '' } : {}),
         ...('effects' in operation.adjustments ? { effects: structuredClone(operation.adjustments.effects ?? []) } : {}),
@@ -199,7 +198,6 @@ export function validateScenarioRuleData(ruleData: ScenarioRuleData): RuleDataIs
     resolved.conflicts.forEach((conflict) => issues.push({ path: `ruleData.objects[${objectIndex}].${conflict.kind === 'state' ? 'stateFields' : 'actions'}`, message: `定義が競合しています: ${conflict.message}`, severity: 'error' }));
     if (!object.global && !ruleData.locations.some((location) => location.code === object.initialLocationCode)) issues.push({ path: `ruleData.objects[${objectIndex}].initialLocationCode`, message: '初期配置する場所を選択してください。', severity: 'error' });
     resolved.actions.forEach((action) => {
-      if (action.availability === 'state-equals' && !resolved.stateFields.some((state) => state.code === action.availabilityStateCode)) issues.push({ path: `ruleData.objects[${objectIndex}].actions`, message: 'アクション提示条件で参照する状態が見つかりません。', severity: 'error' });
       if (!effectiveObjectRules(ruleData, object).some((entry) => entry.state !== 'deleted' && entry.rule.actionCode === action.code)) issues.push({ path: `ruleData.objects[${objectIndex}].actionRules`, message: `「${action.label}」の実行ルールが未設定です。`, severity: 'warning' });
     });
     const localRuleCodes = new Set<string>();
@@ -319,8 +317,7 @@ function sameActionContract(left: ScenarioTypeAction, right: ScenarioTypeAction)
     && left.label === right.label
     && left.description === right.description
     && left.visibility === right.visibility
-    && left.availability === right.availability
-    && left.availabilityStateCode === right.availabilityStateCode
+    && JSON.stringify(left.availabilityCondition) === JSON.stringify(right.availabilityCondition)
     && JSON.stringify(left.argumentFields) === JSON.stringify(right.argumentFields);
 }
 

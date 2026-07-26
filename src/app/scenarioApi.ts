@@ -112,13 +112,24 @@ export type ScenarioActionArgumentFieldPayload = {
   required: boolean;
 };
 
+export type ScenarioConditionSource = 'state' | 'arguments' | 'session.flags';
+export type ScenarioConditionScalar = string | number | boolean;
+export type ScenarioConditionValueType = 'string' | 'number' | 'boolean';
+export type ScenarioCondition =
+  | { kind: 'always' }
+  | { kind: 'comparison'; operator: 'eq' | 'ne' | 'lt' | 'lte' | 'gt' | 'gte'; source: ScenarioConditionSource; path: string; valueType: ScenarioConditionValueType; value: ScenarioConditionScalar }
+  | { kind: 'in'; source: ScenarioConditionSource; path: string; valueType: ScenarioConditionValueType; values: ScenarioConditionScalar[] }
+  | { kind: 'exists'; source: ScenarioConditionSource; path: string }
+  | { kind: 'group'; operator: 'and' | 'or'; children: ScenarioCondition[] }
+  | { kind: 'not'; child: ScenarioCondition }
+  | { kind: 'unsupported'; canonical: ScenarioJsonObject };
+
 export type ScenarioObjectTypeActionPayload = {
   code: string;
   label: string;
   description: string;
   visibility: ScenarioActionVisibility;
-  availability: 'always' | 'state-equals';
-  availabilityStateCode: string;
+  availabilityCondition: ScenarioCondition;
   argumentFields: ScenarioActionArgumentFieldPayload[];
 };
 
@@ -155,7 +166,7 @@ export type ScenarioModuleBindingPayload = CanonicalScenarioModuleBindingDto;
 export type ScenarioActionRulePayload = {
   code: string;
   actionCode: string;
-  condition: ScenarioJsonObject;
+  condition: ScenarioCondition;
   priority: number;
   note: string;
   effects: ScenarioRuleEffectPayload[];
@@ -171,7 +182,7 @@ export type ScenarioObjectRuleOperationPayload =
       targetTypeCode: string;
       targetRuleCode: string;
       adjustments: {
-        condition?: ScenarioJsonObject;
+        condition?: ScenarioCondition;
         priority?: number;
         note?: string | null;
         effects?: ScenarioRuleEffectPayload[];
@@ -401,7 +412,7 @@ const awakeningLaboratoryRuleData: ScenarioRuleDataPayload = {
     description: '開閉状態を持つ研究施設の扉。',
     schemaVersion: 1,
     stateFields: [{ code: 'open', label: '開いている', valueType: 'boolean', defaultValue: 'false', visibility: 'public' }],
-    actions: [{ code: 'open', label: '扉を開ける', description: '閉じた隔壁を開く。', visibility: 'ai-choice', availability: 'state-equals', availabilityStateCode: 'open', argumentFields: [] }],
+    actions: [{ code: 'open', label: '扉を開ける', description: '閉じた隔壁を開く。', visibility: 'ai-choice', availabilityCondition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'open', valueType: 'boolean', value: false }, argumentFields: [] }],
     actionRules: [],
   }],
   objects: [{
@@ -418,7 +429,7 @@ const awakeningLaboratoryRuleData: ScenarioRuleDataPayload = {
       rule: {
         code: 'open-north-door',
         actionCode: 'open',
-        condition: { op: 'eq', path: 'state.open', value: false },
+        condition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'open', valueType: 'boolean', value: false },
         priority: 100,
         note: '通常の開扉結果。',
         effects: [

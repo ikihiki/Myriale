@@ -43,7 +43,7 @@ describe('scenario rule-data authoring model', () => {
     const fixture = structuredClone(completeDoorRuleDataFixture);
     const effective = effectiveObjectRules(fixture, fixture.objects[0])[0];
     expect(effective.rule.priority).toBe(100);
-    expect(effective.rule.condition).toEqual({ op: 'eq', path: 'state.open', value: false });
+    expect(effective.rule.condition).toEqual({ kind: 'comparison', operator: 'eq', source: 'state', path: 'open', valueType: 'boolean', value: false });
     expect(effective.rule.effects).toHaveLength(2);
   });
 
