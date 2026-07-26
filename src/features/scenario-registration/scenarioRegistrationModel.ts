@@ -14,6 +14,7 @@ export type ScenarioRegistrationAssistResult = ScenarioFormAssistResult;
 export type ScenarioRegistrationActions = {
   saveDraft: ScenarioFormActions['save'];
   assist: ScenarioFormActions['assist'];
+  debug: ScenarioFormActions['debug'];
 };
 export const initialScenarioRegistrationValues = emptyScenarioFormValues;
 export const firstScenarioFieldError = firstScenarioFormFieldError;

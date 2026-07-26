@@ -50,6 +50,7 @@ builder.Services.AddScoped<ScenarioRuleConfigurationResolver>();
 builder.Services.AddScoped<ScenarioPublicProjector>();
 builder.Services.AddScoped<ScenarioActionEnumerator>();
 builder.Services.AddScoped<ScenarioEffectApplier>();
+builder.Services.AddScoped<ScenarioRuleDebugService>();
 builder.Services.AddScoped<IScenarioExtensionAdapter, ScenarioModuleExtensionAdapter>();
 builder.Services.AddScoped<SessionInputService>();
 builder.Services.AddScoped<ISessionExecutionQueue, SessionExecutionQueue>();

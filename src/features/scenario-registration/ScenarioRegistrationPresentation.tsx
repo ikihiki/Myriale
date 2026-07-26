@@ -19,7 +19,7 @@ export function ScenarioRegistrationPresentation({ account, scenarioId, initialV
     initialValues={initialValues}
     saving={saving}
     aiWorking={aiWorking}
-    actions={{ save: actions.saveDraft, assist: actions.assist }}
+    actions={{ save: actions.saveDraft, assist: actions.assist, debug: actions.debug }}
     onLogout={onLogout}
   />;
 }

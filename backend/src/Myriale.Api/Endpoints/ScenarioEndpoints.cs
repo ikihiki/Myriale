@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Contracts;
@@ -48,6 +49,9 @@ public static class ScenarioEndpoints
             .WithName("GetScenarioRuleDataReadiness");
         group.MapPost("/{scenarioId}/rule-data/publish", PublishRuleDataAsync).RequireAuthorization()
             .WithName("PublishScenarioRuleData");
+        group.MapPost("/{scenarioId}/rule-data/debug", DebugRuleDataAsync).RequireAuthorization()
+            .WithName("DebugScenarioRuleData")
+            .WithSummary("Runs the latest draft rule definition against an isolated, non-persistent world state.");
 
         return group;
     }
@@ -271,6 +275,30 @@ public static class ScenarioEndpoints
         scenario.UpdatedAt = version.UpdatedAt;
         await db.SaveChangesAsync(cancellationToken);
         return TypedResults.Ok(authoring.ToResponse(version));
+    }
+
+    private static async Task<IResult> DebugRuleDataAsync(
+        string scenarioId, ScenarioRuleDebugRequest request, ClaimsPrincipal principal, ApplicationDbContext db,
+        ScenarioRuleDebugService debug, CancellationToken cancellationToken)
+    {
+        if (!await IsOwnerAsync(scenarioId, principal, db, cancellationToken)) return TypedResults.NotFound();
+        try
+        {
+            var response = await debug.ExecuteAsync(scenarioId, request, cancellationToken);
+            return response is null ? TypedResults.NotFound() : TypedResults.Ok(response);
+        }
+        catch (ScenarioTurnValidationException exception)
+        {
+            return TypedResults.BadRequest(new ScenarioErrorResponse(
+                "Debug execution failed.",
+                new Dictionary<string, string[]> { ["debug"] = [exception.Code] }));
+        }
+        catch (JsonException)
+        {
+            return TypedResults.BadRequest(new ScenarioErrorResponse(
+                "Debug state contains invalid JSON.",
+                new Dictionary<string, string[]> { ["debug"] = ["invalid_debug_json"] }));
+        }
     }
 
     private static async Task<bool> IsOwnerAsync(string scenarioId, ClaimsPrincipal principal, ApplicationDbContext db, CancellationToken cancellationToken)

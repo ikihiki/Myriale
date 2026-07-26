@@ -28,6 +28,7 @@ export function ScenarioRegistrationContainer({ api }: { api?: ScenarioApi } = {
     setSaving(true);
     try {
       const draft = await scenarioApi.createScenario(values);
+      await scenarioApi.putScenarioRuleData(draft.id, values.ruleData);
       setScenarioId(draft.id);
       store?.dispatch({
         type: 'SCENARIO_SAVED',
@@ -81,6 +82,17 @@ export function ScenarioRegistrationContainer({ api }: { api?: ScenarioApi } = {
     }
   };
 
+  const debug: ScenarioRegistrationActions['debug'] = async (_values, request) => {
+    if (scenarioId === '未発行') return { ok: false, message: '先に下書き保存してScenarioIdを発行してください。' };
+    try {
+      const response = await scenarioApi.debugScenarioRuleData(scenarioId, request);
+      return { ok: true, message: '隔離されたルールエンジンで実行しました。本番データは変更されていません。', value: response };
+    } catch (caught) {
+      const error = caught as ScenarioApiError;
+      return { ok: false, message: error.errors?.debug?.[0] ?? error.message ?? 'デバッグ実行に失敗しました。' };
+    }
+  };
+
   const logout = async () => {
     await accountSession.api.logout();
     accountSession.clearUser();
@@ -92,7 +104,7 @@ export function ScenarioRegistrationContainer({ api }: { api?: ScenarioApi } = {
     scenarioId={scenarioId}
     saving={saving}
     aiWorking={aiWorking}
-    actions={{ saveDraft, assist }}
+    actions={{ saveDraft, assist, debug }}
     onLogout={logout}
   />;
 }

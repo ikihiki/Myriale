@@ -35,6 +35,36 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task DebugRuleData_AppliesDirectActionWithoutPersistingWorldState()
+    {
+        var client = await CreateSignedInClientAsync();
+        var scenarioId = await CreateScenarioAsync(client);
+        using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", ValidRuleData());
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+
+        using var response = await client.PostAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data/debug", new
+        {
+            trigger = "direct-action",
+            currentLocationCode = "hall",
+            flags = new Dictionary<string, bool>(),
+            objects = new[] { new { objectCode = "north-door", locationCode = "hall", state = new { open = false } } },
+            objectCode = "north-door",
+            actionCode = "open",
+            arguments = new { },
+            playerInput = (string?)null,
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var debug = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("open-default", debug.GetProperty("selectedRuleCode").GetString());
+        Assert.True(debug.GetProperty("postState").GetProperty("objects")[0].GetProperty("state").GetProperty("open").GetBoolean());
+
+        using var persisted = await client.GetAsync($"/api/scenarios/{scenarioId}/rule-data");
+        var ruleData = await persisted.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.False(ruleData.GetProperty("objectTypes")[0].GetProperty("defaultState").GetProperty("open").GetBoolean());
+    }
+
+    [Fact]
     public async Task DraftSave_RejectsTopLevelSchemaVersionOne()
     {
         var client = await CreateSignedInClientAsync();
