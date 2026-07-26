@@ -22,6 +22,15 @@ export function MockEditScenarioContainer({ scenarioId }: { scenarioId: string }
     },
   });
 
+  const debug: ScenarioFormActions['debug'] = async (_values, request) => ({
+    ok: true,
+    message: '隔離されたルールエンジンで実行しました。',
+    value: {
+      snapshot: { schemaVersion: 'rule-action-snapshot.v1', snapshotId: 'EDIT-DEBUG', currentLocation: { id: request.currentLocationCode, code: request.currentLocationCode, name: request.currentLocationCode, description: '' }, objects: [], actions: [] },
+      decision: null, selectedRuleCode: null, appliedEffects: [], postState: null, facts: [], events: [], hints: [], forbiddenFacts: [],
+    },
+  });
+
   return <EditScenarioPresentation
     account={account}
     scenarioId={scenarioId}
@@ -29,7 +38,7 @@ export function MockEditScenarioContainer({ scenarioId }: { scenarioId: string }
     status="ready"
     saving={saving}
     aiWorking={false}
-    actions={{ save, assist }}
+    actions={{ save, assist, debug }}
     onRetry={() => undefined}
     onLogout={() => undefined}
   />;

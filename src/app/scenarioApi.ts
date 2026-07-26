@@ -241,6 +241,47 @@ export type ScenarioRuleDataReadinessDto = {
   errors: Record<string, string[]>;
 };
 
+export type ScenarioRuleDebugObjectState = {
+  objectCode: string;
+  locationCode: string;
+  state: ScenarioJsonObject;
+};
+
+export type ScenarioRuleDebugRequest = {
+  trigger: 'enumerate' | 'direct-action' | 'player-input';
+  currentLocationCode: string;
+  flags: Record<string, boolean>;
+  objects: ScenarioRuleDebugObjectState[];
+  objectCode?: string | null;
+  actionCode?: string | null;
+  arguments: ScenarioJsonObject;
+  playerInput?: string | null;
+};
+
+export type ScenarioRuleDebugResponse = {
+  snapshot: {
+    schemaVersion: string;
+    snapshotId: string;
+    currentLocation: { id: string; code: string; name: string; description: string };
+    objects: Array<{ id: string; code: string; name: string; locationId: string; isGlobal: boolean; revision: number; state: ScenarioJsonObject }>;
+    actions: Array<{ objectId: string; actionId: string; code: string; label: string; description: string; argumentSchema: ScenarioJsonObject; enabled: boolean }>;
+  };
+  decision?: { schemaVersion: string; objectId: string; actionId: string; arguments: ScenarioJsonObject } | null;
+  selectedRuleCode?: string | null;
+  appliedEffects: Array<{ type: string; targetId?: string | null; path?: string | null; value?: ScenarioJsonValue }>;
+  postState?: {
+    schemaVersion: string;
+    currentLocation: { id: string; code: string; name: string; description: string };
+    objects: Array<{ id: string; code: string; name: string; locationId: string; isGlobal: boolean; revision: number; state: ScenarioJsonObject }>;
+    sessionFlags: Record<string, boolean>;
+    sessionStateRevision: number;
+  } | null;
+  facts: string[];
+  events: ScenarioJsonValue[];
+  hints: string[];
+  forbiddenFacts: string[];
+};
+
 export type ScenarioApiError = Error & {
   status?: number;
   errors?: Record<string, string[]>;
@@ -281,6 +322,7 @@ export type ScenarioApi = {
   createScenarioRuleDataDraft: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioRuleDataPayload>;
   putScenarioRuleData: (scenarioId: string, payload: ScenarioRuleDataPayload) => Promise<ScenarioRuleDataPayload>;
   getScenarioRuleDataReadiness: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioRuleDataReadinessDto>;
+  debugScenarioRuleData: (scenarioId: string, payload: ScenarioRuleDebugRequest) => Promise<ScenarioRuleDebugResponse>;
   recommendHero: (scenarioId: string, payload: RecommendScenarioHeroPayload) => Promise<ScenarioHeroRecommendation>;
   createScenario: (payload: CreateScenarioPayload) => Promise<ScenarioDraftDto>;
   updateScenario: (scenarioId: string, payload: CreateScenarioPayload) => Promise<ScenarioDraftDto>;
@@ -354,6 +396,16 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
       });
       if (!response.ok) throw await toApiError(response);
       return response.json() as Promise<ScenarioRuleDataReadinessDto>;
+    },
+    async debugScenarioRuleData(scenarioId, payload) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/rule-data/debug`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<ScenarioRuleDebugResponse>;
     },
     async recommendHero(scenarioId, payload) {
       const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/hero-recommendation`, {
@@ -577,6 +629,16 @@ export function createDemoScenarioApi(): ScenarioApi {
     async getScenarioRuleDataReadiness(scenarioId) {
       if (!demoScenarios[scenarioId]) throw demoError('シナリオが見つかりません。', 404);
       return { definitionVersionId: `demo-${scenarioId}`, ready: true, errors: {} };
+    },
+    async debugScenarioRuleData(scenarioId, payload) {
+      const scenario = demoScenarios[scenarioId];
+      if (!scenario) throw demoError('シナリオが見つかりません。', 404);
+      const object = scenario.ruleData?.objects.find((candidate) => candidate.code === payload.objectCode) ?? scenario.ruleData?.objects[0];
+      const location = scenario.ruleData?.locations.find((candidate) => candidate.code === payload.currentLocationCode) ?? scenario.ruleData?.locations[0];
+      const action = object ? [...object.actions, ...object.mixinTypeCodes.flatMap((code) => scenario.ruleData?.objectTypes.find((type) => type.code === code)?.actions ?? [])].find((candidate) => candidate.code === payload.actionCode) : undefined;
+      const publicObject = object ? { id: object.code, code: object.code, name: object.name, locationId: payload.objects.find((state) => state.objectCode === object.code)?.locationCode ?? object.initialLocationCode, isGlobal: object.global, revision: 0, state: payload.objects.find((state) => state.objectCode === object.code)?.state ?? {} } : null;
+      const snapshot = { schemaVersion: 'rule-action-snapshot.v1', snapshotId: 'DEMO-DEBUG', currentLocation: { id: location?.code ?? '', code: location?.code ?? '', name: location?.name ?? '', description: location?.description ?? '' }, objects: publicObject ? [publicObject] : [], actions: action && object ? [{ objectId: object.code, actionId: action.code, code: action.code, label: action.label, description: action.description, argumentSchema: {}, enabled: true }] : [] };
+      return { snapshot, decision: action && object && payload.trigger !== 'enumerate' ? { schemaVersion: 'rule-action-decision.v1', objectId: object.code, actionId: action.code, arguments: payload.arguments } : null, selectedRuleCode: action ? `${action.code}-preview` : null, appliedEffects: [], postState: payload.trigger === 'enumerate' ? null : { schemaVersion: 'rule-post-state.v1', currentLocation: snapshot.currentLocation, objects: snapshot.objects, sessionFlags: payload.flags, sessionStateRevision: 1 }, facts: payload.trigger === 'enumerate' ? [] : ['デバッグ実行は本番Sessionへ保存されません。'], events: [], hints: payload.playerInput ? [`入力「${payload.playerInput}」からアクション候補を選択しました。`] : [], forbiddenFacts: [] };
     },
     async recommendHero(scenarioId) {
       const scenario = demoScenarios[scenarioId];

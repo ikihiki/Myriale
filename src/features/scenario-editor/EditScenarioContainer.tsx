@@ -89,6 +89,16 @@ export function EditScenarioContainer({ scenarioId, api }: { scenarioId: string;
     }
   };
 
+  const debug: ScenarioFormActions['debug'] = async (_values, request) => {
+    try {
+      const response = await scenarioApi.debugScenarioRuleData(scenarioId, request);
+      return { ok: true, message: '隔離されたルールエンジンで実行しました。本番データは変更されていません。', value: response };
+    } catch (caught) {
+      const error = caught as ScenarioApiError;
+      return { ok: false, message: error.errors?.debug?.[0] ?? error.message ?? 'デバッグ実行に失敗しました。' };
+    }
+  };
+
   const logout = async () => {
     await accountSession.api.logout();
     accountSession.clearUser();
@@ -103,7 +113,7 @@ export function EditScenarioContainer({ scenarioId, api }: { scenarioId: string;
     loadError={scenarioQuery.error instanceof Error ? scenarioQuery.error.message : undefined}
     saving={saving}
     aiWorking={aiWorking}
-    actions={{ save, assist }}
+    actions={{ save, assist, debug }}
     onRetry={() => void scenarioQuery.refetch()}
     onLogout={logout}
   />;

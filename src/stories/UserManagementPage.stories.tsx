@@ -111,3 +111,32 @@ export const UM15SupportLookup: Story = { name: 'US-UM15: サポート調査し�
 export const UM16AuditLog: Story = { name: 'US-UM16: 監査ログを確認したい（Phase 3）', args: { initialView: 'audit' } };
 
 export const UM17AdminAiKeys: Story = { name: 'Admin: AI Provider管理', args: { initialView: 'admin-ai-keys' }, play: async ({ canvasElement, step }) => { const canvas = within(canvasElement); await step('/adminをAppChrome付きの運用画面として表示する', async () => { await expect(await canvas.findByRole('main', { name: 'AI Provider管理' })).toBeVisible(); await expect(canvas.getByRole('navigation', { name: '主要セクション' })).toBeVisible(); await expect(canvas.getByTestId('app-url')).toHaveTextContent('/admin'); }); await step('Vault設定済みのOpenAIを確認し、接続テストを行う', async () => { const openai = await canvas.findByTestId('ai-key-row-openai'); await expect(openai).toHaveTextContent('Vault / 環境変数'); await expect(openai).toHaveTextContent('使用中'); await userEvent.click(within(openai).getByRole('button', { name: '接続テスト' })); await expect(await canvas.findByTestId('ai-key-notice')).toHaveTextContent('接続テストに成功'); }); await step('使用するAIをRunpodへ切り替える', async () => { const openai = canvas.getByTestId('ai-key-row-openai'); const runpod = canvas.getByTestId('ai-key-row-runpod'); await userEvent.click(within(runpod).getByRole('button', { name: 'このAIを使用' })); await expect(await canvas.findByTestId('ai-key-notice')).toHaveTextContent('使用するAIをRunpod Serverlessへ切り替えました'); await expect(runpod).toHaveTextContent('使用中'); await expect(openai).not.toHaveTextContent('使用中'); }); } };
+
+export const UM18AdminAiPromptTest: Story = {
+  name: 'Admin: Provider行からテストプロンプトを送る',
+  args: { initialView: 'admin-ai-keys' },
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await step('使用中ではないRunpodの行からプロンプトテストを開く', async () => {
+      const runpod = await canvas.findByTestId('ai-key-row-runpod');
+      await expect(runpod).not.toHaveTextContent('使用中');
+      await userEvent.click(within(runpod).getByRole('button', { name: 'プロンプトテスト' }));
+      await expect(await canvas.findByRole('region', { name: 'Runpod Serverlessのプロンプトテスト' })).toBeVisible();
+    });
+    await step('Runpodへテスト用プロンプトを直接送信する', async () => {
+      const prompt = canvas.getByLabelText('Runpod Serverlessのテスト用プロンプト');
+      await userEvent.clear(prompt);
+      await userEvent.type(prompt, 'このProviderの特徴を一文で答えてください。');
+      await userEvent.click(canvas.getByRole('button', { name: 'Runpod Serverlessへ送信' }));
+    });
+    await step('使用中を切り替えずRunpodの応答と診断情報を確認する', async () => {
+      const result = await canvas.findByTestId('ai-prompt-result');
+      await expect(result).toHaveTextContent('テスト応答: このProviderの特徴を一文で答えてください。');
+      await expect(result).toHaveTextContent('runpod');
+      await expect(result).toHaveTextContent('Qwen/Qwen3-8B');
+      await expect(result).toHaveTextContent('184 ms');
+      await expect(canvas.getByTestId('ai-key-row-openai')).toHaveTextContent('使用中');
+      await expect(canvas.getByTestId('ai-key-row-runpod')).not.toHaveTextContent('使用中');
+    });
+  },
+};

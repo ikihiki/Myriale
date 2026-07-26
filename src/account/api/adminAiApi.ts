@@ -10,6 +10,16 @@ export type AiProviderKey = {
   lastValidatedAt?: string | null;
 };
 
+export type AiPromptTestResult = {
+  provider: string;
+  model: string;
+  response: string;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  latencyMilliseconds: number;
+  finishReason?: string | null;
+};
+
 export type AdminAiApiError = Error & { status?: number; errors?: Record<string, string[]> };
 
 export type AdminAiApi = {
@@ -18,6 +28,7 @@ export type AdminAiApi = {
   deleteKey: (provider: string) => Promise<void>;
   testKey: (provider: string) => Promise<AiProviderKey>;
   activateProvider: (provider: string) => Promise<AiProviderKey>;
+  testPrompt: (provider: string, prompt: string) => Promise<AiPromptTestResult>;
 };
 
 const ADMIN_AI_PATH = '/api/admin/ai-keys';
@@ -48,6 +59,7 @@ export function createFetchAdminAiApi(baseUrl = getAdminAiApiBaseUrl()): AdminAi
     deleteKey: (provider) => request<void>(`/${encodeURIComponent(provider)}`, { method: 'DELETE' }),
     testKey: (provider) => request<AiProviderKey>(`/${encodeURIComponent(provider)}/test`, { method: 'POST' }),
     activateProvider: (provider) => request<AiProviderKey>('/active-provider', { method: 'PUT', body: JSON.stringify({ provider }) }),
+    testPrompt: (provider, prompt) => request<AiPromptTestResult>(`/${encodeURIComponent(provider)}/prompt-test`, { method: 'POST', body: JSON.stringify({ prompt }) }),
   };
 }
 
@@ -69,6 +81,19 @@ export function createDemoAdminAiApi(): AdminAiApi {
       const key = keys.find((item) => item.provider === provider);
       if (!key) throw demoError('AIキーが見つかりません。', 404);
       return key;
+    },
+    async testPrompt(provider, prompt) {
+      const target = keys.find((item) => item.provider === provider);
+      if (!target?.configured) throw demoError('先にAIキーを登録してください。', 409);
+      return {
+        provider: target.provider,
+        model: target.provider === 'runpod' ? 'Qwen/Qwen3-8B' : 'gpt-4.1-mini',
+        response: `テスト応答: ${prompt.trim()}`,
+        inputTokens: Math.max(1, Math.ceil(prompt.length / 4)),
+        outputTokens: 12,
+        latencyMilliseconds: 184,
+        finishReason: 'stop',
+      };
     },
     async activateProvider(provider) {
       const key = keys.find((item) => item.provider === provider);

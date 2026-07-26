@@ -17,6 +17,7 @@ import {
   wizardSummaryClass,
 } from '../../../shared/scenarioWizardStyles';
 import { MyrialeSelect } from '../../../ui/MyrialeRadix';
+import { ScenarioRuleDebugPresentation } from './rule-debug/ScenarioRuleDebugPresentation';
 import { LocationsObjectsEditorPresentation } from './rule-data/LocationsObjectsEditorPresentation';
 import { ObjectTypesEditorPresentation } from './rule-data/ObjectTypesEditorPresentation';
 import { validateScenarioRuleData } from './rule-data/scenarioRuleDataModel';
@@ -28,7 +29,7 @@ import {
 } from './scenarioFormModel';
 
 type SuggestionKind = '基本情報' | '挿絵テイスト' | '挿絵プロンプト';
-type WizardStep = 'cover' | 'ai' | 'hero' | 'opening' | 'illustration' | 'world';
+type WizardStep = 'cover' | 'ai' | 'hero' | 'opening' | 'illustration' | 'world' | 'debug';
 
 const wizardSteps: Array<{ id: WizardStep; label: string; help: string }> = [
   { id: 'cover', label: '表紙', help: 'タイトル、ジャンル、基本情報' },
@@ -37,6 +38,7 @@ const wizardSteps: Array<{ id: WizardStep; label: string; help: string }> = [
   { id: 'opening', label: '第一場面', help: '最初のNarrativeの固定' },
   { id: 'illustration', label: '挿絵', help: '画風、NG、プレビュー' },
   { id: 'world', label: '世界データ', help: '場所・オブジェクト・種類・実行ルールを一覧で管理' },
+  { id: 'debug', label: '動作確認', help: '任意状態からルールエンジンを非永続で実行' },
 ];
 
 type Props = {
@@ -156,6 +158,7 @@ export function ScenarioForm({
       const worldCount = `${values.ruleData.objectTypes.length}種類 / ${values.ruleData.locations.length}場所 / ${values.ruleData.objects.length}個`;
       return issues.length === 0 ? `${worldCount} / 公開準備OK` : `${worldCount} / ${issues.length}要確認`;
     }
+    if (step === 'debug') return scenarioId === '未発行' ? '保存後に利用' : '隔離実行';
     return '';
   };
 
@@ -314,6 +317,12 @@ export function ScenarioForm({
                   {validateScenarioRuleData(values.ruleData).length === 0 ? <p data-testid="rule-readiness">すべての参照と実行ルールが決定的です。</p> : validateScenarioRuleData(values.ruleData).map((issue) => <p key={`${issue.path}-${issue.message}`} className={issue.severity === 'error' ? '!text-[#9b3030]' : '!text-[#7a5a16]'}><strong>{issue.severity === 'error' ? '修正必須' : '下書き警告'}:</strong> {issue.message} <code>{issue.path}</code></p>)}
                 </section>
               </div>
+            </div>
+          )}
+
+          {activeStep === 'debug' && (
+            <div className={wizardPanelClass}>
+              <ScenarioRuleDebugPresentation scenarioId={scenarioId} values={values} execute={actions.debug} />
             </div>
           )}
 

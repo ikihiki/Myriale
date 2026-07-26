@@ -435,6 +435,37 @@ export const US27SaveIncompleteRuleDataAsDraft: Story = {
   },
 };
 
+export const US12DebugRuleEngineFromArbitraryState: Story = {
+  name: 'US-SR12: 任意状態からルールエンジンを動作確認する',
+  render: renderRuleDataFixture,
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await goToStep(canvas, '動作確認');
+
+    await step('全状態を上書きして公開状態と利用可能アクションを確認する', async () => {
+      const state = canvas.getAllByLabelText(/のstate$/)[0];
+      await userEvent.clear(state);
+      await userEvent.click(state);
+      await userEvent.paste('{"open":false}');
+      await userEvent.click(canvas.getByRole('button', { name: '公開状態とアクションを確認' }));
+      await expect(canvas.getByRole('complementary', { name: 'デバッグ実行結果' })).toHaveTextContent('扉を開ける');
+    });
+
+    await step('アクションを直接発動してselected ruleとpost-stateを確認する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: 'アクションを直接発動' }));
+      await expect(canvas.getByText(/open-door-when-closed/)).toBeVisible();
+      await expect(canvas.getByTestId('debug-post-state')).toHaveTextContent('"open": true');
+    });
+
+    await step('ユーザー入力から選ばれるアクションと物語材料を確認する', async () => {
+      await userEvent.type(canvas.getByLabelText('デバッグ用ユーザー入力'), '扉をゆっくり開ける');
+      await userEvent.click(canvas.getByRole('button', { name: '入力から起きることを確認' }));
+      await expect(canvas.getByRole('complementary', { name: 'デバッグ実行結果' })).toHaveTextContent('入力から「扉を開ける」が選択されました。');
+      await expect(canvas.getByTestId('debug-notice')).toHaveTextContent('本番データは変更されていません');
+    });
+  },
+};
+
 export const AuthorWestDoorSeedWithEightOrderedEffects: Story = {
   name: '西の扉seed: 統合テーブルで契約と結果を編集・保存する',
   render: () => <MyrialeApp initialUrl="/scenarios/new" initialDb={createDemoDb('registrationDraft')} scenarioRegistrationContainer={MockWestDoorAuthoringContainer} />,
