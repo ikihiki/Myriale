@@ -3,7 +3,7 @@ import { Button, Input, Textarea } from '../../../../components/ui';
 import { MyrialeSelect } from '../../../../ui/MyrialeRadix';
 import type { ScenarioJsonObject } from '../../../../app/scenarioApi';
 import type { ScenarioActionRule, ScenarioRuleData, ScenarioRuleEffect, ScenarioStateField, ScenarioTypeAction } from './scenarioRuleDataModel';
-import { ConditionBuilderPresentation } from './ConditionBuilderPresentation';
+import { ConditionTablePresentation } from './ConditionTablePresentation';
 
 const cardClass = 'grid content-start gap-3 rounded-2xl border border-[#17151f]/15 bg-white/55 p-4 shadow-[0_12px_30px_rgba(23,21,31,.07)]';
 const effectNames: Record<ScenarioRuleEffect['kind'], string> = {
@@ -61,7 +61,7 @@ export function ObjectActionRuleEditorPresentation({ value, rule, actions, state
     <div className="rounded-xl border border-[#7c5cff]/25 bg-[#7c5cff]/8 px-4 py-3 font-mono text-sm" data-testid="rule-result-preview" aria-live="polite">{preview}</div>
     <label>rule stable code<Input aria-label="実行ルールのstable code" value={rule.code} readOnly={actionFixed} onChange={(event) => onChange({ ...rule, code: event.target.value })} /></label>
     {actionFixed ? <label>アクション（固定）<Input aria-label="実行ルールのアクション" value={`${action?.label ?? rule.actionCode} / ${rule.actionCode}`} readOnly /></label> : <MyrialeSelect label="アクション" value={rule.actionCode} onValueChange={(actionCode) => onChange({ ...rule, actionCode })} options={actions.map((item) => ({ value: item.code, label: `${item.label} / ${item.code}` }))} />}
-    <ConditionBuilderPresentation label="実行条件" value={rule.condition} onChange={(condition) => onChange({ ...rule, condition })} stateFields={stateFields} argumentFields={action?.argumentFields ?? []} allowArguments />
+    <ConditionTablePresentation label="実行条件" value={rule.condition} onChange={(condition) => onChange({ ...rule, condition })} stateFields={stateFields} argumentFields={action?.argumentFields ?? []} allowArguments />
     <label>優先度<Input aria-label="実行ルールの優先度" type="number" value={rule.priority} onChange={(event) => onChange({ ...rule, priority: Number(event.target.value) })} /></label>
     <label>作成メモ<Textarea aria-label="実行ルールのメモ" value={rule.note} onChange={(event) => onChange({ ...rule, note: event.target.value })} /></label>
     <section className="grid gap-3 rounded-xl border border-[#17151f]/12 p-3" aria-label="module binding">

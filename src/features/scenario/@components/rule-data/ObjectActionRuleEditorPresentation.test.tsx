@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { useState } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { westDoorAuthoringFixture } from '../../../../stories/scenario-registration-page/scenarioRegistrationFixtures';
+import { completeDoorRuleDataFixture, westDoorAuthoringFixture } from '../../../../stories/scenario-registration-page/scenarioRegistrationFixtures';
 import { LocationsObjectsEditorPresentation } from './LocationsObjectsEditorPresentation';
 import { ObjectTypesEditorPresentation } from './ObjectTypesEditorPresentation';
 import type { ScenarioRuleData } from './scenarioRuleDataModel';
@@ -15,6 +15,11 @@ function TypeHarness() {
 
 function ObjectHarness() {
   const [value, setValue] = useState<ScenarioRuleData>(() => structuredClone(westDoorAuthoringFixture));
+  return <><LocationsObjectsEditorPresentation value={value} onChange={setValue} onNotice={() => undefined} /><output data-testid="rule-data-json">{JSON.stringify(value)}</output></>;
+}
+
+function AdjustHarness() {
+  const [value, setValue] = useState<ScenarioRuleData>(() => structuredClone(completeDoorRuleDataFixture));
   return <><LocationsObjectsEditorPresentation value={value} onChange={setValue} onNotice={() => undefined} /><output data-testid="rule-data-json">{JSON.stringify(value)}</output></>;
 }
 
@@ -49,8 +54,12 @@ describe('strict v2 rule authoring', () => {
     expect(screen.queryByText('Object個別')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'generic-openの実行ルールを編集' }));
     expect(screen.getByLabelText('実行ルールのstable code')).toHaveValue('generic-open');
-    expect(screen.getByRole('region', { name: '実行条件' })).toHaveTextContent('実行条件');
+    const conditionTable = screen.getByRole('table', { name: '実行条件 table' });
+    expect(conditionTable).toHaveTextContent('状態：open ＝');
     expect(screen.queryByLabelText('実行ルールのcondition JSON')).not.toBeInTheDocument();
+    fireEvent.click(within(conditionTable).getByRole('button', { name: 'ルートの実行条件を編集' }));
+    expect(screen.getByRole('dialog', { name: '実行条件を編集' })).toHaveAttribute('data-layer', '2');
+    fireEvent.click(screen.getByRole('button', { name: '実行条件の編集を完了' }));
     fireEvent.change(screen.getByLabelText('実行ルールの優先度'), { target: { value: '175' } });
     fireEvent.click(screen.getByRole('button', { name: 'bindingを追加' }));
     fireEvent.change(screen.getByLabelText('module binding id'), { target: { value: 'door-module' } });
@@ -126,6 +135,26 @@ describe('strict v2 rule authoring', () => {
     const saved = JSON.parse(screen.getByTestId('rule-data-json').textContent ?? '{}') as ScenarioRuleData;
     expect(saved.objects[0].actionRules[0]).toEqual(originalOperations[0]);
     expect(saved.objects[0].actionRules[1]).toMatchObject({ operation: 'add', rule: { priority: 95 } });
+  });
+
+  it('shows inherited conditions as a read-only table and edits an enabled adjust condition in a nested pane', async () => {
+    render(<AdjustHarness />);
+    fireEvent.click(screen.getByRole('button', { name: '北書庫の扉を編集' }));
+    fireEvent.click(screen.getByRole('button', { name: 'archive-door:generic-openの実行ルールを確認' }));
+    let table = screen.getByRole('table', { name: '実行条件 table' });
+    expect(table).toHaveTextContent('状態：open ＝');
+    expect(within(table).queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getByRole('note')).toHaveTextContent('読み取り専用');
+
+    fireEvent.click(screen.getByRole('button', { name: '条件を調整' }));
+    table = screen.getByRole('table', { name: '調整後の実行条件 table' });
+    fireEvent.click(within(table).getByRole('button', { name: 'ルートの実行条件を編集' }));
+    expect(screen.getByRole('dialog', { name: '調整後の実行条件を編集' })).toHaveAttribute('data-layer', '2');
+    fireEvent.click(screen.getByRole('combobox', { name: '調整後の実行条件の条件種別' }));
+    fireEvent.click(screen.getByRole('option', { name: '常に成立' }));
+    fireEvent.click(screen.getByRole('button', { name: '実行条件の編集を完了' }));
+    await waitFor(() => expect(screen.getByTestId('rule-data-json')).toHaveTextContent('"condition":{"kind":"always"}'));
+    expect(table).toHaveTextContent('常に成立');
   });
 
   it('searches Type mixins in a nested pane and appends without losing Object data', async () => {

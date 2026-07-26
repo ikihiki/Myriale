@@ -23,6 +23,10 @@ test('Object側の統合rule tableとread-only effective結果を確認できる
 
   await expect(page.getByRole('dialog', { name: 'generic-open' })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/override \/ delete \/ adjustを開始することはできません/)).toBeVisible();
+  const inheritedCondition = page.getByRole('table', { name: '実行条件 table' });
+  await expect(inheritedCondition).toContainText('状態：open ＝');
+  await expect(inheritedCondition.getByRole('button')).toHaveCount(0);
+  await expect(page.getByText('この実行ルールの条件は読み取り専用です。')).toBeVisible();
   await expect(page.getByLabel('実行ルールの優先度')).toHaveCount(0);
   await expect(page.getByText('set-state → emit-fact')).toBeVisible();
   await page.getByRole('button', { name: '閉じる', exact: true }).click();
@@ -64,6 +68,12 @@ test('西の扉seedを統合テーブルで編集し既存mutationと一緒に�
   await page.getByRole('button', { name: '閉じる', exact: true }).click();
 
   await page.getByRole('button', { name: 'local:west-inspect-exitの実行ルールを確認' }).click();
+  const conditionTable = page.getByRole('table', { name: '実行条件 table' });
+  await expect(conditionTable).toContainText('すべて成立（AND）');
+  await expect(conditionTable).toContainText('AND 2');
+  await conditionTable.getByRole('button', { name: 'ルートの実行条件を編集' }).click();
+  await expect(page.getByRole('dialog', { name: '実行条件を編集' })).toHaveAttribute('data-layer', '2');
+  await page.getByRole('button', { name: '実行条件の編集を完了' }).click();
   await expect(page.getByLabel('実行ルールの優先度')).toHaveValue('95');
 });
 

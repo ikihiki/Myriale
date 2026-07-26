@@ -464,6 +464,17 @@ export const AuthorWestDoorSeedWithEightOrderedEffects: Story = {
       await userEvent.type(screen.getByLabelText('Object action label'), '出口を詳しく確認する');
       await userEvent.click(screen.getByRole('button', { name: '閉じる' }));
       await userEvent.click(screen.getByRole('button', { name: 'local:west-inspect-exitの実行ルールを確認' }));
+      const conditionTable = screen.getByRole('table', { name: '実行条件 table' });
+      await expect(conditionTable).toHaveTextContent('状態：direction ＝');
+      await userEvent.click(within(conditionTable).getByRole('button', { name: 'ルートの実行条件を編集' }));
+      const conditionPane = screen.getByRole('dialog', { name: '実行条件を編集' });
+      await expect(conditionPane).toHaveAttribute('data-layer', '2');
+      await userEvent.click(within(conditionPane).getByRole('combobox', { name: '実行条件の条件種別' }));
+      await userEvent.click(await screen.findByRole('option', { name: 'すべて成立（AND）' }));
+      await userEvent.click(within(conditionPane).getByRole('button', { name: '子条件を追加' }));
+      await userEvent.click(within(conditionPane).getByRole('button', { name: '実行条件の編集を完了' }));
+      await expect(conditionTable).toHaveTextContent('すべて成立（AND）');
+      await expect(conditionTable).toHaveTextContent('AND 2');
       await userEvent.clear(screen.getByLabelText('実行ルールの優先度'));
       await userEvent.type(screen.getByLabelText('実行ルールの優先度'), '95');
       await userEvent.click(screen.getByRole('button', { name: '閉じる' }));

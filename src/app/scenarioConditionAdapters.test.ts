@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ScenarioJsonObject } from './scenarioApi';
-import { conditionFromCanonical, conditionToCanonical } from './scenarioConditionAdapters';
+import { conditionFromCanonical, conditionSummary, conditionToCanonical } from './scenarioConditionAdapters';
 
 const cases: ScenarioJsonObject[] = [
   {},
@@ -28,5 +28,10 @@ describe('scenario condition adapters', () => {
     const parsed = conditionFromCanonical(canonical);
     expect(parsed.kind).toBe('unsupported');
     expect(conditionToCanonical(parsed)).toEqual(canonical);
+  });
+
+  it('summarizes nested supported and unsupported conditions for human-readable views', () => {
+    expect(conditionSummary(conditionFromCanonical(cases[9]))).toBe('state.open eq false かつ arguments.key が存在する または NOT (session.flags.locked eq true)');
+    expect(conditionSummary(conditionFromCanonical({ op: 'future', path: 'state.open' }))).toBe('未対応の条件（内容を保持）');
   });
 });
