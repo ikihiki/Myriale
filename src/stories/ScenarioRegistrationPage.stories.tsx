@@ -4,7 +4,7 @@ import { expect, userEvent, within } from '@storybook/test';
 import { createDemoAccountApi } from '../account/api/accountApi';
 import { MyrialeApp } from '../app/MyrialeApp';
 import { createDemoDb } from '../app/demoData';
-import { MockScenarioRegistrationContainer, MockScenarioRegistrationWithRuleDataContainer } from './scenario-registration-page/MockScenarioRegistrationContainer';
+import { MockScenarioRegistrationContainer, MockScenarioRegistrationWithRuleDataContainer, MockWestDoorAuthoringContainer } from './scenario-registration-page/MockScenarioRegistrationContainer';
 import '../styles.css';
 
 const meta = {
@@ -35,7 +35,7 @@ function AnonymousApp({ initialUrl }: { initialUrl: string }) {
 }
 
 const goToStep = async (canvas: ReturnType<typeof within>, stepName: string) => {
-  await userEvent.click(canvas.getByRole('button', { name: `${stepName}へ` }));
+  await userEvent.click(await canvas.findByRole('button', { name: `${stepName}へ` }));
 };
 
 export const AuthenticationReturnsToScenarioCreation: Story = {
@@ -317,19 +317,19 @@ export const US23DefineObjectTypeStatesAndActions: Story = {
       await userEvent.clear(screen.getByLabelText('種類の表示名'));
       await userEvent.type(screen.getByLabelText('種類の表示名'), '隔壁扉');
       await userEvent.click(screen.getByRole('button', { name: '状態を追加' }));
-      await userEvent.clear(screen.getByLabelText('状態1のcode'));
-      await userEvent.type(screen.getByLabelText('状態1のcode'), 'open');
-      await expect(screen.getByRole('combobox', { name: '状態1の公開範囲' })).toHaveTextContent('公開');
+      await userEvent.clear(screen.getByLabelText('状態1のstable code'));
+      await userEvent.type(screen.getByLabelText('状態1のstable code'), 'open');
+      await expect(screen.getByRole('combobox', { name: '公開' })).toHaveTextContent('public');
       await userEvent.click(screen.getByRole('button', { name: '状態の編集を完了' }));
       await expect(screen.getByRole('button', { name: '新しい状態を編集' })).toBeVisible();
     });
     await step('AIへ列挙するアクションinterfaceを登録する', async () => {
       await userEvent.click(screen.getByRole('button', { name: 'アクションを追加' }));
-      await userEvent.clear(screen.getByLabelText('アクション1のcode'));
-      await userEvent.type(screen.getByLabelText('アクション1のcode'), 'open');
+      await userEvent.clear(screen.getByLabelText('アクション1のstable code'));
+      await userEvent.type(screen.getByLabelText('アクション1のstable code'), 'open');
       await userEvent.clear(screen.getByLabelText('アクション1の表示名'));
       await userEvent.type(screen.getByLabelText('アクション1の表示名'), '扉を開ける');
-      await expect(screen.getByRole('combobox', { name: 'アクション1の公開先' })).toHaveTextContent('AI候補');
+      await expect(screen.getByRole('combobox', { name: 'visibility' })).toHaveTextContent('AI choice');
     });
   },
 };
@@ -350,10 +350,18 @@ export const US24CreateLocationsAndPlaceObjects: Story = {
       await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
       await expect(canvas.getByRole('button', { name: '封印書庫を編集' })).toBeVisible();
     });
-    await step('Objectが種類と1つの初期配置を参照する', async () => {
+    await step('Objectの状態を1つの表で確認し、受け継いだ状態は初期値だけ変更する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '北書庫の扉を編集' }));
-      await expect(screen.getByRole('combobox', { name: 'オブジェクト種類' })).toHaveTextContent('書庫の扉');
+      await expect(screen.getByRole('region', { name: 'ordered Type mixins' })).toHaveTextContent('書庫の扉');
       await expect(screen.getByRole('combobox', { name: '初期配置' })).toHaveTextContent('水没した閲覧室');
+      const states = screen.getByRole('table', { name: 'Object states' });
+      await expect(states).toHaveTextContent('開いている');
+      await expect(states).toHaveTextContent('封印名');
+      await expect(states).not.toHaveTextContent('mixin由来');
+      await userEvent.click(screen.getByRole('button', { name: 'openの状態を確認' }));
+      await expect(screen.queryByLabelText('Object state code')).not.toBeInTheDocument();
+      await userEvent.type(screen.getByLabelText('openの初期値'), 'true');
+      await expect(screen.getByRole('button', { name: '継承値へ戻す' })).toBeEnabled();
     });
   },
 };
@@ -363,15 +371,22 @@ export const US25AuthorDeterministicActionResults: Story = {
   render: renderRuleDataFixture,
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await goToStep(canvas, 'アクション結果');
-    await step('from state、action、priorityと順序付きeffectを確認する', async () => {
-      await expect(canvas.getByTestId('rule-result-preview')).toHaveTextContent('北書庫の扉');
-      await expect(canvas.getByTestId('rule-result-preview')).toHaveTextContent('2 effect');
-      await expect(canvas.getByLabelText('結果の優先度')).toHaveValue(100);
-      await expect(canvas.getByText('1. set-state')).toBeVisible();
-      await expect(canvas.getByText('2. emit-fact')).toBeVisible();
+    const screen = within(canvasElement.ownerDocument.body);
+    await goToStep(canvas, '世界データ');
+    await step('Object paneの統合rule tableで既存adjustのeffective結果を開く', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: '北書庫の扉を編集' }));
+      const rules = screen.getByRole('table', { name: 'Object rules' });
+      await expect(rules).toHaveTextContent('archive-door:generic-open');
+      await expect(rules).not.toHaveTextContent('mixin由来');
+      await userEvent.click(screen.getByRole('button', { name: 'archive-door:generic-openの実行ルールを確認' }));
     });
-    await step('公開準備チェックが決定性を確認する', async () => {
+    await step('継承condition/priorityと調整済み結果をread-onlyで確認する', async () => {
+      await expect(screen.getByText(/override \/ delete \/ adjustを開始することはできません/)).toBeVisible();
+      await expect(screen.getAllByText('100')[0]).toBeVisible();
+      await expect(screen.getByText('set-state → emit-fact')).toBeVisible();
+      await expect(screen.queryByLabelText('実行ルールの優先度')).not.toBeInTheDocument();
+    });
+    await step('世界データ末尾の公開準備チェックが決定性を確認する', async () => {
       await expect(canvas.getByTestId('rule-readiness')).toHaveTextContent('決定的です');
     });
   },
@@ -399,20 +414,84 @@ export const US26KeepDependenciesSafe: Story = {
 };
 
 export const US27SaveIncompleteRuleDataAsDraft: Story = {
-  name: 'US-27: 不完全なルールデータを警告付きでDraft保存したい',
+  name: 'US-27: 既存mutationを保持してDraft保存したい',
   render: renderRuleDataFixture,
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await goToStep(canvas, 'アクション結果');
-    await step('必須のaction resultを削除すると公開準備の警告を表示する', async () => {
-      await userEvent.click(canvas.getByRole('button', { name: 'この結果を削除' }));
-      await expect(canvas.getByRole('region', { name: '公開準備チェック' })).toHaveTextContent('下書き警告');
-      await expect(canvas.getByRole('region', { name: '公開準備チェック' })).toHaveTextContent('結果が未設定');
+    const screen = within(canvasElement.ownerDocument.body);
+    await goToStep(canvas, '世界データ');
+    await step('既存adjust operationはeffective結果だけをread-onlyで表示する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: '北書庫の扉を編集' }));
+      await userEvent.click(screen.getByRole('button', { name: 'archive-door:generic-openの実行ルールを確認' }));
+      await expect(screen.queryByLabelText('実行ルールの優先度')).not.toBeInTheDocument();
+      await expect(screen.getByText(/既存の変更内容は保存時もそのまま保持されます/)).toBeVisible();
+      await userEvent.click(screen.getByRole('button', { name: '閉じる' }));
+      await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
     });
-    await step('警告があっても下書き保存できる', async () => {
+    await step('既存mutationを変更せず下書き保存できる', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '下書き保存' }));
       await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('Draftとして保存しました');
-      await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('未設定項目が1件');
+    });
+  },
+};
+
+export const AuthorWestDoorSeedWithEightOrderedEffects: Story = {
+  name: '西の扉seed: 統合テーブルで契約と結果を編集・保存する',
+  render: () => <MyrialeApp initialUrl="/scenarios/new" initialDb={createDemoDb('registrationDraft')} scenarioRegistrationContainer={MockWestDoorAuthoringContainer} />,
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
+    await goToStep(canvas, '世界データ');
+    await userEvent.click(canvas.getByRole('button', { name: '西の扉を編集' }));
+
+    await step('ordered mixinを維持しながら状態・アクション・ruleを各1つの表で表示する', async () => {
+      const mixins = screen.getByRole('region', { name: 'ordered Type mixins' });
+      await expect(mixins).toHaveTextContent('開閉可能');
+      await expect(mixins).toHaveTextContent('出口の扉');
+      await expect(screen.getByRole('table', { name: 'Object states' })).toHaveTextContent('開いている');
+      await expect(screen.getByRole('table', { name: 'Object states' })).toHaveTextContent('方向');
+      await expect(screen.getByRole('table', { name: 'Object actions' })).toHaveTextContent('出口を確認する');
+      await expect(screen.getByRole('table', { name: 'Object rules' })).toHaveTextContent('exit-door:generic-open-and-exit');
+      await expect(screen.getByRole('table', { name: 'Object rules' })).toHaveTextContent('local:west-inspect-exit');
+    });
+
+    await step('受け継いだ状態は初期値だけ、Objectのアクションとadd ruleは編集できる', async () => {
+      await userEvent.click(screen.getByRole('button', { name: 'openの状態を確認' }));
+      await userEvent.type(screen.getByLabelText('openの初期値'), 'true');
+      await userEvent.click(screen.getByRole('button', { name: '閉じる' }));
+      await userEvent.click(screen.getByRole('button', { name: 'inspect-exitのアクションを確認' }));
+      await userEvent.clear(screen.getByLabelText('Object action label'));
+      await userEvent.type(screen.getByLabelText('Object action label'), '出口を詳しく確認する');
+      await userEvent.click(screen.getByRole('button', { name: '閉じる' }));
+      await userEvent.click(screen.getByRole('button', { name: 'local:west-inspect-exitの実行ルールを確認' }));
+      const conditionTable = screen.getByRole('table', { name: '実行条件 table' });
+      await expect(conditionTable).toHaveTextContent('状態：direction ＝');
+      await userEvent.click(within(conditionTable).getByRole('button', { name: 'ルートの実行条件を編集' }));
+      const conditionPane = screen.getByRole('dialog', { name: '実行条件を編集' });
+      await expect(conditionPane).toHaveAttribute('data-layer', '2');
+      await userEvent.click(within(conditionPane).getByRole('combobox', { name: '実行条件の条件種別' }));
+      await userEvent.click(await screen.findByRole('option', { name: 'すべて成立（AND）' }));
+      await userEvent.click(within(conditionPane).getByRole('button', { name: '子条件を追加' }));
+      await userEvent.click(within(conditionPane).getByRole('button', { name: '実行条件の編集を完了' }));
+      await expect(conditionTable).toHaveTextContent('すべて成立（AND）');
+      await expect(conditionTable).toHaveTextContent('AND 2');
+      await userEvent.clear(screen.getByLabelText('実行ルールの優先度'));
+      await userEvent.type(screen.getByLabelText('実行ルールの優先度'), '95');
+      await userEvent.click(screen.getByRole('button', { name: '閉じる' }));
+    });
+
+    await step('既存overrideはread-onlyのままeffective 8 effectを保持する', async () => {
+      await userEvent.click(screen.getByRole('button', { name: 'exit-door:generic-open-and-exitの実行ルールを確認' }));
+      await expect(screen.getByText('set-state → move-session → emit-fact → emit-fact → emit-event → add-narrative-hint → forbid-narrative-fact → forbid-narrative-fact')).toBeVisible();
+      await expect(screen.queryByLabelText('実行ルールの優先度')).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: '閉じる' }));
+    });
+
+    await step('編集内容と既存mutationを下書き保存する', async () => {
+      await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
+      await expect(canvas.getByTestId('rule-readiness')).toHaveTextContent('決定的です');
+      await userEvent.click(canvas.getByRole('button', { name: '下書き保存' }));
+      await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('Draftとして保存しました');
     });
   },
 };

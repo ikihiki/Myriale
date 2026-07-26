@@ -175,7 +175,7 @@ APIキーはブラウザー、フロントエンド環境変数、ソースコ�
 
 ### 外部 PostgreSQL の接続
 
-Forgeへのpublish時は、生成HelmチャートにCloudNativePGの`myriale-postgres` Clusterを含めます。PR環境は1Gi、通常環境は8Giの永続ボリュームを使用します。CNPGが生成する`myriale-postgres-app` Secretの`uri`をAPIの`POSTGRES_URL`へ注入します。API起動時は、現段階では`Database:RecreateOnStartup=true`を既定値としてdatabaseを再作成し、EF Coreの`EnsureCreated`で現在のmodelからschemaを作成します。DB永続化が必要になった将来はこの設定を`false`へ切り替えられますが、その時点でschema migrationとbackfill方針を導入する必要があります。PRごとにClusterとデータが分離され、PR環境の削除時にデータベースも削除されます。
+Forgeへのpublish時は、生成HelmチャートにCloudNativePGの`myriale-postgres` Clusterを含めます。PR環境は1Gi、通常環境は8Giの永続ボリュームを使用します。CNPGが生成する`myriale-postgres-app` Secretの`uri`をAPIの`POSTGRES_URL`へ注入します。現在のAPIはclean database専用です。`Database:RecreateOnStartup=true`で起動時にdatabaseを再作成し、EF Coreの`EnsureCreated`で現在のmodelからschemaを作成します。再起動前のdatabase内容は保持されないため、Scenario、Session、アカウント、管理画面で保存したAIキーを含む全データが破棄されます。PRごとにClusterとデータが分離され、PR環境の削除時にもデータベースが削除されます。
 
 外部 PostgreSQL を使う場合は、Aspire AppHost の起動前に接続情報を環境変数で渡します。接続文字列は次のいずれかを指定できます。
 

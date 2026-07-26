@@ -33,15 +33,19 @@ app.MapPost("/mock-ai/action-recommendation", (MockActionRecommendationRequest r
 
 app.MapPost("/mock-ai/rule-action-decision", (MockRuleActionDecisionRequest request) =>
 {
-    var enabled = request.Snapshot.Actions.FirstOrDefault(action => action.Enabled && action.ObjectId != "system")
-        ?? request.Snapshot.Actions.First(action => action.Enabled);
+    var enabled = MockRuleActionSelector.Select(request);
     return Results.Ok(new { schemaVersion = "rule-action-decision.v1", enabled.ObjectId, enabled.ActionId, arguments = new { } });
 });
 
 app.MapPost("/mock-ai/post-state-narrative", (MockPostStateNarrativeRequest request) =>
 {
     var facts = request.Facts.Count == 0 ? "確定した状態" : string.Join("、", request.Facts);
-    return Results.Ok(new { schemaVersion = "post-state-narrative.v1", heading = request.SelectedAction.Label, body = $"{request.SelectedObject.Name}への行動が完了した。{facts}を踏まえて物語は続く。" });
+    var movedOutside = string.Equals(request.PostState.CurrentLocation.Code, "outside", StringComparison.Ordinal)
+        || request.Facts.Any(fact => fact.Contains("外へ出た", StringComparison.Ordinal));
+    var body = movedOutside
+        ? $"{request.SelectedObject.Name}が開き、冷たい夜風が流れ込む。あなたは研究施設の外へ踏み出した。{facts}"
+        : $"{request.SelectedObject.Name}への行動が完了した。{facts}を踏まえて物語は続く。";
+    return Results.Ok(new { schemaVersion = "post-state-narrative.v1", heading = request.SelectedAction.Label, body });
 });
 
 app.MapPost("/mock-ai/narrative-handoff", (MockNarrativeHandoffRequest request) =>
@@ -113,10 +117,41 @@ public sealed record MockActionRecommendationRequest(
 public sealed record MockActionRecommendationResult(string Suggestion);
 
 public sealed record MockRuleActionDecisionRequest(string SchemaVersion, string PlayerInput, MockRuleActionSnapshot Snapshot);
-public sealed record MockRuleActionSnapshot(string SchemaVersion, string SnapshotId, object CurrentLocation, IReadOnlyList<object> Objects, IReadOnlyList<MockRulePublicAction> Actions);
+public sealed record MockRuleActionSnapshot(string SchemaVersion, string SnapshotId, MockRulePublicLocation CurrentLocation, IReadOnlyList<MockRulePublicObject> Objects, IReadOnlyList<MockRulePublicAction> Actions);
+public sealed record MockRulePublicLocation(string Id, string Code, string Name, string Description);
 public sealed record MockRulePublicAction(string ObjectId, string ActionId, string Code, string Label, string Description, JsonElement ArgumentSchema, bool Enabled);
-public sealed record MockPostStateNarrativeRequest(string SchemaVersion, string PlayerInput, MockRulePublicObject SelectedObject, MockRulePublicAction SelectedAction, object PostState, IReadOnlyList<string> Facts, IReadOnlyList<JsonElement> Events, IReadOnlyList<string> NarrativeHints, IReadOnlyList<string> ForbiddenNarrativeFacts);
+public sealed record MockPostStateNarrativeRequest(string SchemaVersion, string PlayerInput, MockRulePublicObject SelectedObject, MockRulePublicAction SelectedAction, MockRulePostState PostState, IReadOnlyList<string> Facts, IReadOnlyList<JsonElement> Events, IReadOnlyList<string> NarrativeHints, IReadOnlyList<string> ForbiddenNarrativeFacts);
+public sealed record MockRulePostState(string SchemaVersion, MockRulePublicLocation CurrentLocation, IReadOnlyList<MockRulePublicObject> Objects, IReadOnlyDictionary<string, bool> SessionFlags, long SessionStateRevision);
 public sealed record MockRulePublicObject(string Id, string Code, string Name, string LocationId, bool IsGlobal, long Revision, JsonElement State);
+
+public static class MockRuleActionSelector
+{
+    private static readonly (string[] InputTerms, string[] ObjectTerms)[] Directions =
+    [
+        (["西", "west"], ["西", "west"]),
+        (["東", "east"], ["東", "east"]),
+        (["北", "north"], ["北", "north"]),
+        (["南", "south"], ["南", "south"]),
+    ];
+
+    public static MockRulePublicAction Select(MockRuleActionDecisionRequest request)
+    {
+        var enabled = request.Snapshot.Actions.Where(action => action.Enabled).ToList();
+        foreach (var (inputTerms, objectTerms) in Directions)
+        {
+            if (!inputTerms.Any(term => request.PlayerInput.Contains(term, StringComparison.OrdinalIgnoreCase))) continue;
+            var objectIds = request.Snapshot.Objects
+                .Where(item => objectTerms.Any(term => $"{item.Code} {item.Name}".Contains(term, StringComparison.OrdinalIgnoreCase)))
+                .Select(item => item.Id)
+                .ToHashSet(StringComparer.Ordinal);
+            var directional = enabled.FirstOrDefault(action => objectIds.Contains(action.ObjectId));
+            if (directional is not null) return directional;
+        }
+        return enabled.FirstOrDefault(action => action.ObjectId != "system")
+            ?? enabled.FirstOrDefault()
+            ?? throw new InvalidOperationException("No enabled rule action is available.");
+    }
+}
 
 public sealed record MockNarrativeRecentTurn(string? PlayerInput, string? Narrative);
 

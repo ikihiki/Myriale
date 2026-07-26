@@ -9,12 +9,12 @@ public static class AccountSeedData
     public const string DefaultEmail = "reader@myriale.example";
     public const string DefaultPassword = "a";
 
-    public static async Task SeedAsync(
+    public static async Task<ApplicationUser?> SeedAsync(
         UserManager<ApplicationUser> userManager,
         IConfiguration configuration,
         CancellationToken cancellationToken = default)
     {
-        if (!configuration.GetValue<bool>("SeedAccount:Enabled")) return;
+        if (!configuration.GetValue<bool>("SeedAccount:Enabled")) return null;
 
         var displayName = configuration["SeedAccount:DisplayName"]?.Trim();
         var email = configuration["SeedAccount:Email"]?.Trim();
@@ -34,7 +34,7 @@ public static class AccountSeedData
             existing.SecurityStamp = Guid.NewGuid().ToString();
             await EnsureSucceededAsync(userManager.UpdateAsync(existing), "update the seeded account password");
             await EnsureAdminClaimsAsync(userManager, existing);
-            return;
+            return existing;
         }
 
         var user = new ApplicationUser
@@ -49,6 +49,7 @@ public static class AccountSeedData
         user.PasswordHash = userManager.PasswordHasher.HashPassword(user, password);
         await EnsureSucceededAsync(userManager.CreateAsync(user), "create the seeded account");
         await EnsureAdminClaimsAsync(userManager, user);
+        return user;
     }
 
     private static async Task EnsureSucceededAsync(Task<IdentityResult> operation, string action)

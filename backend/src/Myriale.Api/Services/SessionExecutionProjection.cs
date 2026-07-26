@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 
@@ -5,7 +6,9 @@ namespace Myriale.Api.Services;
 
 public static class SessionExecutionProjection
 {
-    public static SessionExecutionResponse ToResponse(SessionExecution execution, bool includeDevelopmentDiagnostics)
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
+    public static SessionExecutionResponse ToResponse(SessionExecution execution, bool includeDevelopmentDiagnostics, SessionRuleActionStep? step = null)
     {
         var capabilities = new SessionExecutionCapabilities(
             execution.Status is SessionExecutionStatuses.Failed or SessionExecutionStatuses.Cancelled,
@@ -28,8 +31,47 @@ public static class SessionExecutionProjection
             execution.Id, execution.SessionId, execution.Kind, execution.TriggerType, execution.TriggerId, execution.Status,
             execution.Revision, execution.IsRetryable, execution.AttemptCount, execution.MaxAttempts, execution.NextAttemptAt,
             execution.ErrorCode, execution.UserErrorMessage, execution.CreatedAt, execution.StartedAt, execution.CompletedAt,
-            execution.CancelRequestedAt, execution.DismissedAt, capabilities, diagnostics, execution.Stage, execution.SchemaVersion);
+            execution.CancelRequestedAt, execution.DismissedAt, capabilities, diagnostics, execution.Stage, execution.SchemaVersion,
+            step is null ? null : ToScenarioTurn(step));
     }
+
+    private static SessionScenarioTurnProjectionResponse ToScenarioTurn(SessionRuleActionStep step)
+    {
+        var snapshot = Deserialize<RuleActionSnapshot>(step.ActionSnapshotJson);
+        var decision = Deserialize<RuleActionDecisionResult>(step.DecisionJson);
+        var postState = Deserialize<RulePostState>(step.PublicPostStateJson);
+        var selectedAction = decision is null || snapshot is null
+            ? null
+            : snapshot.Actions.SingleOrDefault(item => item.ObjectId == decision.ObjectId && item.ActionId == decision.ActionId);
+        var selectedObject = decision is null || snapshot is null
+            ? null
+            : snapshot.Objects.SingleOrDefault(item => item.Id == decision.ObjectId);
+        return new SessionScenarioTurnProjectionResponse(
+            "scenario-turn.v1",
+            step.Stage,
+            postState?.CurrentLocation ?? snapshot?.CurrentLocation,
+            snapshot?.Objects ?? [],
+            snapshot?.Actions ?? [],
+            decision is null ? null : new SessionScenarioTurnSelectedActionResponse(
+                decision.ObjectId,
+                decision.ActionId,
+                selectedObject?.Code,
+                selectedObject?.Name,
+                selectedAction?.Code,
+                selectedAction?.Label,
+                decision.Arguments),
+            postState is null ? null : new SessionScenarioTurnPostStateResponse(
+                step.PostSessionRevision ?? postState.SessionStateRevision,
+                postState.CurrentLocation,
+                postState.Objects,
+                DeserializeList<string>(step.FactsJson),
+                DeserializeList<JsonElement>(step.EventsJson),
+                DeserializeList<string>(step.NarrativeHintsJson),
+                DeserializeList<RuleAppliedEffect>(step.AppliedEffectsJson)));
+    }
+
+    private static T? Deserialize<T>(string? json) => string.IsNullOrWhiteSpace(json) ? default : JsonSerializer.Deserialize<T>(json, Json);
+    private static IReadOnlyList<T> DeserializeList<T>(string? json) => string.IsNullOrWhiteSpace(json) ? [] : JsonSerializer.Deserialize<List<T>>(json, Json) ?? [];
 
     public static SessionPlayerInputResponse ToResponse(SessionPlayerInput input) => new(
         input.Id, input.RequestId, input.Text, input.InteractionType, input.AcceptedAfterTurnId,

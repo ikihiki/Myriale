@@ -23,6 +23,38 @@ export type CanonicalScenarioActionDto = {
   executionMode: 'rule' | 'extension-module';
 };
 
+export type CanonicalScenarioModuleBindingDto = {
+  moduleId: string;
+  version: string;
+  digest: string;
+  configuration: ScenarioJsonObject;
+};
+
+export type CanonicalScenarioActionRuleDto = {
+  code: string;
+  actionCode: string;
+  condition: ScenarioJsonObject;
+  priority: number;
+  authoringNote: string | null;
+  effects: ScenarioJsonValue[];
+  moduleBinding: CanonicalScenarioModuleBindingDto | null;
+};
+
+export type CanonicalScenarioObjectRuleOperationDto =
+  | ({ operation: 'add' } & CanonicalScenarioActionRuleDto)
+  | ({ operation: 'override'; targetTypeCode: string; targetRuleCode: string } & Omit<CanonicalScenarioActionRuleDto, 'code'>)
+  | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
+  | {
+      operation: 'adjust';
+      targetTypeCode: string;
+      targetRuleCode: string;
+      condition?: ScenarioJsonObject;
+      priority?: number;
+      authoringNote?: string | null;
+      effects?: ScenarioJsonValue[];
+      moduleBinding?: CanonicalScenarioModuleBindingDto | null;
+    };
+
 export type CanonicalScenarioObjectTypeDto = {
   code: string;
   name: string;
@@ -32,25 +64,21 @@ export type CanonicalScenarioObjectTypeDto = {
   defaultState: ScenarioJsonObject;
   publicProjection: ScenarioJsonObject;
   actions: CanonicalScenarioActionDto[];
-};
-
-export type CanonicalScenarioActionRuleDto = {
-  actionCode: string;
-  condition: ScenarioJsonObject;
-  priority: number;
-  authoringNote: string | null;
-  effects: ScenarioJsonValue[];
-  moduleBinding: { moduleId: string; version: string; digest: string; configuration: ScenarioJsonObject } | null;
+  actionRules: CanonicalScenarioActionRuleDto[];
 };
 
 export type CanonicalScenarioObjectDto = {
   code: string;
   name: string;
-  objectTypeCode: string;
+  mixinTypeCodes: string[];
   locationCode: string;
+  stateSchema: ScenarioJsonObject;
+  defaultState: ScenarioJsonObject;
+  publicProjection: ScenarioJsonObject;
+  actions: CanonicalScenarioActionDto[];
   initialStateOverride: ScenarioJsonObject;
   isGlobal: boolean;
-  actionRules: CanonicalScenarioActionRuleDto[];
+  actionRules: CanonicalScenarioObjectRuleOperationDto[];
 };
 
 export type CanonicalScenarioRuleDataRequest = {
@@ -75,7 +103,6 @@ export type ScenarioStateFieldPayload = {
   valueType: ScenarioStateValueType;
   defaultValue: string;
   visibility: ScenarioStateVisibility;
-  _canonical?: ScenarioJsonObject;
 };
 
 export type ScenarioActionArgumentFieldPayload = {
@@ -83,18 +110,27 @@ export type ScenarioActionArgumentFieldPayload = {
   label: string;
   valueType: ScenarioStateValueType;
   required: boolean;
-  _canonical?: ScenarioJsonObject;
 };
+
+export type ScenarioConditionSource = 'state' | 'arguments' | 'session.flags';
+export type ScenarioConditionScalar = string | number | boolean;
+export type ScenarioConditionValueType = 'string' | 'number' | 'boolean';
+export type ScenarioCondition =
+  | { kind: 'always' }
+  | { kind: 'comparison'; operator: 'eq' | 'ne' | 'lt' | 'lte' | 'gt' | 'gte'; source: ScenarioConditionSource; path: string; valueType: ScenarioConditionValueType; value: ScenarioConditionScalar }
+  | { kind: 'in'; source: ScenarioConditionSource; path: string; valueType: ScenarioConditionValueType; values: ScenarioConditionScalar[] }
+  | { kind: 'exists'; source: ScenarioConditionSource; path: string }
+  | { kind: 'group'; operator: 'and' | 'or'; children: ScenarioCondition[] }
+  | { kind: 'not'; child: ScenarioCondition }
+  | { kind: 'unsupported'; canonical: ScenarioJsonObject };
 
 export type ScenarioObjectTypeActionPayload = {
   code: string;
   label: string;
   description: string;
   visibility: ScenarioActionVisibility;
-  availability: 'always' | 'state-equals';
-  availabilityStateCode: string;
+  availabilityCondition: ScenarioCondition;
   argumentFields: ScenarioActionArgumentFieldPayload[];
-  _canonical?: CanonicalScenarioActionDto;
 };
 
 export type ScenarioObjectTypePayload = {
@@ -104,7 +140,7 @@ export type ScenarioObjectTypePayload = {
   schemaVersion: 1;
   stateFields: ScenarioStateFieldPayload[];
   actions: ScenarioObjectTypeActionPayload[];
-  _canonical?: CanonicalScenarioObjectTypeDto;
+  actionRules: ScenarioActionRulePayload[];
 };
 
 export type ScenarioLocationPayload = {
@@ -113,40 +149,61 @@ export type ScenarioLocationPayload = {
   description: string;
   atmosphere: string;
   danger: string;
-  _canonical?: CanonicalScenarioLocationDto;
 };
 
-type CanonicalEffectSource = { _canonical?: ScenarioJsonObject };
 export type ScenarioRuleEffectPayload =
-  | ({ kind: 'set-state'; targetObjectCode: string; stateCode: string; value: string } & CanonicalEffectSource)
-  | ({ kind: 'move-object'; targetObjectCode: string; locationCode: string } & CanonicalEffectSource)
-  | ({ kind: 'emit-fact'; text: string } & CanonicalEffectSource)
-  | ({ kind: 'add-narrative-hint'; text: string } & CanonicalEffectSource);
+  | { kind: 'set-state'; targetObjectCode: string; stateCode: string; value: string }
+  | { kind: 'move-object'; targetObjectCode: string; locationCode: string }
+  | { kind: 'move-session'; locationCode: string }
+  | { kind: 'emit-fact'; text: string }
+  | { kind: 'emit-event'; event: string; locationCode: string }
+  | { kind: 'add-narrative-hint'; text: string }
+  | { kind: 'forbid-narrative-fact'; text: string }
+  | { kind: 'unsupported'; type: string; _canonical: ScenarioJsonObject };
 
-export type ScenarioObjectActionResultPayload = {
+export type ScenarioModuleBindingPayload = CanonicalScenarioModuleBindingDto;
+
+export type ScenarioActionRulePayload = {
   code: string;
   actionCode: string;
-  fromStateCode: string;
-  fromStateValue: string;
+  condition: ScenarioCondition;
   priority: number;
   note: string;
   effects: ScenarioRuleEffectPayload[];
-  _canonical?: CanonicalScenarioActionRuleDto;
+  moduleBinding: ScenarioModuleBindingPayload | null;
 };
+
+export type ScenarioObjectRuleOperationPayload =
+  | { operation: 'add'; rule: ScenarioActionRulePayload }
+  | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
+  | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
+  | {
+      operation: 'adjust';
+      targetTypeCode: string;
+      targetRuleCode: string;
+      adjustments: {
+        condition?: ScenarioCondition;
+        priority?: number;
+        note?: string | null;
+        effects?: ScenarioRuleEffectPayload[];
+        moduleBinding?: ScenarioModuleBindingPayload | null;
+      };
+    };
 
 export type ScenarioObjectPayload = {
   code: string;
   name: string;
-  objectTypeCode: string;
+  mixinTypeCodes: string[];
   initialLocationCode: string;
   global: boolean;
+  stateFields: ScenarioStateFieldPayload[];
+  actions: ScenarioObjectTypeActionPayload[];
   initialStateOverrides: Array<{ stateCode: string; value: string }>;
-  actionResults: ScenarioObjectActionResultPayload[];
-  _canonical?: CanonicalScenarioObjectDto;
+  actionRules: ScenarioObjectRuleOperationPayload[];
 };
 
 export type ScenarioRuleDataPayload = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   locations: ScenarioLocationPayload[];
   objectTypes: ScenarioObjectTypePayload[];
   objects: ScenarioObjectPayload[];
@@ -221,6 +278,7 @@ export type ScenarioApi = {
   getScenarios: (signal?: AbortSignal) => Promise<ScenarioDraftDto[]>;
   getScenario: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioDraftDto>;
   getScenarioRuleData: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioRuleDataPayload>;
+  createScenarioRuleDataDraft: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioRuleDataPayload>;
   putScenarioRuleData: (scenarioId: string, payload: ScenarioRuleDataPayload) => Promise<ScenarioRuleDataPayload>;
   getScenarioRuleDataReadiness: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioRuleDataReadinessDto>;
   recommendHero: (scenarioId: string, payload: RecommendScenarioHeroPayload) => Promise<ScenarioHeroRecommendation>;
@@ -261,6 +319,16 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
     },
     async getScenarioRuleData(scenarioId, signal) {
       const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/rule-data`, {
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+        signal,
+      });
+      if (!response.ok) throw await toApiError(response);
+      return canonicalRuleDataToForm(await response.json() as CanonicalScenarioRuleDataResponse);
+    },
+    async createScenarioRuleDataDraft(scenarioId, signal) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/rule-data/drafts`, {
+        method: 'POST',
         credentials: 'include',
         headers: { Accept: 'application/json' },
         signal,
@@ -330,10 +398,10 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
   };
 }
 
-const emptyScenarioRuleData = (): ScenarioRuleDataPayload => ({ schemaVersion: 1, locations: [], objectTypes: [], objects: [] });
+const emptyScenarioRuleData = (): ScenarioRuleDataPayload => ({ schemaVersion: 2, locations: [], objectTypes: [], objects: [] });
 
 const awakeningLaboratoryRuleData: ScenarioRuleDataPayload = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   locations: [
     { code: 'laboratory', name: '地下研究室', description: '非常灯だけが残る閉鎖研究室。', atmosphere: '静かな緊張感', danger: '隔壁が閉鎖されている' },
     { code: 'service-corridor', name: '保守通路', description: '脱出経路へ続く狭い通路。', atmosphere: '機械音と冷気', danger: '電源復旧前は暗い' },
@@ -344,27 +412,33 @@ const awakeningLaboratoryRuleData: ScenarioRuleDataPayload = {
     description: '開閉状態を持つ研究施設の扉。',
     schemaVersion: 1,
     stateFields: [{ code: 'open', label: '開いている', valueType: 'boolean', defaultValue: 'false', visibility: 'public' }],
-    actions: [{ code: 'open', label: '扉を開ける', description: '閉じた隔壁を開く。', visibility: 'ai-choice', availability: 'state-equals', availabilityStateCode: 'open', argumentFields: [] }],
+    actions: [{ code: 'open', label: '扉を開ける', description: '閉じた隔壁を開く。', visibility: 'ai-choice', availabilityCondition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'open', valueType: 'boolean', value: false }, argumentFields: [] }],
+    actionRules: [],
   }],
   objects: [{
     code: 'north-door',
     name: '北側の隔壁',
-    objectTypeCode: 'sealed-door',
+    mixinTypeCodes: ['sealed-door'],
+    stateFields: [],
+    actions: [],
     initialLocationCode: 'laboratory',
     global: false,
     initialStateOverrides: [],
-    actionResults: [{
-      code: 'open-north-door',
-      actionCode: 'open',
-      fromStateCode: 'open',
-      fromStateValue: 'false',
-      priority: 100,
-      note: '通常の開扉結果。',
-      effects: [
-        { kind: 'set-state', targetObjectCode: 'north-door', stateCode: 'open', value: 'true' },
-        { kind: 'emit-fact', text: '北側の隔壁が開いた。' },
-        { kind: 'add-narrative-hint', text: '冷たい空気が保守通路から流れ込む。' },
-      ],
+    actionRules: [{
+      operation: 'add',
+      rule: {
+        code: 'open-north-door',
+        actionCode: 'open',
+        condition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'open', valueType: 'boolean', value: false },
+        priority: 100,
+        note: '通常の開扉結果。',
+        effects: [
+          { kind: 'set-state', targetObjectCode: 'north-door', stateCode: 'open', value: 'true' },
+          { kind: 'emit-fact', text: '北側の隔壁が開いた。' },
+          { kind: 'add-narrative-hint', text: '冷たい空気が保守通路から流れ込む。' },
+        ],
+        moduleBinding: null,
+      },
     }],
   }],
 };
@@ -485,6 +559,11 @@ export function createDemoScenarioApi(): ScenarioApi {
       return { ...scenario };
     },
     async getScenarioRuleData(scenarioId) {
+      const scenario = demoScenarios[scenarioId];
+      if (!scenario) throw demoError('シナリオが見つかりません。', 404);
+      return structuredClone(scenario.ruleData ?? emptyScenarioRuleData());
+    },
+    async createScenarioRuleDataDraft(scenarioId) {
       const scenario = demoScenarios[scenarioId];
       if (!scenario) throw demoError('シナリオが見つかりません。', 404);
       return structuredClone(scenario.ruleData ?? emptyScenarioRuleData());

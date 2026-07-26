@@ -41,21 +41,21 @@ describe('scenario-turn presentation boundaries', () => {
     execution.scenarioTurn = {
       ...execution.scenarioTurn!,
       stage: 'running-extension',
-      selectedAction: { objectId: 'OBJ-DOOR', actionId: 'roll', actionLabel: '判定する', visibility: 'manual-ui' },
+      selectedAction: { objectId: 'OBJ-DOOR', actionId: 'roll', actionLabel: '判定する' },
       manualUi: { objectId: 'OBJ-DOOR', actionId: 'roll', actionLabel: '判定する', visibility: 'manual-ui', execution: moduleExecution },
     };
     expect(getManualUiAction(execution)?.execution).toBe(moduleExecution);
 
-    execution.scenarioTurn.manualUi = { ...execution.scenarioTurn.manualUi!, actionId: 'different-action' };
+    execution.scenarioTurn!.manualUi = { ...execution.scenarioTurn!.manualUi!, actionId: 'different-action' };
     expect(getManualUiAction(execution)).toBeNull();
   });
 
   it('recognizes narrative generation after state commit without treating rules as pending', () => {
     const execution = executionFixture('running');
     execution.stage = 'generating-narrative';
-    execution.scenarioTurn = { ...execution.scenarioTurn!, stage: 'generating-narrative', postState: { revision: 4, objects: [] } };
+    execution.scenarioTurn = { ...execution.scenarioTurn!, stage: 'generating-narrative', postState: { ...execution.scenarioTurn!.postState!, revision: 4, objects: [] } };
     expect(hasCommittedStateAwaitingNarrative(execution)).toBe(true);
-    execution.scenarioTurn = { ...execution.scenarioTurn, postState: null };
+    execution.scenarioTurn = { ...execution.scenarioTurn!, postState: null };
     expect(hasCommittedStateAwaitingNarrative(execution)).toBe(false);
   });
 });

@@ -21,7 +21,7 @@ export function EditScenarioContainer({ scenarioId, api }: { scenarioId: string;
     queryFn: async ({ signal }) => {
       const [scenario, ruleData] = await Promise.all([
         scenarioApi.getScenario(scenarioId, signal),
-        scenarioApi.getScenarioRuleData(scenarioId, signal),
+        scenarioApi.createScenarioRuleDataDraft(scenarioId, signal),
       ]);
       return { scenario, ruleData };
     },

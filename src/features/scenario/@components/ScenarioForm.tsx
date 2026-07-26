@@ -17,7 +17,6 @@ import {
   wizardSummaryClass,
 } from '../../../shared/scenarioWizardStyles';
 import { MyrialeSelect } from '../../../ui/MyrialeRadix';
-import { ActionResultsEditorPresentation } from './rule-data/ActionResultsEditorPresentation';
 import { LocationsObjectsEditorPresentation } from './rule-data/LocationsObjectsEditorPresentation';
 import { ObjectTypesEditorPresentation } from './rule-data/ObjectTypesEditorPresentation';
 import { validateScenarioRuleData } from './rule-data/scenarioRuleDataModel';
@@ -29,7 +28,7 @@ import {
 } from './scenarioFormModel';
 
 type SuggestionKind = '基本情報' | '挿絵テイスト' | '挿絵プロンプト';
-type WizardStep = 'cover' | 'ai' | 'hero' | 'opening' | 'illustration' | 'world' | 'results';
+type WizardStep = 'cover' | 'ai' | 'hero' | 'opening' | 'illustration' | 'world';
 
 const wizardSteps: Array<{ id: WizardStep; label: string; help: string }> = [
   { id: 'cover', label: '表紙', help: 'タイトル、ジャンル、基本情報' },
@@ -37,8 +36,7 @@ const wizardSteps: Array<{ id: WizardStep; label: string; help: string }> = [
   { id: 'hero', label: '主人公', help: '初期キャラクター条件' },
   { id: 'opening', label: '第一場面', help: '最初のNarrativeの固定' },
   { id: 'illustration', label: '挿絵', help: '画風、NG、プレビュー' },
-  { id: 'world', label: '世界データ', help: '場所・オブジェクト・種類を一覧で管理' },
-  { id: 'results', label: 'アクション結果', help: '決定的な条件・effect' },
+  { id: 'world', label: '世界データ', help: '場所・オブジェクト・種類・実行ルールを一覧で管理' },
 ];
 
 type Props = {
@@ -153,9 +151,12 @@ export function ScenarioForm({
     if (step === 'hero') return values.heroMode === 'fixed' ? '固定' : values.heroMode === 'select' ? '選択式' : '自由生成';
     if (step === 'opening') return values.opening ? '固定' : 'AI生成';
     if (step === 'illustration') return values.illustrationStyle ? '入力済み' : '未入力';
-    if (step === 'world') return `${values.ruleData.objectTypes.length}種類 / ${values.ruleData.locations.length}場所 / ${values.ruleData.objects.length}個`;
-    const issues = validateScenarioRuleData(values.ruleData);
-    return issues.length === 0 ? '公開準備OK' : `${issues.length}要確認`;
+    if (step === 'world') {
+      const issues = validateScenarioRuleData(values.ruleData);
+      const worldCount = `${values.ruleData.objectTypes.length}種類 / ${values.ruleData.locations.length}場所 / ${values.ruleData.objects.length}個`;
+      return issues.length === 0 ? `${worldCount} / 公開準備OK` : `${worldCount} / ${issues.length}要確認`;
+    }
+    return '';
   };
 
   const move = (direction: 1 | -1) => {
@@ -308,20 +309,11 @@ export function ScenarioForm({
                   onChange={(ruleData) => update('ruleData', ruleData)}
                   onNotice={presentRuleNotice}
                 />
+                <section className="grid gap-2 rounded-2xl border border-[#17151f]/15 bg-white/55 p-4" aria-label="公開準備チェック">
+                  <h3>公開準備チェック</h3>
+                  {validateScenarioRuleData(values.ruleData).length === 0 ? <p data-testid="rule-readiness">すべての参照と実行ルールが決定的です。</p> : validateScenarioRuleData(values.ruleData).map((issue) => <p key={`${issue.path}-${issue.message}`} className={issue.severity === 'error' ? '!text-[#9b3030]' : '!text-[#7a5a16]'}><strong>{issue.severity === 'error' ? '修正必須' : '下書き警告'}:</strong> {issue.message} <code>{issue.path}</code></p>)}
+                </section>
               </div>
-            </div>
-          )}
-
-          {activeStep === 'results' && (
-            <div className={`${wizardPanelClass} [&_textarea]:min-h-20`}>
-              <ActionResultsEditorPresentation
-                value={values.ruleData}
-                onChange={(ruleData) => update('ruleData', ruleData)}
-              />
-              <section className="mt-4 grid gap-2 rounded-2xl border border-[#17151f]/15 bg-white/55 p-4" aria-label="公開準備チェック">
-                <h3>公開準備チェック</h3>
-                {validateScenarioRuleData(values.ruleData).length === 0 ? <p data-testid="rule-readiness">すべての参照とアクション結果が決定的です。</p> : validateScenarioRuleData(values.ruleData).map((issue) => <p key={`${issue.path}-${issue.message}`} className={issue.severity === 'error' ? '!text-[#9b3030]' : '!text-[#7a5a16]'}><strong>{issue.severity === 'error' ? '修正必須' : '下書き警告'}:</strong> {issue.message} <code>{issue.path}</code></p>)}
-              </section>
             </div>
           )}
 

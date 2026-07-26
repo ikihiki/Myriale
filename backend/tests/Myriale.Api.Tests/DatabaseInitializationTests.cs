@@ -2,6 +2,8 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Myriale.Api.Data;
 
 namespace Myriale.Api.Tests;
 

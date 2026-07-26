@@ -32,9 +32,24 @@ public static class ScenarioSeedData
         - 必要に応じてNPCの台詞を交える
         """;
 
-    public static async Task SeedAsync(ApplicationDbContext db, CancellationToken cancellationToken = default)
+    public static async Task SeedAsync(
+        ApplicationDbContext db,
+        string? developmentAuthorId = null,
+        CancellationToken cancellationToken = default)
     {
-        if (await db.Scenarios.AnyAsync(scenario => scenario.Id == AwakeningLaboratoryId, cancellationToken)) return;
+        var existing = await db.Scenarios.SingleOrDefaultAsync(
+            scenario => scenario.Id == AwakeningLaboratoryId,
+            cancellationToken);
+        if (existing is not null)
+        {
+            if (!string.IsNullOrWhiteSpace(developmentAuthorId)
+                && string.Equals(existing.AuthorId, "SYSTEM-SEED", StringComparison.Ordinal))
+            {
+                existing.AuthorId = developmentAuthorId;
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            return;
+        }
 
         var timestamp = new DateTimeOffset(2026, 7, 23, 0, 0, 0, TimeSpan.Zero);
         db.Scenarios.Add(new Scenario
@@ -48,7 +63,7 @@ public static class ScenarioSeedData
             HeroFreeGenerationAllowed = false,
             Opening = "あなたは閉鎖された地下研究施設で目を覚ます。記憶は失われ、自身の正体も施設の目的も分からない。",
             Status = "published",
-            AuthorId = "SYSTEM-SEED",
+            AuthorId = string.IsNullOrWhiteSpace(developmentAuthorId) ? "SYSTEM-SEED" : developmentAuthorId,
             CreatedAt = timestamp,
             UpdatedAt = timestamp,
         });

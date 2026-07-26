@@ -79,12 +79,21 @@ const formatElapsed = (milliseconds: number) => {
 function ScenarioTurnProjectionSummary({ projection }: { projection: ScenarioTurnProjection }) {
   const selected = projection.selectedAction;
   const postState = projection.postState;
-  const location = postState?.currentLocation ?? projection.currentLocation;
+  const beforeLocation = projection.currentLocation;
+  const location = postState?.currentLocation ?? beforeLocation;
+  const moved = beforeLocation && postState && beforeLocation.id !== postState.currentLocation.id;
+  const selectedObject = selected ? projection.objects.find((item) => item.id === selected.objectId) : null;
+  const selectedPostObject = selected && postState ? postState.objects.find((item) => item.id === selected.objectId) : null;
+  const selectedState = selectedPostObject?.state ?? selectedObject?.state;
+  const committedOpenEffect = postState?.appliedEffects.find((effect) => effect.type === 'set-state' && effect.targetId === selected?.objectId && effect.path === 'state.open');
+  const appliedState = Boolean(committedOpenEffect) || postState?.appliedEffects.some((effect) => effect.type === 'set-state' && effect.targetId === selected?.objectId);
   return <div className="mt-2 ml-auto grid w-[min(100%,620px)] gap-1.5 rounded-xl border border-myr-ink/10 bg-myr-paper/55 px-3 py-2 text-left text-myr-caption text-myr-ink-soft" data-testid="scenario-turn-public-projection">
-    {location && <p className="m-0"><strong>現在地:</strong> {location.label}</p>}
-    {projection.availableActions && <p className="m-0"><strong>利用可能な行動:</strong> {projection.availableActions.map((action) => action.label).join('、') || 'なし'}</p>}
-    {selected && <p className="m-0"><strong>選択:</strong> {selected.objectLabel ? `${selected.objectLabel} / ` : ''}{selected.actionLabel ?? selected.actionId}</p>}
-    {postState && <p className="m-0"><strong>確定済み状態:</strong> Revision {postState.revision}{postState.facts?.length ? ` / ${postState.facts.join('、')}` : ''}</p>}
+    {location && <p className="m-0"><strong>現在地:</strong> {location.name}</p>}
+    {moved && <p className="m-0" data-testid="scenario-turn-location-transition"><strong>移動:</strong> {beforeLocation.name} → {postState.currentLocation.name}</p>}
+    <p className="m-0"><strong>利用可能な行動:</strong> {projection.availableActions.filter((action) => action.enabled).map((action) => action.label).join('、') || 'なし'}</p>
+    {selected && <p className="m-0"><strong>解釈:</strong> {selected.objectLabel ? `${selected.objectLabel} / ` : ''}{selected.actionLabel ?? selected.actionCode ?? selected.actionId}</p>}
+    {selected && (selectedState || appliedState) && <p className="m-0" data-testid="scenario-turn-selected-state"><strong>対象の状態:</strong> {selected.objectLabel ?? selected.objectCode ?? selected.objectId} / {committedOpenEffect ? `open=${String(committedOpenEffect.value)}` : selectedState && Object.hasOwn(selectedState, 'open') ? `open=${String(selectedState.open)}` : appliedState ? 'state updated' : JSON.stringify(selectedState)}</p>}
+    {postState && <p className="m-0"><strong>確定済み状態:</strong> Revision {postState.revision}{postState.facts.length ? ` / ${postState.facts.join('、')}` : ''}</p>}
   </div>;
 }
 

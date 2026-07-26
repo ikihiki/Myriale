@@ -22,7 +22,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const goToStep = async (canvas: ReturnType<typeof within>, stepName: string) => {
-  await userEvent.click(canvas.getByRole('button', { name: `${stepName}へ` }));
+  await userEvent.click(await canvas.findByRole('button', { name: `${stepName}へ` }));
 };
 
 export const USE01EditExistingScenario: Story = {
@@ -106,11 +106,11 @@ export const USE11EditRuleDataWithStableCodes: Story = {
       await expect(screen.getByLabelText('種類のstable code')).toHaveValue('archive-door');
       await userEvent.click(screen.getByRole('button', { name: '開いているを編集' }));
       await expect(screen.getByRole('dialog', { name: '開いている' })).toHaveAttribute('data-layer', '1');
-      await expect(screen.getByLabelText('状態1のcode')).toHaveValue('open');
+      await expect(screen.getByLabelText('状態1のstable code')).toHaveValue('open');
       await userEvent.click(screen.getByRole('button', { name: '状態の編集を完了' }));
       await userEvent.click(screen.getByRole('button', { name: '扉を開けるを編集' }));
       await expect(screen.getByRole('dialog', { name: '扉を開ける' })).toHaveAttribute('data-layer', '1');
-      await expect(screen.getByLabelText('アクション1のcode')).toHaveValue('open');
+      await expect(screen.getByLabelText('アクション1のstable code')).toHaveValue('open');
       await userEvent.click(screen.getByRole('button', { name: 'アクションの編集を完了' }));
       await userEvent.clear(screen.getByLabelText('種類の表示名'));
       await userEvent.type(screen.getByLabelText('種類の表示名'), '封印書庫の扉');
@@ -126,11 +126,22 @@ export const USE11EditRuleDataWithStableCodes: Story = {
       await expect(screen.getByLabelText('オブジェクトのstable code')).toHaveValue('north-archive-door');
       await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
     });
-    await goToStep(canvas, 'アクション結果');
-    await step('決定的な結果を維持したまま変更を保存する', async () => {
+    await step('Type generic ruleとObject adjust operationを維持したまま変更を保存する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: /^封印書庫の扉を編集$/ }));
+      await expect(screen.getByRole('button', { name: 'generic-openの実行ルールを編集' })).toBeVisible();
+      await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
+      await userEvent.click(canvas.getByRole('button', { name: '北書庫の扉を編集' }));
+      await expect(screen.getByRole('table', { name: 'Object states' })).toHaveTextContent('開いている');
+      await expect(screen.getByRole('table', { name: 'Object actions' })).toHaveTextContent('扉を開ける');
+      await expect(screen.getByRole('button', { name: 'archive-door:generic-openの実行ルールを確認' })).toBeVisible();
+      await userEvent.click(screen.getByRole('button', { name: 'archive-door:generic-openの実行ルールを確認' }));
+      await expect(screen.queryByLabelText('実行ルールの優先度')).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: '閉じる' }));
+      await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
       await expect(canvas.getByTestId('rule-readiness')).toHaveTextContent('決定的です');
       await userEvent.click(canvas.getByRole('button', { name: '変更を保存' }));
       await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('変更を保存しました');
+      await expect(canvas.queryByRole('button', { name: 'アクション結果へ' })).not.toBeInTheDocument();
     });
   },
 };

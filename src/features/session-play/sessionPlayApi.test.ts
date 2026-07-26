@@ -90,6 +90,33 @@ describe('sessionPlayApi', () => {
     });
   });
 
+  it('hydrates the server scenario-turn projection with selected action and location transition', async () => {
+    const payload = {
+      id: 'SES-WEST', scenarioId: 'SCN-AWAKENING-LAB', status: 'active', revision: 2, interpretationEnabled: false,
+      turns: [], pendingInputs: [], createdAt: '2026-07-25T00:00:00Z', updatedAt: '2026-07-25T00:00:00Z',
+      currentLocationId: 'LOC-OUTSIDE', objectStates: [{ objectId: 'OBJ-WEST', code: 'west-door', name: '西の扉', locationId: 'LOC-INSIDE', isGlobal: false, revision: 1, state: { open: true } }],
+      executions: [{
+        id: 'EXE-WEST', sessionId: 'SES-WEST', kind: 'scenario-turn', triggerType: 'player-input', triggerId: 'INP-WEST', status: 'succeeded', stage: 'completed', revision: 2, isRetryable: false, attemptCount: 1, maxAttempts: 3,
+        createdAt: '2026-07-25T00:00:00Z', capabilities: { canRetry: false, canCancel: false, canDismiss: true },
+        scenarioTurn: {
+          schemaVersion: 'scenario-turn.v1', stage: 'completed', currentLocation: { id: 'LOC-INSIDE', code: 'inside', name: '地下研究室', description: '' }, objects: [], availableActions: [],
+          selectedAction: { objectId: 'OBJ-WEST', actionId: 'ACT-OPEN-EXIT', objectCode: 'west-door', objectLabel: '西の扉', actionCode: 'open-and-exit', actionLabel: '扉を開けて外へ出る', arguments: {} },
+          postState: { revision: 2, currentLocation: { id: 'LOC-OUTSIDE', code: 'outside', name: '研究施設の外', description: '' }, objects: [], facts: ['プレイヤーは研究施設の外へ出た。'], events: [], hints: [], appliedEffects: [{ type: 'move-session', targetId: 'LOC-OUTSIDE', path: 'currentLocationId', value: 'outside' }] },
+        },
+      }],
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(payload)));
+
+    const session = await getSession('SES-WEST', '/api/sessions');
+
+    expect(session.currentLocationId).toBe('LOC-OUTSIDE');
+    expect(session.objectStates?.[0]).toMatchObject({ code: 'west-door', revision: 1, state: { open: true } });
+    expect(session.executions?.[0].scenarioTurn).toMatchObject({
+      selectedAction: { objectCode: 'west-door', actionCode: 'open-and-exit' },
+      postState: { currentLocation: { code: 'outside' }, facts: ['プレイヤーは研究施設の外へ出た。'] },
+    });
+  });
+
   it('accepts durable input and mutates the same execution resource', async () => {
     const accepted = { input: { id: 'INP-1' }, execution: { id: 'EXE-1', status: 'queued' } };
     const fetch = vi.fn()

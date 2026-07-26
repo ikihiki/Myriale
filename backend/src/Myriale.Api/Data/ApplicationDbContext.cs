@@ -11,7 +11,6 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<ScenarioObjectType> ScenarioObjectTypes => Set<ScenarioObjectType>();
     public DbSet<ScenarioObjectTypeAction> ScenarioObjectTypeActions => Set<ScenarioObjectTypeAction>();
     public DbSet<ScenarioObject> ScenarioObjects => Set<ScenarioObject>();
-    public DbSet<ScenarioObjectActionRule> ScenarioObjectActionRules => Set<ScenarioObjectActionRule>();
     public DbSet<AiProviderKey> AiProviderKeys => Set<AiProviderKey>();
     public DbSet<AiProviderRuntimeSettings> AiProviderRuntimeSettings => Set<AiProviderRuntimeSettings>();
     public DbSet<ModulePackage> ModulePackages => Set<ModulePackage>();
@@ -68,16 +67,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .HasOne(item => item.DefinitionVersion).WithMany(version => version.Objects)
             .HasForeignKey(item => item.DefinitionVersionId).OnDelete(DeleteBehavior.Cascade);
         builder.Entity<ScenarioObject>()
-            .HasOne(item => item.ObjectType).WithMany().HasForeignKey(item => item.ObjectTypeId).OnDelete(DeleteBehavior.Restrict);
-        builder.Entity<ScenarioObject>()
             .HasOne(item => item.Location).WithMany().HasForeignKey(item => item.LocationId).OnDelete(DeleteBehavior.Restrict);
-        builder.Entity<ScenarioObjectActionRule>()
-            .HasIndex(rule => new { rule.ObjectId, rule.ObjectTypeActionId, rule.Priority });
-        builder.Entity<ScenarioObjectActionRule>()
-            .HasOne(rule => rule.Object).WithMany(item => item.ActionRules)
-            .HasForeignKey(rule => rule.ObjectId).OnDelete(DeleteBehavior.Cascade);
-        builder.Entity<ScenarioObjectActionRule>()
-            .HasOne(rule => rule.ObjectTypeAction).WithMany().HasForeignKey(rule => rule.ObjectTypeActionId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<ModulePackage>()
             .HasIndex(package => new { package.ModuleId, package.Version })
             .IsUnique();

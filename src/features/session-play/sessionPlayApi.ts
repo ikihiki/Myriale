@@ -53,48 +53,66 @@ export type ScenarioTurnStage =
   | 'failed'
   | 'cancelled';
 
+export type ScenarioTurnPublicLocation = {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+};
+
 export type ScenarioTurnPublicObject = {
-  objectId: string;
-  objectTypeId?: string | null;
-  label: string;
-  description?: string | null;
-  locationId?: string | null;
-  publicState?: Record<string, unknown> | null;
+  id: string;
+  code: string;
+  name: string;
+  locationId: string;
+  isGlobal: boolean;
+  revision: number;
+  state: Record<string, unknown>;
 };
 
 export type ScenarioTurnPublicAction = {
   objectId: string;
   actionId: string;
+  code: string;
   label: string;
-  description?: string | null;
-  visibility: 'ai-choice' | 'manual-ui';
-  argumentSchema?: Record<string, unknown> | null;
+  description: string;
+  argumentSchema: Record<string, unknown>;
+  enabled: boolean;
 };
 
 export type ScenarioTurnSelectedAction = {
   objectId: string;
   actionId: string;
+  objectCode?: string | null;
   objectLabel?: string | null;
+  actionCode?: string | null;
   actionLabel?: string | null;
   arguments?: Record<string, unknown> | null;
-  visibility: 'ai-choice' | 'manual-ui';
+};
+
+export type ScenarioTurnAppliedEffect = {
+  type: string;
+  targetId?: string | null;
+  path?: string | null;
+  value?: unknown;
 };
 
 export type ScenarioTurnPublicPostState = {
   revision: number;
-  currentLocation?: { locationId: string; label: string } | null;
+  currentLocation: ScenarioTurnPublicLocation;
   objects: ScenarioTurnPublicObject[];
-  facts?: string[];
-  events?: string[];
-  hints?: string[];
+  facts: string[];
+  events: unknown[];
+  hints: string[];
+  appliedEffects: ScenarioTurnAppliedEffect[];
 };
 
 export type ScenarioTurnProjection = {
-  schemaVersion: 'scenario-turn.v1' | '1' | string;
+  schemaVersion: 'scenario-turn.v1' | string;
   stage: ScenarioTurnStage;
-  currentLocation?: { locationId: string; label: string } | null;
-  objects?: ScenarioTurnPublicObject[];
-  availableActions?: ScenarioTurnPublicAction[];
+  currentLocation?: ScenarioTurnPublicLocation | null;
+  objects: ScenarioTurnPublicObject[];
+  availableActions: ScenarioTurnPublicAction[];
   selectedAction?: ScenarioTurnSelectedAction | null;
   postState?: ScenarioTurnPublicPostState | null;
   manualUi?: {
@@ -175,6 +193,16 @@ export type SessionApiResponse = {
   artifacts?: SessionArtifactApiResponse[];
   activity?: SessionActivityApiResponse[];
   noteProposals?: SessionNoteProposalApiResponse[];
+  scenarioDefinitionVersionId?: string | null;
+  currentLocationId?: string | null;
+  objectStates?: Array<{
+    objectId: string; code: string; name: string; locationId: string; isGlobal: boolean; revision: number; state: Record<string, unknown>;
+  }>;
+  ruleActionSteps?: Array<{
+    id: string; executionId: string; stage: ScenarioTurnStage; schemaVersion: string;
+    actionSnapshot?: unknown; decision?: unknown; postState?: unknown; extension?: unknown;
+    appliedAt?: string | null; narrativePublishedAt?: string | null;
+  }>;
   createdAt: string;
   updatedAt: string;
 };

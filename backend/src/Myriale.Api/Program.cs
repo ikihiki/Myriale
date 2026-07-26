@@ -46,6 +46,7 @@ builder.Services.AddScoped<IActionRecommendationGenerator>(services =>
 builder.Services.AddScoped<SessionScenarioProgressionService>();
 builder.Services.AddScoped<ScenarioDefinitionAuthoringService>();
 builder.Services.AddScoped<ScenarioRuleEvaluator>();
+builder.Services.AddScoped<ScenarioRuleConfigurationResolver>();
 builder.Services.AddScoped<ScenarioPublicProjector>();
 builder.Services.AddScoped<ScenarioActionEnumerator>();
 builder.Services.AddScoped<ScenarioEffectApplier>();
@@ -207,16 +208,17 @@ using (var scope = app.Services.CreateScope())
     }
 
     await db.Database.EnsureCreatedAsync();
-    if (isTestHost)
+
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+    var developmentSeedUser = await AccountSeedData.SeedAsync(userManager, app.Configuration);
+    var useTestScenarioFixtures = isTestHost && app.Configuration.GetValue("TestScenarioFixtures:Enabled", true);
+    if (useTestScenarioFixtures)
     {
-        if (app.Configuration.GetValue("TestScenarioFixtures:Enabled", true))
-        {
-            await ScenarioTestFixtureData.CreateAsync(db);
-        }
+        await ScenarioTestFixtureData.CreateAsync(db);
     }
     else
     {
-        await ScenarioSeedData.SeedAsync(db);
+        await ScenarioSeedData.SeedAsync(db, developmentSeedUser?.Id);
     }
     if (app.Configuration.GetValue<bool>("DemoModules:Enabled")
         && (!isTestHost || app.Configuration.GetValue<bool>("DemoModules:EnableInTestHost")))
@@ -227,8 +229,6 @@ using (var scope = app.Services.CreateScope())
             scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>());
     }
 
-    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-    await AccountSeedData.SeedAsync(userManager, app.Configuration);
     if (app.Configuration.GetValue<bool>("SessionArtifactFixture:Enabled")
         && (!isTestHost || app.Configuration.GetValue<bool>("SessionArtifactFixture:EnableInTestHost")))
     {
