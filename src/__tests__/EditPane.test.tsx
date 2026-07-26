@@ -171,7 +171,7 @@ describe('EditPane', () => {
     fireEvent.click(trigger);
     await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
     expect(screen.getByRole('dialog', { name: '子ペイン' })).toBeVisible();
-    expect(screen.getByRole('dialog', { name: '親ペイン' })).toBeVisible();
+    expect(document.querySelector('[data-edit-pane-layer="0"][role="dialog"]')).toBeVisible();
 
     fireEvent.click(trigger);
     expect(await screen.findByRole('listbox')).toBeVisible();

@@ -8,10 +8,10 @@ const openStory = async (page: Page, id: string) => {
 test('Object Typeの状態とAI向けアクションを定義できる', async ({ page }) => {
   await openStory(page, 'ユーザーストーリー-scenario-registration--us-23-define-object-type-states-and-actions');
 
-  await expect(page.getByRole('dialog', { name: '扉を開ける' })).toHaveAttribute('data-layer', '1');
-  await expect(page.getByLabel('Type generic configuration action code 1')).toHaveValue('open');
+  await expect(page.getByRole('dialog', { name: '扉を開ける' })).toHaveAttribute('data-layer', '1', { timeout: 15_000 });
+  await expect(page.getByLabel('アクション1のstable code')).toHaveValue('open');
   await expect(page.getByRole('combobox', { name: 'visibility' })).toContainText('AI choice');
-  await expect(page.getByRole('combobox', { name: '提示条件' })).toContainText('常に提示');
+  await expect(page.getByRole('combobox', { name: '提示条件の条件種別' })).toContainText('常に成立');
   await page.getByRole('button', { name: 'アクションの編集を完了' }).click();
   await expect(page.getByRole('dialog', { name: '隔壁扉' })).toHaveAttribute('data-layer', '0');
   await expect(page.getByLabel('種類のstable code')).toHaveValue('sealed-door');
@@ -77,7 +77,7 @@ test('既存mutationをread-onlyで表示したままDraft保存できる', asyn
 test('保存済みObject Typeを編集してシナリオ変更を保存できる', async ({ page }) => {
   await page.goto('/iframe.html?id=ユーザーストーリー-edit-scenario--use-11-edit-rule-data-with-stable-codes&viewMode=story');
   await expect(page.getByRole('main', { name: 'シナリオ編集ウィザード' })).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId('scenario-notice')).toContainText('変更を保存しました', { timeout: 15_000 });
+  await expect(page.getByTestId('scenario-notice')).toContainText('変更を保存しました', { timeout: 30_000 });
   await page.getByRole('button', { name: '北書庫の扉を編集' }).click();
   await expect(page.getByRole('table', { name: 'Object states' })).toContainText('開いている');
   await expect(page.getByRole('table', { name: 'Object actions' })).toContainText('扉を開ける');

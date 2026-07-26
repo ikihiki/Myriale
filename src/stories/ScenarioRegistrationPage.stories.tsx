@@ -316,19 +316,19 @@ export const US23DefineObjectTypeStatesAndActions: Story = {
       await userEvent.type(screen.getByLabelText('種類のstable code'), 'sealed-door');
       await userEvent.clear(screen.getByLabelText('種類の表示名'));
       await userEvent.type(screen.getByLabelText('種類の表示名'), '隔壁扉');
-      await userEvent.click(screen.getByRole('button', { name: 'Type generic configurationへ状態を追加' }));
-      await userEvent.clear(screen.getByLabelText('Type generic configuration state code 1'));
-      await userEvent.type(screen.getByLabelText('Type generic configuration state code 1'), 'open');
+      await userEvent.click(screen.getByRole('button', { name: '状態を追加' }));
+      await userEvent.clear(screen.getByLabelText('状態1のstable code'));
+      await userEvent.type(screen.getByLabelText('状態1のstable code'), 'open');
       await expect(screen.getByRole('combobox', { name: '公開' })).toHaveTextContent('public');
       await userEvent.click(screen.getByRole('button', { name: '状態の編集を完了' }));
       await expect(screen.getByRole('button', { name: '新しい状態を編集' })).toBeVisible();
     });
     await step('AIへ列挙するアクションinterfaceを登録する', async () => {
-      await userEvent.click(screen.getByRole('button', { name: 'Type generic configurationへActionを追加' }));
-      await userEvent.clear(screen.getByLabelText('Type generic configuration action code 1'));
-      await userEvent.type(screen.getByLabelText('Type generic configuration action code 1'), 'open');
-      await userEvent.clear(screen.getByLabelText('Type generic configuration action label 1'));
-      await userEvent.type(screen.getByLabelText('Type generic configuration action label 1'), '扉を開ける');
+      await userEvent.click(screen.getByRole('button', { name: 'アクションを追加' }));
+      await userEvent.clear(screen.getByLabelText('アクション1のstable code'));
+      await userEvent.type(screen.getByLabelText('アクション1のstable code'), 'open');
+      await userEvent.clear(screen.getByLabelText('アクション1の表示名'));
+      await userEvent.type(screen.getByLabelText('アクション1の表示名'), '扉を開ける');
       await expect(screen.getByRole('combobox', { name: 'visibility' })).toHaveTextContent('AI choice');
     });
   },

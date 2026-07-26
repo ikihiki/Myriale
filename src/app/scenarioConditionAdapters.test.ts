@@ -20,11 +20,11 @@ describe('scenario condition adapters', () => {
     expect(conditionToCanonical(conditionFromCanonical(canonical))).toEqual(canonical);
   });
 
-  it.each([
+  it.each(([
     { op: 'future', path: 'state.open', value: true },
     { and: [{ op: 'eq', path: 'state.open', value: false }, 42] },
     { op: 'eq', path: 'world.open', value: false },
-  ] satisfies ScenarioJsonObject[])('preserves unsupported AST losslessly %#', (canonical) => {
+  ] as ScenarioJsonObject[]))('preserves unsupported AST losslessly %#', (canonical) => {
     const parsed = conditionFromCanonical(canonical);
     expect(parsed.kind).toBe('unsupported');
     expect(conditionToCanonical(parsed)).toEqual(canonical);
