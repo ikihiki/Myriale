@@ -157,6 +157,26 @@ describe('EditPane', () => {
     expect(document.querySelector('[data-edit-pane-layer="0"]')).toBeInTheDocument();
   });
 
+  it('closes only the open Select on a same-trigger pointer sequence and can reopen it', async () => {
+    render(<NestedSelectHarness />);
+    fireEvent.click(screen.getByRole('button', { name: '子ペインを開く' }));
+    const child = await screen.findByRole('dialog', { name: '子ペイン' });
+    const trigger = within(child).getByRole('combobox', { name: '語り口' });
+
+    fireEvent.click(trigger);
+    await screen.findByRole('listbox');
+
+    fireEvent.pointerDown(trigger, { button: 0, pointerId: 1 });
+    fireEvent.pointerUp(trigger, { button: 0, pointerId: 1 });
+    fireEvent.click(trigger);
+    await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
+    expect(screen.getByRole('dialog', { name: '子ペイン' })).toBeVisible();
+    expect(screen.getByRole('dialog', { name: '親ペイン' })).toBeVisible();
+
+    fireEvent.click(trigger);
+    expect(await screen.findByRole('listbox')).toBeVisible();
+  });
+
   it('closes Select, nested pane, then parent pane on successive Escape presses', async () => {
     render(<NestedSelectHarness />);
     fireEvent.click(screen.getByRole('button', { name: '子ペインを開く' }));

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from './fixtures';
 
 const openStory = async (page: Page, id: string) => {
-  await page.goto(`/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`);
+  await page.goto(`/iframe.html?id=${encodeURIComponent(id)}&viewMode=story&autoplay=false`);
   await expect(page.locator('#storybook-root')).not.toBeEmpty({ timeout: 15_000 });
 };
 
@@ -47,7 +47,8 @@ test('EditPaneはmobileで全幅になり、Select portalとEscape階層を保�
 
   const child = page.getByRole('dialog', { name: '子ペイン' });
   const parentSurface = page.locator('[data-edit-pane-layer="0"]');
-  await child.getByRole('combobox', { name: '語り口' }).click();
+  const selectTrigger = page.locator('button[role="combobox"][aria-label="語り口"]');
+  await selectTrigger.click();
   const option = page.getByRole('option', { name: '熾火' });
   await expect(option).toBeVisible();
   await expect.poll(() => option.evaluate((node) => Boolean(node.closest('[data-edit-pane-layer="1"]')))).toBe(true);
@@ -56,8 +57,15 @@ test('EditPaneはmobileで全幅になり、Select portalとEscape階層を保�
   await expect(child).toBeVisible();
   await expect(parentSurface).toHaveCount(1);
 
-  await child.getByRole('combobox', { name: '語り口' }).click();
+  await selectTrigger.click();
   const selectContent = page.locator('[data-edit-pane-floating-layer="1"]');
+  await expect(selectContent).toBeVisible();
+  await selectTrigger.click();
+  await expect(selectContent).toBeHidden();
+  await expect(child).toBeVisible();
+  await expect(parentSurface).toBeVisible();
+  await selectTrigger.click();
+  await expect(selectContent).toBeVisible();
   await selectContent.click({ position: { x: 5, y: 5 } });
   await expect(child).toBeVisible();
   await expect(parentSurface).toHaveCount(1);

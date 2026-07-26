@@ -112,7 +112,7 @@ export const SelectPortalAndEscapeHierarchy: Story = {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
 
-    await step('子ペイン内のSelect optionと余白を操作してもペインを閉じない', async () => {
+    await step('Select optionと同じtriggerの再クリックでもペインを閉じない', async () => {
       await userEvent.click(canvas.getByRole('button', { name: 'ポータル検証を開く' }));
       await userEvent.click(screen.getByRole('button', { name: '子ペインを開く' }));
       const child = screen.getByRole('dialog', { name: '子ペイン' });
@@ -123,9 +123,16 @@ export const SelectPortalAndEscapeHierarchy: Story = {
       await expect(screen.getByTestId('selected-tone')).toHaveTextContent('ember');
       await expect(child).toBeInTheDocument();
 
-      await userEvent.click(within(child).getByRole('combobox', { name: '語り口' }));
-      const listbox = await screen.findByRole('listbox');
-      await userEvent.click(listbox);
+      const trigger = within(child).getByRole('combobox', { name: '語り口' });
+      await userEvent.click(trigger);
+      await screen.findByRole('listbox');
+      await userEvent.click(trigger);
+      await expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+      await expect(screen.getByRole('dialog', { name: '子ペイン' })).toBeVisible();
+      await expect(canvasElement.ownerDocument.querySelector('[data-edit-pane-layer="0"]')).toBeVisible();
+      await userEvent.click(trigger);
+      await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+      await expect(screen.getByRole('listbox')).toBeInTheDocument();
       await expect(canvasElement.ownerDocument.querySelector('[data-edit-pane-layer="1"]')).toBeInTheDocument();
       await expect(canvasElement.ownerDocument.querySelector('[data-edit-pane-layer="0"]')).toBeInTheDocument();
     });

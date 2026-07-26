@@ -31,12 +31,23 @@ function MixinHarness({ emptyTypes = false }: { emptyTypes?: boolean }) {
 afterEach(() => cleanup());
 
 describe('strict v2 rule authoring', () => {
-  it('edits a Type generic rule without Object-specific execution UI', async () => {
+  it('flattens Type basics, states, actions, and execution rules without legacy wrapper labels', () => {
     render(<TypeHarness />);
     fireEvent.click(screen.getByRole('button', { name: '開閉可能を編集' }));
-    expect(screen.getByRole('heading', { name: 'Type generic rules' })).toBeVisible();
+    const dialog = screen.getByRole('dialog', { name: '開閉可能' });
+    const sections = ['基本情報', '状態', 'アクション', '実行ルール'].map((name) => within(dialog).getByRole('region', { name }));
+    expect(sections.map((section) => section.parentElement)).toEqual(Array(4).fill(sections[0].parentElement));
+    expect(new Set(sections.map((section) => section.className))).toHaveLength(1);
+    expect(within(dialog).queryByText(/Type generic configuration|Type generic rules/)).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('region', { name: /Type generic/ })).not.toBeInTheDocument();
+  });
+
+  it('edits a Type execution rule without Object-specific execution UI', async () => {
+    render(<TypeHarness />);
+    fireEvent.click(screen.getByRole('button', { name: '開閉可能を編集' }));
+    expect(screen.getByRole('heading', { name: '実行ルール' })).toBeVisible();
     expect(screen.queryByText('Object個別')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'generic-open generic ruleを編集' }));
+    fireEvent.click(screen.getByRole('button', { name: 'generic-openの実行ルールを編集' }));
     expect(screen.getByLabelText('実行ルールのstable code')).toHaveValue('generic-open');
     expect(screen.getByRole('region', { name: '実行条件' })).toHaveTextContent('実行条件');
     expect(screen.queryByLabelText('実行ルールのcondition JSON')).not.toBeInTheDocument();
@@ -51,10 +62,10 @@ describe('strict v2 rule authoring', () => {
     render(<TypeHarness />);
     fireEvent.click(screen.getByRole('button', { name: '出口の扉を編集' }));
     fireEvent.click(screen.getByRole('button', { name: '扉を開けて外へ出るを編集' }));
-    fireEvent.change(screen.getByLabelText('Type generic configuration action code 1'), { target: { value: 'leave-through-door' } });
+    fireEvent.change(screen.getByLabelText('アクション1のstable code'), { target: { value: 'leave-through-door' } });
     await waitFor(() => expect(screen.getByTestId('rule-data-json')).toHaveTextContent('"actionCode":"leave-through-door"'));
     fireEvent.click(screen.getByRole('button', { name: 'アクションの編集を完了' }));
-    fireEvent.click(screen.getByRole('button', { name: 'generic-open-and-exit generic ruleを編集' }));
+    fireEvent.click(screen.getByRole('button', { name: 'generic-open-and-exitの実行ルールを編集' }));
     fireEvent.change(screen.getByLabelText('実行ルールのstable code'), { target: { value: 'generic-leave' } });
     await waitFor(() => expect(screen.getByTestId('rule-data-json')).toHaveTextContent('"targetRuleCode":"generic-leave"'));
     fireEvent.click(screen.getByRole('button', { name: 'この実行ルールを削除' }));
