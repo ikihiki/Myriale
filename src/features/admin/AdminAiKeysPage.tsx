@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Badge, Button, Inset, Input, Label, Notice, PageCanvas, PageShell, Panel } from '../../components/ui';
+import { Badge, Button, Inset, Input, Label, Notice, PageCanvas, PageShell, Panel, Textarea } from '../../components/ui';
 import { toAppChromeAccount } from '../../account/accountPresentation';
-import { createFetchAdminAiApi, type AdminAiApiError, type AiProviderKey } from '../../account/api/adminAiApi';
+import { createFetchAdminAiApi, type AdminAiApiError, type AiPromptTestResult, type AiProviderKey } from '../../account/api/adminAiApi';
 import { useAccountSession } from '../../account/hooks/useAccountSession';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 
@@ -32,6 +32,8 @@ export function AdminAiKeysPage() {
   const [provider, setProvider] = useState('openai');
   const [displayName, setDisplayName] = useState('OpenAI');
   const [secret, setSecret] = useState('');
+  const [testPrompt, setTestPrompt] = useState('このAIが利用可能か、日本語で短く応答してください。');
+  const [promptResult, setPromptResult] = useState<AiPromptTestResult | null>(null);
   const [notice, setNotice] = useState('デプロイ設定と管理画面で登録したAIキーを確認できます。キー本体は再表示しません。');
   const [error, setError] = useState<AdminAiApiError | null>(null);
   const [busy, setBusy] = useState(false);
@@ -87,6 +89,21 @@ export function AdminAiKeysPage() {
       const key = await api.activateProvider(target);
       setKeys((current) => current.map((item) => ({ ...item, active: item.provider === target })));
       setNotice(`使用するAIを${key.displayName}へ切り替えました。次のNarrative生成から反映されます。`);
+    } catch (caught) {
+      setError(caught as AdminAiApiError);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sendTestPrompt = async () => {
+    setBusy(true);
+    setError(null);
+    setPromptResult(null);
+    try {
+      const result = await api.testPrompt(testPrompt);
+      setPromptResult(result);
+      setNotice(`${result.provider} / ${result.model}へテストプロンプトを送信しました。`);
     } catch (caught) {
       setError(caught as AdminAiApiError);
     } finally {
@@ -174,6 +191,36 @@ export function AdminAiKeysPage() {
                 ))}</tbody>
               </table>
             </div>
+          </section>
+          <section className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]" aria-label="AIプロンプトテスト">
+            <Panel as="div">
+              <Label as="p" textRole="eyebrowData" className="mb-2">Live prompt probe</Label>
+              <Label as="h2" textRole="section" className="m-0">使用中のAIへプロンプトを送る</Label>
+              <p className="mt-3 text-sm leading-6 text-myr-slate">現在「使用中」のProviderへ、その場でテスト用プロンプトを送信します。会話やシナリオには保存されません。</p>
+              <label className="mt-4 grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">テスト用プロンプト
+                <Textarea className="!min-h-40" aria-label="テスト用プロンプト" value={testPrompt} onChange={(event) => setTestPrompt(event.target.value)} maxLength={10000} />
+              </label>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                <span className="font-myr-mono text-xs text-myr-slate">{testPrompt.length.toLocaleString()} / 10,000</span>
+                <Button variant="primary" onClick={() => void sendTestPrompt()} disabled={busy || !testPrompt.trim()}>{busy ? '送信中…' : 'プロンプトを送信'}</Button>
+              </div>
+            </Panel>
+
+            <Inset as="aside" aria-label="AIプロンプトテスト結果">
+              <Label as="p" textRole="eyebrowData" className="mb-2">Provider response</Label>
+              <Label as="h2" textRole="section" className="m-0">応答</Label>
+              {!promptResult && <p className="mt-4 text-sm leading-6 text-myr-slate">送信すると応答本文、Provider、Model、token数、処理時間を表示します。</p>}
+              {promptResult && <div className="mt-4 grid gap-4" data-testid="ai-prompt-result">
+                <div className="flex flex-wrap gap-2"><Badge>{promptResult.provider}</Badge><Badge tone="info">{promptResult.model}</Badge></div>
+                <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-myr-card bg-myr-ink p-4 font-myr-mono text-sm leading-6 text-myr-paper">{promptResult.response}</pre>
+                <dl className="grid grid-cols-2 gap-3 text-xs">
+                  <div><dt className="font-black text-myr-slate">Input tokens</dt><dd className="mt-1 font-myr-mono">{promptResult.inputTokens ?? '—'}</dd></div>
+                  <div><dt className="font-black text-myr-slate">Output tokens</dt><dd className="mt-1 font-myr-mono">{promptResult.outputTokens ?? '—'}</dd></div>
+                  <div><dt className="font-black text-myr-slate">Latency</dt><dd className="mt-1 font-myr-mono">{promptResult.latencyMilliseconds} ms</dd></div>
+                  <div><dt className="font-black text-myr-slate">Finish reason</dt><dd className="mt-1 font-myr-mono">{promptResult.finishReason ?? '—'}</dd></div>
+                </dl>
+              </div>}
+            </Inset>
           </section>
         </PageShell>
       </PageCanvas>

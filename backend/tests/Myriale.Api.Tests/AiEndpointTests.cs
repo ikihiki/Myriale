@@ -58,6 +58,25 @@ public sealed class AiEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task AdminAiKeys_SendsPromptToActiveProviderAndReturnsDiagnostics()
+    {
+        var client = await CreateSignedInClientAsync(grantAdmin: true);
+
+        using var response = await client.PostAsJsonAsync("/api/admin/ai-keys/active-provider/prompt-test", new
+        {
+            prompt = "日本語で短く応答してください。"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("openai", json.GetProperty("provider").GetString());
+        Assert.Equal("test-model", json.GetProperty("model").GetString());
+        Assert.Equal("テスト応答です。", json.GetProperty("response").GetString());
+        Assert.Equal(12, json.GetProperty("inputTokens").GetInt32());
+        Assert.Equal(7, json.GetProperty("outputTokens").GetInt32());
+    }
+
+    [Fact]
     public async Task AdminAiKeys_ActivatesConfiguredProviderAtRuntime()
     {
         var client = await CreateSignedInClientAsync(grantAdmin: true);
@@ -196,7 +215,10 @@ public sealed class AiEndpointTests : IDisposable
     }
     private sealed class SuccessfulTextProvider : IAiTextProvider
     {
-        public Task<AiTextResponse> GenerateAsync(AiTextRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<AiTextResponse> GenerateAsync(AiTextRequest request, CancellationToken cancellationToken) =>
+            Task.FromResult(new AiTextResponse(
+                "{\"response\":\"テスト応答です。\"}",
+                new AiGenerationMetadata("openai", "test-model", "response-1", 12, 7, 42, 1, "stop")));
         public Task TestConnectionAsync(string provider, string credential, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 

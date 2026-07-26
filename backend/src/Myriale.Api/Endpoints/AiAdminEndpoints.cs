@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.AI;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Services;
@@ -15,6 +17,7 @@ public static class AiAdminEndpoints
             .RequireAuthorization("AiAdministration");
         group.MapGet("/", ListAsync);
         group.MapPut("/active-provider", ActivateAsync);
+        group.MapPost("/active-provider/prompt-test", PromptTestAsync);
         group.MapPut("/{provider}", UpsertAsync);
         group.MapDelete("/{provider}", DeleteAsync);
         group.MapPost("/{provider}/test", TestAsync);
@@ -99,6 +102,57 @@ public static class AiAdminEndpoints
                 statusCode: status,
                 title: exception.Code,
                 detail: DevelopmentErrorDetails.Message(environment, "AI Providerとの疎通確認に失敗しました。", exception));
+        }
+    }
+
+    private static async Task<IResult> PromptTestAsync(
+        AiPromptTestRequest request,
+        IAiTextProvider textProvider,
+        IHostEnvironment environment,
+        CancellationToken cancellationToken)
+    {
+        var prompt = request.Prompt?.Trim();
+        if (string.IsNullOrWhiteSpace(prompt) || prompt.Length > 10_000)
+            return Results.BadRequest(new AiAdminErrorResponse(
+                "テスト用プロンプトを確認してください。",
+                new Dictionary<string, string[]> { ["prompt"] = ["プロンプトを1文字以上10,000文字以内で入力してください。"] }));
+
+        using var schema = JsonDocument.Parse("{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"response\":{\"type\":\"string\"}},\"required\":[\"response\"]}");
+        try
+        {
+            var generated = await textProvider.GenerateAsync(new AiTextRequest(
+                [
+                    new ChatMessage(ChatRole.System, "Return JSON that matches the response schema. Put your answer to the administrator's test prompt in the response field."),
+                    new ChatMessage(ChatRole.User, prompt),
+                ],
+                ChatResponseFormat.ForJsonSchema(schema.RootElement, "myriale_admin_prompt_test")), cancellationToken);
+            using var document = JsonDocument.Parse(generated.Text);
+            var response = document.RootElement.GetProperty("response").GetString();
+            if (string.IsNullOrWhiteSpace(response)) throw new JsonException("The response field was empty.");
+            return Results.Ok(new AiPromptTestResponse(
+                generated.Metadata.Provider,
+                generated.Metadata.Model,
+                response,
+                generated.Metadata.InputTokens,
+                generated.Metadata.OutputTokens,
+                generated.Metadata.LatencyMilliseconds,
+                generated.Metadata.FinishReason));
+        }
+        catch (AiProviderException exception)
+        {
+            var status = exception.Code == AiProviderErrorCodes.RateLimited ? 429
+                : exception.Code is AiProviderErrorCodes.InvalidCredential or AiProviderErrorCodes.ModelNotFound ? 400 : 503;
+            return Results.Problem(
+                statusCode: status,
+                title: exception.Code,
+                detail: DevelopmentErrorDetails.Message(environment, "AI Providerへのテストプロンプト送信に失敗しました。", exception));
+        }
+        catch (JsonException exception)
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status502BadGateway,
+                title: AiProviderErrorCodes.SchemaFailure,
+                detail: DevelopmentErrorDetails.Message(environment, "AI Providerの応答形式を確認できませんでした。", exception));
         }
     }
 

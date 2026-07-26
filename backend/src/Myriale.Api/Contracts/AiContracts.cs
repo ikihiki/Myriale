@@ -14,6 +14,17 @@ public sealed record AiProviderKeyResponse(
 public sealed record UpsertAiProviderKeyRequest(string DisplayName, string Secret);
 public sealed record ActivateAiProviderRequest(string Provider);
 
+public sealed record AiPromptTestRequest(string Prompt);
+
+public sealed record AiPromptTestResponse(
+    string Provider,
+    string Model,
+    string Response,
+    int? InputTokens,
+    int? OutputTokens,
+    long LatencyMilliseconds,
+    string? FinishReason);
+
 public sealed record AiAdminErrorResponse(string Message, IReadOnlyDictionary<string, string[]> Errors);
 
 public sealed record ScenarioAiAssistRequest(
