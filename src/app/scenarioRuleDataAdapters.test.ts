@@ -63,6 +63,30 @@ describe('scenario rule-data adapters', () => {
     expect(request.objects[0].actionRules[2]).not.toHaveProperty('moduleBinding');
   });
 
+  it('keeps inherited contracts separate and preserves untouched mutations during Object edits', () => {
+    const fixture = structuredClone(canonicalFixture);
+    fixture.objects[0].stateSchema = { ...fixture.objects[0].stateSchema, properties: { ...fixture.objects[0].stateSchema.properties as Record<string, unknown>, direction: { type: 'string', title: '方向' } } };
+    fixture.objects[0].defaultState = { ...fixture.objects[0].defaultState, direction: 'north' };
+    fixture.objects[0].publicProjection = { ...fixture.objects[0].publicProjection, include: [...fixture.objects[0].publicProjection.include as string[], 'direction'] };
+    fixture.objects[0].actions = [{ ...fixture.objectTypes[0].actions[0], code: 'inspect', label: '確認する', availabilityCondition: {} }];
+    fixture.objects[0].actionRules.push(
+      { operation: 'adjust', targetTypeCode: 'door', targetRuleCode: 'generic-open', priority: 200 },
+      { operation: 'delete', targetTypeCode: 'door', targetRuleCode: 'legacy-rule' },
+      { operation: 'add', code: 'local-inspect', actionCode: 'inspect', condition: {}, priority: 10, authoringNote: null, effects: [{ type: 'emit-fact', text: '確認した' }], moduleBinding: null },
+    );
+    const form = canonicalRuleDataToForm(fixture);
+    const untouchedOperations = structuredClone(form.objects[0].actionRules);
+    form.objects[0].initialStateOverrides = [{ stateCode: 'open', value: 'true' }];
+    form.objects[0].actions[0].label = '詳しく確認する';
+    const request = formRuleDataToCanonical(form);
+    expect(Object.keys(request.objects[0].stateSchema.properties as Record<string, unknown>)).toEqual(['direction']);
+    expect(request.objects[0].actions.map((action) => action.code)).toEqual(['inspect']);
+    expect(request.objects[0].initialStateOverride).toEqual({ open: true });
+    expect(request.objects[0].mixinTypeCodes).toEqual(['door']);
+    expect(form.objects[0].actionRules).toEqual(untouchedOperations);
+    expect(request.objects[0].actionRules).toEqual(fixture.objects[0].actionRules);
+  });
+
   it('emits strict known effect fields instead of compatibility extras', () => {
     const fixture = structuredClone(canonicalFixture);
     const operation = fixture.objects[0].actionRules[0];

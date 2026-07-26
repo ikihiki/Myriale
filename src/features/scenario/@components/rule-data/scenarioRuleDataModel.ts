@@ -86,7 +86,7 @@ export function createActionRule(actionCode: string): ScenarioActionRule {
   };
 }
 
-export function createObjectAddRule(actionCode: string): ScenarioObjectRuleOperation {
+export function createObjectAddRule(actionCode: string): Extract<ScenarioObjectRuleOperation, { operation: 'add' }> {
   return { operation: 'add', rule: createActionRule(actionCode) };
 }
 
@@ -196,6 +196,7 @@ export function validateScenarioRuleData(ruleData: ScenarioRuleData): RuleDataIs
     if (new Set(object.mixinTypeCodes).size !== object.mixinTypeCodes.length) issues.push({ path: `ruleData.objects[${objectIndex}].mixinTypeCodes`, message: '同じ種類を複数回mixinできません。', severity: 'error' });
     object.mixinTypeCodes.forEach((code) => { if (!ruleData.objectTypes.some((type) => type.code === code)) issues.push({ path: `ruleData.objects[${objectIndex}].mixinTypeCodes`, message: `参照する種類「${code}」が見つかりません。`, severity: 'error' }); });
     const resolved = resolvedObjectConfiguration(ruleData, object);
+    resolved.conflicts.forEach((conflict) => issues.push({ path: `ruleData.objects[${objectIndex}].${conflict.kind === 'state' ? 'stateFields' : 'actions'}`, message: `定義が競合しています: ${conflict.message}`, severity: 'error' }));
     if (!object.global && !ruleData.locations.some((location) => location.code === object.initialLocationCode)) issues.push({ path: `ruleData.objects[${objectIndex}].initialLocationCode`, message: '初期配置する場所を選択してください。', severity: 'error' });
     resolved.actions.forEach((action) => {
       if (action.availability === 'state-equals' && !resolved.stateFields.some((state) => state.code === action.availabilityStateCode)) issues.push({ path: `ruleData.objects[${objectIndex}].actions`, message: 'アクション提示条件で参照する状態が見つかりません。', severity: 'error' });
@@ -274,27 +275,127 @@ export function renameTypeActionCode(ruleData: ScenarioRuleData, typeCode: strin
   };
 }
 
-export type ResolvedConfigurationEntry<T> = T & { source: string; sourceRank: number };
+export type ResolvedConfigurationSource = {
+  kind: 'mixin' | 'local';
+  code: string;
+  name: string;
+  rank: number;
+};
+
+export type ResolvedConfigurationConflict = {
+  kind: 'state' | 'action';
+  code: string;
+  sources: ResolvedConfigurationSource[];
+  message: string;
+};
+
+export type ResolvedStateField = ScenarioStateField & {
+  source: string;
+  sourceRank: number;
+  sources: ResolvedConfigurationSource[];
+  inherited: boolean;
+  localIndex: number | null;
+  baseInitialValue: string;
+  effectiveInitialValue: string;
+  hasInitialOverride: boolean;
+  conflict: ResolvedConfigurationConflict | null;
+};
+
+export type ResolvedAction = ScenarioTypeAction & {
+  source: string;
+  sourceRank: number;
+  sources: ResolvedConfigurationSource[];
+  inherited: boolean;
+  localIndex: number | null;
+  conflict: ResolvedConfigurationConflict | null;
+};
+
+function sameStateContract(left: ScenarioStateField, right: ScenarioStateField) {
+  return left.code === right.code && left.label === right.label && left.valueType === right.valueType;
+}
+
+function sameActionContract(left: ScenarioTypeAction, right: ScenarioTypeAction) {
+  return left.code === right.code
+    && left.label === right.label
+    && left.description === right.description
+    && left.visibility === right.visibility
+    && left.availability === right.availability
+    && left.availabilityStateCode === right.availabilityStateCode
+    && JSON.stringify(left.argumentFields) === JSON.stringify(right.argumentFields);
+}
+
 export function resolvedObjectConfiguration(ruleData: ScenarioRuleData, object: ScenarioObject) {
-  const conflicts: string[] = [];
-  const stateFields = new Map<string, ResolvedConfigurationEntry<ScenarioStateField>>();
-  const actions = new Map<string, ResolvedConfigurationEntry<ScenarioTypeAction>>();
-  const sources: Array<ScenarioObjectType | ScenarioObject> = [
-    ...object.mixinTypeCodes.map((code) => ruleData.objectTypes.find((type) => type.code === code)).filter((value): value is ScenarioObjectType => Boolean(value)),
-    object,
+  type StateAccumulator = { value: ScenarioStateField; sources: ResolvedConfigurationSource[]; localIndex: number | null; conflict: ResolvedConfigurationConflict | null };
+  type ActionAccumulator = { value: ScenarioTypeAction; sources: ResolvedConfigurationSource[]; localIndex: number | null; conflict: ResolvedConfigurationConflict | null };
+  const stateFields = new Map<string, StateAccumulator>();
+  const actions = new Map<string, ActionAccumulator>();
+  const conflicts: ResolvedConfigurationConflict[] = [];
+  const sources = [
+    ...object.mixinTypeCodes.map((code) => ruleData.objectTypes.find((type) => type.code === code)).filter((value): value is ScenarioObjectType => Boolean(value)).map((type, rank) => ({ value: type, source: { kind: 'mixin' as const, code: type.code, name: type.name, rank } })),
+    { value: object, source: { kind: 'local' as const, code: object.code, name: object.name, rank: object.mixinTypeCodes.length } },
   ];
-  sources.forEach((source, rank) => {
-    const sourceName = source === object ? 'Object local' : source.name;
-    source.stateFields.forEach((field) => {
+
+  sources.forEach(({ value: sourceValue, source }) => {
+    sourceValue.stateFields.forEach((field, localIndex) => {
       const previous = stateFields.get(field.code);
-      if (previous && (previous.valueType !== field.valueType || previous.label !== field.label)) conflicts.push(`state ${field.code}: ${previous.source} / ${sourceName}`);
-      else stateFields.set(field.code, { ...field, source: sourceName, sourceRank: rank });
+      if (!previous) {
+        stateFields.set(field.code, { value: structuredClone(field), sources: [source], localIndex: source.kind === 'local' ? localIndex : null, conflict: null });
+        return;
+      }
+      const contributors = [...previous.sources, source];
+      if (!sameStateContract(previous.value, field)) {
+        const conflict = { kind: 'state' as const, code: field.code, sources: contributors, message: `state ${field.code}: ${contributors.map((item) => item.name).join(' / ')}` };
+        conflicts.push(conflict);
+        stateFields.set(field.code, { ...previous, sources: contributors, localIndex: source.kind === 'local' ? localIndex : previous.localIndex, conflict });
+        return;
+      }
+      // The backend resolver applies compatible mixins in order: later default/visibility wins.
+      stateFields.set(field.code, { value: structuredClone(field), sources: contributors, localIndex: source.kind === 'local' ? localIndex : previous.localIndex, conflict: previous.conflict });
     });
-    source.actions.forEach((action) => {
+    sourceValue.actions.forEach((action, localIndex) => {
       const previous = actions.get(action.code);
-      if (previous && JSON.stringify(previous) !== JSON.stringify({ ...action, source: previous.source, sourceRank: previous.sourceRank })) conflicts.push(`action ${action.code}: ${previous.source} / ${sourceName}`);
-      else actions.set(action.code, { ...action, source: sourceName, sourceRank: rank });
+      if (!previous) {
+        actions.set(action.code, { value: structuredClone(action), sources: [source], localIndex: source.kind === 'local' ? localIndex : null, conflict: null });
+        return;
+      }
+      const contributors = [...previous.sources, source];
+      if (!sameActionContract(previous.value, action)) {
+        const conflict = { kind: 'action' as const, code: action.code, sources: contributors, message: `action ${action.code}: ${contributors.map((item) => item.name).join(' / ')}` };
+        conflicts.push(conflict);
+        actions.set(action.code, { ...previous, sources: contributors, localIndex: source.kind === 'local' ? localIndex : previous.localIndex, conflict });
+        return;
+      }
+      actions.set(action.code, { value: structuredClone(action), sources: contributors, localIndex: source.kind === 'local' ? localIndex : previous.localIndex, conflict: previous.conflict });
     });
   });
-  return { stateFields: [...stateFields.values()], actions: [...actions.values()], conflicts };
+
+  const resolvedStates: ResolvedStateField[] = [...stateFields.values()].map(({ value: field, sources: contributors, localIndex, conflict }) => {
+    const winner = contributors[contributors.length - 1];
+    const override = object.initialStateOverrides.find((item) => item.stateCode === field.code);
+    return {
+      ...field,
+      source: winner.name,
+      sourceRank: winner.rank,
+      sources: contributors,
+      inherited: contributors.some((item) => item.kind === 'mixin'),
+      localIndex,
+      baseInitialValue: field.defaultValue,
+      effectiveInitialValue: override?.value ?? field.defaultValue,
+      hasInitialOverride: Boolean(override),
+      conflict,
+    };
+  });
+  const resolvedActions: ResolvedAction[] = [...actions.values()].map(({ value: action, sources: contributors, localIndex, conflict }) => {
+    const winner = contributors[contributors.length - 1];
+    return {
+      ...action,
+      source: winner.name,
+      sourceRank: winner.rank,
+      sources: contributors,
+      inherited: contributors.some((item) => item.kind === 'mixin'),
+      localIndex,
+      conflict,
+    };
+  });
+  return { stateFields: resolvedStates, actions: resolvedActions, conflicts };
 }

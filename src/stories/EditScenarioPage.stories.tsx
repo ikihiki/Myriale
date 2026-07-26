@@ -131,7 +131,12 @@ export const USE11EditRuleDataWithStableCodes: Story = {
       await expect(screen.getByRole('button', { name: 'generic-open generic ruleを編集' })).toBeVisible();
       await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
       await userEvent.click(canvas.getByRole('button', { name: '北書庫の扉を編集' }));
-      await expect(screen.getByRole('button', { name: 'generic-open operationを編集' })).toBeVisible();
+      await expect(screen.getByRole('table', { name: 'Object states' })).toHaveTextContent('開いている');
+      await expect(screen.getByRole('table', { name: 'Object actions' })).toHaveTextContent('扉を開ける');
+      await expect(screen.getByRole('button', { name: 'archive-door:generic-openの実行ルールを確認' })).toBeVisible();
+      await userEvent.click(screen.getByRole('button', { name: 'archive-door:generic-openの実行ルールを確認' }));
+      await expect(screen.queryByLabelText('実行ルールの優先度')).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: '閉じる' }));
       await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
       await expect(canvas.getByTestId('rule-readiness')).toHaveTextContent('決定的です');
       await userEvent.click(canvas.getByRole('button', { name: '変更を保存' }));

@@ -10,6 +10,7 @@ import {
   filterObjectTypesForMixin,
   renameTypeActionCode,
   renameTypeRuleCode,
+  resolvedObjectConfiguration,
   validateScenarioRuleData,
 } from './scenarioRuleDataModel';
 
@@ -44,6 +45,42 @@ describe('scenario rule-data authoring model', () => {
     expect(effective.rule.priority).toBe(100);
     expect(effective.rule.condition).toEqual({ op: 'eq', path: 'state.open', value: false });
     expect(effective.rule.effects).toHaveLength(2);
+  });
+
+  it('resolves inherited and local state/actions into unified rows without exposing ownership as rows', () => {
+    const fixture = structuredClone(westDoorAuthoringFixture);
+    fixture.objects[0].initialStateOverrides = [{ stateCode: 'open', value: 'true' }];
+    const resolved = resolvedObjectConfiguration(fixture, fixture.objects[0]);
+    expect(resolved.stateFields.map((row) => row.code)).toEqual(['open', 'direction']);
+    expect(resolved.actions.map((row) => row.code)).toEqual(['open', 'open-and-exit', 'inspect-exit']);
+    expect(resolved.stateFields[0]).toMatchObject({ inherited: true, baseInitialValue: 'false', effectiveInitialValue: 'true', hasInitialOverride: true, localIndex: null });
+    expect(resolved.stateFields[1]).toMatchObject({ inherited: false, baseInitialValue: 'west', effectiveInitialValue: 'west', localIndex: 0 });
+    expect(resolved.actions[0]).toMatchObject({ inherited: true, localIndex: null });
+    expect(resolved.actions[2]).toMatchObject({ inherited: false, localIndex: 0 });
+  });
+
+  it('uses the last compatible mixin default/visibility while retaining all sources', () => {
+    const fixture = structuredClone(westDoorAuthoringFixture);
+    fixture.objectTypes[1].stateFields = [{ code: 'open', label: '開いている', valueType: 'boolean', defaultValue: 'true', visibility: 'private' }];
+    fixture.objectTypes[1].actions = [{ ...fixture.objectTypes[0].actions[0] }];
+    const resolved = resolvedObjectConfiguration(fixture, fixture.objects[0]);
+    expect(resolved.stateFields.find((row) => row.code === 'open')).toMatchObject({ defaultValue: 'true', visibility: 'private', inherited: true });
+    expect(resolved.stateFields.find((row) => row.code === 'open')?.sources).toHaveLength(2);
+    expect(resolved.actions.find((row) => row.code === 'open')).toMatchObject({ visibility: 'ai-choice', inherited: true });
+    expect(resolved.conflicts).toEqual([]);
+  });
+
+  it('blocks incompatible mixin and local collisions with structured conflicts', () => {
+    const fixture = structuredClone(westDoorAuthoringFixture);
+    fixture.objects[0].stateFields.push({ code: 'open', label: '別の状態', valueType: 'string', defaultValue: '', visibility: 'public' });
+    fixture.objects[0].actions.push({ ...fixture.objectTypes[0].actions[0], label: '別の操作' });
+    const resolved = resolvedObjectConfiguration(fixture, fixture.objects[0]);
+    expect(resolved.conflicts.map((conflict) => [conflict.kind, conflict.code])).toEqual([['state', 'open'], ['action', 'open']]);
+    expect(resolved.stateFields.find((row) => row.code === 'open')).toMatchObject({ inherited: true, localIndex: 1, conflict: { kind: 'state' } });
+    expect(validateScenarioRuleData(fixture)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ message: expect.stringContaining('state open'), severity: 'error' }),
+      expect.objectContaining({ message: expect.stringContaining('action open'), severity: 'error' }),
+    ]));
   });
 
   it('cascades Type action and rule code renames into dependent operations', () => {
