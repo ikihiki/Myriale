@@ -56,7 +56,7 @@ describe('scenario rule-data API', () => {
 
     await createFetchScenarioApi('/api/scenarios').createScenario({
       title: '扉のテスト',
-      ruleData: { schemaVersion: 2, locations: [], objectTypes: [], objects: [] },
+      ruleData: { schemaVersion: 2, startLocationCode: '', locations: [], objectTypes: [], objects: [] },
     });
 
     const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body as string);
@@ -67,7 +67,7 @@ describe('scenario rule-data API', () => {
     const payload = { schemaVersion: 2 as const, startLocationCode: '', locations: [], objectTypes: [], objects: [] };
     const canonicalResponse = {
       scenarioId: 'SCN-1', definitionVersionId: 'SDV-2', version: 2, status: 'draft', schemaVersion: 2,
-      updatedAt: '2026-07-25T00:00:00Z', publishedAt: null, startLocationCode: null, locations: [], objectTypes: [], objects: [],
+      updatedAt: '2026-07-25T00:00:00Z', publishedAt: null, startLocationCode: '', locations: [], objectTypes: [], objects: [],
     };
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(canonicalResponse), {
       status: 201,
@@ -87,7 +87,7 @@ describe('scenario rule-data API', () => {
     const payload = { schemaVersion: 2 as const, startLocationCode: '', locations: [], objectTypes: [], objects: [] };
     const canonicalResponse = {
       scenarioId: 'SCN-1', definitionVersionId: 'SDV-1', version: 1, status: 'draft', schemaVersion: 2,
-      updatedAt: '2026-07-24T00:00:00Z', publishedAt: null, startLocationCode: null, locations: [], objectTypes: [], objects: [],
+      updatedAt: '2026-07-24T00:00:00Z', publishedAt: null, startLocationCode: '', locations: [], objectTypes: [], objects: [],
     };
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(canonicalResponse), {
       status: 200,
@@ -98,14 +98,14 @@ describe('scenario rule-data API', () => {
     await expect(createFetchScenarioApi('/api/scenarios').putScenarioRuleData('SCN-1', payload)).resolves.toEqual(payload);
     expect(fetchMock).toHaveBeenCalledWith('/api/scenarios/SCN-1/rule-data', expect.objectContaining({
       method: 'PUT',
-      body: JSON.stringify({ ...payload, startLocationCode: null }),
+      body: JSON.stringify(payload),
     }));
   });
 
   it('loads canonical rule-data and uses the GET readiness endpoint', async () => {
     const canonicalResponse = {
       scenarioId: 'SCN-1', definitionVersionId: 'SDV-1', version: 1, status: 'draft', schemaVersion: 2,
-      updatedAt: '2026-07-24T00:00:00Z', publishedAt: null, startLocationCode: null, locations: [], objectTypes: [], objects: [],
+      updatedAt: '2026-07-24T00:00:00Z', publishedAt: null, startLocationCode: '', locations: [], objectTypes: [], objects: [],
     };
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify(canonicalResponse), { status: 200, headers: { 'Content-Type': 'application/json' } }))
@@ -120,7 +120,7 @@ describe('scenario rule-data API', () => {
   });
 
   it('round-trips rule-data in standalone draft creation', async () => {
-    const ruleData = { schemaVersion: 2 as const, locations: [], objectTypes: [], objects: [] };
+    const ruleData = { schemaVersion: 2 as const, startLocationCode: '', locations: [], objectTypes: [], objects: [] };
     const draft = await createDemoScenarioApi().createScenario({ title: 'title only plus empty rules', ruleData });
 
     expect(draft.ruleData).toEqual(ruleData);

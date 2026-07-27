@@ -2,14 +2,12 @@ namespace Myriale.Api.Data;
 
 internal static class ScenarioDefinitionSeedFactory
 {
-    public const string AwakeningLaboratoryDefinitionId = "SDV-AWAKENING-LAB-2";
-
     public static ScenarioDefinitionVersion CreatePublished(string scenarioId, DateTimeOffset timestamp)
     {
         if (scenarioId == "SCN-AWAKENING-LAB") return CreateAwakeningLaboratory(scenarioId, timestamp);
 
         var slug = scenarioId.Replace("SCN-", string.Empty, StringComparison.Ordinal);
-        var version = NewVersion(scenarioId, slug, timestamp, 1);
+        var version = NewVersion(scenarioId, slug, timestamp, 1, "start");
         var location = NewLocation(version, slug, "START", "start", "開始地点", "シナリオの開始地点。");
         var type = NewBooleanType(version, slug, "FEATURE", "feature", "調査対象", "調査できるシナリオオブジェクト。", "examined");
         var action = NewAction(type, slug, "EXAMINE", "examine", "調べる", "対象を詳しく調べる。");
@@ -21,7 +19,7 @@ internal static class ScenarioDefinitionSeedFactory
     private static ScenarioDefinitionVersion CreateAwakeningLaboratory(string scenarioId, DateTimeOffset timestamp)
     {
         const string slug = "AWAKENING-LAB";
-        var version = NewVersion(scenarioId, slug, timestamp, 2);
+        var version = NewVersion(scenarioId, slug, timestamp, 2, "start");
         var start = NewLocation(version, slug, "START", "start", "覚醒室", "非常灯に照らされた開始地点。壁際の対話端末だけが起動している。");
         var corridor = NewLocation(version, slug, "CORRIDOR", "corridor", "接続廊下", "覚醒室と解析室をつなぐ細い廊下。中央に施設外へ通じる脱出扉がある。");
         var puzzleRoom = NewLocation(version, slug, "PUZZLE-ROOM", "puzzle-room", "解析室", "中央の光学解析装置に三色の入力盤が備わった謎解き部屋。");
@@ -67,10 +65,10 @@ internal static class ScenarioDefinitionSeedFactory
         return type;
     }
 
-    private static ScenarioDefinitionVersion NewVersion(string scenarioId, string slug, DateTimeOffset timestamp, int versionNumber) => new()
+    private static ScenarioDefinitionVersion NewVersion(string scenarioId, string slug, DateTimeOffset timestamp, int versionNumber, string startLocationCode) => new()
     {
         Id = $"SDV-{slug}-{versionNumber}", ScenarioId = scenarioId, Version = versionNumber, Status = "published",
-        SchemaVersion = 2, StartLocationCode = versionNumber == 2 && scenarioId == "SCN-AWAKENING-LAB" ? "start" : null,
+        SchemaVersion = 2, StartLocationCode = startLocationCode,
         CreatedAt = timestamp, UpdatedAt = timestamp, PublishedAt = timestamp,
     };
 

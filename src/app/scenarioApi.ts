@@ -83,7 +83,7 @@ export type CanonicalScenarioObjectDto = {
 
 export type CanonicalScenarioRuleDataRequest = {
   schemaVersion: number;
-  startLocationCode?: string | null;
+  startLocationCode: string;
   locations: CanonicalScenarioLocationDto[];
   objectTypes: CanonicalScenarioObjectTypeDto[];
   objects: CanonicalScenarioObjectDto[];
@@ -205,7 +205,7 @@ export type ScenarioObjectPayload = {
 
 export type ScenarioRuleDataPayload = {
   schemaVersion: 2;
-  startLocationCode?: string;
+  startLocationCode: string;
   locations: ScenarioLocationPayload[];
   objectTypes: ScenarioObjectTypePayload[];
   objects: ScenarioObjectPayload[];

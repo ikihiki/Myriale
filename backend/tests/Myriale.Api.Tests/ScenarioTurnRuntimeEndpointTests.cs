@@ -38,7 +38,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
     {
         ai.NarrativeFailuresRemaining = 1;
         var client = await SignedInClientAsync();
-        var scenarioId = await CreatePublishedDoorScenarioAsync(client);
+        var scenarioId = await CreatePublishedDoorScenarioAsync(client, "start");
         using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-door" });
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var createdJson = await created.Content.ReadFromJsonAsync<JsonElement>();
@@ -135,7 +135,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
     public async Task LegacyNarrativeOutputCannotBypassScenarioTurn()
     {
         var client = await SignedInClientAsync();
-        var scenarioId = await CreatePublishedDoorScenarioAsync(client);
+        var scenarioId = await CreatePublishedDoorScenarioAsync(client, "start");
         using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-legacy-output-check" });
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
@@ -198,7 +198,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
     {
         ai.ReturnUnknownAction = true;
         var client = await SignedInClientAsync();
-        var scenarioId = await CreatePublishedDoorScenarioAsync(client);
+        var scenarioId = await CreatePublishedDoorScenarioAsync(client, "start");
         using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-invalid" });
         var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
         using var accepted = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", new { requestId = "invalid", text = "開ける" });
@@ -216,7 +216,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
     {
         ai.PauseDecision = true;
         var client = await SignedInClientAsync();
-        var scenarioId = await CreatePublishedDoorScenarioAsync(client);
+        var scenarioId = await CreatePublishedDoorScenarioAsync(client, "start");
         using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-stale" });
         var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
         using var accepted = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", new { requestId = "stale", text = "開ける" });
@@ -244,7 +244,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, register.StatusCode); ApplyCookies(client, register); return client;
     }
 
-    private static async Task<string> CreatePublishedDoorScenarioAsync(HttpClient client, string? startLocationCode = null, bool initialOpen = false)
+    private static async Task<string> CreatePublishedDoorScenarioAsync(HttpClient client, string startLocationCode, bool initialOpen = false)
     {
         using var scenario = await client.PostAsJsonAsync("/api/scenarios/", new { title = "Door runtime" });
         var scenarioId = (await scenario.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
@@ -269,7 +269,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
           ]
         }
         """)!;
-        if (startLocationCode is not null) payload["startLocationCode"] = startLocationCode;
+        payload["startLocationCode"] = startLocationCode;
         if (initialOpen) payload["objects"]![0]!["initialStateOverride"] = JsonNode.Parse("{\"open\":true}");
         using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload); Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
         using var published = await client.PostAsync($"/api/scenarios/{scenarioId}/rule-data/publish", null); Assert.Equal(HttpStatusCode.OK, published.StatusCode);
@@ -283,6 +283,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         var payload = JsonSerializer.Deserialize<JsonElement>("""
         {
           "schemaVersion":2,
+          "startLocationCode":"inside",
           "locations":[
             {"code":"inside","name":"地下研究室","description":"","authoringData":{}},
             {"code":"outside","name":"研究施設の外","description":"","authoringData":{}}
@@ -312,6 +313,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         var payload = new
         {
             schemaVersion = 2,
+            startLocationCode = "start",
             locations = new[] { new { code = "start", name = "Hall", description = "", authoringData = new { } } },
             objectTypes = new[]
             {

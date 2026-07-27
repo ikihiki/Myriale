@@ -47,15 +47,6 @@ public static class ScenarioSeedData
                 && string.Equals(existing.AuthorId, "SYSTEM-SEED", StringComparison.Ordinal))
                 existing.AuthorId = developmentAuthorId;
 
-            var hasCurrentSeed = await db.ScenarioDefinitionVersions.AnyAsync(
-                version => version.Id == ScenarioDefinitionSeedFactory.AwakeningLaboratoryDefinitionId,
-                cancellationToken);
-            var hasLegacySeed = await db.ScenarioDefinitionVersions.AnyAsync(
-                version => version.ScenarioId == AwakeningLaboratoryId && version.Id == "SDV-AWAKENING-LAB-1",
-                cancellationToken);
-            if (!hasCurrentSeed && hasLegacySeed)
-                db.ScenarioDefinitionVersions.Add(ScenarioDefinitionSeedFactory.CreatePublished(AwakeningLaboratoryId, timestamp));
-
             await db.SaveChangesAsync(cancellationToken);
             return;
         }

@@ -26,7 +26,7 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
 
         using var response = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", new
         {
-            schemaVersion = 2, locations = Array.Empty<object>(), objectTypes = Array.Empty<object>(), objects = Array.Empty<object>()
+            schemaVersion = 2, startLocationCode = "", locations = Array.Empty<object>(), objectTypes = Array.Empty<object>(), objects = Array.Empty<object>()
         });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -515,6 +515,12 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
         var savedJson = await saved.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("vault", savedJson.GetProperty("startLocationCode").GetString());
 
+        payload["startLocationCode"] = "";
+        using var missing = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+        Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
+        var missingJson = await missing.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains("required", missingJson.GetProperty("errors").GetProperty("startLocationCode")[0].GetString());
+
         payload["startLocationCode"] = "missing";
         using var invalid = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
@@ -577,6 +583,7 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
     private static JsonNode ValidRuleData() => JsonNode.Parse("""
         {
           "schemaVersion": 2,
+          "startLocationCode": "hall",
           "locations": [{ "code": "hall", "name": "広間", "description": "", "authoringData": {} }],
           "objectTypes": [{
             "code": "door", "name": "扉", "description": "", "schemaVersion": 1,

@@ -23,6 +23,7 @@ public sealed class DevelopmentScenarioSeedTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, published.StatusCode);
         var publishedJson = await published.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(2, publishedJson.GetProperty("version").GetInt32());
+        Assert.Equal("start", publishedJson.GetProperty("startLocationCode").GetString());
         Assert.Equal(new[] { "corridor", "puzzle-room", "start" }, publishedJson.GetProperty("locations").EnumerateArray()
             .Select(location => location.GetProperty("code").GetString()).Order().ToArray());
 

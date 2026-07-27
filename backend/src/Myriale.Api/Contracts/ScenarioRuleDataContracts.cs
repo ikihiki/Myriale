@@ -8,7 +8,7 @@ public sealed record ScenarioRuleDataRequest(
     IReadOnlyList<ScenarioLocationInput> Locations,
     IReadOnlyList<ScenarioObjectTypeInput> ObjectTypes,
     IReadOnlyList<ScenarioObjectInput> Objects,
-    string? StartLocationCode = null);
+    [property: JsonRequired] string StartLocationCode);
 
 public sealed record ScenarioLocationInput(string Code, string Name, string? Description, JsonElement AuthoringData);
 
@@ -145,7 +145,7 @@ public sealed record ScenarioRuleDataResponse(
     IReadOnlyList<ScenarioLocationInput> Locations,
     IReadOnlyList<ScenarioObjectTypeInput> ObjectTypes,
     IReadOnlyList<ScenarioObjectInput> Objects,
-    string? StartLocationCode);
+    string StartLocationCode);
 
 public sealed record ScenarioDefinitionReadinessResponse(
     string DefinitionVersionId,

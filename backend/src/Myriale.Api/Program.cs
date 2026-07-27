@@ -210,8 +210,6 @@ using (var scope = app.Services.CreateScope())
 
     await db.Database.EnsureCreatedAsync();
 
-    await DatabaseSchemaUpgrade.EnsureScenarioDefinitionStartLocationAsync(db);
-
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
     var developmentSeedUser = await AccountSeedData.SeedAsync(userManager, app.Configuration);
     var useTestScenarioFixtures = isTestHost && app.Configuration.GetValue("TestScenarioFixtures:Enabled", true);

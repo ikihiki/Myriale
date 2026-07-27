@@ -77,7 +77,9 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                 return (IReadOnlyDictionary<string, JsonElement>)properties;
             }, StringComparer.Ordinal);
 
-        if (!string.IsNullOrWhiteSpace(request.StartLocationCode) && !locationCodes.Contains(request.StartLocationCode.Trim()))
+        if (locations.Count > 0 && string.IsNullOrWhiteSpace(request.StartLocationCode))
+            Add("startLocationCode", "Start location is required.");
+        else if (!string.IsNullOrWhiteSpace(request.StartLocationCode) && !locationCodes.Contains(request.StartLocationCode.Trim()))
             Add("startLocationCode", "Referenced start location does not exist.");
 
         for (var i = 0; i < locations.Count; i++)
@@ -298,7 +300,7 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
         version.Locations.Clear(); version.ObjectTypes.Clear(); version.Objects.Clear();
 
         version.SchemaVersion = request.SchemaVersion;
-        version.StartLocationCode = ResolveStartLocationCode(request.StartLocationCode, request.Locations ?? []);
+        version.StartLocationCode = request.StartLocationCode.Trim();
         version.UpdatedAt = DateTimeOffset.UtcNow;
         var locations = (request.Locations ?? []).Select(item => new ScenarioLocation
         {
@@ -803,14 +805,6 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
         if (!valid) add(path, "State effect value does not match the target schema type.");
     }
 
-    private static string? ResolveStartLocationCode(string? requestedCode, IReadOnlyList<ScenarioLocationInput> locations)
-    {
-        var requested = requestedCode?.Trim();
-        if (!string.IsNullOrWhiteSpace(requested) && locations.Any(location => location.Code == requested)) return requested;
-        if (locations.Any(location => location.Code == "start")) return "start";
-        if (locations.Any(location => location.Code == "inside")) return "inside";
-        return locations.Count == 1 ? locations[0].Code : null;
-    }
 
     private static string Json(JsonElement value, string fallback) => value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null ? fallback : value.GetRawText();
     private static JsonElement Parse(string json) => JsonDocument.Parse(json).RootElement.Clone();
