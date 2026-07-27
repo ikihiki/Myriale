@@ -317,13 +317,16 @@ export const ConfigureInitialSceneFromWorldData: Story = {
       await goToStep(canvas, '第一場面');
       await expect(canvas.getByLabelText('ウィザード進捗')).toHaveTextContent('06第一場面');
     });
-    await step('開始場所を選び、Objectごとの初期ステートを上書きする', async () => {
+    await step('開始場所を選び、Objectごとの初期ステートをテーブルで上書きする', async () => {
+      const initialStateTable = canvas.getByRole('table', { name: '北書庫の扉の初期ステート一覧' });
+      await expect(within(initialStateTable).getByRole('columnheader', { name: '基準値' })).toBeVisible();
+      await expect(within(initialStateTable).getByRole('columnheader', { name: '初期値' })).toBeVisible();
       await userEvent.click(canvas.getByRole('combobox', { name: 'セッション開始場所' }));
       await userEvent.click(await screen.findByRole('option', { name: '星見の階段 / astral-stair' }));
       await expect(canvas.getByRole('combobox', { name: 'セッション開始場所' })).toHaveTextContent('星見の階段');
       await userEvent.click(canvas.getByRole('combobox', { name: '北書庫の扉の開いている初期値' }));
       await userEvent.click(await screen.findByRole('option', { name: 'true' }));
-      await expect(canvas.getByText('基準値: false / boolean / 上書き中')).toBeVisible();
+      await expect(within(initialStateTable).getByText('上書き中')).toBeVisible();
     });
   },
 };

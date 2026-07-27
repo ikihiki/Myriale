@@ -8,6 +8,8 @@ type Props = {
 };
 
 const cardClass = 'grid gap-3 rounded-2xl border border-[#17151f]/15 bg-white/55 p-4';
+const tableClass = 'w-full min-w-[760px] border-collapse text-left text-sm';
+const cellClass = 'border-b border-[#17151f]/10 px-3 py-3 align-middle';
 
 export function InitialSceneConfigurationPresentation({ value, onChange }: Props) {
   const replaceObject = (object: ScenarioObject, next: ScenarioObject) => {
@@ -51,28 +53,52 @@ export function InitialSceneConfigurationPresentation({ value, onChange }: Props
             <h4>{object.name}</h4>
             <code className="text-xs text-myr-slate-muted">{object.code}</code>
           </header>
-          {states.length === 0 && <p className="text-sm text-myr-ink-subtle">このオブジェクトにステートはありません。</p>}
-          <div className="grid gap-3 md:grid-cols-2">
-            {states.map((state) => <div key={state.code} className="grid gap-1 rounded-xl border border-[#17151f]/10 bg-white/65 p-3">
-              <div className="flex items-center justify-between gap-2"><strong>{state.label}</strong><code className="text-xs">{state.code}</code></div>
-              <p className="text-xs text-myr-ink-subtle">基準値: {state.baseInitialValue} / {state.valueType}{state.hasInitialOverride ? ' / 上書き中' : ''}</p>
-              {state.conflict ? <p className="text-sm text-[#9b3030]">競合を世界データで解消してください。</p> : state.valueType === 'boolean' ? (
-                <MyrialeSelect
-                  label={`${object.name}の${state.label}初期値`}
-                  value={state.effectiveInitialValue}
-                  onValueChange={(nextValue) => setInitialValue(object, state, nextValue)}
-                  options={[{ value: 'false', label: 'false' }, { value: 'true', label: 'true' }]}
-                />
-              ) : (
-                <label>{state.label}の初期値<Input
-                  type={state.valueType === 'number' ? 'number' : 'text'}
-                  aria-label={`${object.name}の${state.label}初期値`}
-                  value={state.effectiveInitialValue}
-                  onChange={(event) => setInitialValue(object, state, event.target.value)}
-                /></label>
-              )}
-            </div>)}
-          </div>
+          {states.length === 0 ? <p className="text-sm text-myr-ink-subtle">このオブジェクトにステートはありません。</p> : (
+            <div className="overflow-x-auto rounded-xl border border-[#17151f]/12 bg-white/70">
+              <table className={tableClass} aria-label={`${object.name}の初期ステート一覧`}>
+                <thead className="bg-[#17151f]/[.045] text-xs text-myr-slate-muted">
+                  <tr>
+                    <th className={cellClass}>ステート</th>
+                    <th className={cellClass}>stable code</th>
+                    <th className={cellClass}>型</th>
+                    <th className={cellClass}>基準値</th>
+                    <th className={cellClass}>初期値</th>
+                    <th className={cellClass}>設定状態</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {states.map((state) => <tr key={state.code}>
+                    <th scope="row" className={cellClass}>{state.label}</th>
+                    <td className={`${cellClass} font-mono text-xs`}>{state.code}</td>
+                    <td className={cellClass}>{state.valueType}</td>
+                    <td className={`${cellClass} font-mono text-xs`}>{state.baseInitialValue}</td>
+                    <td className={`${cellClass} min-w-52`}>
+                      {state.conflict ? <span className="text-sm text-[#9b3030]">編集不可</span> : state.valueType === 'boolean' ? (
+                        <MyrialeSelect
+                          label={`${object.name}の${state.label}初期値`}
+                          value={state.effectiveInitialValue}
+                          onValueChange={(nextValue) => setInitialValue(object, state, nextValue)}
+                          options={[{ value: 'false', label: 'false' }, { value: 'true', label: 'true' }]}
+                        />
+                      ) : (
+                        <Input
+                          type={state.valueType === 'number' ? 'number' : 'text'}
+                          aria-label={`${object.name}の${state.label}初期値`}
+                          value={state.effectiveInitialValue}
+                          onChange={(event) => setInitialValue(object, state, event.target.value)}
+                        />
+                      )}
+                    </td>
+                    <td className={cellClass}>{state.conflict
+                      ? <span className="text-[#9b3030]">世界データで競合を解消してください。</span>
+                      : state.hasInitialOverride
+                        ? <strong className="text-[#72540b]">上書き中</strong>
+                        : <span className="text-myr-ink-subtle">基準値を使用</span>}</td>
+                  </tr>)}
+                </tbody>
+              </table>
+            </div>
+          )}
         </article>;
       })}
     </section>

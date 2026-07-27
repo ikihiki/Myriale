@@ -16,6 +16,11 @@ afterEach(cleanup);
 describe('InitialSceneConfigurationPresentation', () => {
   it('changes the start location and resolved object initial state', async () => {
     render(<Harness />);
+    const initialStateTable = screen.getByRole('table', { name: '北書庫の扉の初期ステート一覧' });
+    expect(within(initialStateTable).getByRole('columnheader', { name: 'ステート' })).toBeVisible();
+    expect(within(initialStateTable).getByRole('columnheader', { name: '基準値' })).toBeVisible();
+    expect(within(initialStateTable).getByRole('columnheader', { name: '初期値' })).toBeVisible();
+
     fireEvent.click(screen.getByRole('combobox', { name: 'セッション開始場所' }));
     fireEvent.click(await screen.findByRole('option', { name: '星見の階段 / astral-stair' }));
     fireEvent.click(screen.getByRole('combobox', { name: '北書庫の扉の開いている初期値' }));
