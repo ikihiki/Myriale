@@ -18,6 +18,26 @@ public sealed class ProviderNarrativeGenerator(
     private const string ActionDecisionSchema = "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"schemaVersion\":{\"const\":\"rule-action-decision.v1\"},\"objectId\":{\"type\":\"string\"},\"actionId\":{\"type\":\"string\"},\"arguments\":{\"type\":\"object\"}},\"required\":[\"schemaVersion\",\"objectId\",\"actionId\",\"arguments\"]}";
     private const string PostStateNarrativeSchema = "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"schemaVersion\":{\"const\":\"post-state-narrative.v1\"},\"heading\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120},\"body\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":20000}},\"required\":[\"schemaVersion\",\"heading\",\"body\"]}";
 
+    public async Task<NarrativeGeneration<RuleActionDecisionResult>> DecideActionForProfileAsync(string profileId, RuleActionDecisionRequest request, CancellationToken cancellationToken)
+    {
+        var response = await provider.GenerateForProfileAsync(profileId, CreateRequest("rule_action_decision", ActionDecisionSchema,
+            "候補に含まれる enabled な objectId/actionId を1つ選び、arguments と共にJSONだけを返す。状態、効果、module identityは返さない。",
+            JsonSerializer.Serialize(request, Strict)), cancellationToken);
+        var result = Deserialize<RuleActionDecisionResult>(response, "rule_action_decision");
+        return new(result, response.Metadata, JsonSerializer.Serialize(request, Strict), response.Text);
+    }
+
+    public async Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeForProfileAsync(string profileId, PostStateNarrativeRequest request, CancellationToken cancellationToken)
+    {
+        var response = await provider.GenerateForProfileAsync(profileId, CreateRequest("post_state_narrative", PostStateNarrativeSchema,
+            "確定済みの事後公開状態とfactsだけを正史として、状態を変更しないナラティブJSONを返す。NPC設定のsecretsは内面的一貫性のためだけに使い、公開済みfactsにない秘密を明かさない。forbidden factsは記述しない。",
+            JsonSerializer.Serialize(request, Strict)), cancellationToken);
+        var result = Deserialize<PostStateNarrativeResult>(response, "post_state_narrative");
+        if (string.IsNullOrWhiteSpace(result.Heading) || string.IsNullOrWhiteSpace(result.Body))
+            throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "AI Provider returned invalid post-state narrative.", false);
+        return new(result with { Heading = result.Heading.Trim(), Body = result.Body.Trim() }, response.Metadata, JsonSerializer.Serialize(request, Strict), response.Text);
+    }
+
     public async Task<NarrativeGeneration<RuleActionDecisionResult>> DecideActionAsync(RuleActionDecisionRequest request, CancellationToken cancellationToken)
     {
         var response = await provider.GenerateAsync(CreateRequest("rule_action_decision", ActionDecisionSchema,

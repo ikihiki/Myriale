@@ -58,7 +58,10 @@ public sealed class ScenarioTurnExecutionHandler(
             AiGenerationMetadata? decisionMetadata = null;
             if (step.DecisionJson is null)
             {
-                var generated = await ai.DecideActionAsync(new(ScenarioTurnSchemas.ActionDecision, input.Text, actionSnapshot), cancellationToken);
+                var generated = await ai.DecideActionForProfileAsync(
+                    execution.ActionDecisionAiProfileId ?? throw new ScenarioTurnValidationException("action_ai_profile_not_snapshotted"),
+                    new(ScenarioTurnSchemas.ActionDecision, input.Text, actionSnapshot),
+                    cancellationToken);
                 decision = ValidateDecision(actionSnapshot, generated.Value);
                 step.DecisionJson = JsonSerializer.Serialize(decision, Json); step.SelectedAt = DateTimeOffset.UtcNow; step.Stage = ScenarioTurnStages.ApplyingRules; step.UpdatedAt = DateTimeOffset.UtcNow;
                 execution.Stage = ScenarioTurnStages.ApplyingRules; decisionMetadata = generated.Metadata;
@@ -142,7 +145,10 @@ public sealed class ScenarioTurnExecutionHandler(
                     narrativeSession.Scenario.Opening),
                 input.Text, selectedObject, selectedAction, postStateForNarrative,
                 DeserializeList<string>(step.FactsJson), DeserializeList<JsonElement>(step.EventsJson), DeserializeList<string>(step.NarrativeHintsJson), DeserializeList<string>(step.ForbiddenNarrativeFactsJson));
-            var narrative = await ai.GeneratePostStateNarrativeAsync(narrativeRequest, cancellationToken);
+            var narrative = await ai.GeneratePostStateNarrativeForProfileAsync(
+                execution.NarrativeAiProfileId ?? throw new ScenarioTurnValidationException("narrative_ai_profile_not_snapshotted"),
+                narrativeRequest,
+                cancellationToken);
             ValidateNarrative(narrative.Value, narrativeRequest.ForbiddenNarrativeFacts);
 
             db.ChangeTracker.Clear();

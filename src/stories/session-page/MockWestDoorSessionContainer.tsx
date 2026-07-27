@@ -38,6 +38,12 @@ export function MockWestDoorSessionContainer({ sessionId }: { sessionId: string 
     headingLinks={turns.map((turn) => ({ title: turn.turnTitle, startTurnId: turn.id, summary: '西扉デモの確定済みTurn' }))}
     sessionStateLabel="Active"
     activitySession={session}
+    aiProfiles={[
+      { id: 'runpod-recommended', displayName: '推奨（Deckard 40B FP8）' },
+      { id: 'runpod-economy', displayName: '最安（Qwen3.6 27B GPTQ）' },
+    ]}
+    defaultActionDecisionAiProfileId="runpod-recommended"
+    defaultNarrativeAiProfileId="runpod-recommended"
     initialNotice="西と東の扉がある地下研究室です。自然言語で行動を入力してください。"
     isSubmitting={isSubmitting}
     onSubmit={submit}

@@ -230,6 +230,39 @@ public sealed class OpenAiCompatibleTextProviderTests
         Assert.Equal(AiProviderErrorCodes.ModelNotFound, exception.Code);
     }
 
+    [Fact]
+    public async Task GenerateForProfile_UsesSelectedEndpointModelAndProviderCredential()
+    {
+        var handler = new QueueHandler(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("{\"choices\":[{\"message\":{\"content\":\"{\\\"ok\\\":true}\"},\"finish_reason\":\"stop\"}]}", Encoding.UTF8, "application/json")
+        });
+        var credentials = new RecordingCredentialStore();
+        var options = Options.Create(new AiProviderOptions
+        {
+            MaxAttempts = 1,
+            Profiles = new Dictionary<string, AiProfileOptions>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["runpod-economy"] = new()
+                {
+                    DisplayName = "最安",
+                    Provider = "runpod",
+                    BaseUrl = "https://api.runpod.test/v2/economy/openai/v1",
+                    Model = "economy-model",
+                },
+            },
+        });
+        var provider = new OpenAiCompatibleTextProvider(
+            new Factory(new HttpClient(handler)), credentials, options, NullLogger<OpenAiCompatibleTextProvider>.Instance);
+
+        await provider.GenerateForProfileAsync("RUNPOD-ECONOMY", Request(), default);
+
+        Assert.Equal("runpod", credentials.LastProvider);
+        Assert.Equal("https://api.runpod.test/v2/economy/openai/v1/chat/completions", handler.LastUri?.ToString());
+        using var body = JsonDocument.Parse(handler.LastBody);
+        Assert.Equal("economy-model", body.RootElement.GetProperty("model").GetString());
+    }
+
     private static OpenAiCompatibleTextProvider Create(QueueHandler handler, int maxAttempts = 2)
     {
         var client = new HttpClient(handler);
@@ -252,6 +285,19 @@ public sealed class OpenAiCompatibleTextProviderTests
         public Task DeleteAsync(string provider, CancellationToken cancellationToken) => throw new NotSupportedException();
         public string Mask(string secret) => throw new NotSupportedException();
     }
+    private sealed class RecordingCredentialStore : IAiCredentialStore
+    {
+        public string? LastProvider { get; private set; }
+        public Task SaveAsync(string provider, string displayName, string secret, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<string?> GetAsync(string provider, CancellationToken cancellationToken)
+        {
+            LastProvider = provider;
+            return Task.FromResult<string?>("shared-runpod-secret");
+        }
+        public Task DeleteAsync(string provider, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public string Mask(string secret) => throw new NotSupportedException();
+    }
+
     private sealed class SelectionStore(string provider) : IAiProviderSelectionStore
     {
         public string Provider { get; set; } = provider;

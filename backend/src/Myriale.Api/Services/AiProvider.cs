@@ -55,6 +55,7 @@ public sealed record NarrativeGeneration<T>(
 public interface IAiTextProvider
 {
     Task<AiTextResponse> GenerateAsync(AiTextRequest request, CancellationToken cancellationToken);
+    Task<AiTextResponse> GenerateForProfileAsync(string profileId, AiTextRequest request, CancellationToken cancellationToken) => GenerateAsync(request, cancellationToken);
     Task<AiTextResponse> GenerateForProviderAsync(string provider, string credential, AiTextRequest request, CancellationToken cancellationToken);
     Task TestConnectionAsync(string provider, string credential, CancellationToken cancellationToken);
 }
@@ -75,7 +76,10 @@ public sealed class AiProviderOptions
     public int UserRequestsPerMinute { get; set; } = 30;
     public int MaxTokensPerSession { get; set; } = 250_000;
     public int LeaseRecoveryIntervalSeconds { get; set; } = 60;
+    public string? DefaultActionDecisionProfileId { get; set; }
+    public string? DefaultNarrativeProfileId { get; set; }
     public Dictionary<string, AiProviderProfileOptions> Providers { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, AiProfileOptions> Profiles { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 public sealed class AiProviderProfileOptions
@@ -83,6 +87,43 @@ public sealed class AiProviderProfileOptions
     public string? BaseUrl { get; set; }
     public string? Model { get; set; }
     public string? ApiKey { get; set; }
+}
+
+public sealed class AiProfileOptions
+{
+    public string DisplayName { get; set; } = string.Empty;
+    public string Provider { get; set; } = string.Empty;
+    public string? BaseUrl { get; set; }
+    public string? Model { get; set; }
+    public string? ApiKey { get; set; }
+}
+
+public sealed record AiProfileDescriptor(string Id, string DisplayName);
+
+public sealed class AiProfileCatalog(IOptions<AiProviderOptions> configuredOptions)
+{
+    public IReadOnlyList<AiProfileDescriptor> GetSelectableProfiles() => configuredOptions.Value.Profiles
+        .OrderBy(item => item.Key, StringComparer.Ordinal)
+        .Select(item => new AiProfileDescriptor(item.Key, string.IsNullOrWhiteSpace(item.Value.DisplayName) ? item.Key : item.Value.DisplayName.Trim()))
+        .ToList();
+
+    public string ResolveActionDecisionProfileId(string? requested) => Resolve(requested, configuredOptions.Value.DefaultActionDecisionProfileId);
+    public string ResolveNarrativeProfileId(string? requested) => Resolve(requested, configuredOptions.Value.DefaultNarrativeProfileId);
+
+    private string Resolve(string? requested, string? configuredDefault)
+    {
+        var candidate = string.IsNullOrWhiteSpace(requested) ? configuredDefault : requested;
+        if (string.IsNullOrWhiteSpace(candidate))
+            candidate = configuredOptions.Value.Profiles.Keys.OrderBy(item => item, StringComparer.Ordinal).FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(candidate))
+            throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "Selectable AI profiles are not configured.", false);
+        var normalized = NormalizeProfileId(candidate);
+        if (!configuredOptions.Value.Profiles.ContainsKey(normalized))
+            throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, $"AI profile '{normalized}' is not configured.", false);
+        return normalized;
+    }
+
+    private static string NormalizeProfileId(string profileId) => profileId.Trim().ToLowerInvariant();
 }
 
 public interface IAiCredentialStore
@@ -114,6 +155,22 @@ public sealed class OpenAiCompatibleTextProvider(
         var options = ResolveOptions(configured, provider);
         if (provider is not ("openai" or "runpod"))
             throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "実AI Providerが設定されていません。", false);
+        var credential = await credentials.GetAsync(provider, cancellationToken) ?? options.ApiKey;
+        if (string.IsNullOrWhiteSpace(credential))
+            throw new AiProviderException(AiProviderErrorCodes.InvalidCredential, "AI Provider credentialが設定されていません。", false);
+        return await SendWithRetryAsync(provider, options, credential, request, cancellationToken);
+    }
+
+    public async Task<AiTextResponse> GenerateForProfileAsync(string profileId, AiTextRequest request, CancellationToken cancellationToken)
+    {
+        var configured = configuredOptions.Value;
+        var normalizedProfileId = profileId.Trim().ToLowerInvariant();
+        if (!configured.Profiles.TryGetValue(normalizedProfileId, out var profile))
+            throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, $"AI profile '{normalizedProfileId}' is not configured.", false);
+        var provider = Normalize(profile.Provider);
+        if (provider is not ("openai" or "runpod"))
+            throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "未対応のAI Providerです。", false);
+        var options = ResolveProfileOptions(configured, provider, profile);
         var credential = await credentials.GetAsync(provider, cancellationToken) ?? options.ApiKey;
         if (string.IsNullOrWhiteSpace(credential))
             throw new AiProviderException(AiProviderErrorCodes.InvalidCredential, "AI Provider credentialが設定されていません。", false);
@@ -320,6 +377,19 @@ public sealed class OpenAiCompatibleTextProvider(
         }
         return compact.Length <= maxLength ? compact : compact[..maxLength] + "…";
     }
+
+    private static AiProviderOptions ResolveProfileOptions(AiProviderOptions configured, string provider, AiProfileOptions profile) => new()
+    {
+        Provider = provider,
+        BaseUrl = profile.BaseUrl,
+        Model = ResolveModel(profile.Model),
+        ApiKey = profile.ApiKey,
+        TimeoutSeconds = configured.TimeoutSeconds,
+        MaxOutputTokens = configured.MaxOutputTokens,
+        Temperature = configured.Temperature,
+        MaxAttempts = configured.MaxAttempts,
+        InitialBackoffMilliseconds = configured.InitialBackoffMilliseconds,
+    };
 
     private static AiProviderOptions ResolveOptions(AiProviderOptions configured, string provider)
     {

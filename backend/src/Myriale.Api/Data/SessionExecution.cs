@@ -39,6 +39,8 @@ public sealed class SessionExecution
     public long Revision { get; set; }
     [Required, MaxLength(160)] public string IdempotencyKey { get; set; } = string.Empty;
     [Required, MaxLength(64)] public string PayloadHash { get; set; } = string.Empty;
+    [MaxLength(80)] public string? ActionDecisionAiProfileId { get; set; }
+    [MaxLength(80)] public string? NarrativeAiProfileId { get; set; }
     [MaxLength(40)] public string? AcceptedHeadTurnId { get; set; }
     public long AcceptedSessionRevision { get; set; }
     [Required, MaxLength(32)] public string PublishPolicy { get; set; } = "required";

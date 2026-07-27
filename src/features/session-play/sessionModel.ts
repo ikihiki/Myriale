@@ -128,6 +128,9 @@ export type SessionPresentationProps = {
   committedStateNarrativePending?: boolean;
   initialInput?: string;
   initialInteractionType?: NarrativeInteractionType;
+  aiProfiles: import('./sessionPlayApi').AiProfileOption[];
+  defaultActionDecisionAiProfileId: string;
+  defaultNarrativeAiProfileId: string;
   initialNotice?: SessionNoticeInput;
   liveNotice?: SessionNotice | null;
   isSubmitting?: boolean;
@@ -138,7 +141,7 @@ export type SessionPresentationProps = {
   onLogin?: () => void;
   onReload?: () => void;
   onSessionList?: () => void;
-  onSubmit(input: string, interactionType: NarrativeInteractionType): Promise<SessionCommandResult>;
+  onSubmit(input: string, interactionType: NarrativeInteractionType, actionDecisionAiProfileId: string, narrativeAiProfileId: string): Promise<SessionCommandResult>;
   onRecommend(): Promise<SessionCommandResult<string>>;
   onClarification?: () => Promise<SessionCommandResult> | SessionCommandResult;
   onExecutionAction?: (executionId: string, action: 'retry' | 'cancel' | 'dismiss') => Promise<SessionCommandResult>;

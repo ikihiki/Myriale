@@ -79,6 +79,23 @@ export const CompletedSessionReadOnly: Story = {
   },
 };
 
+export const IndependentAiProfileSelection: Story = {
+  name: 'Composer: 行動判定AIとナラティブ生成AIを個別に選ぶ',
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await step('2つのAI selectorを推奨profileで初期表示する', async () => {
+      await expect(canvas.getByLabelText('行動判定AI')).toHaveTextContent('推奨（Deckard 40B FP8）');
+      await expect(canvas.getByLabelText('ナラティブ生成AI')).toHaveTextContent('推奨（Deckard 40B FP8）');
+    });
+    await step('行動判定だけ最安profileへ変更し、ナラティブ生成の選択は独立して保持する', async () => {
+      await userEvent.click(canvas.getByLabelText('行動判定AI'));
+      await userEvent.click(within(document.body).getByRole('option', { name: '最安（Qwen3.6 27B GPTQ）' }));
+      await expect(canvas.getByLabelText('行動判定AI')).toHaveTextContent('最安（Qwen3.6 27B GPTQ）');
+      await expect(canvas.getByLabelText('ナラティブ生成AI')).toHaveTextContent('推奨（Deckard 40B FP8）');
+    });
+  },
+};
+
 export const USP02AndP03NaturalInputToNarrativeResult: Story = {
   name: 'US-P02/P03: 自然言語で行動を入力し、結果を物語として受け取る',
   play: async ({ canvasElement, step }) => {

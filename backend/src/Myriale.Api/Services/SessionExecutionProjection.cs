@@ -32,7 +32,7 @@ public static class SessionExecutionProjection
             execution.Revision, execution.IsRetryable, execution.AttemptCount, execution.MaxAttempts, execution.NextAttemptAt,
             execution.ErrorCode, execution.UserErrorMessage, execution.CreatedAt, execution.StartedAt, execution.CompletedAt,
             execution.CancelRequestedAt, execution.DismissedAt, capabilities, diagnostics, execution.Stage, execution.SchemaVersion,
-            step is null ? null : ToScenarioTurn(step));
+            step is null ? null : ToScenarioTurn(step), execution.ActionDecisionAiProfileId, execution.NarrativeAiProfileId);
     }
 
     private static SessionScenarioTurnProjectionResponse ToScenarioTurn(SessionRuleActionStep step)

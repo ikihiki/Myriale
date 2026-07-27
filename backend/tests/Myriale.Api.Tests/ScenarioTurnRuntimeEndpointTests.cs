@@ -38,6 +38,15 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
     {
         ai.NarrativeFailuresRemaining = 1;
         var client = await SignedInClientAsync();
+        using var profilesResponse = await client.GetAsync("/api/ai/profiles");
+        Assert.Equal(HttpStatusCode.OK, profilesResponse.StatusCode);
+        var profilesBody = await profilesResponse.Content.ReadAsStringAsync();
+        var profilesJson = JsonSerializer.Deserialize<JsonElement>(profilesBody);
+        Assert.Equal(2, profilesJson.GetProperty("profiles").GetArrayLength());
+        Assert.Contains("推奨（Deckard 40B FP8）", profilesBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("api.runpod.ai", profilesBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("Model", profilesBody, StringComparison.OrdinalIgnoreCase);
+
         var scenarioId = await CreatePublishedDoorScenarioAsync(client, "start");
         using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-door" });
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
@@ -45,10 +54,36 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         var sessionId = createdJson.GetProperty("id").GetString()!;
         Assert.False(string.IsNullOrWhiteSpace(createdJson.GetProperty("scenarioDefinitionVersionId").GetString()));
 
-        using var accepted = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", new { requestId = "open-door", text = "北の扉を開ける" });
+        using var invalidProfile = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", new
+        {
+            requestId = "invalid-profile",
+            text = "北の扉を開ける",
+            actionDecisionAiProfileId = "missing-profile",
+            narrativeAiProfileId = "runpod-recommended",
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, invalidProfile.StatusCode);
+
+        using var accepted = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", new
+        {
+            requestId = "open-door",
+            text = "北の扉を開ける",
+            actionDecisionAiProfileId = "runpod-economy",
+            narrativeAiProfileId = "runpod-recommended",
+        });
         Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
         var acceptedJson = await accepted.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("scenario-turn", acceptedJson.GetProperty("execution").GetProperty("kind").GetString());
+        Assert.Equal("runpod-economy", acceptedJson.GetProperty("execution").GetProperty("actionDecisionAiProfileId").GetString());
+        Assert.Equal("runpod-recommended", acceptedJson.GetProperty("execution").GetProperty("narrativeAiProfileId").GetString());
+        using var mismatchedReplay = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", new
+        {
+            requestId = "open-door",
+            text = "北の扉を開ける",
+            actionDecisionAiProfileId = "runpod-recommended",
+            narrativeAiProfileId = "runpod-recommended",
+        });
+        Assert.Equal(HttpStatusCode.Conflict, mismatchedReplay.StatusCode);
+
         Assert.Equal(1, acceptedJson.GetProperty("execution").GetProperty("schemaVersion").GetInt32());
 
         var session = await WaitForExecutionAsync(client, sessionId, "succeeded");
@@ -65,6 +100,8 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         Assert.Equal(1, door.GetProperty("revision").GetInt64());
         Assert.Equal(1, ai.DecisionCalls);
         Assert.Equal(2, ai.NarrativeCalls);
+        Assert.Equal(["runpod-economy"], ai.DecisionProfileIds);
+        Assert.Equal(["runpod-recommended", "runpod-recommended"], ai.NarrativeProfileIds);
         Assert.All(ai.NarrativeRequests, request => Assert.True(request.PostState.Objects.Single(item => item.Code == "north-door").State.GetProperty("open").GetBoolean()));
         Assert.All(ai.NarrativeRequests, request => Assert.Equal("hall-guide", Assert.Single(request.Scenario.Npcs).Code));
         Assert.Equal(2, session.GetProperty("turns").GetArrayLength());
@@ -402,7 +439,21 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         public bool PauseDecision { get; set; }
         public TaskCompletionSource DecisionEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource DecisionRelease { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public List<string> DecisionProfileIds { get; } = [];
+        public List<string> NarrativeProfileIds { get; } = [];
         public List<PostStateNarrativeRequest> NarrativeRequests { get; } = [];
+        public Task<NarrativeGeneration<RuleActionDecisionResult>> DecideActionForProfileAsync(string profileId, RuleActionDecisionRequest request, CancellationToken cancellationToken)
+        {
+            DecisionProfileIds.Add(profileId);
+            return DecideActionAsync(request, cancellationToken);
+        }
+
+        public Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeForProfileAsync(string profileId, PostStateNarrativeRequest request, CancellationToken cancellationToken)
+        {
+            NarrativeProfileIds.Add(profileId);
+            return GeneratePostStateNarrativeAsync(request, cancellationToken);
+        }
+
         public async Task<NarrativeGeneration<RuleActionDecisionResult>> DecideActionAsync(RuleActionDecisionRequest request, CancellationToken cancellationToken)
         {
             DecisionCalls++;

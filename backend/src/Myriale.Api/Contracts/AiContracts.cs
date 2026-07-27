@@ -1,5 +1,11 @@
 namespace Myriale.Api.Contracts;
 
+public sealed record AiProfileResponse(string Id, string DisplayName);
+public sealed record AiProfilesResponse(
+    IReadOnlyList<AiProfileResponse> Profiles,
+    string DefaultActionDecisionProfileId,
+    string DefaultNarrativeProfileId);
+
 public sealed record AiProviderKeyResponse(
     string Provider,
     string DisplayName,

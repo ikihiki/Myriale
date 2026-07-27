@@ -161,6 +161,12 @@ export function MockSessionContainer({
     headingLinks={headingLinks}
     sessionStateLabel={dbSession?.state ?? 'Active'}
     readOnly={dbSession?.state === 'Completed'}
+    aiProfiles={[
+      { id: 'runpod-recommended', displayName: '推奨（Deckard 40B FP8）' },
+      { id: 'runpod-economy', displayName: '最安（Qwen3.6 27B GPTQ）' },
+    ]}
+    defaultActionDecisionAiProfileId="runpod-recommended"
+    defaultNarrativeAiProfileId="runpod-recommended"
     initialNotice={notice}
     isSubmitting={isSubmitting}
     turnDisplay={dbSession?.turnDisplay}

@@ -13,6 +13,10 @@ public interface IScenarioTurnAi
 {
     Task<NarrativeGeneration<RuleActionDecisionResult>> DecideActionAsync(RuleActionDecisionRequest request, CancellationToken cancellationToken);
     Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeAsync(PostStateNarrativeRequest request, CancellationToken cancellationToken);
+    Task<NarrativeGeneration<RuleActionDecisionResult>> DecideActionForProfileAsync(string profileId, RuleActionDecisionRequest request, CancellationToken cancellationToken) =>
+        DecideActionAsync(request, cancellationToken);
+    Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeForProfileAsync(string profileId, PostStateNarrativeRequest request, CancellationToken cancellationToken) =>
+        GeneratePostStateNarrativeAsync(request, cancellationToken);
 }
 
 public interface INarrativeGenerator

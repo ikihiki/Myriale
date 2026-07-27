@@ -7,11 +7,13 @@ import { SessionPresentation, SessionPresentationStatus } from './SessionPresent
 import { getManualUiAction, hasCommittedStateAwaitingNarrative, sessionInfoNotice, toDialogueTurn, toSessionNotice, type SessionCommandResult, type SessionNotice } from './sessionModel';
 import {
   acceptSessionInput,
+  getAiProfiles,
   getSession,
   hasActiveSessionExecutions,
   mutateSessionExecution,
   recommendNextAction,
   reviewSessionNoteProposal,
+  type AiProfilesApiResponse,
   type NarrativeInteractionType,
   normalizeSessionApiError,
   type SessionApiError,
@@ -25,12 +27,13 @@ export function SessionContainer({ sessionId }: { sessionId: string }) {
   const chromeAccount = toAppChromeAccount(accountSession.user);
   const pollGeneration = useRef(0);
   const [session, setSession] = useState<SessionApiResponse | null>(null);
+  const [aiProfiles, setAiProfiles] = useState<AiProfilesApiResponse | null>(null);
   const [loadNotice, setLoadNotice] = useState<SessionNotice | null>(null);
   const [liveNotice, setLiveNotice] = useState<SessionNotice | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitInFlight = useRef(false);
   const [isRecommending, setIsRecommending] = useState(false);
-  const draftRequest = useRef<{ input: string; requestId: string; interactionType: NarrativeInteractionType } | null>(null);
+  const draftRequest = useRef<{ input: string; requestId: string; interactionType: NarrativeInteractionType; actionDecisionAiProfileId: string; narrativeAiProfileId: string } | null>(null);
 
   const goToLogin = () => appNavigate?.('login');
   const goToSessionList = () => appNavigate?.('sessionList');
@@ -44,10 +47,14 @@ export function SessionContainer({ sessionId }: { sessionId: string }) {
   useEffect(() => {
     const abort = new AbortController();
     setSession(null);
+    setAiProfiles(null);
     setLoadNotice(null);
     setLiveNotice(null);
-    void getSession(sessionId, undefined, abort.signal)
-      .then(setSession)
+    void Promise.all([getSession(sessionId, undefined, abort.signal), getAiProfiles(undefined, abort.signal)])
+      .then(([nextSession, nextProfiles]) => {
+        setSession(nextSession);
+        setAiProfiles(nextProfiles);
+      })
       .catch((reason: SessionApiError) => {
         if (reason.name === 'AbortError') return;
         const error = normalizeSessionApiError(reason, 'Sessionを読み込めませんでした。');
@@ -72,7 +79,7 @@ export function SessionContainer({ sessionId }: { sessionId: string }) {
     return () => { window.clearInterval(interval); abort.abort(); };
   }, [session, sessionId]);
 
-  if (!session) {
+  if (!session || !aiProfiles) {
     return <SessionPresentationStatus
       account={chromeAccount}
       notice={loadNotice}
@@ -83,17 +90,20 @@ export function SessionContainer({ sessionId }: { sessionId: string }) {
     />;
   }
 
-  const submit = async (input: string, interactionType: NarrativeInteractionType): Promise<SessionCommandResult> => {
+  const submit = async (input: string, interactionType: NarrativeInteractionType, actionDecisionAiProfileId: string, narrativeAiProfileId: string): Promise<SessionCommandResult> => {
     if (submitInFlight.current) return { ok: false, notice: sessionInfoNotice('Scenario Turnを処理中です。') };
     submitInFlight.current = true;
-    const reusable = draftRequest.current?.input === input && draftRequest.current.interactionType === interactionType
+    const reusable = draftRequest.current?.input === input
+      && draftRequest.current.interactionType === interactionType
+      && draftRequest.current.actionDecisionAiProfileId === actionDecisionAiProfileId
+      && draftRequest.current.narrativeAiProfileId === narrativeAiProfileId
       ? draftRequest.current
       : null;
     const requestId = reusable?.requestId ?? `scenario-turn-${crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
-    draftRequest.current = { input, requestId, interactionType };
+    draftRequest.current = { input, requestId, interactionType, actionDecisionAiProfileId, narrativeAiProfileId };
     setIsSubmitting(true);
     try {
-      const accepted = await acceptSessionInput(sessionId, input, requestId, undefined, interactionType);
+      const accepted = await acceptSessionInput(sessionId, input, requestId, undefined, interactionType, undefined, actionDecisionAiProfileId, narrativeAiProfileId);
       const nextOrder = Math.max(0, ...(session.activity ?? []).map((item) => item.order)) + 1;
       setSession({
         ...session,
@@ -186,6 +196,9 @@ export function SessionContainer({ sessionId }: { sessionId: string }) {
     committedStateNarrativePending={!readOnly && committedStateNarrativePending}
     initialInput={readOnly ? undefined : pendingInput?.input}
     initialInteractionType={pendingInput?.interactionType}
+    aiProfiles={aiProfiles.profiles}
+    defaultActionDecisionAiProfileId={activeScenarioTurn?.actionDecisionAiProfileId ?? aiProfiles.defaultActionDecisionProfileId}
+    defaultNarrativeAiProfileId={activeScenarioTurn?.narrativeAiProfileId ?? aiProfiles.defaultNarrativeProfileId}
     initialNotice={readOnly
       ? '完了済みの物語を読み取り専用で表示しています。'
       : pendingInput?.errorMessage ?? (pendingInput ? '未完了のPlayer Inputを復元しました。同じRequest IDで再試行できます。' : 'Serverに保存された確定済みTurnを表示しています。')}
