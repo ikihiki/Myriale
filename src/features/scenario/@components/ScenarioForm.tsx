@@ -17,6 +17,7 @@ import {
   wizardSummaryClass,
 } from '../../../shared/scenarioWizardStyles';
 import { MyrialeSelect } from '../../../ui/MyrialeRadix';
+import { NpcSettingsPresentation } from './NpcSettingsPresentation';
 import { ScenarioRuleDebugPresentation } from './rule-debug/ScenarioRuleDebugPresentation';
 import { InitialSceneConfigurationPresentation } from './rule-data/InitialSceneConfigurationPresentation';
 import { LocationsObjectsEditorPresentation } from './rule-data/LocationsObjectsEditorPresentation';
@@ -30,12 +31,13 @@ import {
 } from './scenarioFormModel';
 
 type SuggestionKind = '基本情報' | '挿絵テイスト' | '挿絵プロンプト';
-type WizardStep = 'cover' | 'ai' | 'hero' | 'opening' | 'illustration' | 'world' | 'debug';
+type WizardStep = 'cover' | 'ai' | 'hero' | 'npc' | 'opening' | 'illustration' | 'world' | 'debug';
 
 const wizardSteps: Array<{ id: WizardStep; label: string; help: string }> = [
   { id: 'cover', label: '表紙', help: 'タイトル、ジャンル、基本情報' },
   { id: 'ai', label: 'AI裁量', help: 'AIが広げてよい範囲' },
   { id: 'hero', label: '主人公', help: '初期キャラクター条件' },
+  { id: 'npc', label: 'NPC', help: '登場人物の役割・演技・知識' },
   { id: 'illustration', label: '挿絵', help: '画風、NG、プレビュー' },
   { id: 'world', label: '世界データ', help: '場所・オブジェクト・種類・実行ルールを一覧で管理' },
   { id: 'opening', label: '第一場面', help: '開始場所・初期ステート・最初のNarrative' },
@@ -152,6 +154,7 @@ export function ScenarioForm({
     if (step === 'cover') return values.title ? '保存候補' : '未入力';
     if (step === 'ai') return values.aiFreedom;
     if (step === 'hero') return values.heroMode === 'fixed' ? '固定' : values.heroMode === 'select' ? '選択式' : '自由生成';
+    if (step === 'npc') return values.npcs.length === 0 ? '未登録' : `${values.npcs.length}人`;
     if (step === 'opening') return values.opening ? '固定' : 'AI生成';
     if (step === 'illustration') return values.illustrationStyle ? '入力済み' : '未入力';
     if (step === 'world') {
@@ -276,6 +279,13 @@ export function ScenarioForm({
             </section>
           )}
 
+          {activeStep === 'npc' && (
+            <section className={wizardPanelClass} aria-label="NPC">
+              <p><strong>{currentStep.help}。</strong>世界データのLocationと結び付けて、Narrative生成時に守る人物像を構造化します。</p>
+              <NpcSettingsPresentation value={values.npcs} ruleData={values.ruleData} onChange={(npcs) => update('npcs', npcs)} onNotice={presentRuleNotice} />
+            </section>
+          )}
+
           {activeStep === 'opening' && (
             <section className={wizardPanelClass} aria-label="第一場面">
               <p><strong>{currentStep.help}。</strong>世界データをもとにセッション開始時の場所と各Objectの初期状態を決め、最初のNarrativeを保存します。</p>
@@ -307,6 +317,8 @@ export function ScenarioForm({
                 <LocationsObjectsEditorPresentation
                   value={values.ruleData}
                   onChange={(ruleData) => update('ruleData', ruleData)}
+                  protectedLocationCodes={new Set(values.npcs.map((npc) => npc.initialLocationCode))}
+                  onLocationCodeChange={(previousCode, nextCode) => update('npcs', values.npcs.map((npc) => npc.initialLocationCode === previousCode ? { ...npc, initialLocationCode: nextCode } : npc))}
                   onNotice={presentRuleNotice}
                 />
                 <ObjectTypesEditorPresentation
@@ -345,7 +357,8 @@ export function ScenarioForm({
           ]} />
           <SummaryCard as="article"><h3>表紙</h3><p>{values.title || 'タイトル未入力'}</p><p>{genreTags.length > 0 ? genreTags.map((tag) => `# ${tag}`).join(' ') : 'ジャンルタグ未入力'}</p><p>{values.summary ? `基本情報: Markdown ${values.summary.length}文字` : '基本情報は空でも保存できます'}</p></SummaryCard>
           <SummaryCard as="article"><h3>AIが読む契約</h3><p>基本情報に世界観・雰囲気を記述</p><p>AI裁量: {values.aiFreedom}</p></SummaryCard>
-          <SummaryCard as="article"><h3>主人公と第一場面</h3><p>{values.hero}</p><p>{values.opening}</p></SummaryCard>
+          <SummaryCard as="article"><h3>主人公とNPC</h3><p>{values.hero}</p><p>{values.npcs.length}人のNPC</p></SummaryCard>
+          <SummaryCard as="article"><h3>第一場面</h3><p>{values.opening}</p></SummaryCard>
           <SummaryCard as="article"><h3>挿絵</h3><p>{values.illustrationStyle}</p><p>NG: {values.illustrationNegative}</p></SummaryCard>
           <SummaryCard as="article"><h3>ルールデータ</h3><p>{values.ruleData.objectTypes.length}種類 / {values.ruleData.locations.length}場所 / {values.ruleData.objects.length}オブジェクト</p><p>{validateScenarioRuleData(values.ruleData).length === 0 ? '公開準備OK' : `${validateScenarioRuleData(values.ruleData).length}件を確認`}</p></SummaryCard>
           <SummaryCard as="article" data-testid="ai-suggestion"><h3>提案候補</h3><p>{suggestion}</p></SummaryCard>

@@ -1,3 +1,4 @@
+using Myriale.Api.Contracts;
 using Microsoft.EntityFrameworkCore;
 
 namespace Myriale.Api.Data;
@@ -60,6 +61,12 @@ public static class ScenarioSeedData
             AiFreedom = "低: 厳密に守る",
             HeroMode = "free",
             HeroFreeGenerationAllowed = false,
+            NpcsJson = ScenarioNpcSettingsJson.Serialize([
+                new ScenarioNpcSettings(
+                    "guide-ai-eve", "案内AI EVE", "閉鎖研究施設の案内と安全管理を担うAI", "start",
+                    "冷静で辛抱強い。被験者の安全を最優先する。", "状況を簡潔に説明し、答えを直接明かさず段階的な手掛かりを与える。",
+                    "落ち着いた合成音声。短く明瞭な敬語。", "私", "解析装置の復旧で脱出扉が開くことを知っている。", "施設閉鎖の原因と主人公が被験者である事実は、証拠が揃うまで明かさない。")
+            ]),
             Opening = "あなたは非常灯だけが灯る覚醒室で目を覚ます。壁際では案内AI端末が呼びかけ、廊下の先にある解析装置の復旧を求めている。",
             Status = "published",
             AuthorId = string.IsNullOrWhiteSpace(developmentAuthorId) ? "SYSTEM-SEED" : developmentAuthorId,

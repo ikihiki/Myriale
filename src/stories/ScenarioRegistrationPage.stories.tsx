@@ -304,6 +304,38 @@ export const US22GenerateIllustrationPrompt: Story = {
 
 const renderRuleDataFixture = () => <MyrialeApp initialUrl="/scenarios/new" initialDb={createDemoDb('registrationDraft')} scenarioRegistrationContainer={MockScenarioRegistrationWithRuleDataContainer} />;
 
+export const ConfigureNpcSettings: Story = {
+  name: 'NPC: 役割・演技・知識を構造化して登録する',
+  render: renderRuleDataFixture,
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
+    await goToStep(canvas, 'NPC');
+    await step('NPCを追加して基本情報と初期Locationを設定する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: 'NPCを追加' }));
+      await userEvent.clear(screen.getByLabelText('NPCのstable code'));
+      await userEvent.type(screen.getByLabelText('NPCのstable code'), 'archivist-mira');
+      await userEvent.clear(screen.getByLabelText('NPC名'));
+      await userEvent.type(screen.getByLabelText('NPC名'), '司書ミラ');
+      await userEvent.type(screen.getByLabelText('NPCの役割'), '禁書庫の案内役');
+      await userEvent.click(screen.getByRole('combobox', { name: 'NPCの初期Location' }));
+      await userEvent.click(await screen.findByRole('option', { name: '星見の階段 / astral-stair' }));
+    });
+    await step('演技指針、公開情報、秘密を設定する', async () => {
+      await userEvent.type(screen.getByLabelText('NPCの性格'), '慎重で観察力が高い。');
+      await userEvent.type(screen.getByLabelText('NPCの行動指針'), '答えを直接明かさず、星図を使って示唆する。');
+      await userEvent.type(screen.getByLabelText('NPCの一人称'), '私');
+      await userEvent.type(screen.getByLabelText('NPCの口調'), '静かで短い敬語');
+      await userEvent.type(screen.getByLabelText('NPCの公開情報'), '北書庫の扉は星図と連動している。');
+      await userEvent.type(screen.getByLabelText('NPCの秘密'), '王都が沈んだ本当の原因を知っている。');
+      await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
+      const table = canvas.getByRole('table', { name: 'NPC一覧' });
+      await expect(within(table).getByText('司書ミラ')).toBeVisible();
+      await expect(within(table).getByText('星見の階段')).toBeVisible();
+    });
+  },
+};
+
 export const ConfigureInitialSceneFromWorldData: Story = {
   name: '第一場面: 世界データから開始場所と初期ステートを決める',
   render: renderRuleDataFixture,
@@ -315,7 +347,7 @@ export const ConfigureInitialSceneFromWorldData: Story = {
       const labels = within(navigation).getAllByRole('button').map((button) => button.textContent);
       expect(labels.findIndex((label) => label?.includes('世界データ'))).toBeLessThan(labels.findIndex((label) => label?.includes('第一場面')));
       await goToStep(canvas, '第一場面');
-      await expect(canvas.getByLabelText('ウィザード進捗')).toHaveTextContent('06第一場面');
+      await expect(canvas.getByLabelText('ウィザード進捗')).toHaveTextContent('07第一場面');
     });
     await step('開始場所を選び、Objectごとの初期ステートをテーブルで上書きする', async () => {
       const initialStateTable = canvas.getByRole('table', { name: '全オブジェクトの初期ステート一覧' });

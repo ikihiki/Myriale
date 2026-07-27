@@ -330,6 +330,28 @@ Storybook `play` steps
 4. `step('値を修正して再検証する', ...)`。
 5. `step('publish 可能になることを確認する', ...)`。
 
+## US-SR15: NPCの人物像を構造化して設定したい
+
+As a シナリオ作者
+I want NPCの役割、初期Location、演技指針、知識を登録したい
+So that Narrative生成で人物像と秘密の扱いを一貫させられる
+
+期待される結果
+
+- NPCごとにstable code、名前、役割、初期Locationを指定できる。
+- 性格、行動指針、一人称、口調を構造化して編集できる。
+- 公開情報と秘密・未公開情報を分けて保存する。
+- 初期Locationは世界データのLocation codeを参照し、publish時に存在を検証する。
+- Narrative生成はNPC設定を受け取り、秘密を公開済みfactなしに開示しない。
+
+Storybook `play` steps
+
+1. `step('NPCを追加して基本情報と初期Locationを設定する', ...)`。
+2. `step('演技指針、公開情報、秘密を設定する', ...)`。
+3. `step('NPC一覧へ保存内容が反映されることを確認する', ...)`。
+
+---
+
 ## 共通 Storybook acceptance
 
 - 各 user story は独立 story とし、fixture/mock は再利用可能にする。

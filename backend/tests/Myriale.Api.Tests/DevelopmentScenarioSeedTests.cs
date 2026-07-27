@@ -22,6 +22,9 @@ public sealed class DevelopmentScenarioSeedTests : IDisposable
         using var published = await owner.GetAsync("/api/scenarios/SCN-AWAKENING-LAB/rule-data");
         Assert.Equal(HttpStatusCode.OK, published.StatusCode);
         var publishedJson = await published.Content.ReadFromJsonAsync<JsonElement>();
+        using var scenarioResponse = await owner.GetAsync("/api/scenarios/SCN-AWAKENING-LAB");
+        var scenarioJson = await scenarioResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("guide-ai-eve", Assert.Single(scenarioJson.GetProperty("npcs").EnumerateArray().ToArray()).GetProperty("code").GetString());
         Assert.Equal(2, publishedJson.GetProperty("version").GetInt32());
         Assert.Equal("start", publishedJson.GetProperty("startLocationCode").GetString());
         Assert.Equal(new[] { "corridor", "puzzle-room", "start" }, publishedJson.GetProperty("locations").EnumerateArray()

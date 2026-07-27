@@ -23,7 +23,7 @@ public sealed record RuleActionDecisionRequest(string SchemaVersion, string Play
 public sealed record RuleActionDecisionResult(string SchemaVersion, string ObjectId, string ActionId, JsonElement Arguments);
 public sealed record RuleAppliedEffect(string Type, string? TargetId, string? Path, JsonElement? Value);
 public sealed record RulePostState(string SchemaVersion, RulePublicLocation CurrentLocation, IReadOnlyList<RulePublicObject> Objects, IReadOnlyDictionary<string, bool> SessionFlags, long SessionStateRevision);
-public sealed record PostStateNarrativeRequest(string SchemaVersion, string PlayerInput, RulePublicObject SelectedObject, RulePublicAction SelectedAction, RulePostState PostState, IReadOnlyList<string> Facts, IReadOnlyList<JsonElement> Events, IReadOnlyList<string> NarrativeHints, IReadOnlyList<string> ForbiddenNarrativeFacts);
+public sealed record PostStateNarrativeRequest(string SchemaVersion, NarrativeScenarioInput Scenario, string PlayerInput, RulePublicObject SelectedObject, RulePublicAction SelectedAction, RulePostState PostState, IReadOnlyList<string> Facts, IReadOnlyList<JsonElement> Events, IReadOnlyList<string> NarrativeHints, IReadOnlyList<string> ForbiddenNarrativeFacts);
 public sealed record PostStateNarrativeResult(string SchemaVersion, string Heading, string Body);
 
 public sealed record SessionObjectStateResponse(string ObjectId, string Code, string Name, string LocationId, bool IsGlobal, long Revision, JsonElement State);

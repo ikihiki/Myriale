@@ -14,12 +14,18 @@ import {
   type ScenarioRuleData,
 } from './scenarioRuleDataModel';
 
-type Props = { value: ScenarioRuleData; onChange: (value: ScenarioRuleData) => void; onNotice: (message: string, danger?: boolean) => void };
+type Props = {
+  value: ScenarioRuleData;
+  onChange: (value: ScenarioRuleData) => void;
+  onNotice: (message: string, danger?: boolean) => void;
+  protectedLocationCodes?: ReadonlySet<string>;
+  onLocationCodeChange?: (previousCode: string, nextCode: string) => void;
+};
 type EditingEntity = { kind: 'location' | 'object'; code: string } | null;
 const editorClass = 'grid content-start gap-3 rounded-2xl border border-[#17151f]/15 bg-white/55 p-4';
 const tableClass = 'w-full min-w-[640px] border-collapse text-left text-sm';
 const cellClass = 'border-b border-[#17151f]/10 px-3 py-3 align-middle';
-export function LocationsObjectsEditorPresentation({ value, onChange, onNotice }: Props) {
+export function LocationsObjectsEditorPresentation({ value, onChange, onNotice, protectedLocationCodes, onLocationCodeChange }: Props) {
   const [editing, setEditing] = useState<EditingEntity>(null);
   const [mixinSearchOpen, setMixinSearchOpen] = useState(false);
   const [mixinSearchQuery, setMixinSearchQuery] = useState('');
@@ -36,6 +42,7 @@ export function LocationsObjectsEditorPresentation({ value, onChange, onNotice }
     const locations = [...value.locations]; locations[locationIndex] = next;
     const codeChanged = next.code !== location.code;
     const rewriteEffects = (effects: ScenarioActionRule['effects']) => effects.map((effect) => (effect.kind === 'move-object' || effect.kind === 'move-session' || effect.kind === 'emit-event') && effect.locationCode === location.code ? { ...effect, locationCode: next.code } : effect);
+    if (codeChanged) onLocationCodeChange?.(location.code, next.code);
     onChange({ ...value, startLocationCode: codeChanged && value.startLocationCode === location.code ? next.code : value.startLocationCode, locations, objects: codeChanged ? value.objects.map((item) => ({ ...item, initialLocationCode: item.initialLocationCode === location.code ? next.code : item.initialLocationCode, actionRules: item.actionRules.map((operation) => operation.operation === 'add' || operation.operation === 'override' ? { ...operation, rule: { ...operation.rule, effects: rewriteEffects(operation.rule.effects) } } : operation.operation === 'adjust' && operation.adjustments.effects ? { ...operation, adjustments: { ...operation.adjustments, effects: rewriteEffects(operation.adjustments.effects) } } : operation) })) : value.objects });
   };
   const replaceObject = (next: typeof object) => {
@@ -44,7 +51,7 @@ export function LocationsObjectsEditorPresentation({ value, onChange, onNotice }
   };
   const addLocation = () => { const next = createLocation(); onChange({ ...value, startLocationCode: value.startLocationCode || next.code, locations: [...value.locations, next] }); setEditing({ kind: 'location', code: next.code }); };
   const addObject = () => { const next = createObject(value); onChange({ ...value, objects: [...value.objects, next] }); setEditing({ kind: 'object', code: next.code }); };
-  const removeLocation = () => { if (!location) return; if (value.startLocationCode === location.code) return onNotice('開始場所に選ばれています。第一場面で別の開始場所を選択してから削除してください。', true); const blocked = dependencyMessageForLocation(value, location.code); if (blocked) return onNotice(blocked, true); onChange({ ...value, locations: value.locations.filter((item) => item !== location) }); setEditing(null); };
+  const removeLocation = () => { if (!location) return; if (value.startLocationCode === location.code) return onNotice('開始場所に選ばれています。第一場面で別の開始場所を選択してから削除してください。', true); if (protectedLocationCodes?.has(location.code)) return onNotice('NPCの初期Locationに選ばれています。NPC設定で別の場所を選択してから削除してください。', true); const blocked = dependencyMessageForLocation(value, location.code); if (blocked) return onNotice(blocked, true); onChange({ ...value, locations: value.locations.filter((item) => item !== location) }); setEditing(null); };
   const removeObject = () => { if (object) { onChange({ ...value, objects: value.objects.filter((item) => item !== object) }); setEditing(null); } };
 
   return <section aria-label="場所とオブジェクト" className="grid gap-7">

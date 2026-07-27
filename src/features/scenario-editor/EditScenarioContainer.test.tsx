@@ -9,6 +9,7 @@ import { EditScenarioContainer } from './EditScenarioContainer';
 
 const scenario: ScenarioDraftDto = {
   id: 'SCN-1', title: '保存済みシナリオ', summary: '', genre: 'ミステリ', tone: '', lore: '', aiFreedom: '',
+  npcs: [],
   heroMode: 'free', heroFreeGenerationAllowed: false, hero: '', opening: '', illustrationStyle: '', illustrationMood: '',
   illustrationNegative: '', sampleScene: '', ruleData: { schemaVersion: 2, startLocationCode: '', locations: [], objectTypes: [], objects: [] }, status: 'published', updatedAt: '2026-07-24',
 };

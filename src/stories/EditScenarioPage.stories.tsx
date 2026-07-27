@@ -29,13 +29,14 @@ export const USE01EditExistingScenario: Story = {
   name: 'US-E01: 作成画面と同じフォームで既存シナリオを編集したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await step('登録画面と同じ7ステップの編集ウィザードに保存済み内容を読み込む', async () => {
+    await step('登録画面と同じ8ステップの編集ウィザードに保存済み内容を読み込む', async () => {
       await expect(canvas.getByRole('main', { name: 'シナリオ編集ウィザード' })).toBeVisible();
       await expect(canvas.getByRole('complementary', { name: '契約の改稿' })).toBeVisible();
       await expect(canvas.getByLabelText('シナリオタイトル')).toHaveValue('目覚めの研究室');
       await expect(canvas.getByRole('group', { name: '登録済みジャンルタグ' })).toHaveTextContent('SF');
       await expect(canvas.getByRole('button', { name: 'AI裁量へ' })).toBeVisible();
       await expect(canvas.getByRole('button', { name: '主人公へ' })).toBeVisible();
+      await expect(canvas.getByRole('button', { name: 'NPCへ' })).toBeVisible();
       await expect(canvas.getByRole('button', { name: '第一場面へ' })).toBeVisible();
       await expect(canvas.getByRole('button', { name: '挿絵へ' })).toBeVisible();
     });

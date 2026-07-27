@@ -30,7 +30,7 @@ public sealed class ProviderNarrativeGenerator(
     public async Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeAsync(PostStateNarrativeRequest request, CancellationToken cancellationToken)
     {
         var response = await provider.GenerateAsync(CreateRequest("post_state_narrative", PostStateNarrativeSchema,
-            "確定済みの事後公開状態とfactsだけを正史として、状態を変更しないナラティブJSONを返す。forbidden factsは記述しない。",
+            "確定済みの事後公開状態とfactsだけを正史として、状態を変更しないナラティブJSONを返す。NPC設定のsecretsは内面的一貫性のためだけに使い、公開済みfactsにない秘密を明かさない。forbidden factsは記述しない。",
             JsonSerializer.Serialize(request, Strict)), cancellationToken);
         var result = Deserialize<PostStateNarrativeResult>(response, "post_state_narrative");
         if (string.IsNullOrWhiteSpace(result.Heading) || string.IsNullOrWhiteSpace(result.Body))
@@ -43,7 +43,7 @@ public sealed class ProviderNarrativeGenerator(
         var response = await provider.GenerateAsync(CreateRequest(
             "narrative_handoff",
             BodySchema,
-            "確定済み公開情報だけを用いてmodule-handoff本文をJSONで返す。",
+            "確定済み公開情報だけを用いてmodule-handoff本文をJSONで返す。NPC設定のsecretsは一貫性のためだけに使い、公開済みfactsにない秘密を明かさない。",
             JsonSerializer.Serialize(request, Strict)), cancellationToken);
         var body = Deserialize<NarrativeHandoffResponse>(response, "narrative_handoff").Body.Trim();
         if (string.IsNullOrWhiteSpace(body) || body.Length > 20_000)
@@ -60,7 +60,7 @@ public sealed class ProviderNarrativeGenerator(
         var response = await provider.GenerateAsync(CreateRequest(
             "action_recommendation",
             RecommendationSchema,
-            "プレイヤーの次の行動候補を1つだけJSONで返す。",
+            "プレイヤーの次の行動候補を1つだけJSONで返す。NPC設定を口調・役割・既知情報の整合性に使い、secretsを候補文で開示しない。",
             JsonSerializer.Serialize(request, Strict)), cancellationToken);
         var result = Deserialize<NarrativeActionRecommendationResult>(response, "action_recommendation");
         if (string.IsNullOrWhiteSpace(result.Suggestion) || result.Suggestion.Length > 500)

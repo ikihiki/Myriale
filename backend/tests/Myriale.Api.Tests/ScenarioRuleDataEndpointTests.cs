@@ -35,6 +35,25 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task Publish_RejectsNpcInitialLocationMissingFromWorldData()
+    {
+        var client = await CreateSignedInClientAsync();
+        using var created = await client.PostAsJsonAsync("/api/scenarios/", new
+        {
+            title = "NPC location validation",
+            npcs = new[] { new { code = "guide", name = "案内役", role = "案内", initialLocationCode = "missing-room", personality = "", behavior = "", voice = "", firstPerson = "私", publicKnowledge = "", secrets = "" } },
+        });
+        var scenarioId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString();
+        using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", ValidRuleData());
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+
+        using var published = await client.PostAsync($"/api/scenarios/{scenarioId}/rule-data/publish", null);
+        Assert.Equal(HttpStatusCode.BadRequest, published.StatusCode);
+        var json = await published.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(json.GetProperty("errors").TryGetProperty("npcs[0].initialLocationCode", out _));
+    }
+
+    [Fact]
     public async Task DebugRuleData_AppliesDirectActionWithoutPersistingWorldState()
     {
         var client = await CreateSignedInClientAsync();
