@@ -17,6 +17,7 @@ public sealed record NarrativeScenarioInput(
     string Lore,
     string AiFreedom,
     string Hero,
+    IReadOnlyList<ScenarioNpcSettings> Npcs,
     string Opening);
 
 public sealed record NarrativeOutcomeInput(

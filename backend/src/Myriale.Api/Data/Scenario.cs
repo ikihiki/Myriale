@@ -32,6 +32,8 @@ public sealed class Scenario
 
     public string Hero { get; set; } = string.Empty;
 
+    public string NpcsJson { get; set; } = "[]";
+
     public string Opening { get; set; } = string.Empty;
 
     [MaxLength(240)]

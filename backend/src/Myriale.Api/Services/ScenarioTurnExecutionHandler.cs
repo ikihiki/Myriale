@@ -127,7 +127,20 @@ public sealed class ScenarioTurnExecutionHandler(
             var selectedObject = decision.ObjectId == "system"
                 ? new RulePublicObject("system", "system", "システム", postStateForNarrative.CurrentLocation.Id, true, 0, Parse("{}"))
                 : snapshotForNarrative.Objects.Single(item => item.Id == decision.ObjectId);
-            var narrativeRequest = new PostStateNarrativeRequest(ScenarioTurnSchemas.PostStateNarrative, input.Text, selectedObject, selectedAction, postStateForNarrative,
+            var narrativeSession = await db.Sessions.AsNoTracking().Include(item => item.Scenario).SingleAsync(item => item.Id == execution.SessionId, cancellationToken);
+            var narrativeRequest = new PostStateNarrativeRequest(
+                ScenarioTurnSchemas.PostStateNarrative,
+                new NarrativeScenarioInput(
+                    narrativeSession.Scenario.Title,
+                    narrativeSession.Scenario.Summary,
+                    narrativeSession.Scenario.Genre,
+                    narrativeSession.Scenario.Tone,
+                    narrativeSession.Scenario.Lore,
+                    narrativeSession.Scenario.AiFreedom,
+                    narrativeSession.SelectedHero,
+                    ScenarioNpcSettingsJson.Deserialize(narrativeSession.Scenario.NpcsJson),
+                    narrativeSession.Scenario.Opening),
+                input.Text, selectedObject, selectedAction, postStateForNarrative,
                 DeserializeList<string>(step.FactsJson), DeserializeList<JsonElement>(step.EventsJson), DeserializeList<string>(step.NarrativeHintsJson), DeserializeList<string>(step.ForbiddenNarrativeFactsJson));
             var narrative = await ai.GeneratePostStateNarrativeAsync(narrativeRequest, cancellationToken);
             ValidateNarrative(narrative.Value, narrativeRequest.ForbiddenNarrativeFacts);

@@ -24,14 +24,14 @@ export function InitialSceneConfigurationPresentation({ value, onChange }: Props
     });
   };
 
-  return <section className="grid gap-5" aria-label="第一場面の初期設定">
+  return <section className="grid gap-5" aria-label="開始状態の設定">
     <section className={cardClass} aria-labelledby="start-location-heading">
       <div>
         <h3 id="start-location-heading">開始場所</h3>
         <p className="text-sm text-myr-ink-subtle">セッション開始時にプレイヤーがいる場所を選択します。</p>
       </div>
       {value.locations.length === 0
-        ? <p className="text-sm text-[#9b3030]">先に「世界データ」で場所を追加してください。</p>
+        ? <p className="text-sm text-[#9b3030]">先に「場所」ステップで場所を追加してください。</p>
         : <MyrialeSelect
             label="セッション開始場所"
             value={value.startLocationCode}
@@ -43,7 +43,7 @@ export function InitialSceneConfigurationPresentation({ value, onChange }: Props
     <section className="grid gap-4" aria-labelledby="initial-states-heading">
       <div>
         <h3 id="initial-states-heading">各オブジェクトの初期ステート</h3>
-        <p className="text-sm text-myr-ink-subtle">種類で定義したdefaultを基準に、第一場面で使う各Objectの初期値を上書きできます。</p>
+        <p className="text-sm text-myr-ink-subtle">種類で定義したdefaultを基準に、セッション開始時に使う各Objectの初期値を上書きできます。</p>
       </div>
       {value.objects.length === 0 ? <p className="text-sm text-myr-ink-subtle">初期ステートを設定するオブジェクトはありません。</p> : (
         <div className="overflow-x-auto rounded-2xl border border-[#17151f]/15 bg-white/55 shadow-[0_12px_30px_rgba(23,21,31,.07)]">
@@ -95,7 +95,7 @@ export function InitialSceneConfigurationPresentation({ value, onChange }: Props
                     )}
                   </td>
                   <td className={cellClass}>{state.conflict
-                    ? <span className="text-[#9b3030]">世界データで競合を解消してください。</span>
+                    ? <span className="text-[#9b3030]">「オブジェクト」ステップで競合を解消してください。</span>
                     : state.hasInitialOverride
                       ? <strong className="text-[#72540b]">上書き中</strong>
                       : <span className="text-myr-ink-subtle">基準値を使用</span>}</td>

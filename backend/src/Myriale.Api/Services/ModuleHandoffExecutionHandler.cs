@@ -320,7 +320,8 @@ public sealed class ModuleHandoffExecutionHandler(
                 source.Session.Scenario.Tone,
                 source.Session.Scenario.Lore,
                 source.Session.Scenario.AiFreedom,
-                source.Session.Scenario.Hero,
+                source.Session.SelectedHero,
+                ScenarioNpcSettingsJson.Deserialize(source.Session.Scenario.NpcsJson),
                 source.Session.Scenario.Opening),
             new NarrativeOutcomeInput(
                 outcome.Category,

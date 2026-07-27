@@ -120,7 +120,7 @@ public sealed record MockRuleActionDecisionRequest(string SchemaVersion, string 
 public sealed record MockRuleActionSnapshot(string SchemaVersion, string SnapshotId, MockRulePublicLocation CurrentLocation, IReadOnlyList<MockRulePublicObject> Objects, IReadOnlyList<MockRulePublicAction> Actions);
 public sealed record MockRulePublicLocation(string Id, string Code, string Name, string Description);
 public sealed record MockRulePublicAction(string ObjectId, string ActionId, string Code, string Label, string Description, JsonElement ArgumentSchema, bool Enabled);
-public sealed record MockPostStateNarrativeRequest(string SchemaVersion, string PlayerInput, MockRulePublicObject SelectedObject, MockRulePublicAction SelectedAction, MockRulePostState PostState, IReadOnlyList<string> Facts, IReadOnlyList<JsonElement> Events, IReadOnlyList<string> NarrativeHints, IReadOnlyList<string> ForbiddenNarrativeFacts);
+public sealed record MockPostStateNarrativeRequest(string SchemaVersion, MockNarrativeScenario Scenario, string PlayerInput, MockRulePublicObject SelectedObject, MockRulePublicAction SelectedAction, MockRulePostState PostState, IReadOnlyList<string> Facts, IReadOnlyList<JsonElement> Events, IReadOnlyList<string> NarrativeHints, IReadOnlyList<string> ForbiddenNarrativeFacts);
 public sealed record MockRulePostState(string SchemaVersion, MockRulePublicLocation CurrentLocation, IReadOnlyList<MockRulePublicObject> Objects, IReadOnlyDictionary<string, bool> SessionFlags, long SessionStateRevision);
 public sealed record MockRulePublicObject(string Id, string Code, string Name, string LocationId, bool IsGlobal, long Revision, JsonElement State);
 
@@ -169,7 +169,20 @@ public sealed record MockNarrativeScenario(
     string Lore,
     string AiFreedom,
     string Hero,
+    IReadOnlyList<MockScenarioNpc> Npcs,
     string Opening);
+
+public sealed record MockScenarioNpc(
+    string Code,
+    string Name,
+    string Role,
+    string InitialLocationCode,
+    string Personality,
+    string Behavior,
+    string Voice,
+    string FirstPerson,
+    string PublicKnowledge,
+    string Secrets);
 
 public sealed record MockNarrativeOutcome(
     string Category,
@@ -196,6 +209,7 @@ public sealed record MockScenarioAssistRequest(
     string Lore,
     string AiFreedom,
     string Hero,
+    IReadOnlyList<MockScenarioNpc> Npcs,
     string Opening,
     string IllustrationStyle,
     string IllustrationMood,

@@ -43,6 +43,7 @@ function MockScenarioRegistrationContainerBase({ ruleData }: { ruleData?: typeof
         heroMode: values.heroMode,
         heroFreeGenerationAllowed: values.heroFreeGenerationAllowed,
         hero: values.hero,
+        npcs: values.npcs,
         opening: values.opening,
         illustrationStyle: values.illustrationStyle,
         illustrationMood: values.illustrationMood,

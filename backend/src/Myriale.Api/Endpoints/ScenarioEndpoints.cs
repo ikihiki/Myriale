@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Contracts;
@@ -68,7 +69,7 @@ public static class ScenarioEndpoints
         var responses = scenarios
             .OrderByDescending(item => item.UpdatedAt)
             .ThenBy(item => item.Title)
-            .Select(ToResponse)
+            .Select(item => ToResponse(item, includeNpcSecrets: authorId != null && item.AuthorId == authorId))
             .ToList();
         return TypedResults.Ok<IReadOnlyList<ScenarioDraftResponse>>(responses);
     }
@@ -83,7 +84,7 @@ public static class ScenarioEndpoints
         var scenario = await db.Scenarios.AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == scenarioId
                 && (item.Status == "published" || authorId != null && item.AuthorId == authorId), cancellationToken);
-        return scenario is null ? TypedResults.NotFound() : TypedResults.Ok(ToResponse(scenario));
+        return scenario is null ? TypedResults.NotFound() : TypedResults.Ok(ToResponse(scenario, includeNpcSecrets: authorId != null && scenario.AuthorId == authorId));
     }
 
     private static async Task<Results<Ok<ScenarioDraftResponse>, BadRequest<ScenarioErrorResponse>, NotFound, UnauthorizedHttpResult>> UpdateScenarioAsync(
@@ -112,6 +113,7 @@ public static class ScenarioEndpoints
         scenario.HeroMode = NormalizeHeroMode(request.HeroMode);
         scenario.HeroFreeGenerationAllowed = request.HeroMode == "select" && request.HeroFreeGenerationAllowed == true;
         scenario.Hero = Clean(request.Hero);
+        scenario.NpcsJson = ScenarioNpcSettingsJson.Serialize(request.Npcs);
         scenario.Opening = Clean(request.Opening);
         scenario.IllustrationStyle = Clean(request.IllustrationStyle);
         scenario.IllustrationMood = Clean(request.IllustrationMood);
@@ -120,7 +122,7 @@ public static class ScenarioEndpoints
         scenario.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
 
-        return TypedResults.Ok(ToResponse(scenario));
+        return TypedResults.Ok(ToResponse(scenario, includeNpcSecrets: true));
     }
 
     private static async Task<Results<Ok<ScenarioHeroRecommendationResponse>, NotFound>> RecommendHeroAsync(
@@ -191,6 +193,7 @@ public static class ScenarioEndpoints
             HeroMode = NormalizeHeroMode(request.HeroMode),
             HeroFreeGenerationAllowed = request.HeroMode == "select" && request.HeroFreeGenerationAllowed == true,
             Hero = Clean(request.Hero),
+            NpcsJson = ScenarioNpcSettingsJson.Serialize(request.Npcs),
             Opening = Clean(request.Opening),
             IllustrationStyle = Clean(request.IllustrationStyle),
             IllustrationMood = Clean(request.IllustrationMood),
@@ -205,7 +208,7 @@ public static class ScenarioEndpoints
         db.Scenarios.Add(scenario);
         await db.SaveChangesAsync(cancellationToken);
 
-        var response = ToResponse(scenario);
+        var response = ToResponse(scenario, includeNpcSecrets: true);
         return TypedResults.Created($"/api/scenarios/{scenario.Id}", response);
     }
 
@@ -255,6 +258,8 @@ public static class ScenarioEndpoints
         var version = await authoring.GetLatestAsync(scenarioId, cancellationToken);
         if (version is null) return TypedResults.NotFound();
         var errors = authoring.Validate(authoring.ToRequest(version), true);
+        var scenario = await db.Scenarios.AsNoTracking().SingleAsync(item => item.Id == scenarioId, cancellationToken);
+        AddNpcLocationErrors(scenario, version, errors);
         return TypedResults.Ok(new ScenarioDefinitionReadinessResponse(version.Id, errors.Count == 0, errors));
     }
 
@@ -267,10 +272,11 @@ public static class ScenarioEndpoints
         if (version is null) return TypedResults.NotFound();
         if (version.Status != "draft") return TypedResults.Conflict();
         var errors = authoring.Validate(authoring.ToRequest(version), true);
+        var scenario = await db.Scenarios.SingleAsync(item => item.Id == scenarioId, cancellationToken);
+        AddNpcLocationErrors(scenario, version, errors);
         if (errors.Count > 0) return TypedResults.BadRequest(new ScenarioErrorResponse("Rule data is not ready to publish.", errors));
         version.Status = "published";
         version.PublishedAt = version.UpdatedAt = DateTimeOffset.UtcNow;
-        var scenario = await db.Scenarios.SingleAsync(item => item.Id == scenarioId, cancellationToken);
         scenario.Status = "published";
         scenario.UpdatedAt = version.UpdatedAt;
         await db.SaveChangesAsync(cancellationToken);
@@ -315,8 +321,36 @@ public static class ScenarioEndpoints
         if (request.Title?.Trim().Length > 160) errors["title"] = ["シナリオタイトルは160文字以内で入力してください。"];
         if (request.Summary?.Length > 2000) errors["summary"] = ["基本情報は2000文字以内で入力してください。"];
         if (request.HeroMode is not null && request.HeroMode is not ("fixed" or "select" or "free")) errors["heroMode"] = ["主人公の扱いを選択してください。"];
+        ValidateNpcs(request.Npcs ?? [], errors);
         if (request.HeroMode is "fixed" or "select" && string.IsNullOrWhiteSpace(request.Hero)) errors["hero"] = ["固定または選択式では主人公データを入力してください。"];
         return errors;
+    }
+
+    private static void AddNpcLocationErrors(Scenario scenario, ScenarioDefinitionVersion version, IDictionary<string, string[]> errors)
+    {
+        var locationCodes = version.Locations.Select(location => location.Code).ToHashSet(StringComparer.Ordinal);
+        var npcs = ScenarioNpcSettingsJson.Deserialize(scenario.NpcsJson);
+        for (var index = 0; index < npcs.Count; index++)
+            if (!locationCodes.Contains(npcs[index].InitialLocationCode))
+                errors[$"npcs[{index}].initialLocationCode"] = ["NPCの初期Locationが世界データに存在しません。"];
+    }
+
+    private static void ValidateNpcs(IReadOnlyList<ScenarioNpcSettings> npcs, IDictionary<string, string[]> errors)
+    {
+        var codes = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < npcs.Count; index++)
+        {
+            var npc = npcs[index];
+            var prefix = $"npcs[{index}]";
+            var code = npc.Code?.Trim() ?? string.Empty;
+            if (!Regex.IsMatch(code, "^[a-z0-9]+(?:-[a-z0-9]+)*$", RegexOptions.CultureInvariant)) errors[$"{prefix}.code"] = ["NPCのstable codeは小文字英数字とハイフンで入力してください。"];
+            else if (!codes.Add(code)) errors[$"{prefix}.code"] = ["NPCのstable codeが重複しています。"];
+            if (string.IsNullOrWhiteSpace(npc.Name)) errors[$"{prefix}.name"] = ["NPC名を入力してください。"];
+            if (string.IsNullOrWhiteSpace(npc.Role)) errors[$"{prefix}.role"] = ["NPCの役割を入力してください。"];
+            if (string.IsNullOrWhiteSpace(npc.InitialLocationCode)) errors[$"{prefix}.initialLocationCode"] = ["NPCの初期Locationを選択してください。"];
+            if (npc.Name?.Length > 120) errors[$"{prefix}.name"] = ["NPC名は120文字以内で入力してください。"];
+            if (npc.Role?.Length > 240) errors[$"{prefix}.role"] = ["NPCの役割は240文字以内で入力してください。"];
+        }
     }
 
     private static string Clean(string? value, string fallback = "") => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
@@ -334,7 +368,11 @@ public static class ScenarioEndpoints
         return $"SCN-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
     }
 
-    private static ScenarioDraftResponse ToResponse(Scenario scenario) => new(
+    private static ScenarioDraftResponse ToResponse(Scenario scenario, bool includeNpcSecrets)
+    {
+        var npcs = ScenarioNpcSettingsJson.Deserialize(scenario.NpcsJson);
+        if (!includeNpcSecrets) npcs = npcs.Select(npc => npc with { Secrets = string.Empty }).ToList();
+        return new(
         scenario.Id,
         scenario.Title,
         scenario.Summary,
@@ -345,6 +383,7 @@ public static class ScenarioEndpoints
         scenario.HeroMode,
         scenario.HeroFreeGenerationAllowed,
         scenario.Hero,
+        npcs,
         scenario.Opening,
         scenario.IllustrationStyle,
         scenario.IllustrationMood,
@@ -352,4 +391,5 @@ public static class ScenarioEndpoints
         scenario.SampleScene,
         scenario.Status,
         DateOnly.FromDateTime(scenario.UpdatedAt.UtcDateTime));
+    }
 }

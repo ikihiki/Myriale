@@ -395,6 +395,7 @@ public static class SessionEndpoints
                         session.Scenario.Lore,
                         session.Scenario.AiFreedom,
                         session.SelectedHero,
+                        ScenarioNpcSettingsJson.Deserialize(session.Scenario.NpcsJson),
                         session.Scenario.Opening),
                     recentTurns,
                     new NarrativeSessionStateInput(session.State.Revision, flags)),

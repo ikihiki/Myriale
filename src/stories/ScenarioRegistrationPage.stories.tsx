@@ -120,13 +120,13 @@ export const US04TuneAiFreedom: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
-    await goToStep(canvas, 'AI裁量');
+    await goToStep(canvas, '基本情報');
     await step('AI裁量を高へ変更し、生成時の挙動差を明示する', async () => {
       const aiFreedomField = canvas.getAllByRole('combobox', { name: 'AI裁量' })[0];
       await userEvent.click(aiFreedomField);
       await userEvent.click(await screen.findByRole('option', { name: '高: 展開を広げる' }));
       await expect(aiFreedomField).toHaveTextContent('高: 展開を広げる');
-      await expect(canvas.getByRole('complementary', { name: '契約の背表紙' })).toHaveTextContent('高: 展開を広げる');
+      await expect(canvas.getByRole('complementary', { name: '入力サマリー' })).toHaveTextContent('高: 展開を広げる');
     });
   },
 };
@@ -135,7 +135,7 @@ export const US05SetInitialCharacter: Story = {
   name: 'US-05: 初期キャラクター条件を設定したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await goToStep(canvas, '主人公');
+    await goToStep(canvas, '人物');
     await step('主人公の扱いと自由生成時の前提を入力する', async () => {
       await expect(canvas.getByRole('combobox', { name: '主人公の扱い' })).toHaveTextContent('自由生成のみ');
       await userEvent.clear(canvas.getByLabelText('主人公の設定'));
@@ -150,7 +150,7 @@ export const US06DefineOpeningScene: Story = {
   name: 'US-06: シナリオの開始シーンを定義したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await goToStep(canvas, '第一場面');
+    await goToStep(canvas, '開始状態');
     await step('開始シーンを固定し、初回Narrativeの材料にする', async () => {
       await userEvent.clear(canvas.getByLabelText('開始シーン'));
       await userEvent.type(canvas.getByLabelText('開始シーン'), 'あなたは灰の降る駅で、宛名のない切符を握っている。');
@@ -304,20 +304,65 @@ export const US22GenerateIllustrationPrompt: Story = {
 
 const renderRuleDataFixture = () => <MyrialeApp initialUrl="/scenarios/new" initialDb={createDemoDb('registrationDraft')} scenarioRegistrationContainer={MockScenarioRegistrationWithRuleDataContainer} />;
 
-export const ConfigureInitialSceneFromWorldData: Story = {
-  name: '第一場面: 世界データから開始場所と初期ステートを決める',
+export const ConfigureNpcSettings: Story = {
+  name: 'NPC: 役割・演技・知識を構造化して登録する',
   render: renderRuleDataFixture,
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
-    await step('世界データの次に第一場面が並ぶ', async () => {
-      const navigation = canvas.getByRole('list', { name: '登録ウィザードのステップ' });
-      const labels = within(navigation).getAllByRole('button').map((button) => button.textContent);
-      expect(labels.findIndex((label) => label?.includes('世界データ'))).toBeLessThan(labels.findIndex((label) => label?.includes('第一場面')));
-      await goToStep(canvas, '第一場面');
-      await expect(canvas.getByLabelText('ウィザード進捗')).toHaveTextContent('06第一場面');
+    await goToStep(canvas, '人物');
+    await step('NPCを追加して基本情報と初期Locationを設定する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: 'NPCを追加' }));
+      await userEvent.clear(screen.getByLabelText('NPCのstable code'));
+      await userEvent.type(screen.getByLabelText('NPCのstable code'), 'archivist-mira');
+      await userEvent.clear(screen.getByLabelText('NPC名'));
+      await userEvent.type(screen.getByLabelText('NPC名'), '司書ミラ');
+      await userEvent.type(screen.getByLabelText('NPCの役割'), '禁書庫の案内役');
+      await userEvent.click(screen.getByRole('combobox', { name: 'NPCの初期Location' }));
+      await userEvent.click(await screen.findByRole('option', { name: '星見の階段 / astral-stair' }));
     });
-    await step('開始場所を選び、Objectごとの初期ステートをテーブルで上書きする', async () => {
+    await step('演技指針、公開情報、秘密を設定する', async () => {
+      await userEvent.type(screen.getByLabelText('NPCの性格'), '慎重で観察力が高い。');
+      await userEvent.type(screen.getByLabelText('NPCの行動指針'), '答えを直接明かさず、星図を使って示唆する。');
+      await userEvent.type(screen.getByLabelText('NPCの一人称'), '私');
+      await userEvent.type(screen.getByLabelText('NPCの口調'), '静かで短い敬語');
+      await userEvent.type(screen.getByLabelText('NPCの公開情報'), '北書庫の扉は星図と連動している。');
+      await userEvent.type(screen.getByLabelText('NPCの秘密'), '王都が沈んだ本当の原因を知っている。');
+      await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
+      const table = canvas.getByRole('table', { name: 'NPC一覧' });
+      await expect(within(table).getByText('司書ミラ')).toBeVisible();
+      await expect(within(table).getByText('星見の階段')).toBeVisible();
+    });
+  },
+};
+
+export const ConfigureInitialSceneFromWorldData: Story = {
+  name: 'US-SR16: 作成手順を制作順に把握する',
+  render: renderRuleDataFixture,
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
+    await step('7ステップが制作順に並ぶことを確認する', async () => {
+      const navigation = canvas.getByRole('list', { name: '登録ウィザードのステップ' });
+      const labels = within(navigation).getAllByRole('button').map((button) => button.getAttribute('aria-label'));
+      expect(labels).toEqual(['基本情報へ', '場所へ', '人物へ', 'オブジェクトへ', '開始状態へ', '挿絵へ', '動作確認へ']);
+    });
+    await step('人物で主人公とNPCを編集できることを確認する', async () => {
+      await goToStep(canvas, '人物');
+      await expect(canvas.getByRole('combobox', { name: '主人公の扱い' })).toBeVisible();
+      await expect(canvas.getByRole('button', { name: 'NPCを追加' })).toBeVisible();
+    });
+    await step('場所とオブジェクトを別々に編集できることを確認する', async () => {
+      await goToStep(canvas, '場所');
+      await expect(canvas.getByRole('button', { name: '場所を追加' })).toBeVisible();
+      await expect(canvas.queryByRole('button', { name: 'オブジェクトを追加' })).not.toBeInTheDocument();
+      await goToStep(canvas, 'オブジェクト');
+      await expect(canvas.getByRole('button', { name: 'オブジェクトを追加' })).toBeVisible();
+      await expect(canvas.queryByRole('button', { name: '場所を追加' })).not.toBeInTheDocument();
+    });
+    await step('開始状態で開始条件を編集できることを確認する', async () => {
+      await goToStep(canvas, '開始状態');
+      await expect(canvas.getByLabelText('ウィザード進捗')).toHaveTextContent('05開始状態');
       const initialStateTable = canvas.getByRole('table', { name: '全オブジェクトの初期ステート一覧' });
       await expect(within(initialStateTable).getByRole('columnheader', { name: 'オブジェクト' })).toBeVisible();
       await expect(within(initialStateTable).getByRole('columnheader', { name: '基準値' })).toBeVisible();
@@ -337,7 +382,7 @@ export const US23DefineObjectTypeStatesAndActions: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
-    await goToStep(canvas, '世界データ');
+    await goToStep(canvas, 'オブジェクト');
     await step('新しい種類へstable code、状態、公開範囲を登録する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '種類を追加' }));
       await userEvent.clear(screen.getByLabelText('種類のstable code'));
@@ -368,7 +413,7 @@ export const US24CreateLocationsAndPlaceObjects: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
-    await goToStep(canvas, '世界データ');
+    await goToStep(canvas, '場所');
     await step('場所を追加してstable codeを維持する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '場所を追加' }));
       await userEvent.clear(screen.getByLabelText('場所のstable code'));
@@ -378,6 +423,7 @@ export const US24CreateLocationsAndPlaceObjects: Story = {
       await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
       await expect(canvas.getByRole('button', { name: '封印書庫を編集' })).toBeVisible();
     });
+    await goToStep(canvas, 'オブジェクト');
     await step('Objectの状態を1つの表で確認し、受け継いだ状態は初期値だけ変更する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '北書庫の扉を編集' }));
       await expect(screen.getByRole('region', { name: 'ordered Type mixins' })).toHaveTextContent('書庫の扉');
@@ -400,7 +446,7 @@ export const US25AuthorDeterministicActionResults: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
-    await goToStep(canvas, '世界データ');
+    await goToStep(canvas, 'オブジェクト');
     await step('Object paneの統合rule tableで既存adjustのeffective結果を開く', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '北書庫の扉を編集' }));
       const rules = screen.getByRole('table', { name: 'Object rules' });
@@ -414,7 +460,7 @@ export const US25AuthorDeterministicActionResults: Story = {
       await expect(screen.getByText('set-state → emit-fact')).toBeVisible();
       await expect(screen.queryByLabelText('実行ルールの優先度')).not.toBeInTheDocument();
     });
-    await step('世界データ末尾の公開準備チェックが決定性を確認する', async () => {
+    await step('オブジェクト末尾の公開準備チェックが決定性を確認する', async () => {
       await expect(canvas.getByTestId('rule-readiness')).toHaveTextContent('決定的です');
     });
   },
@@ -426,14 +472,15 @@ export const US26KeepDependenciesSafe: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
-    await goToStep(canvas, '世界データ');
+    await goToStep(canvas, 'オブジェクト');
     await step('Objectが参照中の種類は削除を拒否する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: /^書庫の扉を編集$/ }));
       await userEvent.click(screen.getByRole('button', { name: 'この種類を削除' }));
       await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('先に種類を変更するかオブジェクトを削除');
       await userEvent.click(screen.getByRole('button', { name: '編集ペインを閉じる' }));
     });
-    await step('同じページでObjectが配置中のLocationも削除を拒否する', async () => {
+    await goToStep(canvas, '場所');
+    await step('場所ステップでObjectが配置中のLocationも削除を拒否する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '水没した閲覧室を編集' }));
       await userEvent.click(screen.getByRole('button', { name: 'この場所を削除' }));
       await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('開始場所に選ばれています');
@@ -447,7 +494,7 @@ export const US27SaveIncompleteRuleDataAsDraft: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
-    await goToStep(canvas, '世界データ');
+    await goToStep(canvas, 'オブジェクト');
     await step('既存adjust operationはeffective結果だけをread-onlyで表示する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '北書庫の扉を編集' }));
       await userEvent.click(screen.getByRole('button', { name: 'archive-door:generic-openの実行ルールを確認' }));
@@ -500,7 +547,7 @@ export const AuthorWestDoorSeedWithEightOrderedEffects: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
-    await goToStep(canvas, '世界データ');
+    await goToStep(canvas, 'オブジェクト');
     await userEvent.click(canvas.getByRole('button', { name: '西の扉を編集' }));
 
     await step('ordered mixinを維持しながら状態・アクション・ruleを各1つの表で表示する', async () => {

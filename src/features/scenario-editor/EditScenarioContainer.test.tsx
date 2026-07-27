@@ -9,6 +9,7 @@ import { EditScenarioContainer } from './EditScenarioContainer';
 
 const scenario: ScenarioDraftDto = {
   id: 'SCN-1', title: '保存済みシナリオ', summary: '', genre: 'ミステリ', tone: '', lore: '', aiFreedom: '',
+  npcs: [],
   heroMode: 'free', heroFreeGenerationAllowed: false, hero: '', opening: '', illustrationStyle: '', illustrationMood: '',
   illustrationNegative: '', sampleScene: '', ruleData: { schemaVersion: 2, startLocationCode: '', locations: [], objectTypes: [], objects: [] }, status: 'published', updatedAt: '2026-07-24',
 };
@@ -65,7 +66,7 @@ describe('EditScenarioContainer', () => {
     releaseRuleData();
 
     await screen.findByRole('main', { name: 'シナリオ編集ウィザード' });
-    fireEvent.click(screen.getByRole('button', { name: '世界データへ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'オブジェクトへ' }));
     fireEvent.click(screen.getByRole('button', { name: '保存済みの扉を編集' }));
     expect(screen.getByLabelText('種類のstable code')).toHaveValue('door');
     fireEvent.change(screen.getByLabelText('種類の表示名'), { target: { value: '改稿した扉' } });

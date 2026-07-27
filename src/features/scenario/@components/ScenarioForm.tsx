@@ -17,6 +17,7 @@ import {
   wizardSummaryClass,
 } from '../../../shared/scenarioWizardStyles';
 import { MyrialeSelect } from '../../../ui/MyrialeRadix';
+import { NpcSettingsPresentation } from './NpcSettingsPresentation';
 import { ScenarioRuleDebugPresentation } from './rule-debug/ScenarioRuleDebugPresentation';
 import { InitialSceneConfigurationPresentation } from './rule-data/InitialSceneConfigurationPresentation';
 import { LocationsObjectsEditorPresentation } from './rule-data/LocationsObjectsEditorPresentation';
@@ -30,15 +31,15 @@ import {
 } from './scenarioFormModel';
 
 type SuggestionKind = '基本情報' | '挿絵テイスト' | '挿絵プロンプト';
-type WizardStep = 'cover' | 'ai' | 'hero' | 'opening' | 'illustration' | 'world' | 'debug';
+type WizardStep = 'basic' | 'locations' | 'characters' | 'objects' | 'initial-state' | 'illustration' | 'debug';
 
 const wizardSteps: Array<{ id: WizardStep; label: string; help: string }> = [
-  { id: 'cover', label: '表紙', help: 'タイトル、ジャンル、基本情報' },
-  { id: 'ai', label: 'AI裁量', help: 'AIが広げてよい範囲' },
-  { id: 'hero', label: '主人公', help: '初期キャラクター条件' },
+  { id: 'basic', label: '基本情報', help: 'タイトル、ジャンル、物語の前提、AI裁量' },
+  { id: 'locations', label: '場所', help: '舞台となるLocationと空気感' },
+  { id: 'characters', label: '人物', help: '主人公とNPCの役割・演技・知識' },
+  { id: 'objects', label: 'オブジェクト', help: '種類・状態・アクション・実行ルール' },
+  { id: 'initial-state', label: '開始状態', help: '開始場所・初期ステート・最初のNarrative' },
   { id: 'illustration', label: '挿絵', help: '画風、NG、プレビュー' },
-  { id: 'world', label: '世界データ', help: '場所・オブジェクト・種類・実行ルールを一覧で管理' },
-  { id: 'opening', label: '第一場面', help: '開始場所・初期ステート・最初のNarrative' },
   { id: 'debug', label: '動作確認', help: '任意状態からルールエンジンを非永続で実行' },
 ];
 
@@ -69,7 +70,7 @@ export function ScenarioForm({
     { label: 'ライブラリ', to: 'scenarioList' },
     { label: isEditing ? 'シナリオを編集' : 'シナリオ登録' },
   ];
-  const [activeStep, setActiveStep] = useState<WizardStep>('cover');
+  const [activeStep, setActiveStep] = useState<WizardStep>('basic');
   const [values, setValues] = useState<ScenarioFormValues>(initialValues);
   const [genreTagDraft, setGenreTagDraft] = useState('');
   const [notice, setNotice] = useState(isEditing ? '現在のシナリオ内容を読み込みました。' : 'タイトルだけで下書き保存できます。');
@@ -149,16 +150,19 @@ export function ScenarioForm({
   };
 
   const statusFor = (step: WizardStep) => {
-    if (step === 'cover') return values.title ? '保存候補' : '未入力';
-    if (step === 'ai') return values.aiFreedom;
-    if (step === 'hero') return values.heroMode === 'fixed' ? '固定' : values.heroMode === 'select' ? '選択式' : '自由生成';
-    if (step === 'opening') return values.opening ? '固定' : 'AI生成';
-    if (step === 'illustration') return values.illustrationStyle ? '入力済み' : '未入力';
-    if (step === 'world') {
-      const issues = validateScenarioRuleData(values.ruleData);
-      const worldCount = `${values.ruleData.objectTypes.length}種類 / ${values.ruleData.locations.length}場所 / ${values.ruleData.objects.length}個`;
-      return issues.length === 0 ? `${worldCount} / 公開準備OK` : `${worldCount} / ${issues.length}要確認`;
+    if (step === 'basic') return values.title ? '保存候補' : '未入力';
+    if (step === 'locations') return `${values.ruleData.locations.length}場所`;
+    if (step === 'characters') {
+      const heroMode = values.heroMode === 'fixed' ? '固定' : values.heroMode === 'select' ? '選択式' : '自由生成';
+      return `${heroMode} / NPC ${values.npcs.length}人`;
     }
+    if (step === 'objects') {
+      const issues = validateScenarioRuleData(values.ruleData);
+      const objectCount = `${values.ruleData.objectTypes.length}種類 / ${values.ruleData.objects.length}個`;
+      return issues.length === 0 ? `${objectCount} / 公開準備OK` : `${objectCount} / ${issues.length}要確認`;
+    }
+    if (step === 'initial-state') return values.opening ? 'Narrative固定' : 'AI生成';
+    if (step === 'illustration') return values.illustrationStyle ? '入力済み' : '未入力';
     if (step === 'debug') return scenarioId === '未発行' ? '保存後に利用' : '隔離実行';
     return '';
   };
@@ -195,9 +199,9 @@ export function ScenarioForm({
             <strong>{currentStep.label}</strong>
           </div>
 
-          {activeStep === 'cover' && (
-            <section className={wizardPanelClass} aria-label="表紙">
-              <p><strong>{currentStep.help}。</strong>{isEditing ? '保存済みの内容を作成時と同じ項目・操作で改稿できます。' : 'タイトルだけでDraftを作れます。'} 世界観や雰囲気は基本情報へまとめて記述します。</p>
+          {activeStep === 'basic' && (
+            <section className={wizardPanelClass} aria-label="基本情報ステップ">
+              <p><strong>{currentStep.help}。</strong>{isEditing ? '保存済みの内容を作成時と同じ項目・操作で改稿できます。' : 'タイトルだけでDraftを作れます。'} 物語の前提とAIが広げてよい範囲をまとめて設定します。</p>
               <label>シナリオタイトル *<Input aria-label="シナリオタイトル" aria-invalid={firstScenarioFormFieldError(fieldErrors, 'title') ? true : undefined} value={values.title} onChange={(event) => update('title', event.target.value)} placeholder="星喰いの地下図書館" /></label>
               <div className="my-3 grid gap-2" aria-labelledby="genre-tags-label">
                 <span id="genre-tags-label" className="text-xs font-black tracking-[0.02em] text-[#4f5767]">ジャンルタグ</span>
@@ -244,12 +248,6 @@ export function ScenarioForm({
                 placeholder={'## シナリオの目的\n\nこの物語で体験することを書きます。\n\n- 主な目的\n- 重要な前提'}
               />
               <div className={wizardButtonRowClass}><Button variant="secondary" size="sm" onClick={() => void consultAi('基本情報')} disabled={aiWorking}>AIに基本情報案を出してもらう</Button><Button variant="secondary" size="sm" onClick={adoptSummary}>採用して編集</Button></div>
-            </section>
-          )}
-
-          {activeStep === 'ai' && (
-            <section className={wizardPanelClass} aria-label="AI裁量">
-              <p><strong>{currentStep.help}。</strong>Narrative生成時にAPIへ渡す裁量レベルを指定します。</p>
               <MyrialeSelect label="AI裁量" value={values.aiFreedom} onValueChange={(value) => update('aiFreedom', value)} options={[
                 { value: '低: 厳密に守る', label: '低: 厳密に守る' },
                 { value: '中: 設定を守りつつ提案する', label: '中: 設定を守りつつ提案する' },
@@ -258,9 +256,11 @@ export function ScenarioForm({
             </section>
           )}
 
-          {activeStep === 'hero' && (
-            <section className={wizardPanelClass} aria-label="主人公">
-              <p><strong>{currentStep.help}。</strong>シナリオAPIへ保存する主人公の選択方式と初期条件です。</p>
+          {activeStep === 'characters' && (
+            <section className={wizardPanelClass} aria-label="人物">
+              <p><strong>{currentStep.help}。</strong>主人公の選択方式と、Narrative生成時に守るNPCの人物像を設定します。</p>
+              <section className="grid gap-4" aria-labelledby="hero-settings-heading">
+                <h2 id="hero-settings-heading">主人公</h2>
               <MyrialeSelect label="主人公の扱い" value={values.heroMode} onValueChange={(value) => update('heroMode', value as ScenarioFormValues['heroMode'])} options={[
                 { value: 'fixed', label: '固定キャラクター' },
                 { value: 'select', label: '候補キャラクターから選択' },
@@ -272,13 +272,18 @@ export function ScenarioForm({
                   <input type="checkbox" aria-label="自由生成を許可" checked={values.heroFreeGenerationAllowed} onChange={(event) => update('heroFreeGenerationAllowed', event.target.checked)} />
                 </label>
               )}
-              <label>{values.heroMode === 'fixed' ? '固定する主人公' : values.heroMode === 'select' ? '候補キャラクター（1行に1人）' : '自由生成時の前提・制約'}<Textarea aria-label="主人公の設定" value={values.hero} onChange={(event) => update('hero', event.target.value)} /></label>
+                <label>{values.heroMode === 'fixed' ? '固定する主人公' : values.heroMode === 'select' ? '候補キャラクター（1行に1人）' : '自由生成時の前提・制約'}<Textarea aria-label="主人公の設定" value={values.hero} onChange={(event) => update('hero', event.target.value)} /></label>
+              </section>
+              <section className="grid gap-4 border-t border-[#17151f]/12 pt-6" aria-labelledby="npc-settings-heading">
+                <h2 id="npc-settings-heading">NPC</h2>
+                <NpcSettingsPresentation value={values.npcs} ruleData={values.ruleData} onChange={(npcs) => update('npcs', npcs)} onNotice={presentRuleNotice} />
+              </section>
             </section>
           )}
 
-          {activeStep === 'opening' && (
-            <section className={wizardPanelClass} aria-label="第一場面">
-              <p><strong>{currentStep.help}。</strong>世界データをもとにセッション開始時の場所と各Objectの初期状態を決め、最初のNarrativeを保存します。</p>
+          {activeStep === 'initial-state' && (
+            <section className={wizardPanelClass} aria-label="開始状態">
+              <p><strong>{currentStep.help}。</strong>場所とオブジェクトをもとにセッション開始時の状態を決め、最初のNarrativeを保存します。</p>
               <InitialSceneConfigurationPresentation value={values.ruleData} onChange={(ruleData) => update('ruleData', ruleData)} />
               <label>開始シーン<Textarea aria-label="開始シーン" value={values.opening} onChange={(event) => update('opening', event.target.value)} /></label>
               <p className="text-sm text-myr-ink-subtle">開始シーンが未入力の場合は、選択した開始場所と初期ステートを使ってセッション開始時にAIが生成します。</p>
@@ -296,21 +301,40 @@ export function ScenarioForm({
             </section>
           )}
 
-          {activeStep === 'world' && (
+          {activeStep === 'locations' && (
             <div className={`${wizardPanelClass} [&_textarea]:min-h-20`}>
-              <section className="mb-7 border-b border-[#17151f]/12 pb-5" aria-labelledby="world-data-heading">
-                <p className={wizardKickerClass}>World data ledger</p>
-                <h2 id="world-data-heading">場所・オブジェクト・種類</h2>
-                <p>3つのデータを同じページで見渡し、各行の左端にある「編集」から詳細ペインを開きます。</p>
+              <section className="mb-7 border-b border-[#17151f]/12 pb-5" aria-labelledby="locations-heading">
+                <p className={wizardKickerClass}>World atlas</p>
+                <h2 id="locations-heading">場所</h2>
+                <p><strong>{currentStep.help}。</strong>舞台、配置先、NPCの初期位置として使うLocationを先に整えます。</p>
+              </section>
+              <LocationsObjectsEditorPresentation
+                scope="locations"
+                value={values.ruleData}
+                onChange={(ruleData) => update('ruleData', ruleData)}
+                protectedLocationCodes={new Set(values.npcs.map((npc) => npc.initialLocationCode))}
+                onLocationCodeChange={(previousCode, nextCode) => update('npcs', values.npcs.map((npc) => npc.initialLocationCode === previousCode ? { ...npc, initialLocationCode: nextCode } : npc))}
+                onNotice={presentRuleNotice}
+              />
+            </div>
+          )}
+
+          {activeStep === 'objects' && (
+            <div className={`${wizardPanelClass} [&_textarea]:min-h-20`}>
+              <section className="mb-7 border-b border-[#17151f]/12 pb-5" aria-labelledby="objects-heading">
+                <p className={wizardKickerClass}>Rule workshop</p>
+                <h2 id="objects-heading">オブジェクト</h2>
+                <p><strong>{currentStep.help}。</strong>再利用できる種類を定義してから、舞台に置く個別Objectを設定します。</p>
               </section>
               <div className="grid gap-9">
-                <LocationsObjectsEditorPresentation
+                <ObjectTypesEditorPresentation
+                  mode={mode}
                   value={values.ruleData}
                   onChange={(ruleData) => update('ruleData', ruleData)}
                   onNotice={presentRuleNotice}
                 />
-                <ObjectTypesEditorPresentation
-                  mode={mode}
+                <LocationsObjectsEditorPresentation
+                  scope="objects"
                   value={values.ruleData}
                   onChange={(ruleData) => update('ruleData', ruleData)}
                   onNotice={presentRuleNotice}
@@ -345,7 +369,8 @@ export function ScenarioForm({
           ]} />
           <SummaryCard as="article"><h3>表紙</h3><p>{values.title || 'タイトル未入力'}</p><p>{genreTags.length > 0 ? genreTags.map((tag) => `# ${tag}`).join(' ') : 'ジャンルタグ未入力'}</p><p>{values.summary ? `基本情報: Markdown ${values.summary.length}文字` : '基本情報は空でも保存できます'}</p></SummaryCard>
           <SummaryCard as="article"><h3>AIが読む契約</h3><p>基本情報に世界観・雰囲気を記述</p><p>AI裁量: {values.aiFreedom}</p></SummaryCard>
-          <SummaryCard as="article"><h3>主人公と第一場面</h3><p>{values.hero}</p><p>{values.opening}</p></SummaryCard>
+          <SummaryCard as="article"><h3>主人公とNPC</h3><p>{values.hero}</p><p>{values.npcs.length}人のNPC</p></SummaryCard>
+          <SummaryCard as="article"><h3>第一場面</h3><p>{values.opening}</p></SummaryCard>
           <SummaryCard as="article"><h3>挿絵</h3><p>{values.illustrationStyle}</p><p>NG: {values.illustrationNegative}</p></SummaryCard>
           <SummaryCard as="article"><h3>ルールデータ</h3><p>{values.ruleData.objectTypes.length}種類 / {values.ruleData.locations.length}場所 / {values.ruleData.objects.length}オブジェクト</p><p>{validateScenarioRuleData(values.ruleData).length === 0 ? '公開準備OK' : `${validateScenarioRuleData(values.ruleData).length}件を確認`}</p></SummaryCard>
           <SummaryCard as="article" data-testid="ai-suggestion"><h3>提案候補</h3><p>{suggestion}</p></SummaryCard>

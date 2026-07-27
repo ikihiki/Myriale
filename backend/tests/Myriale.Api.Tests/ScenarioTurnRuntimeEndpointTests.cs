@@ -66,6 +66,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         Assert.Equal(1, ai.DecisionCalls);
         Assert.Equal(2, ai.NarrativeCalls);
         Assert.All(ai.NarrativeRequests, request => Assert.True(request.PostState.Objects.Single(item => item.Code == "north-door").State.GetProperty("open").GetBoolean()));
+        Assert.All(ai.NarrativeRequests, request => Assert.Equal("hall-guide", Assert.Single(request.Scenario.Npcs).Code));
         Assert.Equal(2, session.GetProperty("turns").GetArrayLength());
     }
 
@@ -246,7 +247,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
 
     private static async Task<string> CreatePublishedDoorScenarioAsync(HttpClient client, string startLocationCode, bool initialOpen = false)
     {
-        using var scenario = await client.PostAsJsonAsync("/api/scenarios/", new { title = "Door runtime" });
+        using var scenario = await client.PostAsJsonAsync("/api/scenarios/", new { title = "Door runtime", npcs = new[] { new { code = "hall-guide", name = "広間の案内人", role = "扉の案内役", initialLocationCode = "start", personality = "慎重", behavior = "扉の状態に沿って助言する", voice = "短い敬語", firstPerson = "私", publicKnowledge = "北の扉の用途", secrets = "地下室の存在" } } });
         var scenarioId = (await scenario.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
         var payload = JsonNode.Parse("""
         {
