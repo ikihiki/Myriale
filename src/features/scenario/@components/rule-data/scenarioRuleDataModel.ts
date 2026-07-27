@@ -16,6 +16,7 @@ export type ScenarioRuleEffect = ScenarioActionRule['effects'][number];
 
 export const emptyScenarioRuleData: ScenarioRuleData = {
   schemaVersion: 2,
+  startLocationCode: '',
   locations: [],
   objectTypes: [],
   objects: [],
@@ -181,6 +182,7 @@ export function validateScenarioRuleData(ruleData: ScenarioRuleData): RuleDataIs
   };
 
   duplicateCodes(ruleData.locations, 'ruleData.locations');
+  if (ruleData.locations.length > 0 && (!ruleData.startLocationCode || !ruleData.locations.some((location) => location.code === ruleData.startLocationCode))) issues.push({ path: 'ruleData.startLocationCode', message: 'セッション開始場所を選択してください。', severity: 'error' });
   duplicateCodes(ruleData.objectTypes, 'ruleData.objectTypes');
   duplicateCodes(ruleData.objects, 'ruleData.objects');
 

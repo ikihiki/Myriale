@@ -18,6 +18,7 @@ import {
 } from '../../../shared/scenarioWizardStyles';
 import { MyrialeSelect } from '../../../ui/MyrialeRadix';
 import { ScenarioRuleDebugPresentation } from './rule-debug/ScenarioRuleDebugPresentation';
+import { InitialSceneConfigurationPresentation } from './rule-data/InitialSceneConfigurationPresentation';
 import { LocationsObjectsEditorPresentation } from './rule-data/LocationsObjectsEditorPresentation';
 import { ObjectTypesEditorPresentation } from './rule-data/ObjectTypesEditorPresentation';
 import { validateScenarioRuleData } from './rule-data/scenarioRuleDataModel';
@@ -35,9 +36,9 @@ const wizardSteps: Array<{ id: WizardStep; label: string; help: string }> = [
   { id: 'cover', label: '表紙', help: 'タイトル、ジャンル、基本情報' },
   { id: 'ai', label: 'AI裁量', help: 'AIが広げてよい範囲' },
   { id: 'hero', label: '主人公', help: '初期キャラクター条件' },
-  { id: 'opening', label: '第一場面', help: '最初のNarrativeの固定' },
   { id: 'illustration', label: '挿絵', help: '画風、NG、プレビュー' },
   { id: 'world', label: '世界データ', help: '場所・オブジェクト・種類・実行ルールを一覧で管理' },
+  { id: 'opening', label: '第一場面', help: '開始場所・初期ステート・最初のNarrative' },
   { id: 'debug', label: '動作確認', help: '任意状態からルールエンジンを非永続で実行' },
 ];
 
@@ -277,8 +278,10 @@ export function ScenarioForm({
 
           {activeStep === 'opening' && (
             <section className={wizardPanelClass} aria-label="第一場面">
-              <p><strong>{currentStep.help}。</strong>開始シーンをAPIへ保存します。未入力の場合はセッション開始時にAIが生成します。</p>
+              <p><strong>{currentStep.help}。</strong>世界データをもとにセッション開始時の場所と各Objectの初期状態を決め、最初のNarrativeを保存します。</p>
+              <InitialSceneConfigurationPresentation value={values.ruleData} onChange={(ruleData) => update('ruleData', ruleData)} />
               <label>開始シーン<Textarea aria-label="開始シーン" value={values.opening} onChange={(event) => update('opening', event.target.value)} /></label>
+              <p className="text-sm text-myr-ink-subtle">開始シーンが未入力の場合は、選択した開始場所と初期ステートを使ってセッション開始時にAIが生成します。</p>
             </section>
           )}
 

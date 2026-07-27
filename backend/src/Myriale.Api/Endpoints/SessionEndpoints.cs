@@ -111,11 +111,9 @@ public static class SessionEndpoints
             .FirstOrDefaultAsync(cancellationToken);
         if (definition is null)
             return Results.Conflict(new SessionErrorResponse("published_scenario_definition_required", "公開済みのScenario rule definitionが必要です。"));
-        var initialLocation = definition.Locations.SingleOrDefault(location => location.Code == "start")
-            ?? definition.Locations.SingleOrDefault(location => location.Code == "inside")
-            ?? (definition.Locations.Count == 1 ? definition.Locations.Single() : null);
+        var initialLocation = definition.Locations.SingleOrDefault(location => location.Code == definition.StartLocationCode);
         if (initialLocation is null)
-            return Results.Conflict(new SessionErrorResponse("initial_location_required", "開始Location(code: start または inside)を1つ指定してください。"));
+            return Results.Conflict(new SessionErrorResponse("initial_location_required", "公開定義に有効な開始Locationを指定してください。"));
 
         var selectedHero = string.IsNullOrWhiteSpace(request.SelectedHero)
             ? scenario.Hero

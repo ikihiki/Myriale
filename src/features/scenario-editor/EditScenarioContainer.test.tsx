@@ -10,10 +10,11 @@ import { EditScenarioContainer } from './EditScenarioContainer';
 const scenario: ScenarioDraftDto = {
   id: 'SCN-1', title: '保存済みシナリオ', summary: '', genre: 'ミステリ', tone: '', lore: '', aiFreedom: '',
   heroMode: 'free', heroFreeGenerationAllowed: false, hero: '', opening: '', illustrationStyle: '', illustrationMood: '',
-  illustrationNegative: '', sampleScene: '', ruleData: { schemaVersion: 2, locations: [], objectTypes: [], objects: [] }, status: 'published', updatedAt: '2026-07-24',
+  illustrationNegative: '', sampleScene: '', ruleData: { schemaVersion: 2, startLocationCode: '', locations: [], objectTypes: [], objects: [] }, status: 'published', updatedAt: '2026-07-24',
 };
 const ruleData: ScenarioRuleDataPayload = {
   schemaVersion: 2,
+  startLocationCode: 'hall',
   locations: [{ code: 'hall', name: '広間', description: '', atmosphere: '', danger: '' }],
   objectTypes: [{
     code: 'door', name: '保存済みの扉', description: '', schemaVersion: 1,

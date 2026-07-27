@@ -144,6 +144,7 @@ export function canonicalRuleDataToForm(response: CanonicalScenarioRuleDataRespo
   if (response.schemaVersion !== 2) throw new Error(`Unsupported scenario rule schema version: ${response.schemaVersion}`);
   return {
     schemaVersion: 2,
+    startLocationCode: response.startLocationCode,
     locations: response.locations.map((location) => ({
       code: location.code,
       name: location.name,
@@ -261,6 +262,7 @@ function objectOperationToCanonical(operation: ScenarioObjectRuleOperationPayloa
 export function formRuleDataToCanonical(ruleData: ScenarioRuleDataPayload): CanonicalScenarioRuleDataRequest {
   return {
     schemaVersion: 2,
+    startLocationCode: ruleData.startLocationCode,
     locations: ruleData.locations.map((location) => ({
       code: location.code,
       name: location.name,

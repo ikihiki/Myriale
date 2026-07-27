@@ -83,6 +83,7 @@ export type CanonicalScenarioObjectDto = {
 
 export type CanonicalScenarioRuleDataRequest = {
   schemaVersion: number;
+  startLocationCode: string;
   locations: CanonicalScenarioLocationDto[];
   objectTypes: CanonicalScenarioObjectTypeDto[];
   objects: CanonicalScenarioObjectDto[];
@@ -204,6 +205,7 @@ export type ScenarioObjectPayload = {
 
 export type ScenarioRuleDataPayload = {
   schemaVersion: 2;
+  startLocationCode: string;
   locations: ScenarioLocationPayload[];
   objectTypes: ScenarioObjectTypePayload[];
   objects: ScenarioObjectPayload[];
@@ -450,49 +452,65 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
   };
 }
 
-const emptyScenarioRuleData = (): ScenarioRuleDataPayload => ({ schemaVersion: 2, locations: [], objectTypes: [], objects: [] });
+const emptyScenarioRuleData = (): ScenarioRuleDataPayload => ({ schemaVersion: 2, startLocationCode: '', locations: [], objectTypes: [], objects: [] });
 
 const awakeningLaboratoryRuleData: ScenarioRuleDataPayload = {
   schemaVersion: 2,
+  startLocationCode: 'start',
   locations: [
-    { code: 'laboratory', name: '地下研究室', description: '非常灯だけが残る閉鎖研究室。', atmosphere: '静かな緊張感', danger: '隔壁が閉鎖されている' },
-    { code: 'service-corridor', name: '保守通路', description: '脱出経路へ続く狭い通路。', atmosphere: '機械音と冷気', danger: '電源復旧前は暗い' },
+    { code: 'start', name: '覚醒室', description: '非常灯に照らされ、案内AI端末だけが起動している開始地点。', atmosphere: '静かな緊張感', danger: '脱出経路がロックされている' },
+    { code: 'corridor', name: '接続廊下', description: '覚醒室と解析室をつなぎ、中央に脱出扉がある廊下。', atmosphere: '冷気と低い機械音', danger: '脱出扉は解析装置と連動している' },
+    { code: 'puzzle-room', name: '解析室', description: '三色の入力盤を備えた光学解析装置がある謎解き部屋。', atmosphere: '赤・緑・青の光', danger: '誤入力では装置が復旧しない' },
   ],
-  objectTypes: [{
-    code: 'sealed-door',
-    name: '隔壁扉',
-    description: '開閉状態を持つ研究施設の扉。',
-    schemaVersion: 1,
-    stateFields: [{ code: 'open', label: '開いている', valueType: 'boolean', defaultValue: 'false', visibility: 'public' }],
-    actions: [{ code: 'open', label: '扉を開ける', description: '閉じた隔壁を開く。', visibility: 'ai-choice', availabilityCondition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'open', valueType: 'boolean', value: false }, argumentFields: [] }],
-    actionRules: [],
-  }],
-  objects: [{
-    code: 'north-door',
-    name: '北側の隔壁',
-    mixinTypeCodes: ['sealed-door'],
-    stateFields: [],
-    actions: [],
-    initialLocationCode: 'laboratory',
-    global: false,
-    initialStateOverrides: [],
-    actionRules: [{
-      operation: 'add',
-      rule: {
-        code: 'open-north-door',
-        actionCode: 'open',
-        condition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'open', valueType: 'boolean', value: false },
-        priority: 100,
-        note: '通常の開扉結果。',
-        effects: [
-          { kind: 'set-state', targetObjectCode: 'north-door', stateCode: 'open', value: 'true' },
-          { kind: 'emit-fact', text: '北側の隔壁が開いた。' },
-          { kind: 'add-narrative-hint', text: '冷たい空気が保守通路から流れ込む。' },
-        ],
-        moduleBinding: null,
-      },
-    }],
-  }],
+  objectTypes: [
+    {
+      code: 'conversation-terminal', name: '対話端末', description: '施設案内AIと会話できる端末。', schemaVersion: 1,
+      stateFields: [{ code: 'activated', label: '起動済み', valueType: 'boolean', defaultValue: 'false', visibility: 'public' }],
+      actions: [{ code: 'talk', label: '端末と話す', description: '状況と脱出方法を尋ねる。', visibility: 'ai-choice', availabilityCondition: { kind: 'always' }, argumentFields: [] }],
+      actionRules: [
+        { code: 'talk-first', actionCode: 'talk', condition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'activated', valueType: 'boolean', value: false }, priority: 200, note: '', effects: [{ kind: 'set-state', targetObjectCode: '', stateCode: 'activated', value: 'true' }, { kind: 'emit-fact', text: '解析室の光学装置を復旧すれば廊下の脱出扉が開く。' }, { kind: 'add-narrative-hint', text: '光の三原色を重ねることが鍵だと示唆する。' }], moduleBinding: null },
+        { code: 'talk-repeat', actionCode: 'talk', condition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'activated', valueType: 'boolean', value: true }, priority: 100, note: '', effects: [{ kind: 'emit-fact', text: '端末は赤・緑・青をすべて重ねた色を入力するよう繰り返した。' }], moduleBinding: null },
+      ],
+    },
+    ...[
+      ['start-to-corridor', '廊下への通路', 'corridor'],
+      ['corridor-to-start', '覚醒室への通路', 'start'],
+      ['corridor-to-puzzle', '解析室への通路', 'puzzle-room'],
+      ['puzzle-to-corridor', '廊下への通路', 'corridor'],
+    ].map(([code, name, destination]): ScenarioObjectTypePayload => ({
+      code, name, description: '隣接地点へ移動する通路。', schemaVersion: 1,
+      stateFields: [{ code: 'used', label: '通行済み', valueType: 'boolean', defaultValue: 'false', visibility: 'public' }],
+      actions: [{ code: 'traverse', label: '通路を進む', description: '隣接地点へ移動する。', visibility: 'ai-choice', availabilityCondition: { kind: 'always' }, argumentFields: [] }],
+      actionRules: [{ code: 'traverse-default', actionCode: 'traverse', condition: { kind: 'always' }, priority: 100, note: '', effects: [{ kind: 'set-state', targetObjectCode: '', stateCode: 'used', value: 'true' }, { kind: 'move-session', locationCode: destination }, { kind: 'emit-event', event: 'session-moved', locationCode: destination }], moduleBinding: null }],
+    })),
+    {
+      code: 'escape-door', name: '脱出扉', description: '解析装置の復旧と連動する施設外への扉。', schemaVersion: 1,
+      stateFields: [{ code: 'open', label: '開いている', valueType: 'boolean', defaultValue: 'false', visibility: 'public' }],
+      actions: [{ code: 'inspect', label: '脱出扉を調べる', description: '扉の状態を確認する。', visibility: 'ai-choice', availabilityCondition: { kind: 'always' }, argumentFields: [] }],
+      actionRules: [
+        { code: 'inspect-open', actionCode: 'inspect', condition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'open', valueType: 'boolean', value: true }, priority: 200, note: '', effects: [{ kind: 'emit-fact', text: '脱出扉は開いている。' }], moduleBinding: null },
+        { code: 'inspect-closed', actionCode: 'inspect', condition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'open', valueType: 'boolean', value: false }, priority: 100, note: '', effects: [{ kind: 'emit-fact', text: '脱出扉はロックされ、閉じている。' }], moduleBinding: null },
+      ],
+    },
+    {
+      code: 'puzzle-device', name: '光学解析装置', description: '光の三原色を重ねた結果を入力する謎解き装置。', schemaVersion: 1,
+      stateFields: [{ code: 'solved', label: '解決済み', valueType: 'boolean', defaultValue: 'false', visibility: 'public' }],
+      actions: [{ code: 'solve', label: '答えを入力する', description: '三色を重ねた光の色を入力する。', visibility: 'ai-choice', availabilityCondition: { kind: 'always' }, argumentFields: [{ code: 'answer', label: '答え', valueType: 'string', required: true }] }],
+      actionRules: [
+        { code: 'solve-correct', actionCode: 'solve', condition: { kind: 'group', operator: 'and', children: [{ kind: 'comparison', operator: 'eq', source: 'state', path: 'solved', valueType: 'boolean', value: false }, { kind: 'comparison', operator: 'eq', source: 'arguments', path: 'answer', valueType: 'string', value: '白' }] }, priority: 200, note: '', effects: [{ kind: 'set-state', targetObjectCode: '', stateCode: 'solved', value: 'true' }, { kind: 'set-state', targetObjectCode: 'escape-door', stateCode: 'open', value: 'true' }, { kind: 'emit-fact', text: '光学解析装置が復旧し、接続廊下の脱出扉が開いた。' }, { kind: 'emit-event', event: 'escape-door-opened', locationCode: 'corridor' }], moduleBinding: null },
+        { code: 'solve-incorrect', actionCode: 'solve', condition: { kind: 'group', operator: 'and', children: [{ kind: 'comparison', operator: 'eq', source: 'state', path: 'solved', valueType: 'boolean', value: false }, { kind: 'comparison', operator: 'ne', source: 'arguments', path: 'answer', valueType: 'string', value: '白' }] }, priority: 100, note: '', effects: [{ kind: 'emit-fact', text: '解析装置は入力を拒否した。脱出扉は閉じたままだ。' }], moduleBinding: null },
+      ],
+    },
+  ],
+  objects: [
+    ['conversation-terminal', '案内AI端末', 'conversation-terminal', 'start'],
+    ['start-passage', '接続廊下への扉', 'start-to-corridor', 'start'],
+    ['corridor-start-passage', '覚醒室への扉', 'corridor-to-start', 'corridor'],
+    ['corridor-puzzle-passage', '解析室への扉', 'corridor-to-puzzle', 'corridor'],
+    ['puzzle-passage', '接続廊下への扉', 'puzzle-to-corridor', 'puzzle-room'],
+    ['escape-door', '施設外への脱出扉', 'escape-door', 'corridor'],
+    ['puzzle-device', '三色光学解析装置', 'puzzle-device', 'puzzle-room'],
+  ].map(([code, name, typeCode, locationCode]): ScenarioObjectPayload => ({ code, name, mixinTypeCodes: [typeCode], stateFields: [], actions: [], initialLocationCode: locationCode, global: false, initialStateOverrides: [], actionRules: [] })),
 };
 
 const awakeningLaboratoryScenario: ScenarioDraftDto = {
@@ -506,14 +524,14 @@ const awakeningLaboratoryScenario: ScenarioDraftDto = {
   heroMode: 'free',
   heroFreeGenerationAllowed: false,
   hero: '',
-  opening: 'あなたは閉鎖された地下研究施設で目を覚ます。記憶は失われ、自身の正体も施設の目的も分からない。',
+  opening: 'あなたは非常灯だけが灯る覚醒室で目を覚ます。案内AI端末が、解析室の装置を復旧するよう呼びかけている。',
   illustrationStyle: '',
   illustrationMood: '',
   illustrationNegative: '',
   sampleScene: '',
   ruleData: awakeningLaboratoryRuleData,
   status: 'published',
-  updatedAt: '2026-07-23',
+  updatedAt: '2026-07-26',
 };
 
 const demoScenarios: Record<string, ScenarioDraftDto> = {

@@ -1,8 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Myriale.Api.Contracts;
@@ -36,7 +38,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
     {
         ai.NarrativeFailuresRemaining = 1;
         var client = await SignedInClientAsync();
-        var scenarioId = await CreatePublishedDoorScenarioAsync(client);
+        var scenarioId = await CreatePublishedDoorScenarioAsync(client, "start");
         using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-door" });
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var createdJson = await created.Content.ReadFromJsonAsync<JsonElement>();
@@ -107,10 +109,33 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task ExplicitStartLocationAndObjectStateOverridesInitializeSession()
+    {
+        var client = await SignedInClientAsync();
+        var scenarioId = await CreatePublishedDoorScenarioAsync(client, "cellar", initialOpen: true);
+
+        using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-explicit-start" });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+        var session = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
+            db.Sessions.Include(item => item.CurrentLocation).Include(item => item.ObjectStates),
+            item => item.Id == sessionId);
+        Assert.Equal("cellar", session.CurrentLocation!.Code);
+        var northDoorId = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
+            db.ScenarioObjects.Where(item => item.DefinitionVersionId == session.ScenarioDefinitionVersionId && item.Code == "north-door").Select(item => item.Id));
+        var northDoorState = session.ObjectStates.Single(item => item.ScenarioObjectId == northDoorId);
+        using var state = JsonDocument.Parse(northDoorState.StateJson);
+        Assert.True(state.RootElement.GetProperty("open").GetBoolean());
+    }
+
+    [Fact]
     public async Task LegacyNarrativeOutputCannotBypassScenarioTurn()
     {
         var client = await SignedInClientAsync();
-        var scenarioId = await CreatePublishedDoorScenarioAsync(client);
+        var scenarioId = await CreatePublishedDoorScenarioAsync(client, "start");
         using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-legacy-output-check" });
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
@@ -173,7 +198,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
     {
         ai.ReturnUnknownAction = true;
         var client = await SignedInClientAsync();
-        var scenarioId = await CreatePublishedDoorScenarioAsync(client);
+        var scenarioId = await CreatePublishedDoorScenarioAsync(client, "start");
         using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-invalid" });
         var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
         using var accepted = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", new { requestId = "invalid", text = "開ける" });
@@ -191,7 +216,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
     {
         ai.PauseDecision = true;
         var client = await SignedInClientAsync();
-        var scenarioId = await CreatePublishedDoorScenarioAsync(client);
+        var scenarioId = await CreatePublishedDoorScenarioAsync(client, "start");
         using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-stale" });
         var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
         using var accepted = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", new { requestId = "stale", text = "開ける" });
@@ -219,11 +244,11 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, register.StatusCode); ApplyCookies(client, register); return client;
     }
 
-    private static async Task<string> CreatePublishedDoorScenarioAsync(HttpClient client)
+    private static async Task<string> CreatePublishedDoorScenarioAsync(HttpClient client, string startLocationCode, bool initialOpen = false)
     {
         using var scenario = await client.PostAsJsonAsync("/api/scenarios/", new { title = "Door runtime" });
         var scenarioId = (await scenario.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
-        var payload = JsonSerializer.Deserialize<JsonElement>("""
+        var payload = JsonNode.Parse("""
         {
           "schemaVersion":2,
           "locations":[
@@ -243,7 +268,9 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
             {"code":"world-clock","name":"World clock","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"cellar","initialStateOverride":{},"isGlobal":true,"actionRules":[]}
           ]
         }
-        """);
+        """)!;
+        payload["startLocationCode"] = startLocationCode;
+        if (initialOpen) payload["objects"]![0]!["initialStateOverride"] = JsonNode.Parse("{\"open\":true}");
         using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload); Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
         using var published = await client.PostAsync($"/api/scenarios/{scenarioId}/rule-data/publish", null); Assert.Equal(HttpStatusCode.OK, published.StatusCode);
         return scenarioId;
@@ -256,6 +283,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         var payload = JsonSerializer.Deserialize<JsonElement>("""
         {
           "schemaVersion":2,
+          "startLocationCode":"inside",
           "locations":[
             {"code":"inside","name":"地下研究室","description":"","authoringData":{}},
             {"code":"outside","name":"研究施設の外","description":"","authoringData":{}}
@@ -285,6 +313,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         var payload = new
         {
             schemaVersion = 2,
+            startLocationCode = "start",
             locations = new[] { new { code = "start", name = "Hall", description = "", authoringData = new { } } },
             objectTypes = new[]
             {

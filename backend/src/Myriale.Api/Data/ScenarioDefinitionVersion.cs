@@ -13,6 +13,7 @@ public sealed class ScenarioDefinitionVersion
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public DateTimeOffset? PublishedAt { get; set; }
+    [Required, MaxLength(80)] public string StartLocationCode { get; set; } = string.Empty;
     public ICollection<ScenarioLocation> Locations { get; set; } = [];
     public ICollection<ScenarioObjectType> ObjectTypes { get; set; } = [];
     public ICollection<ScenarioObject> Objects { get; set; } = [];

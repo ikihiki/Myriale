@@ -19,6 +19,14 @@ describe('scenario rule-data authoring model', () => {
     expect(validateScenarioRuleData(completeDoorRuleDataFixture)).toEqual([]);
   });
 
+  it('requires an explicit start location when locations exist', () => {
+    const fixture = structuredClone(completeDoorRuleDataFixture);
+    fixture.startLocationCode = '';
+    expect(validateScenarioRuleData(fixture)).toContainEqual(expect.objectContaining({ path: 'ruleData.startLocationCode', severity: 'error' }));
+    fixture.startLocationCode = 'missing';
+    expect(validateScenarioRuleData(fixture)).toContainEqual(expect.objectContaining({ path: 'ruleData.startLocationCode', severity: 'error' }));
+  });
+
   it('requires stable codes for every Type generic rule', () => {
     const fixture = structuredClone(completeDoorRuleDataFixture);
     fixture.objectTypes[0].actionRules[0].code = '';

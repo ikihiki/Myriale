@@ -304,6 +304,34 @@ export const US22GenerateIllustrationPrompt: Story = {
 
 const renderRuleDataFixture = () => <MyrialeApp initialUrl="/scenarios/new" initialDb={createDemoDb('registrationDraft')} scenarioRegistrationContainer={MockScenarioRegistrationWithRuleDataContainer} />;
 
+export const ConfigureInitialSceneFromWorldData: Story = {
+  name: '第一場面: 世界データから開始場所と初期ステートを決める',
+  render: renderRuleDataFixture,
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
+    await step('世界データの次に第一場面が並ぶ', async () => {
+      const navigation = canvas.getByRole('list', { name: '登録ウィザードのステップ' });
+      const labels = within(navigation).getAllByRole('button').map((button) => button.textContent);
+      expect(labels.findIndex((label) => label?.includes('世界データ'))).toBeLessThan(labels.findIndex((label) => label?.includes('第一場面')));
+      await goToStep(canvas, '第一場面');
+      await expect(canvas.getByLabelText('ウィザード進捗')).toHaveTextContent('06第一場面');
+    });
+    await step('開始場所を選び、Objectごとの初期ステートをテーブルで上書きする', async () => {
+      const initialStateTable = canvas.getByRole('table', { name: '全オブジェクトの初期ステート一覧' });
+      await expect(within(initialStateTable).getByRole('columnheader', { name: 'オブジェクト' })).toBeVisible();
+      await expect(within(initialStateTable).getByRole('columnheader', { name: '基準値' })).toBeVisible();
+      await expect(within(initialStateTable).getByRole('columnheader', { name: '初期値' })).toBeVisible();
+      await userEvent.click(canvas.getByRole('combobox', { name: 'セッション開始場所' }));
+      await userEvent.click(await screen.findByRole('option', { name: '星見の階段 / astral-stair' }));
+      await expect(canvas.getByRole('combobox', { name: 'セッション開始場所' })).toHaveTextContent('星見の階段');
+      await userEvent.click(canvas.getByRole('combobox', { name: '北書庫の扉の開いている初期値' }));
+      await userEvent.click(await screen.findByRole('option', { name: 'true' }));
+      await expect(within(initialStateTable).getByText('上書き中')).toBeVisible();
+    });
+  },
+};
+
 export const US23DefineObjectTypeStatesAndActions: Story = {
   name: 'US-23: Object Typeの状態とアクションを定義したい',
   play: async ({ canvasElement, step }) => {
@@ -408,7 +436,7 @@ export const US26KeepDependenciesSafe: Story = {
     await step('同じページでObjectが配置中のLocationも削除を拒否する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '水没した閲覧室を編集' }));
       await userEvent.click(screen.getByRole('button', { name: 'この場所を削除' }));
-      await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('先に配置先を変更するかオブジェクトを削除');
+      await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('開始場所に選ばれています');
     });
   },
 };

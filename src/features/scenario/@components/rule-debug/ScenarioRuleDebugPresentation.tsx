@@ -27,7 +27,7 @@ export function ScenarioRuleDebugPresentation({ scenarioId, values, execute }: P
       initialState: Object.fromEntries(resolved.stateFields.map((field) => [field.code, typedValue(field.effectiveInitialValue, field.valueType)])) as ScenarioJsonObject,
     };
   }), [values.ruleData]);
-  const [currentLocationCode, setCurrentLocationCode] = useState(locations[0]?.code ?? '');
+  const [currentLocationCode, setCurrentLocationCode] = useState(values.ruleData.startLocationCode);
   const [objectLocations, setObjectLocations] = useState<Record<string, string>>(() => Object.fromEntries(objects.map(({ object }) => [object.code, object.initialLocationCode])));
   const [objectStates, setObjectStates] = useState<Record<string, string>>(() => Object.fromEntries(objects.map(({ object, initialState }) => [object.code, JSON.stringify(initialState, null, 2)])));
   const [flagsText, setFlagsText] = useState('{}');

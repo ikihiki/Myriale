@@ -26,7 +26,7 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
 
         using var response = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", new
         {
-            schemaVersion = 2, locations = Array.Empty<object>(), objectTypes = Array.Empty<object>(), objects = Array.Empty<object>()
+            schemaVersion = 2, startLocationCode = "", locations = Array.Empty<object>(), objectTypes = Array.Empty<object>(), objects = Array.Empty<object>()
         });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -501,9 +501,89 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
         Assert.Equal(["door", "exit"], clone.GetProperty("objects")[0].GetProperty("mixinTypeCodes").EnumerateArray().Select(value => value.GetString()));
     }
 
+    [Fact]
+    public async Task DraftSave_RoundTripsExplicitStartLocationAndRejectsUnknownReference()
+    {
+        var client = await CreateSignedInClientAsync();
+        var scenarioId = await CreateScenarioAsync(client);
+        var payload = ValidRuleData();
+        payload["locations"]!.AsArray().Add(JsonNode.Parse("{\"code\":\"vault\",\"name\":\"地下庫\",\"description\":\"\",\"authoringData\":{}}"));
+        payload["startLocationCode"] = "vault";
+
+        using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        var savedJson = await saved.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("vault", savedJson.GetProperty("startLocationCode").GetString());
+
+        payload["startLocationCode"] = "";
+        using var missing = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+        Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
+        var missingJson = await missing.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains("required", missingJson.GetProperty("errors").GetProperty("startLocationCode")[0].GetString());
+
+        payload["startLocationCode"] = "missing";
+        using var invalid = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        var invalidJson = await invalid.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains("does not exist", invalidJson.GetProperty("errors").GetProperty("startLocationCode")[0].GetString());
+    }
+
+    [Fact]
+    public async Task DraftSave_ValidatesCrossObjectSetStateAgainstTargetSchema()
+    {
+        var client = await CreateSignedInClientAsync();
+        var scenarioId = await CreateScenarioAsync(client);
+        var payload = CrossObjectRuleData("north-door", "state.open", JsonValue.Create(true)!);
+
+        using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+
+        var invalidPath = CrossObjectRuleData("north-door", "state.solved", JsonValue.Create(true)!);
+        using var pathResponse = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", invalidPath);
+        Assert.Equal(HttpStatusCode.BadRequest, pathResponse.StatusCode);
+        var pathError = await pathResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains("target schema", pathError.GetProperty("errors").EnumerateObject().Single(error => error.Name.EndsWith("effects[0].path", StringComparison.Ordinal)).Value[0].GetString());
+
+        var invalidValue = CrossObjectRuleData("north-door", "state.open", JsonValue.Create("yes")!);
+        using var valueResponse = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", invalidValue);
+        Assert.Equal(HttpStatusCode.BadRequest, valueResponse.StatusCode);
+        var valueError = await valueResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains("target schema type", valueError.GetProperty("errors").EnumerateObject().Single(error => error.Name.EndsWith("effects[0].value", StringComparison.Ordinal)).Value[0].GetString());
+
+        var invalidObject = CrossObjectRuleData("missing-door", "state.open", JsonValue.Create(true)!);
+        using var objectResponse = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", invalidObject);
+        Assert.Equal(HttpStatusCode.BadRequest, objectResponse.StatusCode);
+        var objectError = await objectResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains("does not exist", objectError.GetProperty("errors").EnumerateObject().Single(error => error.Name.EndsWith("effects[0].objectCode", StringComparison.Ordinal)).Value[0].GetString());
+    }
+
+    private static JsonNode CrossObjectRuleData(string targetObjectCode, string statePath, JsonNode value)
+    {
+        var payload = ValidRuleData();
+        payload["objectTypes"]!.AsArray().Add(JsonNode.Parse("""
+          { "code":"puzzle", "name":"謎解き", "description":"", "schemaVersion":1,
+            "stateSchema":{"type":"object","additionalProperties":false,"properties":{"solved":{"type":"boolean"}}},
+            "defaultState":{"solved":false}, "publicProjection":{"include":["solved"]},
+            "actions":[{"code":"solve","label":"解く","description":"","argumentSchema":{},"availabilityCondition":{},"visibility":"ai-choice","executionMode":"rule"}],
+            "actionRules":[{"code":"solve-default","actionCode":"solve","condition":{},"priority":100,"authoringNote":"",
+              "effects":[{"type":"set-state","objectCode":"north-door","path":"state.open","value":true}],"moduleBinding":null}] }
+          """));
+        payload["objects"]!.AsArray().Add(JsonNode.Parse("""
+          { "code":"puzzle-device", "name":"謎解き装置", "mixinTypeCodes":["puzzle"], "locationCode":"hall",
+            "stateSchema":{}, "defaultState":{}, "publicProjection":{}, "actions":[],
+            "initialStateOverride":{}, "isGlobal":false, "actionRules":[] }
+          """));
+        var effect = payload["objectTypes"]![1]!["actionRules"]![0]!["effects"]![0]!;
+        effect["objectCode"] = targetObjectCode;
+        effect["path"] = statePath;
+        effect["value"] = value;
+        return payload;
+    }
+
     private static JsonNode ValidRuleData() => JsonNode.Parse("""
         {
           "schemaVersion": 2,
+          "startLocationCode": "hall",
           "locations": [{ "code": "hall", "name": "広間", "description": "", "authoringData": {} }],
           "objectTypes": [{
             "code": "door", "name": "扉", "description": "", "schemaVersion": 1,

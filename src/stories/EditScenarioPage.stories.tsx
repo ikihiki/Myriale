@@ -72,6 +72,10 @@ export const USE03EditHeroAndOpening: Story = {
       await userEvent.type(hero, '研究員または被験者として自由に作成する。');
     });
     await goToStep(canvas, '第一場面');
+    await step('保存済みの開始場所と初期ステートを確認する', async () => {
+      await expect(canvas.getByRole('combobox', { name: 'セッション開始場所' })).toHaveTextContent('水没した閲覧室');
+      await expect(canvas.getByRole('combobox', { name: '北書庫の扉の開いている初期値' })).toHaveTextContent('false');
+    });
     await step('開始シーンを編集する', async () => {
       const opening = canvas.getByLabelText('開始シーン');
       await userEvent.clear(opening);
