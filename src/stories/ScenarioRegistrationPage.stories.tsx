@@ -318,7 +318,8 @@ export const ConfigureInitialSceneFromWorldData: Story = {
       await expect(canvas.getByLabelText('ウィザード進捗')).toHaveTextContent('06第一場面');
     });
     await step('開始場所を選び、Objectごとの初期ステートをテーブルで上書きする', async () => {
-      const initialStateTable = canvas.getByRole('table', { name: '北書庫の扉の初期ステート一覧' });
+      const initialStateTable = canvas.getByRole('table', { name: '全オブジェクトの初期ステート一覧' });
+      await expect(within(initialStateTable).getByRole('columnheader', { name: 'オブジェクト' })).toBeVisible();
       await expect(within(initialStateTable).getByRole('columnheader', { name: '基準値' })).toBeVisible();
       await expect(within(initialStateTable).getByRole('columnheader', { name: '初期値' })).toBeVisible();
       await userEvent.click(canvas.getByRole('combobox', { name: 'セッション開始場所' }));
