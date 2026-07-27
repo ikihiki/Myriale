@@ -7,7 +7,8 @@ public sealed record ScenarioRuleDataRequest(
     int SchemaVersion,
     IReadOnlyList<ScenarioLocationInput> Locations,
     IReadOnlyList<ScenarioObjectTypeInput> ObjectTypes,
-    IReadOnlyList<ScenarioObjectInput> Objects);
+    IReadOnlyList<ScenarioObjectInput> Objects,
+    string? StartLocationCode = null);
 
 public sealed record ScenarioLocationInput(string Code, string Name, string? Description, JsonElement AuthoringData);
 
@@ -143,7 +144,8 @@ public sealed record ScenarioRuleDataResponse(
     DateTimeOffset? PublishedAt,
     IReadOnlyList<ScenarioLocationInput> Locations,
     IReadOnlyList<ScenarioObjectTypeInput> ObjectTypes,
-    IReadOnlyList<ScenarioObjectInput> Objects);
+    IReadOnlyList<ScenarioObjectInput> Objects,
+    string? StartLocationCode);
 
 public sealed record ScenarioDefinitionReadinessResponse(
     string DefinitionVersionId,

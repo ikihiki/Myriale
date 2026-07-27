@@ -304,6 +304,30 @@ export const US22GenerateIllustrationPrompt: Story = {
 
 const renderRuleDataFixture = () => <MyrialeApp initialUrl="/scenarios/new" initialDb={createDemoDb('registrationDraft')} scenarioRegistrationContainer={MockScenarioRegistrationWithRuleDataContainer} />;
 
+export const ConfigureInitialSceneFromWorldData: Story = {
+  name: '第一場面: 世界データから開始場所と初期ステートを決める',
+  render: renderRuleDataFixture,
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    const screen = within(canvasElement.ownerDocument.body);
+    await step('世界データの次に第一場面が並ぶ', async () => {
+      const navigation = canvas.getByRole('list', { name: '登録ウィザードのステップ' });
+      const labels = within(navigation).getAllByRole('button').map((button) => button.textContent);
+      expect(labels.findIndex((label) => label?.includes('世界データ'))).toBeLessThan(labels.findIndex((label) => label?.includes('第一場面')));
+      await goToStep(canvas, '第一場面');
+      await expect(canvas.getByText('06 / 第一場面')).toBeVisible();
+    });
+    await step('開始場所を選び、Objectごとの初期ステートを上書きする', async () => {
+      await userEvent.click(canvas.getByRole('combobox', { name: 'セッション開始場所' }));
+      await userEvent.click(await screen.findByRole('option', { name: '星見の階段 / astral-stair' }));
+      await expect(canvas.getByRole('combobox', { name: 'セッション開始場所' })).toHaveTextContent('星見の階段');
+      await userEvent.click(canvas.getByRole('combobox', { name: '北書庫の扉の開いている初期値' }));
+      await userEvent.click(await screen.findByRole('option', { name: 'true' }));
+      await expect(canvas.getByText('基準値: false / boolean / 上書き中')).toBeVisible();
+    });
+  },
+};
+
 export const US23DefineObjectTypeStatesAndActions: Story = {
   name: 'US-23: Object Typeの状態とアクションを定義したい',
   play: async ({ canvasElement, step }) => {

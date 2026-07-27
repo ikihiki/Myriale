@@ -5,6 +5,7 @@ import { canonicalRuleDataToForm, formRuleDataToCanonical } from './scenarioRule
 const canonicalFixture: CanonicalScenarioRuleDataResponse = {
   scenarioId: 'SCN-1', definitionVersionId: 'SDV-1', version: 2, status: 'draft', schemaVersion: 2,
   updatedAt: '2026-07-24T00:00:00Z', publishedAt: null,
+  startLocationCode: 'hall',
   locations: [{ code: 'hall', name: '広間', description: '', authoringData: { atmosphere: '静寂', danger: '崩落' } }, { code: 'outside', name: '屋外', description: '', authoringData: {} }],
   objectTypes: [{
     code: 'door', name: '扉', description: '重い扉', schemaVersion: 1,
@@ -44,6 +45,7 @@ describe('scenario rule-data adapters', () => {
 
   it('round-trips strict known operation shapes and preserves unknown effects losslessly', () => {
     const request = formRuleDataToCanonical(canonicalRuleDataToForm(structuredClone(canonicalFixture)));
+    expect(request.startLocationCode).toBe('hall');
     expect(request.objectTypes[0].actionRules[0]).toEqual(canonicalFixture.objectTypes[0].actionRules[0]);
     expect(request.objects[0].actionRules[0]).toEqual(canonicalFixture.objects[0].actionRules[0]);
     expect(request.objects[0].actionRules[0]).not.toHaveProperty('code');

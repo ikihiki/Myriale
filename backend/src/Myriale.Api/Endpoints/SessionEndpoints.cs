@@ -111,7 +111,10 @@ public static class SessionEndpoints
             .FirstOrDefaultAsync(cancellationToken);
         if (definition is null)
             return Results.Conflict(new SessionErrorResponse("published_scenario_definition_required", "公開済みのScenario rule definitionが必要です。"));
-        var initialLocation = definition.Locations.SingleOrDefault(location => location.Code == "start")
+        var initialLocation = !string.IsNullOrWhiteSpace(definition.StartLocationCode)
+            ? definition.Locations.SingleOrDefault(location => location.Code == definition.StartLocationCode)
+            : null;
+        initialLocation ??= definition.Locations.SingleOrDefault(location => location.Code == "start")
             ?? definition.Locations.SingleOrDefault(location => location.Code == "inside")
             ?? (definition.Locations.Count == 1 ? definition.Locations.Single() : null);
         if (initialLocation is null)

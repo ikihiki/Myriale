@@ -83,6 +83,7 @@ export type CanonicalScenarioObjectDto = {
 
 export type CanonicalScenarioRuleDataRequest = {
   schemaVersion: number;
+  startLocationCode?: string | null;
   locations: CanonicalScenarioLocationDto[];
   objectTypes: CanonicalScenarioObjectTypeDto[];
   objects: CanonicalScenarioObjectDto[];
@@ -204,6 +205,7 @@ export type ScenarioObjectPayload = {
 
 export type ScenarioRuleDataPayload = {
   schemaVersion: 2;
+  startLocationCode?: string;
   locations: ScenarioLocationPayload[];
   objectTypes: ScenarioObjectTypePayload[];
   objects: ScenarioObjectPayload[];
@@ -450,10 +452,11 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
   };
 }
 
-const emptyScenarioRuleData = (): ScenarioRuleDataPayload => ({ schemaVersion: 2, locations: [], objectTypes: [], objects: [] });
+const emptyScenarioRuleData = (): ScenarioRuleDataPayload => ({ schemaVersion: 2, startLocationCode: '', locations: [], objectTypes: [], objects: [] });
 
 const awakeningLaboratoryRuleData: ScenarioRuleDataPayload = {
   schemaVersion: 2,
+  startLocationCode: 'start',
   locations: [
     { code: 'start', name: '覚醒室', description: '非常灯に照らされ、案内AI端末だけが起動している開始地点。', atmosphere: '静かな緊張感', danger: '脱出経路がロックされている' },
     { code: 'corridor', name: '接続廊下', description: '覚醒室と解析室をつなぎ、中央に脱出扉がある廊下。', atmosphere: '冷気と低い機械音', danger: '脱出扉は解析装置と連動している' },

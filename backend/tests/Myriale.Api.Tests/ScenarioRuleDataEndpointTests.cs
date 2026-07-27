@@ -502,6 +502,27 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task DraftSave_RoundTripsExplicitStartLocationAndRejectsUnknownReference()
+    {
+        var client = await CreateSignedInClientAsync();
+        var scenarioId = await CreateScenarioAsync(client);
+        var payload = ValidRuleData();
+        payload["locations"]!.AsArray().Add(JsonNode.Parse("{\"code\":\"vault\",\"name\":\"地下庫\",\"description\":\"\",\"authoringData\":{}}"));
+        payload["startLocationCode"] = "vault";
+
+        using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        var savedJson = await saved.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("vault", savedJson.GetProperty("startLocationCode").GetString());
+
+        payload["startLocationCode"] = "missing";
+        using var invalid = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        var invalidJson = await invalid.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains("does not exist", invalidJson.GetProperty("errors").GetProperty("startLocationCode")[0].GetString());
+    }
+
+    [Fact]
     public async Task DraftSave_ValidatesCrossObjectSetStateAgainstTargetSchema()
     {
         var client = await CreateSignedInClientAsync();

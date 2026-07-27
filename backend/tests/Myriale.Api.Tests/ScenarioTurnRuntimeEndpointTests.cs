@@ -1,8 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Myriale.Api.Contracts;
@@ -104,6 +106,29 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
             Assert.Equal("west-door", request.SelectedObject.Code);
             Assert.Equal("outside", request.PostState.CurrentLocation.Code);
         });
+    }
+
+    [Fact]
+    public async Task ExplicitStartLocationAndObjectStateOverridesInitializeSession()
+    {
+        var client = await SignedInClientAsync();
+        var scenarioId = await CreatePublishedDoorScenarioAsync(client, "cellar", initialOpen: true);
+
+        using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-explicit-start" });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+        var session = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
+            db.Sessions.Include(item => item.CurrentLocation).Include(item => item.ObjectStates),
+            item => item.Id == sessionId);
+        Assert.Equal("cellar", session.CurrentLocation!.Code);
+        var northDoorId = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
+            db.ScenarioObjects.Where(item => item.DefinitionVersionId == session.ScenarioDefinitionVersionId && item.Code == "north-door").Select(item => item.Id));
+        var northDoorState = session.ObjectStates.Single(item => item.ScenarioObjectId == northDoorId);
+        using var state = JsonDocument.Parse(northDoorState.StateJson);
+        Assert.True(state.RootElement.GetProperty("open").GetBoolean());
     }
 
     [Fact]
@@ -219,11 +244,11 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, register.StatusCode); ApplyCookies(client, register); return client;
     }
 
-    private static async Task<string> CreatePublishedDoorScenarioAsync(HttpClient client)
+    private static async Task<string> CreatePublishedDoorScenarioAsync(HttpClient client, string? startLocationCode = null, bool initialOpen = false)
     {
         using var scenario = await client.PostAsJsonAsync("/api/scenarios/", new { title = "Door runtime" });
         var scenarioId = (await scenario.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
-        var payload = JsonSerializer.Deserialize<JsonElement>("""
+        var payload = JsonNode.Parse("""
         {
           "schemaVersion":2,
           "locations":[
@@ -243,7 +268,9 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
             {"code":"world-clock","name":"World clock","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"cellar","initialStateOverride":{},"isGlobal":true,"actionRules":[]}
           ]
         }
-        """);
+        """)!;
+        if (startLocationCode is not null) payload["startLocationCode"] = startLocationCode;
+        if (initialOpen) payload["objects"]![0]!["initialStateOverride"] = JsonNode.Parse("{\"open\":true}");
         using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload); Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
         using var published = await client.PostAsync($"/api/scenarios/{scenarioId}/rule-data/publish", null); Assert.Equal(HttpStatusCode.OK, published.StatusCode);
         return scenarioId;

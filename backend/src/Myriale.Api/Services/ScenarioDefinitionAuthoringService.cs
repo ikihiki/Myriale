@@ -77,6 +77,9 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                 return (IReadOnlyDictionary<string, JsonElement>)properties;
             }, StringComparer.Ordinal);
 
+        if (!string.IsNullOrWhiteSpace(request.StartLocationCode) && !locationCodes.Contains(request.StartLocationCode.Trim()))
+            Add("startLocationCode", "Referenced start location does not exist.");
+
         for (var i = 0; i < locations.Count; i++)
         {
             if (string.IsNullOrWhiteSpace(locations[i].Name)) Add($"locations[{i}].name", "Name is required.");
@@ -295,6 +298,7 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
         version.Locations.Clear(); version.ObjectTypes.Clear(); version.Objects.Clear();
 
         version.SchemaVersion = request.SchemaVersion;
+        version.StartLocationCode = ResolveStartLocationCode(request.StartLocationCode, request.Locations ?? []);
         version.UpdatedAt = DateTimeOffset.UtcNow;
         var locations = (request.Locations ?? []).Select(item => new ScenarioLocation
         {
@@ -359,13 +363,14 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                 return new ScenarioObjectInput(item.Code, item.Name, locationCodes[item.LocationId],
                     Parse(item.InitialStateOverrideJson), item.IsGlobal, rules, mixins, Parse(item.LocalStateSchemaJson), Parse(item.LocalDefaultStateJson),
                     Parse(item.LocalPublicProjectionJson), JsonSerializer.Deserialize<List<ScenarioObjectTypeActionInput>>(item.LocalActionsJson, SerializerOptions) ?? []);
-            }).ToList());
+            }).ToList(),
+            version.StartLocationCode);
     }
 
     public ScenarioRuleDataRequest ToRequest(ScenarioDefinitionVersion version)
     {
         var response = ToResponse(version);
-        return new(response.SchemaVersion, response.Locations, response.ObjectTypes, response.Objects);
+        return new(response.SchemaVersion, response.Locations, response.ObjectTypes, response.Objects, response.StartLocationCode);
     }
 
     private IQueryable<ScenarioDefinitionVersion> Query() => db.ScenarioDefinitionVersions
@@ -796,6 +801,15 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
             _ => false,
         };
         if (!valid) add(path, "State effect value does not match the target schema type.");
+    }
+
+    private static string? ResolveStartLocationCode(string? requestedCode, IReadOnlyList<ScenarioLocationInput> locations)
+    {
+        var requested = requestedCode?.Trim();
+        if (!string.IsNullOrWhiteSpace(requested) && locations.Any(location => location.Code == requested)) return requested;
+        if (locations.Any(location => location.Code == "start")) return "start";
+        if (locations.Any(location => location.Code == "inside")) return "inside";
+        return locations.Count == 1 ? locations[0].Code : null;
     }
 
     private static string Json(JsonElement value, string fallback) => value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null ? fallback : value.GetRawText();

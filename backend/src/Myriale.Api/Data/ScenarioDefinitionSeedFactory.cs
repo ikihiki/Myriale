@@ -70,7 +70,8 @@ internal static class ScenarioDefinitionSeedFactory
     private static ScenarioDefinitionVersion NewVersion(string scenarioId, string slug, DateTimeOffset timestamp, int versionNumber) => new()
     {
         Id = $"SDV-{slug}-{versionNumber}", ScenarioId = scenarioId, Version = versionNumber, Status = "published",
-        SchemaVersion = 2, CreatedAt = timestamp, UpdatedAt = timestamp, PublishedAt = timestamp,
+        SchemaVersion = 2, StartLocationCode = versionNumber == 2 && scenarioId == "SCN-AWAKENING-LAB" ? "start" : null,
+        CreatedAt = timestamp, UpdatedAt = timestamp, PublishedAt = timestamp,
     };
 
     private static ScenarioLocation NewLocation(ScenarioDefinitionVersion version, string slug, string idSuffix, string code, string name, string description)

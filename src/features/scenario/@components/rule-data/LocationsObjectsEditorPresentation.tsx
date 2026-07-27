@@ -36,15 +36,15 @@ export function LocationsObjectsEditorPresentation({ value, onChange, onNotice }
     const locations = [...value.locations]; locations[locationIndex] = next;
     const codeChanged = next.code !== location.code;
     const rewriteEffects = (effects: ScenarioActionRule['effects']) => effects.map((effect) => (effect.kind === 'move-object' || effect.kind === 'move-session' || effect.kind === 'emit-event') && effect.locationCode === location.code ? { ...effect, locationCode: next.code } : effect);
-    onChange({ ...value, locations, objects: codeChanged ? value.objects.map((item) => ({ ...item, initialLocationCode: item.initialLocationCode === location.code ? next.code : item.initialLocationCode, actionRules: item.actionRules.map((operation) => operation.operation === 'add' || operation.operation === 'override' ? { ...operation, rule: { ...operation.rule, effects: rewriteEffects(operation.rule.effects) } } : operation.operation === 'adjust' && operation.adjustments.effects ? { ...operation, adjustments: { ...operation.adjustments, effects: rewriteEffects(operation.adjustments.effects) } } : operation) })) : value.objects });
+    onChange({ ...value, startLocationCode: codeChanged && value.startLocationCode === location.code ? next.code : value.startLocationCode, locations, objects: codeChanged ? value.objects.map((item) => ({ ...item, initialLocationCode: item.initialLocationCode === location.code ? next.code : item.initialLocationCode, actionRules: item.actionRules.map((operation) => operation.operation === 'add' || operation.operation === 'override' ? { ...operation, rule: { ...operation.rule, effects: rewriteEffects(operation.rule.effects) } } : operation.operation === 'adjust' && operation.adjustments.effects ? { ...operation, adjustments: { ...operation.adjustments, effects: rewriteEffects(operation.adjustments.effects) } } : operation) })) : value.objects });
   };
   const replaceObject = (next: typeof object) => {
     if (!next || !object || objectIndex < 0) return;
     const objects = [...value.objects]; objects[objectIndex] = next; onChange({ ...value, objects });
   };
-  const addLocation = () => { const next = createLocation(); onChange({ ...value, locations: [...value.locations, next] }); setEditing({ kind: 'location', code: next.code }); };
+  const addLocation = () => { const next = createLocation(); onChange({ ...value, startLocationCode: value.startLocationCode || next.code, locations: [...value.locations, next] }); setEditing({ kind: 'location', code: next.code }); };
   const addObject = () => { const next = createObject(value); onChange({ ...value, objects: [...value.objects, next] }); setEditing({ kind: 'object', code: next.code }); };
-  const removeLocation = () => { if (!location) return; const blocked = dependencyMessageForLocation(value, location.code); if (blocked) return onNotice(blocked, true); onChange({ ...value, locations: value.locations.filter((item) => item !== location) }); setEditing(null); };
+  const removeLocation = () => { if (!location) return; if (value.startLocationCode === location.code) return onNotice('開始場所に選ばれています。第一場面で別の開始場所を選択してから削除してください。', true); const blocked = dependencyMessageForLocation(value, location.code); if (blocked) return onNotice(blocked, true); onChange({ ...value, locations: value.locations.filter((item) => item !== location) }); setEditing(null); };
   const removeObject = () => { if (object) { onChange({ ...value, objects: value.objects.filter((item) => item !== object) }); setEditing(null); } };
 
   return <section aria-label="場所とオブジェクト" className="grid gap-7">
