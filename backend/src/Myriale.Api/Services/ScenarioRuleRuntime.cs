@@ -320,7 +320,13 @@ public sealed class ScenarioEffectApplier(ScenarioRuleEvaluator evaluator, Scena
             {
                 if (!effect.TryGetProperty("path", out var pathElement) || pathElement.ValueKind != JsonValueKind.String || !(pathElement.GetString() ?? string.Empty).StartsWith("state.", StringComparison.Ordinal))
                     throw new ScenarioTurnValidationException("invalid_effect_path");
-                if (!effect.TryGetProperty("value", out _)) throw new ScenarioTurnValidationException("invalid_effect_value");
+                if (!effect.TryGetProperty("value", out var stateValue)) throw new ScenarioTurnValidationException("invalid_effect_value");
+                var targetId = ResolveObjectId(world, source, effect);
+                var targetState = world.States.Single(item => item.ScenarioObjectId == targetId);
+                using var targetStateDocument = JsonDocument.Parse(targetState.StateJson);
+                var property = pathElement.GetString()!["state.".Length..].Split('.', 2)[0];
+                if (!targetStateDocument.RootElement.TryGetProperty(property, out var currentValue)) throw new ScenarioTurnValidationException("invalid_effect_path");
+                if (type == "set-state" && !CompatibleStateValue(currentValue, stateValue)) throw new ScenarioTurnValidationException("invalid_effect_value");
             }
             if (type is "move-object" or "move-session" || (type == "emit-event" && effect.TryGetProperty("locationCode", out _)))
                 _ = ResolveLocation(world, effect);
@@ -338,6 +344,11 @@ public sealed class ScenarioEffectApplier(ScenarioRuleEvaluator evaluator, Scena
             }
         }
     }
+
+    private static bool CompatibleStateValue(JsonElement current, JsonElement next) =>
+        current.ValueKind == next.ValueKind
+        || current.ValueKind is JsonValueKind.True or JsonValueKind.False && next.ValueKind is JsonValueKind.True or JsonValueKind.False
+        || current.ValueKind == JsonValueKind.Number && next.ValueKind == JsonValueKind.Number;
 
     private static string ResolveObjectId(ScenarioRuleWorld world, ScenarioObject source, JsonElement effect)
     {

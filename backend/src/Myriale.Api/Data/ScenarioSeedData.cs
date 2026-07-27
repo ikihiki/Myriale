@@ -11,9 +11,9 @@ public static class ScenarioSeedData
         あなたはTRPGのゲームマスターです。
         プレイヤーの行動に応じて世界を描写し、NPCを演じ、物語を進行してください。
         # シナリオ
-        プレイヤーは閉鎖された地下研究施設で目を覚まします。
-        記憶を失っており、自身の正体も施設の目的も知りません。
-        探索や会話を通して真実を知り、最終的に施設から脱出することが目的です。
+        プレイヤーは閉鎖された地下研究施設の覚醒室で目を覚まします。
+        会話可能な案内AI端末から手掛かりを得て、廊下の先にある解析室の謎を解きます。
+        解析装置を復旧すると廊下の脱出扉が開き、施設から脱出できるようになります。
         # 振る舞い
         - プレイヤーの発言を尊重する
         - 周囲の状況を具体的に描写する
@@ -40,18 +40,26 @@ public static class ScenarioSeedData
         var existing = await db.Scenarios.SingleOrDefaultAsync(
             scenario => scenario.Id == AwakeningLaboratoryId,
             cancellationToken);
+        var timestamp = new DateTimeOffset(2026, 7, 26, 0, 0, 0, TimeSpan.Zero);
         if (existing is not null)
         {
             if (!string.IsNullOrWhiteSpace(developmentAuthorId)
                 && string.Equals(existing.AuthorId, "SYSTEM-SEED", StringComparison.Ordinal))
-            {
                 existing.AuthorId = developmentAuthorId;
-                await db.SaveChangesAsync(cancellationToken);
-            }
+
+            var hasCurrentSeed = await db.ScenarioDefinitionVersions.AnyAsync(
+                version => version.Id == ScenarioDefinitionSeedFactory.AwakeningLaboratoryDefinitionId,
+                cancellationToken);
+            var hasLegacySeed = await db.ScenarioDefinitionVersions.AnyAsync(
+                version => version.ScenarioId == AwakeningLaboratoryId && version.Id == "SDV-AWAKENING-LAB-1",
+                cancellationToken);
+            if (!hasCurrentSeed && hasLegacySeed)
+                db.ScenarioDefinitionVersions.Add(ScenarioDefinitionSeedFactory.CreatePublished(AwakeningLaboratoryId, timestamp));
+
+            await db.SaveChangesAsync(cancellationToken);
             return;
         }
 
-        var timestamp = new DateTimeOffset(2026, 7, 23, 0, 0, 0, TimeSpan.Zero);
         db.Scenarios.Add(new Scenario
         {
             Id = AwakeningLaboratoryId,
@@ -61,7 +69,7 @@ public static class ScenarioSeedData
             AiFreedom = "低: 厳密に守る",
             HeroMode = "free",
             HeroFreeGenerationAllowed = false,
-            Opening = "あなたは閉鎖された地下研究施設で目を覚ます。記憶は失われ、自身の正体も施設の目的も分からない。",
+            Opening = "あなたは非常灯だけが灯る覚醒室で目を覚ます。壁際では案内AI端末が呼びかけ、廊下の先にある解析装置の復旧を求めている。",
             Status = "published",
             AuthorId = string.IsNullOrWhiteSpace(developmentAuthorId) ? "SYSTEM-SEED" : developmentAuthorId,
             CreatedAt = timestamp,

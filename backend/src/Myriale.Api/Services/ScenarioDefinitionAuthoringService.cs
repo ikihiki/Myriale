@@ -63,6 +63,19 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
             .GroupBy(pair => pair.item.Code, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
         var objectCodes = objects.Select(item => item.Code).ToHashSet(StringComparer.Ordinal);
+        var objectStatePropertiesByCode = objects
+            .Where(item => !string.IsNullOrWhiteSpace(item.Code))
+            .GroupBy(item => item.Code, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group =>
+            {
+                var properties = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+                var item = group.First();
+                foreach (var typeCode in item.MixinTypeCodes ?? [])
+                    if (typesByCode.TryGetValue(typeCode, out var pair))
+                        foreach (var property in GetSchemaProperties(pair.item.StateSchema)) properties[property.Key] = property.Value;
+                foreach (var property in GetSchemaProperties(item.StateSchema)) properties[property.Key] = property.Value;
+                return (IReadOnlyDictionary<string, JsonElement>)properties;
+            }, StringComparer.Ordinal);
 
         for (var i = 0; i < locations.Count; i++)
         {
@@ -103,7 +116,7 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                 var argumentSchema = typeActions.FirstOrDefault(action => action.Code == rule.ActionCode)?.ArgumentSchema;
                 ValidateCondition(rule.Condition, $"{path}.condition", GetSchemaProperties(type.StateSchema),
                     argumentSchema is { } schema ? GetSchemaProperties(schema) : null, allowArguments: true, Add);
-                ValidateEffects(rule.Effects, $"{path}.effects", locationCodes, objectCodes, GetSchemaProperties(type.StateSchema).Keys, Add);
+                ValidateEffects(rule.Effects, $"{path}.effects", locationCodes, objectCodes, GetSchemaProperties(type.StateSchema), objectStatePropertiesByCode, Add);
                 ValidateModuleBinding(rule.ModuleBinding, $"{path}.moduleBinding", Add);
             }
         }
@@ -162,7 +175,7 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                     if (string.IsNullOrWhiteSpace(rule.Code) || !StableCodeRegex().IsMatch(rule.Code)) Add($"{path}.code", "Code must use lowercase letters, numbers, and hyphens.");
                     else if (!addCodes.Add(rule.Code)) Add($"{path}.code", "Add rule code must be unique within the object.");
                     if (rule.TargetTypeCode is not null || rule.TargetRuleCode is not null) Add(path, "Add rules cannot specify an inherited target.");
-                    ValidateFullMutationRule(rule, path, actions, actionArgumentSchemas, locationCodes, objectCodes, stateProperties, Add);
+                    ValidateFullMutationRule(rule, path, actions, actionArgumentSchemas, locationCodes, objectCodes, stateProperties, objectStatePropertiesByCode, Add);
                     continue;
                 }
 
@@ -183,7 +196,7 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                 }
                 else if (rule.Operation == "override")
                 {
-                    ValidateFullMutationRule(rule, path, actions, actionArgumentSchemas, locationCodes, objectCodes, stateProperties, Add);
+                    ValidateFullMutationRule(rule, path, actions, actionArgumentSchemas, locationCodes, objectCodes, stateProperties, objectStatePropertiesByCode, Add);
                     if (target is not null && rule.ActionCode != target.ActionCode) Add($"{path}.actionCode", "Override action must match the inherited target action.");
                 }
                 else
@@ -195,7 +208,7 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                             ? GetSchemaProperties(schema) : null;
                         ValidateCondition(condition, $"{path}.condition", stateProperties, targetArgumentSchema, allowArguments: true, Add);
                     }
-                    if (rule.Effects is { } effects) ValidateEffects(effects, $"{path}.effects", locationCodes, objectCodes, stateProperties.Keys, Add);
+                    if (rule.Effects is { } effects) ValidateEffects(effects, $"{path}.effects", locationCodes, objectCodes, stateProperties, objectStatePropertiesByCode, Add);
                     if (rule.ModuleBindingSpecified) ValidateModuleBinding(rule.ModuleBinding, $"{path}.moduleBinding", Add);
                     if (rule.Condition is null && rule.Priority is null && !rule.AuthoringNoteSpecified && rule.Effects is null && !rule.ModuleBindingSpecified)
                         Add(path, "Adjust must specify at least one patch field.");
@@ -397,7 +410,9 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
     private static void ValidateFullMutationRule(
         ScenarioObjectRuleMutationInput rule, string path, ISet<string> actions,
         IReadOnlyDictionary<string, JsonElement> actionArgumentSchemas, ISet<string> locations, ISet<string> objects,
-        IReadOnlyDictionary<string, JsonElement> stateProperties, Action<string, string> add)
+        IReadOnlyDictionary<string, JsonElement> stateProperties,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>> objectStatePropertiesByCode,
+        Action<string, string> add)
     {
         if (string.IsNullOrWhiteSpace(rule.ActionCode)) add($"{path}.actionCode", "Action code is required for a full rule.");
         else if (!actions.Contains(rule.ActionCode)) add($"{path}.actionCode", "Referenced action does not exist.");
@@ -410,7 +425,7 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
         }
         if (rule.Priority is null) add($"{path}.priority", "Priority is required for a full rule.");
         if (rule.Effects is not { } effects) add($"{path}.effects", "Effects are required for a full rule.");
-        else ValidateEffects(effects, $"{path}.effects", locations, objects, stateProperties.Keys, add);
+        else ValidateEffects(effects, $"{path}.effects", locations, objects, stateProperties, objectStatePropertiesByCode, add);
         if (rule.ModuleBindingSpecified) ValidateModuleBinding(rule.ModuleBinding, $"{path}.moduleBinding", add);
     }
 
@@ -706,10 +721,16 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
         }
     }
 
-    private static void ValidateEffects(JsonElement value, string path, ISet<string> locations, ISet<string> objects, IEnumerable<string> stateProperties, Action<string, string> add)
+    private static void ValidateEffects(
+        JsonElement value,
+        string path,
+        ISet<string> locations,
+        ISet<string> objects,
+        IReadOnlyDictionary<string, JsonElement> sourceStateProperties,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>> objectStatePropertiesByCode,
+        Action<string, string> add)
     {
         if (value.ValueKind != JsonValueKind.Array) { add(path, "Effects must be a JSON array."); return; }
-        var allowedStateProperties = stateProperties.ToHashSet(StringComparer.Ordinal);
         var index = 0;
         foreach (var effect in value.EnumerateArray())
         {
@@ -719,13 +740,25 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
             var type = typeProperty.GetString();
             if (type is "set-state" or "increment-state" or "append-set" or "remove-set")
             {
-                if (!effect.TryGetProperty("path", out var statePath) || !(statePath.GetString() ?? string.Empty).StartsWith("state.", StringComparison.Ordinal))
+                var targetProperties = sourceStateProperties;
+                if (effect.TryGetProperty("objectCode", out var targetObjectCode))
+                {
+                    if (targetObjectCode.ValueKind != JsonValueKind.String || !objects.Contains(targetObjectCode.GetString() ?? string.Empty))
+                        add($"{effectPath}.objectCode", "Referenced object does not exist.");
+                    else if (objectStatePropertiesByCode.TryGetValue(targetObjectCode.GetString()!, out var resolvedTargetProperties))
+                        targetProperties = resolvedTargetProperties;
+                }
+
+                if (!effect.TryGetProperty("path", out var statePath) || statePath.ValueKind != JsonValueKind.String || !(statePath.GetString() ?? string.Empty).StartsWith("state.", StringComparison.Ordinal))
                     add($"{effectPath}.path", "State effect paths must start with state.");
                 else
                 {
                     var property = statePath.GetString()!["state.".Length..].Split('.', 2)[0];
-                    if (!allowedStateProperties.Contains(property)) add($"{effectPath}.path", "State effect path is not declared by the schema.");
+                    if (!targetProperties.TryGetValue(property, out var propertySchema)) add($"{effectPath}.path", "State effect path is not declared by the target schema.");
+                    else if (type == "set-state" && effect.TryGetProperty("value", out var stateValue))
+                        ValidateStateValue(stateValue, propertySchema, $"{effectPath}.value", add);
                 }
+                if (!effect.TryGetProperty("value", out _)) add($"{effectPath}.value", "State effect value is required.");
             }
             if (type == "move-object")
             {
@@ -746,6 +779,23 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                 if (!effect.TryGetProperty("text", out var text) || text.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(text.GetString())) add($"{effectPath}.text", "Text is required.");
             }
         }
+    }
+
+    private static void ValidateStateValue(JsonElement value, JsonElement propertySchema, string path, Action<string, string> add)
+    {
+        if (!propertySchema.TryGetProperty("type", out var type)) return;
+        var valid = type.GetString() switch
+        {
+            "boolean" => value.ValueKind is JsonValueKind.True or JsonValueKind.False,
+            "string" => value.ValueKind == JsonValueKind.String,
+            "integer" => value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out _),
+            "number" => value.ValueKind == JsonValueKind.Number,
+            "array" => value.ValueKind == JsonValueKind.Array,
+            "object" => value.ValueKind == JsonValueKind.Object,
+            "null" => value.ValueKind == JsonValueKind.Null,
+            _ => false,
+        };
+        if (!valid) add(path, "State effect value does not match the target schema type.");
     }
 
     private static string Json(JsonElement value, string fallback) => value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null ? fallback : value.GetRawText();
