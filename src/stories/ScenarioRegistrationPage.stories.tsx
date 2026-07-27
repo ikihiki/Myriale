@@ -315,7 +315,7 @@ export const ConfigureInitialSceneFromWorldData: Story = {
       const labels = within(navigation).getAllByRole('button').map((button) => button.textContent);
       expect(labels.findIndex((label) => label?.includes('世界データ'))).toBeLessThan(labels.findIndex((label) => label?.includes('第一場面')));
       await goToStep(canvas, '第一場面');
-      await expect(canvas.getByText('06 / 第一場面')).toBeVisible();
+      await expect(canvas.getByLabelText('ウィザード進捗')).toHaveTextContent('06第一場面');
     });
     await step('開始場所を選び、Objectごとの初期ステートを上書きする', async () => {
       await userEvent.click(canvas.getByRole('combobox', { name: 'セッション開始場所' }));
@@ -432,7 +432,7 @@ export const US26KeepDependenciesSafe: Story = {
     await step('同じページでObjectが配置中のLocationも削除を拒否する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '水没した閲覧室を編集' }));
       await userEvent.click(screen.getByRole('button', { name: 'この場所を削除' }));
-      await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('先に配置先を変更するかオブジェクトを削除');
+      await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('開始場所に選ばれています');
     });
   },
 };
