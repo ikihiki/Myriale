@@ -66,7 +66,7 @@ describe('EditScenarioContainer', () => {
     releaseRuleData();
 
     await screen.findByRole('main', { name: 'シナリオ編集ウィザード' });
-    fireEvent.click(screen.getByRole('button', { name: '世界データへ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'オブジェクトへ' }));
     fireEvent.click(screen.getByRole('button', { name: '保存済みの扉を編集' }));
     expect(screen.getByLabelText('種類のstable code')).toHaveValue('door');
     fireEvent.change(screen.getByLabelText('種類の表示名'), { target: { value: '改稿した扉' } });

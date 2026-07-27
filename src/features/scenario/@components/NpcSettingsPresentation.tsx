@@ -38,7 +38,7 @@ export function NpcSettingsPresentation({ value, ruleData, onChange, onNotice }:
   };
   const addNpc = () => {
     if (ruleData.locations.length === 0) {
-      onNotice('先に「世界データ」でNPCの初期Locationを追加してください。', true);
+      onNotice('先に「場所」ステップでNPCの初期Locationを追加してください。', true);
       return;
     }
     const next = createNpc(value.length, ruleData.startLocationCode);
