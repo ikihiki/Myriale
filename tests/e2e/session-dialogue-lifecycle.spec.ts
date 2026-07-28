@@ -109,6 +109,17 @@ async function installApiRoutes(page: Page) {
       });
     }
 
+    if (request.method() === 'GET' && path === '/api/ai/profiles') {
+      return json(route, {
+        profiles: [
+          { id: 'runpod-recommended', displayName: '推奨（Deckard 40B FP8）' },
+          { id: 'runpod-economy', displayName: '最安（Qwen3 30B-A3B FP8）' },
+        ],
+        defaultActionDecisionProfileId: 'runpod-recommended',
+        defaultNarrativeProfileId: 'runpod-recommended',
+      });
+    }
+
     if (request.method() === 'GET' && (path === '/api/scenarios' || path === '/api/scenarios/')) {
       return json(route, [scenario]);
     }
