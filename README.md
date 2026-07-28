@@ -168,7 +168,9 @@ catalogJson: |-
   }
 ```
 
-`profiles`は上記の配列形式に加え、profile IDをkeyにしたobject形式も受け付けます。ForgeのVault pathを変更する場合は`forge.aiVaultKey`を指定します。従来のOpenAI / Runpod property mappingも移行期間の互換性のため残しています。
+`profiles`は上記の配列形式に加え、profile IDをkeyにしたobject形式も受け付けます。ForgeのVault pathを変更する場合は`forge.aiVaultKey`を指定します。ESOが参照するのはこの`catalogJson` propertyだけなので、Providerを増やしてもAppHostやKubernetes manifestの変更は不要です。
+
+複数profileで同じ`credentialId`を指定した場合、同じcredentialを共有できます。`apiKey`は共有profileのいずれか1件にだけ記述すれば、同じ`credentialId`を持つ全profileへ適用されます。
 
 Definitionのマージ優先順位は、同じprofile IDに対して次の順です（下ほど優先）。
 
@@ -176,7 +178,7 @@ Definitionのマージ優先順位は、同じprofile IDに対して次の順で
 2. `AiProvider:CatalogJson`（Forge Vaultの`catalogJson`を含む）
 3. 管理API / 管理画面で保存したDB profile定義
 
-Credentialはdefinitionとは別に、configuration / Vault（CatalogJson内の`apiKey`または従来設定）を先に解決し、見つからない場合だけ暗号化DB credentialへフォールバックします。管理APIはsecret本体を返しません。
+Credentialはdefinitionとは別に、configuration / Vault（CatalogJson内の`apiKey`または既存appsettings互換設定）を先に解決し、見つからない場合だけ暗号化DB credentialへフォールバックします。管理APIはsecret本体を返しません。
 
 AI管理権限を持つアカウントは`/account/admin/ai-keys`から任意IDのprofile定義を作成・更新・削除し、接続テストや使用profileの切り替えを行えます。DB profileには`displayName`、`adapter`、`baseUrl`、`model`、`credentialId`、`enabled`と任意のsecretを指定します。現在の既定値`Database:RecreateOnStartup=true`ではAPI再起動時にDBが再作成されるため、永続的な本番設定にはVaultを使用してください。
 

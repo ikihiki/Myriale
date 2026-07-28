@@ -31,14 +31,24 @@ public static class AiAdminEndpoints
         ApplicationDbContext db,
         CancellationToken cancellationToken)
     {
-        var activeProvider = await selection.GetActiveProviderAsync(cancellationToken);
-        var snapshot = await catalog.GetAsync(cancellationToken);
+        string? activeProvider = null;
+        AiProfileCatalogSnapshot? snapshot = null;
+        try
+        {
+            snapshot = await catalog.GetAsync(cancellationToken);
+            activeProvider = await selection.GetActiveProviderAsync(cancellationToken);
+        }
+        catch (AiProviderException exception) when (exception.Code == AiProviderErrorCodes.ProviderUnavailable)
+        {
+            // An empty catalog is a valid bootstrap state for the administration screen: the first
+            // DB-backed profile can still be registered through the form below.
+        }
         var definitions = await db.AiProviderProfileDefinitions.AsNoTracking()
             .ToDictionaryAsync(item => item.Id, StringComparer.OrdinalIgnoreCase, cancellationToken);
         var keys = await db.AiProviderKeys.AsNoTracking()
             .ToDictionaryAsync(item => item.Provider, StringComparer.OrdinalIgnoreCase, cancellationToken);
         var responses = new List<AiProviderKeyResponse>();
-        foreach (var profile in snapshot.Profiles.Values)
+        foreach (var profile in snapshot?.Profiles.Values ?? [])
         {
             definitions.TryGetValue(profile.Id, out var definition);
             keys.TryGetValue(profile.CredentialId, out var key);
@@ -119,9 +129,10 @@ public static class AiAdminEndpoints
         var definition = await db.AiProviderProfileDefinitions.FindAsync([provider], cancellationToken);
         if (definition is not null)
         {
+            // Credentials are independent resources and may be shared by multiple profiles.
+            // Deleting one profile must not silently invalidate the others.
             db.AiProviderProfileDefinitions.Remove(definition);
             await db.SaveChangesAsync(cancellationToken);
-            await store.DeleteAsync(definition.CredentialId, cancellationToken);
         }
         else
         {
@@ -216,7 +227,7 @@ public static class AiAdminEndpoints
         return errors;
     }
 
-    private static async Task<AiProviderKeyResponse> ToResponseAsync(AiProfileDescriptor profile, string definitionSource, AiProviderKey? key, string activeProvider, IAiCredentialStore store, CancellationToken cancellationToken)
+    private static async Task<AiProviderKeyResponse> ToResponseAsync(AiProfileDescriptor profile, string definitionSource, AiProviderKey? key, string? activeProvider, IAiCredentialStore store, CancellationToken cancellationToken)
     {
         var configuredSecret = profile.ApiKey;
         var databaseSecret = string.IsNullOrWhiteSpace(configuredSecret) ? await store.GetAsync(profile.CredentialId, cancellationToken) : null;

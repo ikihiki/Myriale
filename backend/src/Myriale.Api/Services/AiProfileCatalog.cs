@@ -68,12 +68,22 @@ public sealed class AiProfileCatalog(
             narrativeDefault = FirstNonBlank(document.DefaultNarrativeProfileId, narrativeDefault);
         }
 
-        // Definition precedence and credential precedence are intentionally independent. DB definitions win,
-        // while configuration/Vault credentials still win over encrypted DB credentials for the chosen credential ID.
+        // Definition precedence and credential precedence are intentionally independent. Profiles may share
+        // a credentialId, so a secret declared once in configuration/Vault is inherited by every profile using
+        // that credential before DB definitions are overlaid.
         var configurationCredentials = profiles.Values
             .Where(profile => !string.IsNullOrWhiteSpace(profile.ApiKey))
             .GroupBy(profile => profile.CredentialId, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.Last().ApiKey, StringComparer.OrdinalIgnoreCase);
+        foreach (var item in profiles.ToList())
+        {
+            if (string.IsNullOrWhiteSpace(item.Value.ApiKey)
+                && configurationCredentials.TryGetValue(item.Value.CredentialId, out var sharedCredential))
+                profiles[item.Key] = item.Value with { ApiKey = sharedCredential };
+        }
+
+        // DB definitions win over configuration definitions with the same profile ID, while the deployment-owned
+        // configuration/Vault credential continues to win over an encrypted DB credential for the same credentialId.
         var databaseProfiles = await db.AiProviderProfileDefinitions.AsNoTracking().ToListAsync(cancellationToken);
         foreach (var profile in databaseProfiles)
         {

@@ -17,8 +17,8 @@ builder.Services.AddOpenApi();
 builder.Services.AddDataProtection();
 builder.Services.AddOptions<AiProviderOptions>()
     .Bind(builder.Configuration.GetSection(AiProviderOptions.SectionName))
-    .Validate(options => !string.IsNullOrWhiteSpace(options.CatalogJson) || options.Profiles.Count > 0,
-        "At least one legacy AI profile or AiProvider:CatalogJson is required.")
+    // Profile definitions may come entirely from the database, so startup must not require
+    // appsettings or Vault catalog entries to exist before administrators register the first profile.
     .Validate(options => options.TimeoutSeconds > 0 && options.MaxOutputTokens > 0 && options.MaxAttempts > 0, "AI provider limits must be positive.")
     .Validate(options => options.SessionRequestsPerMinute > 0
         && options.UserRequestsPerMinute > 0
