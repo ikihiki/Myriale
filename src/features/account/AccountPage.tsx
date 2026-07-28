@@ -288,7 +288,16 @@ function AdminAiKeysView() {
   const save = async () => {
     setBusy(true); setError(null);
     try {
-      const key = await api.saveKey(provider, { displayName, secret });
+      const existing = keys.find((item) => item.provider === provider);
+      const key = await api.saveKey(provider, {
+        displayName,
+        adapter: existing?.adapter ?? 'openai-compatible',
+        baseUrl: existing?.baseUrl ?? (provider === 'openai' ? 'https://api.openai.com/v1' : 'https://api.runpod.ai/v2/YOUR_ENDPOINT_ID/openai/v1'),
+        model: existing?.model ?? (provider === 'openai' ? 'gpt-4.1-mini' : 'YOUR_VLLM_MODEL'),
+        credentialId: existing?.credentialId ?? provider,
+        enabled: existing?.enabled ?? true,
+        secret,
+      });
       setKeys(keys.map((item) => item.provider === key.provider ? key : item));
       setNotice(`${key.displayName}のAIキーを保存しました。`);
       setSecret('');

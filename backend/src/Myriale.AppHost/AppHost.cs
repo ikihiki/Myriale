@@ -84,6 +84,7 @@ if (isPublishMode)
         var apiContainer = kubernetesResource.Workload?.PodTemplate.Spec.Containers
             .Single(container => container.Name == "myriale-api")
             ?? throw new InvalidOperationException("The Myriale API container was not generated.");
+        AddSecretEnvironment(apiContainer, "AiProvider__CatalogJson", "catalogJson");
         AddSecretEnvironment(apiContainer, "AiProvider__Providers__openai__ApiKey", "openaiApiKey");
         AddSecretEnvironment(apiContainer, "AiProvider__Providers__openai__BaseUrl", "openaiBaseUrl");
         AddSecretEnvironment(apiContainer, "AiProvider__Providers__openai__Model", "openaiModel");
@@ -219,6 +220,7 @@ internal sealed class MyrialeAiProviderExternalSecret : BaseKubernetesResource
             },
             Data =
             [
+                ExternalSecretData.FromAiVault("catalogJson", "catalogJson"),
                 ExternalSecretData.FromOpenAiVault("openaiApiKey", "apiKey"),
                 ExternalSecretData.FromOpenAiVault("openaiBaseUrl", "baseUrl"),
                 ExternalSecretData.FromOpenAiVault("openaiModel", "model"),
@@ -268,6 +270,7 @@ internal sealed class ExternalSecretTarget
 
 internal sealed class ExternalSecretData
 {
+    private const string AiVaultKey = "{{ default `forge/apps/myriale/ai` (get (default (dict) .Values.forge) `aiVaultKey`) }}";
     private const string OpenAiVaultKey = "{{ default `forge/apps/myriale/openai` (get (default (dict) .Values.forge) `openAiVaultKey`) }}";
     private const string RunpodVaultKey = "{{ default `forge/apps/myriale/ai` (get (default (dict) .Values.forge) `runpodVaultKey`) }}";
 
@@ -277,6 +280,7 @@ internal sealed class ExternalSecretData
     [YamlMember(Alias = "remoteRef")]
     public ExternalSecretRemoteReference RemoteRef { get; init; } = new();
 
+    public static ExternalSecretData FromAiVault(string secretKey, string property) => FromVault(AiVaultKey, secretKey, property);
     public static ExternalSecretData FromOpenAiVault(string secretKey, string property) => FromVault(OpenAiVaultKey, secretKey, property);
     public static ExternalSecretData FromRunpodVault(string secretKey, string property) => FromVault(RunpodVaultKey, secretKey, property);
 

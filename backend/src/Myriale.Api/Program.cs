@@ -17,18 +17,8 @@ builder.Services.AddOpenApi();
 builder.Services.AddDataProtection();
 builder.Services.AddOptions<AiProviderOptions>()
     .Bind(builder.Configuration.GetSection(AiProviderOptions.SectionName))
-    .Validate(options => options.Provider is "mock" or "openai" or "runpod", "Provider must be mock, openai, or runpod.")
-    .Validate(options => options.Profiles.Count > 0
-        && options.Profiles.Values.All(profile => profile.Provider is "openai" or "runpod"
-            && !string.IsNullOrWhiteSpace(profile.DisplayName)
-            && !string.IsNullOrWhiteSpace(profile.Model)
-            && (profile.Provider != "runpod" || !string.IsNullOrWhiteSpace(profile.BaseUrl))),
-        "AI profiles must have a display name, supported provider, model, and Runpod BaseUrl.")
-    .Validate(options => !string.IsNullOrWhiteSpace(options.DefaultActionDecisionProfileId)
-        && options.Profiles.ContainsKey(options.DefaultActionDecisionProfileId)
-        && !string.IsNullOrWhiteSpace(options.DefaultNarrativeProfileId)
-        && options.Profiles.ContainsKey(options.DefaultNarrativeProfileId),
-        "Default AI profile IDs must reference configured profiles.")
+    .Validate(options => !string.IsNullOrWhiteSpace(options.CatalogJson) || options.Profiles.Count > 0,
+        "At least one legacy AI profile or AiProvider:CatalogJson is required.")
     .Validate(options => options.TimeoutSeconds > 0 && options.MaxOutputTokens > 0 && options.MaxAttempts > 0, "AI provider limits must be positive.")
     .Validate(options => options.SessionRequestsPerMinute > 0
         && options.UserRequestsPerMinute > 0
@@ -63,7 +53,7 @@ builder.Services.AddScoped<ScenarioActionEnumerator>();
 builder.Services.AddScoped<ScenarioEffectApplier>();
 builder.Services.AddScoped<ScenarioRuleDebugService>();
 builder.Services.AddScoped<IScenarioExtensionAdapter, ScenarioModuleExtensionAdapter>();
-builder.Services.AddSingleton<AiProfileCatalog>();
+builder.Services.AddScoped<IAiProfileCatalog, AiProfileCatalog>();
 builder.Services.AddScoped<SessionInputService>();
 builder.Services.AddScoped<ISessionExecutionQueue, SessionExecutionQueue>();
 builder.Services.AddScoped<SessionExecutionFinalizer>();

@@ -147,6 +147,90 @@ public sealed class AiEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task Profiles_CatalogJsonAddsArbitraryUsableProfileWithoutExposingSecret()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"myriale-ai-catalog-{Guid.NewGuid():N}.db");
+        const string catalogJson = """
+            {"defaultActionDecisionProfileId":"acme-fast","defaultNarrativeProfileId":"acme-fast","profiles":[{"id":"acme-fast","displayName":"Acme Fast","adapter":"openai-compatible","baseUrl":"https://ai.acme.test/v1","model":"acme/story-1","credentialId":"acme-main","enabled":true,"apiKey":"catalog-secret-9999"}]}
+            """;
+        using var factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder =>
+            {
+                builder.UseSetting("ConnectionStrings:MyrialeAccounts", $"Data Source={databasePath}");
+                builder.UseSetting("AiProvider:CatalogJson", catalogJson);
+                builder.ConfigureServices(services =>
+                {
+                    services.RemoveAll<IAiTextProvider>();
+                    services.AddSingleton<IAiTextProvider, SuccessfulTextProvider>();
+                });
+            });
+        try
+        {
+            var client = await CreateSignedInClientAsync(factory: factory);
+            using var listed = await client.GetAsync("/api/ai/profiles");
+            Assert.Equal(HttpStatusCode.OK, listed.StatusCode);
+            var body = await listed.Content.ReadAsStringAsync();
+            Assert.Contains("acme-fast", body, StringComparison.Ordinal);
+            Assert.DoesNotContain("catalog-secret-9999", body, StringComparison.Ordinal);
+
+            var admin = await CreateSignedInClientAsync(grantAdmin: true, factory);
+            using var overridden = await admin.PutAsJsonAsync("/api/admin/ai-keys/acme-fast", new
+            {
+                displayName = "Acme DB Override",
+                adapter = "openai-compatible",
+                baseUrl = "https://db.acme.test/v1",
+                model = "acme/db-model",
+                credentialId = "acme-main",
+                enabled = true,
+                secret = "database-secret-0000"
+            });
+            Assert.Equal(HttpStatusCode.OK, overridden.StatusCode);
+            var overrideJson = await overridden.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal("acme/db-model", overrideJson.GetProperty("model").GetString());
+            Assert.Equal("environment", overrideJson.GetProperty("credentialSource").GetString());
+            Assert.Equal("••••••••9999", overrideJson.GetProperty("maskedKey").GetString());
+            Assert.DoesNotContain("catalog-secret-9999", overrideJson.ToString(), StringComparison.Ordinal);
+            Assert.DoesNotContain("database-secret-0000", overrideJson.ToString(), StringComparison.Ordinal);
+
+            using var prompted = await admin.PostAsJsonAsync("/api/admin/ai-keys/acme-fast/prompt-test", new { prompt = "hello" });
+            Assert.Equal(HttpStatusCode.OK, prompted.StatusCode);
+            Assert.DoesNotContain("catalog-secret-9999", await prompted.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (File.Exists(databasePath)) File.Delete(databasePath);
+        }
+    }
+
+    [Fact]
+    public async Task AdminAiProfiles_CreatesArbitraryDbDefinitionThatAppearsAndIsUsable()
+    {
+        var client = await CreateSignedInClientAsync(grantAdmin: true);
+        using var saved = await client.PutAsJsonAsync("/api/admin/ai-keys/local-llm", new
+        {
+            displayName = "Local LLM",
+            adapter = "openai-compatible",
+            baseUrl = "https://local-ai.test/v1",
+            model = "local/story-model",
+            credentialId = "local-credential",
+            enabled = true,
+            secret = "database-secret-2468"
+        });
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        var savedBody = await saved.Content.ReadAsStringAsync();
+        Assert.Contains("local-llm", savedBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("database-secret-2468", savedBody, StringComparison.Ordinal);
+
+        using var listed = await client.GetAsync("/api/ai/profiles");
+        var profiles = await listed.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains(profiles.GetProperty("profiles").EnumerateArray(), item => item.GetProperty("id").GetString() == "local-llm");
+
+        using var prompted = await client.PostAsJsonAsync("/api/admin/ai-keys/local-llm/prompt-test", new { prompt = "hello" });
+        Assert.Equal(HttpStatusCode.OK, prompted.StatusCode);
+        Assert.DoesNotContain("database-secret-2468", await prompted.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ScenarioAiAssist_ReturnsMockSuggestion()
     {
         var client = await CreateSignedInClientAsync();

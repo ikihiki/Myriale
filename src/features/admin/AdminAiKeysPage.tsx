@@ -29,8 +29,13 @@ export function AdminAiKeysPage() {
   const api = useMemo(() => createFetchAdminAiApi(), []);
   const session = useAccountSession();
   const [keys, setKeys] = useState<AiProviderKey[]>([]);
-  const [provider, setProvider] = useState('openai');
-  const [displayName, setDisplayName] = useState('OpenAI');
+  const [provider, setProvider] = useState('custom-profile');
+  const [displayName, setDisplayName] = useState('Custom AI');
+  const [adapter, setAdapter] = useState('openai-compatible');
+  const [baseUrl, setBaseUrl] = useState('');
+  const [model, setModel] = useState('');
+  const [credentialId, setCredentialId] = useState('custom-profile');
+  const [enabled, setEnabled] = useState(true);
   const [secret, setSecret] = useState('');
   const [testProvider, setTestProvider] = useState<string | null>(null);
   const [testPrompt, setTestPrompt] = useState('このAIが利用可能か、日本語で短く応答してください。');
@@ -51,16 +56,27 @@ export function AdminAiKeysPage() {
 
   const changeProvider = (next: string) => {
     setProvider(next);
-    setDisplayName(next === 'runpod' ? 'Runpod Serverless' : 'OpenAI');
+    setCredentialId(next);
+  };
+
+  const editProfile = (profile: AiProviderKey) => {
+    setProvider(profile.provider);
+    setDisplayName(profile.displayName);
+    setAdapter(profile.adapter);
+    setBaseUrl(profile.baseUrl);
+    setModel(profile.model);
+    setCredentialId(profile.credentialId);
+    setEnabled(profile.enabled);
+    setSecret('');
   };
 
   const save = async () => {
     setBusy(true);
     setError(null);
     try {
-      const key = await api.saveKey(provider, { displayName, secret });
-      setKeys((current) => current.map((item) => item.provider === key.provider ? key : item));
-      setNotice(`${key.displayName}のAIキーを保存しました。`);
+      const key = await api.saveKey(provider, { displayName, adapter, baseUrl, model, credentialId, enabled, ...(secret.trim() ? { secret } : {}) });
+      setKeys((current) => [key, ...current.filter((item) => item.provider !== key.provider)]);
+      setNotice(`${key.displayName}のprofile定義を保存しました。`);
       setSecret('');
     } catch (caught) {
       setError(caught as AdminAiApiError);
@@ -142,7 +158,7 @@ export function AdminAiKeysPage() {
           <header className="mb-6 flex flex-col items-start justify-between gap-4 border-b border-myr-ink/15 pb-5 md:flex-row md:items-end">
             <div>
               <Label as="h1" textRole="display" className="m-0 max-w-myr-section">物語を動かすAIを、ここで整える。</Label>
-              <Label as="p" textRole="bodySm" className="mt-4 max-w-myr-form !leading-7"><strong className="text-myr-ink">OpenAIとRunpodの接続状態を管理します。</strong> Vaultから注入された設定はそのまま表示し、管理画面で同じキーを再登録せずに疎通確認できます。</Label>
+              <Label as="p" textRole="bodySm" className="mt-4 max-w-myr-form !leading-7"><strong className="text-myr-ink">OpenAI-compatibleな任意のAI profileを管理します。</strong> Vaultから注入された定義はそのまま表示し、DB定義はこの画面から追加・編集できます。</Label>
             </div>
             <Badge className="px-4 py-2 font-myr-mono">{keys.filter((key) => key.configured).length} / {keys.length} configured</Badge>
           </header>
@@ -153,32 +169,43 @@ export function AdminAiKeysPage() {
 
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
             <Panel as="section" aria-labelledby="provider-registration-heading">
-              <Label as="p" textRole="eyebrowData" className="mb-2">Credential override</Label>
-              <Label as="h2" textRole="section" id="provider-registration-heading" className="m-0">管理画面からキーを登録</Label>
+              <Label as="p" textRole="eyebrowData" className="mb-2">Profile definition</Label>
+              <Label as="h2" textRole="section" id="provider-registration-heading" className="m-0">AI profileを登録・編集</Label>
               <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <Label as="label" textRole="label" className="grid gap-2">Provider
-                  <select className="!rounded-myr-card !border !border-myr-ink/15 !bg-myr-paper-bright !px-3 !py-3 !text-base !text-myr-ink" value={provider} onChange={(event) => changeProvider(event.target.value)}>
-                    <option value="openai">OpenAI</option>
-                    <option value="runpod">Runpod</option>
-                  </select>
+                <Label as="label" textRole="label" className="grid gap-2">Profile ID
+                  <Input aria-label="Profile ID" value={provider} onChange={(event) => changeProvider(event.target.value)} />
                 </Label>
                 <Label as="label" textRole="label" className="grid gap-2">表示名
                   <Input aria-label="表示名" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
                 </Label>
+                <Label as="label" textRole="label" className="grid gap-2">Adapter
+                  <Input aria-label="Adapter" value={adapter} onChange={(event) => setAdapter(event.target.value)} />
+                </Label>
+                <Label as="label" textRole="label" className="grid gap-2">Credential ID
+                  <Input aria-label="Credential ID" value={credentialId} onChange={(event) => setCredentialId(event.target.value)} />
+                </Label>
+                <Label as="label" textRole="label" className="grid gap-2 md:col-span-2">Base URL
+                  <Input aria-label="Base URL" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="https://provider.example/v1" />
+                </Label>
+                <Label as="label" textRole="label" className="grid gap-2 md:col-span-2">Model
+                  <Input aria-label="Model" value={model} onChange={(event) => setModel(event.target.value)} />
+                </Label>
               </div>
-              <label className="mt-4 grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">APIキー
-                <Input aria-label="APIキー" type="password" value={secret} onChange={(event) => setSecret(event.target.value)} placeholder={provider === 'runpod' ? 'rpa_...' : 'sk-...'} />
+              <label className="mt-4 flex items-center gap-2 text-xs font-black tracking-myr-label text-myr-slate"><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} /> 有効</label>
+              <label className="mt-4 grid gap-2 text-xs font-black tracking-myr-label text-myr-slate">APIキー（任意）
+                <Input aria-label="APIキー" type="password" value={secret} onChange={(event) => setSecret(event.target.value)} placeholder="既存credentialを維持する場合は空欄" />
               </label>
-              <p className="mt-3 text-xs leading-5 text-myr-slate">Vaultまたは環境変数で設定済みの場合、ここで同じキーを再登録する必要はありません。</p>
-              <Button variant="secondary" className="mt-4" onClick={() => void save()} disabled={busy || !secret.trim()}>キーを保存</Button>
+              <p className="mt-3 text-xs leading-5 text-myr-slate">Vault / configurationのcredentialがある場合は空欄で保存できます。入力したsecretは暗号化してDBへ保存し、再表示しません。</p>
+              <Button variant="secondary" className="mt-4" onClick={() => void save()} disabled={busy || !provider.trim() || !displayName.trim() || !baseUrl.trim() || !model.trim()}>Profileを保存</Button>
             </Panel>
 
             <Inset as="aside" aria-label="設定の優先順位">
               <Label as="p" textRole="eyebrowData" className="mb-2">Resolution order</Label>
               <Label as="h2" textRole="section" className="m-0">設定の優先順位</Label>
               <ol className="mt-5 grid gap-4 p-0">
-                <li className="grid grid-cols-[2rem_1fr] gap-3"><span className="grid h-8 w-8 place-items-center rounded-full bg-myr-ink font-myr-mono text-xs font-black text-myr-paper">1</span><div><strong className="block">Vault / 環境変数</strong><span className="text-sm leading-6 text-myr-slate">デプロイ時に注入された設定を最優先で使用します。</span></div></li>
-                <li className="grid grid-cols-[2rem_1fr] gap-3"><span className="grid h-8 w-8 place-items-center rounded-full bg-myr-ink font-myr-mono text-xs font-black text-myr-paper">2</span><div><strong className="block">管理画面</strong><span className="text-sm leading-6 text-myr-slate">環境設定がないProviderでは暗号化してDBへ保存します。</span></div></li>
+                <li className="grid grid-cols-[2rem_1fr] gap-3"><span className="grid h-8 w-8 place-items-center rounded-full bg-myr-ink font-myr-mono text-xs font-black text-myr-paper">1</span><div><strong className="block">DB profile定義</strong><span className="text-sm leading-6 text-myr-slate">同じIDのVault / appsettings定義を上書きします。</span></div></li>
+                <li className="grid grid-cols-[2rem_1fr] gap-3"><span className="grid h-8 w-8 place-items-center rounded-full bg-myr-ink font-myr-mono text-xs font-black text-myr-paper">2</span><div><strong className="block">Vault catalogJson</strong><span className="text-sm leading-6 text-myr-slate">任意のprofileをJSONで追加できます。</span></div></li>
+                <li className="grid grid-cols-[2rem_1fr] gap-3"><span className="grid h-8 w-8 place-items-center rounded-full bg-myr-ink font-myr-mono text-xs font-black text-myr-paper">3</span><div><strong className="block">appsettings互換定義</strong><span className="text-sm leading-6 text-myr-slate">既存profileの最低優先順位の既定値です。</span></div></li>
               </ol>
             </Inset>
           </div>
@@ -190,11 +217,11 @@ export function AdminAiKeysPage() {
                 <tbody>{keys.map((key) => (
                   <Fragment key={key.provider}>
                     <tr className="border-t border-myr-ink/10" data-testid={`ai-key-row-${key.provider}`}>
-                      <td className="px-4 py-4"><strong className="block font-extrabold">{key.displayName}</strong><span className="font-myr-mono text-xs text-myr-slate">{key.provider}</span></td>
+                      <td className="px-4 py-4"><strong className="block font-extrabold">{key.displayName}</strong><span className="font-myr-mono text-xs text-myr-slate">{key.provider}</span><span className="mt-1 block text-xs text-myr-slate">{key.model} · {key.definitionSource}</span></td>
                       <td className="px-4 py-4"><div className="flex flex-wrap gap-1.5">{key.active && <Badge className="!border-myr-ink !bg-myr-ink !text-myr-paper">使用中</Badge>}<Badge tone={key.credentialSource === 'environment' ? 'info' : key.credentialSource === 'database' ? 'warning' : 'neutral'}>{sourceLabel(key.credentialSource)}</Badge></div></td>
                       <td className="px-4 py-4 font-myr-mono text-xs">{key.maskedKey}</td>
                       <td className="px-4 py-4"><Badge tone={key.status === 'valid' ? 'success' : 'neutral'}>{statusLabel(key.status)}</Badge></td>
-                      <td className="px-4 py-4"><div className="flex flex-wrap gap-2"><Button variant="secondary" size="sm" onClick={() => void activate(key.provider)} disabled={busy || !key.configured || key.active}>{key.active ? '使用中' : 'このAIを使用'}</Button><Button variant="ghost" size="sm" onClick={() => void test(key.provider)} disabled={busy || !key.configured}>接続テスト</Button><Button variant="ghost" size="sm" onClick={() => openPromptTest(key.provider)} disabled={busy || !key.configured}>{testProvider === key.provider ? 'プロンプトテストを閉じる' : 'プロンプトテスト'}</Button>{key.credentialSource === 'database' && <Button variant="danger" size="sm" onClick={() => void remove(key.provider)} disabled={busy}>削除</Button>}</div></td>
+                      <td className="px-4 py-4"><div className="flex flex-wrap gap-2"><Button variant="secondary" size="sm" onClick={() => void activate(key.provider)} disabled={busy || !key.configured || !key.enabled || key.active}>{key.active ? '使用中' : 'このAIを使用'}</Button><Button variant="ghost" size="sm" onClick={() => editProfile(key)} disabled={busy}>編集</Button><Button variant="ghost" size="sm" onClick={() => void test(key.provider)} disabled={busy || !key.configured || !key.enabled}>接続テスト</Button><Button variant="ghost" size="sm" onClick={() => openPromptTest(key.provider)} disabled={busy || !key.configured || !key.enabled}>{testProvider === key.provider ? 'プロンプトテストを閉じる' : 'プロンプトテスト'}</Button>{key.definitionSource === 'database' && <Button variant="danger" size="sm" onClick={() => void remove(key.provider)} disabled={busy}>削除</Button>}</div></td>
                     </tr>
                     {testProvider === key.provider && <tr className="border-t border-myr-ink/10 bg-myr-iris/5" data-testid={`ai-prompt-row-${key.provider}`}>
                       <td colSpan={5} className="p-4">

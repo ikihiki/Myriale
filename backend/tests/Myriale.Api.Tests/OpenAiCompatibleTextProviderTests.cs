@@ -59,6 +59,7 @@ public sealed class OpenAiCompatibleTextProviderTests
             new Factory(new HttpClient(handler)),
             new CredentialStore(),
             options,
+            new OptionsCatalog(options.Value),
             NullLogger<OpenAiCompatibleTextProvider>.Instance);
 
         await provider.GenerateAsync(Request(), default);
@@ -103,6 +104,7 @@ public sealed class OpenAiCompatibleTextProviderTests
             new Factory(new HttpClient(handler)),
             new CredentialStore(),
             options,
+            new OptionsCatalog(options.Value),
             NullLogger<OpenAiCompatibleTextProvider>.Instance,
             selection);
 
@@ -155,7 +157,7 @@ public sealed class OpenAiCompatibleTextProviderTests
             ApiKey = "fallback",
             MaxAttempts = 1
         });
-        var provider = new OpenAiCompatibleTextProvider(new Factory(new HttpClient(handler)), new CredentialStore(), options, logger);
+        var provider = new OpenAiCompatibleTextProvider(new Factory(new HttpClient(handler)), new CredentialStore(), options, new OptionsCatalog(options.Value), logger);
 
         await Assert.ThrowsAsync<AiProviderException>(() => provider.GenerateAsync(Request(), default));
 
@@ -231,7 +233,7 @@ public sealed class OpenAiCompatibleTextProviderTests
     }
 
     [Fact]
-    public async Task GenerateForProfile_UsesSelectedEndpointModelAndProviderCredential()
+    public async Task GenerateForProfile_UsesArbitraryProfileEndpointModelAndCredential()
     {
         var handler = new QueueHandler(new HttpResponseMessage(HttpStatusCode.OK)
         {
@@ -243,31 +245,31 @@ public sealed class OpenAiCompatibleTextProviderTests
             MaxAttempts = 1,
             Profiles = new Dictionary<string, AiProfileOptions>(StringComparer.OrdinalIgnoreCase)
             {
-                ["runpod-economy"] = new()
+                ["acme-economy"] = new()
                 {
-                    DisplayName = "最安",
-                    Provider = "runpod",
-                    BaseUrl = "https://api.runpod.test/v2/economy/openai/v1",
-                    Model = "economy-model",
+                    DisplayName = "Acme Economy",
+                    Provider = "acme-credential",
+                    BaseUrl = "https://api.acme.test/v2/economy/openai/v1",
+                    Model = "acme-economy-model",
                 },
             },
         });
         var provider = new OpenAiCompatibleTextProvider(
-            new Factory(new HttpClient(handler)), credentials, options, NullLogger<OpenAiCompatibleTextProvider>.Instance);
+            new Factory(new HttpClient(handler)), credentials, options, new OptionsCatalog(options.Value), NullLogger<OpenAiCompatibleTextProvider>.Instance);
 
-        await provider.GenerateForProfileAsync("RUNPOD-ECONOMY", Request(), default);
+        await provider.GenerateForProfileAsync("ACME-ECONOMY", Request(), default);
 
-        Assert.Equal("runpod", credentials.LastProvider);
-        Assert.Equal("https://api.runpod.test/v2/economy/openai/v1/chat/completions", handler.LastUri?.ToString());
+        Assert.Equal("acme-credential", credentials.LastProvider);
+        Assert.Equal("https://api.acme.test/v2/economy/openai/v1/chat/completions", handler.LastUri?.ToString());
         using var body = JsonDocument.Parse(handler.LastBody);
-        Assert.Equal("economy-model", body.RootElement.GetProperty("model").GetString());
+        Assert.Equal("acme-economy-model", body.RootElement.GetProperty("model").GetString());
     }
 
     private static OpenAiCompatibleTextProvider Create(QueueHandler handler, int maxAttempts = 2)
     {
         var client = new HttpClient(handler);
         var options = Options.Create(new AiProviderOptions { Provider = "runpod", BaseUrl = "https://example.test/openai/v1", Model = "test-model", ApiKey = "fallback", MaxAttempts = maxAttempts, InitialBackoffMilliseconds = 0 });
-        return new OpenAiCompatibleTextProvider(new Factory(client), new CredentialStore(), options, NullLogger<OpenAiCompatibleTextProvider>.Instance);
+        return new OpenAiCompatibleTextProvider(new Factory(client), new CredentialStore(), options, new OptionsCatalog(options.Value), NullLogger<OpenAiCompatibleTextProvider>.Instance);
     }
     private static AiTextRequest Request()
     {
@@ -275,6 +277,32 @@ public sealed class OpenAiCompatibleTextProviderTests
         return new(
             [new ChatMessage(ChatRole.System, "system"), new ChatMessage(ChatRole.User, "user")],
             ChatResponseFormat.ForJsonSchema(schema.RootElement.Clone(), "test"));
+    }
+
+    private sealed class OptionsCatalog(AiProviderOptions options) : IAiProfileCatalog
+    {
+        public Task<AiProfileCatalogSnapshot> GetAsync(CancellationToken cancellationToken)
+        {
+            var profiles = new Dictionary<string, AiProfileDescriptor>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in options.Profiles)
+            {
+                var credentialId = item.Value.Provider.Trim().ToLowerInvariant();
+                profiles[item.Key] = new(item.Key, item.Value.DisplayName, "openai-compatible", item.Value.BaseUrl!, item.Value.Model!, credentialId, true, item.Value.ApiKey);
+            }
+            if (profiles.Count == 0)
+            {
+                var id = options.Provider.Trim().ToLowerInvariant();
+                var providerOptions = options.Providers.GetValueOrDefault(id);
+                foreach (var configured in options.Providers)
+                    profiles[configured.Key] = new(configured.Key, configured.Key, "openai-compatible", configured.Value.BaseUrl!, configured.Value.Model!, configured.Key, true, configured.Value.ApiKey);
+                profiles[id] = new(id, id, "openai-compatible", options.BaseUrl ?? providerOptions?.BaseUrl ?? "https://api.openai.com/v1", options.Model ?? providerOptions?.Model ?? "test-model", id, true, options.ApiKey ?? providerOptions?.ApiKey);
+            }
+            var defaultId = profiles.Keys.First();
+            return Task.FromResult(new AiProfileCatalogSnapshot(profiles, defaultId, defaultId));
+        }
+        public async Task<AiProfileDescriptor> ResolveAsync(string profileId, CancellationToken cancellationToken) => (await GetAsync(cancellationToken)).Profiles[profileId];
+        public async Task<string> ResolveActionDecisionProfileIdAsync(string? requested, CancellationToken cancellationToken) => requested ?? (await GetAsync(cancellationToken)).DefaultActionDecisionProfileId;
+        public async Task<string> ResolveNarrativeProfileIdAsync(string? requested, CancellationToken cancellationToken) => requested ?? (await GetAsync(cancellationToken)).DefaultNarrativeProfileId;
     }
 
     private sealed class Factory(HttpClient client) : IHttpClientFactory { public HttpClient CreateClient(string name) => client; }

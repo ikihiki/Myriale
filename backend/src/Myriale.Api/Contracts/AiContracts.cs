@@ -9,6 +9,12 @@ public sealed record AiProfilesResponse(
 public sealed record AiProviderKeyResponse(
     string Provider,
     string DisplayName,
+    string Adapter,
+    string BaseUrl,
+    string Model,
+    string CredentialId,
+    bool Enabled,
+    string DefinitionSource,
     bool Configured,
     string MaskedKey,
     string CredentialSource,
@@ -17,7 +23,14 @@ public sealed record AiProviderKeyResponse(
     DateTimeOffset UpdatedAt,
     DateTimeOffset? LastValidatedAt);
 
-public sealed record UpsertAiProviderKeyRequest(string DisplayName, string Secret);
+public sealed record UpsertAiProviderKeyRequest(
+    string DisplayName,
+    string? Secret,
+    string? Adapter = null,
+    string? BaseUrl = null,
+    string? Model = null,
+    string? CredentialId = null,
+    bool Enabled = true);
 public sealed record ActivateAiProviderRequest(string Provider);
 
 public sealed record AiPromptTestRequest(string Prompt);

@@ -115,4 +115,20 @@ describe('UserManagementPage — Identity-backed account UI', () => {
     expect(runpod).toHaveTextContent('使用中');
     expect(openai).not.toHaveTextContent('使用中');
   });
+
+  it('AI profile definition form accepts an arbitrary profile ID and transport fields', async () => {
+    render(<MyrialeApp initialUrl="/admin" />);
+
+    const profileId = await screen.findByRole('textbox', { name: 'Profile ID' });
+    fireEvent.change(profileId, { target: { value: 'acme-story' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '表示名' }), { target: { value: 'Acme Story' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Base URL' }), { target: { value: 'https://ai.acme.test/v1' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Model' }), { target: { value: 'acme/story-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Profileを保存' }));
+
+    const row = await screen.findByTestId('ai-key-row-acme-story');
+    expect(row).toHaveTextContent('Acme Story');
+    expect(row).toHaveTextContent('acme/story-1');
+    expect(row).toHaveTextContent('database');
+  });
 });

@@ -9,7 +9,7 @@ public interface IAiProviderSelectionStore
     Task SetActiveProviderAsync(string provider, CancellationToken cancellationToken);
 }
 
-public sealed class DbAiProviderSelectionStore(ApplicationDbContext db, IConfiguration configuration) : IAiProviderSelectionStore
+public sealed class DbAiProviderSelectionStore(ApplicationDbContext db, IAiProfileCatalog catalog, IConfiguration configuration) : IAiProviderSelectionStore
 {
     public async Task<string> GetActiveProviderAsync(CancellationToken cancellationToken)
     {
@@ -17,13 +17,23 @@ public sealed class DbAiProviderSelectionStore(ApplicationDbContext db, IConfigu
             .Where(settings => settings.Id == AiProviderRuntimeSettings.DefaultId)
             .Select(settings => settings.ActiveProvider)
             .SingleOrDefaultAsync(cancellationToken);
-        return NormalizeSupported(selected) ?? NormalizeSupported(configuration["AiProvider:Provider"]) ?? "openai";
+        if (!string.IsNullOrWhiteSpace(selected))
+        {
+            try { return (await catalog.ResolveAsync(selected, cancellationToken)).Id; }
+            catch (AiProviderException) { }
+        }
+        var configured = configuration["AiProvider:Provider"];
+        if (!string.IsNullOrWhiteSpace(configured) && !string.Equals(configured, "mock", StringComparison.OrdinalIgnoreCase))
+        {
+            try { return (await catalog.ResolveAsync(configured, cancellationToken)).Id; }
+            catch (AiProviderException) { }
+        }
+        return (await catalog.GetAsync(cancellationToken)).DefaultNarrativeProfileId;
     }
 
     public async Task SetActiveProviderAsync(string provider, CancellationToken cancellationToken)
     {
-        provider = NormalizeSupported(provider)
-            ?? throw new ArgumentException("Provider must be openai or runpod.", nameof(provider));
+        provider = (await catalog.ResolveAsync(provider, cancellationToken)).Id;
         var settings = await db.AiProviderRuntimeSettings.FindAsync([AiProviderRuntimeSettings.DefaultId], cancellationToken);
         if (settings is null)
         {
@@ -35,9 +45,4 @@ public sealed class DbAiProviderSelectionStore(ApplicationDbContext db, IConfigu
         await db.SaveChangesAsync(cancellationToken);
     }
 
-    private static string? NormalizeSupported(string? provider)
-    {
-        var normalized = provider?.Trim().ToLowerInvariant();
-        return normalized is "openai" or "runpod" ? normalized : null;
-    }
 }

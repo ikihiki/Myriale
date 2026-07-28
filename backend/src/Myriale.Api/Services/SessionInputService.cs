@@ -8,7 +8,7 @@ using Myriale.Api.Data;
 
 namespace Myriale.Api.Services;
 
-public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProviderOptions> aiOptions, AiProfileCatalog profiles)
+public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProviderOptions> aiOptions, IAiProfileCatalog profiles)
 {
     public async Task<SessionInputAcceptanceResult> AcceptAsync(string ownerId, string sessionId, CreateSessionInputRequest request, CancellationToken cancellationToken)
     {
@@ -26,8 +26,8 @@ public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProv
         string narrativeAiProfileId;
         try
         {
-            actionDecisionAiProfileId = profiles.ResolveActionDecisionProfileId(request.ActionDecisionAiProfileId);
-            narrativeAiProfileId = profiles.ResolveNarrativeProfileId(request.NarrativeAiProfileId);
+            actionDecisionAiProfileId = await profiles.ResolveActionDecisionProfileIdAsync(request.ActionDecisionAiProfileId, cancellationToken);
+            narrativeAiProfileId = await profiles.ResolveNarrativeProfileIdAsync(request.NarrativeAiProfileId, cancellationToken);
         }
         catch (AiProviderException)
         {
