@@ -112,8 +112,8 @@ async function installApiRoutes(page: Page) {
     if (request.method() === 'GET' && path === '/api/ai/profiles') {
       return json(route, {
         profiles: [
-          { id: 'runpod-recommended', displayName: '推奨（Deckard 40B FP8）' },
-          { id: 'runpod-economy', displayName: '最安（Qwen3 30B-A3B FP8）' },
+          { id: 'runpod-recommended', displayName: '推奨（Deckard 40B AWQ）' },
+          { id: 'runpod-economy', displayName: '最安（Qwen2.5 14B Abliterated AWQ）' },
         ],
         defaultActionDecisionProfileId: 'runpod-recommended',
         defaultNarrativeProfileId: 'runpod-recommended',

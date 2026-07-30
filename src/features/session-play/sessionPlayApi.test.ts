@@ -120,8 +120,8 @@ describe('sessionPlayApi', () => {
   it('loads safe selectable AI profile metadata from the focused endpoint', async () => {
     const payload = {
       profiles: [
-        { id: 'runpod-recommended', displayName: '推奨（Deckard 40B FP8）' },
-        { id: 'runpod-economy', displayName: '最安（Qwen3.6 27B GPTQ）' },
+        { id: 'runpod-recommended', displayName: '推奨（Deckard 40B AWQ）' },
+        { id: 'runpod-economy', displayName: '最安（Qwen2.5 14B Abliterated AWQ）' },
       ],
       defaultActionDecisionProfileId: 'runpod-recommended',
       defaultNarrativeProfileId: 'runpod-recommended',

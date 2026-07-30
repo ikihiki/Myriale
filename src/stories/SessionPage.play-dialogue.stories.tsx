@@ -84,14 +84,14 @@ export const IndependentAiProfileSelection: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await step('2つのAI selectorを推奨profileで初期表示する', async () => {
-      await expect(canvas.getByLabelText('行動判定AI')).toHaveTextContent('推奨（Deckard 40B FP8）');
-      await expect(canvas.getByLabelText('ナラティブ生成AI')).toHaveTextContent('推奨（Deckard 40B FP8）');
+      await expect(canvas.getByLabelText('行動判定AI')).toHaveTextContent('推奨（Deckard 40B AWQ）');
+      await expect(canvas.getByLabelText('ナラティブ生成AI')).toHaveTextContent('推奨（Deckard 40B AWQ）');
     });
     await step('行動判定だけ最安profileへ変更し、ナラティブ生成の選択は独立して保持する', async () => {
       await userEvent.click(canvas.getByLabelText('行動判定AI'));
-      await userEvent.click(within(document.body).getByRole('option', { name: '最安（Qwen3.6 27B GPTQ）' }));
-      await expect(canvas.getByLabelText('行動判定AI')).toHaveTextContent('最安（Qwen3.6 27B GPTQ）');
-      await expect(canvas.getByLabelText('ナラティブ生成AI')).toHaveTextContent('推奨（Deckard 40B FP8）');
+      await userEvent.click(within(document.body).getByRole('option', { name: '最安（Qwen2.5 14B Abliterated AWQ）' }));
+      await expect(canvas.getByLabelText('行動判定AI')).toHaveTextContent('最安（Qwen2.5 14B Abliterated AWQ）');
+      await expect(canvas.getByLabelText('ナラティブ生成AI')).toHaveTextContent('推奨（Deckard 40B AWQ）');
     });
   },
 };

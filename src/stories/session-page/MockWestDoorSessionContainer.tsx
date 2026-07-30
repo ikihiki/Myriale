@@ -39,8 +39,8 @@ export function MockWestDoorSessionContainer({ sessionId }: { sessionId: string 
     sessionStateLabel="Active"
     activitySession={session}
     aiProfiles={[
-      { id: 'runpod-recommended', displayName: '推奨（Deckard 40B FP8）' },
-      { id: 'runpod-economy', displayName: '最安（Qwen3.6 27B GPTQ）' },
+      { id: 'runpod-recommended', displayName: '推奨（Deckard 40B AWQ）' },
+      { id: 'runpod-economy', displayName: '最安（Qwen2.5 14B Abliterated AWQ）' },
     ]}
     defaultActionDecisionAiProfileId="runpod-recommended"
     defaultNarrativeAiProfileId="runpod-recommended"
