@@ -34,4 +34,5 @@ public sealed class SessionExecutionAttempt
     public int? ContextSizeBytes { get; set; }
 
     public SessionExecution Execution { get; set; } = null!;
+    public ICollection<SessionAiInteraction> AiInteractions { get; set; } = [];
 }

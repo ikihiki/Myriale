@@ -108,6 +108,44 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task ScenarioTurn_PersistsSuccessfulAndFailedAiInteractionsWithoutDuplicates()
+    {
+        ai.NarrativeFailuresRemaining = 1;
+        using var client = await SignedInClientAsync();
+        var scenarioId = await CreatePublishedDoorScenarioAsync(client, "start");
+        using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-ai-history" });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
+
+        using var accepted = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", new
+        {
+            requestId = "ai-history-turn",
+            text = "北の扉を開ける",
+            actionDecisionAiProfileId = "runpod-economy",
+            narrativeAiProfileId = "runpod-recommended",
+        });
+        Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
+        await WaitForExecutionAsync(client, sessionId, "succeeded");
+
+        using var historyResponse = await client.GetAsync($"/api/sessions/{sessionId}/ai-history");
+        Assert.Equal(HttpStatusCode.OK, historyResponse.StatusCode);
+        var history = await historyResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(3, history.GetArrayLength());
+        Assert.Equal(["action-decision", "narrative", "narrative"], history.EnumerateArray().Select(item => item.GetProperty("stage").GetString()!).ToArray());
+        Assert.Equal(["succeeded", "failed", "succeeded"], history.EnumerateArray().Select(item => item.GetProperty("status").GetString()!).ToArray());
+        Assert.Equal("action prompt", history[0].GetProperty("sentPrompt").GetString());
+        Assert.Equal("action result", history[0].GetProperty("receivedResult").GetString());
+        Assert.Equal("partial result", history[1].GetProperty("receivedResult").GetString());
+        Assert.Equal("narrative result", history[2].GetProperty("receivedResult").GetString());
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+        var interactions = await db.SessionAiInteractions.Where(item => item.SessionId == sessionId).ToListAsync();
+        Assert.Equal(3, interactions.Count);
+        Assert.Equal(interactions.Count, interactions.Select(item => (item.AttemptId, item.Stage)).Distinct().Count());
+    }
+
+    [Fact]
     public async Task WestDoor_OpenAndExit_MovesSessionAndProjectsCommittedExecutionAfterRetry()
     {
         ai.NarrativeFailuresRemaining = 1;
@@ -466,13 +504,13 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
             var targetId = request.Snapshot.Objects.Single(item => item.Code == targetCode).Id;
             var action = request.Snapshot.Actions.First(item => item.Enabled && item.ObjectId == targetId);
             var result = new RuleActionDecisionResult(ScenarioTurnSchemas.ActionDecision, action.ObjectId, ReturnUnknownAction ? "missing" : action.ActionId, JsonSerializer.Deserialize<JsonElement>("{}"));
-            return new NarrativeGeneration<RuleActionDecisionResult>(result, Metadata());
+            return new NarrativeGeneration<RuleActionDecisionResult>(result, Metadata(), "action prompt", "action result");
         }
         public Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeAsync(PostStateNarrativeRequest request, CancellationToken cancellationToken)
         {
             NarrativeCalls++; NarrativeRequests.Add(request);
-            if (NarrativeFailuresRemaining-- > 0) throw new AiProviderException(AiProviderErrorCodes.Timeout, "retry", true);
-            return Task.FromResult(new NarrativeGeneration<PostStateNarrativeResult>(new(ScenarioTurnSchemas.PostStateNarrative, "Door opened", "The north door now stands open."), Metadata()));
+            if (NarrativeFailuresRemaining-- > 0) throw new AiProviderException(AiProviderErrorCodes.Timeout, "retry", true, sentPrompt: "narrative prompt", receivedResult: "partial result");
+            return Task.FromResult(new NarrativeGeneration<PostStateNarrativeResult>(new(ScenarioTurnSchemas.PostStateNarrative, "Door opened", "The north door now stands open."), Metadata(), "narrative prompt", "narrative result"));
         }
         private static AiGenerationMetadata Metadata() => new("test", "deterministic", null, null, null, 1, 1, "stop");
     }

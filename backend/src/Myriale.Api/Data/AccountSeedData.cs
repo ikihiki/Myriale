@@ -64,7 +64,7 @@ public static class AccountSeedData
     private static async Task EnsureAdminClaimsAsync(UserManager<ApplicationUser> userManager, ApplicationUser user)
     {
         var claims = await userManager.GetClaimsAsync(user);
-        foreach (var type in new[] { "myriale:module-admin", "myriale:ai-admin" })
+        foreach (var type in new[] { "myriale:module-admin", "myriale:ai-admin", "myriale:admin" })
             if (!claims.Any(claim => claim.Type == type && claim.Value == "true"))
                 await userManager.AddClaimAsync(user, new Claim(type, "true"));
     }

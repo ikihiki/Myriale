@@ -55,16 +55,24 @@ public sealed class ScenarioTurnExecutionHandler(
             var actionSnapshot = JsonSerializer.Deserialize<RuleActionSnapshot>(step.ActionSnapshotJson, Json)
                 ?? throw new ScenarioTurnValidationException("invalid_action_snapshot");
             RuleActionDecisionResult decision;
-            AiGenerationMetadata? decisionMetadata = null;
             if (step.DecisionJson is null)
             {
-                var generated = await ai.DecideActionForProfileAsync(
-                    execution.ActionDecisionAiProfileId ?? throw new ScenarioTurnValidationException("action_ai_profile_not_snapshotted"),
-                    new(ScenarioTurnSchemas.ActionDecision, input.Text, actionSnapshot),
+                var actionProfileId = execution.ActionDecisionAiProfileId ?? throw new ScenarioTurnValidationException("action_ai_profile_not_snapshotted");
+                var generated = await ExecuteAiInteractionAsync(
+                    execution,
+                    context.AttemptId,
+                    1,
+                    SessionAiInteractionStages.ActionDecision,
+                    actionProfileId,
+                    token => ai.DecideActionForProfileAsync(
+                        actionProfileId,
+                        new(ScenarioTurnSchemas.ActionDecision, input.Text, actionSnapshot),
+                        token),
+                    value => ValidateDecision(actionSnapshot, value),
                     cancellationToken);
-                decision = ValidateDecision(actionSnapshot, generated.Value);
+                decision = generated.Value;
                 step.DecisionJson = JsonSerializer.Serialize(decision, Json); step.SelectedAt = DateTimeOffset.UtcNow; step.Stage = ScenarioTurnStages.ApplyingRules; step.UpdatedAt = DateTimeOffset.UtcNow;
-                execution.Stage = ScenarioTurnStages.ApplyingRules; decisionMetadata = generated.Metadata;
+                execution.Stage = ScenarioTurnStages.ApplyingRules;
                 await db.SaveChangesAsync(cancellationToken);
             }
             else decision = JsonSerializer.Deserialize<RuleActionDecisionResult>(step.DecisionJson, Json)!;
@@ -145,11 +153,16 @@ public sealed class ScenarioTurnExecutionHandler(
                     narrativeSession.Scenario.Opening),
                 input.Text, selectedObject, selectedAction, postStateForNarrative,
                 DeserializeList<string>(step.FactsJson), DeserializeList<JsonElement>(step.EventsJson), DeserializeList<string>(step.NarrativeHintsJson), DeserializeList<string>(step.ForbiddenNarrativeFactsJson));
-            var narrative = await ai.GeneratePostStateNarrativeForProfileAsync(
-                execution.NarrativeAiProfileId ?? throw new ScenarioTurnValidationException("narrative_ai_profile_not_snapshotted"),
-                narrativeRequest,
+            var narrativeProfileId = execution.NarrativeAiProfileId ?? throw new ScenarioTurnValidationException("narrative_ai_profile_not_snapshotted");
+            var narrative = await ExecuteAiInteractionAsync(
+                execution,
+                context.AttemptId,
+                2,
+                SessionAiInteractionStages.Narrative,
+                narrativeProfileId,
+                token => ai.GeneratePostStateNarrativeForProfileAsync(narrativeProfileId, narrativeRequest, token),
+                value => ValidateNarrative(value, narrativeRequest.ForbiddenNarrativeFacts),
                 cancellationToken);
-            ValidateNarrative(narrative.Value, narrativeRequest.ForbiddenNarrativeFacts);
 
             db.ChangeTracker.Clear();
             await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
@@ -187,6 +200,177 @@ public sealed class ScenarioTurnExecutionHandler(
         {
             logger.LogWarning(exception, "Scenario turn AI stage failed. ExecutionId={ExecutionId}", context.ExecutionId);
             return new(false, true, "scenario_ai_failed", "AI処理を再試行します。");
+        }
+    }
+
+    private async Task<NarrativeGeneration<T>> ExecuteAiInteractionAsync<T>(
+        SessionExecution execution,
+        string attemptId,
+        int sequence,
+        string stage,
+        string aiProfileId,
+        Func<CancellationToken, Task<NarrativeGeneration<T>>> generate,
+        Action<T> validate,
+        CancellationToken cancellationToken)
+    {
+        var startedAt = DateTimeOffset.UtcNow;
+        NarrativeGeneration<T> generated;
+        try
+        {
+            generated = await generate(cancellationToken);
+        }
+        catch (AiProviderException exception) when (exception.SentPrompt is not null || exception.ReceivedResult is not null)
+        {
+            await TryPersistFailedInteractionAsync(
+                execution,
+                attemptId,
+                sequence,
+                stage,
+                aiProfileId,
+                startedAt,
+                exception,
+                cancellationToken);
+            throw;
+        }
+
+        try
+        {
+            validate(generated.Value);
+        }
+        catch (ScenarioTurnValidationException exception)
+        {
+            await PersistInteractionAsync(
+                execution,
+                attemptId,
+                sequence,
+                stage,
+                aiProfileId,
+                startedAt,
+                generated,
+                SessionAiInteractionStatuses.ValidationFailed,
+                exception.Code,
+                exception.Message,
+                JsonSerializer.Serialize(new { status = "invalid", code = exception.Code }, Json),
+                cancellationToken);
+            throw;
+        }
+
+        await PersistInteractionAsync(
+            execution,
+            attemptId,
+            sequence,
+            stage,
+            aiProfileId,
+            startedAt,
+            generated,
+            SessionAiInteractionStatuses.Succeeded,
+            null,
+            null,
+            JsonSerializer.Serialize(new { status = "valid" }, Json),
+            cancellationToken);
+        return generated;
+    }
+
+    private async Task PersistInteractionAsync<T>(
+        SessionExecution execution,
+        string attemptId,
+        int sequence,
+        string stage,
+        string aiProfileId,
+        DateTimeOffset startedAt,
+        NarrativeGeneration<T> generated,
+        string status,
+        string? errorCode,
+        string? errorMessage,
+        string validationResult,
+        CancellationToken cancellationToken)
+    {
+        var interaction = await db.SessionAiInteractions
+            .SingleOrDefaultAsync(item => item.AttemptId == attemptId && item.Stage == stage, cancellationToken);
+        if (interaction is null)
+        {
+            interaction = new SessionAiInteraction
+            {
+                Id = $"AII-{Guid.NewGuid():N}".ToUpperInvariant(),
+                SessionId = execution.SessionId,
+                ExecutionId = execution.Id,
+                AttemptId = attemptId,
+                Sequence = sequence,
+                Stage = stage,
+                AiProfileId = aiProfileId,
+                StartedAt = startedAt,
+            };
+            db.SessionAiInteractions.Add(interaction);
+        }
+
+        interaction.Provider = generated.Metadata.Provider;
+        interaction.Model = generated.Metadata.Model;
+        interaction.ProviderRequestId = generated.Metadata.ResponseId;
+        interaction.CompletedAt = DateTimeOffset.UtcNow;
+        interaction.LatencyMilliseconds = generated.Metadata.LatencyMilliseconds;
+        interaction.InputTokens = generated.Metadata.InputTokens;
+        interaction.OutputTokens = generated.Metadata.OutputTokens;
+        interaction.FinishReason = generated.Metadata.FinishReason;
+        interaction.Status = status;
+        interaction.ErrorCode = errorCode;
+        interaction.ErrorMessage = errorMessage;
+        interaction.SentPrompt = generated.SentPrompt;
+        interaction.ReceivedResult = generated.ReceivedResult;
+        interaction.ValidationResult = validationResult;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task TryPersistFailedInteractionAsync(
+        SessionExecution execution,
+        string attemptId,
+        int sequence,
+        string stage,
+        string aiProfileId,
+        DateTimeOffset startedAt,
+        AiProviderException exception,
+        CancellationToken cancellationToken)
+    {
+        SessionAiInteraction? interaction = null;
+        try
+        {
+            interaction = await db.SessionAiInteractions
+                .SingleOrDefaultAsync(item => item.AttemptId == attemptId && item.Stage == stage, cancellationToken);
+            if (interaction is null)
+            {
+                interaction = new SessionAiInteraction
+                {
+                    Id = $"AII-{Guid.NewGuid():N}".ToUpperInvariant(),
+                    SessionId = execution.SessionId,
+                    ExecutionId = execution.Id,
+                    AttemptId = attemptId,
+                    Sequence = sequence,
+                    Stage = stage,
+                    AiProfileId = aiProfileId,
+                    StartedAt = startedAt,
+                };
+                db.SessionAiInteractions.Add(interaction);
+            }
+
+            var completedAt = DateTimeOffset.UtcNow;
+            interaction.CompletedAt = completedAt;
+            interaction.LatencyMilliseconds = Math.Max(0, (long)(completedAt - startedAt).TotalMilliseconds);
+            interaction.Status = SessionAiInteractionStatuses.Failed;
+            interaction.ErrorCode = exception.Code;
+            interaction.ErrorMessage = exception.Message;
+            interaction.SentPrompt = exception.SentPrompt;
+            interaction.ReceivedResult = exception.ReceivedResult;
+            interaction.ValidationResult = JsonSerializer.Serialize(new { status = "not-validated" }, Json);
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception persistenceException)
+        {
+            if (interaction is not null) db.Entry(interaction).State = EntityState.Detached;
+            logger.LogWarning(
+                persistenceException,
+                "Failed to persist AI interaction failure without changing execution retry behavior. ExecutionId={ExecutionId} AttemptId={AttemptId} Stage={Stage}",
+                execution.Id,
+                attemptId,
+                stage);
         }
     }
 

@@ -131,6 +131,8 @@ builder.Services.AddAuthorization(options =>
         policy.RequireClaim("myriale:module-admin", "true"));
     options.AddPolicy("AiAdministration", policy =>
         policy.RequireClaim("myriale:ai-admin", "true"));
+    options.AddPolicy("Administration", policy =>
+        policy.RequireClaim("myriale:admin", "true"));
 });
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {

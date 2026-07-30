@@ -65,5 +65,6 @@ public sealed class SessionExecution
 
     public Session Session { get; set; } = null!;
     public ICollection<SessionExecutionAttempt> Attempts { get; set; } = [];
+    public ICollection<SessionAiInteraction> AiInteractions { get; set; } = [];
     public ICollection<SessionArtifact> Artifacts { get; set; } = [];
 }

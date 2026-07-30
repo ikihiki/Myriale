@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
@@ -27,6 +28,9 @@ public static class SessionEndpoints
         group.MapGet("/{sessionId}", GetAsync)
             .WithName("GetSession")
             .WithSummary("Returns a session and its ordered turns.");
+        group.MapGet("/{sessionId}/ai-history", GetAiHistoryAsync)
+            .WithName("GetSessionAiHistory")
+            .WithSummary("Returns the scenario author's or an administrator's chronological AI call history for a session.");
         group.MapPost("/{sessionId}/action-recommendation", RecommendActionAsync)
             .WithName("RecommendSessionAction")
             .WithSummary("Returns an AI-generated suggestion for the next player action without advancing the session.");
@@ -43,6 +47,55 @@ public static class SessionEndpoints
             .WithName("GetSessionTurn")
             .WithSummary("Returns one owner-visible session turn.");
         return group;
+    }
+
+    private static async Task<IResult> GetAiHistoryAsync(
+        string sessionId,
+        ClaimsPrincipal principal,
+        ApplicationDbContext db,
+        IAuthorizationService authorization,
+        CancellationToken cancellationToken)
+    {
+        var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId)) return Results.Unauthorized();
+
+        var session = await db.Sessions.AsNoTracking()
+            .Where(item => item.Id == sessionId)
+            .Select(item => new { item.Id, item.Scenario.AuthorId })
+            .SingleOrDefaultAsync(cancellationToken);
+        var isAdministrator = (await authorization.AuthorizeAsync(principal, "Administration")).Succeeded;
+        if (session is null || (!isAdministrator && !string.Equals(session.AuthorId, userId, StringComparison.Ordinal)))
+            return Results.NotFound();
+
+        var interactions = await db.SessionAiInteractions.AsNoTracking()
+            .Where(interaction => interaction.SessionId == session.Id)
+            .ToListAsync(cancellationToken);
+        var history = interactions
+            .OrderBy(interaction => interaction.StartedAt)
+            .ThenBy(interaction => interaction.Sequence)
+            .ThenBy(interaction => interaction.Id, StringComparer.Ordinal)
+            .Select(interaction => new SessionAiInteractionDto(
+                interaction.Id,
+                interaction.ExecutionId,
+                interaction.Sequence,
+                interaction.Stage,
+                interaction.AiProfileId,
+                interaction.Provider,
+                interaction.Model,
+                interaction.ProviderRequestId,
+                interaction.StartedAt,
+                interaction.CompletedAt,
+                interaction.LatencyMilliseconds,
+                interaction.InputTokens,
+                interaction.OutputTokens,
+                interaction.FinishReason,
+                interaction.Status,
+                interaction.ErrorCode,
+                interaction.SentPrompt,
+                interaction.ReceivedResult,
+                interaction.ValidationResult))
+            .ToList();
+        return Results.Ok(history);
     }
 
     private static async Task<IResult> ListAsync(
