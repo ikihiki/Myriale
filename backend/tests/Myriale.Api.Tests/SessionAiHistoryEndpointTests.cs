@@ -82,8 +82,12 @@ public sealed class SessionAiHistoryEndpointTests : IDisposable
         using var authorResponse = await authorClient.GetAsync($"/api/sessions/{sessionId}/ai-history");
         Assert.Equal(HttpStatusCode.OK, authorResponse.StatusCode);
         var history = await authorResponse.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal(["AII-ACTION", "AII-NARRATIVE"], history.EnumerateArray().Select(item => item.GetProperty("id").GetString()!).ToArray());
-        var action = history[0];
+        Assert.Equal(sessionId, history.GetProperty("sessionId").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(history.GetProperty("scenarioId").GetString()));
+        Assert.False(string.IsNullOrWhiteSpace(history.GetProperty("scenarioTitle").GetString()));
+        var interactions = history.GetProperty("interactions");
+        Assert.Equal(["AII-ACTION", "AII-NARRATIVE"], interactions.EnumerateArray().Select(item => item.GetProperty("id").GetString()!).ToArray());
+        var action = interactions[0];
         Assert.Equal("EXE-AI-HISTORY", action.GetProperty("executionId").GetString());
         Assert.Equal("profile-test", action.GetProperty("aiProfileId").GetString());
         Assert.Equal("provider-test", action.GetProperty("provider").GetString());

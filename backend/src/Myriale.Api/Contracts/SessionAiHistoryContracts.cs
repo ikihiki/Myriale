@@ -1,8 +1,16 @@
 namespace Myriale.Api.Contracts;
 
+public sealed record SessionAiHistoryResponse(
+    string SessionId,
+    string ScenarioId,
+    string ScenarioTitle,
+    IReadOnlyList<SessionAiInteractionDto> Interactions);
+
 public sealed record SessionAiInteractionDto(
     string Id,
     string ExecutionId,
+    string ExecutionAttemptId,
+    int AttemptNumber,
     int Sequence,
     string Stage,
     string AiProfileId,

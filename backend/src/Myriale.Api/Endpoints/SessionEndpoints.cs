@@ -61,7 +61,13 @@ public static class SessionEndpoints
 
         var session = await db.Sessions.AsNoTracking()
             .Where(item => item.Id == sessionId)
-            .Select(item => new { item.Id, item.Scenario.AuthorId })
+            .Select(item => new
+            {
+                item.Id,
+                item.ScenarioId,
+                ScenarioTitle = item.Scenario.Title,
+                item.Scenario.AuthorId,
+            })
             .SingleOrDefaultAsync(cancellationToken);
         var isAdministrator = (await authorization.AuthorizeAsync(principal, "Administration")).Succeeded;
         if (session is null || (!isAdministrator && !string.Equals(session.AuthorId, userId, StringComparison.Ordinal)))
@@ -69,33 +75,41 @@ public static class SessionEndpoints
 
         var interactions = await db.SessionAiInteractions.AsNoTracking()
             .Where(interaction => interaction.SessionId == session.Id)
+            .Select(interaction => new
+            {
+                Interaction = interaction,
+                interaction.Attempt.AttemptNumber,
+            })
             .ToListAsync(cancellationToken);
         var history = interactions
-            .OrderBy(interaction => interaction.StartedAt)
-            .ThenBy(interaction => interaction.Sequence)
-            .ThenBy(interaction => interaction.Id, StringComparer.Ordinal)
-            .Select(interaction => new SessionAiInteractionDto(
-                interaction.Id,
-                interaction.ExecutionId,
-                interaction.Sequence,
-                interaction.Stage,
-                interaction.AiProfileId,
-                interaction.Provider,
-                interaction.Model,
-                interaction.ProviderRequestId,
-                interaction.StartedAt,
-                interaction.CompletedAt,
-                interaction.LatencyMilliseconds,
-                interaction.InputTokens,
-                interaction.OutputTokens,
-                interaction.FinishReason,
-                interaction.Status,
-                interaction.ErrorCode,
-                interaction.SentPrompt,
-                interaction.ReceivedResult,
-                interaction.ValidationResult))
+            .OrderBy(item => item.Interaction.StartedAt)
+            .ThenBy(item => item.AttemptNumber)
+            .ThenBy(item => item.Interaction.Sequence)
+            .ThenBy(item => item.Interaction.Id, StringComparer.Ordinal)
+            .Select(item => new SessionAiInteractionDto(
+                item.Interaction.Id,
+                item.Interaction.ExecutionId,
+                item.Interaction.AttemptId,
+                item.AttemptNumber,
+                item.Interaction.Sequence,
+                item.Interaction.Stage,
+                item.Interaction.AiProfileId,
+                item.Interaction.Provider,
+                item.Interaction.Model,
+                item.Interaction.ProviderRequestId,
+                item.Interaction.StartedAt,
+                item.Interaction.CompletedAt,
+                item.Interaction.LatencyMilliseconds,
+                item.Interaction.InputTokens,
+                item.Interaction.OutputTokens,
+                item.Interaction.FinishReason,
+                item.Interaction.Status,
+                item.Interaction.ErrorCode,
+                item.Interaction.SentPrompt,
+                item.Interaction.ReceivedResult,
+                item.Interaction.ValidationResult))
             .ToList();
-        return Results.Ok(history);
+        return Results.Ok(new SessionAiHistoryResponse(session.Id, session.ScenarioId, session.ScenarioTitle, history));
     }
 
     private static async Task<IResult> ListAsync(

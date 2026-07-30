@@ -43,7 +43,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         var profilesBody = await profilesResponse.Content.ReadAsStringAsync();
         var profilesJson = JsonSerializer.Deserialize<JsonElement>(profilesBody);
         Assert.Equal(2, profilesJson.GetProperty("profiles").GetArrayLength());
-        Assert.Contains("推奨（Deckard 40B FP8）", profilesBody, StringComparison.Ordinal);
+        Assert.Contains("推奨（Deckard 40B AWQ）", profilesBody, StringComparison.Ordinal);
         Assert.DoesNotContain("api.runpod.ai", profilesBody, StringComparison.Ordinal);
         Assert.DoesNotContain("Model", profilesBody, StringComparison.OrdinalIgnoreCase);
 
@@ -130,13 +130,14 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         using var historyResponse = await client.GetAsync($"/api/sessions/{sessionId}/ai-history");
         Assert.Equal(HttpStatusCode.OK, historyResponse.StatusCode);
         var history = await historyResponse.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal(3, history.GetArrayLength());
-        Assert.Equal(["action-decision", "narrative", "narrative"], history.EnumerateArray().Select(item => item.GetProperty("stage").GetString()!).ToArray());
-        Assert.Equal(["succeeded", "failed", "succeeded"], history.EnumerateArray().Select(item => item.GetProperty("status").GetString()!).ToArray());
-        Assert.Equal("action prompt", history[0].GetProperty("sentPrompt").GetString());
-        Assert.Equal("action result", history[0].GetProperty("receivedResult").GetString());
-        Assert.Equal("partial result", history[1].GetProperty("receivedResult").GetString());
-        Assert.Equal("narrative result", history[2].GetProperty("receivedResult").GetString());
+        var interactionsJson = history.GetProperty("interactions");
+        Assert.Equal(3, interactionsJson.GetArrayLength());
+        Assert.Equal(["action-decision", "narrative", "narrative"], interactionsJson.EnumerateArray().Select(item => item.GetProperty("stage").GetString()!).ToArray());
+        Assert.Equal(["succeeded", "failed", "succeeded"], interactionsJson.EnumerateArray().Select(item => item.GetProperty("status").GetString()!).ToArray());
+        Assert.Equal("action prompt", interactionsJson[0].GetProperty("sentPrompt").GetString());
+        Assert.Equal("action result", interactionsJson[0].GetProperty("receivedResult").GetString());
+        Assert.Equal("partial result", interactionsJson[1].GetProperty("receivedResult").GetString());
+        Assert.Equal("narrative result", interactionsJson[2].GetProperty("receivedResult").GetString());
 
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();

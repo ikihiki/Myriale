@@ -92,7 +92,9 @@ export function toSessionAiHistory(dto: SessionAiHistoryDto): SessionAiHistory {
     scenarioId: dto.scenarioId,
     scenarioTitle: dto.scenarioTitle,
     interactions: [...dto.interactions]
-      .sort((left, right) => left.sequence - right.sequence || left.attemptNumber - right.attemptNumber)
+      .sort((left, right) => Date.parse(left.startedAt) - Date.parse(right.startedAt)
+        || left.attemptNumber - right.attemptNumber
+        || left.sequence - right.sequence)
       .map((interaction) => ({
         id: interaction.id,
         executionId: interaction.executionId,
