@@ -37,6 +37,7 @@ import { Route as AccountProfileEditRouteImport } from './routes/account/profile
 import { Route as ScenariosScenarioIdEditRouteImport } from './routes/scenarios/$scenarioId/edit'
 import { Route as ScenariosScenarioIdRunSettingsRouteImport } from './routes/scenarios/$scenarioId/run-settings'
 import { Route as SessionsSessionIdIndexRouteImport } from './routes/sessions/$sessionId/index'
+import { Route as SessionsSessionIdAiHistoryRouteImport } from './routes/sessions/$sessionId/ai-history'
 import { Route as SessionsSessionIdModeExceptionRouteImport } from './routes/sessions/$sessionId/mode-exception'
 import { Route as SessionsSessionIdNotesRouteImport } from './routes/sessions/$sessionId/notes'
 import { Route as SessionsSessionIdPlayRouteImport } from './routes/sessions/$sessionId/play'
@@ -186,6 +187,12 @@ const SessionsSessionIdIndexRoute = SessionsSessionIdIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SessionsSessionIdRouteRoute,
 } as any)
+const SessionsSessionIdAiHistoryRoute =
+  SessionsSessionIdAiHistoryRouteImport.update({
+    id: '/ai-history',
+    path: '/ai-history',
+    getParentRoute: () => SessionsSessionIdRouteRoute,
+  } as any)
 const SessionsSessionIdModeExceptionRoute =
   SessionsSessionIdModeExceptionRouteImport.update({
     id: '/mode-exception',
@@ -246,6 +253,7 @@ export interface FileRoutesByFullPath {
   '/account/profile/edit': typeof AccountProfileEditRoute
   '/scenarios/$scenarioId/edit': typeof ScenariosScenarioIdEditRoute
   '/scenarios/$scenarioId/run-settings': typeof ScenariosScenarioIdRunSettingsRoute
+  '/sessions/$sessionId/ai-history': typeof SessionsSessionIdAiHistoryRoute
   '/sessions/$sessionId/mode-exception': typeof SessionsSessionIdModeExceptionRoute
   '/sessions/$sessionId/notes': typeof SessionsSessionIdNotesRoute
   '/sessions/$sessionId/play': typeof SessionsSessionIdPlayRoute
@@ -277,6 +285,7 @@ export interface FileRoutesByTo {
   '/account/profile/edit': typeof AccountProfileEditRoute
   '/scenarios/$scenarioId/edit': typeof ScenariosScenarioIdEditRoute
   '/scenarios/$scenarioId/run-settings': typeof ScenariosScenarioIdRunSettingsRoute
+  '/sessions/$sessionId/ai-history': typeof SessionsSessionIdAiHistoryRoute
   '/sessions/$sessionId/mode-exception': typeof SessionsSessionIdModeExceptionRoute
   '/sessions/$sessionId/notes': typeof SessionsSessionIdNotesRoute
   '/sessions/$sessionId/play': typeof SessionsSessionIdPlayRoute
@@ -314,6 +323,7 @@ export interface FileRoutesById {
   '/account/profile/edit': typeof AccountProfileEditRoute
   '/scenarios/$scenarioId/edit': typeof ScenariosScenarioIdEditRoute
   '/scenarios/$scenarioId/run-settings': typeof ScenariosScenarioIdRunSettingsRoute
+  '/sessions/$sessionId/ai-history': typeof SessionsSessionIdAiHistoryRoute
   '/sessions/$sessionId/mode-exception': typeof SessionsSessionIdModeExceptionRoute
   '/sessions/$sessionId/notes': typeof SessionsSessionIdNotesRoute
   '/sessions/$sessionId/play': typeof SessionsSessionIdPlayRoute
@@ -352,6 +362,7 @@ export interface FileRouteTypes {
     | '/account/profile/edit'
     | '/scenarios/$scenarioId/edit'
     | '/scenarios/$scenarioId/run-settings'
+    | '/sessions/$sessionId/ai-history'
     | '/sessions/$sessionId/mode-exception'
     | '/sessions/$sessionId/notes'
     | '/sessions/$sessionId/play'
@@ -383,6 +394,7 @@ export interface FileRouteTypes {
     | '/account/profile/edit'
     | '/scenarios/$scenarioId/edit'
     | '/scenarios/$scenarioId/run-settings'
+    | '/sessions/$sessionId/ai-history'
     | '/sessions/$sessionId/mode-exception'
     | '/sessions/$sessionId/notes'
     | '/sessions/$sessionId/play'
@@ -419,6 +431,7 @@ export interface FileRouteTypes {
     | '/account/profile/edit'
     | '/scenarios/$scenarioId/edit'
     | '/scenarios/$scenarioId/run-settings'
+    | '/sessions/$sessionId/ai-history'
     | '/sessions/$sessionId/mode-exception'
     | '/sessions/$sessionId/notes'
     | '/sessions/$sessionId/play'
@@ -636,6 +649,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SessionsSessionIdIndexRouteImport
       parentRoute: typeof SessionsSessionIdRouteRoute
     }
+    '/sessions/$sessionId/ai-history': {
+      id: '/sessions/$sessionId/ai-history'
+      path: '/ai-history'
+      fullPath: '/sessions/$sessionId/ai-history'
+      preLoaderRoute: typeof SessionsSessionIdAiHistoryRouteImport
+      parentRoute: typeof SessionsSessionIdRouteRoute
+    }
     '/sessions/$sessionId/mode-exception': {
       id: '/sessions/$sessionId/mode-exception'
       path: '/mode-exception'
@@ -772,6 +792,7 @@ const ScenariosRouteRouteWithChildren = ScenariosRouteRoute._addFileChildren(
 )
 
 interface SessionsSessionIdRouteRouteChildren {
+  SessionsSessionIdAiHistoryRoute: typeof SessionsSessionIdAiHistoryRoute
   SessionsSessionIdModeExceptionRoute: typeof SessionsSessionIdModeExceptionRoute
   SessionsSessionIdNotesRoute: typeof SessionsSessionIdNotesRoute
   SessionsSessionIdPlayRoute: typeof SessionsSessionIdPlayRoute
@@ -781,6 +802,7 @@ interface SessionsSessionIdRouteRouteChildren {
 
 const SessionsSessionIdRouteRouteChildren: SessionsSessionIdRouteRouteChildren =
   {
+    SessionsSessionIdAiHistoryRoute: SessionsSessionIdAiHistoryRoute,
     SessionsSessionIdModeExceptionRoute: SessionsSessionIdModeExceptionRoute,
     SessionsSessionIdNotesRoute: SessionsSessionIdNotesRoute,
     SessionsSessionIdPlayRoute: SessionsSessionIdPlayRoute,

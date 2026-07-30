@@ -1,0 +1,56 @@
+import { toSessionAiHistory, type SessionAiHistoryDto } from '../../features/session-ai-history/sessionAiHistoryModel';
+
+export const sessionAiHistoryDto: SessionAiHistoryDto = {
+  sessionId: 'SES-AUTHOR-042',
+  scenarioId: 'SCN-STAR-LIBRARY',
+  scenarioTitle: '星喰いの地下図書館',
+  interactions: [
+    {
+      id: 'AI-INT-001',
+      executionId: 'EXEC-018',
+      executionAttemptId: 'ATTEMPT-018-1',
+      attemptNumber: 1,
+      sequence: 1,
+      stage: 'selecting-action',
+      aiProfileId: 'action-decision-primary',
+      status: 'succeeded',
+      provider: 'OpenAI',
+      model: 'gpt-5-mini',
+      providerRequestId: 'req_action_018',
+      startedAt: '2026-07-29T10:21:14Z',
+      completedAt: '2026-07-29T10:21:15.284Z',
+      latencyMilliseconds: 1284,
+      inputTokens: 842,
+      outputTokens: 116,
+      finishReason: 'stop',
+      sentPrompt: '[SYSTEM]\n利用可能な行動から、現在の物語に最も自然なものを1つ選択してください。\n\n[STATE]\n場所: 禁書庫前\n所持品: 星図の鍵\n\n[PLAYER]\n扉に刻まれた星座を調べる',
+      receivedResult: '{\n  "actionId": "inspect-constellation-seal",\n  "arguments": { "useItem": "star-map-key" },\n  "confidence": 0.94\n}',
+      validationResult: 'schema: valid\naction: enabled\narguments: valid',
+    },
+    {
+      id: 'AI-INT-002',
+      executionId: 'EXEC-018',
+      executionAttemptId: 'ATTEMPT-018-1',
+      attemptNumber: 1,
+      sequence: 2,
+      stage: 'generating-narrative',
+      aiProfileId: 'narrative-main',
+      status: 'succeeded',
+      provider: 'OpenAI',
+      model: 'gpt-5',
+      providerRequestId: 'req_narrative_018',
+      startedAt: '2026-07-29T10:21:15.511Z',
+      completedAt: '2026-07-29T10:21:18.036Z',
+      latencyMilliseconds: 2525,
+      inputTokens: 1874,
+      outputTokens: 428,
+      finishReason: 'stop',
+      sentPrompt: '[SYSTEM]\n確定したルール処理を変更せず、日本語の物語として描写してください。\n\n[RESULT]\n星図の鍵が反応し、封印が解除された。',
+      receivedResult: '鍵を星座の中心へ重ねた瞬間、石の扉を走る銀の線が夜空のように瞬いた。長く閉ざされていた禁書庫の空気が、紙と微かな鉄の匂いをまとって流れ出す。',
+      validationResult: 'required facts: 3/3 present\nforbidden mutation: none',
+    },
+  ],
+};
+
+export const sessionAiHistory = toSessionAiHistory(sessionAiHistoryDto);
+export const emptySessionAiHistory = toSessionAiHistory({ ...sessionAiHistoryDto, interactions: [] });
