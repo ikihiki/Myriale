@@ -183,6 +183,16 @@ describe('SessionActivityFeed', () => {
     expect(screen.queryByText('Narrativeを表示できません。')).toBeNull();
   });
 
+  it('links every rendered backend turn to its turn-scoped inspection', () => {
+    const onInspectTurn = vi.fn();
+    render(<SessionActivityFeed session={sessionActivityFixture('succeeded')} onInspectTurn={onInspectTurn} />);
+
+    const links = screen.getAllByRole('button', { name: '実行詳細を見る' });
+    expect(links.length).toBeGreaterThan(0);
+    fireEvent.click(links.at(-1)!);
+    expect(onInspectTurn).toHaveBeenCalledWith('TRN-2');
+  });
+
   it('polls only while at least one execution is active', () => {
     expect(hasActiveSessionExecutions(sessionActivityFixture('running'))).toBe(true);
     expect(hasActiveSessionExecutions(sessionActivityFixture('failed'))).toBe(false);

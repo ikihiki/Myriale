@@ -12,6 +12,7 @@ export type TurnKind = 'action' | 'clarification' | 'rewound';
 
 export type DialogueTurn = {
   id: number;
+  turnId?: string;
   turnTitle: string;
   narrative: string;
   playerInput?: string;
@@ -146,6 +147,7 @@ export type SessionPresentationProps = {
   onClarification?: () => Promise<SessionCommandResult> | SessionCommandResult;
   onExecutionAction?: (executionId: string, action: 'retry' | 'cancel' | 'dismiss') => Promise<SessionCommandResult>;
   onNoteReview?: (artifactId: string, action: 'apply' | 'edit-apply' | 'reject' | 'snooze', request: NoteReviewRequest) => Promise<SessionCommandResult>;
+  onInspectTurn?: (turnId: string) => void;
   onRewind?: (turnId: number) => Promise<SessionCommandResult> | SessionCommandResult;
 };
 
@@ -169,6 +171,7 @@ export const hasCommittedStateAwaitingNarrative = (execution: import('./sessionP
 
 export const toDialogueTurn = (turn: NarrativeTurnApiResponse): DialogueTurn => ({
   id: turn.position,
+  turnId: turn.id,
   turnTitle: turn.narrative?.heading
     ?? (turn.narrative?.playerInput
       ? 'Player Inputを受けたNarrative'

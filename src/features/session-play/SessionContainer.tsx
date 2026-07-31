@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { toAppChromeAccount } from '../../account/accountPresentation';
 import { useAccountSession } from '../../account/hooks/useAccountSession';
 import { useAppNavigation } from '../../shared/nav';
@@ -23,6 +24,7 @@ import type { NoteReviewRequest } from './SessionActivityFeed';
 
 export function SessionContainer({ sessionId }: { sessionId: string }) {
   const appNavigate = useAppNavigation();
+  const navigate = useNavigate();
   const accountSession = useAccountSession();
   const chromeAccount = toAppChromeAccount(accountSession.user);
   const pollGeneration = useRef(0);
@@ -213,5 +215,6 @@ export function SessionContainer({ sessionId }: { sessionId: string }) {
     onRecommend={recommend}
     onExecutionAction={executionAction}
     onNoteReview={noteReview}
+    onInspectTurn={(turnId) => void navigate({ to: '/sessions/$sessionId/turns/$turnId/inspection', params: { sessionId, turnId } })}
   />;
 }

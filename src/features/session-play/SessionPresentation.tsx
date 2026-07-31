@@ -113,6 +113,7 @@ export function SessionPresentation({
   onClarification,
   onExecutionAction,
   onNoteReview,
+  onInspectTurn,
   onRewind,
 }: SessionPresentationProps) {
   const appStore = useOptionalAppStore();
@@ -342,6 +343,7 @@ export function SessionPresentation({
             session={activitySession}
             onExecutionAction={readOnly ? undefined : (id, action) => void handleExecutionAction(id, action)}
             onNoteReview={readOnly ? undefined : (id, action, request) => void handleNoteReview(id, action, request)}
+            onInspectTurn={onInspectTurn}
             keepSucceededStatusVisible={keepSucceededExecutionStatusVisible}
           />
         ) : (
@@ -361,16 +363,19 @@ export function SessionPresentation({
                 }}
                 ariaLabel={`Turn ${String(turn.id).padStart(2, '0')}`}
                 selected={selectedTurnId === turn.id}
-                headingActions={display.allowRewind ? (
-                  <Button
-                    variant="icon"
-                    size="iconSm"
-                    onClick={() => requestRewind(turn.id)}
-                    aria-label="ここまで戻る"
-                    title="ここまで戻る"
-                  >
-                    <RotateBackIcon />
-                  </Button>
+                headingActions={(display.allowRewind || onInspectTurn) ? (
+                  <span className="flex items-center gap-2">
+                    {onInspectTurn && turn.turnId && <Button variant="secondary" size="sm" onClick={() => onInspectTurn(turn.turnId!)}>実行詳細を見る</Button>}
+                    {display.allowRewind && <Button
+                      variant="icon"
+                      size="iconSm"
+                      onClick={() => requestRewind(turn.id)}
+                      aria-label="ここまで戻る"
+                      title="ここまで戻る"
+                    >
+                      <RotateBackIcon />
+                    </Button>}
+                  </span>
                 ) : undefined}
                 narrative={turn.narrative}
                 narrativeTestId={`turn-${turn.id}-narrative`}
