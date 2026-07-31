@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Myriale.Api.Contracts;
+using Myriale.Api.Data;
 using Myriale.Api.Services;
 
 namespace Myriale.Api.Tests;
@@ -288,7 +289,13 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         var door = session.GetProperty("objectStates").EnumerateArray().Single(item => item.GetProperty("code").GetString() == "north-door");
         Assert.False(door.GetProperty("state").GetProperty("open").GetBoolean());
         Assert.Equal(0, door.GetProperty("revision").GetInt64());
-        Assert.Equal("unknown_action", session.GetProperty("executions")[0].GetProperty("errorCode").GetString());
+        Assert.Equal("unknown_model_action_selection", session.GetProperty("executions")[0].GetProperty("errorCode").GetString());
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var interaction = await db.SessionAiInteractions.SingleAsync(item => item.SessionId == sessionId && item.Stage == SessionAiInteractionStages.ActionDecision);
+        Assert.Equal(SessionAiInteractionStatuses.ValidationFailed, interaction.Status);
+        Assert.Equal("action prompt", interaction.SentPrompt);
+        Assert.Equal("action result", interaction.ReceivedResult);
     }
 
     [Fact]
@@ -484,7 +491,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         public List<string> DecisionProfileIds { get; } = [];
         public List<string> NarrativeProfileIds { get; } = [];
         public List<PostStateNarrativeRequest> NarrativeRequests { get; } = [];
-        public Task<NarrativeGeneration<RuleActionDecisionResult>> DecideActionForProfileAsync(string profileId, RuleActionDecisionRequest request, CancellationToken cancellationToken)
+        public Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionForProfileAsync(string profileId, ModelActionDecisionRequest request, CancellationToken cancellationToken)
         {
             DecisionProfileIds.Add(profileId);
             return DecideActionAsync(request, cancellationToken);
@@ -496,7 +503,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
             return GeneratePostStateNarrativeAsync(request, cancellationToken);
         }
 
-        public async Task<NarrativeGeneration<RuleActionDecisionResult>> DecideActionAsync(RuleActionDecisionRequest request, CancellationToken cancellationToken)
+        public async Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionAsync(ModelActionDecisionRequest request, CancellationToken cancellationToken)
         {
             DecisionCalls++;
             if (PauseDecision)
@@ -505,10 +512,12 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
                 await DecisionRelease.Task.WaitAsync(cancellationToken);
             }
             var targetCode = request.PlayerInput.Contains("西", StringComparison.Ordinal) ? "west-door" : "north-door";
-            var targetId = request.Snapshot.Objects.Single(item => item.Code == targetCode).Id;
-            var action = request.Snapshot.Actions.First(item => item.Enabled && item.ObjectId == targetId);
-            var result = new RuleActionDecisionResult(ScenarioTurnSchemas.ActionDecision, action.ObjectId, ReturnUnknownAction ? "missing" : action.ActionId, JsonSerializer.Deserialize<JsonElement>("{}"));
-            return new NarrativeGeneration<RuleActionDecisionResult>(result, Metadata(), "action prompt", "action result");
+            var action = request.ObjectActions.Single(item => item.ObjectCode == targetCode).Actions[0];
+            var result = new ModelActionDecisionResult(
+                ScenarioTurnSchemas.ModelActionDecisionResult,
+                ReturnUnknownAction ? "object:missing/missing" : action.SelectionCode,
+                JsonSerializer.Deserialize<JsonElement>("{}"));
+            return new NarrativeGeneration<ModelActionDecisionResult>(result, Metadata(), "action prompt", "action result");
         }
         public Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeAsync(PostStateNarrativeRequest request, CancellationToken cancellationToken)
         {

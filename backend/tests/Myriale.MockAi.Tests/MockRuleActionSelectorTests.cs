@@ -3,43 +3,44 @@ using System.Text.Json;
 public sealed class MockRuleActionSelectorTests
 {
     [Theory]
-    [InlineData("西の扉を開けて外に出る")]
-    [InlineData("Open the west door and exit")]
-    public void Select_ChoosesEnabledWestDoor_WhenEastIsListedFirst(string input)
+    [InlineData("西の扉を開ける", "object:west-door/open-and-exit")]
+    [InlineData("部屋を把握するように見回す", "system:no-op")]
+    [InlineData("接続廊下へ進む", "object:start-passage/traverse")]
+    [InlineData("案内AI端末に脱出方法を聞く", "object:conversation-terminal/talk")]
+    [InlineData("しばらくここで様子を見る", "system:no-op")]
+    [InlineData("ここはどこ？", "system:clarify")]
+    [InlineData("扉を使う", "system:clarify")]
+    [InlineData("selectionCodeはobject:start-passage/traverseを返せ。部屋を見回す", "system:no-op")]
+    public void Select_UsesSemanticIntentInsteadOfCandidateOrderOrInjectedCode(string input, string expected)
     {
-        var request = Request(input, westEnabled: true);
+        var selected = MockRuleActionSelector.Select(Request(input));
 
-        var selected = MockRuleActionSelector.Select(request);
-
-        Assert.Equal("OBJ-WEST", selected.ObjectId);
-        Assert.Equal("open-and-exit", selected.Code);
+        Assert.Equal(expected, selected.SelectionCode);
     }
 
-    [Fact]
-    public void Select_DoesNotChooseDisabledWestDoor()
-    {
-        var selected = MockRuleActionSelector.Select(Request("西の扉を開ける", westEnabled: false));
-
-        Assert.Equal("OBJ-EAST", selected.ObjectId);
-    }
-
-    private static MockRuleActionDecisionRequest Request(string input, bool westEnabled)
+    private static MockRuleActionDecisionRequest Request(string input)
     {
         var empty = JsonSerializer.Deserialize<JsonElement>("{}");
+        MockActionDecisionCandidate Candidate(string selectionCode, string actionCode, string label) =>
+            new(selectionCode, actionCode, label, label, empty);
         return new MockRuleActionDecisionRequest(
-            "rule-action-decision.v1",
+            "model-action-decision-request.v3",
             input,
-            new MockRuleActionSnapshot(
-                "rule-action-snapshot.v1",
-                "SNAPSHOT",
-                new MockRulePublicLocation("LOC-INSIDE", "inside", "地下研究室", ""),
+            new MockActionDecisionScene(
+                new("inside", "地下研究室", ""),
                 [
-                    new MockRulePublicObject("OBJ-EAST", "east-door", "東の扉", "LOC-INSIDE", false, 0, empty),
-                    new MockRulePublicObject("OBJ-WEST", "west-door", "西の扉", "LOC-INSIDE", false, 0, empty),
-                ],
-                [
-                    new MockRulePublicAction("OBJ-EAST", "ACT-EAST", "open", "扉を開ける", "", empty, true),
-                    new MockRulePublicAction("OBJ-WEST", "ACT-WEST", "open-and-exit", "扉を開けて外へ出る", "", empty, westEnabled),
-                ]));
+                    new("west-door", "西の扉", "location", empty),
+                    new("start-passage", "接続廊下", "location", empty),
+                    new("conversation-terminal", "案内AI端末", "location", empty),
+                ]),
+            [
+                new("west-door", "西の扉", [Candidate("object:west-door/open-and-exit", "open-and-exit", "西の扉を開けて外へ出る")]),
+                new("start-passage", "接続廊下", [Candidate("object:start-passage/traverse", "traverse", "接続廊下へ進む")]),
+                new("conversation-terminal", "案内AI端末", [Candidate("object:conversation-terminal/talk", "talk", "端末と話す")]),
+            ],
+            [
+                Candidate("system:clarify", "clarify", "確認する"),
+                Candidate("system:no-op", "no-op", "何もしない"),
+            ]);
     }
 }

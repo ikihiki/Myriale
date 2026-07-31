@@ -11,6 +11,7 @@ public sealed class ScenarioRuleDebugService(
     ScenarioRuleEvaluator evaluator,
     ScenarioActionEnumerator enumerator,
     ScenarioEffectApplier effectApplier,
+    ScenarioActionDecisionModelMapper actionDecisionMapper,
     IScenarioTurnAi ai)
 {
     public async Task<ScenarioRuleDebugResponse?> ExecuteAsync(
@@ -70,10 +71,12 @@ public sealed class ScenarioRuleDebugService(
         if (request.Trigger == "player-input")
         {
             if (string.IsNullOrWhiteSpace(request.PlayerInput)) throw new ScenarioTurnValidationException("debug_player_input_required");
-            var generated = await ai.DecideActionAsync(new(ScenarioTurnSchemas.ActionDecision, request.PlayerInput.Trim(), snapshot), cancellationToken);
-            decision = generated.Value;
+            var modelRequest = actionDecisionMapper.CreateRequest(request.PlayerInput.Trim(), snapshot);
+            var generated = await ai.DecideActionAsync(modelRequest, cancellationToken);
+            decision = actionDecisionMapper.MapResult(snapshot, generated.Value);
             var selected = snapshot.Actions.SingleOrDefault(action => action.ObjectId == decision.ObjectId && action.ActionId == decision.ActionId)
                 ?? throw new ScenarioTurnValidationException("unknown_action");
+            ScenarioActionArgumentValidator.Validate(selected.ArgumentSchema, decision.Arguments);
             if (!selected.Enabled) throw new ScenarioTurnValidationException("disabled_action");
         }
         else if (request.Trigger == "direct-action")

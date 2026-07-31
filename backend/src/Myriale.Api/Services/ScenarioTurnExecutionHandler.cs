@@ -12,6 +12,7 @@ public sealed class ScenarioTurnExecutionHandler(
     ApplicationDbContext db,
     ScenarioActionEnumerator enumerator,
     ScenarioEffectApplier effectApplier,
+    ScenarioActionDecisionModelMapper actionDecisionMapper,
     IScenarioTurnAi ai,
     IScenarioExtensionAdapter extensions,
     ILogger<ScenarioTurnExecutionHandler> logger) : ISessionExecutionHandler
@@ -58,19 +59,18 @@ public sealed class ScenarioTurnExecutionHandler(
             if (step.DecisionJson is null)
             {
                 var actionProfileId = execution.ActionDecisionAiProfileId ?? throw new ScenarioTurnValidationException("action_ai_profile_not_snapshotted");
-                var generated = await ExecuteAiInteractionAsync(
+                var modelRequest = actionDecisionMapper.CreateRequest(input.Text, actionSnapshot);
+                RuleActionDecisionResult? mappedDecision = null;
+                await ExecuteAiInteractionAsync(
                     execution,
                     context.AttemptId,
                     1,
                     SessionAiInteractionStages.ActionDecision,
                     actionProfileId,
-                    token => ai.DecideActionForProfileAsync(
-                        actionProfileId,
-                        new(ScenarioTurnSchemas.ActionDecision, input.Text, actionSnapshot),
-                        token),
-                    value => ValidateDecision(actionSnapshot, value),
+                    token => ai.DecideActionForProfileAsync(actionProfileId, modelRequest, token),
+                    value => mappedDecision = ValidateDecision(actionSnapshot, actionDecisionMapper.MapResult(actionSnapshot, value)),
                     cancellationToken);
-                decision = generated.Value;
+                decision = mappedDecision ?? throw new ScenarioTurnValidationException("invalid_model_action_decision");
                 step.DecisionJson = JsonSerializer.Serialize(decision, Json); step.SelectedAt = DateTimeOffset.UtcNow; step.Stage = ScenarioTurnStages.ApplyingRules; step.UpdatedAt = DateTimeOffset.UtcNow;
                 execution.Stage = ScenarioTurnStages.ApplyingRules;
                 await db.SaveChangesAsync(cancellationToken);
@@ -395,21 +395,10 @@ public sealed class ScenarioTurnExecutionHandler(
         var action = snapshot.Actions.SingleOrDefault(item => item.ObjectId == decision.ObjectId && item.ActionId == decision.ActionId);
         if (action is null) throw new ScenarioTurnValidationException("unknown_action");
         if (!action.Enabled) throw new ScenarioTurnValidationException("disabled_action");
-        ValidateArguments(action.ArgumentSchema, decision.Arguments);
+        ScenarioActionArgumentValidator.Validate(action.ArgumentSchema, decision.Arguments);
         return decision;
     }
 
-    private static void ValidateArguments(JsonElement schema, JsonElement arguments)
-    {
-        if (schema.TryGetProperty("additionalProperties", out var additional) && additional.ValueKind == JsonValueKind.False
-            && schema.TryGetProperty("properties", out var properties))
-        {
-            var allowed = properties.EnumerateObject().Select(item => item.Name).ToHashSet(StringComparer.Ordinal);
-            if (arguments.EnumerateObject().Any(item => !allowed.Contains(item.Name))) throw new ScenarioTurnValidationException("invalid_action_arguments");
-        }
-        if (schema.TryGetProperty("required", out var required))
-            foreach (var name in required.EnumerateArray().Select(item => item.GetString()!)) if (!arguments.TryGetProperty(name, out _)) throw new ScenarioTurnValidationException("invalid_action_arguments");
-    }
 
     private static void ValidateNarrative(PostStateNarrativeResult result, IReadOnlyList<string> forbidden)
     {

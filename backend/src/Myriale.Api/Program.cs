@@ -49,6 +49,7 @@ builder.Services.AddScoped<ScenarioDefinitionAuthoringService>();
 builder.Services.AddScoped<ScenarioRuleEvaluator>();
 builder.Services.AddScoped<ScenarioRuleConfigurationResolver>();
 builder.Services.AddScoped<ScenarioPublicProjector>();
+builder.Services.AddSingleton<ScenarioActionDecisionModelMapper>();
 builder.Services.AddScoped<ScenarioActionEnumerator>();
 builder.Services.AddScoped<ScenarioEffectApplier>();
 builder.Services.AddScoped<ScenarioRuleDebugService>();

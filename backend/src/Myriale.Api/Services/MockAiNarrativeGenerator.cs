@@ -13,14 +13,19 @@ public sealed class MockAiNarrativeGenerator(IHttpClientFactory httpClientFactor
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
     };
 
-    public async Task<NarrativeGeneration<RuleActionDecisionResult>> DecideActionAsync(RuleActionDecisionRequest request, CancellationToken cancellationToken)
+    public async Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionAsync(ModelActionDecisionRequest request, CancellationToken cancellationToken)
     {
         var client = httpClientFactory.CreateClient("MockAi");
         using var response = await client.PostAsJsonAsync("/mock-ai/rule-action-decision", request, cancellationToken);
         if (!response.IsSuccessStatusCode) throw new NarrativeGenerationException("Action decision provider returned an error.");
-        var result = await response.Content.ReadFromJsonAsync<RuleActionDecisionResult>(StrictDialogueResultJsonOptions, cancellationToken)
+        var result = await response.Content.ReadFromJsonAsync<ModelActionDecisionResult>(StrictDialogueResultJsonOptions, cancellationToken)
             ?? throw new NarrativeGenerationException("Action decision provider returned an invalid response.");
-        return new(result, MockMetadata(), JsonSerializer.Serialize(request), JsonSerializer.Serialize(result));
+        var audit = new ModelActionDecisionPromptAudit(
+            ScenarioTurnSchemas.ModelActionDecisionPrompt,
+            ScenarioActionDecisionModelMapper.SystemPrompt,
+            request,
+            ScenarioTurnSchemas.ModelActionDecisionResult);
+        return new(result, MockMetadata(), JsonSerializer.Serialize(audit), JsonSerializer.Serialize(result));
     }
 
     public async Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeAsync(PostStateNarrativeRequest request, CancellationToken cancellationToken)
