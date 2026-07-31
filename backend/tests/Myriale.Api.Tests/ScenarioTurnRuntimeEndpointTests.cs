@@ -125,12 +125,15 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
             narrativeAiProfileId = "runpod-recommended",
         });
         Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
-        await WaitForExecutionAsync(client, sessionId, "succeeded");
+        var completedSession = await WaitForExecutionAsync(client, sessionId, "succeeded");
+        var turnId = completedSession.GetProperty("turns").EnumerateArray()
+            .Single(turn => turn.GetProperty("narrative").TryGetProperty("playerInputId", out var inputId) && inputId.ValueKind == JsonValueKind.String)
+            .GetProperty("id").GetString()!;
 
-        using var historyResponse = await client.GetAsync($"/api/sessions/{sessionId}/ai-history");
+        using var historyResponse = await client.GetAsync($"/api/sessions/{sessionId}/turns/{turnId}/inspection");
         Assert.Equal(HttpStatusCode.OK, historyResponse.StatusCode);
         var history = await historyResponse.Content.ReadFromJsonAsync<JsonElement>();
-        var interactionsJson = history.GetProperty("interactions");
+        var interactionsJson = history.GetProperty("aiInteractions");
         Assert.Equal(3, interactionsJson.GetArrayLength());
         Assert.Equal(["action-decision", "narrative", "narrative"], interactionsJson.EnumerateArray().Select(item => item.GetProperty("stage").GetString()!).ToArray());
         Assert.Equal(["succeeded", "failed", "succeeded"], interactionsJson.EnumerateArray().Select(item => item.GetProperty("status").GetString()!).ToArray());

@@ -28,9 +28,9 @@ public static class SessionEndpoints
         group.MapGet("/{sessionId}", GetAsync)
             .WithName("GetSession")
             .WithSummary("Returns a session and its ordered turns.");
-        group.MapGet("/{sessionId}/ai-history", GetAiHistoryAsync)
-            .WithName("GetSessionAiHistory")
-            .WithSummary("Returns the scenario author's or an administrator's chronological AI call history for a session.");
+        group.MapGet("/{sessionId}/turns/{turnId}/inspection", GetTurnInspectionAsync)
+            .WithName("GetSessionTurnInspection")
+            .WithSummary("Returns the scenario author's or an administrator's AI and rule-engine inspection data for one turn.");
         group.MapPost("/{sessionId}/action-recommendation", RecommendActionAsync)
             .WithName("RecommendSessionAction")
             .WithSummary("Returns an AI-generated suggestion for the next player action without advancing the session.");
@@ -49,8 +49,9 @@ public static class SessionEndpoints
         return group;
     }
 
-    private static async Task<IResult> GetAiHistoryAsync(
+    private static async Task<IResult> GetTurnInspectionAsync(
         string sessionId,
+        string turnId,
         ClaimsPrincipal principal,
         ApplicationDbContext db,
         IAuthorizationService authorization,
@@ -59,37 +60,39 @@ public static class SessionEndpoints
         var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(userId)) return Results.Unauthorized();
 
-        var session = await db.Sessions.AsNoTracking()
-            .Where(item => item.Id == sessionId)
-            .Select(item => new
-            {
-                item.Id,
-                item.ScenarioId,
-                ScenarioTitle = item.Scenario.Title,
-                item.Scenario.AuthorId,
-            })
-            .SingleOrDefaultAsync(cancellationToken);
+        var turn = await db.SessionTurns.AsNoTracking()
+            .Include(item => item.PlayerInput)
+            .Include(item => item.Session).ThenInclude(session => session.Scenario)
+            .SingleOrDefaultAsync(item => item.Id == turnId && item.SessionId == sessionId, cancellationToken);
         var isAdministrator = (await authorization.AuthorizeAsync(principal, "Administration")).Succeeded;
-        if (session is null || (!isAdministrator && !string.Equals(session.AuthorId, userId, StringComparison.Ordinal)))
+        if (turn is null || (!isAdministrator && !string.Equals(turn.Session.Scenario.AuthorId, userId, StringComparison.Ordinal)))
             return Results.NotFound();
+        if (turn.PlayerInputId is null || turn.PlayerInput is null) return Results.NotFound();
 
-        var interactions = await db.SessionAiInteractions.AsNoTracking()
-            .Where(interaction => interaction.SessionId == session.Id)
+        var execution = await db.SessionExecutions.AsNoTracking()
+            .SingleOrDefaultAsync(item =>
+                item.SessionId == sessionId
+                && item.Kind == SessionExecutionKinds.ScenarioTurn
+                && item.TriggerType == "player-input"
+                && item.TriggerId == turn.PlayerInputId,
+                cancellationToken);
+        if (execution is null) return Results.NotFound();
+
+        var interactionRows = await db.SessionAiInteractions.AsNoTracking()
+            .Where(interaction => interaction.SessionId == sessionId && interaction.ExecutionId == execution.Id)
             .Select(interaction => new
             {
                 Interaction = interaction,
                 interaction.Attempt.AttemptNumber,
             })
             .ToListAsync(cancellationToken);
-        var history = interactions
+        var interactions = interactionRows
             .OrderBy(item => item.Interaction.StartedAt)
             .ThenBy(item => item.AttemptNumber)
             .ThenBy(item => item.Interaction.Sequence)
             .ThenBy(item => item.Interaction.Id, StringComparer.Ordinal)
-            .Select(item => new SessionAiInteractionDto(
+            .Select(item => new SessionAiInteractionInspection(
                 item.Interaction.Id,
-                item.Interaction.ExecutionId,
-                item.Interaction.AttemptId,
                 item.AttemptNumber,
                 item.Interaction.Sequence,
                 item.Interaction.Stage,
@@ -99,6 +102,7 @@ public static class SessionEndpoints
                 item.Interaction.ProviderRequestId,
                 item.Interaction.StartedAt,
                 item.Interaction.CompletedAt,
+                ElapsedMilliseconds(item.Interaction.StartedAt, item.Interaction.CompletedAt),
                 item.Interaction.LatencyMilliseconds,
                 item.Interaction.InputTokens,
                 item.Interaction.OutputTokens,
@@ -109,7 +113,73 @@ public static class SessionEndpoints
                 item.Interaction.ReceivedResult,
                 item.Interaction.ValidationResult))
             .ToList();
-        return Results.Ok(new SessionAiHistoryResponse(session.Id, session.ScenarioId, session.ScenarioTitle, history));
+
+        var step = await db.SessionRuleActionSteps.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.SessionId == sessionId && item.ExecutionId == execution.Id && item.PlayerInputId == turn.PlayerInputId, cancellationToken);
+        RuleEngineInspection? ruleEngine = null;
+        if (step is not null)
+        {
+            var snapshot = DeserializeOrNull<RuleActionSnapshot>(step.ActionSnapshotJson);
+            var decision = DeserializeOrNull<RuleActionDecisionResult>(step.DecisionJson);
+            var postState = DeserializeOrNull<RulePostState>(step.PublicPostStateJson);
+            var appliedEffects = DeserializeList<RuleAppliedEffect>(step.AppliedEffectsJson);
+            var selectedObject = decision is null ? null : snapshot?.Objects.SingleOrDefault(item => item.Id == decision.ObjectId);
+            var selectedAction = decision is null ? null : snapshot?.Actions.SingleOrDefault(item => item.ObjectId == decision.ObjectId && item.ActionId == decision.ActionId);
+            var selected = decision is null ? null : new SessionScenarioTurnSelectedActionResponse(
+                decision.ObjectId,
+                decision.ActionId,
+                selectedObject?.Code,
+                selectedObject?.Name,
+                selectedAction?.Code,
+                selectedAction?.Label,
+                decision.Arguments);
+            ruleEngine = new RuleEngineInspection(
+                step.Id,
+                step.Stage,
+                ScenarioTurnSchemas.ActionStep,
+                step.PreSessionRevision,
+                step.PostSessionRevision,
+                snapshot,
+                selected,
+                step.SelectedRuleId,
+                appliedEffects,
+                postState,
+                DeserializeList<string>(step.FactsJson),
+                DeserializeList<JsonElement>(step.EventsJson),
+                DeserializeList<string>(step.NarrativeHintsJson),
+                DeriveRuleStateChanges(snapshot, postState, step.PreSessionRevision, step.PostSessionRevision),
+                new RuleProcessingTimingInspection(
+                    step.CreatedAt,
+                    step.EnumeratedAt,
+                    step.SelectedAt,
+                    step.AppliedAt,
+                    step.NarrativePublishedAt,
+                    ElapsedMilliseconds(step.CreatedAt, step.EnumeratedAt),
+                    ElapsedMilliseconds(step.EnumeratedAt, step.SelectedAt),
+                    ElapsedMilliseconds(step.SelectedAt, step.AppliedAt),
+                    ElapsedMilliseconds(step.AppliedAt, step.NarrativePublishedAt),
+                    ElapsedMilliseconds(step.CreatedAt, step.NarrativePublishedAt ?? step.AppliedAt ?? step.SelectedAt ?? step.EnumeratedAt)));
+        }
+
+        var session = turn.Session;
+        return Results.Ok(new SessionTurnInspectionResponse(
+            new SessionInspectionMetadata(session.Id, session.Status, session.Revision, session.CreatedAt, session.UpdatedAt),
+            new ScenarioInspectionMetadata(session.ScenarioId, session.Scenario.Title, session.ScenarioDefinitionVersionId),
+            new TurnInspectionMetadata(turn.Id, turn.Position, turn.Kind, turn.Heading, turn.NarrativeBody, turn.CreatedAt),
+            new PlayerInputInspection(turn.PlayerInput.Id, turn.PlayerInput.Text, turn.PlayerInput.InteractionType, turn.PlayerInput.CreatedAt),
+            new ExecutionInspection(
+                execution.Id,
+                execution.Kind,
+                execution.Status,
+                execution.Stage,
+                execution.AttemptCount,
+                execution.CreatedAt,
+                execution.QueuedAt,
+                execution.StartedAt,
+                execution.CompletedAt,
+                ElapsedMilliseconds(execution.StartedAt ?? execution.QueuedAt, execution.CompletedAt)),
+            interactions,
+            ruleEngine));
     }
 
     private static async Task<IResult> ListAsync(
@@ -757,6 +827,120 @@ public static class SessionEndpoints
             execution.UserErrorMessage,
             execution.CompletedAt ?? execution.NextAttemptAt ?? execution.CreatedAt);
     }
+
+    private static IReadOnlyList<RuleStateChangeInspection> DeriveRuleStateChanges(
+        RuleActionSnapshot? snapshot,
+        RulePostState? postState,
+        long preSessionRevision,
+        long? postSessionRevision)
+    {
+        if (snapshot is null || postState is null) return [];
+
+        var changes = new List<RuleStateChangeInspection>();
+        if (!string.Equals(snapshot.CurrentLocation.Id, postState.CurrentLocation.Id, StringComparison.Ordinal))
+        {
+            changes.Add(new RuleStateChangeInspection(
+                "location",
+                null,
+                "currentLocationId",
+                JsonSerializer.SerializeToElement(snapshot.CurrentLocation.Id),
+                JsonSerializer.SerializeToElement(postState.CurrentLocation.Id)));
+        }
+        if (postSessionRevision is not null && preSessionRevision != postSessionRevision)
+        {
+            changes.Add(new RuleStateChangeInspection(
+                "session-state",
+                null,
+                "revision",
+                JsonSerializer.SerializeToElement(preSessionRevision),
+                JsonSerializer.SerializeToElement(postSessionRevision.Value)));
+        }
+
+        var beforeObjects = snapshot.Objects.ToDictionary(item => item.Id, StringComparer.Ordinal);
+        var afterObjects = postState.Objects.ToDictionary(item => item.Id, StringComparer.Ordinal);
+        foreach (var objectId in beforeObjects.Keys.Union(afterObjects.Keys, StringComparer.Ordinal).Order(StringComparer.Ordinal))
+        {
+            var hasBefore = beforeObjects.TryGetValue(objectId, out var before);
+            var hasAfter = afterObjects.TryGetValue(objectId, out var after);
+            if (!hasBefore || !hasAfter)
+            {
+                changes.Add(new RuleStateChangeInspection(
+                    "object",
+                    objectId,
+                    "object",
+                    hasBefore ? JsonSerializer.SerializeToElement(before) : null,
+                    hasAfter ? JsonSerializer.SerializeToElement(after) : null));
+                continue;
+            }
+
+            if (!string.Equals(before!.LocationId, after!.LocationId, StringComparison.Ordinal))
+            {
+                changes.Add(new RuleStateChangeInspection(
+                    "object",
+                    objectId,
+                    "locationId",
+                    JsonSerializer.SerializeToElement(before.LocationId),
+                    JsonSerializer.SerializeToElement(after.LocationId)));
+            }
+            if (before.Revision != after.Revision)
+            {
+                changes.Add(new RuleStateChangeInspection(
+                    "object",
+                    objectId,
+                    "revision",
+                    JsonSerializer.SerializeToElement(before.Revision),
+                    JsonSerializer.SerializeToElement(after.Revision)));
+            }
+            AddJsonChanges(changes, objectId, "state", before.State, after.State);
+        }
+        return changes;
+    }
+
+    private static void AddJsonChanges(
+        ICollection<RuleStateChangeInspection> changes,
+        string objectId,
+        string path,
+        JsonElement before,
+        JsonElement after)
+    {
+        if (JsonElement.DeepEquals(before, after)) return;
+        if (before.ValueKind != JsonValueKind.Object || after.ValueKind != JsonValueKind.Object)
+        {
+            changes.Add(new RuleStateChangeInspection("object", objectId, path, before.Clone(), after.Clone()));
+            return;
+        }
+
+        var beforeProperties = before.EnumerateObject().ToDictionary(item => item.Name, item => item.Value, StringComparer.Ordinal);
+        var afterProperties = after.EnumerateObject().ToDictionary(item => item.Name, item => item.Value, StringComparer.Ordinal);
+        foreach (var propertyName in beforeProperties.Keys.Union(afterProperties.Keys, StringComparer.Ordinal).Order(StringComparer.Ordinal))
+        {
+            var hasBefore = beforeProperties.TryGetValue(propertyName, out var beforeValue);
+            var hasAfter = afterProperties.TryGetValue(propertyName, out var afterValue);
+            var propertyPath = $"{path}.{propertyName}";
+            if (!hasBefore || !hasAfter)
+            {
+                changes.Add(new RuleStateChangeInspection(
+                    "object",
+                    objectId,
+                    propertyPath,
+                    hasBefore ? beforeValue.Clone() : null,
+                    hasAfter ? afterValue.Clone() : null));
+                continue;
+            }
+            AddJsonChanges(changes, objectId, propertyPath, beforeValue, afterValue);
+        }
+    }
+
+    private static long ElapsedMilliseconds(DateTimeOffset startedAt, DateTimeOffset completedAt) =>
+        Math.Max(0, (long)(completedAt - startedAt).TotalMilliseconds);
+
+    private static long? ElapsedMilliseconds(DateTimeOffset? startedAt, DateTimeOffset? completedAt) =>
+        startedAt is not null && completedAt is not null ? ElapsedMilliseconds(startedAt.Value, completedAt.Value) : null;
+
+    private static IReadOnlyList<T> DeserializeList<T>(string? json) =>
+        string.IsNullOrWhiteSpace(json)
+            ? []
+            : JsonSerializer.Deserialize<List<T>>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web)) ?? [];
 
     private static T? DeserializeOrNull<T>(string? json) where T : class =>
         string.IsNullOrWhiteSpace(json) ? null : JsonSerializer.Deserialize<T>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web));
