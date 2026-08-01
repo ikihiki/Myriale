@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { acceptSessionInput, createSession, getSession, mutateSessionExecution, normalizeSessionApiError, recommendNextAction, reviewSessionNoteProposal } from './sessionPlayApi';
+import { acceptSessionInput, createSession, getAiProfiles, getSession, mutateSessionExecution, normalizeSessionApiError, recommendNextAction, reviewSessionNoteProposal } from './sessionPlayApi';
 
 const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
@@ -117,6 +117,22 @@ describe('sessionPlayApi', () => {
     });
   });
 
+  it('loads safe selectable AI profile metadata from the focused endpoint', async () => {
+    const payload = {
+      profiles: [
+        { id: 'runpod-recommended', displayName: '推奨（Deckard 40B AWQ）' },
+        { id: 'runpod-economy', displayName: '最安（Qwen2.5 14B Abliterated AWQ）' },
+      ],
+      defaultActionDecisionProfileId: 'runpod-recommended',
+      defaultNarrativeProfileId: 'runpod-recommended',
+    };
+    const fetch = vi.fn().mockResolvedValue(response(payload));
+    vi.stubGlobal('fetch', fetch);
+
+    await expect(getAiProfiles('/api/sessions')).resolves.toEqual(payload);
+    expect(fetch).toHaveBeenCalledWith('/api/ai/profiles', expect.objectContaining({ credentials: 'include' }));
+  });
+
   it('accepts durable input and mutates the same execution resource', async () => {
     const accepted = { input: { id: 'INP-1' }, execution: { id: 'EXE-1', status: 'queued' } };
     const fetch = vi.fn()
@@ -124,13 +140,20 @@ describe('sessionPlayApi', () => {
       .mockResolvedValueOnce(response({ ...accepted.execution, status: 'running' }));
     vi.stubGlobal('fetch', fetch);
 
-    await acceptSessionInput('SES-1', '扉を調べる', 'request-1', '/api/sessions');
+    await acceptSessionInput('SES-1', '扉を調べる', 'request-1', '/api/sessions', 'dialogue', undefined, 'runpod-economy', 'runpod-recommended');
     await mutateSessionExecution('EXE-1', 'retry', '/api/sessions');
 
     expect(fetch).toHaveBeenNthCalledWith(1, '/api/sessions/SES-1/inputs', expect.objectContaining({
       method: 'POST',
       credentials: 'include',
-      body: JSON.stringify({ requestId: 'request-1', text: '扉を調べる', interactionType: 'dialogue', requestedOutputs: ['scenario-turn'] }),
+      body: JSON.stringify({
+        requestId: 'request-1',
+        text: '扉を調べる',
+        interactionType: 'dialogue',
+        requestedOutputs: ['scenario-turn'],
+        actionDecisionAiProfileId: 'runpod-economy',
+        narrativeAiProfileId: 'runpod-recommended',
+      }),
     }));
     expect(fetch).toHaveBeenNthCalledWith(2, '/api/session-executions/EXE-1/retry', expect.objectContaining({ method: 'POST', credentials: 'include' }));
   });

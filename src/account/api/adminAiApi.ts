@@ -1,6 +1,12 @@
 export type AiProviderKey = {
   provider: string;
   displayName: string;
+  adapter: string;
+  baseUrl: string;
+  model: string;
+  credentialId: string;
+  enabled: boolean;
+  definitionSource: 'configuration' | 'database';
   configured: boolean;
   maskedKey: string;
   credentialSource: 'environment' | 'database' | 'none';
@@ -24,7 +30,7 @@ export type AdminAiApiError = Error & { status?: number; errors?: Record<string,
 
 export type AdminAiApi = {
   listKeys: () => Promise<AiProviderKey[]>;
-  saveKey: (provider: string, payload: { displayName: string; secret: string }) => Promise<AiProviderKey>;
+  saveKey: (provider: string, payload: { displayName: string; adapter: string; baseUrl: string; model: string; credentialId: string; enabled: boolean; secret?: string }) => Promise<AiProviderKey>;
   deleteKey: (provider: string) => Promise<void>;
   testKey: (provider: string) => Promise<AiProviderKey>;
   activateProvider: (provider: string) => Promise<AiProviderKey>;
@@ -65,13 +71,13 @@ export function createFetchAdminAiApi(baseUrl = getAdminAiApiBaseUrl()): AdminAi
 
 export function createDemoAdminAiApi(): AdminAiApi {
   let keys: AiProviderKey[] = [
-    { provider: 'openai', displayName: 'OpenAI', configured: true, maskedKey: '••••••••demo', credentialSource: 'environment', active: true, status: 'valid', updatedAt: new Date().toISOString(), lastValidatedAt: new Date().toISOString() },
-    { provider: 'runpod', displayName: 'Runpod Serverless', configured: true, maskedKey: '••••••••demo', credentialSource: 'environment', active: false, status: 'valid', updatedAt: new Date().toISOString(), lastValidatedAt: new Date().toISOString() },
+    { provider: 'openai', displayName: 'OpenAI', adapter: 'openai-compatible', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4.1-mini', credentialId: 'openai', enabled: true, definitionSource: 'configuration', configured: true, maskedKey: '••••••••demo', credentialSource: 'environment', active: true, status: 'valid', updatedAt: new Date().toISOString(), lastValidatedAt: new Date().toISOString() },
+    { provider: 'runpod', displayName: 'Runpod Serverless', adapter: 'openai-compatible', baseUrl: 'https://api.runpod.ai/v2/demo/openai/v1', model: 'Qwen/Qwen3-8B', credentialId: 'runpod', enabled: true, definitionSource: 'configuration', configured: true, maskedKey: '••••••••demo', credentialSource: 'environment', active: false, status: 'valid', updatedAt: new Date().toISOString(), lastValidatedAt: new Date().toISOString() },
   ];
   return {
     async listKeys() { return keys; },
     async saveKey(provider, payload) {
-      const key: AiProviderKey = { provider, displayName: payload.displayName, configured: true, maskedKey: `••••••••${payload.secret.slice(-4) || 'key'}`, credentialSource: 'database', active: keys.find((item) => item.provider === provider)?.active ?? false, status: 'saved', updatedAt: new Date().toISOString(), lastValidatedAt: null };
+      const key: AiProviderKey = { provider, displayName: payload.displayName, adapter: payload.adapter, baseUrl: payload.baseUrl, model: payload.model, credentialId: payload.credentialId, enabled: payload.enabled, definitionSource: 'database', configured: true, maskedKey: `••••••••${payload.secret?.slice(-4) || 'key'}`, credentialSource: 'database', active: keys.find((item) => item.provider === provider)?.active ?? false, status: 'saved', updatedAt: new Date().toISOString(), lastValidatedAt: null };
       keys = [key, ...keys.filter((item) => item.provider !== provider)];
       return key;
     },

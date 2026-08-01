@@ -22,6 +22,14 @@ describe('TanStack app routing', () => {
     expect(router.state.matches[router.state.matches.length - 1]?.params).toMatchObject({ sessionId: 'SES-PREP-1098' });
   });
 
+  it('matches a turn inspection route and exposes both backend identifiers', async () => {
+    const router = createAppRouter({ initialUrl: '/sessions/SES-42/turns/TRN-9/inspection' });
+    await router.load();
+
+    expect(router.state.location.pathname).toBe('/sessions/SES-42/turns/TRN-9/inspection');
+    expect(router.state.matches[router.state.matches.length - 1]?.params).toMatchObject({ sessionId: 'SES-42', turnId: 'TRN-9' });
+  });
+
   it('redirects an anonymous Session route to login and preserves the requested URL', async () => {
     const accountApi = createDemoAccountApi();
     await accountApi.logout();

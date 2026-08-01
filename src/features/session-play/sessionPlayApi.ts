@@ -24,6 +24,13 @@ export type NarrativeTurnApiResponse = {
   createdAt: string;
 };
 
+export type AiProfileOption = { id: string; displayName: string };
+export type AiProfilesApiResponse = {
+  profiles: AiProfileOption[];
+  defaultActionDecisionProfileId: string;
+  defaultNarrativeProfileId: string;
+};
+
 export type NarrativeInteractionType = 'dialogue' | 'clarification';
 
 export type PendingPlayerInputApiResponse = {
@@ -143,6 +150,8 @@ export type SessionExecutionApiResponse = {
   triggerType: string; triggerId: string; status: SessionExecutionStatus; stage?: ScenarioTurnStage | null; scenarioTurn?: ScenarioTurnProjection | null; revision: number; isRetryable: boolean;
   attemptCount: number; maxAttempts: number; nextAttemptAt?: string | null; errorCode?: string | null; userErrorMessage?: string | null;
   createdAt: string; startedAt?: string | null; completedAt?: string | null; cancelRequestedAt?: string | null; dismissedAt?: string | null;
+  actionDecisionAiProfileId?: string | null;
+  narrativeAiProfileId?: string | null;
   capabilities: { canRetry: boolean; canCancel: boolean; canDismiss: boolean };
   developmentDiagnostics?: {
     sessionId: string; triggerType: string; triggerId: string; revision: number; leaseOwner?: string | null;
@@ -257,6 +266,21 @@ export async function getSession(
   return response.json() as Promise<SessionApiResponse>;
 }
 
+export async function getAiProfiles(
+  baseUrl = getSessionApiBaseUrl(),
+  signal?: AbortSignal,
+): Promise<AiProfilesApiResponse> {
+  if (!baseUrl) throw sessionApiError('Session APIが設定されていません。', 503, 'session_api_unavailable');
+  const apiRoot = baseUrl.replace(/\/sessions\/?$/, '');
+  const response = await sessionFetch(`${apiRoot}/ai/profiles`, {
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+    signal,
+  });
+  if (!response.ok) throw await toSessionApiError(response, 'AI profileを読み込めませんでした。');
+  return response.json() as Promise<AiProfilesApiResponse>;
+}
+
 export async function acceptSessionInput(
   sessionId: string,
   text: string,
@@ -264,11 +288,13 @@ export async function acceptSessionInput(
   baseUrl = getSessionApiBaseUrl(),
   interactionType: NarrativeInteractionType = 'dialogue',
   supersedesInputId?: string,
+  actionDecisionAiProfileId?: string,
+  narrativeAiProfileId?: string,
 ): Promise<SessionInputAcceptedApiResponse> {
   if (!baseUrl) throw sessionApiError('Session APIが設定されていません。', 503, 'session_api_unavailable');
   const response = await sessionFetch(`${baseUrl}/${encodeURIComponent(sessionId)}/inputs`, {
     method: 'POST', credentials: 'include', headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ requestId, text, interactionType, requestedOutputs: ['scenario-turn'], supersedesInputId }),
+    body: JSON.stringify({ requestId, text, interactionType, requestedOutputs: ['scenario-turn'], supersedesInputId, actionDecisionAiProfileId, narrativeAiProfileId }),
   });
   if (!response.ok) throw await toSessionApiError(response, 'Player Inputを受け付けられませんでした。');
   return response.json() as Promise<SessionInputAcceptedApiResponse>;

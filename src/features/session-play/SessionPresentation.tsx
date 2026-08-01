@@ -95,6 +95,9 @@ export function SessionPresentation({
   committedStateNarrativePending = false,
   initialInput = '',
   initialInteractionType = 'dialogue',
+  aiProfiles,
+  defaultActionDecisionAiProfileId,
+  defaultNarrativeAiProfileId,
   initialNotice = '',
   liveNotice = null,
   isSubmitting = false,
@@ -110,6 +113,7 @@ export function SessionPresentation({
   onClarification,
   onExecutionAction,
   onNoteReview,
+  onInspectTurn,
   onRewind,
 }: SessionPresentationProps) {
   const appStore = useOptionalAppStore();
@@ -117,6 +121,8 @@ export function SessionPresentation({
   const hasProgramSimulator = suppliedProgram !== undefined;
   const [input, setInput] = useState(initialInput);
   const [interactionType, setInteractionType] = useState<NarrativeInteractionType>(initialInteractionType);
+  const [actionDecisionAiProfileId, setActionDecisionAiProfileId] = useState(defaultActionDecisionAiProfileId);
+  const [narrativeAiProfileId, setNarrativeAiProfileId] = useState(defaultNarrativeAiProfileId);
   const [selectedTurnId, setSelectedTurnId] = useState(turns.at(-1)?.id ?? 1);
   const [retryAvailable, setRetryAvailable] = useState(false);
   const [noticeInput, setNotice] = useState<SessionNoticeInput>(initialNotice);
@@ -177,7 +183,7 @@ export function SessionPresentation({
   const sendInput = async () => {
     const submittedInput = input.trim();
     if (!submittedInput) { setNotice('自然言語で行動や会話を入力してください。文法が不完全でも受理します。'); return; }
-    const result = await onSubmit(submittedInput, interactionType);
+    const result = await onSubmit(submittedInput, interactionType, actionDecisionAiProfileId, narrativeAiProfileId);
     setNotice(result.notice);
     setRetryAvailable(!result.ok && normalizeNotice(result.notice).retryable);
     if (result.ok) { setInput(''); setInteractionType('dialogue'); }
@@ -337,6 +343,7 @@ export function SessionPresentation({
             session={activitySession}
             onExecutionAction={readOnly ? undefined : (id, action) => void handleExecutionAction(id, action)}
             onNoteReview={readOnly ? undefined : (id, action, request) => void handleNoteReview(id, action, request)}
+            onInspectTurn={onInspectTurn}
             keepSucceededStatusVisible={keepSucceededExecutionStatusVisible}
           />
         ) : (
@@ -356,16 +363,19 @@ export function SessionPresentation({
                 }}
                 ariaLabel={`Turn ${String(turn.id).padStart(2, '0')}`}
                 selected={selectedTurnId === turn.id}
-                headingActions={display.allowRewind ? (
-                  <Button
-                    variant="icon"
-                    size="iconSm"
-                    onClick={() => requestRewind(turn.id)}
-                    aria-label="ここまで戻る"
-                    title="ここまで戻る"
-                  >
-                    <RotateBackIcon />
-                  </Button>
+                headingActions={(display.allowRewind || onInspectTurn) ? (
+                  <span className="flex items-center gap-2">
+                    {onInspectTurn && turn.turnId && <Button variant="secondary" size="sm" onClick={() => onInspectTurn(turn.turnId!)}>実行詳細を見る</Button>}
+                    {display.allowRewind && <Button
+                      variant="icon"
+                      size="iconSm"
+                      onClick={() => requestRewind(turn.id)}
+                      aria-label="ここまで戻る"
+                      title="ここまで戻る"
+                    >
+                      <RotateBackIcon />
+                    </Button>}
+                  </span>
                 ) : undefined}
                 narrative={turn.narrative}
                 narrativeTestId={`turn-${turn.id}-narrative`}
@@ -451,6 +461,22 @@ export function SessionPresentation({
             </>
           )}
           <div className="overflow-hidden rounded-[26px] border border-myr-ink/15 bg-myr-session-composer shadow-[0_10px_30px_rgba(34,29,48,0.11),0_1px_2px_rgba(34,29,48,0.08)] transition-[border-color,box-shadow] duration-150 focus-within:border-myr-iris/45 focus-within:shadow-[0_12px_34px_rgba(34,29,48,0.14),0_0_0_3px_rgba(124,92,255,0.09)] max-sm:rounded-myr-panel motion-reduce:transition-none">
+            <div className="grid gap-3 border-b border-myr-ink/10 bg-myr-paper/55 px-4 py-3 sm:grid-cols-2" aria-label="AI profile選択">
+              <MyrialeSelect
+                label="行動判定AI"
+                value={actionDecisionAiProfileId}
+                onValueChange={setActionDecisionAiProfileId}
+                options={aiProfiles.map((profile) => ({ value: profile.id, label: profile.displayName }))}
+                testId="action-decision-ai-profile"
+              />
+              <MyrialeSelect
+                label="ナラティブ生成AI"
+                value={narrativeAiProfileId}
+                onValueChange={setNarrativeAiProfileId}
+                options={aiProfiles.map((profile) => ({ value: profile.id, label: profile.displayName }))}
+                testId="narrative-ai-profile"
+              />
+            </div>
             <Textarea
               variant="composer"
               aria-label="自由に行動や会話を入力"

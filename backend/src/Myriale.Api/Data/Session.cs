@@ -46,6 +46,7 @@ public sealed class Session
     public ICollection<ModuleOutcomeApplication> OutcomeApplications { get; set; } = [];
     public ICollection<SessionPlayerInput> PlayerInputs { get; set; } = [];
     public ICollection<SessionExecution> Executions { get; set; } = [];
+    public ICollection<SessionAiInteraction> AiInteractions { get; set; } = [];
     public ICollection<SessionObjectState> ObjectStates { get; set; } = [];
     public ICollection<SessionRuleActionStep> RuleActionSteps { get; set; } = [];
     public ICollection<SessionNote> Notes { get; set; } = [];

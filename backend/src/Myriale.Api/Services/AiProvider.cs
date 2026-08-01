@@ -55,6 +55,7 @@ public sealed record NarrativeGeneration<T>(
 public interface IAiTextProvider
 {
     Task<AiTextResponse> GenerateAsync(AiTextRequest request, CancellationToken cancellationToken);
+    Task<AiTextResponse> GenerateForProfileAsync(string profileId, AiTextRequest request, CancellationToken cancellationToken) => GenerateAsync(request, cancellationToken);
     Task<AiTextResponse> GenerateForProviderAsync(string provider, string credential, AiTextRequest request, CancellationToken cancellationToken);
     Task TestConnectionAsync(string provider, string credential, CancellationToken cancellationToken);
 }
@@ -75,11 +76,24 @@ public sealed class AiProviderOptions
     public int UserRequestsPerMinute { get; set; } = 30;
     public int MaxTokensPerSession { get; set; } = 250_000;
     public int LeaseRecoveryIntervalSeconds { get; set; } = 60;
+    public string? DefaultActionDecisionProfileId { get; set; }
+    public string? DefaultNarrativeProfileId { get; set; }
+    public string? CatalogJson { get; set; }
     public Dictionary<string, AiProviderProfileOptions> Providers { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, AiProfileOptions> Profiles { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 public sealed class AiProviderProfileOptions
 {
+    public string? BaseUrl { get; set; }
+    public string? Model { get; set; }
+    public string? ApiKey { get; set; }
+}
+
+public sealed class AiProfileOptions
+{
+    public string DisplayName { get; set; } = string.Empty;
+    public string Provider { get; set; } = string.Empty;
     public string? BaseUrl { get; set; }
     public string? Model { get; set; }
     public string? ApiKey { get; set; }
@@ -97,6 +111,7 @@ public sealed class OpenAiCompatibleTextProvider(
     IHttpClientFactory clients,
     IAiCredentialStore credentials,
     IOptions<AiProviderOptions> configuredOptions,
+    IAiProfileCatalog catalog,
     ILogger<OpenAiCompatibleTextProvider> logger,
     IAiProviderSelectionStore? selection = null) : IAiTextProvider
 {
@@ -107,35 +122,34 @@ public sealed class OpenAiCompatibleTextProvider(
 
     public async Task<AiTextResponse> GenerateAsync(AiTextRequest request, CancellationToken cancellationToken)
     {
-        var configured = configuredOptions.Value;
-        var provider = selection is null
-            ? Normalize(configured.Provider)
+        var profileId = selection is null
+            ? (await catalog.GetAsync(cancellationToken)).DefaultNarrativeProfileId
             : await selection.GetActiveProviderAsync(cancellationToken);
-        var options = ResolveOptions(configured, provider);
-        if (provider is not ("openai" or "runpod"))
-            throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "実AI Providerが設定されていません。", false);
-        var credential = await credentials.GetAsync(provider, cancellationToken) ?? options.ApiKey;
+        return await GenerateForProfileAsync(profileId, request, cancellationToken);
+    }
+
+    public async Task<AiTextResponse> GenerateForProfileAsync(string profileId, AiTextRequest request, CancellationToken cancellationToken)
+    {
+        var profile = await catalog.ResolveAsync(profileId, cancellationToken);
+        if (profile.Adapter != "openai-compatible")
+            throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, $"AI adapter '{profile.Adapter}' is not supported.", false);
+        var credential = profile.ApiKey ?? await credentials.GetAsync(profile.CredentialId, cancellationToken);
         if (string.IsNullOrWhiteSpace(credential))
             throw new AiProviderException(AiProviderErrorCodes.InvalidCredential, "AI Provider credentialが設定されていません。", false);
-        return await SendWithRetryAsync(provider, options, credential, request, cancellationToken);
+        return await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile), credential, request, cancellationToken);
     }
 
     public async Task<AiTextResponse> GenerateForProviderAsync(string provider, string credential, AiTextRequest request, CancellationToken cancellationToken)
     {
-        provider = Normalize(provider);
-        if (provider is not ("openai" or "runpod"))
-            throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "未対応のAI Providerです。", false);
+        var profile = await catalog.ResolveAsync(provider, cancellationToken);
         if (string.IsNullOrWhiteSpace(credential))
             throw new AiProviderException(AiProviderErrorCodes.InvalidCredential, "AI Provider credentialが設定されていません。", false);
-        return await SendWithRetryAsync(provider, ResolveOptions(configuredOptions.Value, provider), credential, request, cancellationToken);
+        return await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile), credential, request, cancellationToken);
     }
 
     public async Task TestConnectionAsync(string provider, string credential, CancellationToken cancellationToken)
     {
-        provider = Normalize(provider);
-        if (provider is not ("openai" or "runpod"))
-            throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "未対応のAI Providerです。", false);
-        var options = ResolveOptions(configuredOptions.Value, provider);
+        var profile = await catalog.ResolveAsync(provider, cancellationToken);
         using var schema = JsonDocument.Parse("{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"ok\":{\"type\":\"boolean\"}},\"required\":[\"ok\"]}");
         var probe = new AiTextRequest(
             [
@@ -143,7 +157,7 @@ public sealed class OpenAiCompatibleTextProvider(
                 new ChatMessage(ChatRole.User, "Return {\"ok\":true}.")
             ],
             ChatResponseFormat.ForJsonSchema(schema.RootElement, "myriale_connection_test"));
-        await SendWithRetryAsync(provider, options, credential, probe, cancellationToken);
+        await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile), credential, probe, cancellationToken);
     }
 
     private async Task<AiTextResponse> SendWithRetryAsync(string provider, AiProviderOptions options, string credential, AiTextRequest request, CancellationToken cancellationToken)
@@ -176,7 +190,7 @@ public sealed class OpenAiCompatibleTextProvider(
     private async Task<AiTextResponse> SendAsync(string provider, AiProviderOptions options, string credential, AiTextRequest input, int attempt, CancellationToken cancellationToken)
     {
         var client = clients.CreateClient("OpenAiCompatible");
-        var endpoint = new Uri(new Uri(ResolveBaseUrl(provider, options.BaseUrl)), "chat/completions");
+        var endpoint = new Uri(new Uri(ResolveBaseUrl(options.BaseUrl)), "chat/completions");
         using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
         var payload = new Dictionary<string, object?>
@@ -200,8 +214,8 @@ public sealed class OpenAiCompatibleTextProvider(
             }
         };
         // Qwen3 spends its completion budget on hidden reasoning unless thinking is explicitly disabled.
-        // Runpod's vLLM OpenAI-compatible endpoint accepts this model-specific chat-template option.
-        if (provider == "runpod" && options.Model.Contains("qwen3", StringComparison.OrdinalIgnoreCase))
+        // OpenAI-compatible vLLM endpoints accept this model-specific chat-template option.
+        if (options.Model.Contains("qwen3", StringComparison.OrdinalIgnoreCase))
             payload["chat_template_kwargs"] = new { enable_thinking = false };
         request.Content = new StringContent(JsonSerializer.Serialize(payload, Json), Encoding.UTF8, "application/json");
         var stopwatch = Stopwatch.StartNew();
@@ -321,31 +335,18 @@ public sealed class OpenAiCompatibleTextProvider(
         return compact.Length <= maxLength ? compact : compact[..maxLength] + "…";
     }
 
-    private static AiProviderOptions ResolveOptions(AiProviderOptions configured, string provider)
+    private static AiProviderOptions ResolveProfileOptions(AiProviderOptions configured, AiProfileDescriptor profile) => new()
     {
-        configured.Providers.TryGetValue(provider, out var profile);
-        var isActiveProvider = string.Equals(Normalize(configured.Provider), provider, StringComparison.OrdinalIgnoreCase);
-        return new AiProviderOptions
-        {
-            Provider = provider,
-            // Forge injects the active Provider settings at the AiProvider root. Those values must win over
-            // appsettings.json profiles, whose Runpod values are documentation placeholders.
-            BaseUrl = isActiveProvider ? configured.BaseUrl ?? profile?.BaseUrl : profile?.BaseUrl ?? configured.BaseUrl,
-            Model = isActiveProvider ? ResolveModel(configured.Model, profile?.Model) : ResolveModel(profile?.Model, configured.Model),
-            ApiKey = isActiveProvider ? configured.ApiKey ?? profile?.ApiKey : profile?.ApiKey ?? configured.ApiKey,
-            TimeoutSeconds = configured.TimeoutSeconds,
-            MaxOutputTokens = configured.MaxOutputTokens,
-            Temperature = configured.Temperature,
-            MaxAttempts = configured.MaxAttempts,
-            InitialBackoffMilliseconds = configured.InitialBackoffMilliseconds,
-        };
-    }
+        Provider = profile.Id,
+        BaseUrl = profile.BaseUrl,
+        Model = profile.Model,
+        TimeoutSeconds = configured.TimeoutSeconds,
+        MaxOutputTokens = configured.MaxOutputTokens,
+        Temperature = configured.Temperature,
+        MaxAttempts = configured.MaxAttempts,
+        InitialBackoffMilliseconds = configured.InitialBackoffMilliseconds,
+    };
 
-    private static string ResolveModel(params string?[] candidates) =>
-        candidates.FirstOrDefault(candidate => !string.IsNullOrWhiteSpace(candidate))
-        ?? throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "AI model is required.", false);
-
-    private static string ResolveBaseUrl(string provider, string? configured) =>
-        (configured ?? (provider == "openai" ? "https://api.openai.com/v1/" : throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "Runpod BaseUrl is required.", false))).TrimEnd('/') + "/";
-    private static string Normalize(string provider) => provider.Trim().ToLowerInvariant();
+    private static string ResolveBaseUrl(string? configured) =>
+        (configured ?? throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "AI Provider BaseUrl is required.", false)).TrimEnd('/') + "/";
 }

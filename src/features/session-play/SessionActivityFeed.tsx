@@ -49,20 +49,22 @@ export function SessionInputItem({ text }: { text: string }) {
   return <article className="session-input-item mt-0.5 mr-2 mb-2 ml-13 w-fit max-w-[min(82%,620px)] justify-self-end rounded-[18px_18px_5px_18px] border border-[#c9bce4] bg-myr-session-input px-4 py-3 text-[#2c2440] shadow-[0_7px_20px_rgba(58,43,83,.14)]" data-testid="session-input-item" aria-label="Player Input"><p className="m-0 font-bold leading-[1.55]">{text}</p></article>;
 }
 
-export function ProgramTurnItem() {
-  return <article className="grid gap-2 rounded-myr-card border border-myr-ink/14 bg-myr-session-turn p-4" data-testid="program-turn-item" aria-label="Module進行">
-    <p className="m-0 max-w-none leading-[1.65] text-[#303644]"><span className="mr-2 inline-block rounded-full bg-myr-gold px-2 py-px align-middle text-myr-micro font-black tracking-[.1em] text-[#17151f]" aria-hidden="true">PROGRAM</span>判定結果を処理し、Sessionの進行へ反映しました。</p>
+export function ProgramTurnItem({ onInspect }: { onInspect?: () => void }) {
+  return <article className="grid min-w-0 gap-2 rounded-myr-card border border-myr-ink/14 bg-myr-session-turn p-4" data-testid="program-turn-item" aria-label="Module進行">
+    <p className="m-0 max-w-none break-words leading-[1.65] text-[#303644]"><span className="mr-2 inline-block rounded-full bg-myr-gold px-2 py-px align-middle text-myr-micro font-black tracking-[.1em] text-[#17151f]" aria-hidden="true">PROGRAM</span>判定結果を処理し、Sessionの進行へ反映しました。</p>
+    {onInspect && <Button variant="secondary" size="sm" className="w-fit" onClick={onInspect}>実行詳細を見る</Button>}
   </article>;
 }
 
-export function NarrativeTurnItem({ turn }: { turn: NarrativeTurnApiResponse }) {
+export function NarrativeTurnItem({ turn, onInspect }: { turn: NarrativeTurnApiResponse; onInspect?: () => void }) {
   const interpretation = turn.narrative?.interpretation;
-  return <article className="grid gap-2 rounded-myr-card border border-myr-ink/14 bg-myr-session-turn p-4" data-testid="narrative-turn-item" aria-label="公開済みNarrative Turn">
+  return <article className="grid min-w-0 gap-2 rounded-myr-card border border-myr-ink/14 bg-myr-session-turn p-4" data-testid="narrative-turn-item" aria-label="公開済みNarrative Turn">
     <p className="m-0 max-w-none leading-[1.65] text-[#303644]"><span className="mr-2 inline-block rounded-full bg-myr-gold px-2 py-px align-middle text-myr-micro font-black tracking-[.1em] text-[#17151f]" aria-hidden="true">AI</span>{turn.narrative?.body ?? 'Narrativeを表示できません。'}</p>
     {interpretation && <details className="rounded-lg border border-myr-ink/10 bg-white/35 px-3 py-2 text-myr-caption text-[#555b68]">
       <summary className="cursor-pointer font-bold focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-myr-iris">入力の解釈</summary>
-      <p className="mt-2 mb-0 leading-relaxed">{interpretation}</p>
+      <p className="mt-2 mb-0 break-words leading-relaxed">{interpretation}</p>
     </details>}
+    {onInspect && <Button variant="secondary" size="sm" className="w-fit" onClick={onInspect}>実行詳細を見る</Button>}
   </article>;
 }
 
@@ -183,7 +185,7 @@ export function ImageArtifactItem({ mediaUrl, contentType }: { mediaUrl?: string
   return <figure className={artifactClass} data-testid="image-artifact-item">{mediaUrl ? <img className="block max-h-105 w-full rounded-xl object-cover" src={mediaUrl} alt="生成された場面" loading="lazy" /> : <div className="grid min-h-myr-module-preview-min place-items-center rounded-xl bg-myr-session-preview font-extrabold" role="img" aria-label="画像Artifactのプレビュー">画像プレビュー</div>}<figcaption>{contentType} / Narrativeとは独立した任意成果物</figcaption></figure>;
 }
 
-export function SessionActivityFeed({ session, onExecutionAction, onNoteReview, keepSucceededStatusVisible = false }: { session: SessionApiResponse; onExecutionAction?: (id: string, action: 'retry' | 'cancel' | 'dismiss') => void; onNoteReview?: (id: string, action: 'apply' | 'edit-apply' | 'reject' | 'snooze', request: NoteReviewRequest) => void; keepSucceededStatusVisible?: boolean }) {
+export function SessionActivityFeed({ session, onExecutionAction, onNoteReview, onInspectTurn, keepSucceededStatusVisible = false }: { session: SessionApiResponse; onExecutionAction?: (id: string, action: 'retry' | 'cancel' | 'dismiss') => void; onNoteReview?: (id: string, action: 'apply' | 'edit-apply' | 'reject' | 'snooze', request: NoteReviewRequest) => void; onInspectTurn?: (turnId: string) => void; keepSucceededStatusVisible?: boolean }) {
   const inputs = new Map((session.inputs ?? []).map((item) => [item.id, item]));
   const executions = new Map((session.executions ?? []).map((item) => [item.id, item]));
   const turns = new Map(session.turns.map((item) => [item.id, item]));
@@ -198,8 +200,8 @@ export function SessionActivityFeed({ session, onExecutionAction, onNoteReview, 
         const turn = turns.get(item.id);
         if (!turn) return null;
         return turn.kind === 'module' && !turn.narrative
-          ? <ProgramTurnItem key={`turn-${item.id}`} />
-          : <NarrativeTurnItem key={`turn-${item.id}`} turn={turn} />;
+          ? <ProgramTurnItem key={`turn-${item.id}`} onInspect={onInspectTurn ? () => onInspectTurn(turn.id) : undefined} />
+          : <NarrativeTurnItem key={`turn-${item.id}`} turn={turn} onInspect={onInspectTurn ? () => onInspectTurn(turn.id) : undefined} />;
       }
       const artifact = artifacts.get(item.id); if (!artifact) return null;
       if (artifact.kind === 'image') return <ImageArtifactItem key={`artifact-${item.id}`} mediaUrl={artifact.mediaUrl} contentType={artifact.contentType} />;

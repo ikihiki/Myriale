@@ -135,43 +135,54 @@ AppHost は以下の resource をまとめて起動します。
 
 Aspire ダッシュボード上の `myriale-api` が `GET /api/home/dashboard` を提供します。`myriale-frontend` と `myriale-storybook` は `WithReference(api)` で API resource を参照し、`VITE_MYRIAL_API_MODE=proxy` のとき Vite proxy 経由で `/api/*` を `myriale-api` に転送します。
 
-### OpenAI APIの設定
+### AI provider catalogの設定
 
-Narrative生成は既定でOpenAIの`gpt-4.1-mini`を使用します。APIキーはGitへ追加せず、環境変数、デプロイ先のsecret、またはAI Provider管理画面から登録してください。
+すべての実AI profileは`openai-compatible` adapterで送信します。Provider IDに対するコード分岐はなく、任意のprofile ID、Base URL、Model、Credential IDを設定できます。既存の`AiProvider:Profiles` / `AiProvider:Providers`は互換入力として引き続き利用できます。
 
-ローカルでAspireを起動する場合は、OpenAIのAPIキーをASP.NET Core設定形式の環境変数へ渡します。
+ローカルでは`AiProvider__CatalogJson`へJSON文書を渡します。
 
 ```bash
-export AiProvider__Provider=openai
-export AiProvider__Model=gpt-4.1-mini
-export AiProvider__ApiKey='sk-...'
+export AiProvider__CatalogJson='{"defaultActionDecisionProfileId":"acme-story","defaultNarrativeProfileId":"acme-story","profiles":[{"id":"acme-story","displayName":"Acme Story","adapter":"openai-compatible","baseUrl":"https://ai.acme.example/v1","model":"acme/story-1","credentialId":"acme-main","enabled":true,"apiKey":"replace-with-secret"}]}'
 aspire run --project backend/src/Myriale.AppHost/Myriale.AppHost.csproj
 ```
 
-既に`OPEN_AI_KEY`へ入れている場合は、値を表示せずに次のように引き渡せます。
-
-```bash
-export AiProvider__ApiKey="$OPEN_AI_KEY"
-```
-
-管理画面から登録・切り替えする場合は、AI管理権限を持つアカウントでログインし、`/account/admin/ai-keys`を開きます。Providerのキーを保存して「接続テスト」を行ったあと、「このAIを使用」を押すと、次のNarrative生成からOpenAIとRunpodを切り替えられます。管理画面で保存したキーと使用Providerの選択はDBへ保存されますが、現在の既定値`Database:RecreateOnStartup=true`ではAPI再起動時にDBが再作成されるため、キーの継続利用にはVaultまたは環境変数を使用してください。
-
-ForgeではProviderごとに既存のVault keyを分離して利用します。
-
-- OpenAI: `forge/apps/myriale/openai`。異なるkeyを使う場合は`forge.openAiVaultKey`で指定します。
-- Runpod: 既存の`forge/apps/myriale/ai`をそのまま利用します。異なるkeyを使う場合は`forge.runpodVaultKey`で指定します。このkeyは削除・上書きされません。
-
-OpenAI用keyには次のpropertyを登録します。
+Forgeでは既定のVault path `forge/apps/myriale/ai` に、property名 **`catalogJson`** で次の文字列を登録します。`apiKey`は任意です。JSON内へ含めた場合もAPIレスポンスやログには公開されません。
 
 ```yaml
-apiKey: sk-...
-baseUrl: https://api.openai.com/v1
-model: gpt-4.1-mini
+catalogJson: |-
+  {
+    "defaultActionDecisionProfileId": "acme-story",
+    "defaultNarrativeProfileId": "acme-story",
+    "profiles": [
+      {
+        "id": "acme-story",
+        "displayName": "Acme Story",
+        "adapter": "openai-compatible",
+        "baseUrl": "https://ai.acme.example/v1",
+        "model": "acme/story-1",
+        "credentialId": "acme-main",
+        "enabled": true,
+        "apiKey": "replace-with-secret"
+      }
+    ]
+  }
 ```
 
-既存のRunpod用keyには、従来どおり`apiKey`、`baseUrl`、`model`を保持してください。`provider` propertyが残っていても問題ありません。
+`profiles`は上記の配列形式に加え、profile IDをkeyにしたobject形式も受け付けます。ForgeのVault pathを変更する場合は`forge.aiVaultKey`を指定します。ESOが参照するのはこの`catalogJson` propertyだけなので、Providerを増やしてもAppHostやKubernetes manifestの変更は不要です。
 
-APIキーはブラウザー、フロントエンド環境変数、ソースコード、ログへ渡さないでください。使用量と上限はOpenAI Platform側でも設定・監視してください。
+複数profileで同じ`credentialId`を指定した場合、同じcredentialを共有できます。`apiKey`は共有profileのいずれか1件にだけ記述すれば、同じ`credentialId`を持つ全profileへ適用されます。
+
+Definitionのマージ優先順位は、同じprofile IDに対して次の順です（下ほど優先）。
+
+1. 既存のstructured appsettings (`AiProvider:Profiles` / `AiProvider:Providers`)
+2. `AiProvider:CatalogJson`（Forge Vaultの`catalogJson`を含む）
+3. 管理API / 管理画面で保存したDB profile定義
+
+Credentialはdefinitionとは別に、configuration / Vault（CatalogJson内の`apiKey`または既存appsettings互換設定）を先に解決し、見つからない場合だけ暗号化DB credentialへフォールバックします。管理APIはsecret本体を返しません。
+
+AI管理権限を持つアカウントは`/account/admin/ai-keys`から任意IDのprofile定義を作成・更新・削除し、接続テストや使用profileの切り替えを行えます。DB profileには`displayName`、`adapter`、`baseUrl`、`model`、`credentialId`、`enabled`と任意のsecretを指定します。現在の既定値`Database:RecreateOnStartup=true`ではAPI再起動時にDBが再作成されるため、永続的な本番設定にはVaultを使用してください。
+
+APIキーはブラウザー、フロントエンド環境変数、ソースコード、ログへ渡さないでください。
 
 ### 外部 PostgreSQL の接続
 

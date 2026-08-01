@@ -1,7 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Unicode;
 using Microsoft.Extensions.AI;
 using Myriale.Api.Contracts;
 
@@ -9,23 +11,35 @@ namespace Myriale.Api.Services;
 
 public sealed class ProviderNarrativeGenerator(
     IAiTextProvider provider,
+    ScenarioActionDecisionModelMapper actionDecisionMapper,
     ILogger<ProviderNarrativeGenerator> logger) : INarrativeGenerator, IActionRecommendationGenerator, IScenarioTurnAi
 {
-    private static readonly JsonSerializerOptions Strict = new(JsonSerializerDefaults.Web) { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
+    private static readonly JsonSerializerOptions Strict = new(JsonSerializerDefaults.Web)
+    {
+        Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+    };
     private const string BodySchema = "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"body\":{\"type\":\"string\"}},\"required\":[\"body\"]}";
     private const string RecommendationSchema = "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"suggestion\":{\"type\":\"string\"}},\"required\":[\"suggestion\"]}";
 
-    private const string ActionDecisionSchema = "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"schemaVersion\":{\"const\":\"rule-action-decision.v1\"},\"objectId\":{\"type\":\"string\"},\"actionId\":{\"type\":\"string\"},\"arguments\":{\"type\":\"object\"}},\"required\":[\"schemaVersion\",\"objectId\",\"actionId\",\"arguments\"]}";
     private const string PostStateNarrativeSchema = "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"schemaVersion\":{\"const\":\"post-state-narrative.v1\"},\"heading\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120},\"body\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":20000}},\"required\":[\"schemaVersion\",\"heading\",\"body\"]}";
 
-    public async Task<NarrativeGeneration<RuleActionDecisionResult>> DecideActionAsync(RuleActionDecisionRequest request, CancellationToken cancellationToken)
+    public Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionForProfileAsync(string profileId, ModelActionDecisionRequest request, CancellationToken cancellationToken) =>
+        DecideActionCoreAsync((textRequest, token) => provider.GenerateForProfileAsync(profileId, textRequest, token), request, cancellationToken);
+
+    public async Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeForProfileAsync(string profileId, PostStateNarrativeRequest request, CancellationToken cancellationToken)
     {
-        var response = await provider.GenerateAsync(CreateRequest("rule_action_decision", ActionDecisionSchema,
-            "候補に含まれる enabled な objectId/actionId を1つ選び、arguments と共にJSONだけを返す。状態、効果、module identityは返さない。",
+        var response = await provider.GenerateForProfileAsync(profileId, CreateRequest("post_state_narrative", PostStateNarrativeSchema,
+            "確定済みの事後公開状態とfactsだけを正史として、状態を変更しないナラティブJSONを返す。NPC設定のsecretsは内面的一貫性のためだけに使い、公開済みfactsにない秘密を明かさない。forbidden factsは記述しない。",
             JsonSerializer.Serialize(request, Strict)), cancellationToken);
-        var result = Deserialize<RuleActionDecisionResult>(response, "rule_action_decision");
-        return new(result, response.Metadata, JsonSerializer.Serialize(request, Strict), response.Text);
+        var result = Deserialize<PostStateNarrativeResult>(response, "post_state_narrative");
+        if (string.IsNullOrWhiteSpace(result.Heading) || string.IsNullOrWhiteSpace(result.Body))
+            throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "AI Provider returned invalid post-state narrative.", false);
+        return new(result with { Heading = result.Heading.Trim(), Body = result.Body.Trim() }, response.Metadata, JsonSerializer.Serialize(request, Strict), response.Text);
     }
+
+    public Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionAsync(ModelActionDecisionRequest request, CancellationToken cancellationToken) =>
+        DecideActionCoreAsync((textRequest, token) => provider.GenerateAsync(textRequest, token), request, cancellationToken);
 
     public async Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeAsync(PostStateNarrativeRequest request, CancellationToken cancellationToken)
     {
@@ -72,6 +86,36 @@ public sealed class ProviderNarrativeGenerator(
         }
         return result with { Suggestion = result.Suggestion.Trim() };
     }
+    private async Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionCoreAsync(
+        Func<AiTextRequest, CancellationToken, Task<AiTextResponse>> generate,
+        ModelActionDecisionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var schema = actionDecisionMapper.CreateResponseSchema(request);
+        var userPrompt = JsonSerializer.Serialize(request, Strict);
+        var sentPrompt = JsonSerializer.Serialize(new ModelActionDecisionPromptAudit(
+            ScenarioTurnSchemas.ModelActionDecisionPrompt,
+            ScenarioActionDecisionModelMapper.SystemPrompt,
+            request,
+            ScenarioTurnSchemas.ModelActionDecisionResult), Strict);
+        AiTextResponse response;
+        try
+        {
+            response = await generate(CreateRequest(
+                "model_action_decision_result_v3",
+                schema.GetRawText(),
+                ScenarioActionDecisionModelMapper.SystemPrompt,
+                userPrompt), cancellationToken);
+        }
+        catch (AiProviderException exception)
+        {
+            throw new AiProviderException(exception.Code, exception.Message, exception.Retryable, exception.RetryAfter,
+                exception, exception.ProviderResponseExcerpt, sentPrompt, exception.ReceivedResult);
+        }
+        var result = Deserialize<ModelActionDecisionResult>(response, "model_action_decision_result_v3", sentPrompt);
+        return new(result, response.Metadata, sentPrompt, response.Text);
+    }
+
     private static AiTextRequest CreateRequest(string schemaName, string schemaJson, string systemPrompt, string userPrompt)
     {
         using var schema = JsonDocument.Parse(schemaJson);
@@ -83,7 +127,7 @@ public sealed class ProviderNarrativeGenerator(
             ChatResponseFormat.ForJsonSchema(schema.RootElement.Clone(), schemaName));
     }
 
-    private T Deserialize<T>(AiTextResponse response, string schemaName)
+    private T Deserialize<T>(AiTextResponse response, string schemaName, string? sentPrompt = null)
     {
         try
         {
@@ -109,7 +153,9 @@ public sealed class ProviderNarrativeGenerator(
                 $"AI Provider returned invalid structured output for {schemaName} at {exception.Path ?? "<root>"}.",
                 false,
                 null,
-                exception);
+                exception,
+                sentPrompt: sentPrompt,
+                receivedResult: response.Text);
         }
     }
 

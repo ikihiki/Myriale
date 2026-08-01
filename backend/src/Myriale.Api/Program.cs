@@ -17,7 +17,8 @@ builder.Services.AddOpenApi();
 builder.Services.AddDataProtection();
 builder.Services.AddOptions<AiProviderOptions>()
     .Bind(builder.Configuration.GetSection(AiProviderOptions.SectionName))
-    .Validate(options => options.Provider is "mock" or "openai" or "runpod", "Provider must be mock, openai, or runpod.")
+    // Profile definitions may come entirely from the database, so startup must not require
+    // appsettings or Vault catalog entries to exist before administrators register the first profile.
     .Validate(options => options.TimeoutSeconds > 0 && options.MaxOutputTokens > 0 && options.MaxAttempts > 0, "AI provider limits must be positive.")
     .Validate(options => options.SessionRequestsPerMinute > 0
         && options.UserRequestsPerMinute > 0
@@ -48,10 +49,12 @@ builder.Services.AddScoped<ScenarioDefinitionAuthoringService>();
 builder.Services.AddScoped<ScenarioRuleEvaluator>();
 builder.Services.AddScoped<ScenarioRuleConfigurationResolver>();
 builder.Services.AddScoped<ScenarioPublicProjector>();
+builder.Services.AddSingleton<ScenarioActionDecisionModelMapper>();
 builder.Services.AddScoped<ScenarioActionEnumerator>();
 builder.Services.AddScoped<ScenarioEffectApplier>();
 builder.Services.AddScoped<ScenarioRuleDebugService>();
 builder.Services.AddScoped<IScenarioExtensionAdapter, ScenarioModuleExtensionAdapter>();
+builder.Services.AddScoped<IAiProfileCatalog, AiProfileCatalog>();
 builder.Services.AddScoped<SessionInputService>();
 builder.Services.AddScoped<ISessionExecutionQueue, SessionExecutionQueue>();
 builder.Services.AddScoped<SessionExecutionFinalizer>();
@@ -129,6 +132,8 @@ builder.Services.AddAuthorization(options =>
         policy.RequireClaim("myriale:module-admin", "true"));
     options.AddPolicy("AiAdministration", policy =>
         policy.RequireClaim("myriale:ai-admin", "true"));
+    options.AddPolicy("Administration", policy =>
+        policy.RequireClaim("myriale:admin", "true"));
 });
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
@@ -257,6 +262,7 @@ app.MapSessionArtifactEndpoints();
 app.MapModuleExecutionEndpoints();
 app.MapModuleUiEndpoints();
 app.MapAiAdminEndpoints();
+app.MapAiProfileEndpoints();
 
 app.MapGet("/api/home/dashboard", async (
         System.Security.Claims.ClaimsPrincipal principal,

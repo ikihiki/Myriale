@@ -43,6 +43,7 @@ import { Route as SessionsSessionIdPlayRouteImport } from './routes/sessions/$se
 import { Route as SessionsSessionIdProgramRouteImport } from './routes/sessions/$sessionId/program'
 import { Route as AccountAdminUsersIndexRouteImport } from './routes/account/admin/users/index'
 import { Route as AccountAdminUsersUserIdRouteImport } from './routes/account/admin/users/$userId'
+import { Route as SessionsSessionIdTurnsTurnIdInspectionRouteImport } from './routes/sessions/$sessionId/turns/$turnId/inspection'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -218,6 +219,12 @@ const AccountAdminUsersUserIdRoute = AccountAdminUsersUserIdRouteImport.update({
   path: '/$userId',
   getParentRoute: () => AccountAdminUsersRouteRoute,
 } as any)
+const SessionsSessionIdTurnsTurnIdInspectionRoute =
+  SessionsSessionIdTurnsTurnIdInspectionRouteImport.update({
+    id: '/turns/$turnId/inspection',
+    path: '/turns/$turnId/inspection',
+    getParentRoute: () => SessionsSessionIdRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -254,6 +261,7 @@ export interface FileRoutesByFullPath {
   '/sessions/$sessionId/': typeof SessionsSessionIdIndexRoute
   '/account/admin/users/$userId': typeof AccountAdminUsersUserIdRoute
   '/account/admin/users/': typeof AccountAdminUsersIndexRoute
+  '/sessions/$sessionId/turns/$turnId/inspection': typeof SessionsSessionIdTurnsTurnIdInspectionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -285,6 +293,7 @@ export interface FileRoutesByTo {
   '/sessions/$sessionId': typeof SessionsSessionIdIndexRoute
   '/account/admin/users/$userId': typeof AccountAdminUsersUserIdRoute
   '/account/admin/users': typeof AccountAdminUsersIndexRoute
+  '/sessions/$sessionId/turns/$turnId/inspection': typeof SessionsSessionIdTurnsTurnIdInspectionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -322,6 +331,7 @@ export interface FileRoutesById {
   '/sessions/$sessionId/': typeof SessionsSessionIdIndexRoute
   '/account/admin/users/$userId': typeof AccountAdminUsersUserIdRoute
   '/account/admin/users/': typeof AccountAdminUsersIndexRoute
+  '/sessions/$sessionId/turns/$turnId/inspection': typeof SessionsSessionIdTurnsTurnIdInspectionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -360,6 +370,7 @@ export interface FileRouteTypes {
     | '/sessions/$sessionId/'
     | '/account/admin/users/$userId'
     | '/account/admin/users/'
+    | '/sessions/$sessionId/turns/$turnId/inspection'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -391,6 +402,7 @@ export interface FileRouteTypes {
     | '/sessions/$sessionId'
     | '/account/admin/users/$userId'
     | '/account/admin/users'
+    | '/sessions/$sessionId/turns/$turnId/inspection'
   id:
     | '__root__'
     | '/'
@@ -427,6 +439,7 @@ export interface FileRouteTypes {
     | '/sessions/$sessionId/'
     | '/account/admin/users/$userId'
     | '/account/admin/users/'
+    | '/sessions/$sessionId/turns/$turnId/inspection'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -678,6 +691,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountAdminUsersUserIdRouteImport
       parentRoute: typeof AccountAdminUsersRouteRoute
     }
+    '/sessions/$sessionId/turns/$turnId/inspection': {
+      id: '/sessions/$sessionId/turns/$turnId/inspection'
+      path: '/turns/$turnId/inspection'
+      fullPath: '/sessions/$sessionId/turns/$turnId/inspection'
+      preLoaderRoute: typeof SessionsSessionIdTurnsTurnIdInspectionRouteImport
+      parentRoute: typeof SessionsSessionIdRouteRoute
+    }
   }
 }
 
@@ -777,6 +797,7 @@ interface SessionsSessionIdRouteRouteChildren {
   SessionsSessionIdPlayRoute: typeof SessionsSessionIdPlayRoute
   SessionsSessionIdProgramRoute: typeof SessionsSessionIdProgramRoute
   SessionsSessionIdIndexRoute: typeof SessionsSessionIdIndexRoute
+  SessionsSessionIdTurnsTurnIdInspectionRoute: typeof SessionsSessionIdTurnsTurnIdInspectionRoute
 }
 
 const SessionsSessionIdRouteRouteChildren: SessionsSessionIdRouteRouteChildren =
@@ -786,6 +807,8 @@ const SessionsSessionIdRouteRouteChildren: SessionsSessionIdRouteRouteChildren =
     SessionsSessionIdPlayRoute: SessionsSessionIdPlayRoute,
     SessionsSessionIdProgramRoute: SessionsSessionIdProgramRoute,
     SessionsSessionIdIndexRoute: SessionsSessionIdIndexRoute,
+    SessionsSessionIdTurnsTurnIdInspectionRoute:
+      SessionsSessionIdTurnsTurnIdInspectionRoute,
   }
 
 const SessionsSessionIdRouteRouteWithChildren =

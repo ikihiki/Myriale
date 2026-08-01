@@ -50,6 +50,8 @@ public sealed class AccountEndpointTests : IDisposable
         await using (var scope = _factory.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var seedUserId = await db.Users.Where(user => user.Email == AccountSeedData.DefaultEmail).Select(user => user.Id).SingleAsync();
+            Assert.True(await db.UserClaims.AnyAsync(claim => claim.UserId == seedUserId && claim.ClaimType == "myriale:admin" && claim.ClaimValue == "true"));
             Assert.Equal(1, await db.Users.CountAsync());
         }
 

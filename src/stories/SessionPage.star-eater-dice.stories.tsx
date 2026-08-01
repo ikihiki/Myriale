@@ -11,6 +11,12 @@ const meta = {
     sessionId: 'SES-STAR-EATER-DICE', account: null, sessionStateLabel: 'Active',
     turns: [{ id: 1, turnTitle: '閉じた星座の扉', narrative: '銀の鍵を差し込み、星図灯を掲げると扉の星々が判定を要求した。', kind: 'action' }],
     headingLinks: [{ title: '閉じた星座の扉', startTurnId: 1, summary: '判定開始地点' }],
+    aiProfiles: [
+      { id: 'runpod-recommended', displayName: '推奨（Deckard 40B AWQ）' },
+      { id: 'runpod-economy', displayName: '最安（Qwen2.5 14B Abliterated AWQ）' },
+    ],
+    defaultActionDecisionAiProfileId: 'runpod-recommended',
+    defaultNarrativeAiProfileId: 'runpod-recommended',
     onSubmit: noopCommand, onRecommend: async () => ({ ok: true, value: '星図を調べる', notice: 'ok' }),
   },
 } satisfies Meta<typeof SessionPresentation>;

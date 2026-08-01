@@ -8,7 +8,7 @@ using Myriale.Api.Data;
 
 namespace Myriale.Api.Services;
 
-public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProviderOptions> aiOptions)
+public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProviderOptions> aiOptions, IAiProfileCatalog profiles)
 {
     public async Task<SessionInputAcceptanceResult> AcceptAsync(string ownerId, string sessionId, CreateSessionInputRequest request, CancellationToken cancellationToken)
     {
@@ -22,7 +22,19 @@ public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProv
         if (request.RequestedOutputs is { Count: > 0 } && request.RequestedOutputs.Any(output => output != SessionExecutionKinds.ScenarioTurn))
             return SessionInputAcceptanceResult.Error(400, "unsupported_output", "現在リクエストできる生成結果はscenario-turnだけです。");
 
-        var payloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{interactionType}\n{text}"))).ToLowerInvariant();
+        string actionDecisionAiProfileId;
+        string narrativeAiProfileId;
+        try
+        {
+            actionDecisionAiProfileId = await profiles.ResolveActionDecisionProfileIdAsync(request.ActionDecisionAiProfileId, cancellationToken);
+            narrativeAiProfileId = await profiles.ResolveNarrativeProfileIdAsync(request.NarrativeAiProfileId, cancellationToken);
+        }
+        catch (AiProviderException)
+        {
+            return SessionInputAcceptanceResult.Error(400, "invalid_ai_profile", "指定されたAI profileは利用できません。");
+        }
+        var payloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            $"{interactionType}\n{text}\n{actionDecisionAiProfileId}\n{narrativeAiProfileId}"))).ToLowerInvariant();
 
         // Resolve the owner boundary before looking up an idempotent replay. Otherwise a caller
         // who knows another Session ID and RequestId can distinguish or retrieve that owner's work.
@@ -100,6 +112,8 @@ public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProv
             Revision = 0,
             IdempotencyKey = request.RequestId,
             PayloadHash = payloadHash,
+            ActionDecisionAiProfileId = actionDecisionAiProfileId,
+            NarrativeAiProfileId = narrativeAiProfileId,
             AcceptedHeadTurnId = session.HeadTurnId,
             AcceptedSessionRevision = session.Revision,
             MaxAttempts = Math.Max(1, aiOptions.Value.MaxAttempts),

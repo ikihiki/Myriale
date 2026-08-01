@@ -99,7 +99,9 @@ public sealed record CreateSessionInputRequest(
     string Text,
     string InteractionType = NarrativeInteractionTypes.Dialogue,
     IReadOnlyList<string>? RequestedOutputs = null,
-    string? SupersedesInputId = null);
+    string? SupersedesInputId = null,
+    string? ActionDecisionAiProfileId = null,
+    string? NarrativeAiProfileId = null);
 
 public sealed record SessionPlayerInputResponse(
     string Id,
@@ -175,7 +177,9 @@ public sealed record SessionExecutionResponse(
     SessionExecutionDiagnosticsResponse? DevelopmentDiagnostics,
     string? Stage = null,
     int SchemaVersion = 1,
-    SessionScenarioTurnProjectionResponse? ScenarioTurn = null);
+    SessionScenarioTurnProjectionResponse? ScenarioTurn = null,
+    string? ActionDecisionAiProfileId = null,
+    string? NarrativeAiProfileId = null);
 
 public sealed record SessionArtifactResponse(
     string Id,

@@ -33,8 +33,8 @@ app.MapPost("/mock-ai/action-recommendation", (MockActionRecommendationRequest r
 
 app.MapPost("/mock-ai/rule-action-decision", (MockRuleActionDecisionRequest request) =>
 {
-    var enabled = MockRuleActionSelector.Select(request);
-    return Results.Ok(new { schemaVersion = "rule-action-decision.v1", enabled.ObjectId, enabled.ActionId, arguments = new { } });
+    var selected = MockRuleActionSelector.Select(request);
+    return Results.Ok(new { schemaVersion = "model-action-decision-result.v3", selectionCode = selected.SelectionCode, arguments = new { } });
 });
 
 app.MapPost("/mock-ai/post-state-narrative", (MockPostStateNarrativeRequest request) =>
@@ -116,8 +116,12 @@ public sealed record MockActionRecommendationRequest(
 
 public sealed record MockActionRecommendationResult(string Suggestion);
 
-public sealed record MockRuleActionDecisionRequest(string SchemaVersion, string PlayerInput, MockRuleActionSnapshot Snapshot);
-public sealed record MockRuleActionSnapshot(string SchemaVersion, string SnapshotId, MockRulePublicLocation CurrentLocation, IReadOnlyList<MockRulePublicObject> Objects, IReadOnlyList<MockRulePublicAction> Actions);
+public sealed record MockRuleActionDecisionRequest(string SchemaVersion, string PlayerInput, MockActionDecisionScene Scene, IReadOnlyList<MockObjectActions> ObjectActions, IReadOnlyList<MockActionDecisionCandidate> SystemActions);
+public sealed record MockActionDecisionScene(MockActionDecisionLocation CurrentLocation, IReadOnlyList<MockActionDecisionVisibleObject> VisibleObjects);
+public sealed record MockActionDecisionLocation(string Code, string Name, string Description);
+public sealed record MockActionDecisionVisibleObject(string Code, string Name, string Scope, JsonElement PublicState);
+public sealed record MockObjectActions(string ObjectCode, string ObjectName, IReadOnlyList<MockActionDecisionCandidate> Actions);
+public sealed record MockActionDecisionCandidate(string SelectionCode, string ActionCode, string Label, string Description, JsonElement ArgumentSchema);
 public sealed record MockRulePublicLocation(string Id, string Code, string Name, string Description);
 public sealed record MockRulePublicAction(string ObjectId, string ActionId, string Code, string Label, string Description, JsonElement ArgumentSchema, bool Enabled);
 public sealed record MockPostStateNarrativeRequest(string SchemaVersion, MockNarrativeScenario Scenario, string PlayerInput, MockRulePublicObject SelectedObject, MockRulePublicAction SelectedAction, MockRulePostState PostState, IReadOnlyList<string> Facts, IReadOnlyList<JsonElement> Events, IReadOnlyList<string> NarrativeHints, IReadOnlyList<string> ForbiddenNarrativeFacts);
@@ -134,23 +138,78 @@ public static class MockRuleActionSelector
         (["南", "south"], ["南", "south"]),
     ];
 
-    public static MockRulePublicAction Select(MockRuleActionDecisionRequest request)
+    public static MockActionDecisionCandidate Select(MockRuleActionDecisionRequest request)
     {
-        var enabled = request.Snapshot.Actions.Where(action => action.Enabled).ToList();
+        var input = request.PlayerInput;
+        var clarify = SystemAction(request, "clarify");
+        var noOp = SystemAction(request, "no-op");
+
+        if (ContainsAny(input, "待つ", "待機", "何もしない", "しばらくここで様子を見る")) return noOp ?? clarify ?? First(request);
+        if (ContainsAny(input, "見回す", "観察", "確認", "見る")) return noOp ?? clarify ?? First(request);
+
+        if (ContainsAny(input, "進む", "移動", "入る"))
+        {
+            var target = MatchingObject(request, input);
+            var movement = target?.Actions.FirstOrDefault(action => action.ActionCode == "traverse")
+                ?? DirectionalObject(request, input)?.Actions.FirstOrDefault(action => action.ActionCode == "traverse");
+            if (movement is not null) return movement;
+        }
+
+        if (ContainsAny(input, "話す", "聞く", "尋ねる"))
+        {
+            var target = MatchingObject(request, input);
+            var talk = target?.Actions.FirstOrDefault(action => action.ActionCode == "talk");
+            if (talk is not null) return talk;
+        }
+
+        if (ContainsAny(input, "扉を使う", "ドアを使う")) return clarify ?? noOp ?? First(request);
+        var explicitTarget = MatchingObject(request, input) ?? DirectionalObject(request, input);
+        var explicitAction = ExplicitAction(explicitTarget, input);
+        if (explicitAction is not null) return explicitAction;
+
+        if (input.Contains('?', StringComparison.Ordinal) || input.Contains('？', StringComparison.Ordinal)
+            || ContainsAny(input, "どこ", "なぜ", "どうして", "何ですか", "教えて"))
+            return clarify ?? noOp ?? First(request);
+        return clarify ?? noOp ?? First(request);
+    }
+
+    private static MockObjectActions? MatchingObject(MockRuleActionDecisionRequest request, string input) =>
+        request.ObjectActions.FirstOrDefault(group =>
+            input.Contains(group.ObjectCode, StringComparison.OrdinalIgnoreCase)
+            || input.Contains(group.ObjectName, StringComparison.OrdinalIgnoreCase));
+
+    private static MockObjectActions? DirectionalObject(MockRuleActionDecisionRequest request, string input)
+    {
         foreach (var (inputTerms, objectTerms) in Directions)
         {
-            if (!inputTerms.Any(term => request.PlayerInput.Contains(term, StringComparison.OrdinalIgnoreCase))) continue;
-            var objectIds = request.Snapshot.Objects
-                .Where(item => objectTerms.Any(term => $"{item.Code} {item.Name}".Contains(term, StringComparison.OrdinalIgnoreCase)))
-                .Select(item => item.Id)
-                .ToHashSet(StringComparer.Ordinal);
-            var directional = enabled.FirstOrDefault(action => objectIds.Contains(action.ObjectId));
-            if (directional is not null) return directional;
+            if (!inputTerms.Any(term => input.Contains(term, StringComparison.OrdinalIgnoreCase))) continue;
+            return request.ObjectActions.FirstOrDefault(group =>
+                objectTerms.Any(term => $"{group.ObjectCode} {group.ObjectName}".Contains(term, StringComparison.OrdinalIgnoreCase)));
         }
-        return enabled.FirstOrDefault(action => action.ObjectId != "system")
-            ?? enabled.FirstOrDefault()
-            ?? throw new InvalidOperationException("No enabled rule action is available.");
+        return null;
     }
+
+    private static MockActionDecisionCandidate? ExplicitAction(MockObjectActions? target, string input)
+    {
+        if (target is null) return null;
+        var terms = ContainsAny(input, "開ける", "開く", "open") ? new[] { "開", "open" }
+            : ContainsAny(input, "調べる", "inspect", "examine") ? new[] { "調べ", "inspect", "examine" }
+            : ContainsAny(input, "戦う", "攻撃", "fight", "attack") ? new[] { "戦", "攻撃", "fight", "attack" }
+            : ContainsAny(input, "押す", "press", "push") ? new[] { "押", "press", "push" }
+            : [];
+        return terms.Length == 0 ? null : target.Actions.FirstOrDefault(action =>
+            terms.Any(term => $"{action.ActionCode} {action.Label} {action.Description}".Contains(term, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private static MockActionDecisionCandidate? SystemAction(MockRuleActionDecisionRequest request, string actionCode) =>
+        request.SystemActions.FirstOrDefault(action => action.ActionCode == actionCode);
+
+    private static MockActionDecisionCandidate First(MockRuleActionDecisionRequest request) =>
+        request.ObjectActions.SelectMany(group => group.Actions).Concat(request.SystemActions).FirstOrDefault()
+        ?? throw new InvalidOperationException("No model action candidate is available.");
+
+    private static bool ContainsAny(string input, params string[] terms) =>
+        terms.Any(term => input.Contains(term, StringComparison.OrdinalIgnoreCase));
 }
 
 public sealed record MockNarrativeRecentTurn(string? PlayerInput, string? Narrative);

@@ -12,6 +12,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<ScenarioObjectTypeAction> ScenarioObjectTypeActions => Set<ScenarioObjectTypeAction>();
     public DbSet<ScenarioObject> ScenarioObjects => Set<ScenarioObject>();
     public DbSet<AiProviderKey> AiProviderKeys => Set<AiProviderKey>();
+    public DbSet<AiProviderProfileDefinition> AiProviderProfileDefinitions => Set<AiProviderProfileDefinition>();
     public DbSet<AiProviderRuntimeSettings> AiProviderRuntimeSettings => Set<AiProviderRuntimeSettings>();
     public DbSet<ModulePackage> ModulePackages => Set<ModulePackage>();
     public DbSet<ScenarioProgressionNode> ScenarioProgressionNodes => Set<ScenarioProgressionNode>();
@@ -28,6 +29,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<SessionObjectState> SessionObjectStates => Set<SessionObjectState>();
     public DbSet<SessionRuleActionStep> SessionRuleActionSteps => Set<SessionRuleActionStep>();
     public DbSet<SessionExecutionAttempt> SessionExecutionAttempts => Set<SessionExecutionAttempt>();
+    public DbSet<SessionAiInteraction> SessionAiInteractions => Set<SessionAiInteraction>();
     public DbSet<SessionArtifact> SessionArtifacts => Set<SessionArtifact>();
     public DbSet<SessionNote> SessionNotes => Set<SessionNote>();
     public DbSet<SessionNoteRevision> SessionNoteRevisions => Set<SessionNoteRevision>();
@@ -295,6 +297,26 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .HasOne(attempt => attempt.Execution)
             .WithMany(execution => execution.Attempts)
             .HasForeignKey(attempt => attempt.ExecutionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionAiInteraction>()
+            .HasIndex(interaction => new { interaction.AttemptId, interaction.Stage })
+            .IsUnique();
+        builder.Entity<SessionAiInteraction>()
+            .HasIndex(interaction => new { interaction.SessionId, interaction.StartedAt, interaction.Sequence });
+        builder.Entity<SessionAiInteraction>()
+            .HasOne(interaction => interaction.Session)
+            .WithMany(session => session.AiInteractions)
+            .HasForeignKey(interaction => interaction.SessionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionAiInteraction>()
+            .HasOne(interaction => interaction.Execution)
+            .WithMany(execution => execution.AiInteractions)
+            .HasForeignKey(interaction => interaction.ExecutionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionAiInteraction>()
+            .HasOne(interaction => interaction.Attempt)
+            .WithMany(attempt => attempt.AiInteractions)
+            .HasForeignKey(interaction => interaction.AttemptId)
             .OnDelete(DeleteBehavior.Cascade);
         builder.Entity<SessionArtifact>()
             .HasIndex(artifact => new { artifact.ExecutionId, artifact.Kind })

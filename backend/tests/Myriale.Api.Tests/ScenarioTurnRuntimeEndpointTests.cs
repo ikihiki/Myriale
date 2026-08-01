@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Myriale.Api.Contracts;
+using Myriale.Api.Data;
 using Myriale.Api.Services;
 
 namespace Myriale.Api.Tests;
@@ -38,6 +39,15 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
     {
         ai.NarrativeFailuresRemaining = 1;
         var client = await SignedInClientAsync();
+        using var profilesResponse = await client.GetAsync("/api/ai/profiles");
+        Assert.Equal(HttpStatusCode.OK, profilesResponse.StatusCode);
+        var profilesBody = await profilesResponse.Content.ReadAsStringAsync();
+        var profilesJson = JsonSerializer.Deserialize<JsonElement>(profilesBody);
+        Assert.Equal(2, profilesJson.GetProperty("profiles").GetArrayLength());
+        Assert.Contains("推奨（Deckard 40B AWQ）", profilesBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("api.runpod.ai", profilesBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("Model", profilesBody, StringComparison.OrdinalIgnoreCase);
+
         var scenarioId = await CreatePublishedDoorScenarioAsync(client, "start");
         using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-door" });
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
@@ -45,10 +55,36 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         var sessionId = createdJson.GetProperty("id").GetString()!;
         Assert.False(string.IsNullOrWhiteSpace(createdJson.GetProperty("scenarioDefinitionVersionId").GetString()));
 
-        using var accepted = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", new { requestId = "open-door", text = "北の扉を開ける" });
+        using var invalidProfile = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", new
+        {
+            requestId = "invalid-profile",
+            text = "北の扉を開ける",
+            actionDecisionAiProfileId = "missing-profile",
+            narrativeAiProfileId = "runpod-recommended",
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, invalidProfile.StatusCode);
+
+        using var accepted = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", new
+        {
+            requestId = "open-door",
+            text = "北の扉を開ける",
+            actionDecisionAiProfileId = "runpod-economy",
+            narrativeAiProfileId = "runpod-recommended",
+        });
         Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
         var acceptedJson = await accepted.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("scenario-turn", acceptedJson.GetProperty("execution").GetProperty("kind").GetString());
+        Assert.Equal("runpod-economy", acceptedJson.GetProperty("execution").GetProperty("actionDecisionAiProfileId").GetString());
+        Assert.Equal("runpod-recommended", acceptedJson.GetProperty("execution").GetProperty("narrativeAiProfileId").GetString());
+        using var mismatchedReplay = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", new
+        {
+            requestId = "open-door",
+            text = "北の扉を開ける",
+            actionDecisionAiProfileId = "runpod-recommended",
+            narrativeAiProfileId = "runpod-recommended",
+        });
+        Assert.Equal(HttpStatusCode.Conflict, mismatchedReplay.StatusCode);
+
         Assert.Equal(1, acceptedJson.GetProperty("execution").GetProperty("schemaVersion").GetInt32());
 
         var session = await WaitForExecutionAsync(client, sessionId, "succeeded");
@@ -65,9 +101,53 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         Assert.Equal(1, door.GetProperty("revision").GetInt64());
         Assert.Equal(1, ai.DecisionCalls);
         Assert.Equal(2, ai.NarrativeCalls);
+        Assert.Equal(["runpod-economy"], ai.DecisionProfileIds);
+        Assert.Equal(["runpod-recommended", "runpod-recommended"], ai.NarrativeProfileIds);
         Assert.All(ai.NarrativeRequests, request => Assert.True(request.PostState.Objects.Single(item => item.Code == "north-door").State.GetProperty("open").GetBoolean()));
         Assert.All(ai.NarrativeRequests, request => Assert.Equal("hall-guide", Assert.Single(request.Scenario.Npcs).Code));
         Assert.Equal(2, session.GetProperty("turns").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task ScenarioTurn_PersistsSuccessfulAndFailedAiInteractionsWithoutDuplicates()
+    {
+        ai.NarrativeFailuresRemaining = 1;
+        using var client = await SignedInClientAsync();
+        var scenarioId = await CreatePublishedDoorScenarioAsync(client, "start");
+        using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-ai-history" });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
+
+        using var accepted = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", new
+        {
+            requestId = "ai-history-turn",
+            text = "北の扉を開ける",
+            actionDecisionAiProfileId = "runpod-economy",
+            narrativeAiProfileId = "runpod-recommended",
+        });
+        Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
+        var completedSession = await WaitForExecutionAsync(client, sessionId, "succeeded");
+        var turnId = completedSession.GetProperty("turns").EnumerateArray()
+            .Single(turn => turn.GetProperty("narrative").TryGetProperty("playerInputId", out var inputId) && inputId.ValueKind == JsonValueKind.String)
+            .GetProperty("id").GetString()!;
+
+        using var historyResponse = await client.GetAsync($"/api/sessions/{sessionId}/turns/{turnId}/inspection");
+        Assert.Equal(HttpStatusCode.OK, historyResponse.StatusCode);
+        var history = await historyResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var interactionsJson = history.GetProperty("aiInteractions");
+        Assert.Equal(3, interactionsJson.GetArrayLength());
+        Assert.Equal(["action-decision", "narrative", "narrative"], interactionsJson.EnumerateArray().Select(item => item.GetProperty("stage").GetString()!).ToArray());
+        Assert.Equal(["succeeded", "failed", "succeeded"], interactionsJson.EnumerateArray().Select(item => item.GetProperty("status").GetString()!).ToArray());
+        Assert.Equal("action prompt", interactionsJson[0].GetProperty("sentPrompt").GetString());
+        Assert.Equal("action result", interactionsJson[0].GetProperty("receivedResult").GetString());
+        Assert.Equal("partial result", interactionsJson[1].GetProperty("receivedResult").GetString());
+        Assert.Equal("narrative result", interactionsJson[2].GetProperty("receivedResult").GetString());
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+        var interactions = await db.SessionAiInteractions.Where(item => item.SessionId == sessionId).ToListAsync();
+        Assert.Equal(3, interactions.Count);
+        Assert.Equal(interactions.Count, interactions.Select(item => (item.AttemptId, item.Stage)).Distinct().Count());
     }
 
     [Fact]
@@ -209,7 +289,13 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         var door = session.GetProperty("objectStates").EnumerateArray().Single(item => item.GetProperty("code").GetString() == "north-door");
         Assert.False(door.GetProperty("state").GetProperty("open").GetBoolean());
         Assert.Equal(0, door.GetProperty("revision").GetInt64());
-        Assert.Equal("unknown_action", session.GetProperty("executions")[0].GetProperty("errorCode").GetString());
+        Assert.Equal("unknown_model_action_selection", session.GetProperty("executions")[0].GetProperty("errorCode").GetString());
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var interaction = await db.SessionAiInteractions.SingleAsync(item => item.SessionId == sessionId && item.Stage == SessionAiInteractionStages.ActionDecision);
+        Assert.Equal(SessionAiInteractionStatuses.ValidationFailed, interaction.Status);
+        Assert.Equal("action prompt", interaction.SentPrompt);
+        Assert.Equal("action result", interaction.ReceivedResult);
     }
 
     [Fact]
@@ -402,8 +488,22 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         public bool PauseDecision { get; set; }
         public TaskCompletionSource DecisionEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource DecisionRelease { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public List<string> DecisionProfileIds { get; } = [];
+        public List<string> NarrativeProfileIds { get; } = [];
         public List<PostStateNarrativeRequest> NarrativeRequests { get; } = [];
-        public async Task<NarrativeGeneration<RuleActionDecisionResult>> DecideActionAsync(RuleActionDecisionRequest request, CancellationToken cancellationToken)
+        public Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionForProfileAsync(string profileId, ModelActionDecisionRequest request, CancellationToken cancellationToken)
+        {
+            DecisionProfileIds.Add(profileId);
+            return DecideActionAsync(request, cancellationToken);
+        }
+
+        public Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeForProfileAsync(string profileId, PostStateNarrativeRequest request, CancellationToken cancellationToken)
+        {
+            NarrativeProfileIds.Add(profileId);
+            return GeneratePostStateNarrativeAsync(request, cancellationToken);
+        }
+
+        public async Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionAsync(ModelActionDecisionRequest request, CancellationToken cancellationToken)
         {
             DecisionCalls++;
             if (PauseDecision)
@@ -412,16 +512,18 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
                 await DecisionRelease.Task.WaitAsync(cancellationToken);
             }
             var targetCode = request.PlayerInput.Contains("西", StringComparison.Ordinal) ? "west-door" : "north-door";
-            var targetId = request.Snapshot.Objects.Single(item => item.Code == targetCode).Id;
-            var action = request.Snapshot.Actions.First(item => item.Enabled && item.ObjectId == targetId);
-            var result = new RuleActionDecisionResult(ScenarioTurnSchemas.ActionDecision, action.ObjectId, ReturnUnknownAction ? "missing" : action.ActionId, JsonSerializer.Deserialize<JsonElement>("{}"));
-            return new NarrativeGeneration<RuleActionDecisionResult>(result, Metadata());
+            var action = request.ObjectActions.Single(item => item.ObjectCode == targetCode).Actions[0];
+            var result = new ModelActionDecisionResult(
+                ScenarioTurnSchemas.ModelActionDecisionResult,
+                ReturnUnknownAction ? "object:missing/missing" : action.SelectionCode,
+                JsonSerializer.Deserialize<JsonElement>("{}"));
+            return new NarrativeGeneration<ModelActionDecisionResult>(result, Metadata(), "action prompt", "action result");
         }
         public Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeAsync(PostStateNarrativeRequest request, CancellationToken cancellationToken)
         {
             NarrativeCalls++; NarrativeRequests.Add(request);
-            if (NarrativeFailuresRemaining-- > 0) throw new AiProviderException(AiProviderErrorCodes.Timeout, "retry", true);
-            return Task.FromResult(new NarrativeGeneration<PostStateNarrativeResult>(new(ScenarioTurnSchemas.PostStateNarrative, "Door opened", "The north door now stands open."), Metadata()));
+            if (NarrativeFailuresRemaining-- > 0) throw new AiProviderException(AiProviderErrorCodes.Timeout, "retry", true, sentPrompt: "narrative prompt", receivedResult: "partial result");
+            return Task.FromResult(new NarrativeGeneration<PostStateNarrativeResult>(new(ScenarioTurnSchemas.PostStateNarrative, "Door opened", "The north door now stands open."), Metadata(), "narrative prompt", "narrative result"));
         }
         private static AiGenerationMetadata Metadata() => new("test", "deterministic", null, null, null, 1, 1, "stop");
     }
