@@ -40,7 +40,7 @@ describe('strict v2 rule authoring', () => {
     render(<ObjectHarness />);
     fireEvent.click(screen.getByRole('button', { name: '西の扉を編集' }));
     const profile = screen.getByLabelText('エンティティプロフィール');
-    expect(profile).toHaveValue(expect.stringContaining('西側の出口'));
+    expect((profile as HTMLTextAreaElement).value).toContain('西側の出口');
     fireEvent.change(profile, { target: { value: '## 外観\n\n青錆びた金属扉。\n\n## 描写指針\n\n開閉状態に従って描写する。' } });
     await waitFor(() => expect(screen.getByTestId('rule-data-json')).toHaveTextContent('青錆びた金属扉'));
   });

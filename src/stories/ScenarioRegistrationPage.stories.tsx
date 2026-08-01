@@ -341,10 +341,10 @@ export const ConfigureInitialSceneFromWorldData: Story = {
       const labels = within(navigation).getAllByRole('button').map((button) => button.getAttribute('aria-label'));
       expect(labels).toEqual(['基本情報へ', '場所へ', '主人公へ', 'エンティティへ', '開始状態へ', '挿絵へ', '動作確認へ']);
     });
-    await step('人物で主人公とNPCを編集できることを確認する', async () => {
+    await step('主人公の扱いを独立して編集できることを確認する', async () => {
       await goToStep(canvas, '主人公');
       await expect(canvas.getByRole('combobox', { name: '主人公の扱い' })).toBeVisible();
-      await expect(canvas.getByRole('button', { name: 'NPCを追加' })).toBeVisible();
+      await expect(canvas.queryByRole('button', { name: 'エンティティを追加' })).not.toBeInTheDocument();
     });
     await step('場所とエンティティを別々に編集できることを確認する', async () => {
       await goToStep(canvas, '場所');
@@ -358,7 +358,7 @@ export const ConfigureInitialSceneFromWorldData: Story = {
       await goToStep(canvas, '開始状態');
       await expect(canvas.getByLabelText('ウィザード進捗')).toHaveTextContent('05開始状態');
       const initialStateTable = canvas.getByRole('table', { name: '全エンティティの初期ステート一覧' });
-      await expect(within(initialStateTable).getByRole('columnheader', { name: 'オブジェクト' })).toBeVisible();
+      await expect(within(initialStateTable).getByRole('columnheader', { name: 'エンティティ' })).toBeVisible();
       await expect(within(initialStateTable).getByRole('columnheader', { name: '基準値' })).toBeVisible();
       await expect(within(initialStateTable).getByRole('columnheader', { name: '初期値' })).toBeVisible();
       await userEvent.click(canvas.getByRole('combobox', { name: 'セッション開始場所' }));
