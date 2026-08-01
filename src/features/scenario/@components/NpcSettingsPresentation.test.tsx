@@ -19,13 +19,13 @@ describe('NpcSettingsPresentation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'NPCを追加' }));
     fireEvent.change(screen.getByLabelText('NPCのstable code'), { target: { value: 'archivist-mira' } });
     fireEvent.change(screen.getByLabelText('NPC名'), { target: { value: '司書ミラ' } });
-    fireEvent.change(screen.getByLabelText('NPCの役割'), { target: { value: '案内役' } });
-    fireEvent.change(screen.getByLabelText('NPCの秘密'), { target: { value: '沈没の原因を知っている' } });
+    fireEvent.change(screen.getByLabelText('NPCプロフィール'), { target: { value: '## 役割\n\n案内役\n\n## 秘密\n\n沈没の原因を知っている' } });
     fireEvent.click(screen.getByRole('button', { name: '編集を完了' }));
 
     const table = screen.getByRole('table', { name: 'NPC一覧' });
     expect(within(table).getByText('司書ミラ')).toBeVisible();
     const npcs = JSON.parse(screen.getByTestId('npcs-json').textContent ?? '[]') as ScenarioNpcPayload[];
-    expect(npcs[0]).toMatchObject({ code: 'archivist-mira', role: '案内役', initialLocationCode: 'sunken-library', secrets: '沈没の原因を知っている' });
+    expect(npcs[0]).toMatchObject({ code: 'archivist-mira', initialLocationCode: 'sunken-library' });
+    expect(npcs[0].profileMarkdown).toContain('沈没の原因を知っている');
   });
 });

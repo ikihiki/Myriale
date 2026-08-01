@@ -333,7 +333,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
 
     private static async Task<string> CreatePublishedDoorScenarioAsync(HttpClient client, string startLocationCode, bool initialOpen = false)
     {
-        using var scenario = await client.PostAsJsonAsync("/api/scenarios/", new { title = "Door runtime", npcs = new[] { new { code = "hall-guide", name = "広間の案内人", role = "扉の案内役", initialLocationCode = "start", personality = "慎重", behavior = "扉の状態に沿って助言する", voice = "短い敬語", firstPerson = "私", publicKnowledge = "北の扉の用途", secrets = "地下室の存在" } } });
+        using var scenario = await client.PostAsJsonAsync("/api/scenarios/", new { title = "Door runtime", npcs = new[] { new { code = "hall-guide", name = "広間の案内人", initialLocationCode = "start", profileMarkdown = "## 役割\n\n扉の案内役。\n\n## 演技指針\n\n慎重に扉の状態に沿って助言する。\n\n## 秘密\n\n地下室の存在。" } } });
         var scenarioId = (await scenario.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
         var payload = JsonNode.Parse("""
         {

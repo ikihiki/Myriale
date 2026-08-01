@@ -37,7 +37,7 @@ describe('scenario list API', () => {
     const updated = { id: 'SCN-1', title: 'NPC scenario' };
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(updated), { status: 200, headers: { 'Content-Type': 'application/json' } }));
     vi.stubGlobal('fetch', fetchMock);
-    const npc = { code: 'guide', name: '案内役', role: '案内', initialLocationCode: 'start', personality: '冷静', behavior: '手掛かりを示す', voice: '敬語', firstPerson: '私', publicKnowledge: '出口の場所', secrets: '事故の原因' };
+    const npc = { code: 'guide', name: '案内役', initialLocationCode: 'start', profileMarkdown: '## 演技指針\n\n冷静に手掛かりを示す。\n\n## 秘密\n\n事故の原因。' };
 
     await createFetchScenarioApi('/api/scenarios').updateScenario('SCN-1', { title: 'NPC scenario', npcs: [npc] });
 

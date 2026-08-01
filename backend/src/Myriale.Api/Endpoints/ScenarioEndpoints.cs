@@ -346,10 +346,9 @@ public static class ScenarioEndpoints
             if (!Regex.IsMatch(code, "^[a-z0-9]+(?:-[a-z0-9]+)*$", RegexOptions.CultureInvariant)) errors[$"{prefix}.code"] = ["NPCのstable codeは小文字英数字とハイフンで入力してください。"];
             else if (!codes.Add(code)) errors[$"{prefix}.code"] = ["NPCのstable codeが重複しています。"];
             if (string.IsNullOrWhiteSpace(npc.Name)) errors[$"{prefix}.name"] = ["NPC名を入力してください。"];
-            if (string.IsNullOrWhiteSpace(npc.Role)) errors[$"{prefix}.role"] = ["NPCの役割を入力してください。"];
             if (string.IsNullOrWhiteSpace(npc.InitialLocationCode)) errors[$"{prefix}.initialLocationCode"] = ["NPCの初期Locationを選択してください。"];
             if (npc.Name?.Length > 120) errors[$"{prefix}.name"] = ["NPC名は120文字以内で入力してください。"];
-            if (npc.Role?.Length > 240) errors[$"{prefix}.role"] = ["NPCの役割は240文字以内で入力してください。"];
+            if (npc.ProfileMarkdown?.Length > 20_000) errors[$"{prefix}.profileMarkdown"] = ["NPCプロフィールは20000文字以内で入力してください。"];
         }
     }
 
@@ -371,7 +370,7 @@ public static class ScenarioEndpoints
     private static ScenarioDraftResponse ToResponse(Scenario scenario, bool includeNpcSecrets)
     {
         var npcs = ScenarioNpcSettingsJson.Deserialize(scenario.NpcsJson);
-        if (!includeNpcSecrets) npcs = npcs.Select(npc => npc with { Secrets = string.Empty }).ToList();
+        if (!includeNpcSecrets) npcs = npcs.Select(npc => npc with { ProfileMarkdown = string.Empty }).ToList();
         return new(
         scenario.Id,
         scenario.Title,

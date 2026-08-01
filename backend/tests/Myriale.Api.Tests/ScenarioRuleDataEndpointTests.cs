@@ -41,7 +41,7 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
         using var created = await client.PostAsJsonAsync("/api/scenarios/", new
         {
             title = "NPC location validation",
-            npcs = new[] { new { code = "guide", name = "案内役", role = "案内", initialLocationCode = "missing-room", personality = "", behavior = "", voice = "", firstPerson = "私", publicKnowledge = "", secrets = "" } },
+            npcs = new[] { new { code = "guide", name = "案内役", initialLocationCode = "missing-room", profileMarkdown = "## 役割\n\n案内役。" } },
         });
         var scenarioId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString();
         using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", ValidRuleData());

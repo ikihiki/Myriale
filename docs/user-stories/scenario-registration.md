@@ -330,24 +330,25 @@ Storybook `play` steps
 4. `step('値を修正して再検証する', ...)`。
 5. `step('publish 可能になることを確認する', ...)`。
 
-## US-SR15: NPCの人物像を構造化して設定したい
+## US-SR15: NPCの人物像をシナリオ固有のMarkdownで設定したい
 
 As a シナリオ作者
-I want NPCの役割、初期Location、演技指針、知識を登録したい
-So that Narrative生成で人物像と秘密の扱いを一貫させられる
+I want NPCの演技指針、話し方、知識、秘密をMarkdownで柔軟に登録したい
+So that シナリオごとに必要な設定項目を固定フィールドに制約されずAIへ渡せる
 
 期待される結果
 
-- NPCごとにstable code、名前、役割、初期Locationを指定できる。
-- 性格、行動指針、一人称、口調を構造化して編集できる。
-- 公開情報と秘密・未公開情報を分けて保存する。
+- NPCごとにstable code、名前、初期Locationを構造化して指定できる。
+- 人物像、演技指針、話し方、知識、秘密は単一のMarkdownプロフィールで自由に編集できる。
+- Markdownの見出し構成はテンプレートとして提示するが、保存形式の必須スキーマにはしない。
 - 初期Locationは世界データのLocation codeを参照し、publish時に存在を検証する。
-- Narrative生成はNPC設定を受け取り、秘密を公開済みfactなしに開示しない。
+- Markdownプロフィールは人物表現の参考情報としてAIへ渡し、現在状態と秘密の開示可否は世界データのstate、facts、forbidden factsを正史として判定する。
+- 作者以外へシナリオ設定を返す場合は、秘密を安全に分離できないためMarkdownプロフィール全体を非公開にする。
 
 Storybook `play` steps
 
 1. `step('NPCを追加して基本情報と初期Locationを設定する', ...)`。
-2. `step('演技指針、公開情報、秘密を設定する', ...)`。
+2. `step('シナリオ固有の演技指針、知識、秘密をMarkdownで設定する', ...)`。
 3. `step('NPC一覧へ保存内容が反映されることを確認する', ...)`。
 
 ## US-SR16: 作成手順を制作順に把握したい

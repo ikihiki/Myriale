@@ -305,7 +305,7 @@ export const US22GenerateIllustrationPrompt: Story = {
 const renderRuleDataFixture = () => <MyrialeApp initialUrl="/scenarios/new" initialDb={createDemoDb('registrationDraft')} scenarioRegistrationContainer={MockScenarioRegistrationWithRuleDataContainer} />;
 
 export const ConfigureNpcSettings: Story = {
-  name: 'NPC: 役割・演技・知識を構造化して登録する',
+  name: 'NPC: 人物設定をMarkdownで柔軟に登録する',
   render: renderRuleDataFixture,
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
@@ -317,17 +317,12 @@ export const ConfigureNpcSettings: Story = {
       await userEvent.type(screen.getByLabelText('NPCのstable code'), 'archivist-mira');
       await userEvent.clear(screen.getByLabelText('NPC名'));
       await userEvent.type(screen.getByLabelText('NPC名'), '司書ミラ');
-      await userEvent.type(screen.getByLabelText('NPCの役割'), '禁書庫の案内役');
       await userEvent.click(screen.getByRole('combobox', { name: 'NPCの初期Location' }));
       await userEvent.click(await screen.findByRole('option', { name: '星見の階段 / astral-stair' }));
     });
-    await step('演技指針、公開情報、秘密を設定する', async () => {
-      await userEvent.type(screen.getByLabelText('NPCの性格'), '慎重で観察力が高い。');
-      await userEvent.type(screen.getByLabelText('NPCの行動指針'), '答えを直接明かさず、星図を使って示唆する。');
-      await userEvent.type(screen.getByLabelText('NPCの一人称'), '私');
-      await userEvent.type(screen.getByLabelText('NPCの口調'), '静かで短い敬語');
-      await userEvent.type(screen.getByLabelText('NPCの公開情報'), '北書庫の扉は星図と連動している。');
-      await userEvent.type(screen.getByLabelText('NPCの秘密'), '王都が沈んだ本当の原因を知っている。');
+    await step('シナリオ固有の演技指針、知識、秘密をMarkdownで設定する', async () => {
+      await userEvent.clear(screen.getByLabelText('NPCプロフィール'));
+      await userEvent.type(screen.getByLabelText('NPCプロフィール'), '## 役割\n\n禁書庫の案内役。\n\n## 演技指針\n\n慎重で観察力が高く、答えを直接明かさず星図を使って示唆する。\n\n## 話し方\n\n一人称は「私」。静かで短い敬語。\n\n## 知識\n\n北書庫の扉は星図と連動している。\n\n## 秘密\n\n王都が沈んだ本当の原因を知っている。');
       await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
       const table = canvas.getByRole('table', { name: 'NPC一覧' });
       await expect(within(table).getByText('司書ミラ')).toBeVisible();

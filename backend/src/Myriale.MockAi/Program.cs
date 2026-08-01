@@ -240,14 +240,8 @@ public sealed record MockNarrativeScenario(
 public sealed record MockScenarioNpc(
     string Code,
     string Name,
-    string Role,
     string InitialLocationCode,
-    string Personality,
-    string Behavior,
-    string Voice,
-    string FirstPerson,
-    string PublicKnowledge,
-    string Secrets);
+    string ProfileMarkdown);
 
 public sealed record MockNarrativeOutcome(
     string Category,

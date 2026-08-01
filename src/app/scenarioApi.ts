@@ -214,14 +214,8 @@ export type ScenarioRuleDataPayload = {
 export type ScenarioNpcPayload = {
   code: string;
   name: string;
-  role: string;
   initialLocationCode: string;
-  personality: string;
-  behavior: string;
-  voice: string;
-  firstPerson: string;
-  publicKnowledge: string;
-  secrets: string;
+  profileMarkdown: string;
 };
 
 export type CreateScenarioPayload = {
@@ -539,9 +533,8 @@ const awakeningLaboratoryScenario: ScenarioDraftDto = {
   heroFreeGenerationAllowed: false,
   hero: '',
   npcs: [{
-    code: 'guide-ai-eve', name: '案内AI EVE', role: '閉鎖研究施設の案内と安全管理を担うAI', initialLocationCode: 'start',
-    personality: '冷静で辛抱強い。被験者の安全を最優先する。', behavior: '答えを直接明かさず、段階的な手掛かりを与える。',
-    voice: '落ち着いた合成音声。短く明瞭な敬語。', firstPerson: '私', publicKnowledge: '解析装置の復旧で脱出扉が開く。', secrets: '施設閉鎖の原因と主人公が被験者である事実は、証拠が揃うまで明かさない。',
+    code: 'guide-ai-eve', name: '案内AI EVE', initialLocationCode: 'start',
+    profileMarkdown: '## 役割\n\n閉鎖研究施設の案内と安全管理を担うAI。\n\n## 人物像と演技指針\n\n冷静で辛抱強く、答えを直接明かさず段階的な手掛かりを与える。\n\n## 秘密・条件付き知識\n\n施設閉鎖の原因は公開済みfactsで明らかになるまで話さない。',
   }],
   opening: 'あなたは非常灯だけが灯る覚醒室で目を覚ます。案内AI端末が、解析室の装置を復旧するよう呼びかけている。',
   illustrationStyle: '',

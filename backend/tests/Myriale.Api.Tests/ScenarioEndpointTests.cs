@@ -35,7 +35,7 @@ public sealed class ScenarioEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task GetPublishedScenario_RedactsNpcSecretsForAnonymousReaders()
+    public async Task GetPublishedScenario_RedactsNpcProfileForAnonymousReaders()
     {
         var client = _factory.CreateClient();
         await using (var scope = _factory.Services.CreateAsyncScope())
@@ -43,7 +43,7 @@ public sealed class ScenarioEndpointTests : IDisposable
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             var scenario = await db.Scenarios.SingleAsync(item => item.Id == "SCN-STAR-LIBRARY");
             scenario.NpcsJson = ScenarioNpcSettingsJson.Serialize([
-                new("archivist-mira", "司書ミラ", "禁書庫の案内役", "sunken-library", "慎重", "質問に段階的に答える", "静かな敬語", "私", "星図の読み方", "王都沈没の原因")
+                new("archivist-mira", "司書ミラ", "sunken-library", "## 役割\n\n禁書庫の案内役。\n\n## 秘密\n\n王都沈没の原因。")
             ]);
             await db.SaveChangesAsync();
         }
@@ -53,7 +53,26 @@ public sealed class ScenarioEndpointTests : IDisposable
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
         var npc = Assert.Single(json.GetProperty("npcs").EnumerateArray().ToArray());
         Assert.Equal("archivist-mira", npc.GetProperty("code").GetString());
-        Assert.Equal(string.Empty, npc.GetProperty("secrets").GetString());
+        Assert.Equal(string.Empty, npc.GetProperty("profileMarkdown").GetString());
+    }
+
+    [Fact]
+    public void ScenarioNpcSettingsJson_ConvertsLegacyFieldsToMarkdownProfile()
+    {
+        const string legacy = """
+            [{"code":"legacy-guide","name":"旧案内役","role":"案内","initialLocationCode":"start","personality":"慎重","behavior":"段階的に答える","voice":"静かな敬語","firstPerson":"私","publicKnowledge":"出口の場所","secrets":"事故の原因"}]
+            """;
+
+        var npc = Assert.Single(ScenarioNpcSettingsJson.Deserialize(legacy));
+
+        Assert.Equal("legacy-guide", npc.Code);
+        Assert.Equal("start", npc.InitialLocationCode);
+        Assert.Contains("## 役割", npc.ProfileMarkdown);
+        Assert.Contains("一人称: 私", npc.ProfileMarkdown);
+        Assert.Contains("事故の原因", npc.ProfileMarkdown);
+        var canonical = ScenarioNpcSettingsJson.Serialize([npc]);
+        Assert.Contains("profileMarkdown", canonical);
+        Assert.DoesNotContain("personality", canonical);
     }
 
     [Fact]
@@ -104,7 +123,7 @@ public sealed class ScenarioEndpointTests : IDisposable
             heroMode = "select",
             heroFreeGenerationAllowed = true,
             hero = "禁書司書の見習い。",
-            npcs = new[] { new { code = "archivist-mira", name = "司書ミラ", role = "禁書庫の案内役", initialLocationCode = "sunken-library", personality = "慎重", behavior = "質問に段階的に答える", voice = "静かな敬語", firstPerson = "私", publicKnowledge = "星図の読み方", secrets = "王都沈没の原因" } },
+            npcs = new[] { new { code = "archivist-mira", name = "司書ミラ", initialLocationCode = "sunken-library", profileMarkdown = "## 役割\n\n禁書庫の案内役。\n\n## 秘密\n\n王都沈没の原因。" } },
             opening = "あなたは水没した閲覧室で目を覚ます。",
             illustrationStyle = "銅版画風",
             illustrationMood = "孤独",
@@ -121,7 +140,7 @@ public sealed class ScenarioEndpointTests : IDisposable
         Assert.True(json.GetProperty("heroFreeGenerationAllowed").GetBoolean());
         var npc = Assert.Single(json.GetProperty("npcs").EnumerateArray().ToArray());
         Assert.Equal("archivist-mira", npc.GetProperty("code").GetString());
-        Assert.Equal("王都沈没の原因", npc.GetProperty("secrets").GetString());
+        Assert.Contains("王都沈没の原因", npc.GetProperty("profileMarkdown").GetString());
         Assert.Equal("銅版画風", json.GetProperty("illustrationStyle").GetString());
     }
 
@@ -129,7 +148,7 @@ public sealed class ScenarioEndpointTests : IDisposable
     public async Task CreateScenario_RejectsDuplicateNpcCodes()
     {
         var client = await CreateSignedInClientAsync();
-        var npc = new { code = "guide", name = "案内役", role = "案内", initialLocationCode = "start", personality = "", behavior = "", voice = "", firstPerson = "私", publicKnowledge = "", secrets = "" };
+        var npc = new { code = "guide", name = "案内役", initialLocationCode = "start", profileMarkdown = "## 役割\n\n案内役。" };
         using var response = await client.PostAsJsonAsync("/api/scenarios/", new { title = "NPC validation", npcs = new[] { npc, npc } });
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();

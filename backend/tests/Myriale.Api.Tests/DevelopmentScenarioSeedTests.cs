@@ -133,8 +133,8 @@ public sealed class DevelopmentScenarioSeedTests : IDisposable
         Assert.Contains("港務局調査官ユナ", scenario.GetProperty("hero").GetString());
         var npc = Assert.Single(scenario.GetProperty("npcs").EnumerateArray().ToArray());
         Assert.Equal("keeper-ren", npc.GetProperty("code").GetString());
-        Assert.Contains("keeper-ren.state.stance", npc.GetProperty("behavior").GetString());
-        Assert.Contains("stanceがconfessed", npc.GetProperty("secrets").GetString());
+        Assert.Contains("keeper-ren.state.stance", npc.GetProperty("profileMarkdown").GetString());
+        Assert.Contains("`confessed`", npc.GetProperty("profileMarkdown").GetString());
 
         using var ruleDataResponse = await owner.GetAsync("/api/scenarios/SCN-LIGHTHOUSE-CONFESSION/rule-data");
         Assert.Equal(HttpStatusCode.OK, ruleDataResponse.StatusCode);
