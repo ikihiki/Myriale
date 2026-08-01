@@ -7,7 +7,7 @@ import { ConditionTablePresentation } from './ConditionTablePresentation';
 
 const cardClass = 'grid content-start gap-3 rounded-2xl border border-[#17151f]/15 bg-white/55 p-4 shadow-[0_12px_30px_rgba(23,21,31,.07)]';
 const effectNames: Record<ScenarioRuleEffect['kind'], string> = {
-  'set-state': '状態を更新', 'move-object': 'オブジェクトを移動', 'move-session': 'プレイヤーの現在地を移動',
+  'set-state': '状態を更新', 'move-object': 'エンティティを移動', 'move-session': 'プレイヤーの現在地を移動',
   'emit-fact': '確定した事実を追加', 'emit-event': '出来事を記録', 'add-narrative-hint': '描写のヒントを追加',
   'forbid-narrative-fact': '矛盾する描写を禁止', unsupported: '未対応のeffect（内容を保持）',
 };

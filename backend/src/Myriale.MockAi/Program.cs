@@ -234,13 +234,12 @@ public sealed record MockNarrativeScenario(
     string Lore,
     string AiFreedom,
     string Hero,
-    IReadOnlyList<MockScenarioNpc> Npcs,
+    IReadOnlyList<MockScenarioEntity> Entities,
     string Opening);
 
-public sealed record MockScenarioNpc(
+public sealed record MockScenarioEntity(
     string Code,
     string Name,
-    string InitialLocationCode,
     string ProfileMarkdown);
 
 public sealed record MockNarrativeOutcome(
@@ -268,7 +267,7 @@ public sealed record MockScenarioAssistRequest(
     string Lore,
     string AiFreedom,
     string Hero,
-    IReadOnlyList<MockScenarioNpc> Npcs,
+    IReadOnlyList<MockScenarioEntity> Entities,
     string Opening,
     string IllustrationStyle,
     string IllustrationMood,

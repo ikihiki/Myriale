@@ -77,7 +77,7 @@ export function ScenarioRuleDebugPresentation({ scenarioId, values, execute }: P
     <header className="grid gap-2 border-b border-[#17151f]/15 pb-4">
       <p className="text-xs font-black uppercase tracking-[0.16em] text-[#5c4f8f]">Isolated rule laboratory</p>
       <h2>状態を組み替えて、結果だけを見る</h2>
-      <p>現在地・全オブジェクトの配置と状態・Session flags・引数を自由に上書きできます。実行結果はDraftや本番Sessionへ書き戻しません。</p>
+      <p>現在地・全エンティティの配置と状態・Session flags・引数を自由に上書きできます。実行結果はDraftや本番Sessionへ書き戻しません。</p>
       <Notice tone={notice.includes('失敗') || notice.includes('してください') ? 'danger' : 'info'} data-testid="debug-notice">{notice}</Notice>
     </header>
 

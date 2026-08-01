@@ -20,9 +20,9 @@ afterEach(cleanup);
 describe('InitialSceneConfigurationPresentation', () => {
   it('changes the start location and resolved object initial state', async () => {
     render(<Harness />);
-    const initialStateTable = screen.getByRole('table', { name: '全オブジェクトの初期ステート一覧' });
+    const initialStateTable = screen.getByRole('table', { name: '全エンティティの初期ステート一覧' });
     expect(screen.getAllByRole('table')).toHaveLength(1);
-    expect(within(initialStateTable).getByRole('columnheader', { name: 'オブジェクト' })).toBeVisible();
+    expect(within(initialStateTable).getByRole('columnheader', { name: 'エンティティ' })).toBeVisible();
     expect(within(initialStateTable).getByRole('columnheader', { name: '基準値' })).toBeVisible();
     expect(within(initialStateTable).getByRole('columnheader', { name: '初期値' })).toBeVisible();
     expect(within(initialStateTable).getByText('北書庫の扉')).toBeVisible();

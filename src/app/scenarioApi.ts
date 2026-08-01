@@ -70,6 +70,7 @@ export type CanonicalScenarioObjectTypeDto = {
 export type CanonicalScenarioObjectDto = {
   code: string;
   name: string;
+  profileMarkdown: string;
   mixinTypeCodes: string[];
   locationCode: string;
   stateSchema: ScenarioJsonObject;
@@ -194,6 +195,7 @@ export type ScenarioObjectRuleOperationPayload =
 export type ScenarioObjectPayload = {
   code: string;
   name: string;
+  profileMarkdown: string;
   mixinTypeCodes: string[];
   initialLocationCode: string;
   global: boolean;
@@ -211,13 +213,6 @@ export type ScenarioRuleDataPayload = {
   objects: ScenarioObjectPayload[];
 };
 
-export type ScenarioNpcPayload = {
-  code: string;
-  name: string;
-  initialLocationCode: string;
-  profileMarkdown: string;
-};
-
 export type CreateScenarioPayload = {
   title: string;
   summary?: string;
@@ -228,7 +223,6 @@ export type CreateScenarioPayload = {
   heroMode?: 'fixed' | 'select' | 'free';
   heroFreeGenerationAllowed?: boolean;
   hero?: string;
-  npcs?: ScenarioNpcPayload[];
   opening?: string;
   illustrationStyle?: string;
   illustrationMood?: string;
@@ -518,7 +512,7 @@ const awakeningLaboratoryRuleData: ScenarioRuleDataPayload = {
     ['puzzle-passage', '接続廊下への扉', 'puzzle-to-corridor', 'puzzle-room'],
     ['escape-door', '施設外への脱出扉', 'escape-door', 'corridor'],
     ['puzzle-device', '三色光学解析装置', 'puzzle-device', 'puzzle-room'],
-  ].map(([code, name, typeCode, locationCode]): ScenarioObjectPayload => ({ code, name, mixinTypeCodes: [typeCode], stateFields: [], actions: [], initialLocationCode: locationCode, global: false, initialStateOverrides: [], actionRules: [] })),
+  ].map(([code, name, typeCode, locationCode]): ScenarioObjectPayload => ({ code, name, profileMarkdown: code === 'conversation-terminal' ? '## 外観\n\n壁際に据え付けられた旧式の案内端末。円形画面には青い走査線が流れる。\n\n## 役割と人格\n\n案内AI EVEがこの端末を通じて応答する。冷静で辛抱強く、段階的な手掛かりを与える。' : `## 外観・概要\n\n${name}。`, mixinTypeCodes: [typeCode], stateFields: [], actions: [], initialLocationCode: locationCode, global: false, initialStateOverrides: [], actionRules: [] })),
 };
 
 const awakeningLaboratoryScenario: ScenarioDraftDto = {
@@ -532,10 +526,6 @@ const awakeningLaboratoryScenario: ScenarioDraftDto = {
   heroMode: 'free',
   heroFreeGenerationAllowed: false,
   hero: '',
-  npcs: [{
-    code: 'guide-ai-eve', name: '案内AI EVE', initialLocationCode: 'start',
-    profileMarkdown: '## 役割\n\n閉鎖研究施設の案内と安全管理を担うAI。\n\n## 人物像と演技指針\n\n冷静で辛抱強く、答えを直接明かさず段階的な手掛かりを与える。\n\n## 秘密・条件付き知識\n\n施設閉鎖の原因は公開済みfactsで明らかになるまで話さない。',
-  }],
   opening: 'あなたは非常灯だけが灯る覚醒室で目を覚ます。案内AI端末が、解析室の装置を復旧するよう呼びかけている。',
   illustrationStyle: '',
   illustrationMood: '',
@@ -559,7 +549,6 @@ const demoScenarios: Record<string, ScenarioDraftDto> = {
     heroMode: 'select',
     heroFreeGenerationAllowed: false,
     hero: 'ミラ / 星図を読む巡礼者\nセオ / 星図を燃やす護衛\nエル / 記憶を失った写字生',
-    npcs: [],
     opening: 'あなたは水没した閲覧室で目を覚ます。',
     illustrationStyle: '銅版画風 / 低彩度 / 細密',
     illustrationMood: '孤独、湿った静けさ、薄い金色の灯り',
@@ -580,7 +569,6 @@ const demoScenarios: Record<string, ScenarioDraftDto> = {
     heroMode: 'free',
     heroFreeGenerationAllowed: false,
     hero: '灰の駅で目覚めた旅人。名前と過去はプレイヤーが自由に決められる。',
-    npcs: [],
     opening: 'あなたは灰の降る駅で、宛名のない切符を握っている。',
     illustrationStyle: '水彩 / くすんだ暖色 / 粒状感',
     illustrationMood: '郷愁、灰、遠い光',
@@ -601,7 +589,6 @@ const demoScenarios: Record<string, ScenarioDraftDto> = {
     heroMode: 'select',
     heroFreeGenerationAllowed: true,
     hero: 'イリス / 月虹を集める若い庭師\nカイ / 時計塔を修理する旅の技師\nマレ / 忘れられた未来を記録する画家',
-    npcs: [],
     opening: '十三回目の鐘が鳴り、あなたの足元に見覚えのない月虹の花が咲く。',
     illustrationStyle: '幻想植物画 / 月光色 / 装飾的',
     illustrationMood: '月虹、夜露、静かな祝祭',
@@ -622,7 +609,6 @@ const demoScenarios: Record<string, ScenarioDraftDto> = {
     heroMode: 'fixed',
     heroFreeGenerationAllowed: false,
     hero: 'リュシエン / 夜明け前の森を巡る司書',
-    npcs: [],
     opening: '夜明け前の森で、割れた書架が小さく鳴る。',
     illustrationStyle: '硝子版画 / 青白い光 / 緻密',
     illustrationMood: '透明、静寂、夜明け前',
@@ -702,7 +688,6 @@ export function createDemoScenarioApi(): ScenarioApi {
         heroMode: payload.heroMode ?? 'free',
         heroFreeGenerationAllowed: payload.heroMode === 'select' && (payload.heroFreeGenerationAllowed ?? false),
         hero: payload.hero?.trim() ?? '',
-        npcs: payload.npcs ?? [],
         opening: payload.opening?.trim() ?? '',
         illustrationStyle: payload.illustrationStyle?.trim() ?? '',
         illustrationMood: payload.illustrationMood?.trim() ?? '',
@@ -773,7 +758,7 @@ function toAssistTransport(payload: ScenarioAiAssistPayload) {
     heroMode: payload.heroMode ?? 'free',
     heroFreeGenerationAllowed: payload.heroMode === 'select' && (payload.heroFreeGenerationAllowed ?? false),
     hero: payload.hero ?? '',
-    npcs: payload.npcs ?? [],
+    entities: payload.ruleData?.objects.map(({ code, name, profileMarkdown }) => ({ code, name, profileMarkdown })) ?? [],
     opening: payload.opening ?? '',
     illustrationStyle: payload.illustrationStyle ?? '',
     illustrationMood: payload.illustrationMood ?? '',

@@ -99,36 +99,6 @@ public static class ScenarioSeedData
         AiFreedom = "低: 厳密に守る",
         HeroMode = "free",
         HeroFreeGenerationAllowed = false,
-        NpcsJson = ScenarioNpcSettingsJson.Serialize([
-            new ScenarioNpcSettings(
-                "guide-ai-eve",
-                "案内AI EVE",
-                "start",
-                """
-                ## 役割
-
-                閉鎖研究施設の案内と安全管理を担うAI。
-
-                ## 人物像と演技指針
-
-                - 冷静で辛抱強く、被験者の安全を最優先する。
-                - 状況を簡潔に説明する。
-                - 答えを直接明かさず、段階的な手掛かりを与える。
-
-                ## 話し方
-
-                - 一人称は「私」。
-                - 落ち着いた合成音声で、短く明瞭な敬語を使う。
-
-                ## 知識
-
-                解析装置の復旧で脱出扉が開くことを知っている。
-
-                ## 秘密・条件付き知識
-
-                施設閉鎖の原因と主人公が被験者である事実は、公開済みfactsで明らかになるまで開示しない。
-                """)
-        ]),
         Opening = "あなたは非常灯だけが灯る覚醒室で目を覚ます。壁際では案内AI端末が呼びかけ、廊下の先にある解析装置の復旧を求めている。",
         Status = "published",
         AuthorId = authorId,
@@ -147,48 +117,6 @@ public static class ScenarioSeedData
         HeroMode = "fixed",
         HeroFreeGenerationAllowed = false,
         Hero = "港務局調査官ユナ / 灯台事故の真相を追う実直な調査官。焼け焦げた保守記録を証拠として携えている。",
-        NpcsJson = ScenarioNpcSettingsJson.Serialize([
-            new ScenarioNpcSettings(
-                "keeper-ren",
-                "灯台守レン",
-                "interview-room",
-                """
-                ## 役割
-
-                標識灯が消えた夜の唯一の証人であり、調査官ユナの会話相手。
-
-                ## 人物像
-
-                - 寡黙で責任感が強い。
-                - 追い詰められるほど返答前の沈黙が長くなる。
-                - 難民を守った判断には迷いがないが、事故を招いた責任には罪悪感がある。
-
-                ## 演技指針
-
-                公開状態 `keeper-ren.state.stance` を必ず参照する。
-
-                - `guarded`: 故障説を静かに主張する。
-                - `evasive`: 視線を逸らし、同じ説明を言い換える。秘密は明かさない。
-                - `confessed`: 公開済みfactsで確定した真相だけを認め、動機と責任を自分の言葉で語る。
-                - ナラティブだけでstanceを先取りして変更しない。
-
-                ## 話し方
-
-                - 一人称は「俺」。
-                - 低く擦れた声で、短い常体を使う。
-                - 動揺時は沈黙や言い直しを挟む。
-
-                ## 知識
-
-                嵐の夜、標識灯が消えた時刻、通常の保守手順、焼け焦げた保守記録が自分の認証符号を示していることを知っている。
-
-                ## 秘密・条件付き知識
-
-                迫害から逃げる難民船を巡視艇から隠すため、自分の意思で標識灯を消した。
-
-                この内容は、postStateの`keeper-ren.state.stance`が`confessed`であり、保守記録を認めたことと消灯理由が公開済みfactsに含まれる場合だけ話す。それ以前は故障説を維持し、難民船の存在を示唆もしない。
-                """)
-        ]),
         Opening = "窓のない取調室で、灯台守レンが金属机の向こうに座っている。彼は標識灯の消灯を故障だと主張する。あなたの手元には、レンの認証符号と手動停止時刻が残る焼け焦げた保守記録がある。質問することも、その証拠を突きつけることもできる。",
         Status = "published",
         AuthorId = authorId,

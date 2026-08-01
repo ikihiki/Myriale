@@ -15,7 +15,7 @@ const canonicalFixture: CanonicalScenarioRuleDataResponse = {
     actionRules: [{ code: 'generic-open', actionCode: 'open', condition: { op: 'eq', path: 'state.open', value: false }, priority: 50, authoringNote: 'generic', effects: [{ type: 'set-state', path: 'state.open', value: true }], moduleBinding: null }],
   }],
   objects: [{
-    code: 'north-door', name: '北の扉', mixinTypeCodes: ['door'], stateSchema: { type: 'object', additionalProperties: false, properties: {}, required: [] }, defaultState: {}, publicProjection: { include: [] }, actions: [], locationCode: 'hall', initialStateOverride: { open: false }, isGlobal: false,
+    code: 'north-door', name: '北の扉', profileMarkdown: '## 外観\n\n星図が刻まれた重い扉。', mixinTypeCodes: ['door'], stateSchema: { type: 'object', additionalProperties: false, properties: {}, required: [] }, defaultState: {}, publicProjection: { include: [] }, actions: [], locationCode: 'hall', initialStateOverride: { open: false }, isGlobal: false,
     actionRules: [{
       operation: 'override', targetTypeCode: 'door', targetRuleCode: 'generic-open',
       actionCode: 'open', condition: { op: 'eq', path: 'state.open', value: false }, priority: 100, authoringNote: '通常結果',

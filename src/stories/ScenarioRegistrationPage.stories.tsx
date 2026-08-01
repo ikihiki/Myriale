@@ -135,7 +135,7 @@ export const US05SetInitialCharacter: Story = {
   name: 'US-05: 初期キャラクター条件を設定したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await goToStep(canvas, '人物');
+    await goToStep(canvas, '主人公');
     await step('主人公の扱いと自由生成時の前提を入力する', async () => {
       await expect(canvas.getByRole('combobox', { name: '主人公の扱い' })).toHaveTextContent('自由生成のみ');
       await userEvent.clear(canvas.getByLabelText('主人公の設定'));
@@ -304,29 +304,28 @@ export const US22GenerateIllustrationPrompt: Story = {
 
 const renderRuleDataFixture = () => <MyrialeApp initialUrl="/scenarios/new" initialDb={createDemoDb('registrationDraft')} scenarioRegistrationContainer={MockScenarioRegistrationWithRuleDataContainer} />;
 
-export const ConfigureNpcSettings: Story = {
-  name: 'NPC: 人物設定をMarkdownで柔軟に登録する',
+export const ConfigureEntityProfile: Story = {
+  name: 'Entity: 人物と物品を同じMarkdownプロフィールで設定する',
   render: renderRuleDataFixture,
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
-    await goToStep(canvas, '人物');
-    await step('NPCを追加して基本情報と初期Locationを設定する', async () => {
-      await userEvent.click(canvas.getByRole('button', { name: 'NPCを追加' }));
-      await userEvent.clear(screen.getByLabelText('NPCのstable code'));
-      await userEvent.type(screen.getByLabelText('NPCのstable code'), 'archivist-mira');
-      await userEvent.clear(screen.getByLabelText('NPC名'));
-      await userEvent.type(screen.getByLabelText('NPC名'), '司書ミラ');
-      await userEvent.click(screen.getByRole('combobox', { name: 'NPCの初期Location' }));
+    await goToStep(canvas, 'エンティティ');
+    await step('人物も物品も同じエンティティとして追加する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: 'エンティティを追加' }));
+      await userEvent.clear(screen.getByLabelText('エンティティのstable code'));
+      await userEvent.type(screen.getByLabelText('エンティティのstable code'), 'archivist-mira');
+      await userEvent.clear(screen.getByLabelText('エンティティの表示名'));
+      await userEvent.type(screen.getByLabelText('エンティティの表示名'), '司書ミラ');
+      await userEvent.click(screen.getByRole('combobox', { name: '初期配置' }));
       await userEvent.click(await screen.findByRole('option', { name: '星見の階段 / astral-stair' }));
     });
-    await step('シナリオ固有の演技指針、知識、秘密をMarkdownで設定する', async () => {
-      await userEvent.clear(screen.getByLabelText('NPCプロフィール'));
-      await userEvent.type(screen.getByLabelText('NPCプロフィール'), '## 役割\n\n禁書庫の案内役。\n\n## 演技指針\n\n慎重で観察力が高く、答えを直接明かさず星図を使って示唆する。\n\n## 話し方\n\n一人称は「私」。静かで短い敬語。\n\n## 知識\n\n北書庫の扉は星図と連動している。\n\n## 秘密\n\n王都が沈んだ本当の原因を知っている。');
+    await step('外観、演技指針、知識、秘密を共通Markdownへ記述する', async () => {
+      await userEvent.clear(screen.getByLabelText('エンティティプロフィール'));
+      await userEvent.type(screen.getByLabelText('エンティティプロフィール'), '## 外観\n\n星図を縫い込んだ濃紺のローブを着ている。\n\n## 人物像と演技指針\n\n慎重で観察力が高く、答えを直接明かさず星図を使って示唆する。\n\n## 話し方\n\n一人称は「私」。静かで短い敬語。\n\n## 秘密\n\n王都が沈んだ本当の原因を知っている。');
       await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
-      const table = canvas.getByRole('table', { name: 'NPC一覧' });
+      const table = canvas.getByRole('table', { name: 'エンティティ一覧' });
       await expect(within(table).getByText('司書ミラ')).toBeVisible();
-      await expect(within(table).getByText('星見の階段')).toBeVisible();
     });
   },
 };
@@ -340,25 +339,25 @@ export const ConfigureInitialSceneFromWorldData: Story = {
     await step('7ステップが制作順に並ぶことを確認する', async () => {
       const navigation = canvas.getByRole('list', { name: '登録ウィザードのステップ' });
       const labels = within(navigation).getAllByRole('button').map((button) => button.getAttribute('aria-label'));
-      expect(labels).toEqual(['基本情報へ', '場所へ', '人物へ', 'オブジェクトへ', '開始状態へ', '挿絵へ', '動作確認へ']);
+      expect(labels).toEqual(['基本情報へ', '場所へ', '主人公へ', 'エンティティへ', '開始状態へ', '挿絵へ', '動作確認へ']);
     });
     await step('人物で主人公とNPCを編集できることを確認する', async () => {
-      await goToStep(canvas, '人物');
+      await goToStep(canvas, '主人公');
       await expect(canvas.getByRole('combobox', { name: '主人公の扱い' })).toBeVisible();
       await expect(canvas.getByRole('button', { name: 'NPCを追加' })).toBeVisible();
     });
-    await step('場所とオブジェクトを別々に編集できることを確認する', async () => {
+    await step('場所とエンティティを別々に編集できることを確認する', async () => {
       await goToStep(canvas, '場所');
       await expect(canvas.getByRole('button', { name: '場所を追加' })).toBeVisible();
-      await expect(canvas.queryByRole('button', { name: 'オブジェクトを追加' })).not.toBeInTheDocument();
-      await goToStep(canvas, 'オブジェクト');
-      await expect(canvas.getByRole('button', { name: 'オブジェクトを追加' })).toBeVisible();
+      await expect(canvas.queryByRole('button', { name: 'エンティティを追加' })).not.toBeInTheDocument();
+      await goToStep(canvas, 'エンティティ');
+      await expect(canvas.getByRole('button', { name: 'エンティティを追加' })).toBeVisible();
       await expect(canvas.queryByRole('button', { name: '場所を追加' })).not.toBeInTheDocument();
     });
     await step('開始状態で開始条件を編集できることを確認する', async () => {
       await goToStep(canvas, '開始状態');
       await expect(canvas.getByLabelText('ウィザード進捗')).toHaveTextContent('05開始状態');
-      const initialStateTable = canvas.getByRole('table', { name: '全オブジェクトの初期ステート一覧' });
+      const initialStateTable = canvas.getByRole('table', { name: '全エンティティの初期ステート一覧' });
       await expect(within(initialStateTable).getByRole('columnheader', { name: 'オブジェクト' })).toBeVisible();
       await expect(within(initialStateTable).getByRole('columnheader', { name: '基準値' })).toBeVisible();
       await expect(within(initialStateTable).getByRole('columnheader', { name: '初期値' })).toBeVisible();
@@ -377,7 +376,7 @@ export const US23DefineObjectTypeStatesAndActions: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
-    await goToStep(canvas, 'オブジェクト');
+    await goToStep(canvas, 'エンティティ');
     await step('新しい種類へstable code、状態、公開範囲を登録する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '種類を追加' }));
       await userEvent.clear(screen.getByLabelText('種類のstable code'));
@@ -418,7 +417,7 @@ export const US24CreateLocationsAndPlaceObjects: Story = {
       await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
       await expect(canvas.getByRole('button', { name: '封印書庫を編集' })).toBeVisible();
     });
-    await goToStep(canvas, 'オブジェクト');
+    await goToStep(canvas, 'エンティティ');
     await step('Objectの状態を1つの表で確認し、受け継いだ状態は初期値だけ変更する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '北書庫の扉を編集' }));
       await expect(screen.getByRole('region', { name: 'ordered Type mixins' })).toHaveTextContent('書庫の扉');
@@ -441,7 +440,7 @@ export const US25AuthorDeterministicActionResults: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
-    await goToStep(canvas, 'オブジェクト');
+    await goToStep(canvas, 'エンティティ');
     await step('Object paneの統合rule tableで既存adjustのeffective結果を開く', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '北書庫の扉を編集' }));
       const rules = screen.getByRole('table', { name: 'Object rules' });
@@ -467,11 +466,11 @@ export const US26KeepDependenciesSafe: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
-    await goToStep(canvas, 'オブジェクト');
+    await goToStep(canvas, 'エンティティ');
     await step('Objectが参照中の種類は削除を拒否する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: /^書庫の扉を編集$/ }));
       await userEvent.click(screen.getByRole('button', { name: 'この種類を削除' }));
-      await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('先に種類を変更するかオブジェクトを削除');
+      await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('先に種類を変更するかエンティティを削除');
       await userEvent.click(screen.getByRole('button', { name: '編集ペインを閉じる' }));
     });
     await goToStep(canvas, '場所');
@@ -489,7 +488,7 @@ export const US27SaveIncompleteRuleDataAsDraft: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
-    await goToStep(canvas, 'オブジェクト');
+    await goToStep(canvas, 'エンティティ');
     await step('既存adjust operationはeffective結果だけをread-onlyで表示する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '北書庫の扉を編集' }));
       await userEvent.click(screen.getByRole('button', { name: 'archive-door:generic-openの実行ルールを確認' }));
@@ -542,7 +541,7 @@ export const AuthorWestDoorSeedWithEightOrderedEffects: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
-    await goToStep(canvas, 'オブジェクト');
+    await goToStep(canvas, 'エンティティ');
     await userEvent.click(canvas.getByRole('button', { name: '西の扉を編集' }));
 
     await step('ordered mixinを維持しながら状態・アクション・ruleを各1つの表で表示する', async () => {

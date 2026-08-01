@@ -9,7 +9,6 @@ export const editScenarioFixture: ScenarioFormValues = {
   heroMode: 'free',
   heroFreeGenerationAllowed: false,
   hero: '記憶を失った人物として自由に作成する。',
-  npcs: [{ code: 'guide-ai-eve', name: '案内AI EVE', initialLocationCode: 'sunken-library', profileMarkdown: '## 役割\n\n施設案内AI。\n\n## 演技指針\n\n冷静で辛抱強く、段階的な手掛かりを与える。\n\n## 秘密\n\n事故の原因を知っている。' }],
   opening: 'あなたは閉鎖された地下研究施設で目を覚ます。',
   illustrationStyle: '冷たい研究施設のコンセプトアート',
   illustrationMood: '静かな緊張感',

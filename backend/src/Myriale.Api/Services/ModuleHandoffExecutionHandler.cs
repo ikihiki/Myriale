@@ -39,7 +39,8 @@ public sealed class ModuleHandoffExecutionHandler(
         NarrativeHandoffRequest request;
         try
         {
-            request = BuildRequest(source!);
+            var entities = await LoadNarrativeEntitiesAsync(source!.Session.ScenarioDefinitionVersionId!, cancellationToken);
+            request = BuildRequest(source, entities);
         }
         catch (NarrativeHandoffValidationException exception)
         {
@@ -269,6 +270,13 @@ public sealed class ModuleHandoffExecutionHandler(
             .Include(turn => turn.ModuleExecution).ThenInclude(moduleExecution => moduleExecution!.OutcomeApplication)
             .SingleOrDefaultAsync(turn => turn.Id == sourceTurnId, cancellationToken);
 
+    private Task<List<NarrativeEntityInput>> LoadNarrativeEntitiesAsync(string definitionVersionId, CancellationToken cancellationToken) =>
+        db.ScenarioObjects.AsNoTracking()
+            .Where(item => item.DefinitionVersionId == definitionVersionId)
+            .OrderBy(item => item.Code)
+            .Select(item => new NarrativeEntityInput(item.Code, item.Name, item.ProfileMarkdown))
+            .ToListAsync(cancellationToken);
+
     private static SessionExecutionHandlerResult? ValidateCausality(SessionExecution execution, SessionTurn? source)
     {
         if (source?.ModuleExecution is null
@@ -281,7 +289,7 @@ public sealed class ModuleHandoffExecutionHandler(
         return null;
     }
 
-    private NarrativeHandoffRequest BuildRequest(SessionTurn source)
+    private NarrativeHandoffRequest BuildRequest(SessionTurn source, IReadOnlyList<NarrativeEntityInput> entities)
     {
         var execution = source.ModuleExecution!;
         if (execution.Status != ModuleExecutionStatuses.Completed || execution.OutcomeJson is null)
@@ -321,7 +329,7 @@ public sealed class ModuleHandoffExecutionHandler(
                 source.Session.Scenario.Lore,
                 source.Session.Scenario.AiFreedom,
                 source.Session.SelectedHero,
-                ScenarioNpcSettingsJson.Deserialize(source.Session.Scenario.NpcsJson),
+                entities,
                 source.Session.Scenario.Opening),
             new NarrativeOutcomeInput(
                 outcome.Category,

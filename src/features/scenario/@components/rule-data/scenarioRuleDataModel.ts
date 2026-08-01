@@ -55,8 +55,9 @@ export function createLocation(): ScenarioLocation {
 
 export function createObject(ruleData: ScenarioRuleData): ScenarioObject {
   return {
-    code: nextAuthoringCode('object'),
-    name: '新しいオブジェクト',
+    code: nextAuthoringCode('entity'),
+    name: '新しいエンティティ',
+    profileMarkdown: '## 外観・概要\n\nこのエンティティの外観、人物像、材質、振る舞いなどを記述します。\n\n## 描写指針\n\n現在状態と公開済みfactsに沿って描写します。',
     mixinTypeCodes: ruleData.objectTypes[0] ? [ruleData.objectTypes[0].code] : [],
     initialLocationCode: ruleData.locations[0]?.code ?? '',
     global: false,
@@ -168,7 +169,7 @@ export function validateScenarioRuleData(ruleData: ScenarioRuleData): RuleDataIs
     if (effect.kind === 'move-object' || effect.kind === 'move-session') {
       if (!effect.locationCode.trim() || !ruleData.locations.some((location) => location.code === effect.locationCode)) issues.push({ path: `${effectPath}.locationCode`, message: '移動先の場所を選択してください。', severity: 'error' });
     }
-    if (effect.kind === 'move-object' && effect.targetObjectCode && !ruleData.objects.some((candidate) => candidate.code === effect.targetObjectCode)) issues.push({ path: `${effectPath}.targetObjectCode`, message: '移動するオブジェクトを選択してください。', severity: 'error' });
+    if (effect.kind === 'move-object' && effect.targetObjectCode && !ruleData.objects.some((candidate) => candidate.code === effect.targetObjectCode)) issues.push({ path: `${effectPath}.targetObjectCode`, message: '移動するエンティティを選択してください。', severity: 'error' });
     if (effect.kind === 'emit-event') {
       if (!effect.event.trim()) issues.push({ path: `${effectPath}.event`, message: '記録する出来事の名前を入力してください。', severity: 'error' });
       if (effect.locationCode && !ruleData.locations.some((location) => location.code === effect.locationCode)) issues.push({ path: `${effectPath}.locationCode`, message: '出来事に関連する場所を選択してください。', severity: 'error' });
@@ -230,12 +231,12 @@ export function validateScenarioRuleData(ruleData: ScenarioRuleData): RuleDataIs
 
 export function dependencyMessageForType(ruleData: ScenarioRuleData, code: string) {
   const dependent = ruleData.objects.find((object) => object.mixinTypeCodes.includes(code));
-  return dependent ? `「${dependent.name}」が参照しています。先に種類を変更するかオブジェクトを削除してください。` : null;
+  return dependent ? `「${dependent.name}」が参照しています。先に種類を変更するかエンティティを削除してください。` : null;
 }
 
 export function dependencyMessageForLocation(ruleData: ScenarioRuleData, code: string) {
   const dependent = ruleData.objects.find((object) => !object.global && object.initialLocationCode === code);
-  return dependent ? `「${dependent.name}」が配置されています。先に配置先を変更するかオブジェクトを削除してください。` : null;
+  return dependent ? `「${dependent.name}」が配置されています。先に配置先を変更するかエンティティを削除してください。` : null;
 }
 
 export function dependencyMessageForTypeRule(ruleData: ScenarioRuleData, typeCode: string, ruleCode: string) {

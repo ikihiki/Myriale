@@ -33,18 +33,6 @@ describe('scenario list API', () => {
     }));
   });
 
-  it('sends structured NPC settings through the scenario endpoint', async () => {
-    const updated = { id: 'SCN-1', title: 'NPC scenario' };
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(updated), { status: 200, headers: { 'Content-Type': 'application/json' } }));
-    vi.stubGlobal('fetch', fetchMock);
-    const npc = { code: 'guide', name: '案内役', initialLocationCode: 'start', profileMarkdown: '## 演技指針\n\n冷静に手掛かりを示す。\n\n## 秘密\n\n事故の原因。' };
-
-    await createFetchScenarioApi('/api/scenarios').updateScenario('SCN-1', { title: 'NPC scenario', npcs: [npc] });
-
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
-    expect(body.npcs).toEqual([npc]);
-  });
-
   it('uses only the current seed scenario in standalone demo mode', async () => {
     const scenarios = await createDemoScenarioApi().getScenarios();
 

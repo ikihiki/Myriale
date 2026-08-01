@@ -139,6 +139,11 @@ public sealed class ScenarioTurnExecutionHandler(
                 ? new RulePublicObject("system", "system", "システム", postStateForNarrative.CurrentLocation.Id, true, 0, Parse("{}"))
                 : snapshotForNarrative.Objects.Single(item => item.Id == decision.ObjectId);
             var narrativeSession = await db.Sessions.AsNoTracking().Include(item => item.Scenario).SingleAsync(item => item.Id == execution.SessionId, cancellationToken);
+            var narrativeEntities = await db.ScenarioObjects.AsNoTracking()
+                .Where(item => item.DefinitionVersionId == narrativeSession.ScenarioDefinitionVersionId)
+                .OrderBy(item => item.Code)
+                .Select(item => new NarrativeEntityInput(item.Code, item.Name, item.ProfileMarkdown))
+                .ToListAsync(cancellationToken);
             var narrativeRequest = new PostStateNarrativeRequest(
                 ScenarioTurnSchemas.PostStateNarrative,
                 new NarrativeScenarioInput(
@@ -149,7 +154,7 @@ public sealed class ScenarioTurnExecutionHandler(
                     narrativeSession.Scenario.Lore,
                     narrativeSession.Scenario.AiFreedom,
                     narrativeSession.SelectedHero,
-                    ScenarioNpcSettingsJson.Deserialize(narrativeSession.Scenario.NpcsJson),
+                    narrativeEntities,
                     narrativeSession.Scenario.Opening),
                 input.Text, selectedObject, selectedAction, postStateForNarrative,
                 DeserializeList<string>(step.FactsJson), DeserializeList<JsonElement>(step.EventsJson), DeserializeList<string>(step.NarrativeHintsJson), DeserializeList<string>(step.ForbiddenNarrativeFactsJson));

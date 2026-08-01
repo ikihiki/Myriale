@@ -35,6 +35,7 @@ public sealed record ScenarioObjectTypeActionInput(
 public sealed record ScenarioObjectInput(
     string Code,
     string Name,
+    string ProfileMarkdown,
     string LocationCode,
     JsonElement InitialStateOverride,
     bool IsGlobal,

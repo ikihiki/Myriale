@@ -1,4 +1,3 @@
-import type { ScenarioNpcPayload } from './scenarioApi';
 import { createContext, useContext, useMemo, useReducer, type Dispatch, type ReactNode } from 'react';
 
 export type DemoDbKind =
@@ -25,7 +24,6 @@ export type ScenarioRecord = {
   heroMode?: 'fixed' | 'select' | 'free';
   heroFreeGenerationAllowed?: boolean;
   hero?: string;
-  npcs?: ScenarioNpcPayload[];
   opening?: string;
   illustrationStyle?: string;
   illustrationMood?: string;

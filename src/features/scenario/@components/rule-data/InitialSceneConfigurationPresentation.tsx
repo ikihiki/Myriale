@@ -42,15 +42,15 @@ export function InitialSceneConfigurationPresentation({ value, onChange }: Props
 
     <section className="grid gap-4" aria-labelledby="initial-states-heading">
       <div>
-        <h3 id="initial-states-heading">各オブジェクトの初期ステート</h3>
+        <h3 id="initial-states-heading">各エンティティの初期ステート</h3>
         <p className="text-sm text-myr-ink-subtle">種類で定義したdefaultを基準に、セッション開始時に使う各Objectの初期値を上書きできます。</p>
       </div>
-      {value.objects.length === 0 ? <p className="text-sm text-myr-ink-subtle">初期ステートを設定するオブジェクトはありません。</p> : (
+      {value.objects.length === 0 ? <p className="text-sm text-myr-ink-subtle">初期ステートを設定するエンティティはありません。</p> : (
         <div className="overflow-x-auto rounded-2xl border border-[#17151f]/15 bg-white/55 shadow-[0_12px_30px_rgba(23,21,31,.07)]">
-          <table className={tableClass} aria-label="全オブジェクトの初期ステート一覧">
+          <table className={tableClass} aria-label="全エンティティの初期ステート一覧">
             <thead className="bg-[#17151f]/[.045] text-xs text-myr-slate-muted">
               <tr>
-                <th className={cellClass}>オブジェクト</th>
+                <th className={cellClass}>エンティティ</th>
                 <th className={cellClass}>Object stable code</th>
                 <th className={cellClass}>ステート</th>
                 <th className={cellClass}>State stable code</th>
@@ -66,7 +66,7 @@ export function InitialSceneConfigurationPresentation({ value, onChange }: Props
                 if (states.length === 0) return <tr key={object.code}>
                   <th scope="row" className={cellClass}>{object.name}</th>
                   <td className={`${cellClass} font-mono text-xs`}>{object.code}</td>
-                  <td className={`${cellClass} text-myr-ink-subtle`} colSpan={6}>このオブジェクトにステートはありません。</td>
+                  <td className={`${cellClass} text-myr-ink-subtle`} colSpan={6}>このエンティティにステートはありません。</td>
                 </tr>;
                 return states.map((state, stateIndex) => <tr key={`${object.code}-${state.code}`}>
                   {stateIndex === 0 && <>
@@ -95,7 +95,7 @@ export function InitialSceneConfigurationPresentation({ value, onChange }: Props
                     )}
                   </td>
                   <td className={cellClass}>{state.conflict
-                    ? <span className="text-[#9b3030]">「オブジェクト」ステップで競合を解消してください。</span>
+                    ? <span className="text-[#9b3030]">「エンティティ」ステップで競合を解消してください。</span>
                     : state.hasInitialOverride
                       ? <strong className="text-[#72540b]">上書き中</strong>
                       : <span className="text-myr-ink-subtle">基準値を使用</span>}</td>

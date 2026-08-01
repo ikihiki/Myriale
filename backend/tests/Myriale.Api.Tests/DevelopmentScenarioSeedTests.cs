@@ -22,9 +22,6 @@ public sealed class DevelopmentScenarioSeedTests : IDisposable
         using var published = await owner.GetAsync("/api/scenarios/SCN-AWAKENING-LAB/rule-data");
         Assert.Equal(HttpStatusCode.OK, published.StatusCode);
         var publishedJson = await published.Content.ReadFromJsonAsync<JsonElement>();
-        using var scenarioResponse = await owner.GetAsync("/api/scenarios/SCN-AWAKENING-LAB");
-        var scenarioJson = await scenarioResponse.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("guide-ai-eve", Assert.Single(scenarioJson.GetProperty("npcs").EnumerateArray().ToArray()).GetProperty("code").GetString());
         Assert.Equal(2, publishedJson.GetProperty("version").GetInt32());
         Assert.Equal("start", publishedJson.GetProperty("startLocationCode").GetString());
         Assert.Equal(new[] { "corridor", "puzzle-room", "start" }, publishedJson.GetProperty("locations").EnumerateArray()
@@ -131,11 +128,6 @@ public sealed class DevelopmentScenarioSeedTests : IDisposable
         Assert.Equal("fixed", scenario.GetProperty("heroMode").GetString());
         Assert.False(scenario.GetProperty("heroFreeGenerationAllowed").GetBoolean());
         Assert.Contains("港務局調査官ユナ", scenario.GetProperty("hero").GetString());
-        var npc = Assert.Single(scenario.GetProperty("npcs").EnumerateArray().ToArray());
-        Assert.Equal("keeper-ren", npc.GetProperty("code").GetString());
-        Assert.Contains("keeper-ren.state.stance", npc.GetProperty("profileMarkdown").GetString());
-        Assert.Contains("`confessed`", npc.GetProperty("profileMarkdown").GetString());
-
         using var ruleDataResponse = await owner.GetAsync("/api/scenarios/SCN-LIGHTHOUSE-CONFESSION/rule-data");
         Assert.Equal(HttpStatusCode.OK, ruleDataResponse.StatusCode);
         var ruleData = await ruleDataResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -144,6 +136,11 @@ public sealed class DevelopmentScenarioSeedTests : IDisposable
         var objects = ruleData.GetProperty("objects").EnumerateArray().ToArray();
         Assert.Equal(new[] { "burned-maintenance-record", "keeper-ren" }, objects
             .Select(item => item.GetProperty("code").GetString()).Order().ToArray());
+        var keeperEntity = objects.Single(item => item.GetProperty("code").GetString() == "keeper-ren");
+        Assert.Contains("keeper-ren.state.stance", keeperEntity.GetProperty("profileMarkdown").GetString());
+        Assert.Contains("`confessed`", keeperEntity.GetProperty("profileMarkdown").GetString());
+        var evidenceEntity = objects.Single(item => item.GetProperty("code").GetString() == "burned-maintenance-record");
+        Assert.Contains("## 外観", evidenceEntity.GetProperty("profileMarkdown").GetString());
         var objectTypes = ruleData.GetProperty("objectTypes").EnumerateArray().ToArray();
         var npcType = objectTypes.Single(type => type.GetProperty("code").GetString() == "conversation-npc");
         Assert.Equal(new[] { "present-evidence", "talk" }, npcType.GetProperty("actions").EnumerateArray()
