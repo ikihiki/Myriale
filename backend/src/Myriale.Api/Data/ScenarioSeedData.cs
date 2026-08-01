@@ -6,6 +6,7 @@ namespace Myriale.Api.Data;
 public static class ScenarioSeedData
 {
     private const string AwakeningLaboratoryId = "SCN-AWAKENING-LAB";
+    private const string LighthouseConfessionId = "SCN-LIGHTHOUSE-CONFESSION";
 
     private const string BasicInformation = """
         # あなたの役割
@@ -33,47 +34,111 @@ public static class ScenarioSeedData
         - 必要に応じてNPCの台詞を交える
         """;
 
+    private const string LighthouseBasicInformation = """
+        # あなたの役割
+        あなたは一室だけで進行する対話劇のゲームマスターです。
+        プレイヤーは調査官として、灯台守レンの証言と公開状態を踏まえて会話を描写してください。
+        # シナリオ
+        嵐の夜に灯台の標識灯が手動で消されました。レンは故障だったと主張しています。
+        プレイヤーはレンの認証符号が残る焼け焦げた保守記録を持ち、質問するか証拠として突きつけられます。
+        移動や探索はなく、レンとの会話だけで真相に到達します。
+        # NPC状態の扱い
+        - `keeper-ren` の公開状態 `stance` を会話態度の正史とする
+        - `guarded` では落ち着いて故障説を主張する
+        - `evasive` では言葉を濁し、保守記録を見せられるまで秘密を明かさない
+        - `confessed` では公開済みfactsの範囲で真相と動機を認める
+        - ナラティブだけで状態を先取り・変更しない
+        # 禁止事項
+        - 判定結果、フラグ、オブジェクト状態を独自に変更しない
+        - factsにない秘密を開示しない
+        - レン以外のNPCを登場させない
+        # 描写
+        - レンの台詞と仕草を中心に120～250文字程度で回答する
+        - 閉鎖的で緊張した取調室の雰囲気を維持する
+        """;
+
     public static async Task SeedAsync(
         ApplicationDbContext db,
         string? developmentAuthorId = null,
         CancellationToken cancellationToken = default)
     {
-        var existing = await db.Scenarios.SingleOrDefaultAsync(
-            scenario => scenario.Id == AwakeningLaboratoryId,
-            cancellationToken);
-        var timestamp = new DateTimeOffset(2026, 7, 26, 0, 0, 0, TimeSpan.Zero);
+        var awakeningTimestamp = new DateTimeOffset(2026, 7, 26, 0, 0, 0, TimeSpan.Zero);
+        var lighthouseTimestamp = new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero);
+        var authorId = string.IsNullOrWhiteSpace(developmentAuthorId) ? "SYSTEM-SEED" : developmentAuthorId;
+
+        await SeedScenarioAsync(db, CreateAwakeningLaboratory(authorId, awakeningTimestamp), developmentAuthorId, cancellationToken);
+        await SeedScenarioAsync(db, CreateLighthouseConfession(authorId, lighthouseTimestamp), developmentAuthorId, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task SeedScenarioAsync(
+        ApplicationDbContext db,
+        Scenario scenario,
+        string? developmentAuthorId,
+        CancellationToken cancellationToken)
+    {
+        var existing = await db.Scenarios.SingleOrDefaultAsync(item => item.Id == scenario.Id, cancellationToken);
         if (existing is not null)
         {
             if (!string.IsNullOrWhiteSpace(developmentAuthorId)
                 && string.Equals(existing.AuthorId, "SYSTEM-SEED", StringComparison.Ordinal))
                 existing.AuthorId = developmentAuthorId;
-
-            await db.SaveChangesAsync(cancellationToken);
             return;
         }
 
-        db.Scenarios.Add(new Scenario
-        {
-            Id = AwakeningLaboratoryId,
-            Title = "目覚めの研究室",
-            Summary = BasicInformation,
-            Genre = "SFミステリー脱出劇",
-            AiFreedom = "低: 厳密に守る",
-            HeroMode = "free",
-            HeroFreeGenerationAllowed = false,
-            NpcsJson = ScenarioNpcSettingsJson.Serialize([
-                new ScenarioNpcSettings(
-                    "guide-ai-eve", "案内AI EVE", "閉鎖研究施設の案内と安全管理を担うAI", "start",
-                    "冷静で辛抱強い。被験者の安全を最優先する。", "状況を簡潔に説明し、答えを直接明かさず段階的な手掛かりを与える。",
-                    "落ち着いた合成音声。短く明瞭な敬語。", "私", "解析装置の復旧で脱出扉が開くことを知っている。", "施設閉鎖の原因と主人公が被験者である事実は、証拠が揃うまで明かさない。")
-            ]),
-            Opening = "あなたは非常灯だけが灯る覚醒室で目を覚ます。壁際では案内AI端末が呼びかけ、廊下の先にある解析装置の復旧を求めている。",
-            Status = "published",
-            AuthorId = string.IsNullOrWhiteSpace(developmentAuthorId) ? "SYSTEM-SEED" : developmentAuthorId,
-            CreatedAt = timestamp,
-            UpdatedAt = timestamp,
-        });
-        db.ScenarioDefinitionVersions.Add(ScenarioDefinitionSeedFactory.CreatePublished(AwakeningLaboratoryId, timestamp));
-        await db.SaveChangesAsync(cancellationToken);
+        db.Scenarios.Add(scenario);
+        db.ScenarioDefinitionVersions.Add(ScenarioDefinitionSeedFactory.CreatePublished(scenario.Id, scenario.CreatedAt));
     }
+
+    private static Scenario CreateAwakeningLaboratory(string authorId, DateTimeOffset timestamp) => new()
+    {
+        Id = AwakeningLaboratoryId,
+        Title = "目覚めの研究室",
+        Summary = BasicInformation,
+        Genre = "SFミステリー脱出劇",
+        AiFreedom = "低: 厳密に守る",
+        HeroMode = "free",
+        HeroFreeGenerationAllowed = false,
+        NpcsJson = ScenarioNpcSettingsJson.Serialize([
+            new ScenarioNpcSettings(
+                "guide-ai-eve", "案内AI EVE", "閉鎖研究施設の案内と安全管理を担うAI", "start",
+                "冷静で辛抱強い。被験者の安全を最優先する。", "状況を簡潔に説明し、答えを直接明かさず段階的な手掛かりを与える。",
+                "落ち着いた合成音声。短く明瞭な敬語。", "私", "解析装置の復旧で脱出扉が開くことを知っている。", "施設閉鎖の原因と主人公が被験者である事実は、証拠が揃うまで明かさない。")
+        ]),
+        Opening = "あなたは非常灯だけが灯る覚醒室で目を覚ます。壁際では案内AI端末が呼びかけ、廊下の先にある解析装置の復旧を求めている。",
+        Status = "published",
+        AuthorId = authorId,
+        CreatedAt = timestamp,
+        UpdatedAt = timestamp,
+    };
+
+    private static Scenario CreateLighthouseConfession(string authorId, DateTimeOffset timestamp) => new()
+    {
+        Id = LighthouseConfessionId,
+        Title = "灯台守の告白",
+        Summary = LighthouseBasicInformation,
+        Genre = "会話劇・ミステリー",
+        Tone = "閉鎖的で緊張感のある静かな取調べ",
+        AiFreedom = "低: 公開状態とfactsを厳密に守る",
+        HeroMode = "free",
+        HeroFreeGenerationAllowed = false,
+        NpcsJson = ScenarioNpcSettingsJson.Serialize([
+            new ScenarioNpcSettings(
+                "keeper-ren",
+                "灯台守レン",
+                "標識灯が消えた夜の唯一の証人であり、プレイヤーの会話相手",
+                "interview-room",
+                "寡黙で責任感が強い。追い詰められるほど返答前の沈黙が長くなる。難民を守った判断には迷いがないが、事故を招いた責任には罪悪感がある。",
+                "公開状態 keeper-ren.state.stance を必ず参照する。guardedでは故障説を静かに主張する。evasiveでは視線を逸らし、同じ説明を言い換えるが秘密は明かさない。confessedではfactsで公開された真相だけを認め、動機と責任を自分の言葉で語る。ナラティブ中にstanceを先取りして変えない。",
+                "低く擦れた声。短い常体。動揺時は沈黙や言い直しを挟む。",
+                "俺",
+                "嵐の夜、標識灯が消えた時刻、通常の保守手順、焼け焦げた保守記録が自分の認証符号を示していること。",
+                "秘密は『迫害から逃げる難民船を巡視艇から隠すため、自分の意思で標識灯を消した』こと。開示条件は、postStateのkeeper-ren.state.stanceがconfessedで、factsに保守記録を認めたことと消灯理由が含まれる場合だけ。それ以前は故障説を維持し、難民船の存在を示唆もしない。")
+        ]),
+        Opening = "窓のない取調室で、灯台守レンが金属机の向こうに座っている。彼は標識灯の消灯を故障だと主張する。あなたの手元には、レンの認証符号と手動停止時刻が残る焼け焦げた保守記録がある。質問することも、その証拠を突きつけることもできる。",
+        Status = "published",
+        AuthorId = authorId,
+        CreatedAt = timestamp,
+        UpdatedAt = timestamp,
+    };
 }

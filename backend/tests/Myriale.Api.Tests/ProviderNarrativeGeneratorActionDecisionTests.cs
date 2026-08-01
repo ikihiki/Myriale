@@ -49,6 +49,43 @@ public sealed class ProviderNarrativeGeneratorActionDecisionTests
         Assert.Equal(textProvider.ResponseText, generated.ReceivedResult);
     }
 
+    [Fact]
+    public async Task GeneratePostStateNarrative_DeclaresSchemaVersionTypeForOpenAiStrictSchema()
+    {
+        var textProvider = new CapturingProvider("""{"schemaVersion":"post-state-narrative.v1","heading":"告白","body":"レンは真相を認めた。"}""");
+        var generator = new ProviderNarrativeGenerator(
+            textProvider,
+            new ScenarioActionDecisionModelMapper(),
+            NullLogger<ProviderNarrativeGenerator>.Instance);
+
+        await generator.GeneratePostStateNarrativeAsync(PostStateRequest(), default);
+
+        var schemaVersion = textProvider.Request!.ResponseFormat.Schema!.Value
+            .GetProperty("properties").GetProperty("schemaVersion");
+        Assert.Equal("string", schemaVersion.GetProperty("type").GetString());
+        Assert.Equal(ScenarioTurnSchemas.PostStateNarrative, schemaVersion.GetProperty("const").GetString());
+    }
+
+    private static PostStateNarrativeRequest PostStateRequest()
+    {
+        var state = JsonSerializer.Deserialize<JsonElement>("{\"stance\":\"confessed\",\"evidenceAcknowledged\":true}");
+        var argumentSchema = JsonSerializer.Deserialize<JsonElement>("{\"type\":\"object\",\"additionalProperties\":false}");
+        var location = new RulePublicLocation("room", "interview-room", "取調室", "窓のない小部屋。");
+        var item = new RulePublicObject("ren", "keeper-ren", "灯台守レン", location.Id, false, 1, state);
+        var action = new RulePublicAction(item.Id, "present-evidence", "present-evidence", "保守記録を突きつける", "証拠を提示する。", argumentSchema, true);
+        return new(
+            ScenarioTurnSchemas.PostStateNarrative,
+            new("灯台守の告白", "会話劇", "ミステリー", "緊張", "", "低", "調査官", [], "レンと向き合う。"),
+            "この記録を見ろ。",
+            item,
+            action,
+            new("rule-post-state.v1", location, [item], new Dictionary<string, bool>(), 1),
+            ["レンは手動消灯を認めた。"],
+            [],
+            ["短く告白させる。"],
+            ["標識灯は故障で消えた"]);
+    }
+
     private static ModelActionDecisionRequest Request()
     {
         var empty = JsonSerializer.Deserialize<JsonElement>("{}");

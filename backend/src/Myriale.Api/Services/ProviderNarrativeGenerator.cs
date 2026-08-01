@@ -22,7 +22,7 @@ public sealed class ProviderNarrativeGenerator(
     private const string BodySchema = "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"body\":{\"type\":\"string\"}},\"required\":[\"body\"]}";
     private const string RecommendationSchema = "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"suggestion\":{\"type\":\"string\"}},\"required\":[\"suggestion\"]}";
 
-    private const string PostStateNarrativeSchema = "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"schemaVersion\":{\"const\":\"post-state-narrative.v1\"},\"heading\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120},\"body\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":20000}},\"required\":[\"schemaVersion\",\"heading\",\"body\"]}";
+    private const string PostStateNarrativeSchema = "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"schemaVersion\":{\"type\":\"string\",\"const\":\"post-state-narrative.v1\"},\"heading\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120},\"body\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":20000}},\"required\":[\"schemaVersion\",\"heading\",\"body\"]}";
 
     public Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionForProfileAsync(string profileId, ModelActionDecisionRequest request, CancellationToken cancellationToken) =>
         DecideActionCoreAsync((textRequest, token) => provider.GenerateForProfileAsync(profileId, textRequest, token), request, cancellationToken);

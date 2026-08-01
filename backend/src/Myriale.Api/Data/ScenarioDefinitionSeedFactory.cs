@@ -5,6 +5,7 @@ internal static class ScenarioDefinitionSeedFactory
     public static ScenarioDefinitionVersion CreatePublished(string scenarioId, DateTimeOffset timestamp)
     {
         if (scenarioId == "SCN-AWAKENING-LAB") return CreateAwakeningLaboratory(scenarioId, timestamp);
+        if (scenarioId == "SCN-LIGHTHOUSE-CONFESSION") return CreateLighthouseConfession(scenarioId, timestamp);
 
         var slug = scenarioId.Replace("SCN-", string.Empty, StringComparison.Ordinal);
         var version = NewVersion(scenarioId, slug, timestamp, 1, "start");
@@ -54,6 +55,84 @@ internal static class ScenarioDefinitionSeedFactory
         _ = NewObject(version, slug, "PUZZLE-PASSAGE", "puzzle-passage", "接続廊下への扉", puzzleToCorridor, puzzleRoom);
         _ = NewObject(version, slug, "ESCAPE-DOOR", "escape-door", "施設外への脱出扉", exitDoor, corridor);
         _ = NewObject(version, slug, "PUZZLE", "puzzle-device", "三色光学解析装置", puzzle, puzzleRoom);
+        return version;
+    }
+
+    private static ScenarioDefinitionVersion CreateLighthouseConfession(string scenarioId, DateTimeOffset timestamp)
+    {
+        const string slug = "LIGHTHOUSE-CONFESSION";
+        var version = NewVersion(scenarioId, slug, timestamp, 1, "interview-room");
+        var room = NewLocation(
+            version,
+            slug,
+            "INTERVIEW-ROOM",
+            "interview-room",
+            "港務局の取調室",
+            "窓のない小部屋。金属机を挟んで灯台守レンと向き合い、移動せず会話だけで真相を追う。");
+
+        var keeper = new ScenarioObjectType
+        {
+            Id = $"SOT-{slug}-KEEPER",
+            DefinitionVersionId = version.Id,
+            Code = "conversation-npc",
+            Name = "状態を持つ会話NPC",
+            Description = "質問と証拠提示によって態度が変わり、公開条件を満たした秘密だけを話すNPC。",
+            SchemaVersion = 1,
+            StateSchemaJson = "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"stance\":{\"type\":\"string\",\"enum\":[\"guarded\",\"evasive\",\"confessed\"]},\"evidenceAcknowledged\":{\"type\":\"boolean\"}},\"required\":[\"stance\",\"evidenceAcknowledged\"]}",
+            DefaultStateJson = "{\"stance\":\"guarded\",\"evidenceAcknowledged\":false}",
+            PublicProjectionJson = "{\"include\":[\"stance\",\"evidenceAcknowledged\"]}",
+        };
+        version.ObjectTypes.Add(keeper);
+
+        var talk = NewAction(
+            keeper,
+            slug,
+            "QUESTION",
+            "talk",
+            "レンに質問する",
+            "灯台守レンに標識灯が消えた経緯を尋ね、現在の態度に沿った証言を引き出す。");
+        var presentEvidence = NewAction(
+            keeper,
+            slug,
+            "PRESENT-EVIDENCE",
+            "present-evidence",
+            "保守記録を突きつける",
+            "レンの認証符号と手動停止時刻が残る焼け焦げた保守記録を、矛盾を示す証拠としてレンに提示する。");
+
+        AddRules(
+            keeper,
+            Rule(
+                "question-guarded",
+                talk,
+                "{\"op\":\"eq\",\"path\":\"state.stance\",\"value\":\"guarded\"}",
+                "[{\"type\":\"set-state\",\"path\":\"state.stance\",\"value\":\"evasive\"},{\"type\":\"emit-fact\",\"text\":\"レンは標識灯の消灯を故障だと主張したが、停止時刻を問われると返答を濁した。\"},{\"type\":\"add-narrative-hint\",\"text\":\"故障説を崩さず、返答前の沈黙と視線の揺れで態度がguardedからevasiveへ変わったことを示す。\"},{\"type\":\"forbid-narrative-fact\",\"text\":\"レンが難民船を隠すために標識灯を消した\"}]",
+                200),
+            Rule(
+                "question-evasive",
+                talk,
+                "{\"op\":\"eq\",\"path\":\"state.stance\",\"value\":\"evasive\"}",
+                "[{\"type\":\"emit-fact\",\"text\":\"レンは故障説を言い換えて繰り返し、手動停止の理由には答えなかった。\"},{\"type\":\"add-narrative-hint\",\"text\":\"証拠を示されない限り秘密を明かさず、短い否定と沈黙で応じる。\"},{\"type\":\"forbid-narrative-fact\",\"text\":\"レンが難民船を隠すために標識灯を消した\"}]",
+                150),
+            Rule(
+                "question-confessed",
+                talk,
+                "{\"op\":\"eq\",\"path\":\"state.stance\",\"value\":\"confessed\"}",
+                "[{\"type\":\"emit-fact\",\"text\":\"レンは、迫害から逃げる難民船を巡視艇から隠すため自分の意思で標識灯を消したと改めて認めた。\"},{\"type\":\"add-narrative-hint\",\"text\":\"告白後の落ち着きと、事故への罪悪感を自分の言葉で語らせる。\"}]",
+                100),
+            Rule(
+                "evidence-breaks-denial",
+                presentEvidence,
+                "{\"op\":\"in\",\"path\":\"state.stance\",\"value\":[\"guarded\",\"evasive\"]}",
+                "[{\"type\":\"set-state\",\"path\":\"state.stance\",\"value\":\"confessed\"},{\"type\":\"set-state\",\"path\":\"state.evidenceAcknowledged\",\"value\":true},{\"type\":\"emit-fact\",\"text\":\"レンは焼け焦げた保守記録が自分の認証符号と手動停止操作を示す真正な証拠だと認めた。\"},{\"type\":\"emit-fact\",\"text\":\"レンは、迫害から逃げる難民船を巡視艇から隠すため、自分の意思で標識灯を消したと告白した。\"},{\"type\":\"emit-event\",\"event\":\"keeper-ren-confessed\",\"locationCode\":\"interview-room\"},{\"type\":\"add-narrative-hint\",\"text\":\"保守記録を見た長い沈黙の後、故障説を撤回し、一人称『俺』で簡潔に告白させる。\"},{\"type\":\"forbid-narrative-fact\",\"text\":\"標識灯は故障で消えた\"}]",
+                200),
+            Rule(
+                "evidence-after-confession",
+                presentEvidence,
+                "{\"op\":\"eq\",\"path\":\"state.stance\",\"value\":\"confessed\"}",
+                "[{\"type\":\"emit-fact\",\"text\":\"レンは保守記録から目を逸らさず、すでに認めた手動消灯とその動機を撤回しなかった。\"},{\"type\":\"add-narrative-hint\",\"text\":\"新しい秘密を追加せず、告白済みの内容と責任を引き受ける姿勢を描写する。\"}]",
+                100));
+
+        _ = NewObject(version, slug, "KEEPER-REN", "keeper-ren", "灯台守レン", keeper, room);
         return version;
     }
 
