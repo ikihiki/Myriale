@@ -120,8 +120,9 @@ public static class ScenarioSeedData
         Genre = "会話劇・ミステリー",
         Tone = "閉鎖的で緊張感のある静かな取調べ",
         AiFreedom = "低: 公開状態とfactsを厳密に守る",
-        HeroMode = "free",
+        HeroMode = "fixed",
         HeroFreeGenerationAllowed = false,
+        Hero = "港務局調査官ユナ / 灯台事故の真相を追う実直な調査官。焼け焦げた保守記録を証拠として携えている。",
         NpcsJson = ScenarioNpcSettingsJson.Serialize([
             new ScenarioNpcSettings(
                 "keeper-ren",

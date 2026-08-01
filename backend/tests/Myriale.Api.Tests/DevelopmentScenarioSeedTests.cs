@@ -128,6 +128,9 @@ public sealed class DevelopmentScenarioSeedTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, scenarioResponse.StatusCode);
         var scenario = await scenarioResponse.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("灯台守の告白", scenario.GetProperty("title").GetString());
+        Assert.Equal("fixed", scenario.GetProperty("heroMode").GetString());
+        Assert.False(scenario.GetProperty("heroFreeGenerationAllowed").GetBoolean());
+        Assert.Contains("港務局調査官ユナ", scenario.GetProperty("hero").GetString());
         var npc = Assert.Single(scenario.GetProperty("npcs").EnumerateArray().ToArray());
         Assert.Equal("keeper-ren", npc.GetProperty("code").GetString());
         Assert.Contains("keeper-ren.state.stance", npc.GetProperty("behavior").GetString());
