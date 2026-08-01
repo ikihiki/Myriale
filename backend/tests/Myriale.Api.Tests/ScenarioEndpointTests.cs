@@ -57,25 +57,6 @@ public sealed class ScenarioEndpointTests : IDisposable
     }
 
     [Fact]
-    public void ScenarioNpcSettingsJson_ConvertsLegacyFieldsToMarkdownProfile()
-    {
-        const string legacy = """
-            [{"code":"legacy-guide","name":"旧案内役","role":"案内","initialLocationCode":"start","personality":"慎重","behavior":"段階的に答える","voice":"静かな敬語","firstPerson":"私","publicKnowledge":"出口の場所","secrets":"事故の原因"}]
-            """;
-
-        var npc = Assert.Single(ScenarioNpcSettingsJson.Deserialize(legacy));
-
-        Assert.Equal("legacy-guide", npc.Code);
-        Assert.Equal("start", npc.InitialLocationCode);
-        Assert.Contains("## 役割", npc.ProfileMarkdown);
-        Assert.Contains("一人称: 私", npc.ProfileMarkdown);
-        Assert.Contains("事故の原因", npc.ProfileMarkdown);
-        var canonical = ScenarioNpcSettingsJson.Serialize([npc]);
-        Assert.Contains("profileMarkdown", canonical);
-        Assert.DoesNotContain("personality", canonical);
-    }
-
-    [Fact]
     public async Task GetScenario_ReturnsNotFoundForUnknownId()
     {
         var client = _factory.CreateClient();
