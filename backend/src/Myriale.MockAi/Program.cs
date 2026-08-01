@@ -145,7 +145,13 @@ public static class MockRuleActionSelector
         var noOp = SystemAction(request, "no-op");
 
         if (ContainsAny(input, "待つ", "待機", "何もしない", "しばらくここで様子を見る")) return noOp ?? clarify ?? First(request);
-        if (ContainsAny(input, "見回す", "観察", "確認", "見る")) return noOp ?? clarify ?? First(request);
+        if (ContainsAny(input, "見回す", "観察", "確認", "見る"))
+        {
+            var target = MatchingObject(request, input);
+            var inspect = target?.Actions.FirstOrDefault(action => action.ActionCode is "inspect" or "examine");
+            if (inspect is not null) return inspect;
+            return noOp ?? clarify ?? First(request);
+        }
 
         if (ContainsAny(input, "進む", "移動", "入る"))
         {

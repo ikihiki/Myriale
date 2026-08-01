@@ -132,7 +132,38 @@ internal static class ScenarioDefinitionSeedFactory
                 "[{\"type\":\"emit-fact\",\"text\":\"レンは保守記録から目を逸らさず、すでに認めた手動消灯とその動機を撤回しなかった。\"},{\"type\":\"add-narrative-hint\",\"text\":\"新しい秘密を追加せず、告白済みの内容と責任を引き受ける姿勢を描写する。\"}]",
                 100));
 
+        var evidence = NewBooleanType(
+            version,
+            slug,
+            "MAINTENANCE-RECORD",
+            "documentary-evidence",
+            "焼け焦げた保守記録",
+            "調査官ユナが所持する証拠。レンの認証符号、標識灯の手動停止時刻、停止操作の種別が記録されている。",
+            "examined");
+        var inspectEvidence = NewAction(
+            evidence,
+            slug,
+            "INSPECT-MAINTENANCE-RECORD",
+            "inspect",
+            "証拠の詳細を見る",
+            "手元の証拠である焼け焦げた保守記録そのものを調べ、レンに質問せず認証符号と手動停止時刻の詳細を確認する。");
+        AddRules(
+            evidence,
+            Rule(
+                "inspect-maintenance-record-first",
+                inspectEvidence,
+                "{\"op\":\"eq\",\"path\":\"state.examined\",\"value\":false}",
+                "[{\"type\":\"set-state\",\"path\":\"state.examined\",\"value\":true},{\"type\":\"emit-fact\",\"text\":\"焼け焦げた保守記録には、21時47分にレン個人の認証符号で標識灯の手動停止操作が実行されたと記録されている。\"},{\"type\":\"add-narrative-hint\",\"text\":\"レンに回答させず、調査官ユナが紙面の時刻、認証符号、手動停止の記載を自分で読み取る場面として描写する。\"},{\"type\":\"forbid-narrative-fact\",\"text\":\"レンが保守記録の詳細を説明した\"}]",
+                200),
+            Rule(
+                "inspect-maintenance-record-repeat",
+                inspectEvidence,
+                "{\"op\":\"eq\",\"path\":\"state.examined\",\"value\":true}",
+                "[{\"type\":\"emit-fact\",\"text\":\"保守記録の記載は、21時47分、レンの認証符号、標識灯の手動停止操作で変わっていない。\"},{\"type\":\"add-narrative-hint\",\"text\":\"レンの台詞を入れず、すでに確認した証拠の記載を調査官が再確認する。\"},{\"type\":\"forbid-narrative-fact\",\"text\":\"レンが保守記録の詳細を説明した\"}]",
+                100));
+
         _ = NewObject(version, slug, "KEEPER-REN", "keeper-ren", "灯台守レン", keeper, room);
+        _ = NewObject(version, slug, "MAINTENANCE-RECORD", "burned-maintenance-record", "証拠", evidence, room);
         return version;
     }
 
