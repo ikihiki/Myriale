@@ -22,9 +22,6 @@ public sealed class DevelopmentScenarioSeedTests : IDisposable
         using var published = await owner.GetAsync("/api/scenarios/SCN-AWAKENING-LAB/rule-data");
         Assert.Equal(HttpStatusCode.OK, published.StatusCode);
         var publishedJson = await published.Content.ReadFromJsonAsync<JsonElement>();
-        using var scenarioResponse = await owner.GetAsync("/api/scenarios/SCN-AWAKENING-LAB");
-        var scenarioJson = await scenarioResponse.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("guide-ai-eve", Assert.Single(scenarioJson.GetProperty("npcs").EnumerateArray().ToArray()).GetProperty("code").GetString());
         Assert.Equal(2, publishedJson.GetProperty("version").GetInt32());
         Assert.Equal("start", publishedJson.GetProperty("startLocationCode").GetString());
         Assert.Equal(new[] { "corridor", "puzzle-room", "start" }, publishedJson.GetProperty("locations").EnumerateArray()
@@ -116,6 +113,86 @@ public sealed class DevelopmentScenarioSeedTests : IDisposable
             effect.GetProperty("targetId").GetString() == "SOBJ-AWAKENING-LAB-ESCAPE-DOOR");
         Assert.Equal("state.open", openedDoor.GetProperty("path").GetString());
         Assert.True(openedDoor.GetProperty("value").GetBoolean());
+    }
+
+    [Fact]
+    public async Task SeedConversationScenario_QuestionsAndEvidenceChangeNpcStateWithoutMovement()
+    {
+        using var factory = CreateFactory(recreateOnStartup: true);
+        var owner = await CreateSeedAccountClientAsync(factory);
+
+        using var scenarioResponse = await owner.GetAsync("/api/scenarios/SCN-LIGHTHOUSE-CONFESSION");
+        Assert.Equal(HttpStatusCode.OK, scenarioResponse.StatusCode);
+        var scenario = await scenarioResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("灯台守の告白", scenario.GetProperty("title").GetString());
+        Assert.Equal("fixed", scenario.GetProperty("heroMode").GetString());
+        Assert.False(scenario.GetProperty("heroFreeGenerationAllowed").GetBoolean());
+        Assert.Contains("港務局調査官ユナ", scenario.GetProperty("hero").GetString());
+        using var ruleDataResponse = await owner.GetAsync("/api/scenarios/SCN-LIGHTHOUSE-CONFESSION/rule-data");
+        Assert.Equal(HttpStatusCode.OK, ruleDataResponse.StatusCode);
+        var ruleData = await ruleDataResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var location = Assert.Single(ruleData.GetProperty("locations").EnumerateArray().ToArray());
+        Assert.Equal("interview-room", location.GetProperty("code").GetString());
+        var objects = ruleData.GetProperty("objects").EnumerateArray().ToArray();
+        Assert.Equal(new[] { "burned-maintenance-record", "keeper-ren" }, objects
+            .Select(item => item.GetProperty("code").GetString()).Order().ToArray());
+        var keeperEntity = objects.Single(item => item.GetProperty("code").GetString() == "keeper-ren");
+        Assert.Contains("keeper-ren.state.stance", keeperEntity.GetProperty("profileMarkdown").GetString());
+        Assert.Contains("`confessed`", keeperEntity.GetProperty("profileMarkdown").GetString());
+        var evidenceEntity = objects.Single(item => item.GetProperty("code").GetString() == "burned-maintenance-record");
+        Assert.Contains("## 外観", evidenceEntity.GetProperty("profileMarkdown").GetString());
+        var objectTypes = ruleData.GetProperty("objectTypes").EnumerateArray().ToArray();
+        var npcType = objectTypes.Single(type => type.GetProperty("code").GetString() == "conversation-npc");
+        Assert.Equal(new[] { "present-evidence", "talk" }, npcType.GetProperty("actions").EnumerateArray()
+            .Select(action => action.GetProperty("code").GetString()).Order().ToArray());
+        var evidenceType = objectTypes.Single(type => type.GetProperty("code").GetString() == "documentary-evidence");
+        Assert.Equal("inspect", Assert.Single(evidenceType.GetProperty("actions").EnumerateArray().ToArray()).GetProperty("code").GetString());
+
+        var guardedWorld = new[]
+        {
+            new { objectCode = "keeper-ren", locationCode = "interview-room", state = (object)new { stance = "guarded", evidenceAcknowledged = false } },
+            new { objectCode = "burned-maintenance-record", locationCode = "interview-room", state = (object)new { examined = false } },
+        };
+        using var inspectResponse = await owner.PostAsJsonAsync("/api/scenarios/SCN-LIGHTHOUSE-CONFESSION/rule-data/debug", new
+        {
+            trigger = "direct-action", currentLocationCode = "interview-room", flags = new Dictionary<string, bool>(),
+            objects = guardedWorld, objectCode = "burned-maintenance-record", actionCode = "inspect", arguments = new { }, playerInput = (string?)null,
+        });
+        Assert.Equal(HttpStatusCode.OK, inspectResponse.StatusCode);
+        var inspection = await inspectResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("inspect-maintenance-record-first", inspection.GetProperty("selectedRuleCode").GetString());
+        Assert.Contains(inspection.GetProperty("facts").EnumerateArray().Select(fact => fact.GetString()), fact => fact!.Contains("21時47分", StringComparison.Ordinal));
+        Assert.DoesNotContain(inspection.GetProperty("appliedEffects").EnumerateArray(), effect =>
+            effect.TryGetProperty("targetId", out var targetId) && targetId.GetString() == "SOBJ-LIGHTHOUSE-CONFESSION-KEEPER-REN");
+
+        using var questionResponse = await owner.PostAsJsonAsync("/api/scenarios/SCN-LIGHTHOUSE-CONFESSION/rule-data/debug", new
+        {
+            trigger = "direct-action", currentLocationCode = "interview-room", flags = new Dictionary<string, bool>(),
+            objects = guardedWorld, objectCode = "keeper-ren", actionCode = "talk", arguments = new { }, playerInput = (string?)null,
+        });
+        Assert.Equal(HttpStatusCode.OK, questionResponse.StatusCode);
+        var question = await questionResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("question-guarded", question.GetProperty("selectedRuleCode").GetString());
+        var evasiveEffect = question.GetProperty("appliedEffects").EnumerateArray().Single(effect => effect.GetProperty("path").GetString() == "state.stance");
+        Assert.Equal("evasive", evasiveEffect.GetProperty("value").GetString());
+
+        var evasiveWorld = new[]
+        {
+            new { objectCode = "keeper-ren", locationCode = "interview-room", state = (object)new { stance = "evasive", evidenceAcknowledged = false } },
+            new { objectCode = "burned-maintenance-record", locationCode = "interview-room", state = (object)new { examined = true } },
+        };
+        using var evidenceResponse = await owner.PostAsJsonAsync("/api/scenarios/SCN-LIGHTHOUSE-CONFESSION/rule-data/debug", new
+        {
+            trigger = "direct-action", currentLocationCode = "interview-room", flags = new Dictionary<string, bool>(),
+            objects = evasiveWorld, objectCode = "keeper-ren", actionCode = "present-evidence", arguments = new { }, playerInput = (string?)null,
+        });
+        Assert.Equal(HttpStatusCode.OK, evidenceResponse.StatusCode);
+        var evidence = await evidenceResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("evidence-breaks-denial", evidence.GetProperty("selectedRuleCode").GetString());
+        var effects = evidence.GetProperty("appliedEffects").EnumerateArray().ToArray();
+        Assert.Equal("confessed", effects.Single(effect => effect.GetProperty("path").GetString() == "state.stance").GetProperty("value").GetString());
+        Assert.True(effects.Single(effect => effect.GetProperty("path").GetString() == "state.evidenceAcknowledged").GetProperty("value").GetBoolean());
+        Assert.Contains(evidence.GetProperty("facts").EnumerateArray().Select(fact => fact.GetString()), fact => fact!.Contains("難民船", StringComparison.Ordinal));
     }
 
     [Fact]

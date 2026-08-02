@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Button, Input, Textarea } from '../../../../components/ui';
+import { Button, Input, MarkdownEditor, Textarea } from '../../../../components/ui';
 import { EditPane } from '../../../../shared/EditPane';
 import { MyrialeSelect } from '../../../../ui/MyrialeRadix';
 import { ObjectResolvedTablesPresentation } from './ObjectResolvedTablesPresentation';
@@ -54,17 +54,18 @@ export function LocationsObjectsEditorPresentation({ value, onChange, onNotice, 
   };
   const addLocation = () => { const next = createLocation(); onChange({ ...value, startLocationCode: value.startLocationCode || next.code, locations: [...value.locations, next] }); setEditing({ kind: 'location', code: next.code }); };
   const addObject = () => { const next = createObject(value); onChange({ ...value, objects: [...value.objects, next] }); setEditing({ kind: 'object', code: next.code }); };
-  const removeLocation = () => { if (!location) return; if (value.startLocationCode === location.code) return onNotice('開始場所に選ばれています。「開始状態」ステップで別の開始場所を選択してから削除してください。', true); if (protectedLocationCodes?.has(location.code)) return onNotice('NPCの初期Locationに選ばれています。「人物」ステップで別の場所を選択してから削除してください。', true); const blocked = dependencyMessageForLocation(value, location.code); if (blocked) return onNotice(blocked, true); onChange({ ...value, locations: value.locations.filter((item) => item !== location) }); setEditing(null); };
+  const removeLocation = () => { if (!location) return; if (value.startLocationCode === location.code) return onNotice('開始場所に選ばれています。「開始状態」ステップで別の開始場所を選択してから削除してください。', true); if (protectedLocationCodes?.has(location.code)) return onNotice('エンティティの初期Locationに選ばれています。別の場所へ移してから削除してください。', true); const blocked = dependencyMessageForLocation(value, location.code); if (blocked) return onNotice(blocked, true); onChange({ ...value, locations: value.locations.filter((item) => item !== location) }); setEditing(null); };
   const removeObject = () => { if (object) { onChange({ ...value, objects: value.objects.filter((item) => item !== object) }); setEditing(null); } };
 
-  return <section aria-label={scope === 'locations' ? '場所' : scope === 'objects' ? 'オブジェクト' : '場所とオブジェクト'} className="grid gap-7">
+  return <section aria-label={scope === 'locations' ? '場所' : scope === 'objects' ? 'エンティティ' : '場所とエンティティ'} className="grid gap-7">
     {showLocations && <section className="grid gap-4"><header className="flex items-end justify-between gap-4"><div><h2>場所</h2><p>舞台と配置先を管理します。</p></div><Button size="sm" variant="secondary" onClick={addLocation}>場所を追加</Button></header><div className="overflow-x-auto rounded-2xl border border-[#17151f]/15 bg-white/55"><table className={tableClass}><thead><tr><th className={cellClass}>編集</th><th className={cellClass}>表示名</th><th className={cellClass}>stable code</th><th className={cellClass}>配置数</th></tr></thead><tbody>{value.locations.map((item) => <tr key={item.code}><td className={cellClass}><Button size="sm" variant="secondary" aria-label={`${item.name}を編集`} onClick={() => setEditing({ kind: 'location', code: item.code })}>編集</Button></td><td className={cellClass}>{item.name}</td><td className={`${cellClass} font-mono text-xs`}>{item.code}</td><td className={cellClass}>{value.objects.filter((candidate) => candidate.initialLocationCode === item.code).length}件</td></tr>)}</tbody></table></div></section>}
-    {showObjects && <section className="grid gap-4"><header className="flex items-end justify-between gap-4"><div><h2>オブジェクト</h2><p>利用できる状態・アクション・実行ルールをまとめて管理します。</p></div><Button size="sm" variant="secondary" onClick={addObject}>オブジェクトを追加</Button></header><div className="overflow-x-auto rounded-2xl border border-[#17151f]/15 bg-white/55"><table className={tableClass}><thead><tr><th className={cellClass}>編集</th><th className={cellClass}>表示名</th><th className={cellClass}>stable code</th><th className={cellClass}>Type</th><th className={cellClass}>rule operations</th></tr></thead><tbody>{value.objects.map((item) => <tr key={item.code}><td className={cellClass}><Button size="sm" variant="secondary" aria-label={`${item.name}を編集`} onClick={() => setEditing({ kind: 'object', code: item.code })}>編集</Button></td><td className={cellClass}>{item.name}</td><td className={`${cellClass} font-mono text-xs`}>{item.code}</td><td className={cellClass}>{item.mixinTypeCodes.join(' + ') || 'Object local'}</td><td className={cellClass}>{item.actionRules.length}件</td></tr>)}</tbody></table></div></section>}
+    {showObjects && <section className="grid gap-4"><header className="flex items-end justify-between gap-4"><div><h2>エンティティ</h2><p>NPC、物品、扉、装置を同じ単位で、Markdownプロフィール・状態・アクション・実行ルールとともに管理します。</p></div><Button size="sm" variant="secondary" onClick={addObject}>エンティティを追加</Button></header><div className="overflow-x-auto rounded-2xl border border-[#17151f]/15 bg-white/55"><table className={tableClass} aria-label="エンティティ一覧"><thead><tr><th className={cellClass}>編集</th><th className={cellClass}>表示名</th><th className={cellClass}>stable code</th><th className={cellClass}>Markdown</th><th className={cellClass}>Type</th><th className={cellClass}>rule operations</th></tr></thead><tbody>{value.objects.map((item) => <tr key={item.code}><td className={cellClass}><Button size="sm" variant="secondary" aria-label={`${item.name}を編集`} onClick={() => setEditing({ kind: 'object', code: item.code })}>編集</Button></td><td className={cellClass}>{item.name}</td><td className={`${cellClass} font-mono text-xs`}>{item.code}</td><td className={cellClass}>{item.profileMarkdown.trim() ? `${item.profileMarkdown.trim().length.toLocaleString()}文字` : '未入力'}</td><td className={cellClass}>{item.mixinTypeCodes.join(' + ') || 'Entity local'}</td><td className={cellClass}>{item.actionRules.length}件</td></tr>)}</tbody></table></div></section>}
 
     <EditPane open={Boolean(location)} onOpenChange={(open) => { if (!open) setEditing(null); }} eyebrow="場所" title={location?.name ?? '場所を編集'} description="舞台としてAIへ渡す説明と空気を編集します。" footer={<Button onClick={() => setEditing(null)}>編集を完了</Button>}>{location && <div className={editorClass}><label>stable code<Input aria-label="場所のstable code" value={location.code} onChange={(event) => { replaceLocation({ ...location, code: event.target.value }); setEditing({ kind: 'location', code: event.target.value }); }} /></label><label>表示名<Input aria-label="場所の表示名" value={location.name} onChange={(event) => replaceLocation({ ...location, name: event.target.value })} /></label><label>説明<Textarea aria-label="場所の説明" value={location.description} onChange={(event) => replaceLocation({ ...location, description: event.target.value })} /></label><label>雰囲気<Input aria-label="場所の雰囲気" value={location.atmosphere} onChange={(event) => replaceLocation({ ...location, atmosphere: event.target.value })} /></label><label>危険<Input aria-label="場所の危険" value={location.danger} onChange={(event) => replaceLocation({ ...location, danger: event.target.value })} /></label><Button size="sm" variant="text" onClick={removeLocation}>この場所を削除</Button></div>}</EditPane>
 
-    <EditPane open={Boolean(object)} onOpenChange={(open) => { if (!open) { setEditing(null); setMixinSearchOpen(false); setMixinSearchQuery(''); } }} eyebrow="オブジェクト" title={object?.name ?? 'オブジェクトを編集'} description="このObjectで利用できる状態・アクション・実行ルールを編集します。" footer={<Button onClick={() => { setEditing(null); setMixinSearchOpen(false); setMixinSearchQuery(''); }}>編集を完了</Button>}>{object && <div className={editorClass}>
-      <label>stable code<Input aria-label="オブジェクトのstable code" value={object.code} onChange={(event) => { replaceObject({ ...object, code: event.target.value }); setEditing({ kind: 'object', code: event.target.value }); }} /></label><label>表示名<Input aria-label="オブジェクトの表示名" value={object.name} onChange={(event) => replaceObject({ ...object, name: event.target.value })} /></label>
+    <EditPane open={Boolean(object)} onOpenChange={(open) => { if (!open) { setEditing(null); setMixinSearchOpen(false); setMixinSearchQuery(''); } }} eyebrow="エンティティ" title={object?.name ?? 'エンティティを編集'} description="NPC、物品、扉、装置を共通のEntityとして編集します。Markdownは外観・人物像・材質・描写指針を自由に記述できます。" footer={<Button onClick={() => { setEditing(null); setMixinSearchOpen(false); setMixinSearchQuery(''); }}>編集を完了</Button>}>{object && <div className={editorClass}>
+      <label>stable code<Input aria-label="エンティティのstable code" value={object.code} onChange={(event) => { replaceObject({ ...object, code: event.target.value }); setEditing({ kind: 'object', code: event.target.value }); }} /></label><label>表示名<Input aria-label="エンティティの表示名" value={object.name} onChange={(event) => replaceObject({ ...object, name: event.target.value })} /></label>
+      <MarkdownEditor label="エンティティプロフィール" value={object.profileMarkdown} onChange={(profileMarkdown) => replaceObject({ ...object, profileMarkdown })} placeholder={'## 外観・概要\n\n外観、人物像、材質などを記述します。\n\n## 描写指針\n\n現在状態やfactsに応じた描写方針を記述します。'} help="人物・物品を問わずAIへ渡される非公開の描写資料です。現在状態、公開済みfacts、禁止factsが正史として優先されます。" />
       <section aria-label="ordered Type mixins" className="grid gap-3 rounded-xl border border-[#17151f]/12 p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <strong>ordered Type mixins</strong>
@@ -81,18 +82,18 @@ export function LocationsObjectsEditorPresentation({ value, onChange, onNotice, 
           </div>;
         })}
       </section>
-      <label className="!grid-cols-[1fr_auto] items-center"><span>すべての場所で公開</span><input type="checkbox" aria-label="globalオブジェクト" checked={object.global} onChange={(event) => replaceObject({ ...object, global: event.target.checked })} /></label>{!object.global && <MyrialeSelect label="初期配置" value={object.initialLocationCode} onValueChange={(initialLocationCode) => replaceObject({ ...object, initialLocationCode })} options={value.locations.map((item) => ({ value: item.code, label: `${item.name} / ${item.code}` }))} />}
+      <label className="!grid-cols-[1fr_auto] items-center"><span>すべての場所で公開</span><input type="checkbox" aria-label="globalエンティティ" checked={object.global} onChange={(event) => replaceObject({ ...object, global: event.target.checked })} /></label>{!object.global && <MyrialeSelect label="初期配置" value={object.initialLocationCode} onValueChange={(initialLocationCode) => replaceObject({ ...object, initialLocationCode })} options={value.locations.map((item) => ({ value: item.code, label: `${item.name} / ${item.code}` }))} />}
       <ObjectResolvedTablesPresentation value={value} object={object} states={resolved?.stateFields ?? []} actions={resolved?.actions ?? []} rules={effectiveRules} conflicts={resolved?.conflicts ?? []} onChange={replaceObject} onNotice={onNotice} />
-      <Button size="sm" variant="text" onClick={removeObject}>このオブジェクトを削除</Button>
+      <Button size="sm" variant="text" onClick={removeObject}>このエンティティを削除</Button>
     </div>}</EditPane>
 
     <EditPane
       layer={1}
       open={Boolean(object) && mixinSearchOpen}
       onOpenChange={(open) => { setMixinSearchOpen(open); if (!open) setMixinSearchQuery(''); }}
-      eyebrow="オブジェクトの種類"
+      eyebrow="エンティティの種類"
       title="追加するType mixinを選ぶ"
-      description="このオブジェクトに受け継がせたい種類を検索して追加します。追加した種類は一覧の末尾に並びます。"
+      description="このエンティティに受け継がせたい種類を検索して追加します。追加した種類は一覧の末尾に並びます。"
       initialFocusRef={mixinSearchInputRef}
       footer={<Button onClick={() => { setMixinSearchOpen(false); setMixinSearchQuery(''); }}>選択をやめる</Button>}
     >
@@ -112,7 +113,7 @@ export function LocationsObjectsEditorPresentation({ value, onChange, onNotice, 
         <p id="type-mixin-search-help" className="text-sm text-myr-ink-subtle">入力した文字を含む候補を表示します。大文字と小文字は区別しません。</p>
         <p id="type-mixin-search-results" className="text-sm text-myr-ink-subtle" aria-live="polite">{mixinCandidates.length}件の候補</p>
         {value.objectTypes.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-[#17151f]/20 bg-white/45 p-5 text-sm text-myr-ink-subtle" role="status">追加できるTypeがまだ登録されていません。先にオブジェクト種類を作成してください。</div>
+          <div className="rounded-xl border border-dashed border-[#17151f]/20 bg-white/45 p-5 text-sm text-myr-ink-subtle" role="status">追加できるTypeがまだ登録されていません。先にエンティティ種類を作成してください。</div>
         ) : mixinCandidates.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[#17151f]/20 bg-white/45 p-5 text-sm text-myr-ink-subtle" role="status">検索条件に一致するTypeはありません。別の名前、stable code、または説明で検索してください。</div>
         ) : (

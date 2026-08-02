@@ -9,6 +9,8 @@ public static class NarrativeDocumentSchemas
     public const string ModuleHandoff = "module-handoff.v1";
 }
 
+public sealed record NarrativeEntityInput(string Code, string Name, string ProfileMarkdown);
+
 public sealed record NarrativeScenarioInput(
     string Title,
     string Summary,
@@ -17,7 +19,7 @@ public sealed record NarrativeScenarioInput(
     string Lore,
     string AiFreedom,
     string Hero,
-    IReadOnlyList<ScenarioNpcSettings> Npcs,
+    IReadOnlyList<NarrativeEntityInput> Entities,
     string Opening);
 
 public sealed record NarrativeOutcomeInput(

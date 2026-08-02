@@ -104,7 +104,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         Assert.Equal(["runpod-economy"], ai.DecisionProfileIds);
         Assert.Equal(["runpod-recommended", "runpod-recommended"], ai.NarrativeProfileIds);
         Assert.All(ai.NarrativeRequests, request => Assert.True(request.PostState.Objects.Single(item => item.Code == "north-door").State.GetProperty("open").GetBoolean()));
-        Assert.All(ai.NarrativeRequests, request => Assert.Equal("hall-guide", Assert.Single(request.Scenario.Npcs).Code));
+        Assert.All(ai.NarrativeRequests, request => Assert.Contains(request.Scenario.Entities, entity => entity.Code == "north-door" && entity.ProfileMarkdown.Contains("stone door", StringComparison.Ordinal)));
         Assert.Equal(2, session.GetProperty("turns").GetArrayLength());
     }
 
@@ -333,7 +333,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
 
     private static async Task<string> CreatePublishedDoorScenarioAsync(HttpClient client, string startLocationCode, bool initialOpen = false)
     {
-        using var scenario = await client.PostAsJsonAsync("/api/scenarios/", new { title = "Door runtime", npcs = new[] { new { code = "hall-guide", name = "広間の案内人", role = "扉の案内役", initialLocationCode = "start", personality = "慎重", behavior = "扉の状態に沿って助言する", voice = "短い敬語", firstPerson = "私", publicKnowledge = "北の扉の用途", secrets = "地下室の存在" } } });
+        using var scenario = await client.PostAsJsonAsync("/api/scenarios/", new { title = "Door runtime" });
         var scenarioId = (await scenario.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
         var payload = JsonNode.Parse("""
         {
@@ -350,9 +350,9 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
             "actionRules":[{"code":"open-default","actionCode":"open","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true},{"type":"emit-fact","text":"The door is open."}],"moduleBinding":null}]
           }],
           "objects":[
-            {"code":"north-door","name":"North door","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"start","initialStateOverride":{},"isGlobal":false,"actionRules":[]},
-            {"code":"cellar-door","name":"Cellar door","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"cellar","initialStateOverride":{},"isGlobal":false,"actionRules":[]},
-            {"code":"world-clock","name":"World clock","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"cellar","initialStateOverride":{},"isGlobal":true,"actionRules":[]}
+            {"code":"north-door","name":"North door","profileMarkdown":"## Appearance\n\nA heavy stone door.","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"start","initialStateOverride":{},"isGlobal":false,"actionRules":[]},
+            {"code":"cellar-door","name":"Cellar door","profileMarkdown":"## Appearance\n\nA cellar door.","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"cellar","initialStateOverride":{},"isGlobal":false,"actionRules":[]},
+            {"code":"world-clock","name":"World clock","profileMarkdown":"## Appearance\n\nA brass clock.","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"cellar","initialStateOverride":{},"isGlobal":true,"actionRules":[]}
           ]
         }
         """)!;

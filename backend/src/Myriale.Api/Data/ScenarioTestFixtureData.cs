@@ -238,7 +238,6 @@ internal static class ScenarioTestFixtureData
         HeroMode = scenario.HeroMode,
         HeroFreeGenerationAllowed = scenario.HeroFreeGenerationAllowed,
         Hero = scenario.Hero,
-        NpcsJson = scenario.NpcsJson,
         Opening = scenario.Opening,
         IllustrationStyle = scenario.IllustrationStyle,
         IllustrationMood = scenario.IllustrationMood,

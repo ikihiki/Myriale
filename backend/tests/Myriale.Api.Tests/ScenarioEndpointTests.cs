@@ -35,28 +35,6 @@ public sealed class ScenarioEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task GetPublishedScenario_RedactsNpcSecretsForAnonymousReaders()
-    {
-        var client = _factory.CreateClient();
-        await using (var scope = _factory.Services.CreateAsyncScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var scenario = await db.Scenarios.SingleAsync(item => item.Id == "SCN-STAR-LIBRARY");
-            scenario.NpcsJson = ScenarioNpcSettingsJson.Serialize([
-                new("archivist-mira", "司書ミラ", "禁書庫の案内役", "sunken-library", "慎重", "質問に段階的に答える", "静かな敬語", "私", "星図の読み方", "王都沈没の原因")
-            ]);
-            await db.SaveChangesAsync();
-        }
-
-        using var response = await client.GetAsync("/api/scenarios/SCN-STAR-LIBRARY");
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-        var npc = Assert.Single(json.GetProperty("npcs").EnumerateArray().ToArray());
-        Assert.Equal("archivist-mira", npc.GetProperty("code").GetString());
-        Assert.Equal(string.Empty, npc.GetProperty("secrets").GetString());
-    }
-
-    [Fact]
     public async Task GetScenario_ReturnsNotFoundForUnknownId()
     {
         var client = _factory.CreateClient();
@@ -104,7 +82,6 @@ public sealed class ScenarioEndpointTests : IDisposable
             heroMode = "select",
             heroFreeGenerationAllowed = true,
             hero = "禁書司書の見習い。",
-            npcs = new[] { new { code = "archivist-mira", name = "司書ミラ", role = "禁書庫の案内役", initialLocationCode = "sunken-library", personality = "慎重", behavior = "質問に段階的に答える", voice = "静かな敬語", firstPerson = "私", publicKnowledge = "星図の読み方", secrets = "王都沈没の原因" } },
             opening = "あなたは水没した閲覧室で目を覚ます。",
             illustrationStyle = "銅版画風",
             illustrationMood = "孤独",
@@ -119,21 +96,7 @@ public sealed class ScenarioEndpointTests : IDisposable
         Assert.Equal("星喰いの地下図書館", json.GetProperty("title").GetString());
         Assert.Equal("select", json.GetProperty("heroMode").GetString());
         Assert.True(json.GetProperty("heroFreeGenerationAllowed").GetBoolean());
-        var npc = Assert.Single(json.GetProperty("npcs").EnumerateArray().ToArray());
-        Assert.Equal("archivist-mira", npc.GetProperty("code").GetString());
-        Assert.Equal("王都沈没の原因", npc.GetProperty("secrets").GetString());
         Assert.Equal("銅版画風", json.GetProperty("illustrationStyle").GetString());
-    }
-
-    [Fact]
-    public async Task CreateScenario_RejectsDuplicateNpcCodes()
-    {
-        var client = await CreateSignedInClientAsync();
-        var npc = new { code = "guide", name = "案内役", role = "案内", initialLocationCode = "start", personality = "", behavior = "", voice = "", firstPerson = "私", publicKnowledge = "", secrets = "" };
-        using var response = await client.PostAsJsonAsync("/api/scenarios/", new { title = "NPC validation", npcs = new[] { npc, npc } });
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.True(json.GetProperty("errors").TryGetProperty("npcs[1].code", out _));
     }
 
     [Fact]

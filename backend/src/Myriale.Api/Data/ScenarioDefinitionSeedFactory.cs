@@ -5,6 +5,7 @@ internal static class ScenarioDefinitionSeedFactory
     public static ScenarioDefinitionVersion CreatePublished(string scenarioId, DateTimeOffset timestamp)
     {
         if (scenarioId == "SCN-AWAKENING-LAB") return CreateAwakeningLaboratory(scenarioId, timestamp);
+        if (scenarioId == "SCN-LIGHTHOUSE-CONFESSION") return CreateLighthouseConfession(scenarioId, timestamp);
 
         var slug = scenarioId.Replace("SCN-", string.Empty, StringComparison.Ordinal);
         var version = NewVersion(scenarioId, slug, timestamp, 1, "start");
@@ -47,13 +48,186 @@ internal static class ScenarioDefinitionSeedFactory
             Rule("solve-correct", solve, "{\"and\":[{\"op\":\"eq\",\"path\":\"state.solved\",\"value\":false},{\"op\":\"eq\",\"path\":\"arguments.answer\",\"value\":\"白\"}]}", "[{\"type\":\"set-state\",\"path\":\"state.solved\",\"value\":true},{\"type\":\"set-state\",\"objectCode\":\"escape-door\",\"path\":\"state.open\",\"value\":true},{\"type\":\"emit-fact\",\"text\":\"光学解析装置が復旧し、接続廊下の脱出扉が開いた。\"},{\"type\":\"emit-event\",\"event\":\"escape-door-opened\",\"locationCode\":\"corridor\"},{\"type\":\"add-narrative-hint\",\"text\":\"遠くでロックが外れる重い音を響かせる。\"},{\"type\":\"forbid-narrative-fact\",\"text\":\"脱出扉は閉じたまま\"}]", 200),
             Rule("solve-incorrect", solve, "{\"and\":[{\"op\":\"eq\",\"path\":\"state.solved\",\"value\":false},{\"op\":\"ne\",\"path\":\"arguments.answer\",\"value\":\"白\"}]}", "[{\"type\":\"emit-fact\",\"text\":\"解析装置は入力を拒否した。脱出扉は閉じたままだ。\"},{\"type\":\"add-narrative-hint\",\"text\":\"赤・緑・青の光をすべて重ねた結果を考えるよう促す。\"}]", 100));
 
-        _ = NewObject(version, slug, "TERMINAL", "conversation-terminal", "案内AI端末", terminal, start);
+        _ = NewObject(version, slug, "TERMINAL", "conversation-terminal", "案内AI端末", terminal, start, """
+            ## 外観
+
+            壁際に据え付けられた旧式の案内端末。円形画面には青い走査線が流れている。
+
+            ## 役割と人格
+
+            閉鎖研究施設の案内と安全管理を担うAI「EVE」が、この端末を通じて応答する。
+
+            ## 演技指針
+
+            - 冷静で辛抱強く、被験者の安全を最優先する。
+            - 状況を簡潔に説明し、答えは段階的な手掛かりとして示す。
+
+            ## 話し方
+
+            一人称は「私」。落ち着いた合成音声で、短く明瞭な敬語を使う。
+
+            ## 秘密・条件付き知識
+
+            施設閉鎖の原因と主人公が被験者である事実は、公開済みfactsで明らかになるまで開示しない。
+            """);
         _ = NewObject(version, slug, "START-PASSAGE", "start-passage", "接続廊下への扉", startToCorridor, start);
         _ = NewObject(version, slug, "CORRIDOR-START-PASSAGE", "corridor-start-passage", "覚醒室への扉", corridorToStart, corridor);
         _ = NewObject(version, slug, "CORRIDOR-PUZZLE-PASSAGE", "corridor-puzzle-passage", "解析室への扉", corridorToPuzzle, corridor);
         _ = NewObject(version, slug, "PUZZLE-PASSAGE", "puzzle-passage", "接続廊下への扉", puzzleToCorridor, puzzleRoom);
         _ = NewObject(version, slug, "ESCAPE-DOOR", "escape-door", "施設外への脱出扉", exitDoor, corridor);
         _ = NewObject(version, slug, "PUZZLE", "puzzle-device", "三色光学解析装置", puzzle, puzzleRoom);
+        return version;
+    }
+
+    private static ScenarioDefinitionVersion CreateLighthouseConfession(string scenarioId, DateTimeOffset timestamp)
+    {
+        const string slug = "LIGHTHOUSE-CONFESSION";
+        var version = NewVersion(scenarioId, slug, timestamp, 1, "interview-room");
+        var room = NewLocation(
+            version,
+            slug,
+            "INTERVIEW-ROOM",
+            "interview-room",
+            "港務局の取調室",
+            "窓のない小部屋。金属机を挟んで灯台守レンと向き合い、移動せず会話だけで真相を追う。");
+
+        var keeper = new ScenarioObjectType
+        {
+            Id = $"SOT-{slug}-KEEPER",
+            DefinitionVersionId = version.Id,
+            Code = "conversation-npc",
+            Name = "状態を持つ会話NPC",
+            Description = "質問と証拠提示によって態度が変わり、公開条件を満たした秘密だけを話すNPC。",
+            SchemaVersion = 1,
+            StateSchemaJson = "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"stance\":{\"type\":\"string\",\"enum\":[\"guarded\",\"evasive\",\"confessed\"]},\"evidenceAcknowledged\":{\"type\":\"boolean\"}},\"required\":[\"stance\",\"evidenceAcknowledged\"]}",
+            DefaultStateJson = "{\"stance\":\"guarded\",\"evidenceAcknowledged\":false}",
+            PublicProjectionJson = "{\"include\":[\"stance\",\"evidenceAcknowledged\"]}",
+        };
+        version.ObjectTypes.Add(keeper);
+
+        var talk = NewAction(
+            keeper,
+            slug,
+            "QUESTION",
+            "talk",
+            "レンに質問する",
+            "灯台守レンに標識灯が消えた経緯を尋ね、現在の態度に沿った証言を引き出す。");
+        var presentEvidence = NewAction(
+            keeper,
+            slug,
+            "PRESENT-EVIDENCE",
+            "present-evidence",
+            "保守記録を突きつける",
+            "レンの認証符号と手動停止時刻が残る焼け焦げた保守記録を、矛盾を示す証拠としてレンに提示する。");
+
+        AddRules(
+            keeper,
+            Rule(
+                "question-guarded",
+                talk,
+                "{\"op\":\"eq\",\"path\":\"state.stance\",\"value\":\"guarded\"}",
+                "[{\"type\":\"set-state\",\"path\":\"state.stance\",\"value\":\"evasive\"},{\"type\":\"emit-fact\",\"text\":\"レンは標識灯の消灯を故障だと主張したが、停止時刻を問われると返答を濁した。\"},{\"type\":\"add-narrative-hint\",\"text\":\"故障説を崩さず、返答前の沈黙と視線の揺れで態度がguardedからevasiveへ変わったことを示す。\"},{\"type\":\"forbid-narrative-fact\",\"text\":\"レンが難民船を隠すために標識灯を消した\"}]",
+                200),
+            Rule(
+                "question-evasive",
+                talk,
+                "{\"op\":\"eq\",\"path\":\"state.stance\",\"value\":\"evasive\"}",
+                "[{\"type\":\"emit-fact\",\"text\":\"レンは故障説を言い換えて繰り返し、手動停止の理由には答えなかった。\"},{\"type\":\"add-narrative-hint\",\"text\":\"証拠を示されない限り秘密を明かさず、短い否定と沈黙で応じる。\"},{\"type\":\"forbid-narrative-fact\",\"text\":\"レンが難民船を隠すために標識灯を消した\"}]",
+                150),
+            Rule(
+                "question-confessed",
+                talk,
+                "{\"op\":\"eq\",\"path\":\"state.stance\",\"value\":\"confessed\"}",
+                "[{\"type\":\"emit-fact\",\"text\":\"レンは、迫害から逃げる難民船を巡視艇から隠すため自分の意思で標識灯を消したと改めて認めた。\"},{\"type\":\"add-narrative-hint\",\"text\":\"告白後の落ち着きと、事故への罪悪感を自分の言葉で語らせる。\"}]",
+                100),
+            Rule(
+                "evidence-breaks-denial",
+                presentEvidence,
+                "{\"op\":\"in\",\"path\":\"state.stance\",\"value\":[\"guarded\",\"evasive\"]}",
+                "[{\"type\":\"set-state\",\"path\":\"state.stance\",\"value\":\"confessed\"},{\"type\":\"set-state\",\"path\":\"state.evidenceAcknowledged\",\"value\":true},{\"type\":\"emit-fact\",\"text\":\"レンは焼け焦げた保守記録が自分の認証符号と手動停止操作を示す真正な証拠だと認めた。\"},{\"type\":\"emit-fact\",\"text\":\"レンは、迫害から逃げる難民船を巡視艇から隠すため、自分の意思で標識灯を消したと告白した。\"},{\"type\":\"emit-event\",\"event\":\"keeper-ren-confessed\",\"locationCode\":\"interview-room\"},{\"type\":\"add-narrative-hint\",\"text\":\"保守記録を見た長い沈黙の後、故障説を撤回し、一人称『俺』で簡潔に告白させる。\"},{\"type\":\"forbid-narrative-fact\",\"text\":\"標識灯は故障で消えた\"}]",
+                200),
+            Rule(
+                "evidence-after-confession",
+                presentEvidence,
+                "{\"op\":\"eq\",\"path\":\"state.stance\",\"value\":\"confessed\"}",
+                "[{\"type\":\"emit-fact\",\"text\":\"レンは保守記録から目を逸らさず、すでに認めた手動消灯とその動機を撤回しなかった。\"},{\"type\":\"add-narrative-hint\",\"text\":\"新しい秘密を追加せず、告白済みの内容と責任を引き受ける姿勢を描写する。\"}]",
+                100));
+
+        var evidence = NewBooleanType(
+            version,
+            slug,
+            "MAINTENANCE-RECORD",
+            "documentary-evidence",
+            "焼け焦げた保守記録",
+            "調査官ユナが所持する証拠。レンの認証符号、標識灯の手動停止時刻、停止操作の種別が記録されている。",
+            "examined");
+        var inspectEvidence = NewAction(
+            evidence,
+            slug,
+            "INSPECT-MAINTENANCE-RECORD",
+            "inspect",
+            "証拠の詳細を見る",
+            "手元の証拠である焼け焦げた保守記録そのものを調べ、レンに質問せず認証符号と手動停止時刻の詳細を確認する。");
+        AddRules(
+            evidence,
+            Rule(
+                "inspect-maintenance-record-first",
+                inspectEvidence,
+                "{\"op\":\"eq\",\"path\":\"state.examined\",\"value\":false}",
+                "[{\"type\":\"set-state\",\"path\":\"state.examined\",\"value\":true},{\"type\":\"emit-fact\",\"text\":\"焼け焦げた保守記録には、21時47分にレン個人の認証符号で標識灯の手動停止操作が実行されたと記録されている。\"},{\"type\":\"add-narrative-hint\",\"text\":\"レンに回答させず、調査官ユナが紙面の時刻、認証符号、手動停止の記載を自分で読み取る場面として描写する。\"},{\"type\":\"forbid-narrative-fact\",\"text\":\"レンが保守記録の詳細を説明した\"}]",
+                200),
+            Rule(
+                "inspect-maintenance-record-repeat",
+                inspectEvidence,
+                "{\"op\":\"eq\",\"path\":\"state.examined\",\"value\":true}",
+                "[{\"type\":\"emit-fact\",\"text\":\"保守記録の記載は、21時47分、レンの認証符号、標識灯の手動停止操作で変わっていない。\"},{\"type\":\"add-narrative-hint\",\"text\":\"レンの台詞を入れず、すでに確認した証拠の記載を調査官が再確認する。\"},{\"type\":\"forbid-narrative-fact\",\"text\":\"レンが保守記録の詳細を説明した\"}]",
+                100));
+
+        _ = NewObject(version, slug, "KEEPER-REN", "keeper-ren", "灯台守レン", keeper, room, """
+            ## 外観
+
+            潮風に焼けた顔をした初老の灯台守。右手の指先には古い火傷の痕がある。
+
+            ## 人物像
+
+            - 寡黙で責任感が強い。
+            - 追い詰められるほど返答前の沈黙が長くなる。
+            - 難民を守った判断には迷いがないが、事故を招いた責任には罪悪感がある。
+
+            ## 演技指針
+
+            公開状態 `keeper-ren.state.stance` を必ず参照する。
+
+            - `guarded`: 故障説を静かに主張する。
+            - `evasive`: 視線を逸らし、同じ説明を言い換える。秘密は明かさない。
+            - `confessed`: 公開済みfactsで確定した真相だけを認め、動機と責任を自分の言葉で語る。
+            - ナラティブだけでstanceを先取りして変更しない。
+
+            ## 話し方
+
+            一人称は「俺」。低く擦れた声で短い常体を使い、動揺時は沈黙や言い直しを挟む。
+
+            ## 秘密・条件付き知識
+
+            迫害から逃げる難民船を巡視艇から隠すため、自分の意思で標識灯を消した。この内容はstanceが`confessed`であり、告白が公開済みfactsに含まれる場合だけ話す。
+            """);
+        _ = NewObject(version, slug, "MAINTENANCE-RECORD", "burned-maintenance-record", "証拠", evidence, room, """
+            ## 外観
+
+            海水を吸って波打った保守記録。右下が焼け焦げ、数ページが失われている。
+
+            ## 材質・状態
+
+            厚手の紙を革紐で綴じている。焦げた部分には油のような臭いが残る。
+
+            ## 注目すべき箇所
+
+            21時47分の欄に、レン個人の認証符号と手動停止操作が記録されている。
+
+            ## 描写指針
+
+            調査前から記録内容を断定しない。詳細を調べるActionが実行された場合にのみ、時刻、認証符号、手動停止の記載を描写する。
+            """);
         return version;
     }
 
@@ -102,9 +276,9 @@ internal static class ScenarioDefinitionSeedFactory
         return action;
     }
 
-    private static ScenarioObject NewObject(ScenarioDefinitionVersion version, string slug, string idSuffix, string code, string name, ScenarioObjectType type, ScenarioLocation location)
+    private static ScenarioObject NewObject(ScenarioDefinitionVersion version, string slug, string idSuffix, string code, string name, ScenarioObjectType type, ScenarioLocation location, string? profileMarkdown = null)
     {
-        var item = new ScenarioObject { Id = $"SOBJ-{slug}-{idSuffix}", DefinitionVersionId = version.Id, Code = code, Name = name, LocationId = location.Id, InitialStateOverrideJson = "{}", MixinTypeCodesJson = $"[\"{type.Code}\"]" };
+        var item = new ScenarioObject { Id = $"SOBJ-{slug}-{idSuffix}", DefinitionVersionId = version.Id, Code = code, Name = name, ProfileMarkdown = profileMarkdown?.Trim() ?? $"## 外観・概要\n\n{type.Description}", LocationId = location.Id, InitialStateOverrideJson = "{}", MixinTypeCodesJson = $"[\"{type.Code}\"]" };
         version.Objects.Add(item);
         return item;
     }

@@ -7,6 +7,7 @@ public sealed class MockRuleActionSelectorTests
     [InlineData("部屋を把握するように見回す", "system:no-op")]
     [InlineData("接続廊下へ進む", "object:start-passage/traverse")]
     [InlineData("案内AI端末に脱出方法を聞く", "object:conversation-terminal/talk")]
+    [InlineData("証拠の詳細を見る", "object:burned-maintenance-record/inspect")]
     [InlineData("しばらくここで様子を見る", "system:no-op")]
     [InlineData("ここはどこ？", "system:clarify")]
     [InlineData("扉を使う", "system:clarify")]
@@ -32,11 +33,13 @@ public sealed class MockRuleActionSelectorTests
                     new("west-door", "西の扉", "location", empty),
                     new("start-passage", "接続廊下", "location", empty),
                     new("conversation-terminal", "案内AI端末", "location", empty),
+                    new("burned-maintenance-record", "証拠", "location", empty),
                 ]),
             [
                 new("west-door", "西の扉", [Candidate("object:west-door/open-and-exit", "open-and-exit", "西の扉を開けて外へ出る")]),
                 new("start-passage", "接続廊下", [Candidate("object:start-passage/traverse", "traverse", "接続廊下へ進む")]),
                 new("conversation-terminal", "案内AI端末", [Candidate("object:conversation-terminal/talk", "talk", "端末と話す")]),
+                new("burned-maintenance-record", "証拠", [Candidate("object:burned-maintenance-record/inspect", "inspect", "証拠の詳細を見る")]),
             ],
             [
                 Candidate("system:clarify", "clarify", "確認する"),

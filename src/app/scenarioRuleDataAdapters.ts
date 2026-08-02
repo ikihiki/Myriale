@@ -156,6 +156,7 @@ export function canonicalRuleDataToForm(response: CanonicalScenarioRuleDataRespo
     objects: response.objects.map((object) => ({
       code: object.code,
       name: object.name,
+      profileMarkdown: object.profileMarkdown,
       mixinTypeCodes: [...object.mixinTypeCodes],
       initialLocationCode: object.locationCode,
       global: object.isGlobal,
@@ -288,6 +289,7 @@ export function formRuleDataToCanonical(ruleData: ScenarioRuleDataPayload): Cano
     objects: ruleData.objects.map((object) => ({
       code: object.code,
       name: object.name,
+      profileMarkdown: object.profileMarkdown,
       mixinTypeCodes: [...object.mixinTypeCodes],
       locationCode: object.initialLocationCode,
       stateSchema: { type: 'object', additionalProperties: false, properties: Object.fromEntries(object.stateFields.map((field) => [field.code, { type: field.valueType, title: field.label }])), required: object.stateFields.map((field) => field.code) },

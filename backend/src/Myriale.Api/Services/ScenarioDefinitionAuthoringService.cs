@@ -130,9 +130,10 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
         {
             var item = objects[i];
             if (string.IsNullOrWhiteSpace(item.Name)) Add($"objects[{i}].name", "Name is required.");
+            if (item.ProfileMarkdown?.Length > 20_000) Add($"objects[{i}].profileMarkdown", "Entity profile must be 20000 characters or fewer.");
             if (!locationCodes.Contains(item.LocationCode)) Add($"objects[{i}].locationCode", "Referenced location does not exist.");
-            if (item.MixinTypeCodes is null) Add($"objects[{i}].mixinTypeCodes", "Mixin type codes are required; use an empty array for Object-only configuration.");
-            if (item.Actions is null) Add($"objects[{i}].actions", "Object-local actions are required; use an empty array when none are defined.");
+            if (item.MixinTypeCodes is null) Add($"objects[{i}].mixinTypeCodes", "Mixin type codes are required; use an empty array for Entity-local configuration.");
+            if (item.Actions is null) Add($"objects[{i}].actions", "Entity-local actions are required; use an empty array when none are defined.");
             if (item.ActionRules is null) Add($"objects[{i}].actionRules", "Action rule mutations are required; use an empty array when none are defined.");
             var mixinCodes = (item.MixinTypeCodes ?? []).Select(code => code.Trim()).Where(code => code.Length > 0).ToList();
             var localActions = item.Actions ?? [];
@@ -336,7 +337,7 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
             var item = new ScenarioObject
             {
                 Id = $"SOBJ-{Guid.NewGuid():N}", DefinitionVersionId = version.Id, Code = input.Code.Trim(), Name = input.Name.Trim(),
-                LocationId = locations[input.LocationCode].Id,
+                ProfileMarkdown = input.ProfileMarkdown?.Trim() ?? string.Empty, LocationId = locations[input.LocationCode].Id,
                 InitialStateOverrideJson = Json(input.InitialStateOverride, "{}"), MixinTypeCodesJson = JsonSerializer.Serialize(mixinCodes),
                 LocalStateSchemaJson = Json(input.StateSchema, "{}"), LocalDefaultStateJson = Json(input.DefaultState, "{}"),
                 LocalPublicProjectionJson = Json(input.PublicProjection, "{}"), LocalActionsJson = JsonSerializer.Serialize(input.Actions ?? [], SerializerOptions),
@@ -362,7 +363,7 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
             {
                 var mixins = JsonSerializer.Deserialize<List<string>>(item.MixinTypeCodesJson) ?? [];
                 var rules = JsonSerializer.Deserialize<List<ScenarioObjectRuleMutationInput>>(item.ActionRuleMutationsJson, SerializerOptions) ?? [];
-                return new ScenarioObjectInput(item.Code, item.Name, locationCodes[item.LocationId],
+                return new ScenarioObjectInput(item.Code, item.Name, item.ProfileMarkdown, locationCodes[item.LocationId],
                     Parse(item.InitialStateOverrideJson), item.IsGlobal, rules, mixins, Parse(item.LocalStateSchemaJson), Parse(item.LocalDefaultStateJson),
                     Parse(item.LocalPublicProjectionJson), JsonSerializer.Deserialize<List<ScenarioObjectTypeActionInput>>(item.LocalActionsJson, SerializerOptions) ?? []);
             }).ToList(),

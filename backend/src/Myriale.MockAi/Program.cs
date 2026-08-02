@@ -145,7 +145,13 @@ public static class MockRuleActionSelector
         var noOp = SystemAction(request, "no-op");
 
         if (ContainsAny(input, "待つ", "待機", "何もしない", "しばらくここで様子を見る")) return noOp ?? clarify ?? First(request);
-        if (ContainsAny(input, "見回す", "観察", "確認", "見る")) return noOp ?? clarify ?? First(request);
+        if (ContainsAny(input, "見回す", "観察", "確認", "見る"))
+        {
+            var target = MatchingObject(request, input);
+            var inspect = target?.Actions.FirstOrDefault(action => action.ActionCode is "inspect" or "examine");
+            if (inspect is not null) return inspect;
+            return noOp ?? clarify ?? First(request);
+        }
 
         if (ContainsAny(input, "進む", "移動", "入る"))
         {
@@ -228,20 +234,13 @@ public sealed record MockNarrativeScenario(
     string Lore,
     string AiFreedom,
     string Hero,
-    IReadOnlyList<MockScenarioNpc> Npcs,
+    IReadOnlyList<MockScenarioEntity> Entities,
     string Opening);
 
-public sealed record MockScenarioNpc(
+public sealed record MockScenarioEntity(
     string Code,
     string Name,
-    string Role,
-    string InitialLocationCode,
-    string Personality,
-    string Behavior,
-    string Voice,
-    string FirstPerson,
-    string PublicKnowledge,
-    string Secrets);
+    string ProfileMarkdown);
 
 public sealed record MockNarrativeOutcome(
     string Category,
@@ -268,7 +267,7 @@ public sealed record MockScenarioAssistRequest(
     string Lore,
     string AiFreedom,
     string Hero,
-    IReadOnlyList<MockScenarioNpc> Npcs,
+    IReadOnlyList<MockScenarioEntity> Entities,
     string Opening,
     string IllustrationStyle,
     string IllustrationMood,

@@ -34,7 +34,7 @@ export const USE01EditExistingScenario: Story = {
       await expect(canvas.getByRole('complementary', { name: '契約の改稿' })).toBeVisible();
       await expect(canvas.getByLabelText('シナリオタイトル')).toHaveValue('目覚めの研究室');
       await expect(canvas.getByRole('group', { name: '登録済みジャンルタグ' })).toHaveTextContent('SF');
-      for (const stepName of ['基本情報', '場所', '人物', 'オブジェクト', '開始状態', '挿絵', '動作確認']) {
+      for (const stepName of ['基本情報', '場所', '主人公', 'エンティティ', '開始状態', '挿絵', '動作確認']) {
         await expect(canvas.getByRole('button', { name: `${stepName}へ` })).toBeVisible();
       }
     });
@@ -64,7 +64,7 @@ export const USE03EditHeroAndOpening: Story = {
   name: 'US-E03: 主人公と第一場面を作成時と同じ操作で編集したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await goToStep(canvas, '人物');
+    await goToStep(canvas, '主人公');
     await step('主人公の前提を編集する', async () => {
       const hero = canvas.getByLabelText('主人公の設定');
       await userEvent.clear(hero);
@@ -102,7 +102,7 @@ export const USE11EditRuleDataWithStableCodes: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     const screen = within(canvasElement.ownerDocument.body);
-    await goToStep(canvas, 'オブジェクト');
+    await goToStep(canvas, 'エンティティ');
     await step('Object Typeの行から編集ペインを開き、stable codeを保って表示名を編集する', async () => {
       await userEvent.click(canvas.getByRole('button', { name: /^書庫の扉を編集$/ }));
       await expect(screen.getByRole('dialog', { name: '書庫の扉' })).toBeVisible();
@@ -120,15 +120,15 @@ export const USE11EditRuleDataWithStableCodes: Story = {
       await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
     });
     await goToStep(canvas, '場所');
-    await step('場所とオブジェクトの各ステップで編集ペインを開く', async () => {
+    await step('場所とエンティティの各ステップで編集ペインを開く', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '水没した閲覧室を編集' }));
       await expect(screen.getByLabelText('場所のstable code')).toHaveValue('sunken-library');
       await userEvent.clear(screen.getByLabelText('場所の表示名'));
       await userEvent.type(screen.getByLabelText('場所の表示名'), '水没した中央閲覧室');
       await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
-      await goToStep(canvas, 'オブジェクト');
+      await goToStep(canvas, 'エンティティ');
       await userEvent.click(canvas.getByRole('button', { name: '北書庫の扉を編集' }));
-      await expect(screen.getByLabelText('オブジェクトのstable code')).toHaveValue('north-archive-door');
+      await expect(screen.getByLabelText('エンティティのstable code')).toHaveValue('north-archive-door');
       await userEvent.click(screen.getByRole('button', { name: '編集を完了' }));
     });
     await step('Type generic ruleとObject adjust operationを維持したまま変更を保存する', async () => {

@@ -497,6 +497,11 @@ public static class SessionEndpoints
             .SingleOrDefaultAsync(item => item.Id == sessionId && item.OwnerId == ownerId, cancellationToken);
         if (session is null) return Results.NotFound();
 
+        var entities = await db.ScenarioObjects.AsNoTracking()
+            .Where(item => item.DefinitionVersionId == session.ScenarioDefinitionVersionId)
+            .OrderBy(item => item.Code)
+            .Select(item => new NarrativeEntityInput(item.Code, item.Name, item.ProfileMarkdown))
+            .ToListAsync(cancellationToken);
         var newestTurns = await db.SessionTurns.AsNoTracking()
             .Where(turn => turn.SessionId == sessionId)
             .Include(turn => turn.PlayerInput)
@@ -532,7 +537,7 @@ public static class SessionEndpoints
                         session.Scenario.Lore,
                         session.Scenario.AiFreedom,
                         session.SelectedHero,
-                        ScenarioNpcSettingsJson.Deserialize(session.Scenario.NpcsJson),
+                        entities,
                         session.Scenario.Opening),
                     recentTurns,
                     new NarrativeSessionStateInput(session.State.Revision, flags)),

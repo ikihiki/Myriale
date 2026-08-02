@@ -67,6 +67,7 @@ public sealed class ScenarioObject
     public ScenarioDefinitionVersion DefinitionVersion { get; set; } = null!;
     [MaxLength(80)] public string Code { get; set; } = string.Empty;
     [MaxLength(160)] public string Name { get; set; } = string.Empty;
+    public string ProfileMarkdown { get; set; } = string.Empty;
     [Required] public string LocationId { get; set; } = string.Empty;
     public ScenarioLocation Location { get; set; } = null!;
     public string InitialStateOverrideJson { get; set; } = "{}";

@@ -68,13 +68,13 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
     replaceSelected({ ...selected, actionRules: selected.actionRules.filter((rule) => rule.code !== editingRule.code) }); setEditingRuleCode(null);
   };
 
-  return <section aria-label="オブジェクト種類" className="grid gap-4">
-    <header className="flex items-end justify-between gap-4 max-md:items-start"><div><h2>オブジェクト種類</h2><p>{mode === 'edit' ? '保存済みの種類、状態、アクション、実行ルールを編集します。' : '種類、状態、アクション、実行ルールを定義します。'}</p></div><Button size="sm" variant="secondary" onClick={addType}>種類を追加</Button></header>
+  return <section aria-label="エンティティ種類" className="grid gap-4">
+    <header className="flex items-end justify-between gap-4 max-md:items-start"><div><h2>エンティティ種類</h2><p>{mode === 'edit' ? '保存済みの種類、状態、アクション、実行ルールを編集します。' : '種類、状態、アクション、実行ルールを定義します。'}</p></div><Button size="sm" variant="secondary" onClick={addType}>種類を追加</Button></header>
     <div className="overflow-x-auto rounded-2xl border border-[#17151f]/15 bg-white/55 shadow-[0_12px_30px_rgba(23,21,31,.07)]"><table className={tableClass}><thead className="bg-[#17151f]/[.045] text-xs text-myr-slate-muted"><tr><th className={cellClass}>編集</th><th className={cellClass}>表示名</th><th className={cellClass}>stable code</th><th className={cellClass}>状態</th><th className={cellClass}>アクション</th><th className={cellClass}>実行ルール</th></tr></thead><tbody>
       {value.objectTypes.map((type, index) => <tr key={`${type.code}-${index}`}><td className={cellClass}><Button size="sm" variant="secondary" onClick={() => openType(index)} aria-label={`${type.name}を編集`}>編集</Button></td><td className={cellClass}><strong>{type.name}</strong></td><td className={`${cellClass} font-mono text-xs`}>{type.code}</td><td className={cellClass}>{type.stateFields.length}件</td><td className={cellClass}>{type.actions.length}件</td><td className={cellClass}>{type.actionRules.length}件</td></tr>)}
     </tbody></table>{value.objectTypes.length === 0 && <p className="p-5 text-sm text-myr-ink-subtle">まだ種類がありません。</p>}</div>
 
-    <EditPane open={paneOpen && Boolean(selected)} onOpenChange={(open) => { setPaneOpen(open); if (!open) setEditingRuleCode(null); }} eyebrow="オブジェクト種類" title={selected?.name ?? '種類を編集'} description="種類の基本情報、状態、アクション、実行ルールを管理します。Object固有の設定はObject側で編集します。" footer={<Button onClick={() => setPaneOpen(false)}>編集を完了</Button>}>
+    <EditPane open={paneOpen && Boolean(selected)} onOpenChange={(open) => { setPaneOpen(open); if (!open) setEditingRuleCode(null); }} eyebrow="エンティティ種類" title={selected?.name ?? '種類を編集'} description="種類の基本情報、状態、アクション、実行ルールを管理します。Entity固有の設定はEntity側で編集します。" footer={<Button onClick={() => setPaneOpen(false)}>編集を完了</Button>}>
       {selected && <div className="grid gap-4">
         <section aria-labelledby="type-basic-information-heading" className={cardClass}>
           <h3 id="type-basic-information-heading">基本情報</h3>

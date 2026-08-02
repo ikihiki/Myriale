@@ -36,6 +36,15 @@ function MixinHarness({ emptyTypes = false }: { emptyTypes?: boolean }) {
 afterEach(() => cleanup());
 
 describe('strict v2 rule authoring', () => {
+  it('edits a shared Markdown profile for an entity', async () => {
+    render(<ObjectHarness />);
+    fireEvent.click(screen.getByRole('button', { name: '西の扉を編集' }));
+    const profile = screen.getByLabelText('エンティティプロフィール');
+    expect((profile as HTMLTextAreaElement).value).toContain('西側の出口');
+    fireEvent.change(profile, { target: { value: '## 外観\n\n青錆びた金属扉。\n\n## 描写指針\n\n開閉状態に従って描写する。' } });
+    await waitFor(() => expect(screen.getByTestId('rule-data-json')).toHaveTextContent('青錆びた金属扉'));
+  });
+
   it('flattens Type basics, states, actions, and execution rules without legacy wrapper labels', () => {
     render(<TypeHarness />);
     fireEvent.click(screen.getByRole('button', { name: '開閉可能を編集' }));

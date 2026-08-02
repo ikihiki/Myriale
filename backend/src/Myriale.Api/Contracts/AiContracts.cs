@@ -56,7 +56,7 @@ public sealed record ScenarioAiAssistRequest(
     string Lore,
     string AiFreedom,
     string Hero,
-    IReadOnlyList<ScenarioNpcSettings> Npcs,
+    IReadOnlyList<NarrativeEntityInput> Entities,
     string Opening,
     string IllustrationStyle,
     string IllustrationMood,
