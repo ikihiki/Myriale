@@ -80,23 +80,24 @@ public static class ScenarioEndpoints
         var value = await definitions.GetLatestAsync(scenarioId, ct); return value is null ? TypedResults.NotFound() : TypedResults.Ok(value);
     }
 
-    private static async Task<IResult> CreateRuleDataDraftAsync(string scenarioId, ClaimsPrincipal principal, ScenarioQueryService scenarios,
-        ScenarioDefinitionQueryService definitions, CreateScenarioDefinitionDraftUseCase useCase, CancellationToken ct)
+    private static async Task<IResult> CreateRuleDataDraftAsync(string scenarioId, ClaimsPrincipal principal,
+        CreateScenarioDefinitionDraftUseCase useCase, CancellationToken ct)
     {
-        if (!await scenarios.IsOwnerAsync(scenarioId, UserId(principal), ct)) return TypedResults.NotFound();
-        var existing = await definitions.GetDraftAsync(scenarioId, ct);
-        if (existing is not null) return TypedResults.Ok(existing);
-        var result = await useCase.ExecuteAsync(new(scenarioId), ct);
-        return result.Outcome == ScenarioDefinitionCommandOutcome.Conflict ? TypedResults.Conflict() : TypedResults.Created($"/api/scenarios/{scenarioId}/rule-data", result.Definition);
+        var authorId = UserId(principal); if (authorId is null) return TypedResults.Unauthorized();
+        var result = await useCase.ExecuteAsync(new(scenarioId, authorId), ct);
+        if (result.Outcome == ScenarioDefinitionCommandOutcome.NotFound) return TypedResults.NotFound();
+        if (result.Outcome == ScenarioDefinitionCommandOutcome.Conflict) return TypedResults.Conflict();
+        return result.Created ? TypedResults.Created($"/api/scenarios/{scenarioId}/rule-data", result.Definition) : TypedResults.Ok(result.Definition);
     }
 
-    private static async Task<IResult> SaveRuleDataAsync(string scenarioId, ScenarioRuleDataRequest request, ClaimsPrincipal principal, ScenarioQueryService scenarios, SaveScenarioDefinitionUseCase useCase, CancellationToken ct)
+    private static async Task<IResult> SaveRuleDataAsync(string scenarioId, ScenarioRuleDataRequest request, ClaimsPrincipal principal, SaveScenarioDefinitionUseCase useCase, CancellationToken ct)
     {
-        if (!await scenarios.IsOwnerAsync(scenarioId, UserId(principal), ct)) return TypedResults.NotFound();
-        var result = await useCase.ExecuteAsync(new(scenarioId, request), ct);
+        var authorId = UserId(principal); if (authorId is null) return TypedResults.Unauthorized();
+        var result = await useCase.ExecuteAsync(new(scenarioId, authorId, request), ct);
         return result.Outcome switch
         {
             ScenarioDefinitionCommandOutcome.Invalid => TypedResults.BadRequest(new ScenarioErrorResponse("Rule data is malformed.", result.Errors!)),
+            ScenarioDefinitionCommandOutcome.NotFound => TypedResults.NotFound(),
             ScenarioDefinitionCommandOutcome.Conflict => TypedResults.Conflict(),
             _ => TypedResults.Ok(result.Definition),
         };
@@ -111,10 +112,10 @@ public static class ScenarioEndpoints
         return TypedResults.Ok(new ScenarioDefinitionReadinessResponse(definition.Id, result.IsReady, result.Errors));
     }
 
-    private static async Task<IResult> PublishRuleDataAsync(string scenarioId, ClaimsPrincipal principal, ScenarioQueryService scenarios, PublishScenarioDefinitionUseCase useCase, CancellationToken ct)
+    private static async Task<IResult> PublishRuleDataAsync(string scenarioId, ClaimsPrincipal principal, PublishScenarioDefinitionUseCase useCase, CancellationToken ct)
     {
-        if (!await scenarios.IsOwnerAsync(scenarioId, UserId(principal), ct)) return TypedResults.NotFound();
-        var result = await useCase.ExecuteAsync(new(scenarioId), ct);
+        var authorId = UserId(principal); if (authorId is null) return TypedResults.Unauthorized();
+        var result = await useCase.ExecuteAsync(new(scenarioId, authorId), ct);
         return result.Outcome switch
         {
             ScenarioDefinitionCommandOutcome.NotFound => TypedResults.NotFound(),

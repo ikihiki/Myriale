@@ -17,7 +17,7 @@ public sealed class ScenarioDefinitionAuthoringService(
     public ScenarioDefinitionAuthoringService(ApplicationDbContext db) : this(
         new Myriale.Api.Infrastructure.Scenarios.EfScenarioDefinitionRepository(db),
         CreateDraftService(db),
-        new ScenarioDefinitionValidator(CreateMapper()),
+        new ScenarioDefinitionValidator(CreateMapper(), new Myriale.Api.Domain.Scenarios.ScenarioRuleJsonCodec()),
         new ScenarioDefinitionWriter(db, new Myriale.Api.Domain.Scenarios.ScenarioRuleJsonCodec()),
         CreateMapper(), db)
     { }

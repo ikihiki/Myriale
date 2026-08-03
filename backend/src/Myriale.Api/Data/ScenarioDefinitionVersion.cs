@@ -19,20 +19,20 @@ public sealed class ScenarioDefinitionVersion : IHasDomainEvents
     public DateTimeOffset? PublishedAt { get; internal set; }
     public int Revision { get; internal set; }
     [Required, MaxLength(80)] public string StartLocationCode { get; internal set; } = string.Empty;
-    public ScenarioTitle ScenarioTitle { get; set; } = new("Untitled");
-    [MaxLength(2000)] public string ScenarioSummary { get; set; } = string.Empty;
-    [MaxLength(80)] public string ScenarioGenre { get; set; } = string.Empty;
-    [MaxLength(120)] public string ScenarioTone { get; set; } = string.Empty;
-    public string ScenarioLore { get; set; } = string.Empty;
-    [MaxLength(120)] public string ScenarioAiFreedom { get; set; } = string.Empty;
-    [MaxLength(20)] public HeroMode ScenarioHeroMode { get; set; } = HeroMode.Free;
-    public bool ScenarioHeroFreeGenerationAllowed { get; set; }
-    public string ScenarioHero { get; set; } = string.Empty;
-    public string ScenarioOpening { get; set; } = string.Empty;
-    [MaxLength(240)] public IllustrationPrompt ScenarioIllustrationStyle { get; set; } = new("");
-    [MaxLength(240)] public IllustrationPrompt ScenarioIllustrationMood { get; set; } = new("");
-    public IllustrationPrompt ScenarioIllustrationNegative { get; set; } = new("");
-    public string ScenarioSampleScene { get; set; } = string.Empty;
+    public ScenarioTitle ScenarioTitle { get; internal set; } = new("Untitled");
+    [MaxLength(2000)] public string ScenarioSummary { get; internal set; } = string.Empty;
+    [MaxLength(80)] public string ScenarioGenre { get; internal set; } = string.Empty;
+    [MaxLength(120)] public string ScenarioTone { get; internal set; } = string.Empty;
+    public string ScenarioLore { get; internal set; } = string.Empty;
+    [MaxLength(120)] public string ScenarioAiFreedom { get; internal set; } = string.Empty;
+    [MaxLength(20)] public HeroMode ScenarioHeroMode { get; internal set; } = HeroMode.Free;
+    public bool ScenarioHeroFreeGenerationAllowed { get; internal set; }
+    public string ScenarioHero { get; internal set; } = string.Empty;
+    public string ScenarioOpening { get; internal set; } = string.Empty;
+    [MaxLength(240)] public IllustrationPrompt ScenarioIllustrationStyle { get; internal set; } = new("");
+    [MaxLength(240)] public IllustrationPrompt ScenarioIllustrationMood { get; internal set; } = new("");
+    public IllustrationPrompt ScenarioIllustrationNegative { get; internal set; } = new("");
+    public string ScenarioSampleScene { get; internal set; } = string.Empty;
     public ICollection<ScenarioProgressionNode> ProgressionNodes { get; set; } = [];
     public ICollection<ScenarioProgressionTransition> ProgressionTransitions { get; set; } = [];
     public ICollection<ScenarioLocation> Locations { get; set; } = [];

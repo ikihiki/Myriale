@@ -23,6 +23,23 @@ public sealed class DomainEventDispatcher(IServiceProvider services) : IDomainEv
     }
 }
 
+/// <summary>
+/// Production handler for the synchronous post-save publication event. This is intentionally
+/// observability-only; delivery is in-process and no transactional outbox is provided.
+/// </summary>
+public sealed class ScenarioDefinitionPublishedLoggingHandler(
+    ILogger<ScenarioDefinitionPublishedLoggingHandler> logger)
+    : IDomainEventHandler<ScenarioDefinitionPublished>
+{
+    public Task HandleAsync(ScenarioDefinitionPublished domainEvent, CancellationToken cancellationToken)
+    {
+        logger.LogInformation(
+            "Scenario definition published: ScenarioId={ScenarioId}, DefinitionVersionId={DefinitionVersionId}, Version={Version}, PublishedAt={PublishedAt}",
+            domainEvent.ScenarioId, domainEvent.DefinitionVersionId, domainEvent.Version, domainEvent.PublishedAt);
+        return Task.CompletedTask;
+    }
+}
+
 public sealed class ScenarioDefinitionPublicationAudit
 {
     private readonly List<ScenarioDefinitionPublished> _published = [];

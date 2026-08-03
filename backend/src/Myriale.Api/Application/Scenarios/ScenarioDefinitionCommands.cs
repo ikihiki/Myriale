@@ -4,17 +4,22 @@ using Myriale.Api.Data;
 
 namespace Myriale.Api.Application.Scenarios;
 
-public sealed record CreateScenarioDefinitionDraftCommand(string ScenarioId);
-public sealed record SaveScenarioDefinitionCommand(string ScenarioId, ScenarioRuleDataRequest Request);
-public sealed record PublishScenarioDefinitionCommand(string ScenarioId);
+public sealed record CreateScenarioDefinitionDraftCommand(string ScenarioId, string AuthorId);
+public sealed record SaveScenarioDefinitionCommand(string ScenarioId, string AuthorId, ScenarioRuleDataRequest Request);
+public sealed record PublishScenarioDefinitionCommand(string ScenarioId, string AuthorId);
 public enum ScenarioDefinitionCommandOutcome { Success, NotFound, Invalid, Conflict, NotReady }
-public sealed record ScenarioDefinitionCommandResult(ScenarioDefinitionCommandOutcome Outcome, ScenarioRuleDataResponse? Definition = null, IReadOnlyDictionary<string, string[]>? Errors = null);
+public sealed record ScenarioDefinitionCommandResult(ScenarioDefinitionCommandOutcome Outcome, ScenarioRuleDataResponse? Definition = null, IReadOnlyDictionary<string, string[]>? Errors = null, bool Created = false);
 
-public sealed class CreateScenarioDefinitionDraftUseCase(ScenarioDefinitionDraftService drafts, ScenarioDefinitionMapper mapper)
+public sealed class CreateScenarioDefinitionDraftUseCase(
+    ApplicationDbContext db, IScenarioDefinitionRepository repository, ScenarioDefinitionDraftService drafts, ScenarioDefinitionMapper mapper)
 {
     public async Task<ScenarioDefinitionCommandResult> ExecuteAsync(CreateScenarioDefinitionDraftCommand command, CancellationToken cancellationToken)
     {
-        try { return new(ScenarioDefinitionCommandOutcome.Success, mapper.ToResponse(await drafts.GetOrCreateDraftAsync(command.ScenarioId, cancellationToken))); }
+        if (!await db.Scenarios.AnyAsync(x => x.Id == command.ScenarioId && x.AuthorId == command.AuthorId, cancellationToken))
+            return new(ScenarioDefinitionCommandOutcome.NotFound);
+        var existing = await repository.GetDraftAsync(command.ScenarioId, cancellationToken);
+        if (existing is not null) return new(ScenarioDefinitionCommandOutcome.Success, mapper.ToResponse(existing));
+        try { return new(ScenarioDefinitionCommandOutcome.Success, mapper.ToResponse(await drafts.GetOrCreateDraftAsync(command.ScenarioId, cancellationToken)), Created: true); }
         catch (DbUpdateConcurrencyException) { return new(ScenarioDefinitionCommandOutcome.Conflict); }
     }
 }
@@ -25,6 +30,9 @@ public sealed class SaveScenarioDefinitionUseCase(
 {
     public async Task<ScenarioDefinitionCommandResult> ExecuteAsync(SaveScenarioDefinitionCommand command, CancellationToken cancellationToken)
     {
+        var scenario = await db.Scenarios.SingleOrDefaultAsync(
+            x => x.Id == command.ScenarioId && x.AuthorId == command.AuthorId, cancellationToken);
+        if (scenario is null) return new(ScenarioDefinitionCommandOutcome.NotFound);
         var draft = await repository.GetDraftAsync(command.ScenarioId, cancellationToken);
         if (draft is null && await repository.GetLatestPublishedAsync(command.ScenarioId, cancellationToken) is not null)
             return new(ScenarioDefinitionCommandOutcome.Conflict);
@@ -33,7 +41,6 @@ public sealed class SaveScenarioDefinitionUseCase(
             errors[pair.Key] = errors.TryGetValue(pair.Key, out var existing) ? existing.Concat(pair.Value).Distinct().ToArray() : pair.Value;
         if (errors.Count > 0) return new(ScenarioDefinitionCommandOutcome.Invalid, Errors: errors);
         draft ??= await drafts.GetOrCreateDraftAsync(command.ScenarioId, cancellationToken);
-        var scenario = await db.Scenarios.SingleAsync(x => x.Id == command.ScenarioId, cancellationToken);
         draft.SnapshotScenario(scenario);
         writer.Replace(draft, command.Request, DateTimeOffset.UtcNow);
         try { await db.SaveChangesAsync(cancellationToken); }
@@ -48,11 +55,13 @@ public sealed class PublishScenarioDefinitionUseCase(
 {
     public async Task<ScenarioDefinitionCommandResult> ExecuteAsync(PublishScenarioDefinitionCommand command, CancellationToken cancellationToken)
     {
+        var scenario = await db.Scenarios.SingleOrDefaultAsync(
+            x => x.Id == command.ScenarioId && x.AuthorId == command.AuthorId, cancellationToken);
+        if (scenario is null) return new(ScenarioDefinitionCommandOutcome.NotFound);
         var definition = await repository.GetDraftAsync(command.ScenarioId, cancellationToken);
         if (definition is null) return new(ScenarioDefinitionCommandOutcome.NotFound);
         var result = readiness.Evaluate(definition);
         if (!result.IsReady) return new(ScenarioDefinitionCommandOutcome.NotReady, Errors: result.Errors);
-        var scenario = await db.Scenarios.SingleAsync(x => x.Id == command.ScenarioId, cancellationToken);
         var now = DateTimeOffset.UtcNow;
         definition.SnapshotScenario(scenario); definition.Publish(now); scenario.Publish(now);
         try { await db.SaveChangesAsync(cancellationToken); }

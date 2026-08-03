@@ -21,7 +21,7 @@ public sealed class ScenarioRuleEvaluator
     {
         try
         {
-            return TryEvaluate(condition.Value, objectState, flags, arguments, out var result) && result;
+            return TryEvaluate(condition, objectState, flags, arguments, out var result) && result;
         }
         catch (JsonException)
         {
@@ -42,64 +42,55 @@ public sealed class ScenarioRuleEvaluator
     }
 
     private bool TryEvaluate(
-        JsonElement condition,
+        ConditionExpression condition,
         JsonObject state,
         IReadOnlyDictionary<string, bool> flags,
         JsonElement arguments,
         out bool result)
     {
         result = false;
-        if (condition.ValueKind != JsonValueKind.Object) return false;
-        var properties = condition.EnumerateObject().ToList();
-        if (properties.Count == 0)
+        switch (condition)
         {
-            result = true;
-            return true;
-        }
-
-        var logical = properties.Where(property => property.Name is "and" or "or" or "not").ToList();
-        if (logical.Count > 0)
-        {
-            if (logical.Count != 1 || properties.Count != 1) return false;
-            var property = logical[0];
-            if (property.Name == "not")
-            {
-                if (!TryEvaluate(property.Value, state, flags, arguments, out var child)) return false;
-                result = !child;
+            case AlwaysCondition:
+                result = true;
                 return true;
-            }
-            if (property.Value.ValueKind != JsonValueKind.Array) return false;
-
-            result = property.Name == "and";
-            foreach (var item in property.Value.EnumerateArray())
-            {
-                if (!TryEvaluate(item, state, flags, arguments, out var child)) return false;
-                result = property.Name == "and" ? result && child : result || child;
-            }
-            return true;
+            case AllCondition all:
+                result = true;
+                foreach (var child in all.Conditions)
+                {
+                    if (!TryEvaluate(child, state, flags, arguments, out var childResult)) return false;
+                    result = result && childResult;
+                }
+                return true;
+            case AnyCondition any:
+                foreach (var child in any.Conditions)
+                {
+                    if (!TryEvaluate(child, state, flags, arguments, out var childResult)) return false;
+                    result = result || childResult;
+                }
+                return true;
+            case NotCondition not:
+                if (!TryEvaluate(not.Condition, state, flags, arguments, out var nested)) return false;
+                result = !nested;
+                return true;
+            case PredicateCondition predicate:
+                return TryEvaluatePredicate(predicate, state, flags, arguments, out result);
+            default:
+                return false;
         }
+    }
 
-        if (properties.Any(property => property.Name is not ("op" or "path" or "value"))) return false;
-        if (!condition.TryGetProperty("op", out var opElement) || opElement.ValueKind != JsonValueKind.String) return false;
-        if (!condition.TryGetProperty("path", out var pathElement) || pathElement.ValueKind != JsonValueKind.String) return false;
-        var op = opElement.GetString();
-        var path = pathElement.GetString();
-        if (string.IsNullOrWhiteSpace(op) || string.IsNullOrWhiteSpace(path) || !IsConditionPathSyntaxValid(path)) return false;
-        if (!TryResolve(path, state, flags, arguments, out var actual))
-        {
-            // A syntactically valid exists check over a missing path is false; every other operation also fails closed.
-            return op == "exists" && properties.Count == 2;
-        }
-
-        if (op == "exists")
-        {
-            if (properties.Count != 2) return false;
-            result = true;
-            return true;
-        }
-        if (!condition.TryGetProperty("value", out var value) || properties.Count != 3) return false;
+    private static bool TryEvaluatePredicate(
+        PredicateCondition condition, JsonObject state, IReadOnlyDictionary<string, bool> flags,
+        JsonElement arguments, out bool result)
+    {
+        result = false;
+        if (string.IsNullOrWhiteSpace(condition.Path) || !IsConditionPathSyntaxValid(condition.Path)) return false;
+        if (!TryResolve(condition.Path, state, flags, arguments, out var actual)) return condition.Operator == "exists";
+        if (condition.Operator == "exists") { result = true; return true; }
+        if (condition.Expected is not { } value) return false;
         var expected = JsonNode.Parse(value.GetRawText());
-        switch (op)
+        switch (condition.Operator)
         {
             case "eq": result = JsonNode.DeepEquals(actual, expected); return true;
             case "ne": result = !JsonNode.DeepEquals(actual, expected); return true;
@@ -251,7 +242,7 @@ public sealed class ScenarioActionEnumerator(ScenarioRuleEvaluator evaluator, Sc
     private static JsonElement Parse(string json) { using var document = JsonDocument.Parse(json); return document.RootElement.Clone(); }
 }
 
-public sealed class ScenarioEffectApplier(ScenarioRuleEvaluator evaluator, ScenarioPublicProjector projector, ScenarioRuleConfigurationResolver resolver)
+public sealed class ScenarioEffectApplier(ScenarioRuleEvaluator evaluator, ScenarioPublicProjector projector, ScenarioRuleConfigurationResolver resolver, ScenarioRuleJsonCodec codec)
 {
     public ScenarioRuleResolution ResolveAndApply(ScenarioRuleWorld world, RuleActionDecisionResult decision)
     {
@@ -268,84 +259,97 @@ public sealed class ScenarioEffectApplier(ScenarioRuleEvaluator evaluator, Scena
         if (matches.Count == 0) throw new ScenarioTurnValidationException("action_no_longer_available");
         if (matches.Count > 1 && matches[0].Priority == matches[1].Priority && matches[0].SourceRank == matches[1].SourceRank) throw new ScenarioTurnValidationException("ambiguous_action_rule");
         var rule = matches[0];
-        var effects = rule.Effects.Value.EnumerateArray().Select(effect => effect.Clone()).ToList();
+        var effects = rule.Effects.Effects;
         ValidateEffects(world, item, effects);
         var applied = new List<RuleAppliedEffect>(); var facts = new List<string>(); var events = new List<JsonElement>(); var hints = new List<string>(); var forbidden = new List<string>();
         foreach (var effect in effects)
         {
-            var type = effect.GetProperty("type").GetString()!;
-            var targetId = ResolveObjectId(world, item, effect);
-            var path = effect.TryGetProperty("path", out var pathElement) ? pathElement.GetString() : null;
-            JsonElement? value = effect.TryGetProperty("value", out var valueElement) ? valueElement.Clone() : null;
-            switch (type)
+            var targetId = item.Id;
+            string? path = null;
+            JsonElement? value = null;
+            switch (effect)
             {
-                case "set-state": SetState(world, targetId, path!, value!.Value); break;
-                case "increment-state": IncrementState(world, targetId, path!, value!.Value); break;
-                case "append-set": AppendSet(world, targetId, path!, value!.Value, false); break;
-                case "remove-set": AppendSet(world, targetId, path!, value!.Value, true); break;
-                case "move-object":
-                    var moved = world.States.Single(s => s.ScenarioObjectId == targetId);
-                    var destination = ResolveLocation(world, effect);
-                    moved.LocationId = destination.Id;
-                    moved.Revision++; moved.UpdatedAt = DateTimeOffset.UtcNow;
+                case StateEffect stateEffect:
+                    targetId = ResolveObjectId(world, item, stateEffect.ObjectCode, stateEffect.ObjectId);
+                    path = stateEffect.Path;
+                    value = stateEffect.Value;
+                    switch (stateEffect.Type)
+                    {
+                        case "set-state": SetState(world, targetId, path!, value!.Value); break;
+                        case "increment-state": IncrementState(world, targetId, path!, value!.Value); break;
+                        case "append-set": AppendSet(world, targetId, path!, value!.Value, false); break;
+                        case "remove-set": AppendSet(world, targetId, path!, value!.Value, true); break;
+                    }
+                    break;
+                case MoveObjectEffect moveObject:
+                    targetId = ResolveObjectId(world, item, moveObject.ObjectCode, moveObject.ObjectId);
+                    var moved = world.States.Single(state => state.ScenarioObjectId == targetId);
+                    var destination = ResolveLocation(world, moveObject.LocationCode, moveObject.LocationId);
+                    moved.LocationId = destination.Id; moved.Revision++; moved.UpdatedAt = DateTimeOffset.UtcNow;
                     path = "locationId"; value = JsonSerializer.SerializeToElement(destination.Code);
                     break;
-                case "move-session":
-                    var sessionDestination = ResolveLocation(world, effect);
+                case MoveSessionEffect moveSession:
+                    var sessionDestination = ResolveLocation(world, moveSession.LocationCode, moveSession.LocationId);
                     world.Session.CurrentLocationId = sessionDestination.Id;
                     targetId = sessionDestination.Id; path = "currentLocationId"; value = JsonSerializer.SerializeToElement(sessionDestination.Code);
                     break;
-                case "set-session-flag": flags[effect.GetProperty("flag").GetString()!] = effect.GetProperty("value").GetBoolean(); break;
-                case "emit-fact": facts.Add(effect.GetProperty("text").GetString()!); break;
-                case "emit-event": events.Add(effect.Clone()); break;
-                case "add-narrative-hint": hints.Add(effect.GetProperty("text").GetString()!); break;
-                case "forbid-narrative-fact": forbidden.Add(effect.GetProperty("text").GetString()!); break;
-                case "complete-session": world.Session.Status = "completed"; break;
+                case SetSessionFlagEffect flag:
+                    flags[flag.Flag!] = flag.Value!.Value;
+                    break;
+                case TextEffect text when text.Type == "emit-fact": facts.Add(text.Text!); break;
+                case TextEffect text when text.Type == "add-narrative-hint": hints.Add(text.Text!); break;
+                case TextEffect text when text.Type == "forbid-narrative-fact": forbidden.Add(text.Text!); break;
+                case EmitEventEffect emitted:
+                    events.Add(codec.ToElement(new EffectSet([emitted]))[0].Clone());
+                    break;
+                case CompleteSessionEffect:
+                    world.Session.Status = "completed";
+                    break;
             }
-            applied.Add(new(type, targetId, path, value));
+            applied.Add(new(effect.Type, targetId, path, value));
         }
         world.Session.State.FlagsJson = JsonSerializer.Serialize(flags); world.Session.State.Revision++; world.Session.State.UpdatedAt = DateTimeOffset.UtcNow;
         return new(rule, applied, facts, events, hints, forbidden);
     }
 
-    private static void ValidateEffects(ScenarioRuleWorld world, ScenarioObject source, IReadOnlyList<JsonElement> effects)
+    private static void ValidateEffects(ScenarioRuleWorld world, ScenarioObject source, IReadOnlyList<ScenarioEffect> effects)
     {
-        var allowedTypes = new HashSet<string>(StringComparer.Ordinal)
-        {
-            "set-state", "increment-state", "append-set", "remove-set", "move-object", "move-session",
-            "set-session-flag", "emit-fact", "emit-event", "add-narrative-hint", "forbid-narrative-fact", "complete-session"
-        };
         foreach (var effect in effects)
         {
-            if (effect.ValueKind != JsonValueKind.Object || !effect.TryGetProperty("type", out var typeElement) || typeElement.ValueKind != JsonValueKind.String)
-                throw new ScenarioTurnValidationException("invalid_effect_type");
-            var type = typeElement.GetString() ?? string.Empty;
-            if (!allowedTypes.Contains(type)) throw new ScenarioTurnValidationException("invalid_effect_type");
-            if (type is "set-state" or "increment-state" or "append-set" or "remove-set")
+            switch (effect)
             {
-                if (!effect.TryGetProperty("path", out var pathElement) || pathElement.ValueKind != JsonValueKind.String || !(pathElement.GetString() ?? string.Empty).StartsWith("state.", StringComparison.Ordinal))
-                    throw new ScenarioTurnValidationException("invalid_effect_path");
-                if (!effect.TryGetProperty("value", out var stateValue)) throw new ScenarioTurnValidationException("invalid_effect_value");
-                var targetId = ResolveObjectId(world, source, effect);
-                var targetState = world.States.Single(item => item.ScenarioObjectId == targetId);
-                using var targetStateDocument = JsonDocument.Parse(targetState.StateJson);
-                var property = pathElement.GetString()!["state.".Length..].Split('.', 2)[0];
-                if (!targetStateDocument.RootElement.TryGetProperty(property, out var currentValue)) throw new ScenarioTurnValidationException("invalid_effect_path");
-                if (type == "set-state" && !CompatibleStateValue(currentValue, stateValue)) throw new ScenarioTurnValidationException("invalid_effect_value");
-            }
-            if (type is "move-object" or "move-session" || (type == "emit-event" && effect.TryGetProperty("locationCode", out _)))
-                _ = ResolveLocation(world, effect);
-            if (type == "move-object") _ = ResolveObjectId(world, source, effect);
-            if (type == "set-session-flag")
-            {
-                if (!effect.TryGetProperty("flag", out var flag) || flag.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(flag.GetString())) throw new ScenarioTurnValidationException("invalid_effect_flag");
-                if (!effect.TryGetProperty("value", out var flagValue) || flagValue.ValueKind is not (JsonValueKind.True or JsonValueKind.False)) throw new ScenarioTurnValidationException("invalid_effect_value");
-            }
-            if (type == "emit-event" && (!effect.TryGetProperty("event", out var eventName) || eventName.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(eventName.GetString())))
-                throw new ScenarioTurnValidationException("invalid_effect_event");
-            if (type is "emit-fact" or "add-narrative-hint" or "forbid-narrative-fact")
-            {
-                if (!effect.TryGetProperty("text", out var text) || text.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(text.GetString())) throw new ScenarioTurnValidationException("invalid_effect_text");
+                case StateEffect stateEffect:
+                    if (string.IsNullOrWhiteSpace(stateEffect.Path) || !stateEffect.Path.StartsWith("state.", StringComparison.Ordinal))
+                        throw new ScenarioTurnValidationException("invalid_effect_path");
+                    if (stateEffect.Value is null) throw new ScenarioTurnValidationException("invalid_effect_value");
+                    var targetId = ResolveObjectId(world, source, stateEffect.ObjectCode, stateEffect.ObjectId);
+                    var targetState = world.States.Single(item => item.ScenarioObjectId == targetId);
+                    using (var targetStateDocument = JsonDocument.Parse(targetState.StateJson))
+                    {
+                        var property = stateEffect.Path["state.".Length..].Split('.', 2)[0];
+                        if (!targetStateDocument.RootElement.TryGetProperty(property, out var currentValue)) throw new ScenarioTurnValidationException("invalid_effect_path");
+                        if (stateEffect.Type == "set-state" && !CompatibleStateValue(currentValue, stateEffect.Value.Value))
+                            throw new ScenarioTurnValidationException("invalid_effect_value");
+                    }
+                    break;
+                case MoveObjectEffect moveObject:
+                    _ = ResolveObjectId(world, source, moveObject.ObjectCode, moveObject.ObjectId);
+                    _ = ResolveLocation(world, moveObject.LocationCode, moveObject.LocationId);
+                    break;
+                case MoveSessionEffect moveSession:
+                    _ = ResolveLocation(world, moveSession.LocationCode, moveSession.LocationId);
+                    break;
+                case SetSessionFlagEffect flag when string.IsNullOrWhiteSpace(flag.Flag):
+                    throw new ScenarioTurnValidationException("invalid_effect_flag");
+                case SetSessionFlagEffect flag when flag.Value is null:
+                    throw new ScenarioTurnValidationException("invalid_effect_value");
+                case EmitEventEffect emitted when string.IsNullOrWhiteSpace(emitted.Event):
+                    throw new ScenarioTurnValidationException("invalid_effect_event");
+                case EmitEventEffect emitted when emitted.LocationCode is not null || emitted.LocationId is not null:
+                    _ = ResolveLocation(world, emitted.LocationCode, emitted.LocationId);
+                    break;
+                case TextEffect text when string.IsNullOrWhiteSpace(text.Text):
+                    throw new ScenarioTurnValidationException("invalid_effect_text");
             }
         }
     }
@@ -355,22 +359,18 @@ public sealed class ScenarioEffectApplier(ScenarioRuleEvaluator evaluator, Scena
         || current.ValueKind is JsonValueKind.True or JsonValueKind.False && next.ValueKind is JsonValueKind.True or JsonValueKind.False
         || current.ValueKind == JsonValueKind.Number && next.ValueKind == JsonValueKind.Number;
 
-    private static string ResolveObjectId(ScenarioRuleWorld world, ScenarioObject source, JsonElement effect)
+    private static string ResolveObjectId(ScenarioRuleWorld world, ScenarioObject source, string? objectCode, string? objectId)
     {
-        var reference = effect.TryGetProperty("objectCode", out var objectCode) && objectCode.ValueKind == JsonValueKind.String
-            ? objectCode.GetString()
-            : effect.TryGetProperty("objectId", out var objectId) && objectId.ValueKind == JsonValueKind.String ? objectId.GetString() : null;
+        var reference = objectCode ?? objectId;
         if (string.IsNullOrWhiteSpace(reference)) return source.Id;
         var target = world.Definition.Objects.SingleOrDefault(item => item.Code == reference || item.Id == reference);
         if (target is null || !world.States.Any(state => state.ScenarioObjectId == target.Id)) throw new ScenarioTurnValidationException("invalid_effect_object");
         return target.Id;
     }
 
-    private static ScenarioLocation ResolveLocation(ScenarioRuleWorld world, JsonElement effect)
+    private static ScenarioLocation ResolveLocation(ScenarioRuleWorld world, string? locationCode, string? locationId)
     {
-        var reference = effect.TryGetProperty("locationCode", out var locationCode) && locationCode.ValueKind == JsonValueKind.String
-            ? locationCode.GetString()
-            : effect.TryGetProperty("locationId", out var locationId) && locationId.ValueKind == JsonValueKind.String ? locationId.GetString() : null;
+        var reference = locationCode ?? locationId;
         return world.Definition.Locations.SingleOrDefault(location => location.Code == reference || location.Id == reference)
             ?? throw new ScenarioTurnValidationException("invalid_move_target");
     }

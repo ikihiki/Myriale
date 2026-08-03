@@ -70,7 +70,7 @@ public sealed class ScenarioRuleConfigurationResolver
                     conflicts.Add($"action '{action.Code}' differs between '{existing.SourceCode}' and '{type.Code}'");
                 else actions[action.Code] = resolved;
             }
-            foreach (var rule in Deserialize<List<ScenarioGenericActionRuleInput>>(type.GenericActionRulesJson) ?? [])
+            foreach (var rule in Deserialize<List<ScenarioActionRule>>(type.GenericActionRulesJson) ?? [])
             {
                 var key = (type.Code, rule.Code);
                 if (!candidates.TryAdd(key, FromGeneric(rule, rank, type.Code))) conflicts.Add($"duplicate rule target '{type.Code}/{rule.Code}'");
@@ -82,7 +82,7 @@ public sealed class ScenarioRuleConfigurationResolver
         foreach (var action in Deserialize<List<ScenarioObjectTypeActionInput>>(item.LocalActionsJson) ?? [])
         {
             var resolved = new ResolvedScenarioAction(OpaqueId(item.Id, action.Code), action.Code, action.Label, action.Description ?? string.Empty,
-                Raw(action.ArgumentSchema, "{}"), Raw(action.AvailabilityCondition, "{}"), action.Visibility, action.ExecutionMode,
+                Raw(action.ArgumentSchema, "{}"), Raw(action.AvailabilityCondition), action.Visibility, action.ExecutionMode,
                 localRank, "object", item.Id);
             if (actions.TryGetValue(action.Code, out var existing) && !SameContract(existing, resolved))
                 conflicts.Add($"action '{action.Code}' differs between '{existing.SourceCode}' and object");
@@ -91,22 +91,22 @@ public sealed class ScenarioRuleConfigurationResolver
 
         var mutations = Deserialize<List<ScenarioObjectRuleMutationInput>>(item.ActionRuleMutationsJson) ?? [];
         var mutatedTargets = new HashSet<(string TypeCode, string RuleCode)>();
-        foreach (var mutation in mutations.Where(rule => rule.Operation != "add"))
+        foreach (var mutation in mutations.Where(rule => rule.Operation != ScenarioRuleMutationOperation.Add))
         {
             var key = (mutation.TargetTypeCode ?? string.Empty, mutation.TargetRuleCode ?? string.Empty);
             if (!mutatedTargets.Add(key)) { conflicts.Add($"conflicting mutation chain for '{key.Item1}/{key.Item2}'"); continue; }
             if (!candidates.TryGetValue(key, out var generic)) { conflicts.Add($"missing rule target '{key.Item1}/{key.Item2}'"); continue; }
             switch (mutation.Operation)
             {
-                case "delete": candidates.Remove(key); break;
-                case "override": candidates[key] = FromReplacement(mutation, generic, item.Id); break;
-                case "adjust": candidates[key] = FromAdjustment(mutation, generic); break;
+                case ScenarioRuleMutationOperation.Delete: candidates.Remove(key); break;
+                case ScenarioRuleMutationOperation.Override: candidates[key] = FromReplacement(mutation, generic, item.Id); break;
+                case ScenarioRuleMutationOperation.Adjust: candidates[key] = FromAdjustment(mutation, generic); break;
                 default: conflicts.Add($"invalid rule mutation operation '{mutation.Operation}'"); break;
             }
         }
 
         var rules = candidates.Values.ToList();
-        foreach (var addition in mutations.Where(rule => rule.Operation == "add"))
+        foreach (var addition in mutations.Where(rule => rule.Operation == ScenarioRuleMutationOperation.Add))
             rules.Add(FromAddition(addition, localRank, item.Id));
 
         return new(mixins, schema, defaults, visibility.Where(pair => pair.Value).Select(pair => pair.Key).ToHashSet(StringComparer.Ordinal),
@@ -121,22 +121,22 @@ public sealed class ScenarioRuleConfigurationResolver
         return state;
     }
 
-    private static ResolvedScenarioRule FromGeneric(ScenarioGenericActionRuleInput rule, int rank, string typeCode) =>
-        new(OpaqueId(typeCode, rule.Code), rule.Code, rule.ActionCode, Raw(rule.Condition, "{}"), rule.Priority, rank, typeCode,
-            rule.AuthoringNote, Raw(rule.Effects, "[]"), rule.ModuleBinding?.ModuleId, rule.ModuleBinding?.Version, rule.ModuleBinding?.Digest,
+    private static ResolvedScenarioRule FromGeneric(ScenarioActionRule rule, int rank, string typeCode) =>
+        new(OpaqueId(typeCode, rule.Code), rule.Code, rule.ActionCode, Raw(rule.Condition), rule.Priority, rank, typeCode,
+            rule.AuthoringNote, Raw(rule.Effects), rule.ModuleBinding?.ModuleId, rule.ModuleBinding?.Version, rule.ModuleBinding?.Digest,
             rule.ModuleBinding is null ? null : Raw(rule.ModuleBinding.Configuration, "{}"));
 
     private static ResolvedScenarioRule FromReplacement(ScenarioObjectRuleMutationInput mutation, ResolvedScenarioRule generic, string objectId) =>
-        new(OpaqueId(objectId, $"override:{generic.SourceCode}:{generic.RuleCode}"), generic.RuleCode, mutation.ActionCode!, Raw(mutation.Condition!.Value, "{}"),
-            mutation.Priority!.Value, generic.SourceRank, "object", mutation.AuthoringNote, Raw(mutation.Effects!.Value, "[]"), mutation.ModuleBinding?.ModuleId,
+        new(OpaqueId(objectId, $"override:{generic.SourceCode}:{generic.RuleCode}"), generic.RuleCode, mutation.ActionCode!, Raw(mutation.Condition!),
+            mutation.Priority!.Value, generic.SourceRank, "object", mutation.AuthoringNote, Raw(mutation.Effects!), mutation.ModuleBinding?.ModuleId,
             mutation.ModuleBinding?.Version, mutation.ModuleBinding?.Digest, mutation.ModuleBinding is null ? null : Raw(mutation.ModuleBinding.Configuration, "{}"));
 
     private static ResolvedScenarioRule FromAdjustment(ScenarioObjectRuleMutationInput mutation, ResolvedScenarioRule generic) => generic with
     {
-        ConditionJson = mutation.Condition is { } condition ? Raw(condition, "{}") : generic.ConditionJson,
-        Priority = mutation.Priority ?? generic.Priority,
+        ConditionJson = mutation.ConditionSpecified && mutation.Condition is { } condition ? Raw(condition) : generic.ConditionJson,
+        Priority = mutation.PrioritySpecified && mutation.Priority is { } priority ? priority : generic.Priority,
         AuthoringNote = mutation.AuthoringNoteSpecified ? mutation.AuthoringNote : generic.AuthoringNote,
-        EffectsJson = mutation.Effects is { } effects ? Raw(effects, "[]") : generic.EffectsJson,
+        EffectsJson = mutation.EffectsSpecified && mutation.Effects is { } effects ? Raw(effects) : generic.EffectsJson,
         ModuleId = mutation.ModuleBindingSpecified ? mutation.ModuleBinding?.ModuleId : generic.ModuleId,
         ModuleVersion = mutation.ModuleBindingSpecified ? mutation.ModuleBinding?.Version : generic.ModuleVersion,
         ModuleDigest = mutation.ModuleBindingSpecified ? mutation.ModuleBinding?.Digest : generic.ModuleDigest,
@@ -146,8 +146,8 @@ public sealed class ScenarioRuleConfigurationResolver
     };
 
     private static ResolvedScenarioRule FromAddition(ScenarioObjectRuleMutationInput mutation, int rank, string objectId) =>
-        new(OpaqueId(objectId, $"add:{mutation.Code}"), mutation.Code!, mutation.ActionCode!, Raw(mutation.Condition!.Value, "{}"), mutation.Priority!.Value,
-            rank, "object", mutation.AuthoringNote, Raw(mutation.Effects!.Value, "[]"), mutation.ModuleBinding?.ModuleId, mutation.ModuleBinding?.Version,
+        new(OpaqueId(objectId, $"add:{mutation.Code}"), mutation.Code!, mutation.ActionCode!, Raw(mutation.Condition!), mutation.Priority!.Value,
+            rank, "object", mutation.AuthoringNote, Raw(mutation.Effects!), mutation.ModuleBinding?.ModuleId, mutation.ModuleBinding?.Version,
             mutation.ModuleBinding?.Digest, mutation.ModuleBinding is null ? null : Raw(mutation.ModuleBinding.Configuration, "{}"));
 
     private static void MergeState(string schemaJson, string defaultsJson, string projectionJson, string source,
@@ -182,5 +182,7 @@ public sealed class ScenarioRuleConfigurationResolver
     private static string OpaqueId(string scope, string code) => "RA-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{scope}\n{code}")))[..24];
     private static T? Deserialize<T>(string json) => string.IsNullOrWhiteSpace(json) ? default : JsonSerializer.Deserialize<T>(json, Json);
     private static JsonObject ParseObject(string json) => JsonNode.Parse(string.IsNullOrWhiteSpace(json) ? "{}" : json) as JsonObject ?? [];
+    private static string Raw(ConditionExpression condition) => JsonSerializer.Serialize(condition, Json);
+    private static string Raw(EffectSet effects) => JsonSerializer.Serialize(effects, Json);
     private static string Raw(JsonElement element, string fallback) => element.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null ? fallback : element.GetRawText();
 }

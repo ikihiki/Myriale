@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
+using Myriale.Api.Domain.Scenarios;
 using Myriale.Api.Services;
 
 namespace Myriale.Api.Tests;
@@ -84,7 +85,7 @@ public sealed class ScenarioRuleConfigurationResolverTests
               [
                 {"operation":"override","targetTypeCode":"door","targetRuleCode":"override-me","actionCode":"open","condition":{},"priority":110,"authoringNote":"object override","effects":[{"type":"emit-fact","text":"object override"}],"moduleBinding":null},
                 {"operation":"delete","targetTypeCode":"door","targetRuleCode":"delete-me"},
-                {"operation":"adjust","targetTypeCode":"door","targetRuleCode":"adjust-me","priority":130,"authoringNote":"object adjust"},
+                {"operation":"adjust","targetTypeCode":"door","targetRuleCode":"adjust-me","priority":130,"authoringNote":null,"moduleBinding":null},
                 {"operation":"add","code":"object-add","actionCode":"open","condition":{},"priority":140,"authoringNote":"object add","effects":[{"type":"emit-fact","text":"object add"}],"moduleBinding":null}
               ]
               """
@@ -100,10 +101,10 @@ public sealed class ScenarioRuleConfigurationResolverTests
         Assert.Contains("object override", customizedRules["override-me"].EffectsJson);
         Assert.DoesNotContain("delete-me", customizedRules);
         Assert.Equal(130, customizedRules["adjust-me"].Priority);
-        Assert.Equal("object adjust", customizedRules["adjust-me"].AuthoringNote);
+        Assert.Null(customizedRules["adjust-me"].AuthoringNote);
         Assert.Contains("state.open", customizedRules["adjust-me"].ConditionJson);
         Assert.Contains("generic adjust", customizedRules["adjust-me"].EffectsJson);
-        Assert.Equal("example.module", customizedRules["adjust-me"].ModuleId);
+        Assert.Null(customizedRules["adjust-me"].ModuleId);
         Assert.Equal(1, customizedRules["object-add"].SourceRank);
 
         Assert.Equal(3, untouchedRules.Count);
@@ -122,6 +123,6 @@ public sealed class ScenarioRuleConfigurationResolverTests
         DefaultStateJson = defaults, PublicProjectionJson = projection, Actions = [action]
     };
     private static ScenarioObjectTypeAction Action(string code, string label) => new() { Id = $"action-{code}-{label}", Code = code, Label = label, ArgumentSchemaJson = "{}", AvailabilityConditionJson = "{}" };
-    private static ScenarioObjectTypeActionInput InputAction(string code, string label) => new(code, label, "", Element("{}"), Element("{}"), "ai-choice", "rule");
+    private static ScenarioObjectTypeActionInput InputAction(string code, string label) => new(code, label, "", Element("{}"), ConditionExpression.Empty, "ai-choice", "rule");
     private static JsonElement Element(string json) => JsonDocument.Parse(json).RootElement.Clone();
 }

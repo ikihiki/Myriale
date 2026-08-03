@@ -36,7 +36,7 @@ public sealed class ScenarioDefinitionWriter(ApplicationDbContext db, ScenarioRu
             {
                 Id = $"SOTA-{Guid.NewGuid():N}", ObjectTypeId = type.Id, Code = actionInput.Code.Trim(), Label = actionInput.Label.Trim(),
                 Description = actionInput.Description?.Trim() ?? string.Empty, ArgumentSchemaJson = Element(actionInput.ArgumentSchema, "{}"),
-                AvailabilityConditionJson = codec.Encode(new ConditionExpression(actionInput.AvailabilityCondition)),
+                AvailabilityConditionJson = codec.Encode(actionInput.AvailabilityCondition),
                 Visibility = ScenarioEnumValues.ParseActionVisibility(actionInput.Visibility), ExecutionMode = ScenarioEnumValues.ParseActionExecutionMode(actionInput.ExecutionMode),
             });
             version.ObjectTypes.Add(type);

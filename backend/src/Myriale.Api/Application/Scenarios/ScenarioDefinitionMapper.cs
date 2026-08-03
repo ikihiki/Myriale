@@ -17,8 +17,8 @@ public sealed class ScenarioDefinitionMapper(ScenarioRuleJsonCodec codec)
             version.ObjectTypes.OrderBy(item => item.Code).Select(item => new ScenarioObjectTypeInput(item.Code, item.Name, item.Description, item.SchemaVersion,
                 codec.DecodeSchema(item.StateSchemaJson).Value, codec.DecodeState(item.DefaultStateJson).Value, codec.DecodeProjection(item.PublicProjectionJson).Value,
                 item.Actions.OrderBy(action => action.Code).Select(action => new ScenarioObjectTypeActionInput(action.Code, action.Label, action.Description,
-                    codec.ParseElement(action.ArgumentSchemaJson), codec.DecodeCondition(action.AvailabilityConditionJson).Value, action.Visibility.ToWireValue(), action.ExecutionMode.ToWireValue())).ToList(),
-                JsonSerializer.Deserialize<List<ScenarioGenericActionRuleInput>>(item.GenericActionRulesJson, SerializerOptions) ?? [])).ToList(),
+                    codec.ParseElement(action.ArgumentSchemaJson), codec.DecodeCondition(action.AvailabilityConditionJson), action.Visibility.ToWireValue(), action.ExecutionMode.ToWireValue())).ToList(),
+                JsonSerializer.Deserialize<List<ScenarioActionRule>>(item.GenericActionRulesJson, SerializerOptions) ?? [])).ToList(),
             version.Objects.OrderBy(item => item.Code).Select(item =>
             {
                 var mixins = JsonSerializer.Deserialize<List<string>>(item.MixinTypeCodesJson) ?? [];

@@ -63,6 +63,7 @@ builder.Services.AddScoped<SaveScenarioDefinitionUseCase>();
 builder.Services.AddScoped<PublishScenarioDefinitionUseCase>();
 builder.Services.AddScoped<ScenarioDefinitionReadinessPolicy>();
 builder.Services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
+builder.Services.AddScoped<IDomainEventHandler<ScenarioDefinitionPublished>, ScenarioDefinitionPublishedLoggingHandler>();
 builder.Services.AddScoped<ScenarioDefinitionPublicationAudit>();
 builder.Services.AddScoped<IDomainEventHandler<ScenarioDefinitionPublished>, ScenarioDefinitionPublicationAuditHandler>();
 builder.Services.AddScoped<ScenarioDefinitionAuthoringService>();

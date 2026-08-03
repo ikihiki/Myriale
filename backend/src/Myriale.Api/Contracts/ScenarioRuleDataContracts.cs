@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Myriale.Api.Domain.Scenarios;
 
 namespace Myriale.Api.Contracts;
 
@@ -21,14 +22,14 @@ public sealed record ScenarioObjectTypeInput(
     JsonElement DefaultState,
     JsonElement PublicProjection,
     IReadOnlyList<ScenarioObjectTypeActionInput> Actions,
-    IReadOnlyList<ScenarioGenericActionRuleInput>? ActionRules = null);
+    IReadOnlyList<ScenarioActionRule>? ActionRules = null);
 
 public sealed record ScenarioObjectTypeActionInput(
     string Code,
     string Label,
     string? Description,
     JsonElement ArgumentSchema,
-    JsonElement AvailabilityCondition,
+    ConditionExpression AvailabilityCondition,
     string Visibility,
     string ExecutionMode);
 
@@ -46,41 +47,52 @@ public sealed record ScenarioObjectInput(
     JsonElement PublicProjection,
     IReadOnlyList<ScenarioObjectTypeActionInput> Actions);
 
-public sealed record ScenarioGenericActionRuleInput(
-    string Code,
-    string ActionCode,
-    JsonElement Condition,
-    int Priority,
-    string? AuthoringNote,
-    JsonElement Effects,
-    ScenarioModuleBindingInput? ModuleBinding);
+public enum ScenarioRuleMutationOperation { Add, Override, Delete, Adjust }
 
 [JsonConverter(typeof(ScenarioObjectRuleMutationInputJsonConverter))]
 public sealed class ScenarioObjectRuleMutationInput
 {
+    private ConditionExpression? _condition;
+    private int? _priority;
     private string? _authoringNote;
-    private ScenarioModuleBindingInput? _moduleBinding;
+    private EffectSet? _effects;
+    private ScenarioModuleBinding? _moduleBinding;
 
-    public string Operation { get; set; } = string.Empty;
+    public ScenarioRuleMutationOperation Operation { get; set; }
     public string? TargetTypeCode { get; set; }
     public string? TargetRuleCode { get; set; }
     public string? Code { get; set; }
     public string? ActionCode { get; set; }
-    public JsonElement? Condition { get; set; }
-    public int? Priority { get; set; }
+    public ConditionExpression? Condition
+    {
+        get => _condition;
+        set { _condition = value; ConditionSpecified = true; }
+    }
+    public int? Priority
+    {
+        get => _priority;
+        set { _priority = value; PrioritySpecified = true; }
+    }
     public string? AuthoringNote
     {
         get => _authoringNote;
         set { _authoringNote = value; AuthoringNoteSpecified = true; }
     }
-    public JsonElement? Effects { get; set; }
-    public ScenarioModuleBindingInput? ModuleBinding
+    public EffectSet? Effects
+    {
+        get => _effects;
+        set { _effects = value; EffectsSpecified = true; }
+    }
+    public ScenarioModuleBinding? ModuleBinding
     {
         get => _moduleBinding;
         set { _moduleBinding = value; ModuleBindingSpecified = true; }
     }
 
+    [JsonIgnore] public bool ConditionSpecified { get; private set; }
+    [JsonIgnore] public bool PrioritySpecified { get; private set; }
     [JsonIgnore] public bool AuthoringNoteSpecified { get; private set; }
+    [JsonIgnore] public bool EffectsSpecified { get; private set; }
     [JsonIgnore] public bool ModuleBindingSpecified { get; private set; }
 }
 
@@ -91,49 +103,60 @@ public sealed class ScenarioObjectRuleMutationInputJsonConverter : JsonConverter
         using var document = JsonDocument.ParseValue(ref reader);
         var root = document.RootElement;
         if (root.ValueKind != JsonValueKind.Object) throw new JsonException("A rule mutation must be a JSON object.");
+        var operation = String(root, "operation") ?? throw new JsonException("A rule mutation operation is required.");
         var result = new ScenarioObjectRuleMutationInput
         {
-            Operation = String(root, "operation") ?? string.Empty,
+            Operation = operation switch
+            {
+                "add" => ScenarioRuleMutationOperation.Add,
+                "override" => ScenarioRuleMutationOperation.Override,
+                "delete" => ScenarioRuleMutationOperation.Delete,
+                "adjust" => ScenarioRuleMutationOperation.Adjust,
+                _ => throw new JsonException($"Unsupported rule mutation operation '{operation}'."),
+            },
             TargetTypeCode = String(root, "targetTypeCode"),
             TargetRuleCode = String(root, "targetRuleCode"),
             Code = String(root, "code"),
             ActionCode = String(root, "actionCode"),
-            Condition = Element(root, "condition"),
-            Priority = root.TryGetProperty("priority", out var priority) && priority.ValueKind == JsonValueKind.Number ? priority.GetInt32() : null,
-            Effects = Element(root, "effects"),
         };
+        if (root.TryGetProperty("condition", out var condition))
+            result.Condition = condition.ValueKind == JsonValueKind.Null ? null : condition.Deserialize<ConditionExpression>(options);
+        if (root.TryGetProperty("priority", out var priority))
+            result.Priority = priority.ValueKind == JsonValueKind.Null ? null : priority.GetInt32();
         if (root.TryGetProperty("authoringNote", out var note)) result.AuthoringNote = note.ValueKind == JsonValueKind.Null ? null : note.GetString();
+        if (root.TryGetProperty("effects", out var effects))
+            result.Effects = effects.ValueKind == JsonValueKind.Null ? null : effects.Deserialize<EffectSet>(options);
         if (root.TryGetProperty("moduleBinding", out var binding))
-            result.ModuleBinding = binding.ValueKind == JsonValueKind.Null ? null : binding.Deserialize<ScenarioModuleBindingInput>(options);
+            result.ModuleBinding = binding.ValueKind == JsonValueKind.Null ? null : binding.Deserialize<ScenarioModuleBinding>(options);
         return result;
     }
 
     public override void Write(Utf8JsonWriter writer, ScenarioObjectRuleMutationInput value, JsonSerializerOptions options)
     {
         writer.WriteStartObject();
-        writer.WriteString("operation", value.Operation);
+        writer.WriteString("operation", value.Operation switch
+        {
+            ScenarioRuleMutationOperation.Add => "add",
+            ScenarioRuleMutationOperation.Override => "override",
+            ScenarioRuleMutationOperation.Delete => "delete",
+            ScenarioRuleMutationOperation.Adjust => "adjust",
+            _ => throw new JsonException($"Unsupported rule mutation operation '{value.Operation}'."),
+        });
         WriteString(writer, "targetTypeCode", value.TargetTypeCode);
         WriteString(writer, "targetRuleCode", value.TargetRuleCode);
         WriteString(writer, "code", value.Code);
         WriteString(writer, "actionCode", value.ActionCode);
-        if (value.Condition is { } condition) { writer.WritePropertyName("condition"); condition.WriteTo(writer); }
-        if (value.Priority is { } priority) writer.WriteNumber("priority", priority);
+        if (value.ConditionSpecified) { writer.WritePropertyName("condition"); JsonSerializer.Serialize(writer, value.Condition, options); }
+        if (value.PrioritySpecified) { writer.WritePropertyName("priority"); JsonSerializer.Serialize(writer, value.Priority, options); }
         if (value.AuthoringNoteSpecified) { writer.WritePropertyName("authoringNote"); JsonSerializer.Serialize(writer, value.AuthoringNote, options); }
-        if (value.Effects is { } effects) { writer.WritePropertyName("effects"); effects.WriteTo(writer); }
+        if (value.EffectsSpecified) { writer.WritePropertyName("effects"); JsonSerializer.Serialize(writer, value.Effects, options); }
         if (value.ModuleBindingSpecified) { writer.WritePropertyName("moduleBinding"); JsonSerializer.Serialize(writer, value.ModuleBinding, options); }
         writer.WriteEndObject();
     }
 
     private static string? String(JsonElement root, string name) => root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
-    private static JsonElement? Element(JsonElement root, string name) => root.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null ? value.Clone() : null;
     private static void WriteString(Utf8JsonWriter writer, string name, string? value) { if (value is not null) writer.WriteString(name, value); }
 }
-
-public sealed record ScenarioModuleBindingInput(
-    string ModuleId,
-    string Version,
-    string Digest,
-    JsonElement Configuration);
 
 public sealed record ScenarioRuleDataResponse(
     string ScenarioId,

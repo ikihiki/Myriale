@@ -11,40 +11,40 @@ public sealed class Scenario
 
     [Required]
     [MaxLength(160)]
-    public ScenarioTitle Title { get; set; } = new("Untitled");
+    public ScenarioTitle Title { get; internal set; } = new("Untitled");
 
     [MaxLength(2000)]
-    public string Summary { get; set; } = string.Empty;
+    public string Summary { get; internal set; } = string.Empty;
 
     [MaxLength(80)]
-    public string Genre { get; set; } = string.Empty;
+    public string Genre { get; internal set; } = string.Empty;
 
     [MaxLength(120)]
-    public string Tone { get; set; } = string.Empty;
+    public string Tone { get; internal set; } = string.Empty;
 
-    public string Lore { get; set; } = string.Empty;
+    public string Lore { get; internal set; } = string.Empty;
 
     [MaxLength(120)]
-    public string AiFreedom { get; set; } = string.Empty;
+    public string AiFreedom { get; internal set; } = string.Empty;
 
     [MaxLength(20)]
-    public HeroMode HeroMode { get; set; } = HeroMode.Free;
+    public HeroMode HeroMode { get; internal set; } = HeroMode.Free;
 
-    public bool HeroFreeGenerationAllowed { get; set; }
+    public bool HeroFreeGenerationAllowed { get; internal set; }
 
-    public string Hero { get; set; } = string.Empty;
+    public string Hero { get; internal set; } = string.Empty;
 
-    public string Opening { get; set; } = string.Empty;
-
-    [MaxLength(240)]
-    public IllustrationPrompt IllustrationStyle { get; set; } = new("");
+    public string Opening { get; internal set; } = string.Empty;
 
     [MaxLength(240)]
-    public IllustrationPrompt IllustrationMood { get; set; } = new("");
+    public IllustrationPrompt IllustrationStyle { get; internal set; } = new("");
 
-    public IllustrationPrompt IllustrationNegative { get; set; } = new("");
+    [MaxLength(240)]
+    public IllustrationPrompt IllustrationMood { get; internal set; } = new("");
 
-    public string SampleScene { get; set; } = string.Empty;
+    public IllustrationPrompt IllustrationNegative { get; internal set; } = new("");
+
+    public string SampleScene { get; internal set; } = string.Empty;
 
     [MaxLength(40)]
     public ScenarioPublicationStatus Status { get; internal set; } = ScenarioPublicationStatus.Draft;

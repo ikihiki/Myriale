@@ -3,11 +3,12 @@ using System.Text.RegularExpressions;
 using Myriale.Api.Application.Scenarios;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
+using Myriale.Api.Domain.Scenarios;
 
 namespace Myriale.Api.Application.Scenarios;
 
 
-public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper mapper)
+public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper mapper, ScenarioRuleJsonCodec codec)
 {
     private static readonly HashSet<string> EffectTypes =
     [
@@ -79,7 +80,7 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
                 var action = typeActions[j];
                 if (string.IsNullOrWhiteSpace(action.Label)) Add($"objectTypes[{i}].actions[{j}].label", "Label is required.");
                 RequireObject(action.ArgumentSchema, $"objectTypes[{i}].actions[{j}].argumentSchema", Add);
-                ValidateCondition(action.AvailabilityCondition, $"objectTypes[{i}].actions[{j}].availabilityCondition",
+                ValidateCondition(codec.ToElement(action.AvailabilityCondition), $"objectTypes[{i}].actions[{j}].availabilityCondition",
                     GetSchemaProperties(type.StateSchema), null, allowArguments: false, Add);
                 if (action.Visibility is not ("ai-choice" or "manual-ui" or "system-only")) Add($"objectTypes[{i}].actions[{j}].visibility", "Visibility is invalid.");
                 if (action.ExecutionMode is not ("rule" or "extension-module")) Add($"objectTypes[{i}].actions[{j}].executionMode", "Execution mode is invalid.");
@@ -94,9 +95,9 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
                 var path = $"objectTypes[{i}].actionRules[{j}]";
                 if (!actionCodes.Contains(rule.ActionCode)) Add($"{path}.actionCode", "Referenced type action does not exist.");
                 var argumentSchema = typeActions.FirstOrDefault(action => action.Code == rule.ActionCode)?.ArgumentSchema;
-                ValidateCondition(rule.Condition, $"{path}.condition", GetSchemaProperties(type.StateSchema),
+                ValidateCondition(codec.ToElement(rule.Condition), $"{path}.condition", GetSchemaProperties(type.StateSchema),
                     argumentSchema is { } schema ? GetSchemaProperties(schema) : null, allowArguments: true, Add);
-                ValidateEffects(rule.Effects, $"{path}.effects", locationCodes, objectCodes, GetSchemaProperties(type.StateSchema), objectStatePropertiesByCode, Add);
+                ValidateEffects(codec.ToElement(rule.Effects), $"{path}.effects", locationCodes, objectCodes, GetSchemaProperties(type.StateSchema), objectStatePropertiesByCode, Add);
                 ValidateModuleBinding(rule.ModuleBinding, $"{path}.moduleBinding", Add);
             }
         }
@@ -132,7 +133,7 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
                 var path = $"objects[{i}].actions[{j}]";
                 if (string.IsNullOrWhiteSpace(action.Label)) Add($"{path}.label", "Label is required.");
                 RequireObject(action.ArgumentSchema, $"{path}.argumentSchema", Add);
-                ValidateCondition(action.AvailabilityCondition, $"{path}.availabilityCondition", stateProperties, null, allowArguments: false, Add);
+                ValidateCondition(codec.ToElement(action.AvailabilityCondition), $"{path}.availabilityCondition", stateProperties, null, allowArguments: false, Add);
                 if (action.Visibility is not ("ai-choice" or "manual-ui" or "system-only")) Add($"{path}.visibility", "Visibility is invalid.");
                 if (action.ExecutionMode is not ("rule" or "extension-module")) Add($"{path}.executionMode", "Execution mode is invalid.");
                 if (action.ExecutionMode == "extension-module") Add($"objects[{i}].actions", $"Object-local extension action '{action.Code}' is not supported.");
@@ -150,8 +151,7 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
             {
                 var rule = rules[j];
                 var path = $"objects[{i}].actionRules[{j}]";
-                if (rule.Operation is not ("add" or "override" or "delete" or "adjust")) { Add($"{path}.operation", "Operation must be add, override, delete, or adjust."); continue; }
-                if (rule.Operation == "add")
+                if (rule.Operation == ScenarioRuleMutationOperation.Add)
                 {
                     if (string.IsNullOrWhiteSpace(rule.Code) || !StableCodeRegex().IsMatch(rule.Code)) Add($"{path}.code", "Code must use lowercase letters, numbers, and hyphens.");
                     else if (!addCodes.Add(rule.Code)) Add($"{path}.code", "Add rule code must be unique within the object.");
@@ -170,12 +170,12 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
                 var target = targets?.Count == 1 ? targets[0] : null;
 
                 if (rule.Code is not null) Add($"{path}.code", "Only add rules define a local code.");
-                if (rule.Operation == "delete")
+                if (rule.Operation == ScenarioRuleMutationOperation.Delete)
                 {
                     if (rule.ActionCode is not null || rule.Condition is not null || rule.Priority is not null || rule.AuthoringNoteSpecified || rule.Effects is not null || rule.ModuleBindingSpecified)
                         Add(path, "Delete rules may only specify operation and inherited target.");
                 }
-                else if (rule.Operation == "override")
+                else if (rule.Operation == ScenarioRuleMutationOperation.Override)
                 {
                     ValidateFullMutationRule(rule, path, actions, actionArgumentSchemas, locationCodes, objectCodes, stateProperties, objectStatePropertiesByCode, Add);
                     if (target is not null && rule.ActionCode != target.ActionCode) Add($"{path}.actionCode", "Override action must match the inherited target action.");
@@ -183,15 +183,18 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
                 else
                 {
                     if (rule.ActionCode is not null) Add($"{path}.actionCode", "Adjust cannot change the inherited target action.");
-                    if (rule.Condition is { } condition)
+                    if (rule.ConditionSpecified && rule.Condition is null) Add($"{path}.condition", "Adjust condition cannot be null; omit it to preserve the inherited condition.");
+                    else if (rule.Condition is { } condition)
                     {
                         var targetArgumentSchema = target is not null && actionArgumentSchemas.TryGetValue(target.ActionCode, out var schema)
                             ? GetSchemaProperties(schema) : null;
-                        ValidateCondition(condition, $"{path}.condition", stateProperties, targetArgumentSchema, allowArguments: true, Add);
+                        ValidateCondition(codec.ToElement(condition), $"{path}.condition", stateProperties, targetArgumentSchema, allowArguments: true, Add);
                     }
-                    if (rule.Effects is { } effects) ValidateEffects(effects, $"{path}.effects", locationCodes, objectCodes, stateProperties, objectStatePropertiesByCode, Add);
+                    if (rule.PrioritySpecified && rule.Priority is null) Add($"{path}.priority", "Adjust priority cannot be null; omit it to preserve the inherited priority.");
+                    if (rule.EffectsSpecified && rule.Effects is null) Add($"{path}.effects", "Adjust effects cannot be null; omit them to preserve the inherited effects.");
+                    else if (rule.Effects is { } effects) ValidateEffects(codec.ToElement(effects), $"{path}.effects", locationCodes, objectCodes, stateProperties, objectStatePropertiesByCode, Add);
                     if (rule.ModuleBindingSpecified) ValidateModuleBinding(rule.ModuleBinding, $"{path}.moduleBinding", Add);
-                    if (rule.Condition is null && rule.Priority is null && !rule.AuthoringNoteSpecified && rule.Effects is null && !rule.ModuleBindingSpecified)
+                    if (!rule.ConditionSpecified && !rule.PrioritySpecified && !rule.AuthoringNoteSpecified && !rule.EffectsSpecified && !rule.ModuleBindingSpecified)
                         Add(path, "Adjust must specify at least one patch field.");
                 }
             }
@@ -235,7 +238,7 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
             .GroupBy(type => type.Code, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
         var persistedReferences = (persisted.Objects ?? []).SelectMany((item, index) => (item.ActionRules ?? [])
-            .Where(rule => rule.Operation != "add")
+            .Where(rule => rule.Operation != ScenarioRuleMutationOperation.Add)
             .Select(rule => (ObjectIndex: index, rule.TargetTypeCode, rule.TargetRuleCode))).ToList();
 
         foreach (var oldType in persisted.ObjectTypes ?? [])
@@ -255,7 +258,7 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
                 {
                     var replacement = matches[0];
                     foreach (var mutation in (request.Objects ?? []).SelectMany(item => item.ActionRules ?? [])
-                        .Where(rule => rule.Operation != "add" && rule.TargetTypeCode == oldType.Code && rule.TargetRuleCode == oldRule.Code))
+                        .Where(rule => rule.Operation != ScenarioRuleMutationOperation.Add && rule.TargetTypeCode == oldType.Code && rule.TargetRuleCode == oldRule.Code))
                         mutation.TargetRuleCode = replacement.Code;
                     added.Remove(replacement);
                     continue;
@@ -268,7 +271,7 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
     }
 
 
-    private sealed record EffectiveAuthoringRule(string ActionCode, int Priority, int SourceRank, ScenarioModuleBindingInput? ModuleBinding);
+    private sealed record EffectiveAuthoringRule(string ActionCode, int Priority, int SourceRank, ScenarioModuleBinding? ModuleBinding);
 
     private static IReadOnlyList<EffectiveAuthoringRule> EffectiveRules(
         IReadOnlyList<ScenarioObjectTypeInput> types, IReadOnlyList<ScenarioObjectRuleMutationInput> mutations)
@@ -278,14 +281,14 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
             foreach (var rule in types[rank].ActionRules ?? [])
                 candidates.TryAdd((types[rank].Code, rule.Code), new(rule.ActionCode, rule.Priority, rank, rule.ModuleBinding));
 
-        foreach (var mutation in mutations.Where(rule => rule.Operation != "add"))
+        foreach (var mutation in mutations.Where(rule => rule.Operation != ScenarioRuleMutationOperation.Add))
         {
             var key = (mutation.TargetTypeCode ?? string.Empty, mutation.TargetRuleCode ?? string.Empty);
             if (!candidates.TryGetValue(key, out var generic)) continue;
-            if (mutation.Operation == "delete") candidates.Remove(key);
-            else if (mutation.Operation == "override" && mutation.ActionCode is not null && mutation.Priority is not null)
+            if (mutation.Operation == ScenarioRuleMutationOperation.Delete) candidates.Remove(key);
+            else if (mutation.Operation == ScenarioRuleMutationOperation.Override && mutation.ActionCode is not null && mutation.Priority is not null)
                 candidates[key] = new(mutation.ActionCode, mutation.Priority.Value, generic.SourceRank, mutation.ModuleBinding);
-            else if (mutation.Operation == "adjust")
+            else if (mutation.Operation == ScenarioRuleMutationOperation.Adjust)
                 candidates[key] = generic with
                 {
                     Priority = mutation.Priority ?? generic.Priority,
@@ -295,12 +298,12 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
 
         var result = candidates.Values.ToList();
         var localRank = types.Count;
-        result.AddRange(mutations.Where(rule => rule.Operation == "add" && rule.ActionCode is not null && rule.Priority is not null)
+        result.AddRange(mutations.Where(rule => rule.Operation == ScenarioRuleMutationOperation.Add && rule.ActionCode is not null && rule.Priority is not null)
             .Select(rule => new EffectiveAuthoringRule(rule.ActionCode!, rule.Priority!.Value, localRank, rule.ModuleBinding)));
         return result;
     }
 
-    private static void ValidateFullMutationRule(
+    private void ValidateFullMutationRule(
         ScenarioObjectRuleMutationInput rule, string path, ISet<string> actions,
         IReadOnlyDictionary<string, JsonElement> actionArgumentSchemas, ISet<string> locations, ISet<string> objects,
         IReadOnlyDictionary<string, JsonElement> stateProperties,
@@ -314,15 +317,15 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
         {
             var argumentProperties = rule.ActionCode is not null && actionArgumentSchemas.TryGetValue(rule.ActionCode, out var schema)
                 ? GetSchemaProperties(schema) : null;
-            ValidateCondition(condition, $"{path}.condition", stateProperties, argumentProperties, allowArguments: true, add);
+            ValidateCondition(codec.ToElement(condition), $"{path}.condition", stateProperties, argumentProperties, allowArguments: true, add);
         }
         if (rule.Priority is null) add($"{path}.priority", "Priority is required for a full rule.");
         if (rule.Effects is not { } effects) add($"{path}.effects", "Effects are required for a full rule.");
-        else ValidateEffects(effects, $"{path}.effects", locations, objects, stateProperties, objectStatePropertiesByCode, add);
+        else ValidateEffects(codec.ToElement(effects), $"{path}.effects", locations, objects, stateProperties, objectStatePropertiesByCode, add);
         if (rule.ModuleBindingSpecified) ValidateModuleBinding(rule.ModuleBinding, $"{path}.moduleBinding", add);
     }
 
-    private static void ValidateModuleBinding(ScenarioModuleBindingInput? binding, string path, Action<string, string> add)
+    private static void ValidateModuleBinding(ScenarioModuleBinding? binding, string path, Action<string, string> add)
     {
         if (binding is null) return;
         if (string.IsNullOrWhiteSpace(binding.ModuleId)) add($"{path}.moduleId", "Module ID is required.");
@@ -331,13 +334,13 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
         RequireObject(binding.Configuration, $"{path}.configuration", add);
     }
 
-    private static string RuleFingerprint(ScenarioGenericActionRuleInput rule) => JsonSerializer.Serialize(new
+    private static string RuleFingerprint(ScenarioActionRule rule) => JsonSerializer.Serialize(new
     {
         rule.ActionCode,
-        Condition = Json(rule.Condition, "{}"),
+        Condition = rule.Condition,
         rule.Priority,
         rule.AuthoringNote,
-        Effects = Json(rule.Effects, "[]"),
+        Effects = rule.Effects,
         ModuleBinding = rule.ModuleBinding is null ? null : new
         {
             rule.ModuleBinding.ModuleId,
@@ -350,7 +353,7 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
     private static string ActionContract(ScenarioObjectTypeActionInput action) => JsonSerializer.Serialize(new
     {
         action.Code, action.Label, action.Description, ArgumentSchema = Json(action.ArgumentSchema, "{}"),
-        AvailabilityCondition = Json(action.AvailabilityCondition, "{}"), action.Visibility, action.ExecutionMode,
+        AvailabilityCondition = action.AvailabilityCondition, action.Visibility, action.ExecutionMode,
     });
 
 
