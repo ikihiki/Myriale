@@ -124,7 +124,7 @@ internal static class ScenarioTestFixtureData
         new ScenarioProgressionNode
         {
             Id = "SPN-STAR-LIBRARY-EXPLORATION",
-            ScenarioId = "SCN-STAR-LIBRARY",
+            DefinitionVersionId = "SDV-STAR-LIBRARY-1",
             Code = "exploration",
             IsInitial = true,
             AllowedNarrativeSignalsJson = "[\"constellation-door-reached\"]",
@@ -132,7 +132,7 @@ internal static class ScenarioTestFixtureData
         new ScenarioProgressionNode
         {
             Id = "SPN-NEON-ARCHIVE-INFILTRATION",
-            ScenarioId = "SCN-NEON-ARCHIVE",
+            DefinitionVersionId = "SDV-NEON-ARCHIVE-1",
             Code = "archive-infiltration",
             IsInitial = true,
             AllowedNarrativeSignalsJson = "[\"constellation-firewall-reached\"]",
@@ -140,7 +140,7 @@ internal static class ScenarioTestFixtureData
         new ScenarioProgressionNode
         {
             Id = "SPN-NEON-ARCHIVE-GATE-CHECK",
-            ScenarioId = "SCN-NEON-ARCHIVE",
+            DefinitionVersionId = "SDV-NEON-ARCHIVE-1",
             Code = "constellation-gate-check",
             IsInitial = false,
             AllowedNarrativeSignalsJson = "[]",
@@ -148,7 +148,7 @@ internal static class ScenarioTestFixtureData
         new ScenarioProgressionNode
         {
             Id = "SPN-STAR-LIBRARY-DOOR-CHECK",
-            ScenarioId = "SCN-STAR-LIBRARY",
+            DefinitionVersionId = "SDV-STAR-LIBRARY-1",
             Code = "constellation-door-check",
             IsInitial = false,
             AllowedNarrativeSignalsJson = "[\"constellation-guardian-awakened\"]",
@@ -156,7 +156,7 @@ internal static class ScenarioTestFixtureData
         new ScenarioProgressionNode
         {
             Id = "SPN-STAR-LIBRARY-GUARDIAN-BATTLE",
-            ScenarioId = "SCN-STAR-LIBRARY",
+            DefinitionVersionId = "SDV-STAR-LIBRARY-1",
             Code = "guardian-battle",
             IsInitial = false,
             AllowedNarrativeSignalsJson = "[]",
@@ -168,6 +168,7 @@ internal static class ScenarioTestFixtureData
         new ScenarioProgressionTransition
         {
             Id = "SPT-STAR-LIBRARY-DOOR-REACHED",
+            DefinitionVersionId = "SDV-STAR-LIBRARY-1",
             SourceNodeId = "SPN-STAR-LIBRARY-EXPLORATION",
             SignalCode = "constellation-door-reached",
             TriggerDescription = "Playerが閉じた星座の扉の場所まで実際に到達したときだけ発火する。扉について話す、尋ねる、遠くから見るだけでは発火しない。",
@@ -176,6 +177,7 @@ internal static class ScenarioTestFixtureData
         new ScenarioProgressionTransition
         {
             Id = "SPT-NEON-ARCHIVE-FIREWALL-REACHED",
+            DefinitionVersionId = "SDV-NEON-ARCHIVE-1",
             SourceNodeId = "SPN-NEON-ARCHIVE-INFILTRATION",
             SignalCode = "constellation-firewall-reached",
             TriggerDescription = "Playerが地下データ書庫の最深部にある『閉じた星座』ファイアウォールへ実際に到達したときだけ発火する。ゲートについて調べる、遠隔スキャンする、噂を聞くだけでは発火しない。",
@@ -184,6 +186,7 @@ internal static class ScenarioTestFixtureData
         new ScenarioProgressionTransition
         {
             Id = "SPT-STAR-LIBRARY-GUARDIAN-AWAKENED",
+            DefinitionVersionId = "SDV-STAR-LIBRARY-1",
             SourceNodeId = "SPN-STAR-LIBRARY-DOOR-CHECK",
             SignalCode = "constellation-guardian-awakened",
             TriggerDescription = "星座の扉の確定Outcomeで図書館の守護者が起動し、そのNarrative handoffが完了したときに発火する。",
@@ -205,7 +208,7 @@ internal static class ScenarioTestFixtureData
     private static ScenarioProgressionNode Clone(ScenarioProgressionNode node) => new()
     {
         Id = node.Id,
-        ScenarioId = node.ScenarioId,
+        DefinitionVersionId = node.DefinitionVersionId,
         Code = node.Code,
         IsInitial = node.IsInitial,
         AllowedNarrativeSignalsJson = node.AllowedNarrativeSignalsJson,
@@ -214,6 +217,7 @@ internal static class ScenarioTestFixtureData
     private static ScenarioProgressionTransition Clone(ScenarioProgressionTransition transition) => new()
     {
         Id = transition.Id,
+        DefinitionVersionId = transition.DefinitionVersionId,
         SourceNodeId = transition.SourceNodeId,
         SignalCode = transition.SignalCode,
         TriggerDescription = transition.TriggerDescription,

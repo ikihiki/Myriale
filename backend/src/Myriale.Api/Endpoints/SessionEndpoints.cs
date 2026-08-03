@@ -260,9 +260,9 @@ public static class SessionEndpoints
 
         var now = DateTimeOffset.UtcNow;
         var initialNode = await db.ScenarioProgressionNodes
-            .SingleOrDefaultAsync(node => node.ScenarioId == request.ScenarioId && node.IsInitial, cancellationToken);
+            .SingleOrDefaultAsync(node => node.DefinitionVersionId == definition.Id && node.IsInitial, cancellationToken);
         var configuredTransitions = await db.ScenarioProgressionTransitions.AsNoTracking()
-            .Where(transition => transition.SourceNode.ScenarioId == request.ScenarioId && transition.ModuleId != null)
+            .Where(transition => transition.DefinitionVersionId == definition.Id && transition.ModuleId != null)
             .ToListAsync(cancellationToken);
         foreach (var transition in configuredTransitions)
         {

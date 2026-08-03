@@ -7,6 +7,9 @@ public sealed class ScenarioProgressionTransition
     [Key, MaxLength(80)]
     public string Id { get; set; } = string.Empty;
 
+    [Required]
+    public string DefinitionVersionId { get; set; } = string.Empty;
+
     [Required, MaxLength(80)]
     public string SourceNodeId { get; set; } = string.Empty;
 
@@ -32,6 +35,7 @@ public sealed class ScenarioProgressionTransition
     public string? ModuleContextJson { get; set; }
     public int ModuleRandomValueCount { get; set; }
 
+    public ScenarioDefinitionVersion DefinitionVersion { get; set; } = null!;
     public ScenarioProgressionNode SourceNode { get; set; } = null!;
     public ScenarioProgressionNode TargetNode { get; set; } = null!;
 }

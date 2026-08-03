@@ -517,6 +517,59 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateDraft_ClonesPublishedProgressionGraphWithNewIds()
+    {
+        _ = _factory.CreateClient();
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+        var published = await db.ScenarioDefinitionVersions.AsNoTracking()
+            .Include(version => version.ProgressionNodes)
+            .Include(version => version.ProgressionTransitions)
+            .SingleAsync(version => version.Id == "SDV-STAR-LIBRARY-1");
+
+        var service = new Myriale.Api.Services.ScenarioDefinitionAuthoringService(db);
+        var draft = await service.GetOrCreateDraftAsync(published.ScenarioId, CancellationToken.None);
+
+        Assert.Equal(2, draft.Version);
+        Assert.Equal(Myriale.Api.Data.DefinitionStatus.Draft, draft.Status);
+        Assert.Equal(published.ProgressionNodes.Count, draft.ProgressionNodes.Count);
+        Assert.Equal(published.ProgressionTransitions.Count, draft.ProgressionTransitions.Count);
+        Assert.All(draft.ProgressionNodes, node =>
+        {
+            Assert.Equal(draft.Id, node.DefinitionVersionId);
+            Assert.DoesNotContain(node.Id, published.ProgressionNodes.Select(item => item.Id));
+        });
+        Assert.All(draft.ProgressionTransitions, transition =>
+        {
+            Assert.Equal(draft.Id, transition.DefinitionVersionId);
+            Assert.Contains(draft.ProgressionNodes, node => node.Id == transition.SourceNodeId);
+            Assert.Contains(draft.ProgressionNodes, node => node.Id == transition.TargetNodeId);
+            Assert.DoesNotContain(transition.Id, published.ProgressionTransitions.Select(item => item.Id));
+        });
+        Assert.Equal(
+            published.ProgressionNodes.Select(node => node.Code).Order().ToArray(),
+            draft.ProgressionNodes.Select(node => node.Code).Order().ToArray());
+        var publishedNodes = published.ProgressionNodes.ToDictionary(node => node.Id);
+        var draftNodes = draft.ProgressionNodes.ToDictionary(node => node.Id);
+        foreach (var publishedTransition in published.ProgressionTransitions)
+        {
+            var draftTransition = Assert.Single(draft.ProgressionTransitions, item => item.SignalCode == publishedTransition.SignalCode);
+            Assert.Equal(publishedTransition.TriggerDescription, draftTransition.TriggerDescription);
+            Assert.Equal(publishedTransition.ModuleId, draftTransition.ModuleId);
+            Assert.Equal(publishedTransition.ModuleVersion, draftTransition.ModuleVersion);
+            Assert.Equal(publishedTransition.ModuleDigest, draftTransition.ModuleDigest);
+            Assert.Equal(publishedTransition.ModuleConfigurationJson, draftTransition.ModuleConfigurationJson);
+            Assert.Equal(publishedTransition.ModuleContextJson, draftTransition.ModuleContextJson);
+            Assert.Equal(publishedTransition.ModuleRandomValueCount, draftTransition.ModuleRandomValueCount);
+            Assert.Equal(publishedNodes[publishedTransition.SourceNodeId].Code, draftNodes[draftTransition.SourceNodeId].Code);
+            Assert.Equal(publishedNodes[publishedTransition.TargetNodeId].Code, draftNodes[draftTransition.TargetNodeId].Code);
+        }
+        Assert.Equal(
+            published.ProgressionTransitions.Select(transition => transition.SignalCode).Order().ToArray(),
+            draft.ProgressionTransitions.Select(transition => transition.SignalCode).Order().ToArray());
+    }
+
+    [Fact]
     public async Task CreateDraft_ConcurrentRequestsLeaveOneActiveDraft()
     {
         var client = await CreateSignedInClientAsync();

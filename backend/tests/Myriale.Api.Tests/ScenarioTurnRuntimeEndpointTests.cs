@@ -190,6 +190,42 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task SessionCreation_UsesOnlyPinnedDefinitionProgressionGraphAndSnapshots()
+    {
+        var client = await SignedInClientAsync();
+        string draftId;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var service = new ScenarioDefinitionAuthoringService(db);
+            draftId = (await service.GetOrCreateDraftAsync("SCN-STAR-LIBRARY", CancellationToken.None)).Id;
+        }
+
+        using var created = await client.PostAsJsonAsync("/api/sessions/", new
+        {
+            scenarioId = "SCN-STAR-LIBRARY",
+            requestId = $"pinned-progression-{Guid.NewGuid():N}",
+        });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
+
+        await using var verificationScope = factory.Services.CreateAsyncScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var session = await verificationDb.Sessions
+            .Include(item => item.Progress).ThenInclude(progress => progress!.CurrentNode)
+            .Include(item => item.ProgressionModuleSnapshots).ThenInclude(snapshot => snapshot.Transition)
+            .SingleAsync(item => item.Id == sessionId);
+
+        Assert.Equal("SDV-STAR-LIBRARY-1", session.ScenarioDefinitionVersionId);
+        Assert.NotNull(session.Progress);
+        Assert.Equal(session.ScenarioDefinitionVersionId, session.Progress!.CurrentNode.DefinitionVersionId);
+        Assert.NotEmpty(session.ProgressionModuleSnapshots);
+        Assert.All(session.ProgressionModuleSnapshots, snapshot =>
+            Assert.Equal(session.ScenarioDefinitionVersionId, snapshot.Transition.DefinitionVersionId));
+        Assert.DoesNotContain(session.ProgressionModuleSnapshots, snapshot => snapshot.Transition.DefinitionVersionId == draftId);
+    }
+
+    [Fact]
     public async Task ExplicitStartLocationAndObjectStateOverridesInitializeSession()
     {
         var client = await SignedInClientAsync();

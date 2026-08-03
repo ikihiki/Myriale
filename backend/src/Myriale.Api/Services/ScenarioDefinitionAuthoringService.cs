@@ -33,12 +33,17 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                 .Where(version => version.ScenarioId == scenarioId)
                 .MaxAsync(version => (int?)version.Version, cancellationToken) ?? 0) + 1;
             var now = DateTimeOffset.UtcNow;
+            var published = await Query().AsNoTracking()
+                .Where(version => version.ScenarioId == scenarioId && version.Status == DefinitionStatus.Published)
+                .OrderByDescending(version => version.Version)
+                .FirstOrDefaultAsync(cancellationToken);
             draft = new ScenarioDefinitionVersion
             {
                 Id = $"SDV-{Guid.NewGuid():N}", ScenarioId = scenarioId, Version = nextVersion,
                 Status = DefinitionStatus.Draft, SchemaVersion = 2, CreatedAt = now, UpdatedAt = now,
             };
             draft.SnapshotScenario(scenario);
+            if (published is not null) CloneProgression(published, draft);
             db.ScenarioDefinitionVersions.Add(draft);
             try
             {
@@ -393,7 +398,44 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
         return new(response.SchemaVersion, response.Locations, response.ObjectTypes, response.Objects, response.StartLocationCode);
     }
 
+    private static void CloneProgression(ScenarioDefinitionVersion source, ScenarioDefinitionVersion target)
+    {
+        var nodeIds = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var sourceNode in source.ProgressionNodes)
+        {
+            var nodeId = $"SPN-{Guid.NewGuid():N}";
+            nodeIds[sourceNode.Id] = nodeId;
+            target.ProgressionNodes.Add(new ScenarioProgressionNode
+            {
+                Id = nodeId,
+                DefinitionVersionId = target.Id,
+                Code = sourceNode.Code,
+                IsInitial = sourceNode.IsInitial,
+                AllowedNarrativeSignalsJson = sourceNode.AllowedNarrativeSignalsJson,
+            });
+        }
+
+        foreach (var sourceTransition in source.ProgressionTransitions)
+            target.ProgressionTransitions.Add(new ScenarioProgressionTransition
+            {
+                Id = $"SPT-{Guid.NewGuid():N}",
+                DefinitionVersionId = target.Id,
+                SourceNodeId = nodeIds[sourceTransition.SourceNodeId],
+                SignalCode = sourceTransition.SignalCode,
+                TriggerDescription = sourceTransition.TriggerDescription,
+                TargetNodeId = nodeIds[sourceTransition.TargetNodeId],
+                ModuleId = sourceTransition.ModuleId,
+                ModuleVersion = sourceTransition.ModuleVersion,
+                ModuleDigest = sourceTransition.ModuleDigest,
+                ModuleConfigurationJson = sourceTransition.ModuleConfigurationJson,
+                ModuleContextJson = sourceTransition.ModuleContextJson,
+                ModuleRandomValueCount = sourceTransition.ModuleRandomValueCount,
+            });
+    }
+
     private IQueryable<ScenarioDefinitionVersion> Query() => db.ScenarioDefinitionVersions
+        .Include(version => version.ProgressionNodes)
+        .Include(version => version.ProgressionTransitions)
         .Include(version => version.Locations)
         .Include(version => version.ObjectTypes).ThenInclude(type => type.Actions)
         .Include(version => version.Objects);

@@ -160,7 +160,8 @@ public sealed class ModuleHandoffExecutionHandler(
             && JsonSerializer.Deserialize<string[]>(current.Session.Progress.CurrentNode.AllowedNarrativeSignalsJson, _json)?.Contains(request.Outcome.Code) == true)
         {
             var transition = await db.ScenarioProgressionTransitions.AsNoTracking()
-                .SingleOrDefaultAsync(item => item.SourceNodeId == current.Session.Progress.CurrentNodeId
+                .SingleOrDefaultAsync(item => item.DefinitionVersionId == current.Session.ScenarioDefinitionVersionId
+                    && item.SourceNodeId == current.Session.Progress.CurrentNodeId
                     && item.SignalCode == request.Outcome.Code, cancellationToken);
             if (transition is not null)
             {

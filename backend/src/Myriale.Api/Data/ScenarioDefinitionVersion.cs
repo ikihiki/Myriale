@@ -28,6 +28,8 @@ public sealed class ScenarioDefinitionVersion
     [MaxLength(240)] public IllustrationPrompt ScenarioIllustrationMood { get; set; } = new("");
     public IllustrationPrompt ScenarioIllustrationNegative { get; set; } = new("");
     public string ScenarioSampleScene { get; set; } = string.Empty;
+    public ICollection<ScenarioProgressionNode> ProgressionNodes { get; set; } = [];
+    public ICollection<ScenarioProgressionTransition> ProgressionTransitions { get; set; } = [];
     public ICollection<ScenarioLocation> Locations { get; set; } = [];
     public ICollection<ScenarioObjectType> ObjectTypes { get; set; } = [];
     public ICollection<ScenarioObject> Objects { get; set; } = [];

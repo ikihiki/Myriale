@@ -105,16 +105,21 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .HasIndex(package => new { package.ModuleId, package.Version })
             .IsUnique();
         builder.Entity<ScenarioProgressionNode>()
-            .HasIndex(node => new { node.ScenarioId, node.Code })
+            .HasIndex(node => new { node.DefinitionVersionId, node.Code })
             .IsUnique();
         builder.Entity<ScenarioProgressionNode>()
-            .HasOne(node => node.Scenario)
-            .WithMany()
-            .HasForeignKey(node => node.ScenarioId)
+            .HasOne(node => node.DefinitionVersion)
+            .WithMany(version => version.ProgressionNodes)
+            .HasForeignKey(node => node.DefinitionVersionId)
             .OnDelete(DeleteBehavior.Cascade);
         builder.Entity<ScenarioProgressionTransition>()
-            .HasIndex(transition => new { transition.SourceNodeId, transition.SignalCode })
+            .HasIndex(transition => new { transition.DefinitionVersionId, transition.SourceNodeId, transition.SignalCode })
             .IsUnique();
+        builder.Entity<ScenarioProgressionTransition>()
+            .HasOne(transition => transition.DefinitionVersion)
+            .WithMany(version => version.ProgressionTransitions)
+            .HasForeignKey(transition => transition.DefinitionVersionId)
+            .OnDelete(DeleteBehavior.Cascade);
         builder.Entity<ScenarioProgressionTransition>()
             .HasOne(transition => transition.SourceNode)
             .WithMany()
