@@ -456,7 +456,7 @@ public static class SessionEndpoints
             images.TryGetValue(item.Id, out var image) ? $"/api/session-artifacts/media/{image.Id}" : null,
             item.MetadataJson, item.CreatedAt, item.CommittedAt)).ToList();
         var activity = BuildActivity(turns, inputs, storedExecutions, artifacts);
-        var proposalResponses = proposals.Select(item => new SessionNoteProposalResponse(item.ArtifactId, item.SourceTurnId, item.NoteId, item.ExpectedNoteRevision, item.ProposedTitle, item.BeforeBody, item.ProposedBody, item.Rationale, item.Status, item.CreatedAt)).ToList();
+        var proposalResponses = proposals.Select(item => new SessionNoteProposalResponse(item.ArtifactId, item.SourceTurnId, item.NoteId, item.ExpectedNoteRevision, item.ProposedTitle, item.BeforeBody, item.ProposedBody, item.Rationale, item.Status.ToWireValue(), item.CreatedAt)).ToList();
         try
         {
             return Results.Ok(ToResponse(session, turns, pendingInputs) with

@@ -382,6 +382,12 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .WithMany()
             .HasForeignKey(artifact => artifact.AttemptId)
             .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<SessionNote>().Property(note => note.Kind)
+            .HasConversion(value => value.ToWireValue(), value => SessionMemoryEnumValues.ParseNoteKind(value));
+        builder.Entity<SessionNote>().Property(note => note.CanonStatus)
+            .HasConversion(value => value.ToWireValue(), value => SessionMemoryEnumValues.ParseCanonStatus(value));
+        builder.Entity<SessionNote>().Property(note => note.UpdateSource)
+            .HasConversion(value => value.ToWireValue(), value => SessionMemoryEnumValues.ParseUpdateSource(value));
         builder.Entity<SessionNote>()
             .Property(note => note.Revision)
             .IsConcurrencyToken();
@@ -398,6 +404,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .WithMany(note => note.Revisions)
             .HasForeignKey(revision => revision.NoteId)
             .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionNoteProposal>().Property(proposal => proposal.Status)
+            .HasConversion(value => value.ToWireValue(), value => SessionMemoryEnumValues.ParseProposalStatus(value));
+        builder.Entity<SessionNoteProposal>().Property(proposal => proposal.Revision).IsConcurrencyToken();
         builder.Entity<SessionNoteProposal>()
             .HasOne(proposal => proposal.Artifact)
             .WithOne()

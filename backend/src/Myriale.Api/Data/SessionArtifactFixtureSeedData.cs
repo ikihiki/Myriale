@@ -86,19 +86,17 @@ public static class SessionArtifactFixtureSeedData
         db.SessionExecutions.AddRange(noteExecution, imageExecution);
         db.SessionExecutionAttempts.AddRange(noteAttempt, imageAttempt);
         db.SessionArtifacts.AddRange(noteArtifact, imageArtifact);
-        db.SessionNoteProposals.Add(new SessionNoteProposal
-        {
-            ArtifactId = NoteArtifactId,
-            SessionId = SessionId,
-            SourceTurnId = "TURN-DEVELOPMENT-FIXTURE",
-            ExpectedNoteRevision = 0,
-            ProposedTitle = "銀の鍵",
-            BeforeBody = "",
-            ProposedBody = "水没した閲覧室で銀の鍵を見つけた。",
-            Rationale = "開発・テスト用の決定的な変更案です。",
-            Status = "pending",
-            CreatedAt = timestamp,
-        });
+        db.SessionNoteProposals.Add(SessionNoteProposal.Create(
+            NoteArtifactId,
+            SessionId,
+            "TURN-DEVELOPMENT-FIXTURE",
+            null,
+            0,
+            "銀の鍵",
+            "",
+            "水没した閲覧室で銀の鍵を見つけた。",
+            "開発・テスト用の決定的な変更案です。",
+            timestamp));
         db.SessionImages.Add(new SessionImage
         {
             Id = ImageId,
