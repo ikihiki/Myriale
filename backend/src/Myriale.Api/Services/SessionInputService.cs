@@ -19,7 +19,7 @@ public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProv
         var interactionType = request.InteractionType?.Trim() ?? string.Empty;
         if (!NarrativeInteractionTypes.Allowed.Contains(interactionType))
             return SessionInputAcceptanceResult.Error(400, "invalid_interaction_type", "InteractionTypeが不正です。");
-        if (request.RequestedOutputs is { Count: > 0 } && request.RequestedOutputs.Any(output => output != SessionExecutionKinds.ScenarioTurn))
+        if (request.RequestedOutputs is { Count: > 0 } && request.RequestedOutputs.Any(output => output != SessionExecutionKinds.ScenarioTurn.ToWireValue()))
             return SessionInputAcceptanceResult.Error(400, "unsupported_output", "現在リクエストできる生成結果はscenario-turnだけです。");
 
         string actionDecisionAiProfileId;
@@ -83,7 +83,7 @@ public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProv
         if (recentInputCount >= aiOptions.Value.SessionRequestsPerMinute)
             return SessionInputAcceptanceResult.Error(429, "session_rate_limited", "SessionのAI入力上限に達しました。しばらく待って再試行してください。");
 
-        const string executionKind = SessionExecutionKinds.ScenarioTurn;
+        var executionKind = SessionExecutionKinds.ScenarioTurn;
         var now = DateTimeOffset.UtcNow;
         var input = new SessionPlayerInput
         {
@@ -104,7 +104,7 @@ public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProv
             Id = $"EXE-{Guid.NewGuid():N}".ToUpperInvariant(),
             SessionId = sessionId,
             Kind = executionKind,
-            TriggerType = "player-input",
+            TriggerType = SessionExecutionTriggerType.PlayerInput,
             Stage = ScenarioTurnStages.LoadingWorld,
             SchemaVersion = 1,
             TriggerId = input.Id,

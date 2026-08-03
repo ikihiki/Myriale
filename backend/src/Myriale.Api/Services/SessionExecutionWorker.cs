@@ -5,11 +5,11 @@ using Myriale.Api.Data;
 namespace Myriale.Api.Services;
 
 public sealed record SessionExecutionContext(string ExecutionId, string LeaseToken, long Revision, string AttemptId, int AttemptNumber);
-public sealed record SessionExecutionHandlerResult(bool Succeeded, bool Retryable = false, string? ErrorCode = null, string? UserMessage = null, string? TerminalStatus = null, string? ErrorCategory = null);
+public sealed record SessionExecutionHandlerResult(bool Succeeded, bool Retryable = false, string? ErrorCode = null, string? UserMessage = null, SessionExecutionStatus? TerminalStatus = null, string? ErrorCategory = null);
 
 public interface ISessionExecutionHandler
 {
-    string Kind { get; }
+    SessionExecutionKind Kind { get; }
     Task<SessionExecutionHandlerResult> ExecuteAsync(SessionExecutionContext context, CancellationToken cancellationToken);
 }
 

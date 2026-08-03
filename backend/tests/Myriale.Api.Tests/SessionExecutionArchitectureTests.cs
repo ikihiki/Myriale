@@ -21,7 +21,7 @@ public sealed class SessionExecutionArchitectureTests
     [InlineData(SessionExecutionStatuses.Failed, false, true, true)]
     [InlineData(SessionExecutionStatuses.Cancelled, false, true, true)]
     [InlineData(SessionExecutionStatuses.Superseded, false, false, true)]
-    public void ProjectionUsesStatusCapabilities(string status, bool canCancel, bool canRetry, bool canDismiss)
+    public void ProjectionUsesStatusCapabilities(SessionExecutionStatus status, bool canCancel, bool canRetry, bool canDismiss)
     {
         var execution = Execution(status); execution.IsRetryable = true;
         var response = SessionExecutionProjection.ToResponse(execution, includeDevelopmentDiagnostics: false);
@@ -104,12 +104,12 @@ public sealed class SessionExecutionArchitectureTests
             measurement.Tags.Keys));
     }
 
-    private static SessionExecution Execution(string status) => new()
+    private static SessionExecution Execution(SessionExecutionStatus status) => new()
     {
         Id = "EXE-1",
         SessionId = "SES-1",
         Kind = SessionExecutionKinds.Narrative,
-        TriggerType = "player-input",
+        TriggerType = SessionExecutionTriggerType.PlayerInput,
         TriggerId = "INP-1",
         Status = status,
         IdempotencyKey = "request-1",

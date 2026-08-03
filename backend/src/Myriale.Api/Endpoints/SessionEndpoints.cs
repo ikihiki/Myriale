@@ -73,7 +73,7 @@ public static class SessionEndpoints
             .SingleOrDefaultAsync(item =>
                 item.SessionId == sessionId
                 && item.Kind == SessionExecutionKinds.ScenarioTurn
-                && item.TriggerType == "player-input"
+                && item.TriggerType == SessionExecutionTriggerType.PlayerInput
                 && item.TriggerId == turn.PlayerInputId,
                 cancellationToken);
         if (execution is null) return Results.NotFound();
@@ -169,8 +169,8 @@ public static class SessionEndpoints
             new PlayerInputInspection(turn.PlayerInput.Id, turn.PlayerInput.Text, turn.PlayerInput.InteractionType, turn.PlayerInput.CreatedAt),
             new ExecutionInspection(
                 execution.Id,
-                execution.Kind,
-                execution.Status,
+                execution.Kind.ToWireValue(),
+                execution.Status.ToWireValue(),
                 execution.Stage,
                 execution.AttemptCount,
                 execution.CreatedAt,
@@ -416,7 +416,7 @@ public static class SessionEndpoints
         var storedExecutions = (await db.SessionExecutions.AsNoTracking().Include(item => item.Attempts)
             .Where(item => item.SessionId == sessionId && item.DismissedAt == null)
             .ToListAsync(cancellationToken)).OrderBy(item => item.CreatedAt).ToList();
-        var visibleInputIds = storedExecutions.Where(item => item.TriggerType == "player-input").Select(item => item.TriggerId).ToHashSet(StringComparer.Ordinal);
+        var visibleInputIds = storedExecutions.Where(item => item.TriggerType == SessionExecutionTriggerType.PlayerInput).Select(item => item.TriggerId).ToHashSet(StringComparer.Ordinal);
         visibleInputIds.UnionWith(turns.Select(item => item.Narrative?.PlayerInputId).OfType<string>());
         var inputs = (await db.SessionPlayerInputs.AsNoTracking()
             .Where(item => item.SessionId == sessionId)
@@ -660,7 +660,7 @@ public static class SessionEndpoints
                     input.Text,
                     input.InteractionType,
                     input.AcceptedAfterTurnId,
-                    execution.Status,
+                    execution.Status.ToWireValue(),
                     execution.IsRetryable,
                     execution.ErrorCode,
                     execution.UserErrorMessage,

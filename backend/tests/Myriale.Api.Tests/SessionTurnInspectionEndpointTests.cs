@@ -167,7 +167,7 @@ public sealed class SessionTurnInspectionEndpointTests : IDisposable
 
     private static SessionExecution Execution(string id, string sessionId, string inputId, DateTimeOffset startedAt) => new()
     {
-        Id = id, SessionId = sessionId, Kind = SessionExecutionKinds.ScenarioTurn, TriggerType = "player-input", TriggerId = inputId,
+        Id = id, SessionId = sessionId, Kind = SessionExecutionKinds.ScenarioTurn, TriggerType = SessionExecutionTriggerType.PlayerInput, TriggerId = inputId,
         Status = SessionExecutionStatuses.Succeeded, Stage = ScenarioTurnStages.Completed, AttemptCount = id == ExecutionId ? 2 : 1,
         IdempotencyKey = id, PayloadHash = new string('a', 64), CreatedAt = startedAt, QueuedAt = startedAt,
         StartedAt = startedAt, CompletedAt = startedAt.AddMilliseconds(900),

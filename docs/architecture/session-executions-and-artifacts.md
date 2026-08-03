@@ -66,3 +66,11 @@ Development-only diagnostics may expose bounded, redacted worker/provider timing
 Telemetry uses bounded labels such as execution kind, checkpoint, status, provider/model, and normalized error code. Session/Input/Execution/Object IDs and player text are not metric labels. Export failure cannot affect domain commits.
 
 Inputs, action-step audit records, committed artifacts, and published Turns follow Session retention policy. Dismissal is UI folding metadata, never deletion of authority records.
+
+## Session Execution domain slice
+
+`SessionExecution` is the lifecycle aggregate for one queued unit of session work. Core closed discriminators (`Kind`, `Status`, `TriggerType`, and `PublishPolicy`) are native enums in the domain model; EF value conversions and response projection preserve the existing lowercase/kebab-case database and HTTP values.
+
+User-driven lifecycle changes enter through application use cases (`Get`, `Retry`, `Cancel`, and `Dismiss`) and a restricted repository abstraction. HTTP endpoints only translate authentication and use-case outcomes. `Retry`, `RequestCancellation`, and `Dismiss` enforce lifecycle rules on the aggregate, while revision-based EF concurrency conflicts are returned as HTTP 409.
+
+Cancellation deliberately keeps the existing lease rules: a queued or retry-wait execution is cancelled immediately and has its lease cleared; a running execution moves to `cancel-requested` while retaining its lease so the fenced worker/finalizer can close the active attempt. Queue claim SQL, PostgreSQL `FOR UPDATE SKIP LOCKED`, heartbeat fencing, and finalizer fence semantics remain unchanged.

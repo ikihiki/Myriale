@@ -18,7 +18,7 @@ public sealed class ModuleHandoffExecutionHandler(
 {
     private readonly JsonSerializerOptions _json = ModuleJsonSerializerOptions.Create();
 
-    public string Kind => SessionExecutionKinds.ModuleHandoff;
+    public SessionExecutionKind Kind => SessionExecutionKinds.ModuleHandoff;
 
     public async Task<SessionExecutionHandlerResult> ExecuteAsync(SessionExecutionContext workerContext, CancellationToken cancellationToken)
     {
@@ -29,7 +29,7 @@ public sealed class ModuleHandoffExecutionHandler(
             || execution.LeaseToken != workerContext.LeaseToken
             || execution.Revision != workerContext.Revision)
             return LeaseLost();
-        if (execution.TriggerType != "module-outcome")
+        if (execution.TriggerType != SessionExecutionTriggerType.ModuleOutcome)
             return new(false, false, "invalid_trigger", "Module handoffの起点を確認できませんでした。");
 
         var source = await LoadSourceAsync(execution.TriggerId, cancellationToken);

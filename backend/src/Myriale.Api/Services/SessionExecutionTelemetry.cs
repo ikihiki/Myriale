@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 
+using Myriale.Api.Data;
+
 namespace Myriale.Api.Services;
 
 public static class SessionExecutionTelemetry
@@ -33,6 +35,12 @@ public static class SessionExecutionTelemetry
     public static readonly Histogram<long> ProviderOutputTokens = Meter.CreateHistogram<long>("myriale.ai.provider.output_tokens");
     public static readonly Histogram<long> ArtifactSize = Meter.CreateHistogram<long>("myriale.artifact.size", "By");
 
+    public static TagList Tags(SessionExecutionKind kind, SessionExecutionStatus status, string? provider = null, string? model = null, string? errorCode = null) =>
+        Tags(kind.ToWireValue(), status.ToWireValue(), provider, model, errorCode);
+
+    public static TagList Tags(SessionExecutionKind kind, string status, string? provider = null, string? model = null, string? errorCode = null) =>
+        Tags(kind.ToWireValue(), status, provider, model, errorCode);
+
     public static TagList Tags(string kind, string status, string? provider = null, string? model = null, string? errorCode = null)
     {
         var tags = new TagList { { "myriale.execution.kind", kind }, { "myriale.execution.status", status } };
@@ -41,6 +49,12 @@ public static class SessionExecutionTelemetry
         if (!string.IsNullOrWhiteSpace(errorCode)) tags.Add("error.type", errorCode);
         return tags;
     }
+
+    public static void RecordSessionAdvanced(SessionExecutionKind kind, SessionExecutionStatus status) =>
+        RecordSessionAdvanced(kind.ToWireValue(), status.ToWireValue());
+
+    public static void RecordInvalidSignal(SessionExecutionKind kind, SessionExecutionStatus status) =>
+        RecordInvalidSignal(kind.ToWireValue(), status.ToWireValue());
 
     public static void RecordSessionAdvanced(string kind, string status) =>
         SessionAdvanced.Add(1, Tags(kind, status, errorCode: "session_advanced"));

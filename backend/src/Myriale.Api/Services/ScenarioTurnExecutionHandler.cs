@@ -18,7 +18,7 @@ public sealed class ScenarioTurnExecutionHandler(
     ILogger<ScenarioTurnExecutionHandler> logger) : ISessionExecutionHandler
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
-    public string Kind => SessionExecutionKinds.ScenarioTurn;
+    public SessionExecutionKind Kind => SessionExecutionKinds.ScenarioTurn;
 
     public async Task<SessionExecutionHandlerResult> ExecuteAsync(SessionExecutionContext context, CancellationToken cancellationToken)
     {

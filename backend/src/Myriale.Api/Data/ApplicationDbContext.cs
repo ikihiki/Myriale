@@ -317,6 +317,18 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .HasForeignKey(turn => turn.SessionId)
             .OnDelete(DeleteBehavior.Cascade);
         builder.Entity<SessionExecution>()
+            .Property(execution => execution.Kind)
+            .HasConversion(value => value.ToWireValue(), value => SessionExecutionEnumValues.ParseKind(value));
+        builder.Entity<SessionExecution>()
+            .Property(execution => execution.Status)
+            .HasConversion(value => value.ToWireValue(), value => SessionExecutionEnumValues.ParseStatus(value));
+        builder.Entity<SessionExecution>()
+            .Property(execution => execution.TriggerType)
+            .HasConversion(value => value.ToWireValue(), value => SessionExecutionEnumValues.ParseTriggerType(value));
+        builder.Entity<SessionExecution>()
+            .Property(execution => execution.PublishPolicy)
+            .HasConversion(value => value.ToWireValue(), value => SessionExecutionEnumValues.ParsePublishPolicy(value));
+        builder.Entity<SessionExecution>()
             .Property(execution => execution.Revision)
             .IsConcurrencyToken();
         builder.Entity<SessionExecution>()

@@ -117,18 +117,18 @@ public static class SessionArtifactFixtureSeedData
         await db.SaveChangesAsync(cancellationToken);
     }
 
-    private static SessionExecution Execution(string id, string kind, string key, DateTimeOffset timestamp) => new()
+    private static SessionExecution Execution(string id, SessionExecutionKind kind, string key, DateTimeOffset timestamp) => new()
     {
         Id = id,
         SessionId = SessionId,
         Kind = kind,
-        TriggerType = "manual",
+        TriggerType = SessionExecutionTriggerType.Manual,
         TriggerId = key,
         Status = SessionExecutionStatuses.Succeeded,
         Revision = 1,
         IdempotencyKey = key,
         PayloadHash = new string('a', 64),
-        PublishPolicy = "optional",
+        PublishPolicy = SessionExecutionPublishPolicy.Optional,
         IsRetryable = false,
         AttemptCount = 1,
         MaxAttempts = 1,

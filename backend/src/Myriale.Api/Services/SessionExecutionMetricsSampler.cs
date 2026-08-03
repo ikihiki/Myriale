@@ -24,11 +24,11 @@ public sealed class SessionExecutionMetricSnapshot
 {
     private static readonly string[] KnownKinds =
     [
-        SessionExecutionKinds.ScenarioTurn,
-        SessionExecutionKinds.Narrative,
-        SessionExecutionKinds.ModuleHandoff,
-        SessionExecutionKinds.NoteProposal,
-        SessionExecutionKinds.Image,
+        SessionExecutionKinds.ScenarioTurn.ToWireValue(),
+        SessionExecutionKinds.Narrative.ToWireValue(),
+        SessionExecutionKinds.ModuleHandoff.ToWireValue(),
+        SessionExecutionKinds.NoteProposal.ToWireValue(),
+        SessionExecutionKinds.Image.ToWireValue(),
     ];
 
     private IReadOnlyList<SessionExecutionMetricSample> samples = EmptySamples();
@@ -112,7 +112,7 @@ public sealed class SessionExecutionMetricsSampler(
         var stuckBefore = now.AddSeconds(-options.Value.StuckAfterSeconds);
         var samples = SessionExecutionMetricSnapshot.Kinds.Select(kind =>
         {
-            var rows = active.Where(execution => execution.Kind == kind).ToArray();
+            var rows = active.Where(execution => execution.Kind.ToWireValue() == kind).ToArray();
             var queued = rows.Where(execution => execution.Status == SessionExecutionStatuses.Queued).ToArray();
             return new SessionExecutionMetricSample(
                 kind,

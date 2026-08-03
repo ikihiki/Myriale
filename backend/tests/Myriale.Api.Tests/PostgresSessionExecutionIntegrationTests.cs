@@ -82,6 +82,38 @@ public sealed class PostgresSessionExecutionIntegrationTests
         Assert.NotNull(expiredAttempt.CompletedAt);
     }
 
+    [PostgresFact]
+    public async Task CancelMutationUsesPostgresRowLockAndPreservesRunningLease()
+    {
+        await using var database = await PostgresFixture.CreateAsync();
+        var now = new DateTimeOffset(2026, 8, 3, 12, 0, 0, TimeSpan.Zero);
+        await SeedSessionAsync(database.Db, "SES-CANCEL", now);
+        var execution = Execution("EXE-CANCEL", "SES-CANCEL", 0, now);
+        execution.Status = SessionExecutionStatus.Running;
+        execution.Revision = 4;
+        execution.LeaseOwner = "worker-a";
+        execution.LeaseToken = "LET-CURRENT";
+        execution.LeaseExpiresAt = now.AddMinutes(2);
+        database.Db.SessionExecutions.Add(execution);
+        await database.Db.SaveChangesAsync();
+        var repository = new Myriale.Api.Infrastructure.SessionExecutions.EfSessionExecutionRepository(database.Db);
+
+        var result = await repository.MutateOwnedWithLockAsync(
+            execution.Id,
+            "USR-1",
+            item => item.RequestCancellation(now),
+            CancellationToken.None);
+
+        Assert.Equal(Myriale.Api.Application.SessionExecutions.SessionExecutionMutationResult.Success, result);
+        database.Db.ChangeTracker.Clear();
+        execution = await database.Db.SessionExecutions.SingleAsync(item => item.Id == "EXE-CANCEL");
+        Assert.Equal(SessionExecutionStatus.CancelRequested, execution.Status);
+        Assert.Equal(5, execution.Revision);
+        Assert.Equal("worker-a", execution.LeaseOwner);
+        Assert.Equal("LET-CURRENT", execution.LeaseToken);
+        Assert.Equal(now.AddMinutes(2), execution.LeaseExpiresAt);
+    }
+
     private static async Task SeedSessionAsync(ApplicationDbContext db, string sessionId, DateTimeOffset now)
     {
         if (!await db.Scenarios.AnyAsync(item => item.Id == "SCN-PG"))
@@ -113,7 +145,7 @@ public sealed class PostgresSessionExecutionIntegrationTests
         Id = id,
         SessionId = sessionId,
         Kind = SessionExecutionKinds.Narrative,
-        TriggerType = "player-input",
+        TriggerType = SessionExecutionTriggerType.PlayerInput,
         TriggerId = $"INP-{id}",
         Status = SessionExecutionStatuses.Queued,
         IdempotencyKey = id,

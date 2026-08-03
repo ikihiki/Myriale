@@ -629,7 +629,7 @@ public sealed class ModuleExecutionService(
             Id = $"EXE-{Guid.NewGuid():N}".ToUpperInvariant(),
             SessionId = source.SessionId,
             Kind = SessionExecutionKinds.ModuleHandoff,
-            TriggerType = "module-outcome",
+            TriggerType = SessionExecutionTriggerType.ModuleOutcome,
             TriggerId = source.Id,
             Status = SessionExecutionStatuses.Queued,
             Revision = 0,

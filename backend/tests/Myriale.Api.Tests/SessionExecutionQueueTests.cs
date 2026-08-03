@@ -128,8 +128,7 @@ public sealed class SessionExecutionQueueTests
         await fixture.Db.SaveChangesAsync();
         var claim = new SessionExecutionClaim(execution.Id, execution.LeaseToken, execution.Revision, attempt.Id, attempt.AttemptNumber);
 
-        SessionExecutionStateMachine.Transition(execution, SessionExecutionStatuses.CancelRequested);
-        execution.CancelRequestedAt = now;
+        execution.RequestCancellation(now);
         await fixture.Db.SaveChangesAsync();
         Assert.False(await fixture.Queue.HeartbeatAsync(claim, TimeSpan.FromMinutes(2), CancellationToken.None));
         await new SessionExecutionFinalizer(fixture.Db, fixture.Time).FinishAsync(
@@ -150,12 +149,12 @@ public sealed class SessionExecutionQueueTests
         Assert.Equal(now, attempt.CompletedAt);
     }
 
-    private static SessionExecution Execution(string id, string status, int priority, DateTimeOffset queuedAt, DateTimeOffset? nextAttemptAt = null) => new()
+    private static SessionExecution Execution(string id, SessionExecutionStatus status, int priority, DateTimeOffset queuedAt, DateTimeOffset? nextAttemptAt = null) => new()
     {
         Id = id,
         SessionId = "SES-1",
         Kind = SessionExecutionKinds.Narrative,
-        TriggerType = "player-input",
+        TriggerType = SessionExecutionTriggerType.PlayerInput,
         TriggerId = $"INP-{id}",
         Status = status,
         Revision = 0,
