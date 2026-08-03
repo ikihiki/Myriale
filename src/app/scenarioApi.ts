@@ -326,6 +326,7 @@ export type ScenarioApi = {
   createScenarioRuleDataDraft: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioRuleDataPayload>;
   putScenarioRuleData: (scenarioId: string, payload: ScenarioRuleDataPayload) => Promise<ScenarioRuleDataPayload>;
   getScenarioRuleDataReadiness: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioRuleDataReadinessDto>;
+  publishScenarioRuleData: (scenarioId: string) => Promise<ScenarioRuleDataPayload>;
   debugScenarioRuleData: (scenarioId: string, payload: ScenarioRuleDebugRequest) => Promise<ScenarioRuleDebugResponse>;
   recommendHero: (scenarioId: string, payload: RecommendScenarioHeroPayload) => Promise<ScenarioHeroRecommendation>;
   createScenario: (payload: CreateScenarioPayload) => Promise<ScenarioDraftDto>;
@@ -400,6 +401,15 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
       });
       if (!response.ok) throw await toApiError(response);
       return response.json() as Promise<ScenarioRuleDataReadinessDto>;
+    },
+    async publishScenarioRuleData(scenarioId) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/rule-data/publish`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) throw await toApiError(response);
+      return canonicalRuleDataToForm(await response.json() as CanonicalScenarioRuleDataResponse);
     },
     async debugScenarioRuleData(scenarioId, payload) {
       const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/rule-data/debug`, {
@@ -649,6 +659,12 @@ export function createDemoScenarioApi(): ScenarioApi {
     async getScenarioRuleDataReadiness(scenarioId) {
       if (!demoScenarios[scenarioId]) throw demoError('シナリオが見つかりません。', 404);
       return { definitionVersionId: `demo-${scenarioId}`, ready: true, errors: {} };
+    },
+    async publishScenarioRuleData(scenarioId) {
+      const scenario = demoScenarios[scenarioId];
+      if (!scenario) throw demoError('シナリオが見つかりません。', 404);
+      scenario.status = 'published';
+      return structuredClone(scenario.ruleData ?? emptyScenarioRuleData());
     },
     async debugScenarioRuleData(scenarioId, payload) {
       const scenario = demoScenarios[scenarioId];
