@@ -97,6 +97,23 @@ export const USE04EditIllustration: Story = {
   },
 };
 
+export const USE05CheckReadinessAndPublish: Story = {
+  name: 'US-E05: 保存済み下書きの公開準備を確認して公開したい',
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await step('公開準備を確認するまで公開操作は無効になっている', async () => {
+      await expect(canvas.getByRole('button', { name: 'シナリオを公開' })).toBeDisabled();
+      await userEvent.click(canvas.getByRole('button', { name: '公開準備を確認' }));
+      await expect(canvas.getByTestId('publish-readiness')).toHaveTextContent('公開できます。');
+    });
+    await step('準備完了後にシナリオを公開する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: 'シナリオを公開' }));
+      await expect(canvas.getByTestId('publish-success')).toHaveTextContent('公開が完了しました。');
+      await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('シナリオを公開しました。');
+    });
+  },
+};
+
 export const USE11EditRuleDataWithStableCodes: Story = {
   name: 'US-E11: 既存ルールデータのstable codeを保って編集したい',
   play: async ({ canvasElement, step }) => {

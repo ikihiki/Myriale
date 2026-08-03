@@ -99,6 +99,41 @@ export function EditScenarioContainer({ scenarioId, api }: { scenarioId: string;
     }
   };
 
+  const checkReadiness: NonNullable<ScenarioFormActions['checkReadiness']> = async () => {
+    try {
+      const readiness = await scenarioApi.getScenarioRuleDataReadiness(scenarioId);
+      const issueCount = Object.values(readiness.errors).reduce((count, messages) => count + messages.length, 0);
+      return readiness.ready
+        ? { ok: true, message: '公開準備が完了しています。シナリオを公開できます。', value: readiness }
+        : { ok: true, message: `公開前に${issueCount}件の問題を修正してください。`, value: readiness };
+    } catch (caught) {
+      const error = caught as ScenarioApiError;
+      return { ok: false, message: error.message ?? '公開準備を確認できませんでした。', fieldErrors: error.errors };
+    }
+  };
+
+  const publish: NonNullable<ScenarioFormActions['publish']> = async () => {
+    try {
+      const publishedRuleData = await scenarioApi.publishScenarioRuleData(scenarioId);
+      queryClient.setQueryData<{ scenario: Awaited<ReturnType<ScenarioApi['getScenario']>>; ruleData: typeof publishedRuleData }>(
+        ['scenarios', 'editor', scenarioId],
+        (current) => current ? { ...current, ruleData: publishedRuleData } : current,
+      );
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['scenarios', 'detail', scenarioId] }),
+        queryClient.invalidateQueries({ queryKey: ['scenarios', 'list'] }),
+      ]);
+      return { ok: true, message: 'シナリオを公開しました。公開版として利用できます。' };
+    } catch (caught) {
+      const error = caught as ScenarioApiError;
+      return {
+        ok: false,
+        message: error.errors?.publish?.[0] ?? error.message ?? 'シナリオを公開できませんでした。',
+        fieldErrors: error.errors,
+      };
+    }
+  };
+
   const logout = async () => {
     await accountSession.api.logout();
     accountSession.clearUser();
@@ -113,7 +148,7 @@ export function EditScenarioContainer({ scenarioId, api }: { scenarioId: string;
     loadError={scenarioQuery.error instanceof Error ? scenarioQuery.error.message : undefined}
     saving={saving}
     aiWorking={aiWorking}
-    actions={{ save, assist, debug }}
+    actions={{ save, assist, debug, checkReadiness, publish }}
     onRetry={() => void scenarioQuery.refetch()}
     onLogout={logout}
   />;

@@ -119,6 +119,26 @@ describe('scenario rule-data API', () => {
     expect(fetchMock.mock.calls[1][1]).not.toHaveProperty('method');
   });
 
+  it('publishes rule-data through the publish endpoint', async () => {
+    const canonicalResponse = {
+      scenarioId: 'SCN-1', definitionVersionId: 'SDV-1', version: 1, status: 'published', schemaVersion: 2,
+      updatedAt: '2026-07-24T00:00:00Z', publishedAt: '2026-07-24T01:00:00Z', startLocationCode: '', locations: [], objectTypes: [], objects: [],
+    };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(canonicalResponse), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(createFetchScenarioApi('/api/scenarios').publishScenarioRuleData('SCN-1')).resolves.toEqual({
+      schemaVersion: 2, startLocationCode: '', locations: [], objectTypes: [], objects: [],
+    });
+    expect(fetchMock).toHaveBeenCalledWith('/api/scenarios/SCN-1/rule-data/publish', expect.objectContaining({
+      method: 'POST',
+      credentials: 'include',
+    }));
+  });
+
   it('round-trips rule-data in standalone draft creation', async () => {
     const ruleData = { schemaVersion: 2 as const, startLocationCode: '', locations: [], objectTypes: [], objects: [] };
     const draft = await createDemoScenarioApi().createScenario({ title: 'title only plus empty rules', ruleData });

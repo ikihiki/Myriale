@@ -44,6 +44,8 @@ describe('EditScenarioContainer', () => {
       assistScenario: vi.fn(),
       getScenarios: vi.fn(),
       getScenarioRuleDataReadiness: vi.fn(),
+      publishScenarioRuleData: vi.fn(),
+      debugScenarioRuleData: vi.fn(),
       recommendHero: vi.fn(),
       createScenario: vi.fn(),
     } as unknown as ScenarioApi;
@@ -82,6 +84,120 @@ describe('EditScenarioContainer', () => {
     await waitFor(() => expect(screen.getByTestId('scenario-notice')).toHaveTextContent('基本情報とObject Typeを保存しました'));
   });
 
+  it('shows backend readiness issues and keeps publish disabled when the draft is not ready', async () => {
+    let releaseReadiness!: () => void;
+    const readinessGate = new Promise<void>((resolve) => { releaseReadiness = resolve; });
+    const getScenarioRuleDataReadiness = vi.fn(async () => {
+      await readinessGate;
+      return {
+        definitionVersionId: 'SDV-1',
+        ready: false,
+        errors: { 'locations[0].code': ['開始場所から参照される場所が見つかりません。'] },
+      };
+    });
+    const publishScenarioRuleData = vi.fn();
+    const api = {
+      getScenario: vi.fn(async () => scenario),
+      createScenarioRuleDataDraft: vi.fn(async () => ruleData),
+      updateScenario: vi.fn(),
+      putScenarioRuleData: vi.fn(),
+      assistScenario: vi.fn(),
+      debugScenarioRuleData: vi.fn(),
+      getScenarioRuleDataReadiness,
+      publishScenarioRuleData,
+    } as unknown as ScenarioApi;
+
+    render(
+      <MyrialeQueryProvider client={createMyrialeQueryClient()}>
+        <AccountApiProvider api={createDemoAccountApi()}>
+          <EditScenarioContainer scenarioId="SCN-1" api={api} />
+        </AccountApiProvider>
+      </MyrialeQueryProvider>,
+    );
+
+    await screen.findByRole('main', { name: 'シナリオ編集ウィザード' });
+    fireEvent.click(screen.getByRole('button', { name: '公開準備を確認' }));
+    expect(screen.getByRole('button', { name: '公開準備を確認中…' })).toBeDisabled();
+    releaseReadiness();
+
+    await waitFor(() => expect(screen.getByTestId('publish-readiness')).toHaveTextContent('公開前に修正が必要です。'));
+    expect(screen.getByTestId('publish-readiness')).toHaveTextContent('開始場所から参照される場所が見つかりません。');
+    expect(screen.getByTestId('publish-readiness')).toHaveTextContent('locations[0].code');
+    expect(screen.getByRole('button', { name: 'シナリオを公開' })).toBeDisabled();
+    expect(publishScenarioRuleData).not.toHaveBeenCalled();
+  });
+
+  it('publishes a saved draft after a successful readiness check', async () => {
+    let releasePublish!: () => void;
+    const publishGate = new Promise<void>((resolve) => { releasePublish = resolve; });
+    const publishScenarioRuleData = vi.fn(async () => {
+      await publishGate;
+      return ruleData;
+    });
+    const api = {
+      getScenario: vi.fn(async () => scenario),
+      createScenarioRuleDataDraft: vi.fn(async () => ruleData),
+      updateScenario: vi.fn(),
+      putScenarioRuleData: vi.fn(),
+      assistScenario: vi.fn(),
+      debugScenarioRuleData: vi.fn(),
+      getScenarioRuleDataReadiness: vi.fn(async () => ({ definitionVersionId: 'SDV-1', ready: true, errors: {} })),
+      publishScenarioRuleData,
+    } as unknown as ScenarioApi;
+
+    render(
+      <MyrialeQueryProvider client={createMyrialeQueryClient()}>
+        <AccountApiProvider api={createDemoAccountApi()}>
+          <EditScenarioContainer scenarioId="SCN-1" api={api} />
+        </AccountApiProvider>
+      </MyrialeQueryProvider>,
+    );
+
+    await screen.findByRole('main', { name: 'シナリオ編集ウィザード' });
+    const publishButton = screen.getByRole('button', { name: 'シナリオを公開' });
+    expect(publishButton).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: '公開準備を確認' }));
+    await waitFor(() => expect(screen.getByTestId('publish-readiness')).toHaveTextContent('公開できます。'));
+    expect(publishButton).toBeEnabled();
+
+    fireEvent.click(publishButton);
+    expect(screen.getByRole('button', { name: '公開中…' })).toBeDisabled();
+    releasePublish();
+
+    await waitFor(() => expect(publishScenarioRuleData).toHaveBeenCalledWith('SCN-1'));
+    await waitFor(() => expect(screen.getByTestId('publish-success')).toHaveTextContent('公開が完了しました。'));
+    expect(screen.getByTestId('scenario-notice')).toHaveTextContent('シナリオを公開しました。');
+  });
+
+  it('shows a publish API error without reporting success', async () => {
+    const api = {
+      getScenario: vi.fn(async () => scenario),
+      createScenarioRuleDataDraft: vi.fn(async () => ruleData),
+      updateScenario: vi.fn(),
+      putScenarioRuleData: vi.fn(),
+      assistScenario: vi.fn(),
+      debugScenarioRuleData: vi.fn(),
+      getScenarioRuleDataReadiness: vi.fn(async () => ({ definitionVersionId: 'SDV-1', ready: true, errors: {} })),
+      publishScenarioRuleData: vi.fn(async () => { throw new Error('publish conflict'); }),
+    } as unknown as ScenarioApi;
+
+    render(
+      <MyrialeQueryProvider client={createMyrialeQueryClient()}>
+        <AccountApiProvider api={createDemoAccountApi()}>
+          <EditScenarioContainer scenarioId="SCN-1" api={api} />
+        </AccountApiProvider>
+      </MyrialeQueryProvider>,
+    );
+
+    await screen.findByRole('main', { name: 'シナリオ編集ウィザード' });
+    fireEvent.click(screen.getByRole('button', { name: '公開準備を確認' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'シナリオを公開' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'シナリオを公開' }));
+
+    await waitFor(() => expect(screen.getByTestId('scenario-notice')).toHaveTextContent('publish conflict'));
+    expect(screen.queryByTestId('publish-success')).not.toBeInTheDocument();
+  });
+
   it('reports a safe partial failure when only the basic scenario update succeeds', async () => {
     const api = {
       getScenario: vi.fn(async () => scenario),
@@ -92,6 +208,8 @@ describe('EditScenarioContainer', () => {
       assistScenario: vi.fn(),
       getScenarios: vi.fn(),
       getScenarioRuleDataReadiness: vi.fn(),
+      publishScenarioRuleData: vi.fn(),
+      debugScenarioRuleData: vi.fn(),
       recommendHero: vi.fn(),
       createScenario: vi.fn(),
     } as unknown as ScenarioApi;
