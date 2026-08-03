@@ -241,7 +241,7 @@ internal static class ScenarioDefinitionSeedFactory
 
     private static ScenarioDefinitionVersion NewVersion(string scenarioId, string slug, DateTimeOffset timestamp, int versionNumber, string startLocationCode) => new()
     {
-        Id = $"SDV-{slug}-{versionNumber}", ScenarioId = scenarioId, Version = versionNumber, Status = "published",
+        Id = $"SDV-{slug}-{versionNumber}", ScenarioId = scenarioId, Version = versionNumber, Status = DefinitionStatus.Published,
         SchemaVersion = 2, StartLocationCode = startLocationCode,
         CreatedAt = timestamp, UpdatedAt = timestamp, PublishedAt = timestamp,
     };
@@ -270,7 +270,7 @@ internal static class ScenarioDefinitionSeedFactory
         var action = new ScenarioObjectTypeAction
         {
             Id = $"SOTA-{slug}-{idSuffix}", ObjectTypeId = type.Id, Code = code, Label = label, Description = description,
-            ArgumentSchemaJson = argumentSchema ?? "{\"type\":\"object\",\"additionalProperties\":false}", AvailabilityConditionJson = "{}", Visibility = "ai-choice", ExecutionMode = "rule",
+            ArgumentSchemaJson = argumentSchema ?? "{\"type\":\"object\",\"additionalProperties\":false}", AvailabilityConditionJson = "{}", Visibility = ActionVisibility.AiChoice, ExecutionMode = ActionExecutionMode.Rule,
         };
         type.Actions.Add(action);
         return action;

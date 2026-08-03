@@ -243,7 +243,7 @@ public static class SessionEndpoints
             .Include(version => version.Locations)
             .Include(version => version.ObjectTypes).ThenInclude(type => type.Actions)
             .Include(version => version.Objects)
-            .Where(version => version.ScenarioId == request.ScenarioId && version.Status == "published")
+            .Where(version => version.ScenarioId == request.ScenarioId && version.Status == DefinitionStatus.Published)
             .OrderByDescending(version => version.Version)
             .FirstOrDefaultAsync(cancellationToken);
         if (definition is null)

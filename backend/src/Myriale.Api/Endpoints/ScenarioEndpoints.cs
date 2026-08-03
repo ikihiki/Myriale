@@ -63,7 +63,7 @@ public static class ScenarioEndpoints
     {
         var authorId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         var scenarios = await db.Scenarios.AsNoTracking()
-            .Where(item => item.Status == "published" || authorId != null && item.AuthorId == authorId)
+            .Where(item => item.Status == ScenarioPublicationStatus.Published || authorId != null && item.AuthorId == authorId)
             .ToListAsync(cancellationToken);
         var responses = scenarios
             .OrderByDescending(item => item.UpdatedAt)
@@ -82,7 +82,7 @@ public static class ScenarioEndpoints
         var authorId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         var scenario = await db.Scenarios.AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == scenarioId
-                && (item.Status == "published" || authorId != null && item.AuthorId == authorId), cancellationToken);
+                && (item.Status == ScenarioPublicationStatus.Published || authorId != null && item.AuthorId == authorId), cancellationToken);
         return scenario is null ? TypedResults.NotFound() : TypedResults.Ok(ToResponse(scenario));
     }
 
@@ -105,7 +105,7 @@ public static class ScenarioEndpoints
 
         scenario.Edit(
             new ScenarioTitle(request.Title), Clean(request.Summary), Clean(request.Genre, "未分類"), Clean(request.Tone),
-            Clean(request.Lore), Clean(request.AiFreedom), ParseHeroPolicy(request.HeroMode), request.HeroFreeGenerationAllowed == true,
+            Clean(request.Lore), Clean(request.AiFreedom), ScenarioEnumValues.ParseHeroMode(request.HeroMode), request.HeroFreeGenerationAllowed == true,
             Clean(request.Hero), Clean(request.Opening), new IllustrationPrompt(request.IllustrationStyle),
             new IllustrationPrompt(request.IllustrationMood), new IllustrationPrompt(request.IllustrationNegative),
             Clean(request.SampleScene), DateTimeOffset.UtcNow);
@@ -173,7 +173,7 @@ public static class ScenarioEndpoints
         var scenario = Scenario.Create(await NewScenarioIdAsync(db, cancellationToken), authorId, new ScenarioTitle(request.Title), now);
         scenario.Edit(
             new ScenarioTitle(request.Title), Clean(request.Summary), Clean(request.Genre, "未分類"), Clean(request.Tone),
-            Clean(request.Lore), Clean(request.AiFreedom), ParseHeroPolicy(request.HeroMode), request.HeroFreeGenerationAllowed == true,
+            Clean(request.Lore), Clean(request.AiFreedom), ScenarioEnumValues.ParseHeroMode(request.HeroMode), request.HeroFreeGenerationAllowed == true,
             Clean(request.Hero), Clean(request.Opening), new IllustrationPrompt(request.IllustrationStyle),
             new IllustrationPrompt(request.IllustrationMood), new IllustrationPrompt(request.IllustrationNegative),
             Clean(request.SampleScene), now);
@@ -200,9 +200,9 @@ public static class ScenarioEndpoints
     {
         if (!await IsOwnerAsync(scenarioId, principal, db, cancellationToken)) return TypedResults.NotFound();
         var latest = await authoring.GetLatestAsync(scenarioId, cancellationToken);
-        if (latest?.Status == "draft") return TypedResults.Ok(authoring.ToResponse(latest));
+        if (latest?.Status == DefinitionStatus.Draft) return TypedResults.Ok(authoring.ToResponse(latest));
         var draft = await authoring.GetOrCreateDraftAsync(scenarioId, cancellationToken);
-        if (latest is not null && latest.Status == "published")
+        if (latest is not null && latest.Status == DefinitionStatus.Published)
             draft = await authoring.SaveAsync(draft, authoring.ToRequest(latest), cancellationToken);
         return TypedResults.Created($"/api/scenarios/{scenarioId}/rule-data", authoring.ToResponse(draft));
     }
@@ -213,7 +213,7 @@ public static class ScenarioEndpoints
     {
         if (!await IsOwnerAsync(scenarioId, principal, db, cancellationToken)) return TypedResults.NotFound();
         var draft = await authoring.GetLatestAsync(scenarioId, cancellationToken);
-        if (draft is not null && draft.Status != "draft") return TypedResults.Conflict();
+        if (draft is not null && draft.Status != DefinitionStatus.Draft) return TypedResults.Conflict();
         var errors = authoring.PreparePut(draft, request);
         foreach (var pair in authoring.Validate(request, false))
             errors[pair.Key] = errors.TryGetValue(pair.Key, out var existing) ? existing.Concat(pair.Value).Distinct().ToArray() : pair.Value;
@@ -293,9 +293,7 @@ public static class ScenarioEndpoints
 
     private static string Clean(string? value, string fallback = "") => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
 
-    private static HeroPolicy ParseHeroPolicy(string? value) => HeroPolicy.TryCreate(value, out var policy) ? policy : HeroPolicy.Free;
-
-    private static async Task<string> NewScenarioIdAsync(ApplicationDbContext db, CancellationToken cancellationToken)
+        private static async Task<string> NewScenarioIdAsync(ApplicationDbContext db, CancellationToken cancellationToken)
     {
         for (var attempt = 0; attempt < 5; attempt++)
         {
@@ -314,7 +312,7 @@ public static class ScenarioEndpoints
         scenario.Tone,
         scenario.Lore,
         scenario.AiFreedom,
-        scenario.HeroMode,
+        scenario.HeroMode.ToWireValue(),
         scenario.HeroFreeGenerationAllowed,
         scenario.Hero,
         scenario.Opening,
@@ -322,6 +320,6 @@ public static class ScenarioEndpoints
         scenario.IllustrationMood,
         scenario.IllustrationNegative,
         scenario.SampleScene,
-        scenario.Status,
+        scenario.Status.ToWireValue(),
         DateOnly.FromDateTime(scenario.UpdatedAt.UtcDateTime));
 }

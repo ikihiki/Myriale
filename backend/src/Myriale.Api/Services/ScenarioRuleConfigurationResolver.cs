@@ -56,7 +56,7 @@ public sealed class ScenarioRuleConfigurationResolver
             foreach (var action in type.Actions)
             {
                 var resolved = new ResolvedScenarioAction(action.Id, action.Code, action.Label, action.Description, action.ArgumentSchemaJson,
-                    action.AvailabilityConditionJson, action.Visibility, action.ExecutionMode, rank, type.Code, type.Id);
+                    action.AvailabilityConditionJson, action.Visibility.ToWireValue(), action.ExecutionMode.ToWireValue(), rank, type.Code, type.Id);
                 if (actions.TryGetValue(action.Code, out var existing) && !SameContract(existing, resolved))
                     conflicts.Add($"action '{action.Code}' differs between '{existing.SourceCode}' and '{type.Code}'");
                 else actions[action.Code] = resolved;

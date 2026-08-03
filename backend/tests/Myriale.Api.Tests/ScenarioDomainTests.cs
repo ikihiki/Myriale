@@ -5,10 +5,11 @@ namespace Myriale.Api.Tests;
 public sealed class ScenarioDomainTests
 {
     [Fact]
-    public void HeroPolicy_RejectsUnknownWireValue()
+    public void HeroMode_RejectsUnknownWireValue()
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => new HeroPolicy("sometimes"));
-        Assert.Equal("select", HeroPolicy.Select.Value);
+        Assert.Throws<ArgumentOutOfRangeException>(() => ScenarioEnumValues.ParseHeroMode("sometimes"));
+        Assert.Equal("select", HeroMode.Select.ToWireValue());
+        Assert.True(Enum.IsDefined(HeroMode.Select));
     }
 
     [Fact]
@@ -31,7 +32,7 @@ public sealed class ScenarioDomainTests
         var now = DateTimeOffset.UtcNow;
         var scenario = Scenario.Create("scenario", "author", new ScenarioTitle("Original"), now);
         scenario.Edit(new ScenarioTitle("Original"), "summary", "genre", "tone", "original lore", "original guidance",
-            HeroPolicy.Free, false, "hero", "original opening", new IllustrationPrompt("style"), new IllustrationPrompt("mood"),
+            HeroMode.Free, false, "hero", "original opening", new IllustrationPrompt("style"), new IllustrationPrompt("mood"),
             new IllustrationPrompt("negative"), "scene", now);
         var definition = new ScenarioDefinitionVersion
         {
@@ -41,7 +42,7 @@ public sealed class ScenarioDomainTests
         definition.SnapshotScenario(scenario);
 
         scenario.Edit(new ScenarioTitle("Changed"), "changed", "changed", "changed", "changed lore", "changed guidance",
-            HeroPolicy.Fixed, false, "changed hero", "changed opening", new IllustrationPrompt("changed"), new IllustrationPrompt("changed"),
+            HeroMode.Fixed, false, "changed hero", "changed opening", new IllustrationPrompt("changed"), new IllustrationPrompt("changed"),
             new IllustrationPrompt("changed"), "changed", now.AddMinutes(1));
 
         Assert.Equal("Original", definition.ScenarioTitle.Value);

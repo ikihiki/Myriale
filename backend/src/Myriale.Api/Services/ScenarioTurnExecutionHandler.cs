@@ -386,7 +386,7 @@ public sealed class ScenarioTurnExecutionHandler(
         var definition = await db.ScenarioDefinitionVersions.Include(item => item.Locations)
             .Include(item => item.ObjectTypes).ThenInclude(type => type.Actions)
             .Include(item => item.Objects)
-            .SingleAsync(item => item.Id == session.ScenarioDefinitionVersionId && item.Status == "published", cancellationToken);
+            .SingleAsync(item => item.Id == session.ScenarioDefinitionVersionId && item.Status == DefinitionStatus.Published, cancellationToken);
         var statesQuery = db.SessionObjectStates.Include(item => item.ScenarioObject);
         var states = tracking ? await statesQuery.Where(item => item.SessionId == sessionId).ToListAsync(cancellationToken) : await statesQuery.AsNoTracking().Where(item => item.SessionId == sessionId).ToListAsync(cancellationToken);
         foreach (var state in states) state.ScenarioObject = definition.Objects.Single(item => item.Id == state.ScenarioObjectId);

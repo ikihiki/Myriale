@@ -26,7 +26,7 @@ public sealed class Scenario
     public string AiFreedom { get; set; } = string.Empty;
 
     [MaxLength(20)]
-    public HeroPolicy HeroMode { get; set; } = HeroPolicy.Free;
+    public HeroMode HeroMode { get; set; } = HeroMode.Free;
 
     public bool HeroFreeGenerationAllowed { get; set; }
 
@@ -59,11 +59,11 @@ public sealed class Scenario
     };
 
     public void Edit(ScenarioTitle title, string summary, string genre, string tone, string lore, string aiFreedom,
-        HeroPolicy heroPolicy, bool heroFreeGenerationAllowed, string hero, string opening, IllustrationPrompt illustrationStyle,
+        HeroMode heroMode, bool heroFreeGenerationAllowed, string hero, string opening, IllustrationPrompt illustrationStyle,
         IllustrationPrompt illustrationMood, IllustrationPrompt illustrationNegative, string sampleScene, DateTimeOffset now)
     {
-        Title = title; Summary = summary; Genre = genre; Tone = tone; Lore = lore; AiFreedom = aiFreedom; HeroMode = heroPolicy;
-        HeroFreeGenerationAllowed = heroPolicy == HeroPolicy.Select && heroFreeGenerationAllowed; Hero = hero; Opening = opening;
+        Title = title; Summary = summary; Genre = genre; Tone = tone; Lore = lore; AiFreedom = aiFreedom; HeroMode = heroMode;
+        HeroFreeGenerationAllowed = heroMode == HeroMode.Select && heroFreeGenerationAllowed; Hero = hero; Opening = opening;
         IllustrationStyle = illustrationStyle; IllustrationMood = illustrationMood; IllustrationNegative = illustrationNegative;
         SampleScene = sampleScene; UpdatedAt = now;
     }

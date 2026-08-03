@@ -20,7 +20,7 @@ public sealed class ScenarioDefinitionVersion
     [MaxLength(120)] public string ScenarioTone { get; set; } = string.Empty;
     public string ScenarioLore { get; set; } = string.Empty;
     [MaxLength(120)] public string ScenarioAiFreedom { get; set; } = string.Empty;
-    [MaxLength(20)] public HeroPolicy ScenarioHeroPolicy { get; set; } = HeroPolicy.Free;
+    [MaxLength(20)] public HeroMode ScenarioHeroMode { get; set; } = HeroMode.Free;
     public bool ScenarioHeroFreeGenerationAllowed { get; set; }
     public string ScenarioHero { get; set; } = string.Empty;
     public string ScenarioOpening { get; set; } = string.Empty;
@@ -43,7 +43,7 @@ public sealed class ScenarioDefinitionVersion
     {
         EnsureDraft();
         ScenarioTitle = scenario.Title; ScenarioSummary = scenario.Summary; ScenarioGenre = scenario.Genre; ScenarioTone = scenario.Tone;
-        ScenarioLore = scenario.Lore; ScenarioAiFreedom = scenario.AiFreedom; ScenarioHeroPolicy = scenario.HeroMode;
+        ScenarioLore = scenario.Lore; ScenarioAiFreedom = scenario.AiFreedom; ScenarioHeroMode = scenario.HeroMode;
         ScenarioHeroFreeGenerationAllowed = scenario.HeroFreeGenerationAllowed; ScenarioHero = scenario.Hero; ScenarioOpening = scenario.Opening;
         ScenarioIllustrationStyle = scenario.IllustrationStyle; ScenarioIllustrationMood = scenario.IllustrationMood;
         ScenarioIllustrationNegative = scenario.IllustrationNegative; ScenarioSampleScene = scenario.SampleScene;
@@ -92,8 +92,8 @@ public sealed class ScenarioObjectTypeAction
     public string Description { get; set; } = string.Empty;
     public string ArgumentSchemaJson { get; set; } = "{}";
     public string AvailabilityConditionJson { get; set; } = "{}";
-    [MaxLength(20)] public ActionVisibility Visibility { get; set; } = new("ai-choice");
-    [MaxLength(20)] public ActionExecutionMode ExecutionMode { get; set; } = new("rule");
+    [MaxLength(20)] public ActionVisibility Visibility { get; set; } = ActionVisibility.AiChoice;
+    [MaxLength(20)] public ActionExecutionMode ExecutionMode { get; set; } = ActionExecutionMode.Rule;
 }
 
 public sealed class ScenarioObject

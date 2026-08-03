@@ -47,9 +47,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         builder.Entity<Scenario>().Property(scenario => scenario.Title)
             .HasConversion(value => value.Value, value => new ScenarioTitle(value));
         builder.Entity<Scenario>().Property(scenario => scenario.HeroMode)
-            .HasConversion(value => value.Value, value => new HeroPolicy(value));
+            .HasConversion<string>();
         builder.Entity<Scenario>().Property(scenario => scenario.Status)
-            .HasConversion(value => value.Value, value => new ScenarioPublicationStatus(value));
+            .HasConversion<string>();
         builder.Entity<Scenario>().Property(scenario => scenario.IllustrationStyle)
             .HasConversion(value => value.Value, value => new IllustrationPrompt(value));
         builder.Entity<Scenario>().Property(scenario => scenario.IllustrationMood)
@@ -57,11 +57,11 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         builder.Entity<Scenario>().Property(scenario => scenario.IllustrationNegative)
             .HasConversion(value => value.Value, value => new IllustrationPrompt(value));
         builder.Entity<ScenarioDefinitionVersion>().Property(version => version.Status)
-            .HasConversion(value => value.Value, value => new DefinitionStatus(value));
+            .HasConversion<string>();
         builder.Entity<ScenarioDefinitionVersion>().Property(version => version.ScenarioTitle)
             .HasConversion(value => value.Value, value => new ScenarioTitle(value));
-        builder.Entity<ScenarioDefinitionVersion>().Property(version => version.ScenarioHeroPolicy)
-            .HasConversion(value => value.Value, value => new HeroPolicy(value));
+        builder.Entity<ScenarioDefinitionVersion>().Property(version => version.ScenarioHeroMode)
+            .HasConversion<string>();
         builder.Entity<ScenarioDefinitionVersion>().Property(version => version.ScenarioIllustrationStyle)
             .HasConversion(value => value.Value, value => new IllustrationPrompt(value));
         builder.Entity<ScenarioDefinitionVersion>().Property(version => version.ScenarioIllustrationMood)
@@ -69,14 +69,14 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         builder.Entity<ScenarioDefinitionVersion>().Property(version => version.ScenarioIllustrationNegative)
             .HasConversion(value => value.Value, value => new IllustrationPrompt(value));
         builder.Entity<ScenarioObjectTypeAction>().Property(action => action.Visibility)
-            .HasConversion(value => value.Value, value => new ActionVisibility(value));
+            .HasConversion<string>();
         builder.Entity<ScenarioObjectTypeAction>().Property(action => action.ExecutionMode)
-            .HasConversion(value => value.Value, value => new ActionExecutionMode(value));
+            .HasConversion<string>();
         builder.Entity<ScenarioDefinitionVersion>()
             .HasIndex(version => new { version.ScenarioId, version.Version }).IsUnique();
         builder.Entity<ScenarioDefinitionVersion>()
             .HasIndex(version => version.ScenarioId).IsUnique()
-            .HasFilter("\"Status\" = 'draft'");
+            .HasFilter("\"Status\" = 'Draft'");
         builder.Entity<ScenarioDefinitionVersion>()
             .HasOne(version => version.Scenario).WithMany().HasForeignKey(version => version.ScenarioId).OnDelete(DeleteBehavior.Cascade);
         builder.Entity<ScenarioLocation>()

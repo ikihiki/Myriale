@@ -345,8 +345,8 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
                 {
                     Id = $"SOTA-{Guid.NewGuid():N}", ObjectTypeId = type.Id, Code = actionInput.Code.Trim(), Label = actionInput.Label.Trim(),
                     Description = actionInput.Description?.Trim() ?? string.Empty, ArgumentSchemaJson = Json(actionInput.ArgumentSchema, "{}"),
-                    AvailabilityConditionJson = Json(actionInput.AvailabilityCondition, "{}"), Visibility = actionInput.Visibility,
-                    ExecutionMode = actionInput.ExecutionMode,
+                    AvailabilityConditionJson = Json(actionInput.AvailabilityCondition, "{}"), Visibility = ScenarioEnumValues.ParseActionVisibility(actionInput.Visibility),
+                    ExecutionMode = ScenarioEnumValues.ParseActionExecutionMode(actionInput.ExecutionMode),
                 };
                 type.Actions.Add(action);
             }
@@ -374,12 +374,12 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
     public ScenarioRuleDataResponse ToResponse(ScenarioDefinitionVersion version)
     {
         var locationCodes = version.Locations.ToDictionary(item => item.Id, item => item.Code);
-        return new(version.ScenarioId, version.Id, version.Version, version.Status, version.SchemaVersion, version.UpdatedAt, version.PublishedAt,
+        return new(version.ScenarioId, version.Id, version.Version, version.Status.ToWireValue(), version.SchemaVersion, version.UpdatedAt, version.PublishedAt,
             version.Locations.OrderBy(item => item.Code).Select(item => new ScenarioLocationInput(item.Code, item.Name, item.Description, Parse(item.AuthoringDataJson))).ToList(),
             version.ObjectTypes.OrderBy(item => item.Code).Select(item => new ScenarioObjectTypeInput(item.Code, item.Name, item.Description, item.SchemaVersion,
                 Parse(item.StateSchemaJson), Parse(item.DefaultStateJson), Parse(item.PublicProjectionJson),
                 item.Actions.OrderBy(action => action.Code).Select(action => new ScenarioObjectTypeActionInput(action.Code, action.Label, action.Description,
-                    Parse(action.ArgumentSchemaJson), Parse(action.AvailabilityConditionJson), action.Visibility, action.ExecutionMode)).ToList(),
+                    Parse(action.ArgumentSchemaJson), Parse(action.AvailabilityConditionJson), action.Visibility.ToWireValue(), action.ExecutionMode.ToWireValue())).ToList(),
                 JsonSerializer.Deserialize<List<ScenarioGenericActionRuleInput>>(item.GenericActionRulesJson, SerializerOptions) ?? [])).ToList(),
             version.Objects.OrderBy(item => item.Code).Select(item =>
             {

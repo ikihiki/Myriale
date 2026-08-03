@@ -24,7 +24,7 @@ public sealed class ScenarioRuleDebugService(
             .Include(version => version.ObjectTypes).ThenInclude(type => type.Actions)
             .Include(version => version.Objects)
             .Where(version => version.ScenarioId == scenarioId)
-            .OrderByDescending(version => version.Status == "draft")
+            .OrderByDescending(version => version.Status == DefinitionStatus.Draft)
             .ThenByDescending(version => version.Version)
             .FirstOrDefaultAsync(cancellationToken);
         if (definition is null) return null;
