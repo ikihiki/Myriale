@@ -77,7 +77,7 @@ public static class ScenarioEndpoints
     private static async Task<IResult> GetRuleDataAsync(string scenarioId, ClaimsPrincipal principal, ScenarioQueryService scenarios, ScenarioDefinitionQueryService definitions, CancellationToken ct)
     {
         if (!await scenarios.IsOwnerAsync(scenarioId, UserId(principal), ct)) return TypedResults.NotFound();
-        var value = await definitions.GetLatestAsync(scenarioId, ct); return value is null ? TypedResults.NotFound() : TypedResults.Ok(value);
+        var value = await definitions.GetEditableAsync(scenarioId, ct); return value is null ? TypedResults.NotFound() : TypedResults.Ok(value);
     }
 
     private static async Task<IResult> CreateRuleDataDraftAsync(string scenarioId, ClaimsPrincipal principal,

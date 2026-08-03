@@ -23,7 +23,7 @@ public sealed class ScenarioDefinitionQueryService(ApplicationDbContext db, Scen
         return definition is null ? null : mapper.ToResponse(definition);
     }
 
-    public async Task<ScenarioRuleDataResponse?> GetLatestAsync(string scenarioId, CancellationToken cancellationToken) =>
+    public async Task<ScenarioRuleDataResponse?> GetEditableAsync(string scenarioId, CancellationToken cancellationToken) =>
         await GetDraftAsync(scenarioId, cancellationToken) ?? await GetLatestPublishedAsync(scenarioId, cancellationToken);
 
     private async Task<ScenarioRuleDataResponse?> ProjectAsync(string scenarioId, DefinitionStatus status, CancellationToken cancellationToken)
