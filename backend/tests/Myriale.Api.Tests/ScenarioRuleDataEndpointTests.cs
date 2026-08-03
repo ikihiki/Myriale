@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -450,6 +452,90 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.BadRequest, mismatch.StatusCode);
         var mismatchBody = await mismatch.Content.ReadFromJsonAsync<JsonElement>();
         Assert.True(mismatchBody.GetProperty("errors").TryGetProperty("objects[0].actionRules[0].actionCode", out _));
+    }
+
+    [Fact]
+    public async Task Publish_WhenNotReady_LeavesScenarioAndDefinitionAsDraft()
+    {
+        var client = await CreateSignedInClientAsync();
+        var scenarioId = await CreateScenarioAsync(client);
+        using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", new
+        {
+            schemaVersion = 2, startLocationCode = "", locations = Array.Empty<object>(), objectTypes = Array.Empty<object>(), objects = Array.Empty<object>()
+        });
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+
+        using var published = await client.PostAsync($"/api/scenarios/{scenarioId}/rule-data/publish", null);
+        Assert.Equal(HttpStatusCode.BadRequest, published.StatusCode);
+
+        using var scenarioResponse = await client.GetAsync($"/api/scenarios/{scenarioId}");
+        var scenario = await scenarioResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("draft", scenario.GetProperty("status").GetString());
+        using var definitionResponse = await client.GetAsync($"/api/scenarios/{scenarioId}/rule-data");
+        var definition = await definitionResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("draft", definition.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task PublishedDefinition_PinsNarrativeGuidanceAfterScenarioEdit()
+    {
+        var client = await CreateSignedInClientAsync();
+        using var createdScenario = await client.PostAsJsonAsync("/api/scenarios/", new
+        {
+            title = "固定された題名", lore = "固定された世界設定", aiFreedom = "固定された指針",
+            heroMode = "free", opening = "固定された導入"
+        });
+        var scenarioJson = await createdScenario.Content.ReadFromJsonAsync<JsonElement>();
+        var scenarioId = scenarioJson.GetProperty("id").GetString()!;
+        using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", ValidRuleData());
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        using var published = await client.PostAsync($"/api/scenarios/{scenarioId}/rule-data/publish", null);
+        Assert.Equal(HttpStatusCode.OK, published.StatusCode);
+
+        using var edited = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}", new
+        {
+            title = "編集後の題名", lore = "編集後の世界設定", aiFreedom = "編集後の指針",
+            heroMode = "free", opening = "編集後の導入"
+        });
+        Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
+        using var sessionResponse = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = $"pin-{Guid.NewGuid():N}" });
+        Assert.Equal(HttpStatusCode.Created, sessionResponse.StatusCode);
+        var sessionJson = await sessionResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var sessionId = sessionJson.GetProperty("id").GetString()!;
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+        var session = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
+            db.Sessions.Include(item => item.ScenarioDefinitionVersion), item => item.Id == sessionId);
+        Assert.Equal("固定された世界設定", session.ScenarioDefinitionVersion!.ScenarioLore);
+        Assert.Equal("固定された指針", session.ScenarioDefinitionVersion.ScenarioAiFreedom);
+        Assert.Equal("固定された導入", session.ScenarioDefinitionVersion.ScenarioOpening);
+        var opening = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
+            db.SessionTurns, turn => turn.SessionId == sessionId && turn.Position == 1);
+        Assert.Equal("固定された題名", opening.Heading);
+        Assert.Equal("固定された導入", opening.NarrativeBody);
+    }
+
+    [Fact]
+    public async Task CreateDraft_ConcurrentRequestsLeaveOneActiveDraft()
+    {
+        var client = await CreateSignedInClientAsync();
+        var scenarioId = await CreateScenarioAsync(client);
+        using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", ValidRuleData());
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        using var published = await client.PostAsync($"/api/scenarios/{scenarioId}/rule-data/publish", null);
+        Assert.Equal(HttpStatusCode.OK, published.StatusCode);
+
+        var responses = await Task.WhenAll(
+            client.PostAsync($"/api/scenarios/{scenarioId}/rule-data/drafts", null),
+            client.PostAsync($"/api/scenarios/{scenarioId}/rule-data/drafts", null));
+        Assert.All(responses, response => Assert.True(response.StatusCode is HttpStatusCode.Created or HttpStatusCode.OK));
+        foreach (var response in responses) response.Dispose();
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+        Assert.Equal(1, await db.ScenarioDefinitionVersions.CountAsync(
+            version => version.ScenarioId == scenarioId && version.Status == Myriale.Api.Data.DefinitionStatus.Draft));
     }
 
     public void Dispose()

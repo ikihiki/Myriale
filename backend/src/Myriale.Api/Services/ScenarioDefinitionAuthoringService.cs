@@ -22,22 +22,36 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
 
     public async Task<ScenarioDefinitionVersion> GetOrCreateDraftAsync(string scenarioId, CancellationToken cancellationToken)
     {
-        var draft = await Query().Where(version => version.ScenarioId == scenarioId && version.Status == "draft")
-            .OrderByDescending(version => version.Version).FirstOrDefaultAsync(cancellationToken);
-        if (draft is not null) return draft;
-
-        var nextVersion = (await db.ScenarioDefinitionVersions
-            .Where(version => version.ScenarioId == scenarioId)
-            .MaxAsync(version => (int?)version.Version, cancellationToken) ?? 0) + 1;
-        var now = DateTimeOffset.UtcNow;
-        draft = new ScenarioDefinitionVersion
+        for (var attempt = 0; attempt < 3; attempt++)
         {
-            Id = $"SDV-{Guid.NewGuid():N}", ScenarioId = scenarioId, Version = nextVersion,
-            Status = "draft", SchemaVersion = 2, CreatedAt = now, UpdatedAt = now,
-        };
-        db.ScenarioDefinitionVersions.Add(draft);
-        await db.SaveChangesAsync(cancellationToken);
-        return draft;
+            var draft = await Query().Where(version => version.ScenarioId == scenarioId && version.Status == DefinitionStatus.Draft)
+                .OrderByDescending(version => version.Version).FirstOrDefaultAsync(cancellationToken);
+            if (draft is not null) return draft;
+
+            var scenario = await db.Scenarios.SingleAsync(item => item.Id == scenarioId, cancellationToken);
+            var nextVersion = (await db.ScenarioDefinitionVersions
+                .Where(version => version.ScenarioId == scenarioId)
+                .MaxAsync(version => (int?)version.Version, cancellationToken) ?? 0) + 1;
+            var now = DateTimeOffset.UtcNow;
+            draft = new ScenarioDefinitionVersion
+            {
+                Id = $"SDV-{Guid.NewGuid():N}", ScenarioId = scenarioId, Version = nextVersion,
+                Status = DefinitionStatus.Draft, SchemaVersion = 2, CreatedAt = now, UpdatedAt = now,
+            };
+            draft.SnapshotScenario(scenario);
+            db.ScenarioDefinitionVersions.Add(draft);
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                return draft;
+            }
+            catch (DbUpdateException) when (attempt < 2)
+            {
+                db.ChangeTracker.Clear();
+            }
+        }
+
+        return await Query().SingleAsync(version => version.ScenarioId == scenarioId && version.Status == DefinitionStatus.Draft, cancellationToken);
     }
 
     public Dictionary<string, string[]> Validate(ScenarioRuleDataRequest request, bool forPublish)
@@ -294,6 +308,9 @@ public sealed partial class ScenarioDefinitionAuthoringService(ApplicationDbCont
 
     public async Task<ScenarioDefinitionVersion> SaveAsync(ScenarioDefinitionVersion version, ScenarioRuleDataRequest request, CancellationToken cancellationToken)
     {
+        version.EnsureDraft();
+        var scenario = await db.Scenarios.SingleAsync(item => item.Id == version.ScenarioId, cancellationToken);
+        version.SnapshotScenario(scenario);
         db.ScenarioObjects.RemoveRange(version.Objects);
         db.ScenarioObjectTypeActions.RemoveRange(version.ObjectTypes.SelectMany(item => item.Actions));
         db.ScenarioObjectTypes.RemoveRange(version.ObjectTypes);

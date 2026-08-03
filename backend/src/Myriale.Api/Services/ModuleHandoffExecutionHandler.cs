@@ -264,7 +264,7 @@ public sealed class ModuleHandoffExecutionHandler(
 
     private Task<SessionTurn?> LoadSourceAsync(string sourceTurnId, CancellationToken cancellationToken) =>
         db.SessionTurns
-            .Include(turn => turn.Session).ThenInclude(session => session.Scenario)
+            .Include(turn => turn.Session).ThenInclude(session => session.ScenarioDefinitionVersion)
             .Include(turn => turn.Session).ThenInclude(session => session.HeadTurn)
             .Include(turn => turn.Session).ThenInclude(session => session.State)
             .Include(turn => turn.ModuleExecution).ThenInclude(moduleExecution => moduleExecution!.OutcomeApplication)
@@ -322,15 +322,15 @@ public sealed class ModuleHandoffExecutionHandler(
 
         return new NarrativeHandoffRequest(
             new NarrativeScenarioInput(
-                source.Session.Scenario.Title,
-                source.Session.Scenario.Summary,
-                source.Session.Scenario.Genre,
-                source.Session.Scenario.Tone,
-                source.Session.Scenario.Lore,
-                source.Session.Scenario.AiFreedom,
+                source.Session.ScenarioDefinitionVersion!.ScenarioTitle.Value,
+                source.Session.ScenarioDefinitionVersion.ScenarioSummary,
+                source.Session.ScenarioDefinitionVersion.ScenarioGenre,
+                source.Session.ScenarioDefinitionVersion.ScenarioTone,
+                source.Session.ScenarioDefinitionVersion.ScenarioLore,
+                source.Session.ScenarioDefinitionVersion.ScenarioAiFreedom,
                 source.Session.SelectedHero,
                 entities,
-                source.Session.Scenario.Opening),
+                source.Session.ScenarioDefinitionVersion.ScenarioOpening),
             new NarrativeOutcomeInput(
                 outcome.Category,
                 outcome.Code,

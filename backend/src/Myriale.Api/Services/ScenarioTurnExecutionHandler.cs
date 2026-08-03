@@ -138,7 +138,7 @@ public sealed class ScenarioTurnExecutionHandler(
             var selectedObject = decision.ObjectId == "system"
                 ? new RulePublicObject("system", "system", "システム", postStateForNarrative.CurrentLocation.Id, true, 0, Parse("{}"))
                 : snapshotForNarrative.Objects.Single(item => item.Id == decision.ObjectId);
-            var narrativeSession = await db.Sessions.AsNoTracking().Include(item => item.Scenario).SingleAsync(item => item.Id == execution.SessionId, cancellationToken);
+            var narrativeSession = await db.Sessions.AsNoTracking().Include(item => item.ScenarioDefinitionVersion).SingleAsync(item => item.Id == execution.SessionId, cancellationToken);
             var narrativeEntities = await db.ScenarioObjects.AsNoTracking()
                 .Where(item => item.DefinitionVersionId == narrativeSession.ScenarioDefinitionVersionId)
                 .OrderBy(item => item.Code)
@@ -147,15 +147,15 @@ public sealed class ScenarioTurnExecutionHandler(
             var narrativeRequest = new PostStateNarrativeRequest(
                 ScenarioTurnSchemas.PostStateNarrative,
                 new NarrativeScenarioInput(
-                    narrativeSession.Scenario.Title,
-                    narrativeSession.Scenario.Summary,
-                    narrativeSession.Scenario.Genre,
-                    narrativeSession.Scenario.Tone,
-                    narrativeSession.Scenario.Lore,
-                    narrativeSession.Scenario.AiFreedom,
+                    narrativeSession.ScenarioDefinitionVersion!.ScenarioTitle.Value,
+                    narrativeSession.ScenarioDefinitionVersion.ScenarioSummary,
+                    narrativeSession.ScenarioDefinitionVersion.ScenarioGenre,
+                    narrativeSession.ScenarioDefinitionVersion.ScenarioTone,
+                    narrativeSession.ScenarioDefinitionVersion.ScenarioLore,
+                    narrativeSession.ScenarioDefinitionVersion.ScenarioAiFreedom,
                     narrativeSession.SelectedHero,
                     narrativeEntities,
-                    narrativeSession.Scenario.Opening),
+                    narrativeSession.ScenarioDefinitionVersion.ScenarioOpening),
                 input.Text, selectedObject, selectedAction, postStateForNarrative,
                 DeserializeList<string>(step.FactsJson), DeserializeList<JsonElement>(step.EventsJson), DeserializeList<string>(step.NarrativeHintsJson), DeserializeList<string>(step.ForbiddenNarrativeFactsJson));
             var narrativeProfileId = execution.NarrativeAiProfileId ?? throw new ScenarioTurnValidationException("narrative_ai_profile_not_snapshotted");

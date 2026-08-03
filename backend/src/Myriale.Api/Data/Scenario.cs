@@ -9,7 +9,7 @@ public sealed class Scenario
 
     [Required]
     [MaxLength(160)]
-    public string Title { get; set; } = string.Empty;
+    public ScenarioTitle Title { get; set; } = new("Untitled");
 
     [MaxLength(2000)]
     public string Summary { get; set; } = string.Empty;
@@ -26,7 +26,7 @@ public sealed class Scenario
     public string AiFreedom { get; set; } = string.Empty;
 
     [MaxLength(20)]
-    public string HeroMode { get; set; } = "free";
+    public HeroPolicy HeroMode { get; set; } = HeroPolicy.Free;
 
     public bool HeroFreeGenerationAllowed { get; set; }
 
@@ -35,17 +35,17 @@ public sealed class Scenario
     public string Opening { get; set; } = string.Empty;
 
     [MaxLength(240)]
-    public string IllustrationStyle { get; set; } = string.Empty;
+    public IllustrationPrompt IllustrationStyle { get; set; } = new("");
 
     [MaxLength(240)]
-    public string IllustrationMood { get; set; } = string.Empty;
+    public IllustrationPrompt IllustrationMood { get; set; } = new("");
 
-    public string IllustrationNegative { get; set; } = string.Empty;
+    public IllustrationPrompt IllustrationNegative { get; set; } = new("");
 
     public string SampleScene { get; set; } = string.Empty;
 
     [MaxLength(40)]
-    public string Status { get; set; } = "draft";
+    public ScenarioPublicationStatus Status { get; set; } = ScenarioPublicationStatus.Draft;
 
     [Required]
     public string AuthorId { get; set; } = string.Empty;
@@ -53,4 +53,20 @@ public sealed class Scenario
     public DateTimeOffset CreatedAt { get; set; }
 
     public DateTimeOffset UpdatedAt { get; set; }
+    public static Scenario Create(string id, string authorId, ScenarioTitle title, DateTimeOffset now) => new()
+    {
+        Id = id, AuthorId = authorId, Title = title, Status = ScenarioPublicationStatus.Draft, CreatedAt = now, UpdatedAt = now,
+    };
+
+    public void Edit(ScenarioTitle title, string summary, string genre, string tone, string lore, string aiFreedom,
+        HeroPolicy heroPolicy, bool heroFreeGenerationAllowed, string hero, string opening, IllustrationPrompt illustrationStyle,
+        IllustrationPrompt illustrationMood, IllustrationPrompt illustrationNegative, string sampleScene, DateTimeOffset now)
+    {
+        Title = title; Summary = summary; Genre = genre; Tone = tone; Lore = lore; AiFreedom = aiFreedom; HeroMode = heroPolicy;
+        HeroFreeGenerationAllowed = heroPolicy == HeroPolicy.Select && heroFreeGenerationAllowed; Hero = hero; Opening = opening;
+        IllustrationStyle = illustrationStyle; IllustrationMood = illustrationMood; IllustrationNegative = illustrationNegative;
+        SampleScene = sampleScene; UpdatedAt = now;
+    }
+
+    public void Publish(DateTimeOffset now) { Status = ScenarioPublicationStatus.Published; UpdatedAt = now; }
 }

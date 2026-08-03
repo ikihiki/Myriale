@@ -46,6 +46,8 @@ builder.Services.AddScoped<IActionRecommendationGenerator>(services =>
         : services.GetRequiredService<ProviderNarrativeGenerator>());
 builder.Services.AddScoped<SessionScenarioProgressionService>();
 builder.Services.AddScoped<ScenarioDefinitionAuthoringService>();
+builder.Services.AddScoped<ScenarioDefinitionReadinessPolicy>();
+builder.Services.AddScoped<ScenarioPublicationService>();
 builder.Services.AddScoped<ScenarioRuleEvaluator>();
 builder.Services.AddScoped<ScenarioRuleConfigurationResolver>();
 builder.Services.AddScoped<ScenarioPublicProjector>();

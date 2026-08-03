@@ -253,7 +253,7 @@ public static class SessionEndpoints
             return Results.Conflict(new SessionErrorResponse("initial_location_required", "公開定義に有効な開始Locationを指定してください。"));
 
         var selectedHero = string.IsNullOrWhiteSpace(request.SelectedHero)
-            ? scenario.Hero
+            ? definition.ScenarioHero
             : request.SelectedHero.Trim();
         if (selectedHero.Length > 1000)
             return Results.BadRequest(new SessionErrorResponse("invalid_selected_hero", "選択した主人公は1000文字以内で指定してください。"));
@@ -352,8 +352,8 @@ public static class SessionEndpoints
             Kind = "narrative",
             DialogueSchemaVersion = NarrativeDocumentSchemas.ScenarioOpening,
             DialogueTurnType = "opening",
-            Heading = scenario.Title,
-            NarrativeBody = scenario.Opening,
+            Heading = definition.ScenarioTitle.Value,
+            NarrativeBody = definition.ScenarioOpening,
             SourceSessionRevision = 0,
             CreatedAt = now,
         };
@@ -492,7 +492,7 @@ public static class SessionEndpoints
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
         var session = await db.Sessions.AsNoTracking()
-            .Include(item => item.Scenario)
+            .Include(item => item.ScenarioDefinitionVersion)
             .Include(item => item.State)
             .SingleOrDefaultAsync(item => item.Id == sessionId && item.OwnerId == ownerId, cancellationToken);
         if (session is null) return Results.NotFound();
@@ -512,7 +512,7 @@ public static class SessionEndpoints
             .ToListAsync(cancellationToken);
         var recentTurns = recentTurnSelector.Select(newestTurns).ToList();
         if (recentTurns.Count == 0)
-            recentTurns.Add(new NarrativeRecentTurnInput(null, session.Scenario.Opening));
+            recentTurns.Add(new NarrativeRecentTurnInput(null, session.ScenarioDefinitionVersion!.ScenarioOpening));
         IReadOnlyDictionary<string, bool> flags;
         try
         {
@@ -530,15 +530,15 @@ public static class SessionEndpoints
             var result = await recommendations.RecommendActionAsync(
                 new NarrativeActionRecommendationRequest(
                     new NarrativeScenarioInput(
-                        session.Scenario.Title,
-                        session.Scenario.Summary,
-                        session.Scenario.Genre,
-                        session.Scenario.Tone,
-                        session.Scenario.Lore,
-                        session.Scenario.AiFreedom,
+                        session.ScenarioDefinitionVersion!.ScenarioTitle.Value,
+                        session.ScenarioDefinitionVersion.ScenarioSummary,
+                        session.ScenarioDefinitionVersion.ScenarioGenre,
+                        session.ScenarioDefinitionVersion.ScenarioTone,
+                        session.ScenarioDefinitionVersion.ScenarioLore,
+                        session.ScenarioDefinitionVersion.ScenarioAiFreedom,
                         session.SelectedHero,
                         entities,
-                        session.Scenario.Opening),
+                        session.ScenarioDefinitionVersion.ScenarioOpening),
                     recentTurns,
                     new NarrativeSessionStateInput(session.State.Revision, flags)),
                 cancellationToken);
