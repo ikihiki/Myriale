@@ -1,0 +1,45 @@
+# Domain modernization roadmap
+
+Scenario authoring established the reference architecture for Myriale domain code: aggregate-owned lifecycle transitions, native enums for closed state sets, CQRS-lite application use cases and query services, focused repositories, thin HTTP endpoints, optimistic concurrency, and architecture tests. The same approach is applied incrementally rather than through a repository-wide rewrite.
+
+## Domain map and priorities
+
+| Domain | Aggregate / process boundary | Current priority | Main reason |
+|---|---|---:|---|
+| Session Memory | `SessionNote` and `SessionNoteProposal` review process | High | User edits and AI proposal review mutate the same note through separate endpoints; concurrency and review idempotency must share one policy. |
+| Session Execution | `SessionExecution` with attempts, lease, retry, cancellation, and dismissal lifecycle | High | Lifecycle rules exist but are split across endpoints, queue, finalizer, and a state-machine helper. |
+| Progression Runtime | `SessionProgressState` plus independently leased transition receipts | High | Receipt claim/completion/retry rules are mutable process state and need an explicit aggregate/repository boundary. |
+| Module Execution | `ModuleExecution`, request receipts, and outcome application receipts | High | A large orchestration service currently combines idempotency, runtime dispatch, effects, handoff, and response mapping. |
+| AI Provider Administration | provider profiles, credentials, and active runtime selection | High | Mutable provider configuration is shared operational state and lacks a consistent command/concurrency boundary. |
+| Session / Turn | Session lifecycle, accepted inputs, canonical turns, state, and object placement | Medium | The consistency boundary is broad and already participates in execution fencing; changes must follow execution extraction. |
+| Module Package Catalog | package identity, validation snapshot, availability, and enabled state | Medium | Filesystem installation and database catalog lifecycle are currently combined but the endpoint boundary is already service-based. |
+| Account | Identity user profile and account lifecycle | Medium | Account endpoints contain application orchestration, but ASP.NET Identity remains the authoritative security boundary. |
+| Rule Runtime | rule evaluation, effect plan, and effect commit | Medium | Core conditions/effects are already typed; the remaining work is separating pure planning from state mutation and persistence. |
+
+## Delivery order
+
+1. **Session Memory and Session Execution**: establish aggregate operations, command/query separation, focused repositories, endpoint dependency rules, and conflict responses without changing worker lease semantics.
+2. **Progression Runtime**: encapsulate transition receipt claim, completion, failure, and release while preserving atomic lease predicates.
+3. **Module Execution**: split initialize/dispatch/query/application responsibilities and replace process-local serialization with database-authoritative concurrency where needed.
+4. **AI Provider Administration**: introduce a concurrency-protected runtime-selection aggregate, then separate profile and credential commands from queries.
+5. **Session/Turn and Rule Runtime**: extract session creation/input acceptance and pure effect planning only after execution and progression boundaries are stable.
+6. **Module Package and Account**: improve application orchestration while retaining filesystem/runtime adapters and ASP.NET Identity as external boundaries.
+
+## Rules for every slice
+
+- Closed lifecycle states and stable discriminators use native enums with explicit database and wire conversion.
+- Aggregate identity, revision, ownership, and lifecycle properties are not publicly settable.
+- HTTP endpoints resolve identity, bind contracts, invoke application services, and map outcomes; they do not contain EF queries or domain transitions.
+- Write use cases recheck ownership and invariants internally. Query services use `AsNoTracking` and explicit projections where possible.
+- Repositories are aggregate-specific and expose only operations required to preserve consistency. Generic repositories are not introduced.
+- Database uniqueness, conditional updates, row locks, and optimistic concurrency remain authoritative for multi-instance safety.
+- Domain events are introduced only for meaningful post-commit reactions. Until an outbox exists, handlers are synchronous and non-durable and this limitation must be explicit.
+- Architecture tests prevent endpoint-to-`ApplicationDbContext` regressions and public lifecycle setters. Domain and integration tests cover transition matrices, idempotency, and stale revision behavior.
+- Existing HTTP wire values remain stable unless a versioned contract change is explicitly approved.
+
+## Deliberate boundaries
+
+- Worker queue SQL, lease fencing, and PostgreSQL `FOR UPDATE SKIP LOCKED` behavior are infrastructure concerns and must not be weakened while moving lifecycle policy into aggregates.
+- ASP.NET Identity continues to own password hashing, tokens, sign-in, and security validation; account-domain improvements orchestrate it rather than replacing it.
+- Open extension payloads such as module configuration and provider catalog documents may remain JSON. Only stable core discriminators should be closed domain types.
+- This roadmap does not require separate .NET projects. Domain, Application, and Infrastructure folders inside the API project remain sufficient while dependency rules are tested.
