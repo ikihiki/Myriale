@@ -44,6 +44,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.Entity<Scenario>().Property(scenario => scenario.Revision).IsConcurrencyToken();
+        builder.Entity<ScenarioDefinitionVersion>().Property(version => version.Revision).IsConcurrencyToken();
+        builder.Entity<ScenarioDefinitionVersion>().Ignore(version => version.DomainEvents);
         builder.Entity<Scenario>().Property(scenario => scenario.Title)
             .HasConversion(value => value.Value, value => new ScenarioTitle(value));
         builder.Entity<Scenario>().Property(scenario => scenario.HeroMode)

@@ -1,19 +1,24 @@
 using System.ComponentModel.DataAnnotations;
+using Myriale.Api.Domain.Scenarios;
 
 namespace Myriale.Api.Data;
 
-public sealed class ScenarioDefinitionVersion
+public sealed class ScenarioDefinitionVersion : IHasDomainEvents
 {
-    [Key] public string Id { get; set; } = string.Empty;
-    [Required] public string ScenarioId { get; set; } = string.Empty;
-    public Scenario Scenario { get; set; } = null!;
-    public int Version { get; set; }
-    [MaxLength(20)] public DefinitionStatus Status { get; set; } = DefinitionStatus.Draft;
-    public int SchemaVersion { get; set; } = 2;
-    public DateTimeOffset CreatedAt { get; set; }
-    public DateTimeOffset UpdatedAt { get; set; }
-    public DateTimeOffset? PublishedAt { get; set; }
-    [Required, MaxLength(80)] public string StartLocationCode { get; set; } = string.Empty;
+    private readonly List<IDomainEvent> _domainEvents = [];
+    internal ScenarioDefinitionVersion() { }
+
+    [Key] public string Id { get; internal set; } = string.Empty;
+    [Required] public string ScenarioId { get; internal set; } = string.Empty;
+    public Scenario Scenario { get; internal set; } = null!;
+    public int Version { get; internal set; }
+    [MaxLength(20)] public DefinitionStatus Status { get; internal set; } = DefinitionStatus.Draft;
+    public int SchemaVersion { get; internal set; } = 2;
+    public DateTimeOffset CreatedAt { get; internal set; }
+    public DateTimeOffset UpdatedAt { get; internal set; }
+    public DateTimeOffset? PublishedAt { get; internal set; }
+    public int Revision { get; internal set; }
+    [Required, MaxLength(80)] public string StartLocationCode { get; internal set; } = string.Empty;
     public ScenarioTitle ScenarioTitle { get; set; } = new("Untitled");
     [MaxLength(2000)] public string ScenarioSummary { get; set; } = string.Empty;
     [MaxLength(80)] public string ScenarioGenre { get; set; } = string.Empty;
@@ -34,6 +39,35 @@ public sealed class ScenarioDefinitionVersion
     public ICollection<ScenarioObjectType> ObjectTypes { get; set; } = [];
     public ICollection<ScenarioObject> Objects { get; set; } = [];
 
+    public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents;
+
+    public static ScenarioDefinitionVersion CreateDraft(string id, string scenarioId, int version, DateTimeOffset now) => new()
+    {
+        Id = id,
+        ScenarioId = scenarioId,
+        Version = version,
+        Status = DefinitionStatus.Draft,
+        SchemaVersion = 2,
+        CreatedAt = now,
+        UpdatedAt = now,
+    };
+
+    public void ReplaceAuthoringHeader(int schemaVersion, string startLocationCode, DateTimeOffset now)
+    {
+        EnsureDraft();
+        SchemaVersion = schemaVersion;
+        StartLocationCode = startLocationCode;
+        UpdatedAt = now;
+        Revision++;
+    }
+
+    public IReadOnlyList<IDomainEvent> DequeueDomainEvents()
+    {
+        var events = _domainEvents.ToArray();
+        _domainEvents.Clear();
+        return events;
+    }
+
     public void EnsureDraft()
     {
         if (Status != DefinitionStatus.Draft) throw new InvalidOperationException("Published scenario definitions are immutable.");
@@ -51,7 +85,11 @@ public sealed class ScenarioDefinitionVersion
 
     public void Publish(DateTimeOffset now)
     {
-        EnsureDraft(); Status = DefinitionStatus.Published; PublishedAt = UpdatedAt = now;
+        EnsureDraft();
+        Status = DefinitionStatus.Published;
+        PublishedAt = UpdatedAt = now;
+        Revision++;
+        _domainEvents.Add(new ScenarioDefinitionPublished(ScenarioId, Id, Version, now));
     }
 }
 

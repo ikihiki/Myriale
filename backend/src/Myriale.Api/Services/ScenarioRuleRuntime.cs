@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Myriale.Api.Contracts;
+using Myriale.Api.Domain.Scenarios;
 using Myriale.Api.Data;
 
 namespace Myriale.Api.Services;
@@ -12,10 +13,15 @@ public sealed class ScenarioRuleEvaluator
 {
     public bool Evaluate(string json, JsonObject objectState, IReadOnlyDictionary<string, bool> flags, JsonElement arguments)
     {
+        try { return Evaluate(ConditionExpression.FromJson(string.IsNullOrWhiteSpace(json) ? "{}" : json), objectState, flags, arguments); }
+        catch (JsonException) { return false; }
+    }
+
+    public bool Evaluate(ConditionExpression condition, JsonObject objectState, IReadOnlyDictionary<string, bool> flags, JsonElement arguments)
+    {
         try
         {
-            using var document = JsonDocument.Parse(string.IsNullOrWhiteSpace(json) ? "{}" : json);
-            return TryEvaluate(document.RootElement, objectState, flags, arguments, out var result) && result;
+            return TryEvaluate(condition.Value, objectState, flags, arguments, out var result) && result;
         }
         catch (JsonException)
         {
@@ -231,8 +237,8 @@ public sealed class ScenarioActionEnumerator(ScenarioRuleEvaluator evaluator, Sc
             foreach (var action in configuration.Actions.Where(action => action.Visibility == "ai-choice"))
             {
                 using var emptyArguments = JsonDocument.Parse("{}");
-                var enabled = evaluator.Evaluate(action.AvailabilityConditionJson, stateObject, flags, emptyArguments.RootElement)
-                    && configuration.Rules.Any(rule => rule.ActionCode == action.Code && evaluator.Evaluate(rule.ConditionJson, stateObject, flags, emptyArguments.RootElement));
+                var enabled = evaluator.Evaluate(action.AvailabilityCondition, stateObject, flags, emptyArguments.RootElement)
+                    && configuration.Rules.Any(rule => rule.ActionCode == action.Code && evaluator.Evaluate(rule.Condition, stateObject, flags, emptyArguments.RootElement));
                 actions.Add(new(item.Id, action.Id, action.Code, action.Label, action.Description, Parse(action.ArgumentSchemaJson), enabled));
             }
         }
@@ -257,13 +263,12 @@ public sealed class ScenarioEffectApplier(ScenarioRuleEvaluator evaluator, Scena
         var action = configuration.Actions.Single(typeAction => typeAction.Id == decision.ActionId);
         var stateObject = JsonNode.Parse(state.StateJson) as JsonObject ?? [];
         var flags = JsonSerializer.Deserialize<Dictionary<string, bool>>(world.Session.State.FlagsJson) ?? [];
-        var matches = configuration.Rules.Where(rule => rule.ActionCode == action.Code && evaluator.Evaluate(rule.ConditionJson, stateObject, flags, decision.Arguments))
+        var matches = configuration.Rules.Where(rule => rule.ActionCode == action.Code && evaluator.Evaluate(rule.Condition, stateObject, flags, decision.Arguments))
             .OrderByDescending(rule => rule.Priority).ThenByDescending(rule => rule.SourceRank).ToList();
         if (matches.Count == 0) throw new ScenarioTurnValidationException("action_no_longer_available");
         if (matches.Count > 1 && matches[0].Priority == matches[1].Priority && matches[0].SourceRank == matches[1].SourceRank) throw new ScenarioTurnValidationException("ambiguous_action_rule");
         var rule = matches[0];
-        using var effectsDocument = JsonDocument.Parse(rule.EffectsJson);
-        var effects = effectsDocument.RootElement.EnumerateArray().Select(effect => effect.Clone()).ToList();
+        var effects = rule.Effects.Value.EnumerateArray().Select(effect => effect.Clone()).ToList();
         ValidateEffects(world, item, effects);
         var applied = new List<RuleAppliedEffect>(); var facts = new List<string>(); var events = new List<JsonElement>(); var hints = new List<string>(); var forbidden = new List<string>();
         foreach (var effect in effects)

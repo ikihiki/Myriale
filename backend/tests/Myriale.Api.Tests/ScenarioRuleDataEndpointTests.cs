@@ -21,6 +21,27 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task ConcurrentDraftCreation_ProducesOneDraftAndOneAllocatedVersion()
+    {
+        var client = await CreateSignedInClientAsync();
+        var scenarioId = await CreateScenarioAsync(client);
+
+        var responses = await Task.WhenAll(
+            client.PostAsync($"/api/scenarios/{scenarioId}/rule-data/drafts", null),
+            client.PostAsync($"/api/scenarios/{scenarioId}/rule-data/drafts", null));
+
+        Assert.Contains(responses, response => response.StatusCode is HttpStatusCode.OK or HttpStatusCode.Created);
+        Assert.All(responses, response => Assert.Contains(response.StatusCode,
+            new[] { HttpStatusCode.OK, HttpStatusCode.Created, HttpStatusCode.Conflict }));
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+        var drafts = await db.ScenarioDefinitionVersions.AsNoTracking()
+            .Where(x => x.ScenarioId == scenarioId && x.Status == Myriale.Api.Data.DefinitionStatus.Draft).ToListAsync();
+        var draft = Assert.Single(drafts);
+        Assert.Equal(1, draft.Version);
+    }
+
+    [Fact]
     public async Task DraftSave_AllowsIncompleteDefinition()
     {
         var client = await CreateSignedInClientAsync();
@@ -28,7 +49,11 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
 
         using var response = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", new
         {
-            schemaVersion = 2, startLocationCode = "", locations = Array.Empty<object>(), objectTypes = Array.Empty<object>(), objects = Array.Empty<object>()
+            schemaVersion = 2,
+            startLocationCode = "",
+            locations = Array.Empty<object>(),
+            objectTypes = Array.Empty<object>(),
+            objects = Array.Empty<object>()
         });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -461,7 +486,11 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
         var scenarioId = await CreateScenarioAsync(client);
         using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", new
         {
-            schemaVersion = 2, startLocationCode = "", locations = Array.Empty<object>(), objectTypes = Array.Empty<object>(), objects = Array.Empty<object>()
+            schemaVersion = 2,
+            startLocationCode = "",
+            locations = Array.Empty<object>(),
+            objectTypes = Array.Empty<object>(),
+            objects = Array.Empty<object>()
         });
         Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
 
@@ -482,8 +511,11 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
         var client = await CreateSignedInClientAsync();
         using var createdScenario = await client.PostAsJsonAsync("/api/scenarios/", new
         {
-            title = "固定された題名", lore = "固定された世界設定", aiFreedom = "固定された指針",
-            heroMode = "free", opening = "固定された導入"
+            title = "固定された題名",
+            lore = "固定された世界設定",
+            aiFreedom = "固定された指針",
+            heroMode = "free",
+            opening = "固定された導入"
         });
         var scenarioJson = await createdScenario.Content.ReadFromJsonAsync<JsonElement>();
         var scenarioId = scenarioJson.GetProperty("id").GetString()!;
@@ -494,8 +526,11 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
 
         using var edited = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}", new
         {
-            title = "編集後の題名", lore = "編集後の世界設定", aiFreedom = "編集後の指針",
-            heroMode = "free", opening = "編集後の導入"
+            title = "編集後の題名",
+            lore = "編集後の世界設定",
+            aiFreedom = "編集後の指針",
+            heroMode = "free",
+            opening = "編集後の導入"
         });
         Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
         using var sessionResponse = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = $"pin-{Guid.NewGuid():N}" });
@@ -602,7 +637,9 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var register = await client.PostAsJsonAsync("/api/account/register", new
         {
-            displayName = "作者", email = $"author-{Guid.NewGuid():N}@example.test", password = "letters1"
+            displayName = "作者",
+            email = $"author-{Guid.NewGuid():N}@example.test",
+            password = "letters1"
         });
         ApplyCookies(client, register);
         Assert.Equal(HttpStatusCode.OK, register.StatusCode);

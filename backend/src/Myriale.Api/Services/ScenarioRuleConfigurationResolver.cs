@@ -5,16 +5,25 @@ using System.Text.Json.Nodes;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 
+using Myriale.Api.Domain.Scenarios;
+
 namespace Myriale.Api.Services;
 
 public sealed record ResolvedScenarioAction(
     string Id, string Code, string Label, string Description, string ArgumentSchemaJson,
     string AvailabilityConditionJson, string Visibility, string ExecutionMode,
-    int SourceRank, string SourceCode, string ObjectTypeId);
+    int SourceRank, string SourceCode, string ObjectTypeId)
+{
+    public ConditionExpression AvailabilityCondition => ConditionExpression.FromJson(AvailabilityConditionJson);
+}
 
 public sealed record ResolvedScenarioRule(
     string Id, string RuleCode, string ActionCode, string ConditionJson, int Priority, int SourceRank, string SourceCode,
-    string? AuthoringNote, string EffectsJson, string? ModuleId, string? ModuleVersion, string? ModuleDigest, string? ModuleConfigurationJson);
+    string? AuthoringNote, string EffectsJson, string? ModuleId, string? ModuleVersion, string? ModuleDigest, string? ModuleConfigurationJson)
+{
+    public ConditionExpression Condition => ConditionExpression.FromJson(ConditionJson);
+    public EffectSet Effects => EffectSet.FromJson(EffectsJson);
+}
 
 public sealed record ResolvedRuleConfiguration(
     IReadOnlyList<ScenarioObjectType> Mixins, JsonObject StateSchema, JsonObject DefaultState,

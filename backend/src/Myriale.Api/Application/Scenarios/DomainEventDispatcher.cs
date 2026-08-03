@@ -1,0 +1,41 @@
+using Myriale.Api.Domain.Scenarios;
+
+namespace Myriale.Api.Application.Scenarios;
+
+public interface IDomainEventDispatcher
+{
+    Task DispatchAsync(IEnumerable<IDomainEvent> events, CancellationToken cancellationToken);
+}
+
+public sealed class DomainEventDispatcher(IServiceProvider services) : IDomainEventDispatcher
+{
+    public async Task DispatchAsync(IEnumerable<IDomainEvent> events, CancellationToken cancellationToken)
+    {
+        foreach (var domainEvent in events)
+        {
+            var handlerType = typeof(IDomainEventHandler<>).MakeGenericType(domainEvent.GetType());
+            foreach (var handler in services.GetServices(handlerType))
+            {
+                var method = handlerType.GetMethod(nameof(IDomainEventHandler<IDomainEvent>.HandleAsync))!;
+                await (Task)method.Invoke(handler, [domainEvent, cancellationToken])!;
+            }
+        }
+    }
+}
+
+public sealed class ScenarioDefinitionPublicationAudit
+{
+    private readonly List<ScenarioDefinitionPublished> _published = [];
+    public IReadOnlyList<ScenarioDefinitionPublished> Published => _published;
+    internal void Record(ScenarioDefinitionPublished value) => _published.Add(value);
+}
+
+public sealed class ScenarioDefinitionPublicationAuditHandler(ScenarioDefinitionPublicationAudit audit)
+    : IDomainEventHandler<ScenarioDefinitionPublished>
+{
+    public Task HandleAsync(ScenarioDefinitionPublished domainEvent, CancellationToken cancellationToken)
+    {
+        audit.Record(domainEvent);
+        return Task.CompletedTask;
+    }
+}

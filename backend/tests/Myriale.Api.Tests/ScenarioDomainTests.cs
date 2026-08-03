@@ -13,12 +13,41 @@ public sealed class ScenarioDomainTests
     }
 
     [Fact]
+    public void PublishingDefinition_RecordsTypedDomainEvent()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var definition = ScenarioDefinitionVersion.CreateDraft("definition", "scenario", 3, now);
+
+        definition.Publish(now);
+
+        var published = Assert.IsType<Myriale.Api.Domain.Scenarios.ScenarioDefinitionPublished>(Assert.Single(definition.DomainEvents));
+        Assert.Equal(("scenario", "definition", 3), (published.ScenarioId, published.DefinitionVersionId, published.Version));
+        Assert.Single(definition.DequeueDomainEvents());
+        Assert.Empty(definition.DomainEvents);
+    }
+
+    [Fact]
+    public void TypedRuleJsonCodec_RejectsWrongShapesAndRoundTripsConditions()
+    {
+        var codec = new Myriale.Api.Domain.Scenarios.ScenarioRuleJsonCodec();
+        var condition = codec.DecodeCondition("{\"op\":\"exists\",\"path\":\"state.open\"}");
+
+        Assert.Contains("state.open", codec.Encode(condition));
+        Assert.Throws<System.Text.Json.JsonException>(() => codec.DecodeEffects("{}"));
+    }
+
+    [Fact]
     public void PublishedDefinition_IsImmutable()
     {
         var definition = new ScenarioDefinitionVersion
         {
-            Id = "definition", ScenarioId = "scenario", Version = 1, Status = DefinitionStatus.Draft,
-            ScenarioTitle = new ScenarioTitle("Title"), CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow,
+            Id = "definition",
+            ScenarioId = "scenario",
+            Version = 1,
+            Status = DefinitionStatus.Draft,
+            ScenarioTitle = new ScenarioTitle("Title"),
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow,
         };
         definition.Publish(DateTimeOffset.UtcNow);
 
@@ -36,8 +65,13 @@ public sealed class ScenarioDomainTests
             new IllustrationPrompt("negative"), "scene", now);
         var definition = new ScenarioDefinitionVersion
         {
-            Id = "definition", ScenarioId = scenario.Id, Version = 1, Status = DefinitionStatus.Draft,
-            ScenarioTitle = scenario.Title, CreatedAt = now, UpdatedAt = now,
+            Id = "definition",
+            ScenarioId = scenario.Id,
+            Version = 1,
+            Status = DefinitionStatus.Draft,
+            ScenarioTitle = scenario.Title,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         definition.SnapshotScenario(scenario);
 

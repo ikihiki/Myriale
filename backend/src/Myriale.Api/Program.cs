@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Myriale.Api.Application.Scenarios;
 using Myriale.Api.Data;
 using Myriale.Api.Endpoints;
+using Myriale.Api.Domain.Scenarios;
+using Myriale.Api.Infrastructure.Scenarios;
 using Myriale.Api.Modules;
 using Myriale.Api.Modules.Execution;
 using Myriale.Api.Modules.Runtime;
@@ -45,9 +48,24 @@ builder.Services.AddScoped<IActionRecommendationGenerator>(services =>
         ? services.GetRequiredService<MockAiNarrativeGenerator>()
         : services.GetRequiredService<ProviderNarrativeGenerator>());
 builder.Services.AddScoped<SessionScenarioProgressionService>();
-builder.Services.AddScoped<ScenarioDefinitionAuthoringService>();
+builder.Services.AddSingleton<ScenarioRuleJsonCodec>();
+builder.Services.AddScoped<IScenarioDefinitionRepository, EfScenarioDefinitionRepository>();
+builder.Services.AddScoped<ScenarioDefinitionMapper>();
+builder.Services.AddScoped<ScenarioDefinitionValidator>();
+builder.Services.AddScoped<ScenarioDefinitionWriter>();
+builder.Services.AddScoped<ScenarioDefinitionDraftService>();
+builder.Services.AddScoped<ScenarioDefinitionQueryService>();
+builder.Services.AddScoped<ScenarioQueryService>();
+builder.Services.AddScoped<CreateScenarioUseCase>();
+builder.Services.AddScoped<UpdateScenarioUseCase>();
+builder.Services.AddScoped<CreateScenarioDefinitionDraftUseCase>();
+builder.Services.AddScoped<SaveScenarioDefinitionUseCase>();
+builder.Services.AddScoped<PublishScenarioDefinitionUseCase>();
 builder.Services.AddScoped<ScenarioDefinitionReadinessPolicy>();
-builder.Services.AddScoped<ScenarioPublicationService>();
+builder.Services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
+builder.Services.AddScoped<ScenarioDefinitionPublicationAudit>();
+builder.Services.AddScoped<IDomainEventHandler<ScenarioDefinitionPublished>, ScenarioDefinitionPublicationAuditHandler>();
+builder.Services.AddScoped<ScenarioDefinitionAuthoringService>();
 builder.Services.AddScoped<ScenarioRuleEvaluator>();
 builder.Services.AddScoped<ScenarioRuleConfigurationResolver>();
 builder.Services.AddScoped<ScenarioPublicProjector>();

@@ -4,8 +4,10 @@ namespace Myriale.Api.Data;
 
 public sealed class Scenario
 {
+    internal Scenario() { }
+
     [Key]
-    public string Id { get; set; } = string.Empty;
+    public string Id { get; internal set; } = string.Empty;
 
     [Required]
     [MaxLength(160)]
@@ -45,17 +47,28 @@ public sealed class Scenario
     public string SampleScene { get; set; } = string.Empty;
 
     [MaxLength(40)]
-    public ScenarioPublicationStatus Status { get; set; } = ScenarioPublicationStatus.Draft;
+    public ScenarioPublicationStatus Status { get; internal set; } = ScenarioPublicationStatus.Draft;
 
     [Required]
-    public string AuthorId { get; set; } = string.Empty;
+    public string AuthorId { get; internal set; } = string.Empty;
 
-    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; internal set; }
 
-    public DateTimeOffset UpdatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; internal set; }
+
+    /// <summary>Optimistic concurrency token for Scenario writes.</summary>
+    public int Revision { get; internal set; }
+
+    /// <summary>Atomically allocates monotonically increasing definition versions.</summary>
+    public int DefinitionVersionCounter { get; internal set; }
     public static Scenario Create(string id, string authorId, ScenarioTitle title, DateTimeOffset now) => new()
     {
-        Id = id, AuthorId = authorId, Title = title, Status = ScenarioPublicationStatus.Draft, CreatedAt = now, UpdatedAt = now,
+        Id = id,
+        AuthorId = authorId,
+        Title = title,
+        Status = ScenarioPublicationStatus.Draft,
+        CreatedAt = now,
+        UpdatedAt = now,
     };
 
     public void Edit(ScenarioTitle title, string summary, string genre, string tone, string lore, string aiFreedom,
@@ -65,8 +78,15 @@ public sealed class Scenario
         Title = title; Summary = summary; Genre = genre; Tone = tone; Lore = lore; AiFreedom = aiFreedom; HeroMode = heroMode;
         HeroFreeGenerationAllowed = heroMode == HeroMode.Select && heroFreeGenerationAllowed; Hero = hero; Opening = opening;
         IllustrationStyle = illustrationStyle; IllustrationMood = illustrationMood; IllustrationNegative = illustrationNegative;
-        SampleScene = sampleScene; UpdatedAt = now;
+        SampleScene = sampleScene; UpdatedAt = now; Revision++;
     }
 
-    public void Publish(DateTimeOffset now) { Status = ScenarioPublicationStatus.Published; UpdatedAt = now; }
+    public int AllocateDefinitionVersion(DateTimeOffset now)
+    {
+        UpdatedAt = now;
+        Revision++;
+        return ++DefinitionVersionCounter;
+    }
+
+    public void Publish(DateTimeOffset now) { Status = ScenarioPublicationStatus.Published; UpdatedAt = now; Revision++; }
 }
