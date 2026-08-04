@@ -1,8 +1,6 @@
 using System.Security.Claims;
-using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Identity;
+using Myriale.Api.Application.Accounts;
 using Myriale.Api.Contracts;
-using Myriale.Api.Data;
 
 namespace Myriale.Api.Endpoints;
 
@@ -14,241 +12,106 @@ public static class AccountEndpoints
             .WithTags("Account")
             .RequireCors("MyrialeFrontend");
 
-        group.MapPost("/register", RegisterAsync)
-            .WithName("RegisterAccount")
-            .WithSummary("Registers a new user with ASP.NET Core Identity and signs them in.");
-
-        group.MapPost("/login", LoginAsync)
-            .WithName("LoginAccount")
-            .WithSummary("Signs in a user using the Identity application cookie.");
-
-        group.MapPost("/logout", LogoutAsync)
-            .RequireAuthorization()
-            .WithName("LogoutAccount")
-            .WithSummary("Signs out the current Identity cookie session.");
-
-        group.MapGet("/me", MeAsync)
-            .RequireAuthorization()
-            .WithName("GetCurrentAccount")
-            .WithSummary("Returns the authenticated account profile.");
-
-        group.MapPut("/profile", UpdateProfileAsync)
-            .RequireAuthorization()
-            .WithName("UpdateAccountProfile")
-            .WithSummary("Updates the authenticated account profile.");
-
-        group.MapPost("/password-reset/request", RequestPasswordResetAsync)
-            .WithName("RequestPasswordReset")
-            .WithSummary("Generates an Identity password reset token. Non-production responses include the token for local development and tests.");
-
-        group.MapPost("/password-reset/confirm", ConfirmPasswordResetAsync)
-            .WithName("ConfirmPasswordReset")
-            .WithSummary("Resets a password using an Identity password reset token.");
-
-        group.MapPost("/withdraw", WithdrawAsync)
-            .RequireAuthorization()
-            .WithName("WithdrawAccount")
-            .WithSummary("Soft-deletes the authenticated account and signs it out.");
-
+        group.MapPost("/register", RegisterAsync).WithName("RegisterAccount").WithSummary("Registers and signs in an account through the Account application command.");
+        group.MapPost("/login", LoginAsync).WithName("LoginAccount").WithSummary("Signs in using the Identity application cookie.");
+        group.MapPost("/logout", LogoutAsync).RequireAuthorization().WithName("LogoutAccount");
+        group.MapGet("/me", MeAsync).RequireAuthorization().WithName("GetCurrentAccount");
+        group.MapPut("/profile", UpdateProfileAsync).RequireAuthorization().WithName("UpdateAccountProfile");
+        group.MapPost("/password-reset/request", RequestPasswordResetAsync).WithName("RequestPasswordReset")
+            .WithSummary("Requests password-reset delivery without exposing account existence or a reset token.");
+        group.MapPost("/password-reset/confirm", ConfirmPasswordResetAsync).WithName("ConfirmPasswordReset");
+        group.MapPost("/withdraw", WithdrawAsync).RequireAuthorization().WithName("WithdrawAccount");
         return group;
     }
 
-    private static async Task<Results<Ok<AccountUserResponse>, BadRequest<AccountErrorResponse>, Conflict<AccountErrorResponse>>> RegisterAsync(
-        RegisterRequest request,
-        UserManager<ApplicationUser> userManager,
-        SignInManager<ApplicationUser> signInManager)
+    private static async Task<IResult> RegisterAsync(RegisterRequest request, RegisterAccountCommand command, CancellationToken cancellationToken)
     {
-        var errors = ValidateRegister(request);
-        if (errors.Count > 0) return BadRequest(errors);
-
-        var email = request.Email.Trim();
-        var existing = await userManager.FindByEmailAsync(email);
-        if (existing is not null)
+        var result = await command.ExecuteAsync(new(request.DisplayName, request.Email, request.Password), cancellationToken);
+        return result.Status switch
         {
-            return TypedResults.Conflict(Error("このメールアドレスは既に登録されています。", "email", "既に登録されています。"));
-        }
-
-        var user = new ApplicationUser
-        {
-            UserName = email,
-            Email = email,
-            DisplayName = request.DisplayName.Trim(),
+            AccountOperationStatus.Success => TypedResults.Ok(ToResponse(result.Value!)),
+            AccountOperationStatus.Conflict => TypedResults.Conflict(ToError("このメールアドレスは既に登録されています。", result.Errors)),
+            _ => TypedResults.BadRequest(ToError("登録内容を確認してください。", result.Errors)),
         };
-
-        var result = await userManager.CreateAsync(user, request.Password);
-        if (!result.Succeeded) return TypedResults.BadRequest(ToError("登録内容を確認してください。", result));
-
-        await signInManager.SignInAsync(user, isPersistent: false);
-        return TypedResults.Ok(ToResponse(user));
     }
 
-    private static async Task<Results<Ok<AccountUserResponse>, UnauthorizedHttpResult, BadRequest<AccountErrorResponse>>> LoginAsync(
-        LoginRequest request,
-        UserManager<ApplicationUser> userManager,
-        SignInManager<ApplicationUser> signInManager)
+    private static async Task<IResult> LoginAsync(LoginRequest request, LoginAccountCommand command, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+        var result = await command.ExecuteAsync(new(request.Email, request.Password), cancellationToken);
+        return result.Status switch
         {
-            return TypedResults.BadRequest(Error("メールアドレスとパスワードを入力してください。"));
-        }
-
-        var user = await userManager.FindByEmailAsync(request.Email.Trim());
-        if (user is null || IsDeleted(user)) return TypedResults.Unauthorized();
-
-        var result = await signInManager.PasswordSignInAsync(user, request.Password, isPersistent: false, lockoutOnFailure: false);
-        if (!result.Succeeded) return TypedResults.Unauthorized();
-
-        return TypedResults.Ok(ToResponse(user));
+            AccountOperationStatus.Success => TypedResults.Ok(ToResponse(result.Value!)),
+            AccountOperationStatus.ValidationFailed => TypedResults.BadRequest(ToError("メールアドレスとパスワードを入力してください。", result.Errors)),
+            _ => TypedResults.Unauthorized(),
+        };
     }
 
-    private static async Task<Ok> LogoutAsync(SignInManager<ApplicationUser> signInManager)
+    private static async Task<IResult> LogoutAsync(LogoutAccountCommand command, CancellationToken cancellationToken)
     {
-        await signInManager.SignOutAsync();
+        await command.ExecuteAsync(cancellationToken);
         return TypedResults.Ok();
     }
 
-    private static async Task<Results<Ok<AccountUserResponse>, UnauthorizedHttpResult, NotFound>> MeAsync(
-        ClaimsPrincipal principal,
-        UserManager<ApplicationUser> userManager)
+    private static async Task<IResult> MeAsync(ClaimsPrincipal principal, GetCurrentAccountQuery query, CancellationToken cancellationToken)
     {
-        var user = await userManager.GetUserAsync(principal);
-        if (user is null) return TypedResults.Unauthorized();
-        if (IsDeleted(user)) return TypedResults.NotFound();
-        return TypedResults.Ok(ToResponse(user));
-    }
-
-    private static async Task<Results<Ok<AccountUserResponse>, BadRequest<AccountErrorResponse>, UnauthorizedHttpResult>> UpdateProfileAsync(
-        UpdateProfileRequest request,
-        ClaimsPrincipal principal,
-        UserManager<ApplicationUser> userManager)
-    {
-        var user = await userManager.GetUserAsync(principal);
-        if (user is null || IsDeleted(user)) return TypedResults.Unauthorized();
-
-        var errors = new Dictionary<string, string[]>();
-        if (string.IsNullOrWhiteSpace(request.DisplayName)) errors["displayName"] = ["表示名を入力してください。"];
-        if (request.Bio.Length > 400) errors["bio"] = ["プロフィールは400文字以内で入力してください。"];
-        if (errors.Count > 0) return TypedResults.BadRequest(new AccountErrorResponse("プロフィールを確認してください。", errors));
-
-        user.DisplayName = request.DisplayName.Trim();
-        user.Bio = request.Bio.Trim();
-        var result = await userManager.UpdateAsync(user);
-        if (!result.Succeeded) return TypedResults.BadRequest(ToError("プロフィールを更新できませんでした。", result));
-
-        return TypedResults.Ok(ToResponse(user));
-    }
-
-    private static async Task<Ok<PasswordResetRequestedResponse>> RequestPasswordResetAsync(
-        PasswordResetRequest request,
-        UserManager<ApplicationUser> userManager,
-        IHostEnvironment environment)
-    {
-        string? token = null;
-        if (!string.IsNullOrWhiteSpace(request.Email))
+        var result = await query.ExecuteAsync(principal, cancellationToken);
+        return result.Status switch
         {
-            var user = await userManager.FindByEmailAsync(request.Email.Trim());
-            if (user is not null && !IsDeleted(user))
-            {
-                token = await userManager.GeneratePasswordResetTokenAsync(user);
-            }
-        }
-
-        var exposedToken = environment.IsProduction() ? null : token;
-        return TypedResults.Ok(new PasswordResetRequestedResponse(
-            "登録済みの場合、パスワード再設定の案内を送信しました。",
-            exposedToken));
+            AccountOperationStatus.Success => TypedResults.Ok(ToResponse(result.Value!)),
+            AccountOperationStatus.NotFound => TypedResults.NotFound(),
+            _ => TypedResults.Unauthorized(),
+        };
     }
 
-    private static async Task<Results<Ok, BadRequest<AccountErrorResponse>>> ConfirmPasswordResetAsync(
-        ConfirmPasswordResetRequest request,
-        UserManager<ApplicationUser> userManager)
+    private static async Task<IResult> UpdateProfileAsync(UpdateProfileRequest request, ClaimsPrincipal principal, UpdateAccountProfileCommand command, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.NewPassword))
+        var result = await command.ExecuteAsync(new(request.DisplayName, request.Bio), principal, cancellationToken);
+        return result.Status switch
         {
-            return TypedResults.BadRequest(Error("メールアドレス、トークン、新しいパスワードを入力してください。"));
-        }
-
-        var user = await userManager.FindByEmailAsync(request.Email.Trim());
-        if (user is null || IsDeleted(user)) return TypedResults.BadRequest(Error("パスワードを再設定できませんでした。"));
-
-        var result = await userManager.ResetPasswordAsync(user, request.Token, request.NewPassword);
-        if (!result.Succeeded) return TypedResults.BadRequest(ToError("パスワードを再設定できませんでした。", result));
-
-        return TypedResults.Ok();
+            AccountOperationStatus.Success => TypedResults.Ok(ToResponse(result.Value!)),
+            AccountOperationStatus.Unauthorized => TypedResults.Unauthorized(),
+            AccountOperationStatus.Conflict => TypedResults.Conflict(ToError("プロフィールが同時に更新されました。", result.Errors)),
+            _ => TypedResults.BadRequest(ToError("プロフィールを確認してください。", result.Errors)),
+        };
     }
 
-    private static async Task<Results<Ok, BadRequest<AccountErrorResponse>, UnauthorizedHttpResult>> WithdrawAsync(
-        WithdrawRequest request,
-        ClaimsPrincipal principal,
-        UserManager<ApplicationUser> userManager,
-        SignInManager<ApplicationUser> signInManager)
+    private static async Task<IResult> RequestPasswordResetAsync(PasswordResetRequest request, RequestAccountPasswordResetCommand command, CancellationToken cancellationToken)
     {
-        var user = await userManager.GetUserAsync(principal);
-        if (user is null || IsDeleted(user)) return TypedResults.Unauthorized();
+        await command.ExecuteAsync(new(request.Email), cancellationToken);
+        return TypedResults.Ok(new PasswordResetRequestedResponse("登録済みの場合、パスワード再設定の案内を送信しました。"));
+    }
 
-        var expected = user.Email ?? user.UserName ?? user.Id;
-        if (!string.Equals(request.Confirmation.Trim(), expected, StringComparison.OrdinalIgnoreCase))
+    private static async Task<IResult> ConfirmPasswordResetAsync(ConfirmPasswordResetRequest request, ConfirmAccountPasswordResetCommand command, CancellationToken cancellationToken)
+    {
+        var result = await command.ExecuteAsync(new(request.Email, request.Token, request.NewPassword), cancellationToken);
+        return result.Status == AccountOperationStatus.Success
+            ? TypedResults.Ok()
+            : TypedResults.BadRequest(ToError("パスワードを再設定できませんでした。", result.Errors));
+    }
+
+    private static async Task<IResult> WithdrawAsync(WithdrawRequest request, ClaimsPrincipal principal, WithdrawAccountCommand command, CancellationToken cancellationToken)
+    {
+        var result = await command.ExecuteAsync(new(request.Confirmation), principal, cancellationToken);
+        return result.Status switch
         {
-            return TypedResults.BadRequest(Error("退会確認の入力が一致しません。", "confirmation", "登録メールアドレスを入力してください。"));
-        }
-
-        user.DeletedAt = DateTimeOffset.UtcNow;
-        user.LockoutEnabled = true;
-        user.LockoutEnd = DateTimeOffset.MaxValue;
-        user.Email = $"deleted-{user.Id}@deleted.local";
-        user.NormalizedEmail = user.Email.ToUpperInvariant();
-        user.UserName = user.Email;
-        user.NormalizedUserName = user.NormalizedEmail;
-        user.DisplayName = "退会済みユーザー";
-        user.Bio = string.Empty;
-
-        var result = await userManager.UpdateAsync(user);
-        if (!result.Succeeded) return TypedResults.BadRequest(ToError("退会処理を完了できませんでした。", result));
-        await userManager.UpdateSecurityStampAsync(user);
-        await signInManager.SignOutAsync();
-        return TypedResults.Ok();
+            AccountOperationStatus.Success => TypedResults.Ok(),
+            AccountOperationStatus.Unauthorized => TypedResults.Unauthorized(),
+            AccountOperationStatus.Conflict => TypedResults.Conflict(ToError("アカウントが同時に更新されました。", result.Errors)),
+            AccountOperationStatus.ValidationFailed => TypedResults.BadRequest(ToError("退会確認の入力が一致しません。", result.Errors)),
+            _ => TypedResults.BadRequest(ToError("退会処理を完了できませんでした。", result.Errors)),
+        };
     }
 
-    private static bool IsDeleted(ApplicationUser user) => user.DeletedAt is not null;
+    private static AccountUserResponse ToResponse(AccountSnapshot account) => new(
+        account.Id,
+        account.DisplayName,
+        account.Email,
+        account.Bio,
+        account.EmailConfirmed,
+        account.State,
+        account.CanDebugDialogue);
 
-    private static AccountUserResponse ToResponse(ApplicationUser user) => new(
-        user.Id,
-        user.DisplayName,
-        user.Email ?? string.Empty,
-        user.Bio,
-        user.EmailConfirmed,
-        IsDeleted(user) ? "deleted" : "active",
-        user.CanDebugDialogue);
-
-    private static Dictionary<string, string[]> ValidateRegister(RegisterRequest request)
-    {
-        var errors = new Dictionary<string, string[]>();
-        if (string.IsNullOrWhiteSpace(request.DisplayName)) errors["displayName"] = ["表示名を入力してください。"];
-        if (string.IsNullOrWhiteSpace(request.Email)) errors["email"] = ["メールアドレスを入力してください。"];
-        if (string.IsNullOrWhiteSpace(request.Password)) errors["password"] = ["パスワードを入力してください。"];
-        return errors;
-    }
-
-    private static BadRequest<AccountErrorResponse> BadRequest(IReadOnlyDictionary<string, string[]> errors) =>
-        TypedResults.BadRequest(new AccountErrorResponse("入力内容を確認してください。", errors));
-
-    private static AccountErrorResponse Error(string message, string? field = null, string? fieldMessage = null) =>
-        new(message, field is null ? new Dictionary<string, string[]>() : new Dictionary<string, string[]> { [field] = [fieldMessage ?? message] });
-
-    private static AccountErrorResponse ToError(string message, IdentityResult result)
-    {
-        var errors = new Dictionary<string, List<string>>();
-        foreach (var error in result.Errors)
-        {
-            var field = error.Code.Contains("Password", StringComparison.OrdinalIgnoreCase) ? "password" : "global";
-            if (!errors.TryGetValue(field, out var list))
-            {
-                list = [];
-                errors[field] = list;
-            }
-            list.Add(error.Description);
-        }
-
-        return new AccountErrorResponse(message, errors.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray()));
-    }
+    private static AccountErrorResponse ToError(string message, IReadOnlyList<AccountOperationError>? errors) =>
+        new(message, (errors ?? []).GroupBy(error => error.Field)
+            .ToDictionary(group => group.Key, group => group.Select(error => error.Description).ToArray()));
 }

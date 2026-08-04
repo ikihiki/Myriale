@@ -174,8 +174,7 @@ function ResetPasswordPage({ api, onLogin }: { api: AccountApi; onLogin: () => v
     setError(null);
     try {
       const result = await api.requestPasswordReset({ email });
-      setToken(result.resetToken ?? '');
-      setNotice({ tone: 'success', message: result.resetToken ? '開発用トークンを取得しました。新しいパスワードを設定できます。' : result.message });
+      setNotice({ tone: 'success', message: result.message });
     } catch (caught) { setError(caught as AccountApiError); }
   };
   const confirm = async (event: FormEvent) => {
@@ -190,7 +189,7 @@ function ResetPasswordPage({ api, onLogin }: { api: AccountApi; onLogin: () => v
       <form onSubmit={confirm}>
         <TextField label="メールアドレス" value={email} onChange={setEmail} type="email" inputMode="email" />
         <div className={accountActionRowClassName}><Button onClick={request}>再設定リンクを送信する</Button></div>
-        <TextField label="再設定トークン" value={token} onChange={setToken} help="開発/テスト環境では API 応答の token を自動入力します。" />
+        <TextField label="再設定トークン" value={token} onChange={setToken} help="メールなどの専用 transport で受け取った token を入力します。" />
         <PasswordField label="新しいパスワード" value={password} onChange={setPassword} showStrength showChecklist testId="reset-password" />
         <div className={accountActionRowClassName}><Button type="submit" variant="primary">パスワードを変更する</Button></div>
       </form>
@@ -207,7 +206,7 @@ function ProtectedAccountFrame({ view, user, status, onNavigate, onLogout, child
       nav={[{ id: 'profile', label: 'プロフィール' }, { id: 'profile-edit', label: '編集' }, { id: 'security', label: 'セキュリティ' }, { id: 'export', label: 'データ書き出し' }, { id: 'withdraw', label: '退会' }]}
       onNavigate={(id) => onNavigate(id as AccountView)}
       onLogout={onLogout}
-      user={{ name: user.displayName, email: user.email, state: user.state === 'deleted' ? 'deleted' : 'active', initials: initials(user.displayName) }}
+      user={{ name: user.displayName, email: user.email, state: user.state, initials: initials(user.displayName) }}
       aside={<SessionSummary user={user} />}
     >
       {children}
@@ -216,7 +215,7 @@ function ProtectedAccountFrame({ view, user, status, onNavigate, onLogout, child
 }
 
 function ProfileView({ user, onEdit }: { user: AccountUser; onEdit: () => void }) {
-  return <AccountCard as="section" role="region" aria-label="プロフィール"><SectionHead kicker="US-UM08" title="プロフィール" lead="Identity に保存されたアカウント情報です。" /><DefinitionList items={[{ term: 'User ID', value: <span data-testid="issued-user-id">{user.id}</span> }, { term: '表示名', value: user.displayName }, { term: 'メール', value: user.email }, { term: '状態', value: user.state === 'active' ? '有効' : user.state }, { term: '自己紹介', value: user.bio || '未設定' }]} /><div className={accountActionRowClassName}><Button variant="primary" onClick={onEdit}>プロフィールを編集する</Button></div></AccountCard>;
+  return <AccountCard as="section" role="region" aria-label="プロフィール"><SectionHead kicker="US-UM08" title="プロフィール" lead="Identity に保存されたアカウント情報です。" /><DefinitionList items={[{ term: 'User ID', value: <span data-testid="issued-user-id">{user.id}</span> }, { term: '表示名', value: user.displayName }, { term: 'メール', value: user.email }, { term: '状態', value: user.state === 'active' ? '有効' : '退会済み' }, { term: '自己紹介', value: user.bio || '未設定' }]} /><div className={accountActionRowClassName}><Button variant="primary" onClick={onEdit}>プロフィールを編集する</Button></div></AccountCard>;
 }
 
 function EditProfileView({ api, user, onSaved }: { api: AccountApi; user: AccountUser; onSaved: (user: AccountUser) => void }) {
@@ -271,7 +270,7 @@ function AuthHints() {
 }
 
 function SessionSummary({ user }: { user: AccountUser }) {
-  const items = useMemo(() => [{ term: '認証', value: 'Identity cookie' }, { term: 'メール確認', value: user.emailConfirmed ? '確認済み' : '未確認' }, { term: '状態', value: user.state === 'active' ? '有効' : user.state }], [user]);
+  const items = useMemo(() => [{ term: '認証', value: 'Identity cookie' }, { term: 'メール確認', value: user.emailConfirmed ? '確認済み' : '未確認' }, { term: '状態', value: user.state === 'active' ? '有効' : '退会済み' }], [user]);
   return <><h2>アカウント状態</h2><DefinitionList items={items} /></>;
 }
 

@@ -45,6 +45,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.Entity<ApplicationUser>().Ignore(user => user.State);
         builder.Entity<AiProviderProfile>().Property(profile => profile.Id).HasConversion(id => id.Value, value => new AiProviderProfileId(value));
         builder.Entity<AiProviderProfile>().Property(profile => profile.CredentialId).HasConversion(id => id.Value, value => new AiCredentialId(value));
         builder.Entity<AiProviderProfile>().Property(profile => profile.Adapter).HasConversion<string>();

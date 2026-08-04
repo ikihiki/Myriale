@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Myriale.Api.Application.Accounts;
 using Myriale.Api.Application.AiProviders;
 using Myriale.Api.Application.ModulePackages;
 using Myriale.Api.Application.ProgressionRuntime;
@@ -17,6 +18,7 @@ using Myriale.Api.Infrastructure.Sessions;
 using Myriale.Api.Data;
 using Myriale.Api.Endpoints;
 using Myriale.Api.Domain.Scenarios;
+using Myriale.Api.Infrastructure.Accounts;
 using Myriale.Api.Infrastructure.AiProviders;
 using Myriale.Api.Infrastructure.ModulePackages;
 using Myriale.Api.Infrastructure.ProgressionRuntime;
@@ -265,6 +267,26 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
+builder.Services.AddScoped<IAccountIdentityService, AspNetAccountIdentityService>();
+builder.Services.AddScoped<IAccountSecurityStampUpdater, AspNetAccountSecurityStampUpdater>();
+builder.Services.AddScoped<RegisterAccountCommand>();
+builder.Services.AddScoped<LoginAccountCommand>();
+builder.Services.AddScoped<LogoutAccountCommand>();
+builder.Services.AddScoped<GetCurrentAccountQuery>();
+builder.Services.AddScoped<UpdateAccountProfileCommand>();
+builder.Services.AddScoped<RequestAccountPasswordResetCommand>();
+builder.Services.AddScoped<ConfirmAccountPasswordResetCommand>();
+builder.Services.AddScoped<WithdrawAccountCommand>();
+if (builder.Environment.IsDevelopment() || isTestHost)
+{
+    builder.Services.AddSingleton<DevelopmentAccountPasswordResetTokenTransport>();
+    builder.Services.AddSingleton<IAccountPasswordResetTokenTransport>(services => services.GetRequiredService<DevelopmentAccountPasswordResetTokenTransport>());
+    builder.Services.AddSingleton<IDevelopmentAccountPasswordResetTokenStore>(services => services.GetRequiredService<DevelopmentAccountPasswordResetTokenTransport>());
+}
+else
+{
+    builder.Services.AddSingleton<IAccountPasswordResetTokenTransport, ProductionAccountPasswordResetTokenTransport>();
+}
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Events.OnRedirectToLogin = context =>

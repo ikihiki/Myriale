@@ -50,7 +50,7 @@ describe('UserManagementPage — Identity-backed account UI', () => {
     render(<UserManagementPage initialView="login" api={createDemoAccountApi()} />);
 
     fireEvent.change(screen.getByLabelText('メールアドレス'), { target: { value: 'reader@myriale.example' } });
-    fireEvent.change(screen.getByTestId('login-password'), { target: { value: 'a' } });
+    fireEvent.change(screen.getByTestId('login-password'), { target: { value: 'letters1' } });
     fireEvent.click(screen.getByRole('button', { name: 'ログインする' }));
     expect(await screen.findByRole('region', { name: 'プロフィール' })).toBeVisible();
 
@@ -59,12 +59,13 @@ describe('UserManagementPage — Identity-backed account UI', () => {
     expect(screen.getByTestId('um-notice')).toHaveTextContent('認証セッションを無効化');
   });
 
-  it('US-UM04: 開発用トークンでパスワードを再設定できる', async () => {
+  it('US-UM04: 専用transportで受け取ったトークンでパスワードを再設定できる', async () => {
     render(<UserManagementPage initialView="reset" api={createDemoAccountApi()} />);
 
     fireEvent.change(screen.getByLabelText('メールアドレス'), { target: { value: 'reader@myriale.example' } });
     fireEvent.click(screen.getByRole('button', { name: '再設定リンクを送信する' }));
-    expect(await screen.findByDisplayValue('demo-reset-token')).toBeInTheDocument();
+    expect(await screen.findByTestId('um-notice')).toHaveTextContent('登録済みの場合');
+    fireEvent.change(screen.getByLabelText('再設定トークン'), { target: { value: 'demo-reset-token' } });
 
     fireEvent.change(screen.getByLabelText('新しいパスワード'), { target: { value: 'changed1' } });
     fireEvent.click(screen.getByRole('button', { name: 'パスワードを変更する' }));

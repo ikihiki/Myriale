@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { toAppChromeAccount } from './accountPresentation';
+import type { AccountUser } from './api/accountApi';
+import { stateMeta } from './stateMeta';
 
-const accountUser = {
+const accountUser: AccountUser = {
   id: 'USR-1',
   displayName: 'PR37 動作確認',
   email: 'reader@example.test',
@@ -22,5 +24,9 @@ describe('toAppChromeAccount', () => {
       initials: 'PR',
       role: 'プレイヤー',
     });
+  });
+
+  it('keeps the frontend account-state contract closed to backend states', () => {
+    expect(Object.keys(stateMeta)).toEqual(['active', 'withdrawn']);
   });
 });

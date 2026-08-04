@@ -1,10 +1,12 @@
+import type { AccountState } from '../types';
+
 export type AccountUser = {
   id: string;
   displayName: string;
   email: string;
   bio: string;
   emailConfirmed: boolean;
-  state: 'active' | 'deleted' | string;
+  state: AccountState;
   canDebugDialogue?: boolean;
 };
 
@@ -20,7 +22,7 @@ export type PasswordResetRequestPayload = { email: string };
 export type ConfirmPasswordResetPayload = { email: string; token: string; newPassword: string };
 export type WithdrawPayload = { confirmation: string };
 
-export type PasswordResetRequested = { message: string; resetToken?: string | null };
+export type PasswordResetRequested = { message: string };
 
 export type AccountApi = {
   getMe: (signal?: AbortSignal) => Promise<AccountUser | null>;
@@ -125,7 +127,7 @@ export function createDemoAccountApi(): AccountApi {
       return demoUser;
     },
     async login(payload) {
-      if (payload.email !== 'reader@myriale.example' || payload.password !== 'a') throw demoError('メールアドレスまたはパスワードが違います。', 401);
+      if (payload.email !== 'reader@myriale.example' || payload.password !== 'letters1') throw demoError('メールアドレスまたはパスワードが違います。', 401);
       demoUser = { id: 'USR-1031', displayName: '霧野しおり', email: 'reader@myriale.example', bio: '星図を読む巡礼者。夜の図書館で物語を探しています。', emailConfirmed: true, state: 'active', canDebugDialogue: true };
       return demoUser;
     },
@@ -139,7 +141,7 @@ export function createDemoAccountApi(): AccountApi {
     },
     async requestPasswordReset() {
       demoResetToken = 'demo-reset-token';
-      return { message: '登録済みの場合、パスワード再設定の案内を送信しました。', resetToken: demoResetToken };
+      return { message: '登録済みの場合、パスワード再設定の案内を送信しました。' };
     },
     async confirmPasswordReset(payload) {
       if (payload.token !== demoResetToken) throw demoError('パスワードを再設定できませんでした。', 400, { token: ['トークンが正しくありません。'] });

@@ -7,7 +7,7 @@ public static class AccountSeedData
 {
     public const string DefaultDisplayName = "霧野しおり";
     public const string DefaultEmail = "reader@myriale.example";
-    public const string DefaultPassword = "a";
+    public const string DefaultPassword = "letters1";
 
     public static async Task<ApplicationUser?> SeedAsync(
         UserManager<ApplicationUser> userManager,
@@ -30,24 +30,19 @@ public static class AccountSeedData
         var existing = await userManager.FindByEmailAsync(email);
         if (existing is not null)
         {
-            existing.PasswordHash = userManager.PasswordHasher.HashPassword(existing, password);
-            existing.SecurityStamp = Guid.NewGuid().ToString();
-            await EnsureSucceededAsync(userManager.UpdateAsync(existing), "update the seeded account password");
+            var resetToken = await userManager.GeneratePasswordResetTokenAsync(existing);
+            await EnsureSucceededAsync(userManager.ResetPasswordAsync(existing, resetToken, password), "update the seeded account password");
             await EnsureAdminClaimsAsync(userManager, existing);
             return existing;
         }
 
-        var user = new ApplicationUser
-        {
-            UserName = email,
-            Email = email,
-            EmailConfirmed = true,
-            DisplayName = displayName,
-            Bio = "星図を読む巡礼者。夜の図書館で物語を探しています。",
-            CanDebugDialogue = true,
-        };
-        user.PasswordHash = userManager.PasswordHasher.HashPassword(user, password);
-        await EnsureSucceededAsync(userManager.CreateAsync(user), "create the seeded account");
+        var user = ApplicationUser.Create(
+            displayName,
+            email,
+            emailConfirmed: true,
+            bio: "星図を読む巡礼者。夜の図書館で物語を探しています。",
+            canDebugDialogue: true);
+        await EnsureSucceededAsync(userManager.CreateAsync(user, password), "create the seeded account");
         await EnsureAdminClaimsAsync(userManager, user);
         return user;
     }

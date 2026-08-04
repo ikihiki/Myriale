@@ -77,7 +77,7 @@ export const UM03LoginWithEmail: Story = {
     await step('Identity cookieセッションを開始し、戻り先がなければホームへ進む', async () => {
       await userEvent.clear(canvas.getByLabelText('メールアドレス'));
       await userEvent.type(canvas.getByLabelText('メールアドレス'), 'reader@myriale.example');
-      await userEvent.type(canvas.getByTestId('login-password'), 'a');
+      await userEvent.type(canvas.getByTestId('login-password'), 'letters1');
       await userEvent.click(canvas.getByRole('button', { name: 'ログインする' }));
       await expect(await canvas.findByRole('main', { name: 'Myrialeトップページ' })).toBeVisible();
       await expect(canvas.getByTestId('app-url')).toHaveTextContent('/');
