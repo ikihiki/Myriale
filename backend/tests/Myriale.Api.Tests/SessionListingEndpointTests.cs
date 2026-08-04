@@ -148,7 +148,7 @@ public sealed class SessionListingEndpointTests : IDisposable
             OwnerId = ownerId,
             ScenarioId = scenarioId,
             SelectedHero = selectedHero,
-            Status = status,
+            Status = SessionEnumValues.ParseStatus(status),
             CreatedAt = updatedAt.AddHours(-1),
             UpdatedAt = updatedAt,
         };
@@ -164,7 +164,7 @@ public sealed class SessionListingEndpointTests : IDisposable
                 SessionId = id,
                 Position = position,
                 PreviousTurnId = previous?.Id,
-                Kind = "narrative",
+                Kind = SessionTurnKind.Narrative,
                 NarrativeBody = $"turn {position}",
                 CreatedAt = updatedAt.AddMinutes(position),
             };

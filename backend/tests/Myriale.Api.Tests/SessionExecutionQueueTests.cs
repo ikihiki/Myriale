@@ -194,7 +194,7 @@ public sealed class SessionExecutionQueueTests
                 OwnerId = "USR-1",
                 ScenarioId = "SCN-1",
                 SelectedHero = "Hero",
-                Status = "active",
+                Status = SessionStatus.Active,
                 CreatedAt = now,
                 UpdatedAt = now,
             });

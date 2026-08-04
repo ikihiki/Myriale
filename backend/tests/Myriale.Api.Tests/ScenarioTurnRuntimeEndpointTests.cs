@@ -206,7 +206,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
             scenarioId = "SCN-STAR-LIBRARY",
             requestId = $"pinned-progression-{Guid.NewGuid():N}",
         });
-        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        Assert.True(created.StatusCode == HttpStatusCode.Created, $"{created.StatusCode}: {await created.Content.ReadAsStringAsync()}");
         var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
 
         await using var verificationScope = factory.Services.CreateAsyncScope();
@@ -249,24 +249,9 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task LegacyNarrativeOutputCannotBypassScenarioTurn()
+    public void InputContractDoesNotExposeRequestedOutputs()
     {
-        var client = await SignedInClientAsync();
-        var scenarioId = await CreatePublishedDoorScenarioAsync(client, "start");
-        using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-legacy-output-check" });
-        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
-
-        using var response = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", new
-        {
-            requestId = "legacy-output-check",
-            text = "北の扉を調べる",
-            requestedOutputs = new[] { "narrative" },
-        });
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var error = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("unsupported_output", error.GetProperty("code").GetString());
+        Assert.Null(typeof(CreateSessionInputRequest).GetProperty("RequestedOutputs"));
     }
 
     [Fact]

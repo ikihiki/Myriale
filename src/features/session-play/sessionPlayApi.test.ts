@@ -150,7 +150,6 @@ describe('sessionPlayApi', () => {
         requestId: 'request-1',
         text: '扉を調べる',
         interactionType: 'dialogue',
-        requestedOutputs: ['scenario-turn'],
         actionDecisionAiProfileId: 'runpod-economy',
         narrativeAiProfileId: 'runpod-recommended',
       }),

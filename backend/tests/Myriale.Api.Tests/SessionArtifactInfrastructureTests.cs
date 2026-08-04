@@ -109,7 +109,7 @@ public sealed class SessionArtifactInfrastructureTests
         var ownerId = "USR-" + suffix; var scenarioId = "SCN-" + suffix; var sessionId = "SES-" + suffix;
         if (!db.Users.Local.Any(item => item.Id == ownerId)) db.Users.Add(new ApplicationUser { Id = ownerId, UserName = ownerId, NormalizedUserName = ownerId, Email = ownerId + "@test" });
         if (!db.Scenarios.Local.Any(item => item.Id == scenarioId)) db.Scenarios.Add(new Scenario { Id = scenarioId, Title = "Fixture", Summary = "Fixture", Genre = "Fixture", Tone = "Fixture", Lore = "Fixture", AiFreedom = "Fixture", HeroMode = HeroMode.Fixed, Hero = "Fixture", Opening = "Fixture", IllustrationStyle = "Fixture", IllustrationMood = "Fixture", IllustrationNegative = "", SampleScene = "Fixture", Status = ScenarioPublicationStatus.Published, AuthorId = ownerId, CreatedAt = queuedAt, UpdatedAt = queuedAt });
-        if (!db.Sessions.Local.Any(item => item.Id == sessionId)) db.Sessions.Add(new Session { Id = sessionId, OwnerId = ownerId, ScenarioId = scenarioId, SelectedHero = "Fixture", Status = "active", CreatedAt = queuedAt, UpdatedAt = queuedAt });
+        if (!db.Sessions.Local.Any(item => item.Id == sessionId)) db.Sessions.Add(new Session { Id = sessionId, OwnerId = ownerId, ScenarioId = scenarioId, SelectedHero = "Fixture", Status = SessionStatus.Active, CreatedAt = queuedAt, UpdatedAt = queuedAt });
         db.SessionExecutions.Add(new SessionExecution { Id = executionId, SessionId = sessionId, Kind = kind, TriggerType = SessionExecutionTriggerType.Manual, TriggerId = executionId, Status = status, IdempotencyKey = executionId, PayloadHash = new string('a', 64), CreatedAt = queuedAt, QueuedAt = queuedAt, StartedAt = status == SessionExecutionStatuses.Running ? queuedAt : null, LeaseExpiresAt = leaseExpiresAt });
     }
 
@@ -150,6 +150,7 @@ public sealed class SessionImageAttachEndpointTests : IDisposable
         using var register = await client.PostAsJsonAsync("/api/account/register", new { displayName = "Image", email = "image@example.test", password = "letters1" });
         ApplyCookies(client, register);
         using var created = await client.PostAsJsonAsync("/api/sessions", new { scenarioId = "SCN-STAR-LIBRARY", requestId = "image-session" });
+        Assert.True(created.StatusCode == HttpStatusCode.Created, $"{created.StatusCode}: {await created.Content.ReadAsStringAsync()}");
         var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
         await using (var scope = factory.Services.CreateAsyncScope())
         {

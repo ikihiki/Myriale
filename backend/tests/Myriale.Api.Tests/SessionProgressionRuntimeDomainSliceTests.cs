@@ -191,7 +191,7 @@ public sealed class SessionProgressionRuntimeDomainSliceTests : IDisposable
         db.Sessions.Add(new Session
         {
             Id = "SES-1", OwnerId = "owner", ScenarioId = "SCN-1", SelectedHero = "hero",
-            Status = "active", CreatedAt = Now, UpdatedAt = Now,
+            Status = SessionStatus.Active, CreatedAt = Now, UpdatedAt = Now,
         });
         db.SessionProgressionTransitionReceipts.Add(receipt);
         await db.SaveChangesAsync();

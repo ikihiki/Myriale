@@ -132,17 +132,17 @@ public sealed class SessionTurnInspectionEndpointTests : IDisposable
         var baseTime = new DateTimeOffset(2026, 7, 30, 10, 0, 0, TimeSpan.Zero);
 
         db.Sessions.AddRange(
-            new Session { Id = SessionId, OwnerId = ownerId, ScenarioId = scenario.Id, ScenarioDefinitionVersionId = null, SelectedHero = "hero", Status = "active", Revision = 8, CreatedAt = baseTime.AddMinutes(-2), UpdatedAt = baseTime.AddSeconds(1) },
-            new Session { Id = "SES-OTHER", OwnerId = ownerId, ScenarioId = scenario.Id, SelectedHero = "hero", Status = "active", CreatedAt = baseTime, UpdatedAt = baseTime });
+            new Session { Id = SessionId, OwnerId = ownerId, ScenarioId = scenario.Id, ScenarioDefinitionVersionId = null, SelectedHero = "hero", Status = SessionStatus.Active, Revision = 8, CreatedAt = baseTime.AddMinutes(-2), UpdatedAt = baseTime.AddSeconds(1) },
+            new Session { Id = "SES-OTHER", OwnerId = ownerId, ScenarioId = scenario.Id, SelectedHero = "hero", Status = SessionStatus.Active, CreatedAt = baseTime, UpdatedAt = baseTime });
         db.SessionPlayerInputs.AddRange(
             Input(InputId, SessionId, "Open the north door", baseTime),
             Input("INP-OTHER-TURN", SessionId, "Inspect the hall", baseTime.AddSeconds(2)),
             Input("INP-OTHER-SESSION", "SES-OTHER", "Other session", baseTime));
         db.SessionTurns.AddRange(
-            new SessionTurn { Id = TurnId, SessionId = SessionId, Position = 1, Kind = "narrative", Heading = "Opened", NarrativeBody = "The north door opens.", PlayerInputId = InputId, CreatedAt = baseTime.AddSeconds(1) },
-            new SessionTurn { Id = "TUR-OTHER-TURN", SessionId = SessionId, Position = 2, PreviousTurnId = TurnId, Kind = "narrative", PlayerInputId = "INP-OTHER-TURN", CreatedAt = baseTime.AddSeconds(3) },
-            new SessionTurn { Id = "TUR-NO-INPUT", SessionId = SessionId, Position = 3, PreviousTurnId = "TUR-OTHER-TURN", Kind = "module", CreatedAt = baseTime.AddSeconds(4) },
-            new SessionTurn { Id = "TUR-OTHER-SESSION", SessionId = "SES-OTHER", Position = 1, Kind = "narrative", PlayerInputId = "INP-OTHER-SESSION", CreatedAt = baseTime.AddSeconds(1) });
+            new SessionTurn { Id = TurnId, SessionId = SessionId, Position = 1, Kind = SessionTurnKind.Narrative, Heading = "Opened", NarrativeBody = "The north door opens.", PlayerInputId = InputId, CreatedAt = baseTime.AddSeconds(1) },
+            new SessionTurn { Id = "TUR-OTHER-TURN", SessionId = SessionId, Position = 2, PreviousTurnId = TurnId, Kind = SessionTurnKind.Narrative, PlayerInputId = "INP-OTHER-TURN", CreatedAt = baseTime.AddSeconds(3) },
+            new SessionTurn { Id = "TUR-NO-INPUT", SessionId = SessionId, Position = 3, PreviousTurnId = "TUR-OTHER-TURN", Kind = SessionTurnKind.Module, CreatedAt = baseTime.AddSeconds(4) },
+            new SessionTurn { Id = "TUR-OTHER-SESSION", SessionId = "SES-OTHER", Position = 1, Kind = SessionTurnKind.Narrative, PlayerInputId = "INP-OTHER-SESSION", CreatedAt = baseTime.AddSeconds(1) });
         db.SessionExecutions.AddRange(
             Execution(ExecutionId, SessionId, InputId, baseTime),
             Execution("EXE-OTHER-TURN", SessionId, "INP-OTHER-TURN", baseTime.AddSeconds(2)),
@@ -161,7 +161,7 @@ public sealed class SessionTurnInspectionEndpointTests : IDisposable
 
     private static SessionPlayerInput Input(string id, string sessionId, string text, DateTimeOffset createdAt) => new()
     {
-        Id = id, SessionId = sessionId, RequestId = $"request-{id}", Text = text, InteractionType = "dialogue",
+        Id = id, SessionId = sessionId, RequestId = $"request-{id}", Text = text, InteractionType = SessionInputInteractionType.Dialogue,
         PayloadHash = new string('b', 64), CreatedBy = "test", CreatedAt = createdAt,
     };
 

@@ -83,6 +83,48 @@ public sealed class PostgresSessionExecutionIntegrationTests
     }
 
     [PostgresFact]
+    public async Task ConcurrentInputAcceptanceHasOneWinnerAndStableConflict()
+    {
+        await using var database = await PostgresFixture.CreateAsync();
+        var now = new DateTimeOffset(2026, 8, 4, 12, 0, 0, TimeSpan.Zero);
+        await SeedSessionAsync(database.Db, "SES-INPUT-RACE", now);
+        await using var firstDb = database.CreateContext();
+        await using var secondDb = database.CreateContext();
+        var firstSession = await firstDb.Sessions.SingleAsync(x => x.Id == "SES-INPUT-RACE");
+        var secondSession = await secondDb.Sessions.SingleAsync(x => x.Id == "SES-INPUT-RACE");
+        var firstInput = firstSession.AcceptInput("INP-RACE-1", "request-1", "first", SessionInputInteractionType.Dialogue, new string('a', 64), "USR-1", null, now);
+        var secondInput = secondSession.AcceptInput("INP-RACE-2", "request-2", "second", SessionInputInteractionType.Dialogue, new string('b', 64), "USR-1", null, now);
+        var firstRepository = new Myriale.Api.Infrastructure.Sessions.EfSessionInputAcceptanceRepository(firstDb);
+        var secondRepository = new Myriale.Api.Infrastructure.Sessions.EfSessionInputAcceptanceRepository(secondDb);
+        var outcomes = await Task.WhenAll(
+            firstRepository.CommitInputAsync(firstSession, InputExecution(firstInput, now), CancellationToken.None),
+            secondRepository.CommitInputAsync(secondSession, InputExecution(secondInput, now), CancellationToken.None));
+        Assert.Single(outcomes, x => x == Myriale.Api.Application.Sessions.SessionRepositoryCommitOutcome.Committed);
+        Assert.Single(outcomes, x => x != Myriale.Api.Application.Sessions.SessionRepositoryCommitOutcome.Committed);
+        await using var verification = database.CreateContext();
+        Assert.Single(await verification.SessionPlayerInputs.Where(x => x.SessionId == "SES-INPUT-RACE").ToListAsync());
+        Assert.Single(await verification.SessionExecutions.Where(x => x.SessionId == "SES-INPUT-RACE").ToListAsync());
+    }
+
+    [PostgresFact]
+    public async Task ConcurrentRootTurnAppendHasOneWinner()
+    {
+        await using var database = await PostgresFixture.CreateAsync();
+        var now = new DateTimeOffset(2026, 8, 4, 12, 0, 0, TimeSpan.Zero);
+        await SeedSessionAsync(database.Db, "SES-TURN-RACE", now);
+        await using var firstDb = database.CreateContext();
+        await using var secondDb = database.CreateContext();
+        var first = await firstDb.Sessions.SingleAsync(x => x.Id == "SES-TURN-RACE");
+        var second = await secondDb.Sessions.SingleAsync(x => x.Id == "SES-TURN-RACE");
+        first.AppendOpeningTurn("TRN-RACE-1", "opening.v1", "First", "First", now);
+        second.AppendOpeningTurn("TRN-RACE-2", "opening.v1", "Second", "Second", now);
+        var outcomes = await Task.WhenAll(SaveOutcomeAsync(firstDb), SaveOutcomeAsync(secondDb));
+        Assert.Single(outcomes, x => x);
+        await using var verification = database.CreateContext();
+        Assert.Single(await verification.SessionTurns.Where(x => x.SessionId == "SES-TURN-RACE").ToListAsync());
+    }
+
+    [PostgresFact]
     public async Task CancelMutationUsesPostgresRowLockAndPreservesRunningLease()
     {
         await using var database = await PostgresFixture.CreateAsync();
@@ -114,6 +156,20 @@ public sealed class PostgresSessionExecutionIntegrationTests
         Assert.Equal(now.AddMinutes(2), execution.LeaseExpiresAt);
     }
 
+    private static SessionExecution InputExecution(SessionPlayerInput input, DateTimeOffset now) => new()
+    {
+        Id = $"EXE-{input.Id}", SessionId = input.SessionId, Kind = SessionExecutionKind.ScenarioTurn,
+        TriggerType = SessionExecutionTriggerType.PlayerInput, TriggerId = input.Id, Status = SessionExecutionStatus.Queued,
+        IdempotencyKey = input.RequestId, PayloadHash = input.PayloadHash, AcceptedHeadTurnId = input.AcceptedAfterTurnId,
+        AcceptedSessionRevision = input.AcceptedSessionRevision, CreatedAt = now, QueuedAt = now,
+    };
+
+    private static async Task<bool> SaveOutcomeAsync(ApplicationDbContext db)
+    {
+        try { await db.SaveChangesAsync(); return true; }
+        catch (DbUpdateException) { return false; }
+    }
+
     private static async Task SeedSessionAsync(ApplicationDbContext db, string sessionId, DateTimeOffset now)
     {
         if (!await db.Scenarios.AnyAsync(item => item.Id == "SCN-PG"))
@@ -133,7 +189,7 @@ public sealed class PostgresSessionExecutionIntegrationTests
             OwnerId = "USR-1",
             ScenarioId = "SCN-PG",
             SelectedHero = "Hero",
-            Status = "active",
+            Status = SessionStatus.Active,
             CreatedAt = now,
             UpdatedAt = now,
         });

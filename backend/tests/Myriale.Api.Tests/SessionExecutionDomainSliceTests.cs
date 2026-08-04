@@ -150,7 +150,7 @@ public sealed class SessionExecutionDomainSliceTests
     {
         db.Users.Add(new ApplicationUser { Id = "USR-1", UserName = "user", NormalizedUserName = "USER", Email = "user@test" });
         db.Scenarios.Add(new Scenario { Id = "SCN-1", Title = "Execution slice", AuthorId = "USR-1", CreatedAt = Now, UpdatedAt = Now });
-        db.Sessions.Add(new Session { Id = "SES-1", OwnerId = "USR-1", ScenarioId = "SCN-1", SelectedHero = "Hero", Status = "active", CreatedAt = Now, UpdatedAt = Now });
+        db.Sessions.Add(new Session { Id = "SES-1", OwnerId = "USR-1", ScenarioId = "SCN-1", SelectedHero = "Hero", Status = SessionStatus.Active, CreatedAt = Now, UpdatedAt = Now });
         await db.SaveChangesAsync();
     }
 
