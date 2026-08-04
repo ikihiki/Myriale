@@ -1,12 +1,12 @@
 using System.Text.Json;
 using Myriale.Api.Contracts;
-using Myriale.Api.Modules.Execution;
+using Myriale.Api.Application.ModuleExecutions;
 
 namespace Myriale.Api.Application.ProgressionRuntime;
 
 public sealed class EnsureProgressionReceiptCommand(
     IProgressionReceiptRepository repository,
-    IModuleExecutionService executions,
+    InitializeSessionTurnModuleExecutionCommand executions,
     TimeProvider timeProvider,
     ILogger<EnsureProgressionReceiptCommand> logger)
 {
@@ -45,10 +45,10 @@ public sealed class EnsureProgressionReceiptCommand(
             return;
         }
 
-        ModuleExecutionServiceResult result;
+        ModuleExecutionResult result;
         try
         {
-            result = await executions.InitializeScenarioSessionTurnAsync(ownerId, claim.SessionId, request, cancellationToken);
+            result = await executions.ExecuteAsync(ownerId, claim.SessionId, request, SessionTurnInitializationPolicy.ScenarioProgression, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -62,11 +62,11 @@ public sealed class EnsureProgressionReceiptCommand(
             return;
         }
 
-        if (result.Response is null || result.SessionTurnId is null)
+        if (result.Execution is null || result.SessionTurnId is null)
         {
             var code = result.Error?.Code ?? "module_initialization_failed";
             var message = result.Error?.Message ?? "進行用Module Turnの開始に失敗しました。";
-            var retryable = result.StatusCode >= 500 || code is "request_in_progress" or "package_unavailable";
+            var retryable = result.Outcome == ModuleExecutionOutcome.Unavailable || code is "request_in_progress" or "package_unavailable";
             await repository.FailAsync(receiptId, leaseId, claim.Revision, code, message, retryable, timeProvider.GetUtcNow(), cancellationToken);
             return;
         }

@@ -11,6 +11,7 @@ using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Modules;
 using Myriale.Api.Modules.Execution;
+using Myriale.Api.Application.ModuleExecutions;
 
 namespace Myriale.Api.Tests;
 
@@ -108,12 +109,12 @@ public sealed class ModuleUiEndpointTests : IDisposable
             await using var stream = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "Myriale.HeadlessTestModule.dll"));
             var installed = await packages.InstallAsync(stream, default);
             await packages.SetEnabledAsync(installed.Package.Digest, true, default);
-            var executions = scope.ServiceProvider.GetRequiredService<IModuleExecutionService>();
-            var created = await executions.InitializeAsync(ownerId, new InitializeModuleExecutionRequest(
+            var executions = scope.ServiceProvider.GetRequiredService<InitializeDetachedModuleExecutionCommand>();
+            var created = await executions.ExecuteAsync(ownerId, new InitializeModuleExecutionRequest(
                 "headless-ui", installed.Package.ModuleId, installed.Package.Version, installed.Package.Digest,
                 JsonSerializer.SerializeToElement(new { }), Binding(), 0), default);
-            Assert.NotNull(created.Response);
-            using var response = await client.GetAsync($"/api/module-executions/{created.Response.Id}/ui/runtime/");
+            Assert.NotNull(created.Execution);
+            using var response = await client.GetAsync($"/api/module-executions/{created.Execution.Id}/ui/runtime/");
             Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
             Assert.Equal("runtime_ui_not_declared", (await response.Content.ReadFromJsonAsync<ModuleUiErrorResponse>())?.Code);
         }
@@ -129,12 +130,12 @@ public sealed class ModuleUiEndpointTests : IDisposable
         await using var stream = new MemoryStream(CreatePackage());
         var installed = await packages.InstallAsync(stream, default);
         await packages.SetEnabledAsync(installed.Package.Digest, true, default);
-        var executions = scope.ServiceProvider.GetRequiredService<IModuleExecutionService>();
-        var created = await executions.InitializeAsync(ownerId, new InitializeModuleExecutionRequest(
+        var executions = scope.ServiceProvider.GetRequiredService<InitializeDetachedModuleExecutionCommand>();
+        var created = await executions.ExecuteAsync(ownerId, new InitializeModuleExecutionRequest(
             $"init-{Guid.NewGuid():N}", installed.Package.ModuleId, installed.Package.Version, installed.Package.Digest,
             JsonSerializer.SerializeToElement(new { }), Binding(), 0), default);
-        Assert.NotNull(created.Response);
-        return (client, created.Response.Id, installed.Package.Digest);
+        Assert.NotNull(created.Execution);
+        return (client, created.Execution.Id, installed.Package.Digest);
     }
 
     private static JsonElement Binding() => JsonSerializer.SerializeToElement(new

@@ -1,43 +1,57 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 
 namespace Myriale.Api.Data;
 
+public enum ModuleExecutionRequestOperation { Initialize, Dispatch }
+public enum ModuleExecutionRequestStatus { Pending, Succeeded, Rejected }
+
 public sealed class ModuleExecutionRequest
 {
-    public long Id { get; set; }
+    public long Id { get; internal set; }
+    [Required, MaxLength(450)] public string OwnerId { get; internal set; } = string.Empty;
+    [Required, MaxLength(40)] public string ExecutionId { get; internal set; } = string.Empty;
+    [Required, MaxLength(128)] public string RequestId { get; internal set; } = string.Empty;
+    [Required, MaxLength(20)] public ModuleExecutionRequestOperation Operation { get; internal set; }
+    public long? ExpectedRevision { get; internal set; }
+    public long? ExpectedSessionRevision { get; internal set; }
+    [Required, MaxLength(64)] public string PayloadHash { get; internal set; } = string.Empty;
+    public string? ActionJson { get; internal set; }
+    [Required] public string RandomValuesJson { get; internal set; } = "[]";
+    [Required, MaxLength(20)] public ModuleExecutionRequestStatus Status { get; internal set; } = ModuleExecutionRequestStatus.Pending;
+    public string? ResponseJson { get; internal set; }
+    public int? ResponseStatusCode { get; internal set; }
+    public DateTimeOffset CreatedAt { get; internal set; }
+    public DateTimeOffset? CompletedAt { get; internal set; }
+    public ModuleOutcomeApplication? OutcomeApplication { get; internal set; }
+    public ModuleExecution Execution { get; internal set; } = null!;
 
-    [Required, MaxLength(450)]
-    public string OwnerId { get; set; } = string.Empty;
+    public static ModuleExecutionRequest CreateInitialization(string ownerId, string executionId, string requestId,
+        string payloadHash, long? expectedSessionRevision, IReadOnlyList<uint> randomValues, JsonSerializerOptions json, DateTimeOffset now) => new()
+    {
+        OwnerId = ownerId, ExecutionId = executionId, RequestId = requestId, Operation = ModuleExecutionRequestOperation.Initialize,
+        PayloadHash = payloadHash, ExpectedSessionRevision = expectedSessionRevision,
+        RandomValuesJson = JsonSerializer.Serialize(randomValues, json), CreatedAt = now,
+    };
 
-    [Required, MaxLength(40)]
-    public string ExecutionId { get; set; } = string.Empty;
+    public static ModuleExecutionRequest CreateDispatch(string ownerId, string executionId, string requestId,
+        string payloadHash, long expectedRevision, long? expectedSessionRevision, JsonElement action,
+        IReadOnlyList<uint> randomValues, JsonSerializerOptions json, DateTimeOffset now) => new()
+    {
+        OwnerId = ownerId, ExecutionId = executionId, RequestId = requestId, Operation = ModuleExecutionRequestOperation.Dispatch,
+        PayloadHash = payloadHash, ExpectedRevision = expectedRevision, ExpectedSessionRevision = expectedSessionRevision,
+        ActionJson = action.GetRawText(), RandomValuesJson = JsonSerializer.Serialize(randomValues, json), CreatedAt = now,
+    };
 
-    [Required, MaxLength(128)]
-    public string RequestId { get; set; } = string.Empty;
-
-    [Required, MaxLength(20)]
-    public string Operation { get; set; } = string.Empty;
-
-    public long? ExpectedRevision { get; set; }
-
-    public long? ExpectedSessionRevision { get; set; }
-
-    [Required, MaxLength(64)]
-    public string PayloadHash { get; set; } = string.Empty;
-
-    public string? ActionJson { get; set; }
-
-    [Required]
-    public string RandomValuesJson { get; set; } = "[]";
-
-    [Required, MaxLength(20)]
-    public string Status { get; set; } = "pending";
-
-    public string? ResponseJson { get; set; }
-    public int? ResponseStatusCode { get; set; }
-    public DateTimeOffset CreatedAt { get; set; }
-    public DateTimeOffset? CompletedAt { get; set; }
-
-    public ModuleOutcomeApplication? OutcomeApplication { get; set; }
-    public ModuleExecution Execution { get; set; } = null!;
+    public bool Matches(string payloadHash) => string.Equals(PayloadHash, payloadHash, StringComparison.Ordinal);
+    public void Complete(string responseJson, int responseStatusCode, DateTimeOffset now)
+    {
+        if (Status != ModuleExecutionRequestStatus.Pending) throw new InvalidOperationException("Receipt is already closed.");
+        Status = ModuleExecutionRequestStatus.Succeeded; ResponseJson = responseJson; ResponseStatusCode = responseStatusCode; CompletedAt = now;
+    }
+    public void Reject(string responseJson, int responseStatusCode, DateTimeOffset now)
+    {
+        if (Status != ModuleExecutionRequestStatus.Pending) throw new InvalidOperationException("Receipt is already closed.");
+        Status = ModuleExecutionRequestStatus.Rejected; ResponseJson = responseJson; ResponseStatusCode = responseStatusCode; CompletedAt = now;
+    }
 }

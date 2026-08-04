@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Myriale.ModuleSdk;
+using Myriale.Api.Data;
 
 namespace Myriale.Api.Contracts;
 
@@ -28,7 +29,7 @@ public sealed record ModuleExecutionPackageResponse(
 public sealed record ModuleExecutionResponse(
     string Id,
     ModuleExecutionPackageResponse Package,
-    string Status,
+    ModuleExecutionStatus Status,
     long Revision,
     JsonElement ViewState,
     IReadOnlyList<ModuleAvailableAction> AvailableActions,

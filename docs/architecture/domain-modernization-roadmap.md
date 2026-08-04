@@ -9,7 +9,7 @@ Scenario authoring established the reference architecture for Myriale domain cod
 | Session Memory | `SessionNote` and `SessionNoteProposal` review process | High | User edits and AI proposal review mutate the same note through separate endpoints; concurrency and review idempotency must share one policy. |
 | Session Execution | `SessionExecution` with attempts, lease, retry, cancellation, and dismissal lifecycle | High | Lifecycle rules exist but are split across endpoints, queue, finalizer, and a state-machine helper. |
 | Progression Runtime | `SessionProgressState` plus independently leased transition receipts | High | Receipt claim/completion/retry rules are mutable process state and need an explicit aggregate/repository boundary. |
-| Module Execution | `ModuleExecution`, request receipts, and outcome application receipts | High | A large orchestration service currently combines idempotency, runtime dispatch, effects, handoff, and response mapping. |
+| Module Execution | `ModuleExecution`, request receipts, and outcome application receipts | Delivered | Native lifecycle enums, aggregate behavior, commands/queries, owner-scoped repository, and database-authoritative idempotency/concurrency replaced the legacy facade. |
 | AI Provider Administration | provider profiles, credentials, and active runtime selection | High | Mutable provider configuration is shared operational state and lacks a consistent command/concurrency boundary. |
 | Session / Turn | Session lifecycle, accepted inputs, canonical turns, state, and object placement | Medium | The consistency boundary is broad and already participates in execution fencing; changes must follow execution extraction. |
 | Module Package Catalog | package identity, validation snapshot, availability, and enabled state | Medium | Filesystem installation and database catalog lifecycle are currently combined but the endpoint boundary is already service-based. |
@@ -39,6 +39,7 @@ Scenario authoring established the reference architecture for Myriale domain cod
 
 ## Delivered slices
 
+- **Module Execution (August 2026):** the legacy 958-line service/facade and process-local semaphore were removed. Explicit detached/session initialization, dispatch, and query use cases now coordinate aggregate-owned state, durable receipts, projection, runtime, effects, and handoff responsibilities. See `module-execution.md`.
 - **Progression Runtime (August 2026):** transition receipts now expose a native status enum and aggregate-owned lifecycle, while an application command and focused EF repository preserve owner scoping, atomic revision claims, and lease-generation fencing. See `progression-runtime.md`.
 - **AI Provider Administration — active selection (August 2026):** runtime selection now uses a revision-protected singleton aggregate, activation command outcomes, a focused EF repository, separated fallback query policy, and a legacy selection-store adapter. Profile and credential lifecycle extraction remains a later slice. See `ai-provider-administration.md`.
 

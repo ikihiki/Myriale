@@ -7,6 +7,7 @@ using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Services;
 using Myriale.Api.Modules.Execution;
+using Myriale.Api.Application.ModuleExecutions;
 
 namespace Myriale.Api.Endpoints;
 
@@ -198,7 +199,7 @@ public static class SessionEndpoints
         CreateSessionRequest request,
         ClaimsPrincipal principal,
         ApplicationDbContext db,
-        IModuleExecutionService executions,
+        GetModuleExecutionQuery executions,
         ScenarioRuleConfigurationResolver ruleResolver,
         CancellationToken cancellationToken)
     {
@@ -397,7 +398,7 @@ public static class SessionEndpoints
         string sessionId,
         ClaimsPrincipal principal,
         ApplicationDbContext db,
-        IModuleExecutionService executions,
+        GetModuleExecutionQuery executions,
         IHostEnvironment environment,
         ScenarioRuleConfigurationResolver ruleResolver,
         CancellationToken cancellationToken)
@@ -594,22 +595,22 @@ public static class SessionEndpoints
         InitializeModuleExecutionRequest request,
         ClaimsPrincipal principal,
         ApplicationDbContext db,
-        IModuleExecutionService executions,
+        InitializeSessionTurnModuleExecutionCommand executions,
         CancellationToken cancellationToken)
     {
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
-        var result = await executions.InitializeSessionTurnAsync(ownerId, sessionId, request, cancellationToken);
-        if (result.StatusCode == StatusCodes.Status404NotFound && result.Response is null && result.Error is null)
+        var result = await executions.ExecuteAsync(ownerId, sessionId, request, SessionTurnInitializationPolicy.UserRequested, cancellationToken);
+        if (result.Outcome == ModuleExecutionOutcome.NotFound)
             return Results.NotFound();
-        if (result.Response is null || result.SessionTurnId is null)
-            return Results.Json(result.Error, statusCode: result.StatusCode);
+        if (result.Execution is null || result.SessionTurnId is null)
+            return ModuleExecutionEndpoints.ToResult(result);
 
         var turn = await db.SessionTurns.AsNoTracking()
             .SingleAsync(item => item.Id == result.SessionTurnId && item.SessionId == sessionId, cancellationToken);
         var response = ToModuleTurnResponse(
             turn,
-            result.Response,
+            result.Execution,
             await ToHandoffResponseAsync(turn, db, cancellationToken));
         return Results.Created($"/api/sessions/{sessionId}/turns/{turn.Id}", response);
     }
@@ -619,7 +620,7 @@ public static class SessionEndpoints
         string turnId,
         ClaimsPrincipal principal,
         ApplicationDbContext db,
-        IModuleExecutionService executions,
+        GetModuleExecutionQuery executions,
         CancellationToken cancellationToken)
     {
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -674,7 +675,7 @@ public static class SessionEndpoints
         string ownerId,
         string sessionId,
         ApplicationDbContext db,
-        IModuleExecutionService executions,
+        GetModuleExecutionQuery executions,
         CancellationToken cancellationToken)
     {
         var stored = await db.SessionTurns.AsNoTracking()
@@ -768,7 +769,7 @@ public static class SessionEndpoints
         SessionTurn turn,
         string ownerId,
         ApplicationDbContext db,
-        IModuleExecutionService executions,
+        GetModuleExecutionQuery executions,
         CancellationToken cancellationToken)
     {
         if (turn.Kind == "narrative")
@@ -804,10 +805,10 @@ public static class SessionEndpoints
             .Select(item => item.Id)
             .SingleOrDefaultAsync(cancellationToken);
         if (executionId is null) return null;
-        var execution = await executions.GetAsync(ownerId, executionId, cancellationToken);
-        return execution.Response is null
+        var execution = await executions.ExecuteAsync(ownerId, executionId, cancellationToken);
+        return execution.Execution is null
             ? null
-            : ToModuleTurnResponse(turn, execution.Response, await ToHandoffResponseAsync(turn, db, cancellationToken));
+            : ToModuleTurnResponse(turn, execution.Execution, await ToHandoffResponseAsync(turn, db, cancellationToken));
     }
 
     private static async Task<NarrativeHandoffStatusResponse?> ToHandoffResponseAsync(

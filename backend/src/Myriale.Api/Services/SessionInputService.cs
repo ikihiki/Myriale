@@ -55,13 +55,13 @@ public sealed class SessionInputService(ApplicationDbContext db, IOptions<AiProv
                 .Where(turn => turn.Id == session.HeadTurnId && turn.Kind == "module")
                 .Select(turn => new
                 {
-                    ExecutionStatus = turn.ModuleExecution == null ? null : turn.ModuleExecution.Status,
+                    ExecutionStatus = turn.ModuleExecution == null ? (ModuleExecutionStatus?)null : turn.ModuleExecution.Status,
                     HasNarrativeHandoff = turn.NarrativeTurn != null,
                 })
                 .SingleOrDefaultAsync(cancellationToken);
             if (headModule is { HasNarrativeHandoff: false })
             {
-                var code = headModule.ExecutionStatus == Myriale.ModuleSdk.ModuleExecutionStatuses.Completed
+                var code = headModule.ExecutionStatus == ModuleExecutionStatus.Completed
                     ? "module_handoff_pending"
                     : "forced_mode_active";
                 var message = code == "module_handoff_pending"

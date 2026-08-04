@@ -455,6 +455,15 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .HasForeignKey<ModuleExecution>(execution => execution.SessionTurnId)
             .OnDelete(DeleteBehavior.Cascade);
         builder.Entity<ModuleExecution>()
+            .Property(execution => execution.Status)
+            .HasConversion(value => value.ToWireValue(), value => ModuleExecutionStatusValues.Parse(value));
+        builder.Entity<ModuleExecutionRequest>()
+            .Property(request => request.Operation)
+            .HasConversion<string>();
+        builder.Entity<ModuleExecutionRequest>()
+            .Property(request => request.Status)
+            .HasConversion<string>();
+        builder.Entity<ModuleExecution>()
             .Property(execution => execution.Revision)
             .IsConcurrencyToken();
         builder.Entity<ModuleExecution>()

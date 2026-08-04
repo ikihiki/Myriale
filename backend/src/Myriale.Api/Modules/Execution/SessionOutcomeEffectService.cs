@@ -85,16 +85,9 @@ public sealed partial class SessionOutcomeEffectService(ApplicationDbContext db)
         state.FlagsJson = flagsJson;
         state.Revision++;
         state.UpdatedAt = now;
-        db.ModuleOutcomeApplications.Add(new ModuleOutcomeApplication
-        {
-            ExecutionId = execution.Id,
-            SessionId = sessionId,
-            ModuleExecutionRequestId = request.Id,
-            ExpectedSessionRevision = request.ExpectedSessionRevision.Value,
-            AppliedSessionRevision = state.Revision,
-            EffectCount = outcome.Effects.Count,
-            AppliedAt = now,
-        });
+        db.ModuleOutcomeApplications.Add(ModuleOutcomeApplication.Create(
+            execution.Id, sessionId, request.Id, request.ExpectedSessionRevision.Value,
+            state.Revision, outcome.Effects.Count, now));
         return SessionOutcomeEffectResult.Success;
     }
 

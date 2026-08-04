@@ -1,11 +1,12 @@
 using System.Text.Json;
 using Myriale.Api.Contracts;
-using Myriale.Api.Modules.Execution;
+using Myriale.Api.Application.ModuleExecutions;
+using Myriale.Api.Data;
 using Myriale.ModuleSdk;
 
 namespace Myriale.Api.Services;
 
-public sealed class ScenarioModuleExtensionAdapter(IModuleExecutionService executions) : IScenarioExtensionAdapter
+public sealed class ScenarioModuleExtensionAdapter(InitializeDetachedModuleExecutionCommand executions) : IScenarioExtensionAdapter
 {
     public async Task<ScenarioExtensionResult> ExecuteAsync(
         ScenarioExtensionRequest request,
@@ -17,7 +18,7 @@ public sealed class ScenarioModuleExtensionAdapter(IModuleExecutionService execu
             request.ActionId,
             request.Arguments,
             request.ObjectState);
-        var result = await executions.InitializeAsync(
+        var result = await executions.ExecuteAsync(
             request.OwnerId,
             new InitializeModuleExecutionRequest(
                 $"scenario-extension:{request.InvocationId}",
@@ -29,13 +30,13 @@ public sealed class ScenarioModuleExtensionAdapter(IModuleExecutionService execu
                 0),
             cancellationToken);
 
-        if (result.Response is not { } execution)
+        if (result.Execution is not { } execution)
             throw new ScenarioTurnValidationException(result.Error?.Code ?? "extension_initialization_failed");
 
         var outcome = execution.Outcome;
         return new ScenarioExtensionResult(
             execution.Id,
-            execution.Status,
+            execution.Status.ToWireValue(),
             execution.Revision,
             execution.AvailableActions,
             [],

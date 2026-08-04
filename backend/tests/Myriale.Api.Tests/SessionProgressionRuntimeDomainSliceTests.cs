@@ -5,7 +5,7 @@ using Myriale.Api.Application.ProgressionRuntime;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Infrastructure.ProgressionRuntime;
-using Myriale.Api.Modules.Execution;
+using Myriale.Api.Application.ModuleExecutions;
 using Myriale.Api.Services;
 
 namespace Myriale.Api.Tests;
@@ -155,7 +155,7 @@ public sealed class SessionProgressionRuntimeDomainSliceTests : IDisposable
         var repository = new RecordingRepository();
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        var command = Command(repository, new StubExecutions((_, _, _, token) => Task.FromCanceled<ModuleExecutionServiceResult>(token)));
+        var command = Command(repository, new StubExecutions((_, _, _, token) => Task.FromCanceled<ModuleExecutionResult>(token)));
 
         await Assert.ThrowsAsync<TaskCanceledException>(() => command.ExecuteAsync("owner", "PTR-1", cancellation.Token));
         Assert.Equal(1, repository.ReleaseCalls);
@@ -163,12 +163,12 @@ public sealed class SessionProgressionRuntimeDomainSliceTests : IDisposable
     }
 
     [Theory]
-    [InlineData(503, "package_unavailable", true)]
-    [InlineData(400, "invalid_configuration", false)]
-    public async Task ModuleErrorsMapRetryability(int statusCode, string code, bool retryable)
+    [InlineData(ModuleExecutionOutcome.Unavailable, "package_unavailable", true)]
+    [InlineData(ModuleExecutionOutcome.InvalidRequest, "invalid_configuration", false)]
+    public async Task ModuleErrorsMapRetryability(ModuleExecutionOutcome outcome, string code, bool retryable)
     {
         var repository = new RecordingRepository();
-        var result = new ModuleExecutionServiceResult(statusCode, Error: new ModuleExecutionErrorResponse(code, "error"));
+        var result = new ModuleExecutionResult(outcome, Error: new ModuleExecutionErrorResponse(code, "error"));
         var command = Command(repository, new StubExecutions((_, _, _, _) => Task.FromResult(result)));
 
         await command.ExecuteAsync("owner", "PTR-1", default);
@@ -178,8 +178,8 @@ public sealed class SessionProgressionRuntimeDomainSliceTests : IDisposable
         Assert.Equal(code, repository.LastErrorCode);
     }
 
-    private static EnsureProgressionReceiptCommand Command(RecordingRepository repository, IModuleExecutionService executions) =>
-        new(repository, executions, new FixedTimeProvider(Now), NullLogger<EnsureProgressionReceiptCommand>.Instance);
+    private static EnsureProgressionReceiptCommand Command(RecordingRepository repository, IModuleExecutionWorkflow executions) =>
+        new(repository, new InitializeSessionTurnModuleExecutionCommand(executions), new FixedTimeProvider(Now), NullLogger<EnsureProgressionReceiptCommand>.Instance);
 
     private async Task SeedAsync(SessionProgressionTransitionReceipt receipt)
     {
@@ -247,12 +247,10 @@ public sealed class SessionProgressionRuntimeDomainSliceTests : IDisposable
     }
 
     private sealed class StubExecutions(
-        Func<string, string, InitializeModuleExecutionRequest, CancellationToken, Task<ModuleExecutionServiceResult>> initialize) : IModuleExecutionService
+        Func<string, string, InitializeModuleExecutionRequest, CancellationToken, Task<ModuleExecutionResult>> initialize) : IModuleExecutionWorkflow
     {
-        public Task<ModuleExecutionServiceResult> InitializeScenarioSessionTurnAsync(string ownerId, string sessionId, InitializeModuleExecutionRequest request, CancellationToken cancellationToken) => initialize(ownerId, sessionId, request, cancellationToken);
-        public Task<ModuleExecutionServiceResult> InitializeAsync(string ownerId, InitializeModuleExecutionRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<ModuleExecutionServiceResult> InitializeSessionTurnAsync(string ownerId, string sessionId, InitializeModuleExecutionRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<ModuleExecutionServiceResult> GetAsync(string ownerId, string executionId, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<ModuleExecutionServiceResult> DispatchAsync(string ownerId, string executionId, DispatchModuleExecutionRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<ModuleExecutionResult> InitializeSessionTurnAsync(string ownerId, string sessionId, InitializeModuleExecutionRequest request, SessionTurnInitializationPolicy policy, CancellationToken cancellationToken) => initialize(ownerId, sessionId, request, cancellationToken);
+        public Task<ModuleExecutionResult> InitializeDetachedAsync(string ownerId, InitializeModuleExecutionRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<ModuleExecutionResult> DispatchAsync(string ownerId, string executionId, DispatchModuleExecutionRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 }

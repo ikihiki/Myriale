@@ -292,7 +292,7 @@ public sealed class ModuleHandoffExecutionHandler(
     private NarrativeHandoffRequest BuildRequest(SessionTurn source, IReadOnlyList<NarrativeEntityInput> entities)
     {
         var execution = source.ModuleExecution!;
-        if (execution.Status != ModuleExecutionStatuses.Completed || execution.OutcomeJson is null)
+        if (execution.Status != ModuleExecutionStatus.Completed || execution.OutcomeJson is null)
             throw new NarrativeHandoffValidationException("module_turn_not_completed", "Module Turnが完了していません。");
 
         ModuleOutcome outcome;

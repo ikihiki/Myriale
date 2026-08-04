@@ -1,6 +1,6 @@
 using System.Security.Claims;
+using Myriale.Api.Application.ModuleExecutions;
 using Myriale.Api.Contracts;
-using Myriale.Api.Modules.Execution;
 
 namespace Myriale.Api.Endpoints;
 
@@ -8,68 +8,41 @@ public static class ModuleExecutionEndpoints
 {
     public static RouteGroupBuilder MapModuleExecutionEndpoints(this IEndpointRouteBuilder routes)
     {
-        var group = routes.MapGroup("/api/module-executions")
-            .WithTags("Module Executions")
-            .RequireAuthorization()
-            .RequireCors("MyrialeFrontend");
-
-        group.MapPost("/", InitializeAsync)
-            .WithName("InitializeModuleExecution")
-            .WithSummary("Creates and initializes a detached module execution.");
-        group.MapGet("/{executionId}", GetAsync)
-            .WithName("GetModuleExecution")
-            .WithSummary("Returns the owner-visible durable module execution snapshot.");
-        group.MapPost("/{executionId}/dispatch", DispatchAsync)
-            .WithName("DispatchModuleExecution")
-            .WithSummary("Applies one action to an active detached module execution.");
+        var group = routes.MapGroup("/api/module-executions").WithTags("Module Executions").RequireAuthorization().RequireCors("MyrialeFrontend");
+        group.MapPost("/", InitializeAsync).WithName("InitializeModuleExecution");
+        group.MapGet("/{executionId}", GetAsync).WithName("GetModuleExecution");
+        group.MapPost("/{executionId}/dispatch", DispatchAsync).WithName("DispatchModuleExecution");
         return group;
     }
 
-    private static async Task<IResult> InitializeAsync(
-        InitializeModuleExecutionRequest request,
-        ClaimsPrincipal principal,
-        IModuleExecutionService service,
-        CancellationToken cancellationToken)
+    private static async Task<IResult> InitializeAsync(InitializeModuleExecutionRequest request, ClaimsPrincipal principal,
+        InitializeDetachedModuleExecutionCommand command, CancellationToken cancellationToken)
     {
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
-        var result = await service.InitializeAsync(ownerId, request, cancellationToken);
-        return ToResult(result);
+        return string.IsNullOrWhiteSpace(ownerId) ? Results.Unauthorized() : ToResult(await command.ExecuteAsync(ownerId, request, cancellationToken));
     }
 
-    private static async Task<IResult> GetAsync(
-        string executionId,
-        ClaimsPrincipal principal,
-        IModuleExecutionService service,
-        CancellationToken cancellationToken)
+    private static async Task<IResult> GetAsync(string executionId, ClaimsPrincipal principal, GetModuleExecutionQuery query, CancellationToken cancellationToken)
     {
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
-        return ToResult(await service.GetAsync(ownerId, executionId, cancellationToken));
+        return string.IsNullOrWhiteSpace(ownerId) ? Results.Unauthorized() : ToResult(await query.ExecuteAsync(ownerId, executionId, cancellationToken));
     }
 
-    private static async Task<IResult> DispatchAsync(
-        string executionId,
-        DispatchModuleExecutionRequest request,
-        ClaimsPrincipal principal,
-        IModuleExecutionService service,
-        CancellationToken cancellationToken)
+    private static async Task<IResult> DispatchAsync(string executionId, DispatchModuleExecutionRequest request, ClaimsPrincipal principal,
+        DispatchModuleExecutionCommand command, CancellationToken cancellationToken)
     {
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrWhiteSpace(ownerId)) return Results.Unauthorized();
-        return ToResult(await service.DispatchAsync(ownerId, executionId, request, cancellationToken));
+        return string.IsNullOrWhiteSpace(ownerId) ? Results.Unauthorized() : ToResult(await command.ExecuteAsync(ownerId, executionId, request, cancellationToken));
     }
 
-    private static IResult ToResult(ModuleExecutionServiceResult result)
+    internal static IResult ToResult(ModuleExecutionResult result) => result.Outcome switch
     {
-        if (result.StatusCode == StatusCodes.Status404NotFound && result.Response is null && result.Error is null)
-            return Results.NotFound();
-        if (result.Response is not null)
-        {
-            return result.StatusCode == StatusCodes.Status201Created
-                ? Results.Created(result.Location!, result.Response)
-                : Results.Json(result.Response, statusCode: result.StatusCode);
-        }
-        return Results.Json(result.Error, statusCode: result.StatusCode);
-    }
+        ModuleExecutionOutcome.Created when result.Execution is not null => Results.Created($"/api/module-executions/{result.Execution.Id}", result.Execution),
+        ModuleExecutionOutcome.Success when result.Execution is not null => Results.Ok(result.Execution),
+        ModuleExecutionOutcome.NotFound => Results.NotFound(),
+        ModuleExecutionOutcome.InvalidRequest => Results.BadRequest(result.Error),
+        ModuleExecutionOutcome.Conflict => Results.Conflict(result.Error),
+        ModuleExecutionOutcome.Unprocessable => Results.UnprocessableEntity(result.Error),
+        _ => Results.Json(result.Error, statusCode: StatusCodes.Status503ServiceUnavailable),
+    };
 }
