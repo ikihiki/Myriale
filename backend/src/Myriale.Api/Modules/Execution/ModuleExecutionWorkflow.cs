@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Myriale.Api.Contracts;
 using Myriale.Api.Application.ModuleExecutions;
+using Myriale.Api.Application.ModuleHandoffs;
 using Myriale.Api.Data;
 using Myriale.Api.Modules.Runtime;
 using Myriale.Api.Services;
@@ -21,13 +22,13 @@ internal sealed partial class ModuleExecutionWorkflow : IModuleExecutionWorkflow
     private readonly SessionOutcomeEffectService effects;
     private readonly ILogger<ModuleExecutionWorkflow> logger;
     private readonly IModuleExecutionProjection projection;
-    private readonly ModuleHandoffPreparer handoffs;
+    private readonly EnqueueModuleHandoffCommand handoffs;
     private readonly ModuleExecutionOptions _options;
     private readonly JsonSerializerOptions _json = ModuleJsonSerializerOptions.Create();
 
     public ModuleExecutionWorkflow(ApplicationDbContext db, IModuleRuntime runtime, SessionOutcomeEffectService effects,
         IOptions<ModuleExecutionOptions> options, ILogger<ModuleExecutionWorkflow> logger, IModuleExecutionProjection projection,
-        ModuleHandoffPreparer handoffs)
+        EnqueueModuleHandoffCommand handoffs)
     {
         this.db = db; this.runtime = runtime; this.effects = effects; this.logger = logger; this.projection = projection; this.handoffs = handoffs;
         _options = options.Value;

@@ -32,7 +32,7 @@ There is no process-static execution semaphore. PostgreSQL/SQLite uniqueness, tr
 
 ## Adapters and responsibilities
 
-The runtime SDK and package installation contracts are unchanged. Runtime invocation remains behind `IModuleRuntime`; session effects remain in `SessionOutcomeEffectService`; response projection is `IModuleExecutionProjection`; session handoff preparation remains distinct from SessionExecution queue semantics. The orchestration implementation is split into initialize, dispatch, and support partials so each source file remains reviewable.
+The runtime SDK and package installation contracts are unchanged. Runtime invocation remains behind `IModuleRuntime`; session effects remain in `SessionOutcomeEffectService`; response projection is `IModuleExecutionProjection`; completed outcomes invoke `EnqueueModuleHandoffCommand`; its persistence port validates the source Module Execution/Session/Turn chain and creates the database-idempotent SessionExecution queue row. The orchestration implementation is split into initialize, dispatch, and support partials so each source file remains reviewable.
 
 ## Dependency rules
 

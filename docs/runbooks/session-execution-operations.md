@@ -27,7 +27,7 @@ Run only the evaluation category with `dotnet test backend/tests/Myriale.Api.Tes
 
 - A `session_advanced` result should end as `superseded` and publish no Turn.
 - Check the Session head, accepted head, Execution revision, lease token, unique PlayerInput/SourceModuleTurn constraint, and committed Artifact.
-- If a Turn already exists, normalize the Execution to success rather than publishing another Turn.
+- If a Turn already exists, normalize the Execution to success rather than publishing another Turn; the Progression receipt command may safely resume the unique post-commit receipt.
 - Cancellation loses only when the publish transaction committed first; otherwise the invalidated lease prevents late publication.
 
 ## Trace and diagnostics

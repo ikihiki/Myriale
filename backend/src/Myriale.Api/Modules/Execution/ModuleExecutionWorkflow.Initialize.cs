@@ -212,9 +212,9 @@ execution.FailInitialization(validationError, _json, DateTimeOffset.UtcNow);
                 if (!effectResult.IsSuccess)
                     return await RejectInitializationEffectsAsync(execution, receipt, effectResult, cancellationToken);
             }
-            if (result.Status == ModuleExecutionStatuses.Completed)
-                await handoffs.PrepareAsync(execution, result.Outcome, cancellationToken);
             ApplyInitialization(execution, result);
+            if (result.Status == ModuleExecutionStatuses.Completed)
+                await handoffs.ExecuteAsync(execution, result.Outcome, cancellationToken);
             var response = ToResponse(execution, result.Error, []);
             var serviceResult = new ModuleExecutionResult(ModuleExecutionOutcome.Created, response);
             CompleteReceipt(receipt, serviceResult, true);

@@ -59,7 +59,7 @@ public sealed class MockAiNarrativeGenerator(IHttpClientFactory httpClientFactor
         var body = await response.Content.ReadFromJsonAsync<NarrativeHandoffResponse>(cancellationToken: cancellationToken);
         if (string.IsNullOrWhiteSpace(body?.Body) || body.Body.Length > 20_000)
             throw new NarrativeGenerationException("Narrative provider returned an invalid response.");
-        return new(body.Body.Trim(), MockMetadata());
+        return new(body.Body.Trim(), MockMetadata(), JsonSerializer.Serialize(request), JsonSerializer.Serialize(body));
     }
     private static AiGenerationMetadata MockMetadata() => new("mock", "deterministic", null, null, null, 0, 1, "stop");
 }

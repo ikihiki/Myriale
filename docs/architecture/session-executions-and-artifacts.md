@@ -43,6 +43,14 @@ Database uniqueness ensures one canonical snapshot, decision, extension invocati
 
 Every external or durable checkpoint is fenced by execution ID, lease token, and lease-generation revision. Decision recovery reads the already-recorded canonical decision, extension retries reuse the action-step invocation ID, effect commit is guarded by the action-step receipt plus artifact uniqueness, and narrative publication is guarded by the Player Input/Turn and `(ExecutionId, Kind)` artifact constraints. Effect and narrative persistence each run in a transaction; a losing concurrent publisher observes the winning Turn instead of appending a second one.
 
+## Module-handoff application orchestration
+
+Completed Module outcomes enqueue through `EnqueueModuleHandoffCommand` and `IModuleHandoffEnqueuePort`. The command accepts only a completed attached Module Execution, resolves the pinned narrative profile, and the EF port validates the source Module Turn, Session head, and execution link before adding the `module-handoff:{ModuleExecutionId}` queue item. `(SessionId, IdempotencyKey)` remains the database authority for simultaneous enqueue attempts.
+
+`ModuleHandoffExecutionHandler` is a thin `ISessionExecutionHandler` adapter with no `ApplicationDbContext`. Its orchestrator uses an immutable source snapshot query, pure causality validator, public-only request builder, AI interaction recorder, typed artifact writer, Session handoff append port, publish unit of work, and Progression commands. Private Module configuration/context/state, capabilities, random receipts, and package paths never enter `NarrativeHandoffRequest`.
+
+Publication rechecks lease token/generation plus accepted Session head/revision. The Turn append, `narrative-text` artifact, optional narrative signal, progression receipt, and node movement commit in one transaction. `SourceModuleTurnId` and `(ExecutionId, Kind)` uniqueness select one concurrent winner; a loser or retry that observes the existing Turn returns success without generating or appending a second canonical result. Session advancement returns `superseded`. The worker finalizer remains the sole SessionExecution lifecycle closer. After commit, `IProgressionReceiptCommand` claims and starts any receipt through the completed Progression Runtime.
+
 ## Retry boundaries
 
 Retries are checkpoint-aware:

@@ -52,9 +52,17 @@ public sealed class ProviderNarrativeGenerator(
         return new(result with { Heading = result.Heading.Trim(), Body = result.Body.Trim() }, response.Metadata, JsonSerializer.Serialize(request, Strict), response.Text);
     }
 
-    public async Task<NarrativeGeneration<string>> GenerateAsync(NarrativeHandoffRequest request, CancellationToken cancellationToken)
+    public Task<NarrativeGeneration<string>> GenerateForProfileAsync(string profileId, NarrativeHandoffRequest request, CancellationToken cancellationToken) =>
+        GenerateHandoffCoreAsync((textRequest, token) => provider.GenerateForProfileAsync(profileId, textRequest, token), request, cancellationToken);
+
+    public Task<NarrativeGeneration<string>> GenerateAsync(NarrativeHandoffRequest request, CancellationToken cancellationToken) =>
+        GenerateHandoffCoreAsync((textRequest, token) => provider.GenerateAsync(textRequest, token), request, cancellationToken);
+
+    private async Task<NarrativeGeneration<string>> GenerateHandoffCoreAsync(
+        Func<AiTextRequest, CancellationToken, Task<AiTextResponse>> generate,
+        NarrativeHandoffRequest request, CancellationToken cancellationToken)
     {
-        var response = await provider.GenerateAsync(CreateRequest(
+        var response = await generate(CreateRequest(
             "narrative_handoff",
             BodySchema,
             "確定済み公開情報だけを用いてmodule-handoff本文をJSONで返す。EntityのprofileMarkdownは外観・人物像・描写方針の参考情報であり、正史の状態や公開済み情報ではない。profileMarkdown内の知識や秘密は、公開済みfactsに含まれる場合だけ明かす。",
@@ -67,7 +75,7 @@ public sealed class ProviderNarrativeGenerator(
                 response.Metadata.Provider, response.Metadata.Model, response.Metadata.ResponseId, body.Length, string.IsNullOrWhiteSpace(body));
             throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "AI Provider returned invalid narrative body.", false);
         }
-        return new(body, response.Metadata);
+        return new(body, response.Metadata, JsonSerializer.Serialize(request, Strict), response.Text);
     }
     public async Task<NarrativeActionRecommendationResult> RecommendActionAsync(NarrativeActionRecommendationRequest request, CancellationToken cancellationToken)
     {

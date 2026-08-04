@@ -4,7 +4,7 @@
 
 `Session` is the consistency boundary for play lifecycle, accepted player input, the canonical turn chain, head position, and session revision. Closed values use `SessionStatus`, `SessionTurnKind`, `SessionTurnType`, and `SessionInputInteractionType`; EF stores their explicit wire values.
 
-The aggregate exposes creation, input acceptance, opening/scenario/module/handoff append, location movement, completion, and runtime revision advancement. Every append advances position, predecessor, head, revision, and update time together. Opening turns reject causal sources, action-result turns require player input, module handoffs require the source module turn, and completed sessions reject new input or turns. `SessionPlayerInput.Accept` and the `SessionTurn` factories create immutable facts with non-public setters.
+The aggregate exposes creation, input acceptance, opening/scenario/module/handoff append, location movement, completion, and runtime revision advancement. Module handoff publication reaches `AppendModuleHandoffNarrative` only through `IModuleHandoffSessionTurnAppender` inside the fenced publish unit of work. Every append advances position, predecessor, head, revision, and update time together. Opening turns reject causal sources, action-result turns require player input, module handoffs require the source module turn, and completed sessions reject new input or turns. `SessionPlayerInput.Accept` and the `SessionTurn` factories create immutable facts with non-public setters.
 
 ## Commands and persistence
 

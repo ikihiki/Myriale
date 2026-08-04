@@ -166,9 +166,6 @@ internal sealed partial class ModuleExecutionWorkflow
                 }
             }
 
-            if (transition.Status == ModuleExecutionStatuses.Completed)
-                await handoffs.PrepareAsync(execution, transition.Outcome, cancellationToken);
-
             ModuleExecutionResponse response;
             if (transition.Status == ModuleExecutionStatuses.Failed)
             {
@@ -177,6 +174,8 @@ internal sealed partial class ModuleExecutionWorkflow
             else
             {
                 ApplyTransition(execution, transition);
+                if (transition.Status == ModuleExecutionStatuses.Completed)
+                    await handoffs.ExecuteAsync(execution, transition.Outcome, cancellationToken);
                 response = ToResponse(execution, null, transition.UiEvents);
             }
             var accepted = new ModuleExecutionResult(ModuleExecutionOutcome.Success, response);

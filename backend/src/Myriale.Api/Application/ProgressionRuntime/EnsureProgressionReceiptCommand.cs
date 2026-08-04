@@ -4,11 +4,17 @@ using Myriale.Api.Application.ModuleExecutions;
 
 namespace Myriale.Api.Application.ProgressionRuntime;
 
+public interface IProgressionReceiptCommand
+{
+    Task ExecuteForNarrativeTurnAsync(string ownerId, string narrativeTurnId, CancellationToken cancellationToken);
+    Task ExecuteAsync(string ownerId, string receiptId, CancellationToken cancellationToken);
+}
+
 public sealed class EnsureProgressionReceiptCommand(
     IProgressionReceiptRepository repository,
     InitializeSessionTurnModuleExecutionCommand executions,
     TimeProvider timeProvider,
-    ILogger<EnsureProgressionReceiptCommand> logger)
+    ILogger<EnsureProgressionReceiptCommand> logger) : IProgressionReceiptCommand
 {
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(2);
 

@@ -6,6 +6,7 @@ public static class SessionAiInteractionStages
 {
     public const string ActionDecision = "action-decision";
     public const string Narrative = "narrative";
+    public const string ModuleHandoff = "module-handoff";
 }
 
 public static class SessionAiInteractionStatuses

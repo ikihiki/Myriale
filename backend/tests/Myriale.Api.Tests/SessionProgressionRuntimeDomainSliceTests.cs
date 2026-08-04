@@ -65,11 +65,11 @@ public sealed class SessionProgressionRuntimeDomainSliceTests : IDisposable
     }
 
     [Fact]
-    public void CompatibilityServiceIsAThinApplicationAdapter()
+    public void CompatibilityServiceWasRemovedAndCommandOwnsTheBoundary()
     {
-        var fields = typeof(SessionScenarioProgressionService).GetFields(BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.Single(fields);
-        Assert.Equal(typeof(EnsureProgressionReceiptCommand), fields[0].FieldType);
+        var assembly = typeof(EnsureProgressionReceiptCommand).Assembly;
+        Assert.Null(assembly.GetType("Myriale.Api.Services.SessionScenarioProgressionService"));
+        Assert.Contains(typeof(IProgressionReceiptCommand), typeof(EnsureProgressionReceiptCommand).GetInterfaces());
     }
 
     [Fact]

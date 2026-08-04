@@ -22,4 +22,6 @@ public interface IScenarioTurnAi
 public interface INarrativeGenerator
 {
     Task<NarrativeGeneration<string>> GenerateAsync(NarrativeHandoffRequest request, CancellationToken cancellationToken);
+    Task<NarrativeGeneration<string>> GenerateForProfileAsync(string profileId, NarrativeHandoffRequest request, CancellationToken cancellationToken) =>
+        GenerateAsync(request, cancellationToken);
 }
