@@ -76,7 +76,7 @@ public sealed class AcceptSessionInputUseCase(
         {
             Id = $"EXE-{Guid.NewGuid():N}".ToUpperInvariant(), SessionId = command.SessionId,
             Kind = SessionExecutionKind.ScenarioTurn, TriggerType = SessionExecutionTriggerType.PlayerInput,
-            Stage = ScenarioTurnStages.LoadingWorld, SchemaVersion = 1, TriggerId = input.Id,
+            Stage = ScenarioTurnStage.Snapshot.ToWireValue(), SchemaVersion = 1, TriggerId = input.Id,
             Status = SessionExecutionStatus.Queued, Revision = 0, IdempotencyKey = requestId, PayloadHash = payloadHash,
             ActionDecisionAiProfileId = actionProfile, NarrativeAiProfileId = narrativeProfile,
             AcceptedHeadTurnId = input.AcceptedAfterTurnId, AcceptedSessionRevision = input.AcceptedSessionRevision,
@@ -160,8 +160,9 @@ public sealed class CreateSessionUseCase(ISessionCreationRepository repository, 
         {
             var configuration = ruleResolver.Resolve(definition, item);
             if (configuration.Conflicts.Count > 0) return Conflict("invalid_rule_configuration", string.Join("; ", configuration.Conflicts));
-            session.ObjectStates.Add(new SessionObjectState { Id = $"SOS-{Guid.NewGuid():N}".ToUpperInvariant(), SessionId = sessionId,
-                ScenarioObjectId = item.Id, LocationId = item.LocationId, StateJson = ruleResolver.InitialState(definition, item).ToJsonString(), Revision = 0, UpdatedAt = now });
+            session.ObjectStates.Add(SessionObjectState.Create(
+                $"SOS-{Guid.NewGuid():N}".ToUpperInvariant(), sessionId, item.Id, item.LocationId,
+                ruleResolver.InitialState(definition, item).ToJsonString(), now));
         }
         if (source.InitialNode is not null)
             session.Progress = new SessionProgressState { SessionId = sessionId, CurrentNodeId = source.InitialNode.Id, Revision = 0, UpdatedAt = now };

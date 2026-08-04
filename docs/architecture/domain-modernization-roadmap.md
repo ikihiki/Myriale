@@ -15,7 +15,7 @@ Scenario authoring established the reference architecture for Myriale domain cod
 | Session Artifact | Typed JSON/storage artifact envelope, image attachment, media, and retention | Delivered | Closed kind/status/schema, factory-owned invariants, focused writer/repositories, and endpoint/query separation replace arbitrary JSON initialization. |
 | Module Package Catalog | package identity, validation snapshot, availability, and enabled state | Medium | Filesystem installation and database catalog lifecycle are currently combined but the endpoint boundary is already service-based. |
 | Account | Identity user profile and account lifecycle | Medium | Account endpoints contain application orchestration, but ASP.NET Identity remains the authoritative security boundary. |
-| Rule Runtime | rule evaluation, effect plan, and effect commit | Medium | Core conditions/effects are already typed; the remaining work is separating pure planning from state mutation and persistence. |
+| Rule Runtime / Scenario Turn | immutable world snapshot, validated effect plan, checkpointed execution orchestration | Delivered | Pure resolution, atomic effect commit, lease-fenced retries, typed artifacts, and exactly-once narrative publication now share explicit application ports. |
 
 ## Delivery order
 
@@ -47,6 +47,8 @@ Scenario authoring established the reference architecture for Myriale domain cod
 - **Session / Turn / Input (August 2026):** `SessionStatus`, turn/input enums, aggregate-owned creation/input/append/move/complete operations, atomic EF repositories, owner/author/admin-scoped query services, and thin Session endpoints replaced direct DbContext orchestration. Creation fingerprints and input payload hashes provide replay/conflict behavior; optimistic revision and database uniqueness normalize concurrent input/turn outcomes. The per-minute input limit remains a documented best-effort count rather than a strict database window counter. See `session-turn-input.md`.
 
 - **Session Artifact (August 2026):** artifact kind/status/schema and JSON/storage backing are now closed domain state with typed payload factories, draft/validate/commit lifecycle, SHA-256 and timestamp invariants, EF conversion/check constraints, focused writer/repository ports, compensated image attachment, owner-scoped range media reads, retention reconciliation, and a dedicated Session artifact/activity query. Scenario Turn, Module Handoff, and fixtures use the same factories/writer; the arbitrary `Kind` + `ContentJson` initializer and endpoint DbContext dependencies are removed. See `session-executions-and-artifacts.md`.
+
+- **Rule Runtime / Scenario Turn execution (August 2026):** runtime actions retain native visibility/execution enums, condition evaluation accepts only typed expressions, and EF-backed world bags were replaced by immutable snapshots. Pure rule resolution validates a complete `ScenarioEffectPlan` before mutation. `SessionObjectState` and `SessionRuleActionStep` now own factory/revision/stage behavior. The scenario handler is a thin adapter over lease-fenced world/action/AI/resolution/commit/artifact/narrative/Turn ports; retries reuse decisions and extension receipts, never reapply committed effects, and regenerate narrative only from stored post-state. Architecture and integration tests fix the old APIs and handler DbContext dependency as absent. See `scenario-architecture.md` and `session-executions-and-artifacts.md`.
 
 ## Deliberate boundaries
 

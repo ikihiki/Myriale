@@ -59,11 +59,16 @@ public sealed class GetSessionDetailQueryService(ApplicationDbContext db, IModul
         var objectResponses = new List<SessionObjectStateResponse>();
         if (definition is not null)
         {
-            var projector = new ScenarioPublicProjector(ruleResolver); var byId = definition.Objects.ToDictionary(x => x.Id);
-            objectResponses.AddRange(objectStates.Select(x => new SessionObjectStateResponse(x.ScenarioObjectId, x.ScenarioObject.Code, x.ScenarioObject.Name,
-                x.LocationId, x.ScenarioObject.IsGlobal, x.Revision, projector.Project(definition, byId[x.ScenarioObjectId], x.StateJson))));
+            var byId = definition.Objects.ToDictionary(x => x.Id);
+            objectResponses.AddRange(objectStates.Select(x =>
+            {
+                var item = byId[x.ScenarioObjectId];
+                var fields = ruleResolver.Resolve(definition, item).PublicFields;
+                return new SessionObjectStateResponse(x.ScenarioObjectId, x.ScenarioObject.Code, x.ScenarioObject.Name,
+                    x.LocationId, x.ScenarioObject.IsGlobal, x.Revision, ProjectPublicState(fields, x.StateJson));
+            }));
         }
-        var stepResponses = ruleSteps.Select(x => new SessionRuleActionStepResponse(x.Id, x.ExecutionId, x.Stage, ScenarioTurnSchemas.ActionStep,
+        var stepResponses = ruleSteps.Select(x => new SessionRuleActionStepResponse(x.Id, x.ExecutionId, x.Stage.ToWireValue(), ScenarioTurnSchemas.ActionStep,
             Parse<RuleActionSnapshot>(x.ActionSnapshotJson), Parse<RuleActionDecisionResult>(x.DecisionJson), Parse<RulePostState>(x.PublicPostStateJson),
             Parse<ScenarioExtensionResult>(x.ExtensionReceiptJson), x.AppliedAt, x.NarrativePublishedAt)).ToList();
         var stepsByExecution = ruleSteps.ToDictionary(x => x.ExecutionId, StringComparer.Ordinal);
@@ -76,6 +81,14 @@ public sealed class GetSessionDetailQueryService(ApplicationDbContext db, IModul
             artifactProjection.Artifacts, SessionQueryMapper.Activity(turnResponses, inputs, storedExecutions, artifactProjection.ActivityItems),
             proposals.Select(x => new SessionNoteProposalResponse(x.ArtifactId, x.SourceTurnId, x.NoteId, x.ExpectedNoteRevision, x.ProposedTitle, x.BeforeBody, x.ProposedBody, x.Rationale, x.Status.ToWireValue(), x.CreatedAt)).ToList(),
             session.ScenarioDefinitionVersionId, session.CurrentLocationId, objectResponses, stepResponses);
+    }
+    private static JsonElement ProjectPublicState(IReadOnlySet<string> fields, string stateJson)
+    {
+        var state = System.Text.Json.Nodes.JsonNode.Parse(stateJson) as System.Text.Json.Nodes.JsonObject ?? [];
+        var result = new System.Text.Json.Nodes.JsonObject();
+        foreach (var field in fields)
+            if (state[field] is { } value) result[field] = value.DeepClone();
+        return JsonSerializer.SerializeToElement(result);
     }
     private static T? Parse<T>(string? json) { if (string.IsNullOrWhiteSpace(json)) return default; return JsonSerializer.Deserialize<T>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web)); }
 }
@@ -105,7 +118,7 @@ public sealed class GetSessionTurnInspectionQueryService(ApplicationDbContext db
             var selectedObject = decision is null ? null : snapshot?.Objects.SingleOrDefault(x => x.Id == decision.ObjectId);
             var selectedAction = decision is null ? null : snapshot?.Actions.SingleOrDefault(x => x.ObjectId == decision.ObjectId && x.ActionId == decision.ActionId);
             var selected = decision is null ? null : new SessionScenarioTurnSelectedActionResponse(decision.ObjectId, decision.ActionId, selectedObject?.Code, selectedObject?.Name, selectedAction?.Code, selectedAction?.Label, decision.Arguments);
-            rule = new RuleEngineInspection(step.Id, step.Stage, ScenarioTurnSchemas.ActionStep, step.PreSessionRevision, step.PostSessionRevision,
+            rule = new RuleEngineInspection(step.Id, step.Stage.ToWireValue(), ScenarioTurnSchemas.ActionStep, step.PreSessionRevision, step.PostSessionRevision,
                 snapshot, selected, step.SelectedRuleId, ParseList<RuleAppliedEffect>(step.AppliedEffectsJson), post, ParseList<string>(step.FactsJson),
                 ParseList<JsonElement>(step.EventsJson), ParseList<string>(step.NarrativeHintsJson), DeriveChanges(snapshot, post, step.PreSessionRevision, step.PostSessionRevision),
                 new RuleProcessingTimingInspection(step.CreatedAt, step.EnumeratedAt, step.SelectedAt, step.AppliedAt, step.NarrativePublishedAt,

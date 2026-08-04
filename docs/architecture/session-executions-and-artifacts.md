@@ -27,7 +27,7 @@ One accepted input queues one `scenario-turn` execution with these durable check
 6. **state-committed** — atomically persist ordered effects, post-state revisions/placement, facts/events/hints, module state, and a unique commit receipt.
 7. **narrative-published** — generate from the stored public post-state, persist the narrative artifact, and append one canonical Turn.
 
-Public stages may be projected as `loading-world`, `enumerating-actions`, `selecting-action`, `applying-rules`, `running-extension`, `generating-narrative`, and a terminal status. Public payloads expose safe status and projections, not hidden rules, module bindings, private state, randomness, or diagnostics.
+The durable `ScenarioTurnStage` sequence is `snapshot` → `decision` → `resolution` → optional `extension` → `effect-commit` → `narrative-publish` → `completed`. `SessionRuleActionStep` owns these transitions through factories and behavior methods; lifecycle fields are not publicly settable. Public payloads expose safe status and projections, not hidden rules, module bindings, private state, randomness, or diagnostics.
 
 ## Idempotency, leases, and fencing
 
@@ -36,6 +36,12 @@ Input acceptance computes a normalized payload hash and creates the input/execut
 Workers claim queued, retry-wait, or expired-running work with a bounded lease token and fencing revision. Every checkpoint publication verifies ownership of the current lease and applicable Session/Object revisions. A late worker cannot overwrite a replacement worker or commit from a stale action snapshot.
 
 Database uniqueness ensures one canonical snapshot, decision, extension invocation, state commit, and narrative per action step. Checkpoint completion is recorded in the same transaction as its artifact/domain mutation so recovery can skip completed work safely.
+
+## Scenario-turn application orchestration
+
+`ScenarioTurnExecutionHandler` is only the `ISessionExecutionHandler` adapter and has no `ApplicationDbContext` dependency. `ScenarioTurnExecutionOrchestrator` coordinates focused ports for the world snapshot query, action-step repository, AI decision, AI interaction recording, rule resolution, effect commit unit of work, typed artifact writing, narrative generation/publication, and Session Turn append.
+
+Every external or durable checkpoint is fenced by execution ID, lease token, and lease-generation revision. Decision recovery reads the already-recorded canonical decision, extension retries reuse the action-step invocation ID, effect commit is guarded by the action-step receipt plus artifact uniqueness, and narrative publication is guarded by the Player Input/Turn and `(ExecutionId, Kind)` artifact constraints. Effect and narrative persistence each run in a transaction; a losing concurrent publisher observes the winning Turn instead of appending a second one.
 
 ## Retry boundaries
 

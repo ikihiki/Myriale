@@ -104,6 +104,37 @@ public sealed class SessionExecutionArchitectureTests
             measurement.Tags.Keys));
     }
 
+    [Fact]
+    public void ScenarioTurnHandler_IsThinAndHasNoDbContextDependency()
+    {
+        var constructor = Assert.Single(typeof(ScenarioTurnExecutionHandler).GetConstructors());
+        Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(ApplicationDbContext));
+        Assert.Equal([typeof(Myriale.Api.Application.ScenarioTurns.ScenarioTurnExecutionOrchestrator)],
+            constructor.GetParameters().Select(parameter => parameter.ParameterType));
+    }
+
+    [Fact]
+    public void ScenarioTurnExecution_HasExplicitSplitPortsAndNoLegacyRuntimeTypes()
+    {
+        var assembly = typeof(ScenarioTurnExecutionHandler).Assembly;
+        var required = new[]
+        {
+            typeof(Myriale.Api.Application.ScenarioTurns.IScenarioWorldSnapshotQuery),
+            typeof(Myriale.Api.Application.ScenarioTurns.IScenarioActionSnapshotRepository),
+            typeof(Myriale.Api.Application.ScenarioTurns.IScenarioAiDecisionService),
+            typeof(Myriale.Api.Application.ScenarioTurns.IScenarioAiInteractionRecorder),
+            typeof(IScenarioRuleResolutionService),
+            typeof(Myriale.Api.Application.ScenarioTurns.IScenarioEffectCommitUnitOfWork),
+            typeof(Myriale.Api.Application.ScenarioTurns.IScenarioTurnArtifactWriter),
+            typeof(Myriale.Api.Application.ScenarioTurns.IScenarioNarrativePublisher),
+            typeof(Myriale.Api.Application.ScenarioTurns.IScenarioSessionTurnAppender),
+        };
+        Assert.All(required, type => Assert.True(type.IsInterface, type.Name));
+        Assert.Null(assembly.GetType("Myriale.Api.Services.ScenarioRuleWorld"));
+        Assert.Null(assembly.GetType("Myriale.Api.Services.ScenarioEffectApplier"));
+        Assert.Null(assembly.GetType("Myriale.Api.Data.ScenarioTurnStages"));
+    }
+
     private static SessionExecution Execution(SessionExecutionStatus status) => new()
     {
         Id = "EXE-1",

@@ -192,6 +192,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         builder.Entity<SessionObjectState>()
             .HasOne(state => state.Location).WithMany()
             .HasForeignKey(state => state.LocationId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<SessionRuleActionStep>().Property(step => step.Stage)
+            .HasConversion(value => value.ToWireValue(), value => ScenarioTurnStageValues.Parse(value));
         builder.Entity<SessionRuleActionStep>()
             .HasIndex(step => step.ExecutionId).IsUnique();
         builder.Entity<SessionRuleActionStep>()

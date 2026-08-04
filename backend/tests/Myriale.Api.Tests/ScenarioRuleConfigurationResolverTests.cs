@@ -64,7 +64,7 @@ public sealed class ScenarioRuleConfigurationResolverTests
 
         Assert.Equal("open-default", firstRule.RuleCode);
         Assert.Equal(firstRule.Id, secondRule.Id);
-        Assert.Equal(firstRule.EffectsJson, secondRule.EffectsJson);
+        Assert.Equal(new ScenarioRuleJsonCodec().Encode(firstRule.Effects), new ScenarioRuleJsonCodec().Encode(secondRule.Effects));
     }
 
     [Fact]
@@ -98,12 +98,12 @@ public sealed class ScenarioRuleConfigurationResolverTests
         var untouchedRules = resolver.Resolve(definition, untouched).Rules.ToDictionary(rule => rule.RuleCode);
 
         Assert.Equal("object override", customizedRules["override-me"].AuthoringNote);
-        Assert.Contains("object override", customizedRules["override-me"].EffectsJson);
+        Assert.Contains(customizedRules["override-me"].Effects.Effects, effect => effect is TextEffect { Text: "object override" });
         Assert.DoesNotContain("delete-me", customizedRules);
         Assert.Equal(130, customizedRules["adjust-me"].Priority);
         Assert.Null(customizedRules["adjust-me"].AuthoringNote);
-        Assert.Contains("state.open", customizedRules["adjust-me"].ConditionJson);
-        Assert.Contains("generic adjust", customizedRules["adjust-me"].EffectsJson);
+        Assert.Equal("state.open", Assert.IsType<PredicateCondition>(customizedRules["adjust-me"].Condition).Path);
+        Assert.Contains(customizedRules["adjust-me"].Effects.Effects, effect => effect is TextEffect { Text: "generic adjust" });
         Assert.Null(customizedRules["adjust-me"].ModuleId);
         Assert.Equal(1, customizedRules["object-add"].SourceRank);
 

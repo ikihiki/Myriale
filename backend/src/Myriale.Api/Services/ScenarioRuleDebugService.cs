@@ -9,8 +9,9 @@ public sealed class ScenarioRuleDebugService(
     ApplicationDbContext db,
     ScenarioRuleConfigurationResolver resolver,
     ScenarioRuleEvaluator evaluator,
+    ScenarioRuleWorldSnapshotFactory snapshotFactory,
     ScenarioActionEnumerator enumerator,
-    ScenarioEffectApplier effectApplier,
+    IScenarioRuleResolutionService resolutionService,
     ScenarioActionDecisionModelMapper actionDecisionMapper,
     IScenarioTurnAi ai)
 {
@@ -34,7 +35,7 @@ public sealed class ScenarioRuleDebugService(
         var now = DateTimeOffset.UtcNow;
         var session = Session.Create(
             "DEBUG", "DEBUG", scenarioId, definition.Id, location.Id, null, null, "DEBUG", false,
-            new SessionState { SessionId = "DEBUG", FlagsJson = JsonSerializer.Serialize(request.Flags ?? new Dictionary<string, bool>()), UpdatedAt = now },
+            SessionState.Create("DEBUG", request.Flags ?? new Dictionary<string, bool>(), now),
             now, SessionStatus.Debug);
 
         var overrides = (request.Objects ?? []).ToDictionary(item => item.ObjectCode, StringComparer.Ordinal);
@@ -51,16 +52,11 @@ public sealed class ScenarioRuleDebugService(
                 : stateOverride.State.ValueKind == JsonValueKind.Object
                     ? stateOverride.State.GetRawText()
                     : throw new ScenarioTurnValidationException("invalid_debug_object_state");
-            states.Add(new SessionObjectState
-            {
-                Id = $"DEBUG-{item.Id}", SessionId = session.Id, Session = session,
-                ScenarioObjectId = item.Id, ScenarioObject = item,
-                LocationId = objectLocation.Id, Location = objectLocation,
-                StateJson = stateJson, UpdatedAt = now,
-            });
+            states.Add(SessionObjectState.Create(
+                $"DEBUG-{item.Id}", session.Id, item.Id, objectLocation.Id, stateJson, now));
         }
 
-        var world = new ScenarioRuleWorld(session, definition, states);
+        var world = snapshotFactory.Create(session, definition, states);
         var snapshot = enumerator.Enumerate(world, $"DEBUG-{Guid.NewGuid():N}");
         if (request.Trigger == "enumerate") return Empty(snapshot);
 
@@ -84,21 +80,20 @@ public sealed class ScenarioRuleDebugService(
             if (configuration.Conflicts.Count > 0) throw new ScenarioTurnValidationException("invalid_rule_configuration");
             var action = configuration.Actions.SingleOrDefault(candidate => candidate.Code == request.ActionCode)
                 ?? throw new ScenarioTurnValidationException("invalid_debug_action");
-            var state = states.Single(candidate => candidate.ScenarioObjectId == item.Id);
-            var stateObject = System.Text.Json.Nodes.JsonNode.Parse(state.StateJson) as System.Text.Json.Nodes.JsonObject ?? [];
+            var state = world.Objects.Single(candidate => candidate.Id == item.Id);
+            var stateObject = System.Text.Json.Nodes.JsonNode.Parse(state.State.GetRawText()) as System.Text.Json.Nodes.JsonObject ?? [];
             var flags = request.Flags ?? new Dictionary<string, bool>();
             var arguments = request.Arguments.ValueKind == JsonValueKind.Object ? request.Arguments : JsonSerializer.SerializeToElement(new { });
-            if (!evaluator.Evaluate(action.AvailabilityConditionJson, stateObject, flags, arguments))
+            if (!evaluator.Evaluate(action.AvailabilityCondition, stateObject, flags, arguments))
                 throw new ScenarioTurnValidationException("disabled_action");
             decision = new(ScenarioTurnSchemas.ActionDecision, item.Id, action.Id, arguments.Clone());
         }
         else throw new ScenarioTurnValidationException("invalid_debug_trigger");
 
-        var resolution = effectApplier.ResolveAndApply(world, decision);
-        session.AdvanceRuntime(now);
-        var postState = effectApplier.ProjectPostState(world);
-        return new(snapshot, decision, resolution.Rule?.RuleCode, resolution.Effects, postState,
-            resolution.Facts, resolution.Events, resolution.Hints, resolution.ForbiddenFacts);
+        var resolution = resolutionService.Resolve(world, decision, $"DEBUG-{Guid.NewGuid():N}");
+        var postState = resolutionService.ProjectPostState(world, resolution.Plan);
+        return new(snapshot, decision, resolution.Rule?.RuleCode, resolution.Plan.AppliedEffects, postState,
+            resolution.Plan.Facts, resolution.Plan.Events, resolution.Plan.NarrativeHints, resolution.Plan.ForbiddenNarrativeFacts);
     }
 
     private static ScenarioRuleDebugResponse Empty(RuleActionSnapshot snapshot) =>

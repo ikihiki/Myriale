@@ -9,5 +9,6 @@ playwright-report/
 **/obj/
 TestResults/
 **/.session-artifacts/
+**/module-storage/
 *.user
 *.rsuser

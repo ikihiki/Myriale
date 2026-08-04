@@ -87,7 +87,7 @@ public sealed class SessionExecution
     [Required, MaxLength(32)] public SessionExecutionTriggerType TriggerType { get; internal set; } = SessionExecutionTriggerType.PlayerInput;
     [Required, MaxLength(40)] public string TriggerId { get; internal set; } = string.Empty;
     [Required, MaxLength(32)] public SessionExecutionStatus Status { get; internal set; } = SessionExecutionStatus.Queued;
-    [MaxLength(40)] public string? Stage { get; set; }
+    [MaxLength(40)] public string? Stage { get; internal set; }
     public int SchemaVersion { get; internal set; } = 1;
     public long Revision { get; internal set; }
     [Required, MaxLength(160)] public string IdempotencyKey { get; internal set; } = string.Empty;

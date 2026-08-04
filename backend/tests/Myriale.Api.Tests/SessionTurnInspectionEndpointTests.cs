@@ -168,7 +168,7 @@ public sealed class SessionTurnInspectionEndpointTests : IDisposable
     private static SessionExecution Execution(string id, string sessionId, string inputId, DateTimeOffset startedAt) => new()
     {
         Id = id, SessionId = sessionId, Kind = SessionExecutionKinds.ScenarioTurn, TriggerType = SessionExecutionTriggerType.PlayerInput, TriggerId = inputId,
-        Status = SessionExecutionStatuses.Succeeded, Stage = ScenarioTurnStages.Completed, AttemptCount = id == ExecutionId ? 2 : 1,
+        Status = SessionExecutionStatuses.Succeeded, Stage = ScenarioTurnStage.Completed.ToWireValue(), AttemptCount = id == ExecutionId ? 2 : 1,
         IdempotencyKey = id, PayloadHash = new string('a', 64), CreatedAt = startedAt, QueuedAt = startedAt,
         StartedAt = startedAt, CompletedAt = startedAt.AddMilliseconds(900),
     };
@@ -201,16 +201,16 @@ public sealed class SessionTurnInspectionEndpointTests : IDisposable
         var decision = new RuleActionDecisionResult(ScenarioTurnSchemas.ActionDecision, beforeObject.Id, "ACT-OPEN", JsonSerializer.SerializeToElement(new { force = true }));
         var effects = new[] { new RuleAppliedEffect("set-state", beforeObject.Id, "state.open", JsonSerializer.SerializeToElement(true)) };
         var postState = new RulePostState(ScenarioTurnSchemas.PostStateNarrative, location, [afterObject], new Dictionary<string, bool>(), 8);
-        return new SessionRuleActionStep
-        {
-            Id = "RAS-INSPECTION", SessionId = SessionId, ExecutionId = ExecutionId, PlayerInputId = InputId,
-            ScenarioDefinitionVersionId = "SDV-TEST", Stage = ScenarioTurnStages.Completed, PreSessionRevision = 7, PostSessionRevision = 8,
-            ObjectRevisionsJson = "{\"OBJ-DOOR\":0}", ActionSnapshotJson = JsonSerializer.Serialize(snapshot, Json), DecisionJson = JsonSerializer.Serialize(decision, Json),
-            SelectedRuleId = "RULE-OPEN", AppliedEffectsJson = JsonSerializer.Serialize(effects, Json), PublicPostStateJson = JsonSerializer.Serialize(postState, Json),
-            FactsJson = "[\"The door is open.\"]", EventsJson = "[{\"type\":\"door-opened\"}]", NarrativeHintsJson = "[\"Describe the opened door.\"]",
-            CreatedAt = createdAt, EnumeratedAt = createdAt.AddMilliseconds(100), SelectedAt = createdAt.AddMilliseconds(250),
-            AppliedAt = createdAt.AddMilliseconds(500), NarrativePublishedAt = createdAt.AddMilliseconds(900), UpdatedAt = createdAt.AddMilliseconds(900),
-        };
+        var step = SessionRuleActionStep.CreateSnapshot(
+            "RAS-INSPECTION", SessionId, ExecutionId, InputId, "SDV-TEST", 7,
+            "{\"OBJ-DOOR\":0}", JsonSerializer.Serialize(snapshot, Json), createdAt.AddMilliseconds(100), createdAt);
+        step.RecordDecision(JsonSerializer.Serialize(decision, Json), createdAt.AddMilliseconds(250));
+        step.RecordResolution("RULE-OPEN", "{}", false, createdAt.AddMilliseconds(300));
+        step.CommitEffects(7, 8, JsonSerializer.Serialize(effects, Json), JsonSerializer.Serialize(postState, Json),
+            "[\"The door is open.\"]", "[{\"type\":\"door-opened\"}]", "[\"Describe the opened door.\"]", "[]",
+            createdAt.AddMilliseconds(500));
+        step.PublishNarrative(createdAt.AddMilliseconds(900));
+        return step;
     }
 
     private static async Task RegisterAsync(HttpClient client, string email)

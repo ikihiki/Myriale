@@ -74,6 +74,19 @@ public sealed class Session
             contextSchemaVersion, promptVersion, heading, body, interpretation, sourceSessionRevision, ai, now); Append(turn, now); return turn;
     }
 
+    internal SessionTurn AppendScenarioCompletionNarrative(string id, string playerInputId, string schemaVersion, string? contextSchemaVersion,
+        string? promptVersion, string? heading, string body, string? interpretation, long sourceSessionRevision,
+        SessionTurnAiMetadata ai, DateTimeOffset now)
+    {
+        if (Status != SessionStatus.Completed || sourceSessionRevision != Revision)
+            throw new InvalidOperationException("Only the narrative for the committed completion revision may be appended.");
+        if (string.IsNullOrWhiteSpace(playerInputId)) throw new ArgumentException("Action result requires player input.", nameof(playerInputId));
+        var turn = SessionTurn.CreateScenarioNarrative(id, Id, NextPosition(), HeadTurnId, playerInputId, schemaVersion,
+            contextSchemaVersion, promptVersion, heading, body, interpretation, sourceSessionRevision, ai, now);
+        Append(turn, now);
+        return turn;
+    }
+
     public SessionTurn AppendModuleTurn(string id, ModuleExecution execution, DateTimeOffset now)
     {
         EnsureActive();
@@ -91,6 +104,15 @@ public sealed class Session
 
     public void MoveTo(string locationId, DateTimeOffset now) { EnsureActive(); if (string.IsNullOrWhiteSpace(locationId)) throw new ArgumentException("Location is required.", nameof(locationId)); CurrentLocationId = locationId; UpdatedAt = now; }
     public void Complete(DateTimeOffset now) { EnsureActive(); Status = SessionStatus.Completed; UpdatedAt = now; }
+    public void ApplyScenarioEffects(long expectedRevision, string locationId, bool complete, DateTimeOffset now)
+    {
+        EnsureActive();
+        if (Revision != expectedRevision) throw new ScenarioRuntimeRevisionConflictException(Id, expectedRevision, Revision);
+        if (string.IsNullOrWhiteSpace(locationId)) throw new ArgumentException("Location is required.", nameof(locationId));
+        CurrentLocationId = locationId;
+        if (complete) Status = SessionStatus.Completed;
+        Advance(now);
+    }
     public void AdvanceRuntime(DateTimeOffset now) { EnsureActive(); Advance(now); }
     public void Touch(DateTimeOffset now) => UpdatedAt = now;
 

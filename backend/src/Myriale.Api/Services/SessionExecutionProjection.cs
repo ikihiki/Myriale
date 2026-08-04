@@ -48,7 +48,7 @@ public static class SessionExecutionProjection
             : snapshot.Objects.SingleOrDefault(item => item.Id == decision.ObjectId);
         return new SessionScenarioTurnProjectionResponse(
             "scenario-turn.v1",
-            step.Stage,
+            step.Stage.ToWireValue(),
             postState?.CurrentLocation ?? snapshot?.CurrentLocation,
             snapshot?.Objects ?? [],
             snapshot?.Actions ?? [],

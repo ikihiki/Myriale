@@ -105,6 +105,11 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         Assert.Equal(["runpod-recommended", "runpod-recommended"], ai.NarrativeProfileIds);
         Assert.All(ai.NarrativeRequests, request => Assert.True(request.PostState.Objects.Single(item => item.Code == "north-door").State.GetProperty("open").GetBoolean()));
         Assert.All(ai.NarrativeRequests, request => Assert.Contains(request.Scenario.Entities, entity => entity.Code == "north-door" && entity.ProfileMarkdown.Contains("stone door", StringComparison.Ordinal)));
+        await using var verificationScope = factory.Services.CreateAsyncScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal(1, await verificationDb.SessionArtifacts.CountAsync(item => item.SessionId == sessionId && item.Kind == SessionArtifactKind.RuleActionStep));
+        Assert.Equal(1, await verificationDb.SessionArtifacts.CountAsync(item => item.SessionId == sessionId && item.Kind == SessionArtifactKind.PostStateNarrative));
+        Assert.Equal(1, await verificationDb.SessionRuleActionSteps.CountAsync(item => item.SessionId == sessionId && item.AppliedAt != null));
         Assert.Equal(2, session.GetProperty("turns").GetArrayLength());
     }
 
