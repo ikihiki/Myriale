@@ -730,7 +730,7 @@ public static class SessionEndpoints
                 : new SessionProgressionResponse(
                     session.Progress.CurrentNode.Code,
                     session.Progress.Revision,
-                    transition?.Status,
+                    transition?.Status.ToWireValue(),
                     transition?.ModuleTurnId,
                     transition?.ErrorCode),
             turns,

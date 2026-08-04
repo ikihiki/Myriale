@@ -1,12 +1,14 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Myriale.Api.Application.ProgressionRuntime;
 using Myriale.Api.Application.SessionExecutions;
 using Myriale.Api.Application.Scenarios;
 using Myriale.Api.Application.SessionMemory;
 using Myriale.Api.Data;
 using Myriale.Api.Endpoints;
 using Myriale.Api.Domain.Scenarios;
+using Myriale.Api.Infrastructure.ProgressionRuntime;
 using Myriale.Api.Infrastructure.SessionExecutions;
 using Myriale.Api.Infrastructure.Scenarios;
 using Myriale.Api.Infrastructure.SessionMemory;
@@ -51,6 +53,8 @@ builder.Services.AddScoped<IActionRecommendationGenerator>(services =>
     string.Equals(builder.Configuration["AiProvider:Provider"], "mock", StringComparison.OrdinalIgnoreCase)
         ? services.GetRequiredService<MockAiNarrativeGenerator>()
         : services.GetRequiredService<ProviderNarrativeGenerator>());
+builder.Services.AddScoped<IProgressionReceiptRepository, EfProgressionReceiptRepository>();
+builder.Services.AddScoped<EnsureProgressionReceiptCommand>();
 builder.Services.AddScoped<SessionScenarioProgressionService>();
 builder.Services.AddSingleton<ScenarioRuleJsonCodec>();
 builder.Services.AddScoped<ISessionMemoryRepository, EfSessionMemoryRepository>();

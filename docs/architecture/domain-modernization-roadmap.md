@@ -37,6 +37,10 @@ Scenario authoring established the reference architecture for Myriale domain cod
 - Architecture tests prevent endpoint-to-`ApplicationDbContext` regressions and public lifecycle setters. Domain and integration tests cover transition matrices, idempotency, and stale revision behavior.
 - Existing HTTP wire values remain stable unless a versioned contract change is explicitly approved.
 
+## Delivered slices
+
+- **Progression Runtime (August 2026):** transition receipts now expose a native status enum and aggregate-owned lifecycle, while an application command and focused EF repository preserve owner scoping, atomic revision claims, and lease-generation fencing. See `progression-runtime.md`.
+
 ## Deliberate boundaries
 
 - Worker queue SQL, lease fencing, and PostgreSQL `FOR UPDATE SKIP LOCKED` behavior are infrastructure concerns and must not be weakened while moving lifecycle policy into aggregates.

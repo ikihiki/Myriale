@@ -238,6 +238,11 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .HasForeignKey(signal => signal.NarrativeTurnId)
             .OnDelete(DeleteBehavior.Cascade);
         builder.Entity<SessionProgressionTransitionReceipt>()
+            .Property(receipt => receipt.Status)
+            .HasConversion(
+                status => status.ToWireValue(),
+                value => ProgressionReceiptStatusValues.Parse(value));
+        builder.Entity<SessionProgressionTransitionReceipt>()
             .Property(receipt => receipt.Revision)
             .IsConcurrencyToken();
         builder.Entity<SessionProgressionTransitionReceipt>()

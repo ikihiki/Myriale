@@ -177,14 +177,13 @@ public sealed class ModuleHandoffExecutionHandler(
                 var snapshot = await db.SessionProgressionModuleSnapshots.AsNoTracking()
                     .SingleOrDefaultAsync(item => item.SessionId == current.SessionId && item.TransitionId == transition.Id, cancellationToken);
                 db.SessionNarrativeSignals.Add(signal);
-                db.SessionProgressionTransitionReceipts.Add(new SessionProgressionTransitionReceipt
-                {
-                    Id = $"PTR-{Guid.NewGuid():N}".ToUpperInvariant(), SessionId = current.SessionId,
-                    SourceSignalId = signal.Id, TransitionId = transition.Id, FromNodeId = transition.SourceNodeId, ToNodeId = transition.TargetNodeId,
-                    Status = snapshot is null ? "waiting-configuration" : "pending", ModuleId = snapshot?.ModuleId, ModuleVersion = snapshot?.ModuleVersion,
-                    ModuleDigest = snapshot?.ModuleDigest, ModuleConfigurationJson = snapshot?.ConfigurationJson, ModuleContextJson = snapshot?.ContextJson,
-                    ModuleRandomValueCount = snapshot?.RandomValueCount ?? 0, IsRetryable = snapshot is not null, CreatedAt = now, UpdatedAt = now,
-                });
+                var moduleSnapshot = snapshot is null
+                    ? null
+                    : new ProgressionModuleSnapshot(snapshot.ModuleId, snapshot.ModuleVersion, snapshot.ModuleDigest,
+                        snapshot.ConfigurationJson, snapshot.ContextJson, snapshot.RandomValueCount);
+                db.SessionProgressionTransitionReceipts.Add(SessionProgressionTransitionReceipt.Create(
+                    $"PTR-{Guid.NewGuid():N}".ToUpperInvariant(), current.SessionId, signal.Id, transition.Id,
+                    transition.SourceNodeId, transition.TargetNodeId, moduleSnapshot, now));
                 current.Session.Progress.CurrentNodeId = transition.TargetNodeId;
                 current.Session.Progress.Revision++;
                 current.Session.Progress.UpdatedAt = now;
