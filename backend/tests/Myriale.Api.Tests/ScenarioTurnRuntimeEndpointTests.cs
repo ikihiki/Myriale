@@ -267,8 +267,10 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         await using (var scope = factory.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+            var moduleId = new ModulePackageModuleId("com.myriale.rules.turn-battle");
+            var version = new ModulePackageVersion("1.0.0");
             digest = (await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
-                db.ModulePackages.Where(item => item.ModuleId == "com.myriale.rules.turn-battle" && item.Version == "1.0.0"))).Digest;
+                db.ModulePackages.Where(item => item.ModuleId == moduleId && item.Version == version))).Digest.Value;
         }
         var scenarioId = await CreatePublishedGuardianScenarioAsync(client, digest);
         using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-guardian" });

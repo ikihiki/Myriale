@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using Myriale.Api.Contracts;
+using Myriale.Api.Application.ModulePackages;
 using Myriale.Api.Data;
 using Myriale.Api.Services;
 
@@ -111,12 +112,11 @@ public interface ISessionCreationRepository
 {
     Task<Session?> FindReplayAsync(string ownerId, string requestId, CancellationToken cancellationToken);
     Task<SessionCreationSourceResult> LoadSourceAsync(string ownerId, string scenarioId, CancellationToken cancellationToken);
-    Task<bool> AreModulePackagesAvailableAsync(IReadOnlyList<ScenarioProgressionTransition> transitions, CancellationToken cancellationToken);
     Task<SessionRepositoryCommitOutcome> CommitCreationAsync(Session session, CancellationToken cancellationToken);
     void ClearTracking();
 }
 
-public sealed class CreateSessionUseCase(ISessionCreationRepository repository, ScenarioRuleConfigurationResolver ruleResolver, TimeProvider timeProvider)
+public sealed class CreateSessionUseCase(ISessionCreationRepository repository, IModulePackageCatalog modulePackages, ScenarioRuleConfigurationResolver ruleResolver, TimeProvider timeProvider)
 {
     public async Task<SessionCommandResult> ExecuteAsync(CreateSessionCommand command, CancellationToken cancellationToken)
     {
@@ -148,7 +148,7 @@ public sealed class CreateSessionUseCase(ISessionCreationRepository repository, 
         var selectedHero = string.IsNullOrWhiteSpace(selectedRequestHero) ? definition.ScenarioHero : selectedRequestHero;
         var payloadHash = HashCreation(scenarioId, command.InterpretationEnabled, selectedHero);
         if (selectedHero.Length > 1000) return Invalid("invalid_selected_hero", "選択した主人公は1000文字以内で指定してください。");
-        if (!await repository.AreModulePackagesAvailableAsync(source.ModuleTransitions, cancellationToken))
+        if (!await AreModulePackagesAvailableAsync(source.ModuleTransitions, cancellationToken))
             return Conflict("scenario_module_unavailable", "Scenarioが使用するModule packageは承認済みかつ有効である必要があります。");
 
         var now = timeProvider.GetUtcNow();
@@ -185,6 +185,21 @@ public sealed class CreateSessionUseCase(ISessionCreationRepository repository, 
             ? new(SessionCommandOutcome.Replay, winner.Id)
             : Conflict("idempotency_key_reused", "同じRequestIdに別のSession設定は指定できません。");
         return new(SessionCommandOutcome.RetryableConflict, ErrorCode: "session_creation_conflict", ErrorMessage: "Session作成が競合しました。再試行してください。");
+    }
+
+    private async Task<bool> AreModulePackagesAvailableAsync(IReadOnlyList<ScenarioProgressionTransition> transitions, CancellationToken cancellationToken)
+    {
+        foreach (var transition in transitions)
+        {
+            if (string.IsNullOrWhiteSpace(transition.ModuleId) || string.IsNullOrWhiteSpace(transition.ModuleVersion) || string.IsNullOrWhiteSpace(transition.ModuleDigest)) return false;
+            try
+            {
+                var resolution = await modulePackages.ResolveAsync(new(transition.ModuleId), new(transition.ModuleVersion), new(transition.ModuleDigest), cancellationToken);
+                if (resolution.Availability != ModulePackageAvailability.Available) return false;
+            }
+            catch (ArgumentException) { return false; }
+        }
+        return true;
     }
 
     private static string HashCreation(string scenarioId, bool interpretation, string? hero) =>

@@ -31,6 +31,15 @@ public static class ModuleExecutionStatusValues
     public static bool IsTerminal(this ModuleExecutionStatus value) => value is ModuleExecutionStatus.Completed or ModuleExecutionStatus.Failed;
 }
 
+public sealed record ModuleExecutionPackageSnapshot(
+    string ModuleId,
+    string Version,
+    string Digest,
+    string ContractVersion,
+    IReadOnlyList<string> Capabilities,
+    int ConfigurationSchemaVersion,
+    int StateSchemaVersion);
+
 public sealed class ModuleExecution
 {
     [Key, MaxLength(40)] public string Id { get; internal set; } = string.Empty;
@@ -60,14 +69,14 @@ public sealed class ModuleExecution
     public SessionTurn? SessionTurn { get; internal set; }
 
     public static ModuleExecution Create(
-        string id, string ownerId, ModulePackage package, ModuleManifest manifest,
+        string id, string ownerId, ModuleExecutionPackageSnapshot package,
         JsonElement configuration, JsonElement context, DateTimeOffset now) => new()
     {
         Id = id, OwnerId = ownerId, ModuleId = package.ModuleId, ModuleVersion = package.Version,
         ModuleDigest = package.Digest, ContractVersion = package.ContractVersion,
-        CapabilitiesJson = JsonSerializer.Serialize(manifest.Capabilities ?? [], ModuleJsonSerializerOptions.Create()),
-        ConfigurationSchemaVersion = manifest.Configuration.SchemaVersion,
-        StateSchemaVersion = manifest.Configuration.StateSchemaVersion,
+        CapabilitiesJson = JsonSerializer.Serialize(package.Capabilities, ModuleJsonSerializerOptions.Create()),
+        ConfigurationSchemaVersion = package.ConfigurationSchemaVersion,
+        StateSchemaVersion = package.StateSchemaVersion,
         ConfigurationJson = configuration.GetRawText(), ContextJson = context.GetRawText(),
         Status = ModuleExecutionStatus.Initializing, Revision = -1, CreatedAt = now, UpdatedAt = now,
     };

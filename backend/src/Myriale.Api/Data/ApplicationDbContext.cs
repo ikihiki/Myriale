@@ -116,6 +116,16 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .HasForeignKey(item => item.DefinitionVersionId).OnDelete(DeleteBehavior.Cascade);
         builder.Entity<ScenarioObject>()
             .HasOne(item => item.Location).WithMany().HasForeignKey(item => item.LocationId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<ModulePackage>().Property(package => package.Digest)
+            .HasConversion(value => value.Value, value => new ModulePackageDigest(value));
+        builder.Entity<ModulePackage>().Property(package => package.ModuleId)
+            .HasConversion(value => value.Value, value => new ModulePackageModuleId(value));
+        builder.Entity<ModulePackage>().Property(package => package.Version)
+            .HasConversion(value => value.Value, value => new ModulePackageVersion(value));
+        builder.Entity<ModulePackage>().Property(package => package.ManifestJson).IsRequired();
+        builder.Entity<ModulePackage>().Property(package => package.Format).HasConversion<string>();
+        builder.Entity<ModulePackage>().Property(package => package.Status).HasConversion<string>();
+        builder.Entity<ModulePackage>().Property(package => package.Revision).IsConcurrencyToken();
         builder.Entity<ModulePackage>()
             .HasIndex(package => new { package.ModuleId, package.Version })
             .IsUnique();

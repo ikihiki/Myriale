@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Modules;
+using Myriale.Api.Application.ModulePackages;
 
 namespace Myriale.Api.Data;
 
@@ -15,12 +15,13 @@ public static class DemoModuleSeedData
 
     public static async Task SeedAsync(
         ApplicationDbContext db,
-        IModulePackageService packages,
+        InstallModulePackageCommand installPackages,
+        EnableModulePackageCommand enablePackages,
         IWebHostEnvironment environment,
         CancellationToken cancellationToken = default)
     {
-        var installed = await InstallAsync(packages, environment, PackageFileName, ConstellationDoorModuleId, ConstellationDoorModuleVersion, cancellationToken);
-        var battle = await InstallAsync(packages, environment, GuardianBattlePackageFileName, GuardianBattleModuleId, GuardianBattleModuleVersion, cancellationToken);
+        var installed = await InstallAsync(installPackages, enablePackages, environment, PackageFileName, ConstellationDoorModuleId, ConstellationDoorModuleVersion, cancellationToken);
+        var battle = await InstallAsync(installPackages, enablePackages, environment, GuardianBattlePackageFileName, GuardianBattleModuleId, GuardianBattleModuleVersion, cancellationToken);
 
         await ConfigureTransitionAsync(
             db,
@@ -45,7 +46,8 @@ public static class DemoModuleSeedData
     }
 
     private static async Task<ModulePackageInstallResult> InstallAsync(
-        IModulePackageService packages,
+        InstallModulePackageCommand installPackages,
+        EnableModulePackageCommand enablePackages,
         IWebHostEnvironment environment,
         string fileName,
         string expectedModuleId,
@@ -56,19 +58,20 @@ public static class DemoModuleSeedData
         if (!File.Exists(packagePath))
             throw new InvalidOperationException($"Demo module package is missing: {packagePath}. Run scripts/build-demo-modules.py.");
         await using var stream = File.OpenRead(packagePath);
-        var installed = await packages.InstallAsync(stream, cancellationToken);
-        if (installed.Package.ModuleId != expectedModuleId || installed.Package.Version != expectedVersion)
+        var installed = await installPackages.ExecuteAsync(stream, cancellationToken);
+        if (installed.Package.ModuleId.Value != expectedModuleId || installed.Package.Version.Value != expectedVersion)
             throw new InvalidOperationException($"The {fileName} demo package has an unexpected identity.");
-        await packages.SetEnabledAsync(installed.Package.Digest, true, cancellationToken);
+        if (!installed.Package.IsEnabled)
+            installed = installed with { Package = (await enablePackages.ExecuteAsync(installed.Package.Digest, installed.Package.Revision, cancellationToken))! };
         return installed;
     }
 
-    private static async Task ConfigureBattleTransitionAsync(ApplicationDbContext db, ModulePackage package, CancellationToken cancellationToken)
+    private static async Task ConfigureBattleTransitionAsync(ApplicationDbContext db, ModulePackageSnapshot package, CancellationToken cancellationToken)
     {
         var transition = await db.ScenarioProgressionTransitions.SingleAsync(item => item.Id == "SPT-STAR-LIBRARY-GUARDIAN-AWAKENED", cancellationToken);
-        transition.ModuleId = package.ModuleId;
-        transition.ModuleVersion = package.Version;
-        transition.ModuleDigest = package.Digest;
+        transition.ModuleId = package.ModuleId.Value;
+        transition.ModuleVersion = package.Version.Value;
+        transition.ModuleDigest = package.Digest.Value;
         transition.ModuleConfigurationJson = JsonSerializer.Serialize(new
         {
             playerName = "星図を読む巡礼者", enemyName = "図書館の守護者",
@@ -84,7 +87,7 @@ public static class DemoModuleSeedData
     private static async Task ConfigureTransitionAsync(
         ApplicationDbContext db,
         string transitionId,
-        ModulePackage package,
+        ModulePackageSnapshot package,
         string purpose,
         string location,
         string keyItem,
@@ -93,9 +96,9 @@ public static class DemoModuleSeedData
     {
         var transition = await db.ScenarioProgressionTransitions
             .SingleAsync(item => item.Id == transitionId, cancellationToken);
-        transition.ModuleId = package.ModuleId;
-        transition.ModuleVersion = package.Version;
-        transition.ModuleDigest = package.Digest;
+        transition.ModuleId = package.ModuleId.Value;
+        transition.ModuleVersion = package.Version.Value;
+        transition.ModuleDigest = package.Digest.Value;
         transition.ModuleConfigurationJson = JsonSerializer.Serialize(new
         {
             purpose,

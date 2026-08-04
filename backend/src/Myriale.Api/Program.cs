@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Application.AiProviders;
+using Myriale.Api.Application.ModulePackages;
 using Myriale.Api.Application.ProgressionRuntime;
 using Myriale.Api.Application.ModuleExecutions;
 using Myriale.Api.Application.ModuleHandoffs;
@@ -17,6 +18,7 @@ using Myriale.Api.Data;
 using Myriale.Api.Endpoints;
 using Myriale.Api.Domain.Scenarios;
 using Myriale.Api.Infrastructure.AiProviders;
+using Myriale.Api.Infrastructure.ModulePackages;
 using Myriale.Api.Infrastructure.ProgressionRuntime;
 using Myriale.Api.Infrastructure.ModuleExecutions;
 using Myriale.Api.Infrastructure.SessionExecutions;
@@ -193,8 +195,14 @@ builder.Services.AddScoped<IHomeDashboardService, DemoHomeDashboardService>();
 builder.Services.Configure<ModulePackageOptions>(builder.Configuration.GetSection(ModulePackageOptions.SectionName));
 builder.Services.Configure<ModuleRuntimeOptions>(builder.Configuration.GetSection(ModuleRuntimeOptions.SectionName));
 builder.Services.Configure<ModuleExecutionOptions>(builder.Configuration.GetSection(ModuleExecutionOptions.SectionName));
-builder.Services.AddScoped<IModulePackageService, ModulePackageService>();
-builder.Services.AddScoped<IModulePackageRuntimeCatalog, ModulePackageRuntimeCatalog>();
+builder.Services.AddScoped<IModulePackageRepository, EfModulePackageRepository>();
+builder.Services.AddScoped<IModulePackageCatalog, EfModulePackageCatalog>();
+builder.Services.AddScoped<IModulePackageArtifactStore, FileModulePackageArtifactStore>();
+builder.Services.AddScoped<IModulePackageInspector, ModulePackageInspector>();
+builder.Services.AddScoped<InstallModulePackageCommand>();
+builder.Services.AddScoped<RescanModulePackagesCommand>();
+builder.Services.AddScoped<EnableModulePackageCommand>();
+builder.Services.AddScoped<DisableModulePackageCommand>();
 builder.Services.AddScoped<IModuleRuntime, DotNetModuleRuntime>();
 builder.Services.AddSingleton<ModuleAssemblyCache>();
 builder.Services.AddSingleton<ModuleRuntimeInvocationGate>();
@@ -341,7 +349,8 @@ using (var scope = app.Services.CreateScope())
     {
         await DemoModuleSeedData.SeedAsync(
             db,
-            scope.ServiceProvider.GetRequiredService<IModulePackageService>(),
+            scope.ServiceProvider.GetRequiredService<InstallModulePackageCommand>(),
+            scope.ServiceProvider.GetRequiredService<EnableModulePackageCommand>(),
             scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>());
     }
 

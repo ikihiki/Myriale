@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Myriale.Api.Application.ModulePackages;
 using Myriale.Api.Contracts;
 using Myriale.Api.Application.ModuleExecutions;
 using Myriale.Api.Data;
@@ -91,28 +92,30 @@ internal sealed partial class ModuleExecutionWorkflow
                 return await AttachSessionTurnAsync(result, existing.ExecutionId, sessionId, cancellationToken);
             }
 
-            var package = await db.ModulePackages.AsNoTracking().SingleOrDefaultAsync(item =>
-                item.ModuleId == request.ModuleId && item.Version == request.Version && item.Digest == digest,
-                cancellationToken);
-            if (package is null) return RuntimeError(ModuleRuntimeErrorCodes.PackageNotFound, "指定されたモジュールパッケージは登録されていません。");
-            if (!package.IsEnabled) return RuntimeError(ModuleRuntimeErrorCodes.PackageDisabled, "指定されたモジュールパッケージは無効です。");
-            if (package.Status != "installed") return RuntimeError(ModuleRuntimeErrorCodes.PackageUnavailable, "指定されたモジュールパッケージは実行できません。");
-
-            ModuleManifest manifest;
+            ModulePackageResolution packageResolution;
             try
             {
-                manifest = JsonSerializer.Deserialize<ModuleManifest>(package.ManifestJson, _json)
-                    ?? throw new JsonException("Manifest is empty.");
+                packageResolution = await packageCatalog.ResolveAsync(new(request.ModuleId), new(request.Version), new(digest), cancellationToken);
             }
-            catch (JsonException exception)
+            catch (ArgumentException)
             {
-                logger.LogWarning(exception, "Stored manifest could not be read for {Digest}", digest);
-                return RuntimeError(ModuleRuntimeErrorCodes.PackageUnavailable, "モジュールマニフェストを読み込めません。");
+                return RuntimeError(ModuleRuntimeErrorCodes.PackageNotFound, "指定されたモジュールパッケージの識別情報が不正です。");
             }
+            if (packageResolution.Availability == ModulePackageAvailability.NotFound)
+                return RuntimeError(ModuleRuntimeErrorCodes.PackageNotFound, "指定されたモジュールパッケージは登録されていません。");
+            if (packageResolution.Availability == ModulePackageAvailability.Disabled)
+                return RuntimeError(ModuleRuntimeErrorCodes.PackageDisabled, "指定されたモジュールパッケージは無効です。");
+            if (packageResolution.Availability != ModulePackageAvailability.Available || packageResolution.Package is null)
+                return RuntimeError(ModuleRuntimeErrorCodes.PackageUnavailable, "指定されたモジュールパッケージは実行できません。");
 
+            var package = packageResolution.Package;
+            var manifest = package.Manifest;
+            var packageSnapshot = new ModuleExecutionPackageSnapshot(
+                package.ModuleId.Value, package.Version.Value, package.Digest.Value, package.ContractVersion,
+                manifest.Capabilities ?? [], manifest.Configuration.SchemaVersion, manifest.Configuration.StateSchemaVersion);
             var now = DateTimeOffset.UtcNow;
             var execution = ModuleExecution.Create(
-                NewExecutionId(), ownerId, package, manifest, request.Configuration, request.Context, now);
+                NewExecutionId(), ownerId, packageSnapshot, request.Configuration, request.Context, now);
             var randomValues = GenerateRandomValues(request.RandomValueCount);
             var receipt = ModuleExecutionRequest.CreateInitialization(
                 ownerId, execution.Id, request.RequestId, payloadHash, session?.State.Revision, randomValues, _json, now);

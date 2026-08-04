@@ -17,7 +17,7 @@ GET /api/module-executions/{executionId}/ui/runtime/resources/{resourceId}
 
 The descriptor exposes opaque resource IDs (`script`, `style-N`), the Web Component element name, content hashes, and exact pinned package identity. It never exposes filesystem paths, `module.dll`, configuration, context, private state, or recorded randomness.
 
-Before serving bytes, the host requires the pinned package to remain installed and enabled, verifies the canonical package digest, and compares each expanded resource with the canonical ZIP entry. Responses use fixed JavaScript/CSS content types, `nosniff`, `no-store`, and a denying CSP so package disablement and authorization changes are revalidated.
+Before serving bytes, the host requires the pinned package to remain verified and enabled through the shared catalog, verifies the canonical package digest, and compares each expanded resource with the canonical package entry. Responses use fixed JavaScript/CSS content types, `nosniff`, `no-store`, and a denying CSP so package disablement and authorization changes are revalidated.
 
 ## Communication
 

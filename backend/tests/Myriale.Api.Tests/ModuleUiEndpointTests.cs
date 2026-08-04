@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Myriale.Api.Application.ModulePackages;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Modules;
@@ -84,12 +85,12 @@ public sealed class ModuleUiEndpointTests : IDisposable
     {
         var (client, executionId, digest) = await CreateExecutionAsync("ui-integrity@example.test");
         await using (var scope = _factory.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<IModulePackageService>().SetEnabledAsync(digest, false, default);
+            await SetEnabledAsync(scope.ServiceProvider, digest, false);
         using var disabled = await client.GetAsync($"/api/module-executions/{executionId}/ui/runtime/");
         Assert.Equal(HttpStatusCode.Conflict, disabled.StatusCode);
 
         await using (var scope = _factory.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<IModulePackageService>().SetEnabledAsync(digest, true, default);
+            await SetEnabledAsync(scope.ServiceProvider, digest, true);
         await File.WriteAllTextAsync(Path.Combine(_storagePath, "expanded", digest, "resources", "runtime.mjs"), "corrupt");
         using var corrupt = await client.GetAsync($"/api/module-executions/{executionId}/ui/runtime/resources/script");
         Assert.Equal(HttpStatusCode.ServiceUnavailable, corrupt.StatusCode);
@@ -105,13 +106,14 @@ public sealed class ModuleUiEndpointTests : IDisposable
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             ownerId = (await db.Users.SingleAsync(user => user.Email == "ui-headless@example.test")).Id;
-            var packages = scope.ServiceProvider.GetRequiredService<IModulePackageService>();
+            var packages = scope.ServiceProvider.GetRequiredService<InstallModulePackageCommand>();
+            var enable = scope.ServiceProvider.GetRequiredService<EnableModulePackageCommand>();
             await using var stream = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "Myriale.HeadlessTestModule.dll"));
-            var installed = await packages.InstallAsync(stream, default);
-            await packages.SetEnabledAsync(installed.Package.Digest, true, default);
+            var installed = await packages.ExecuteAsync(stream, default);
+            installed = installed with { Package = (await enable.ExecuteAsync(installed.Package.Digest, installed.Package.Revision, default))! };
             var executions = scope.ServiceProvider.GetRequiredService<InitializeDetachedModuleExecutionCommand>();
             var created = await executions.ExecuteAsync(ownerId, new InitializeModuleExecutionRequest(
-                "headless-ui", installed.Package.ModuleId, installed.Package.Version, installed.Package.Digest,
+                "headless-ui", installed.Package.ModuleId.Value, installed.Package.Version.Value, installed.Package.Digest.Value,
                 JsonSerializer.SerializeToElement(new { }), Binding(), 0), default);
             Assert.NotNull(created.Execution);
             using var response = await client.GetAsync($"/api/module-executions/{created.Execution.Id}/ui/runtime/");
@@ -126,16 +128,26 @@ public sealed class ModuleUiEndpointTests : IDisposable
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var ownerId = (await db.Users.SingleAsync(user => user.Email == email)).Id;
-        var packages = scope.ServiceProvider.GetRequiredService<IModulePackageService>();
+        var packages = scope.ServiceProvider.GetRequiredService<InstallModulePackageCommand>();
+        var enable = scope.ServiceProvider.GetRequiredService<EnableModulePackageCommand>();
         await using var stream = new MemoryStream(CreatePackage());
-        var installed = await packages.InstallAsync(stream, default);
-        await packages.SetEnabledAsync(installed.Package.Digest, true, default);
+        var installed = await packages.ExecuteAsync(stream, default);
+        installed = installed with { Package = (await enable.ExecuteAsync(installed.Package.Digest, installed.Package.Revision, default))! };
         var executions = scope.ServiceProvider.GetRequiredService<InitializeDetachedModuleExecutionCommand>();
         var created = await executions.ExecuteAsync(ownerId, new InitializeModuleExecutionRequest(
-            $"init-{Guid.NewGuid():N}", installed.Package.ModuleId, installed.Package.Version, installed.Package.Digest,
+            $"init-{Guid.NewGuid():N}", installed.Package.ModuleId.Value, installed.Package.Version.Value, installed.Package.Digest.Value,
             JsonSerializer.SerializeToElement(new { }), Binding(), 0), default);
         Assert.NotNull(created.Execution);
-        return (client, created.Execution.Id, installed.Package.Digest);
+        return (client, created.Execution.Id, installed.Package.Digest.Value);
+    }
+
+    private static async Task SetEnabledAsync(IServiceProvider services, string digest, bool enabled)
+    {
+        var catalog = services.GetRequiredService<IModulePackageCatalog>();
+        var package = await catalog.GetAsync(new(digest), default);
+        Assert.NotNull(package);
+        if (enabled) await services.GetRequiredService<EnableModulePackageCommand>().ExecuteAsync(package.Digest, package.Revision, default);
+        else await services.GetRequiredService<DisableModulePackageCommand>().ExecuteAsync(package.Digest, package.Revision, default);
     }
 
     private static JsonElement Binding() => JsonSerializer.SerializeToElement(new

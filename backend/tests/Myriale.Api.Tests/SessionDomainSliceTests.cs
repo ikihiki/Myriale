@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using Myriale.Api.Application.ModulePackages;
 using Myriale.Api.Application.Sessions;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
@@ -94,7 +95,7 @@ public sealed class SessionCommandTests
         var location = new ScenarioLocation { Id = "LOC-1", DefinitionVersionId = definition.Id, Code = "start" };
         definition.Locations.Add(location);
         var repository = new FakeCreationRepository(new SessionCreationSource(false, definition, location, null, []));
-        var useCase = new CreateSessionUseCase(repository, new ScenarioRuleConfigurationResolver(), TimeProvider.System);
+        var useCase = new CreateSessionUseCase(repository, new EmptyModulePackageCatalog(), new ScenarioRuleConfigurationResolver(), TimeProvider.System);
         var command = new CreateSessionCommand("USR-1", "SCN-1", "create-request", false, null);
 
         var created = await useCase.ExecuteAsync(command, CancellationToken.None);
@@ -135,9 +136,16 @@ public sealed class SessionCommandTests
         private Session? replay;
         public Task<Session?> FindReplayAsync(string ownerId, string requestId, CancellationToken ct) => Task.FromResult(replay?.OwnerId == ownerId && replay.CreationRequestId == requestId ? replay : null);
         public Task<SessionCreationSourceResult> LoadSourceAsync(string ownerId, string scenarioId, CancellationToken ct) => Task.FromResult(new SessionCreationSourceResult(SessionCreationSourceOutcome.Found, source));
-        public Task<bool> AreModulePackagesAvailableAsync(IReadOnlyList<ScenarioProgressionTransition> transitions, CancellationToken ct) => Task.FromResult(true);
         public Task<SessionRepositoryCommitOutcome> CommitCreationAsync(Session session, CancellationToken ct) { replay = session; return Task.FromResult(SessionRepositoryCommitOutcome.Committed); }
         public void ClearTracking() { }
+    }
+
+    private sealed class EmptyModulePackageCatalog : IModulePackageCatalog
+    {
+        public Task<IReadOnlyList<ModulePackageSnapshot>> ListAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<ModulePackageSnapshot>>([]);
+        public Task<ModulePackageSnapshot?> GetAsync(ModulePackageDigest digest, CancellationToken ct) => Task.FromResult<ModulePackageSnapshot?>(null);
+        public Task<ModulePackageResolution> ResolveAsync(ModulePackageModuleId moduleId, ModulePackageVersion version, ModulePackageDigest digest, CancellationToken ct) =>
+            Task.FromResult(new ModulePackageResolution(ModulePackageAvailability.NotFound));
     }
 
     private sealed class FakeProfiles : IAiProfileCatalog

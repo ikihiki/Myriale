@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Myriale.Api.Modules;
+using Myriale.Api.Application.ModulePackages;
 using Myriale.Api.Modules.Runtime;
 using Myriale.ModuleSdk;
 
@@ -152,18 +153,22 @@ public sealed class ModuleRuntimeTests : IDisposable
     private async Task<ModulePackageIdentity> InstallAsync(bool enable = true)
     {
         await using var scope = _factory.Services.CreateAsyncScope();
-        var service = scope.ServiceProvider.GetRequiredService<IModulePackageService>();
+        var install = scope.ServiceProvider.GetRequiredService<InstallModulePackageCommand>();
+        var enableCommand = scope.ServiceProvider.GetRequiredService<EnableModulePackageCommand>();
         await using var stream = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "Myriale.HeadlessTestModule.dll"));
-        var result = await service.InstallAsync(stream, default);
-        if (enable) await service.SetEnabledAsync(result.Package.Digest, true, default);
-        return new ModulePackageIdentity(result.Package.ModuleId, result.Package.Version, result.Package.Digest);
+        var result = await install.ExecuteAsync(stream, default);
+        if (enable) result = result with { Package = (await enableCommand.ExecuteAsync(result.Package.Digest, result.Package.Revision, default))! };
+        return new ModulePackageIdentity(result.Package.ModuleId.Value, result.Package.Version.Value, result.Package.Digest.Value);
     }
 
     private async Task SetEnabledAsync(string digest, bool enabled)
     {
         await using var scope = _factory.Services.CreateAsyncScope();
-        var service = scope.ServiceProvider.GetRequiredService<IModulePackageService>();
-        await service.SetEnabledAsync(digest, enabled, default);
+        var catalog = scope.ServiceProvider.GetRequiredService<IModulePackageCatalog>();
+        var package = await catalog.GetAsync(new(digest), default);
+        Assert.NotNull(package);
+        if (enabled) await scope.ServiceProvider.GetRequiredService<EnableModulePackageCommand>().ExecuteAsync(package.Digest, package.Revision, default);
+        else await scope.ServiceProvider.GetRequiredService<DisableModulePackageCommand>().ExecuteAsync(package.Digest, package.Revision, default);
     }
 
     private static ModuleInitializationRequest Initialize(string requestId) =>

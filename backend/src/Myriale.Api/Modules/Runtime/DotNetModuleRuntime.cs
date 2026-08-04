@@ -1,11 +1,14 @@
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using Myriale.Api.Application.ModulePackages;
+using Myriale.Api.Data;
 using Myriale.ModuleSdk;
 
 namespace Myriale.Api.Modules.Runtime;
 
 internal sealed class DotNetModuleRuntime(
-    IModulePackageRuntimeCatalog catalog,
+    IModulePackageCatalog catalog,
+    IModulePackageArtifactStore artifacts,
     ModuleAssemblyCache cache,
     ModuleRuntimeInvocationGate invocationGate,
     IOptions<ModuleRuntimeOptions> options,
@@ -21,7 +24,7 @@ internal sealed class DotNetModuleRuntime(
     {
         using var gate = await invocationGate.EnterAsync(cancellationToken);
         RequireRequestId(request.RequestId);
-        var descriptor = await catalog.ResolveEnabledAsync(identity, cancellationToken);
+        var descriptor = await ResolveEnabledAsync(identity, cancellationToken);
         RequireJsonSize(request.Configuration, descriptor.Manifest.Limits.MaxConfigurationBytes, "configuration");
         var result = await InvokeAsync(descriptor, "validate configuration", (module, token) => module.ValidateConfigAsync(request, token), cancellationToken);
         ValidateContract(() => ValidateValidationResult(result));
@@ -36,7 +39,7 @@ internal sealed class DotNetModuleRuntime(
     {
         using var gate = await invocationGate.EnterAsync(cancellationToken);
         RequireRequestId(request.RequestId);
-        var descriptor = await catalog.ResolveEnabledAsync(identity, cancellationToken);
+        var descriptor = await ResolveEnabledAsync(identity, cancellationToken);
         RequireJsonSize(request.Configuration, descriptor.Manifest.Limits.MaxConfigurationBytes, "configuration");
         ValidateBinding(request.Binding);
         RequireRandomValues(request.RandomValues);
@@ -54,7 +57,7 @@ internal sealed class DotNetModuleRuntime(
         using var gate = await invocationGate.EnterAsync(cancellationToken);
         RequireRequestId(request.RequestId);
         if (request.ExpectedRevision < 0) throw Violation("ExpectedRevisionは0以上である必要があります。");
-        var descriptor = await catalog.ResolveEnabledAsync(identity, cancellationToken);
+        var descriptor = await ResolveEnabledAsync(identity, cancellationToken);
         RequireJsonSize(request.Configuration, descriptor.Manifest.Limits.MaxConfigurationBytes, "configuration");
         ValidateBinding(request.Binding);
         RequireJsonSize(request.State, descriptor.Manifest.Limits.MaxStateBytes, "state");
@@ -73,6 +76,27 @@ internal sealed class DotNetModuleRuntime(
         });
         await RequireResponseSizeAsync(result, cancellationToken);
         return result;
+    }
+
+
+    private async Task<ModulePackageRuntimeDescriptor> ResolveEnabledAsync(ModulePackageIdentity identity, CancellationToken cancellationToken)
+    {
+        ModulePackageModuleId moduleId; ModulePackageVersion version; ModulePackageDigest digest;
+        try { moduleId = new(identity.ModuleId); version = new(identity.Version); digest = new(identity.Digest); }
+        catch (ArgumentException exception) { throw new ModuleRuntimeException(ModuleRuntimeErrorCodes.PackageNotFound, "指定されたモジュールパッケージの識別情報が不正です。", exception); }
+        var resolution = await catalog.ResolveAsync(moduleId, version, digest, cancellationToken);
+        if (resolution.Availability == ModulePackageAvailability.NotFound) throw new ModuleRuntimeException(ModuleRuntimeErrorCodes.PackageNotFound, "指定されたモジュールパッケージは登録されていません。");
+        if (resolution.Availability == ModulePackageAvailability.Disabled) throw new ModuleRuntimeException(ModuleRuntimeErrorCodes.PackageDisabled, "指定されたモジュールパッケージは無効です。");
+        if (resolution.Availability != ModulePackageAvailability.Available || resolution.Package is null) throw new ModuleRuntimeException(ModuleRuntimeErrorCodes.PackageUnavailable, "指定されたモジュールパッケージの整合性を確認できません。");
+        try
+        {
+            var bytes = await artifacts.ReadAssemblyAsync(resolution.Package, cancellationToken);
+            return new(identity.Normalize(), resolution.Package.Manifest, bytes);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            throw new ModuleRuntimeException(ModuleRuntimeErrorCodes.PackageUnavailable, "指定されたモジュールパッケージの整合性を確認できません。", exception);
+        }
     }
 
     private async Task<T> InvokeAsync<T>(

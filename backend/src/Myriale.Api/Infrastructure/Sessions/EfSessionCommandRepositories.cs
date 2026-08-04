@@ -70,14 +70,6 @@ public sealed class EfSessionCreationRepository(ApplicationDbContext db) : ISess
         return new(SessionCreationSourceOutcome.Found, new(canDebug, definition, location, node, transitions));
     }
 
-    public async Task<bool> AreModulePackagesAvailableAsync(IReadOnlyList<ScenarioProgressionTransition> transitions, CancellationToken cancellationToken)
-    {
-        foreach (var t in transitions)
-            if (string.IsNullOrWhiteSpace(t.ModuleVersion) || t.ModuleDigest?.Length != 64 || !await db.ModulePackages.AsNoTracking().AnyAsync(p =>
-                p.ModuleId == t.ModuleId && p.Version == t.ModuleVersion && p.Digest == t.ModuleDigest && p.Status == "installed" && p.IsEnabled, cancellationToken)) return false;
-        return true;
-    }
-
     public async Task<SessionRepositoryCommitOutcome> CommitCreationAsync(Session session, CancellationToken cancellationToken)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
