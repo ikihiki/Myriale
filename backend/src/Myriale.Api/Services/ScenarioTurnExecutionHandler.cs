@@ -1,8 +1,7 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using Myriale.Api.Application.SessionArtifacts;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 
@@ -15,6 +14,7 @@ public sealed class ScenarioTurnExecutionHandler(
     ScenarioActionDecisionModelMapper actionDecisionMapper,
     IScenarioTurnAi ai,
     IScenarioExtensionAdapter extensions,
+    ISessionArtifactWriter artifactWriter,
     ILogger<ScenarioTurnExecutionHandler> logger) : ISessionExecutionHandler
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
@@ -122,7 +122,10 @@ public sealed class ScenarioTurnExecutionHandler(
                 step.NarrativeHintsJson = JsonSerializer.Serialize(hints, Json); step.ForbiddenNarrativeFactsJson = JsonSerializer.Serialize(forbidden, Json);
                 step.PostSessionRevision = world.Session.Revision; step.AppliedAt = DateTimeOffset.UtcNow; step.Stage = ScenarioTurnStages.GeneratingNarrative; step.UpdatedAt = DateTimeOffset.UtcNow;
                 execution.Stage = ScenarioTurnStages.GeneratingNarrative;
-                db.SessionArtifacts.Add(CreateArtifact(execution, context.AttemptId, "rule-action-step.v1", JsonSerializer.Serialize(new { step.ActionSnapshotJson, step.DecisionJson, step.SelectedRuleId, step.AppliedEffectsJson, step.PublicPostStateJson }, Json)));
+                artifactWriter.Add(SessionArtifact.CreateCommittedJson(
+                    $"ART-{Guid.NewGuid():N}".ToUpperInvariant(), execution.SessionId, execution.Id, context.AttemptId,
+                    new RuleActionStepArtifactPayload(step.ActionSnapshotJson, step.DecisionJson, step.SelectedRuleId, step.AppliedEffectsJson, step.PublicPostStateJson),
+                    null, DateTimeOffset.UtcNow, Json));
                 try { await db.SaveChangesAsync(cancellationToken); }
                 catch (DbUpdateConcurrencyException) { return new(false, false, "stale_object_revision", "Object stateが更新されたため再入力してください。", SessionExecutionStatuses.Superseded); }
             }
@@ -186,7 +189,10 @@ public sealed class ScenarioTurnExecutionHandler(
                     narrative.Metadata.InputTokens, narrative.Metadata.OutputTokens, narrative.Metadata.LatencyMilliseconds,
                     narrative.Metadata.AttemptCount, narrative.Metadata.FinishReason), nowPublished);
             step.NarrativePublishedAt = nowPublished; step.Stage = ScenarioTurnStages.Completed; step.UpdatedAt = nowPublished; execution.Stage = ScenarioTurnStages.Completed;
-            db.SessionArtifacts.Add(CreateArtifact(execution, context.AttemptId, "post-state-narrative.v1", JsonSerializer.Serialize(narrative.Value, Json)));
+            artifactWriter.Add(SessionArtifact.CreateCommittedJson(
+                $"ART-{Guid.NewGuid():N}".ToUpperInvariant(), execution.SessionId, execution.Id, context.AttemptId,
+                new PostStateNarrativeArtifactPayload(narrative.Value.SchemaVersion, narrative.Value.Heading, narrative.Value.Body),
+                null, nowPublished, Json));
             var attempt = await db.SessionExecutionAttempts.SingleAsync(item => item.Id == context.AttemptId, cancellationToken);
             attempt.Provider = narrative.Metadata.Provider; attempt.Model = narrative.Metadata.Model; attempt.ProviderRequestId = narrative.Metadata.ResponseId;
             await db.SaveChangesAsync(cancellationToken); await transaction.CommitAsync(cancellationToken);
@@ -412,9 +418,4 @@ public sealed class ScenarioTurnExecutionHandler(
     private async Task SetStageAsync(SessionExecution execution, string stage, CancellationToken cancellationToken) { execution.Stage = stage; await db.SaveChangesAsync(cancellationToken); }
     private static JsonElement Parse(string json) { using var document = JsonDocument.Parse(json); return document.RootElement.Clone(); }
     private static IReadOnlyList<T> DeserializeList<T>(string? json) => string.IsNullOrWhiteSpace(json) ? [] : JsonSerializer.Deserialize<List<T>>(json, Json) ?? [];
-    private static SessionArtifact CreateArtifact(SessionExecution execution, string attemptId, string kind, string content)
-    {
-        var now = DateTimeOffset.UtcNow;
-        return new SessionArtifact { Id = $"ART-{Guid.NewGuid():N}".ToUpperInvariant(), SessionId = execution.SessionId, ExecutionId = execution.Id, AttemptId = attemptId, Kind = kind, Status = "committed", ContentType = "application/json", ContentJson = content, MetadataJson = "{\"schemaVersion\":1}", Checksum = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content))).ToLowerInvariant(), CreatedAt = now, ValidatedAt = now, CommittedAt = now };
-    }
 }

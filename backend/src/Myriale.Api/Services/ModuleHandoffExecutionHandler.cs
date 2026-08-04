@@ -1,8 +1,8 @@
 using System.Diagnostics;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Myriale.Api.Application.SessionArtifacts;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.ModuleSdk;
@@ -14,6 +14,7 @@ public sealed class ModuleHandoffExecutionHandler(
     INarrativeGenerator generator,
     SessionScenarioProgressionService progression,
     IHostEnvironment environment,
+    ISessionArtifactWriter artifactWriter,
     ILogger<ModuleHandoffExecutionHandler> logger) : ISessionExecutionHandler
 {
     private readonly JsonSerializerOptions _json = ModuleJsonSerializerOptions.Create();
@@ -111,29 +112,18 @@ public sealed class ModuleHandoffExecutionHandler(
         }
 
         var sourceStateRevision = ResolveSourceStateRevision(source!);
-        var artifact = new SessionArtifact
-        {
-            Id = $"ART-{Guid.NewGuid():N}".ToUpperInvariant(),
-            SessionId = current.SessionId,
-            ExecutionId = current.Id,
-            AttemptId = workerContext.AttemptId,
-            Kind = "narrative-text",
-            Status = "committed",
-            ContentType = "application/json",
-            ContentJson = JsonSerializer.Serialize(new NarrativeHandoffResponse(generation.Value)),
-            MetadataJson = JsonSerializer.Serialize(new { generation.Metadata.Provider, generation.Metadata.Model, generation.Metadata.ResponseId }),
-            Checksum = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(generation.Value))).ToLowerInvariant(),
-            CreatedAt = now,
-            ValidatedAt = now,
-            CommittedAt = now,
-        };
+        var artifact = SessionArtifact.CreateCommittedJson(
+            $"ART-{Guid.NewGuid():N}".ToUpperInvariant(), current.SessionId, current.Id, workerContext.AttemptId,
+            new NarrativeTextArtifactPayload(generation.Value),
+            JsonSerializer.Serialize(new { generation.Metadata.Provider, generation.Metadata.Model, generation.Metadata.ResponseId }),
+            now, _json);
         var turn = current.Session.AppendModuleHandoffNarrative(
             $"TRN-{Guid.NewGuid():N}".ToUpperInvariant(), source!.Id, NarrativeDocumentSchemas.ModuleHandoff,
             "確定した結果を受ける", generation.Value, sourceStateRevision,
             new SessionTurnAiMetadata(generation.Metadata.Provider, generation.Metadata.Model, generation.Metadata.ResponseId,
                 generation.Metadata.InputTokens, generation.Metadata.OutputTokens, generation.Metadata.LatencyMilliseconds,
                 generation.Metadata.AttemptCount, generation.Metadata.FinishReason), now);
-        db.SessionArtifacts.Add(artifact);
+        artifactWriter.Add(artifact);
         if (current.Session.Progress is not null
             && JsonSerializer.Deserialize<string[]>(current.Session.Progress.CurrentNode.AllowedNarrativeSignalsJson, _json)?.Contains(request.Outcome.Code) == true)
         {

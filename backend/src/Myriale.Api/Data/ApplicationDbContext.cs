@@ -389,9 +389,21 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .WithMany(attempt => attempt.AiInteractions)
             .HasForeignKey(interaction => interaction.AttemptId)
             .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionArtifact>().Property(artifact => artifact.Kind)
+            .HasConversion(value => value.ToWireValue(), value => SessionArtifactEnumValues.ParseKind(value));
+        builder.Entity<SessionArtifact>().Property(artifact => artifact.Status)
+            .HasConversion(value => value.ToWireValue(), value => SessionArtifactEnumValues.ParseStatus(value));
+        builder.Entity<SessionArtifact>().Property(artifact => artifact.Schema)
+            .HasConversion(value => value.ToWireValue(), value => SessionArtifactEnumValues.ParseSchema(value));
         builder.Entity<SessionArtifact>()
             .HasIndex(artifact => new { artifact.ExecutionId, artifact.Kind })
             .IsUnique();
+        builder.Entity<SessionArtifact>().ToTable(table =>
+        {
+            table.HasCheckConstraint("CK_SessionArtifacts_Backing", "(\"PayloadJson\" IS NOT NULL AND \"StorageKey\" IS NULL) OR (\"PayloadJson\" IS NULL AND \"StorageKey\" IS NOT NULL)");
+            table.HasCheckConstraint("CK_SessionArtifacts_Committed", "\"Status\" <> 'committed' OR (\"ValidatedAt\" IS NOT NULL AND \"CommittedAt\" IS NOT NULL)");
+            table.HasCheckConstraint("CK_SessionArtifacts_KindSchema", "(\"Kind\" = 'rule-action-step' AND \"Schema\" = 'rule-action-step.v1') OR (\"Kind\" = 'post-state-narrative' AND \"Schema\" = 'post-state-narrative.v1') OR (\"Kind\" = 'narrative-text' AND \"Schema\" = 'narrative-text.v1') OR (\"Kind\" = 'note-patch' AND \"Schema\" = 'note-patch.v1') OR (\"Kind\" = 'image' AND \"Schema\" = 'image.v1')");
+        });
         builder.Entity<SessionArtifact>()
             .HasOne(artifact => artifact.Execution)
             .WithMany(execution => execution.Artifacts)

@@ -12,7 +12,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Myriale.Api.Application.SessionArtifacts;
+using Myriale.Api.Endpoints;
 using Myriale.Api.Data;
+using Myriale.Api.Infrastructure.SessionArtifacts;
 using Myriale.Api.Services;
 
 namespace Myriale.Api.Tests;
@@ -48,13 +51,42 @@ public sealed class SessionArtifactInfrastructureTests
         var storage = new MemoryStorage(now);
         storage.Add("expired.png", now.AddHours(-2));
         storage.Add("orphan.png", now.AddHours(-2));
-        var reconciler = new SessionArtifactReconciler(db, storage, Options.Create(new SessionImageOptions { OrphanGraceMinutes = 30 }), new FixedTimeProvider(now), NullLogger<SessionArtifactReconciler>.Instance);
+        var reconciler = new SessionArtifactReconciler(new EfSessionArtifactRepository(db), storage, Options.Create(new SessionImageOptions { OrphanGraceMinutes = 30 }), new FixedTimeProvider(now), NullLogger<SessionArtifactReconciler>.Instance);
 
         var result = await reconciler.ReconcileAsync();
 
         Assert.Equal(new SessionArtifactReconciliationResult(1, 1, 1), result);
         Assert.DoesNotContain("expired.png", storage.Keys);
         Assert.DoesNotContain("orphan.png", storage.Keys);
+        Assert.Equal(1, await db.SessionArtifacts.CountAsync());
+        Assert.Equal(1, await db.SessionImages.CountAsync());
+    }
+
+    [Fact]
+    public async Task RepositoryClassifiesExecutionKindUniquenessAsAttachConflict()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = Db(connection);
+        await db.Database.EnsureCreatedAsync();
+        var now = new DateTimeOffset(2026, 8, 4, 12, 0, 0, TimeSpan.Zero);
+        SeedExecutionGraph(db, "EXE-UNIQUE", SessionExecutionKinds.Image, SessionExecutionStatuses.Succeeded, now, suffix: "UNIQUE");
+        db.SessionExecutionAttempts.Add(new SessionExecutionAttempt { Id = "ATT-UNIQUE", ExecutionId = "EXE-UNIQUE", AttemptNumber = 1, Status = "succeeded", StartedAt = now });
+        await db.SaveChangesAsync();
+        var repository = new EfSessionArtifactRepository(db);
+
+        var firstArtifact = SessionArtifact.CreateCommittedImage(
+            "ART-UNIQUE-1", "SES-UNIQUE", "EXE-UNIQUE", "ATT-UNIQUE", "first.png", "image/png",
+            new string('a', 64), "{\"decision\":\"approved\"}", now);
+        var firstImage = SessionImage.Create("IMG-UNIQUE-1", firstArtifact, null, null, 1, 1, 1, null);
+        var secondArtifact = SessionArtifact.CreateCommittedImage(
+            "ART-UNIQUE-2", "SES-UNIQUE", "EXE-UNIQUE", "ATT-UNIQUE", "second.png", "image/png",
+            new string('b', 64), "{\"decision\":\"approved\"}", now);
+        var secondImage = SessionImage.Create("IMG-UNIQUE-2", secondArtifact, null, null, 1, 1, 1, null);
+
+        Assert.Equal(SessionImagePersistenceOutcome.Created, await repository.TryAddImageAsync(firstArtifact, firstImage, default));
+        Assert.Equal(SessionImagePersistenceOutcome.Conflict, await repository.TryAddImageAsync(secondArtifact, secondImage, default));
+        Assert.Equal(1, await db.SessionArtifacts.CountAsync());
         Assert.Equal(1, await db.SessionImages.CountAsync());
     }
 
@@ -100,8 +132,11 @@ public sealed class SessionArtifactInfrastructureTests
         var now = new DateTimeOffset(2026, 7, 21, 10, 0, 0, TimeSpan.Zero);
         SeedExecutionGraph(db, "EXE-IMG" + suffix, SessionExecutionKinds.Image, SessionExecutionStatuses.Succeeded, now, suffix: suffix);
         db.SessionExecutionAttempts.Add(new SessionExecutionAttempt { Id = "ATT-IMG" + suffix, ExecutionId = "EXE-IMG" + suffix, AttemptNumber = 1, Status = "succeeded", StartedAt = now });
-        db.SessionArtifacts.Add(new SessionArtifact { Id = "ART-IMG" + suffix, SessionId = "SES-" + suffix, ExecutionId = "EXE-IMG" + suffix, AttemptId = "ATT-IMG" + suffix, Kind = "image", Status = "committed", ContentType = "image/png", CreatedAt = now });
-        db.SessionImages.Add(new SessionImage { Id = imageId, SessionId = "SES-" + suffix, ArtifactId = "ART-IMG" + suffix, StorageKey = key, ContentType = "image/png", SizeBytes = 1, Width = 1, Height = 1, Checksum = new string('a', 64), CreatedAt = now, RetainUntil = retainUntil });
+        var artifact = SessionArtifact.CreateCommittedImage(
+            "ART-IMG" + suffix, "SES-" + suffix, "EXE-IMG" + suffix, "ATT-IMG" + suffix,
+            key, "image/png", new string('a', 64), "{\"decision\":\"approved\"}", now);
+        db.SessionArtifacts.Add(artifact);
+        db.SessionImages.Add(SessionImage.Create(imageId, artifact, null, null, 1, 1, 1, retainUntil));
     }
 
     private static void SeedExecutionGraph(ApplicationDbContext db, string executionId, SessionExecutionKind kind, SessionExecutionStatus status, DateTimeOffset queuedAt, DateTimeOffset? leaseExpiresAt = null, string suffix = "")
@@ -170,6 +205,25 @@ public sealed class SessionImageAttachEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(1, json.GetProperty("width").GetInt32());
+        var imageId = json.GetProperty("imageId").GetString()!;
+        using var rangeRequest = new HttpRequestMessage(HttpMethod.Get, $"/api/session-artifacts/media/{imageId}");
+        rangeRequest.Headers.Range = new RangeHeaderValue(0, 0);
+        using var rangeResponse = await client.SendAsync(rangeRequest);
+        Assert.Equal(HttpStatusCode.PartialContent, rangeResponse.StatusCode);
+        Assert.Single(await rangeResponse.Content.ReadAsByteArrayAsync());
+
+        var otherClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var otherRegister = await otherClient.PostAsJsonAsync("/api/account/register", new { displayName = "Other", email = "other-image@example.test", password = "letters1" });
+        ApplyCookies(otherClient, otherRegister);
+        using var forbiddenMedia = await otherClient.GetAsync($"/api/session-artifacts/media/{imageId}");
+        Assert.Equal(HttpStatusCode.NotFound, forbiddenMedia.StatusCode);
+
+        using var sessionResponse = await client.GetAsync($"/api/sessions/{sessionId}");
+        var sessionJson = await sessionResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var projectedArtifact = sessionJson.GetProperty("artifacts").EnumerateArray().Single();
+        Assert.Equal("image", projectedArtifact.GetProperty("kind").GetString());
+        Assert.Equal("image.v1", projectedArtifact.GetProperty("schema").GetString());
+
         await using var verify = factory.Services.CreateAsyncScope();
         var dbVerify = verify.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         Assert.Equal(checksum, (await dbVerify.SessionImages.SingleAsync()).Checksum);

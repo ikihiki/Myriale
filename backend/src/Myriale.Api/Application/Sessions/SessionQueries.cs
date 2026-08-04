@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Myriale.Api.Application.SessionArtifacts;
 using Myriale.Api.Application.ModuleExecutions;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
@@ -31,7 +32,8 @@ public sealed class GetSessionTurnQueryService(ApplicationDbContext db, IModuleE
 }
 
 public sealed class GetSessionDetailQueryService(ApplicationDbContext db, IModuleExecutionProjection modules,
-    IHostEnvironment environment, ScenarioRuleConfigurationResolver ruleResolver)
+    IHostEnvironment environment, ScenarioRuleConfigurationResolver ruleResolver,
+    GetSessionArtifactActivityQuery artifactActivityQuery)
 {
     public async Task<SessionResponse?> ExecuteAsync(string ownerId, string sessionId, CancellationToken ct)
     {
@@ -48,8 +50,7 @@ public sealed class GetSessionDetailQueryService(ApplicationDbContext db, IModul
         visibleInputIds.UnionWith(turns.Select(x => x.PlayerInputId).OfType<string>());
         var inputs = (await db.SessionPlayerInputs.AsNoTracking().Where(x => x.SessionId == sessionId).ToListAsync(ct)).Where(x => visibleInputIds.Contains(x.Id)).OrderBy(x => x.CreatedAt).ToList();
         var pending = SessionQueryMapper.Pending(inputs, storedExecutions);
-        var artifacts = (await db.SessionArtifacts.AsNoTracking().Where(x => x.SessionId == sessionId && x.Status == "committed").ToListAsync(ct)).OrderBy(x => x.CreatedAt).ToList();
-        var images = await db.SessionImages.AsNoTracking().Where(x => x.SessionId == sessionId).ToDictionaryAsync(x => x.ArtifactId, ct);
+        var artifactProjection = await artifactActivityQuery.ExecuteAsync(ownerId, sessionId, ct);
         var proposals = (await db.SessionNoteProposals.AsNoTracking().Where(x => x.SessionId == sessionId).ToListAsync(ct)).OrderBy(x => x.CreatedAt).ToList();
         var ruleSteps = (await db.SessionRuleActionSteps.AsNoTracking().Where(x => x.SessionId == sessionId).ToListAsync(ct)).OrderBy(x => x.CreatedAt).ToList();
         var objectStates = await db.SessionObjectStates.AsNoTracking().Include(x => x.ScenarioObject).Where(x => x.SessionId == sessionId).OrderBy(x => x.ScenarioObject.Code).ToListAsync(ct);
@@ -67,14 +68,12 @@ public sealed class GetSessionDetailQueryService(ApplicationDbContext db, IModul
             Parse<ScenarioExtensionResult>(x.ExtensionReceiptJson), x.AppliedAt, x.NarrativePublishedAt)).ToList();
         var stepsByExecution = ruleSteps.ToDictionary(x => x.ExecutionId, StringComparer.Ordinal);
         var executionResponses = storedExecutions.Select(x => SessionExecutionProjection.ToResponse(x, environment.IsDevelopment(), stepsByExecution.GetValueOrDefault(x.Id))).ToList();
-        var artifactResponses = artifacts.Select(x => new SessionArtifactResponse(x.Id, x.ExecutionId, x.Kind, x.Status, x.ContentType,
-            images.TryGetValue(x.Id, out var image) ? $"/api/session-artifacts/media/{image.Id}" : null, x.MetadataJson, x.CreatedAt, x.CommittedAt)).ToList();
         var transition = session.ProgressionTransitionReceipts.OrderByDescending(x => x.CreatedAt).FirstOrDefault();
         return new SessionResponse(session.Id, session.ScenarioId, session.Status.ToWireValue(), session.HeadTurnId, session.Revision, session.InterpretationEnabled,
             new SessionStateResponse(session.State.Revision, JsonSerializer.Deserialize<IReadOnlyDictionary<string, bool>>(session.State.FlagsJson) ?? new Dictionary<string, bool>()),
             session.Progress is null ? null : new SessionProgressionResponse(session.Progress.CurrentNode.Code, session.Progress.Revision, transition?.Status.ToWireValue(), transition?.ModuleTurnId, transition?.ErrorCode),
             turnResponses, pending, session.CreatedAt, session.UpdatedAt, inputs.Select(SessionExecutionProjection.ToResponse).ToList(), executionResponses,
-            artifactResponses, SessionQueryMapper.Activity(turnResponses, inputs, storedExecutions, artifacts),
+            artifactProjection.Artifacts, SessionQueryMapper.Activity(turnResponses, inputs, storedExecutions, artifactProjection.ActivityItems),
             proposals.Select(x => new SessionNoteProposalResponse(x.ArtifactId, x.SourceTurnId, x.NoteId, x.ExpectedNoteRevision, x.ProposedTitle, x.BeforeBody, x.ProposedBody, x.Rationale, x.Status.ToWireValue(), x.CreatedAt)).ToList(),
             session.ScenarioDefinitionVersionId, session.CurrentLocationId, objectResponses, stepResponses);
     }
@@ -209,7 +208,7 @@ internal static class SessionQueryMapper
                 e.IsRetryable, e.ErrorCode, e.UserErrorMessage, e.AttemptCount, e.CompletedAt ?? e.NextAttemptAt ?? e.StartedAt ?? e.QueuedAt); }).ToList();
     }
     internal static IReadOnlyList<SessionActivityResponse> Activity(IReadOnlyList<SessionTurnResponse> turns, IReadOnlyList<SessionPlayerInput> inputs,
-        IReadOnlyList<SessionExecution> executions, IReadOnlyList<SessionArtifact> artifacts)
+        IReadOnlyList<SessionExecution> executions, IReadOnlyList<SessionArtifactActivityItem> artifacts)
     {
         var rows = new List<(DateTimeOffset At,int Rank,string Type,string Id,string? Causal)>();
         rows.AddRange(turns.Select(x => (x.CreatedAt,4,"turn",x.Id,x.Narrative?.PlayerInputId ?? x.Narrative?.SourceModuleTurnId)));

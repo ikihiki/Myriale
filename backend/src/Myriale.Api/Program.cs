@@ -4,10 +4,12 @@ using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Application.AiProviders;
 using Myriale.Api.Application.ProgressionRuntime;
 using Myriale.Api.Application.ModuleExecutions;
+using Myriale.Api.Application.SessionArtifacts;
 using Myriale.Api.Application.SessionExecutions;
 using Myriale.Api.Application.Scenarios;
 using Myriale.Api.Application.SessionMemory;
 using Myriale.Api.Application.Sessions;
+using Myriale.Api.Infrastructure.SessionArtifacts;
 using Myriale.Api.Infrastructure.Sessions;
 using Myriale.Api.Data;
 using Myriale.Api.Endpoints;
@@ -134,6 +136,13 @@ builder.Services.AddOptions<SessionImageOptions>()
     .Validate(options => options.MaxBytes > 0 && options.MaxWidth > 0 && options.MaxHeight > 0
         && options.ReconciliationIntervalMinutes > 0 && options.OrphanGraceMinutes >= 0, "Session image limits must be valid.")
     .ValidateOnStart();
+builder.Services.AddScoped<ISessionArtifactWriter, EfSessionArtifactWriter>();
+builder.Services.AddScoped<EfSessionArtifactRepository>();
+builder.Services.AddScoped<ISessionArtifactRepository>(services => services.GetRequiredService<EfSessionArtifactRepository>());
+builder.Services.AddScoped<ISessionArtifactRetentionRepository>(services => services.GetRequiredService<EfSessionArtifactRepository>());
+builder.Services.AddScoped<AttachSessionImageUseCase>();
+builder.Services.AddScoped<GetSessionImageMediaQuery>();
+builder.Services.AddScoped<GetSessionArtifactActivityQuery>();
 builder.Services.AddSingleton<ISessionObjectStorage, FileSessionObjectStorage>();
 builder.Services.AddSingleton<SessionImageValidator>();
 builder.Services.AddScoped<SessionArtifactReconciler>();
@@ -307,6 +316,7 @@ using (var scope = app.Services.CreateScope())
         await SessionArtifactFixtureSeedData.SeedAsync(
             db,
             scope.ServiceProvider.GetRequiredService<ISessionObjectStorage>(),
+            scope.ServiceProvider.GetRequiredService<ISessionArtifactWriter>(),
             app.Configuration);
     }
 }

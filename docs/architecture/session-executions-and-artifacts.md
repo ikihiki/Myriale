@@ -59,6 +59,16 @@ This baseline reset does not reset database revisions/sequences, SHA-256 semanti
 
 Each artifact records its schema explicitly rather than relying only on a generic `kind` string. Audit data includes the pinned Scenario definition version, snapshot ID/revisions, provider metadata, selected rule/result, effect schema version, exact extension identity when used, ordered effects, random receipt, and pre/post revisions.
 
+## Typed artifact domain slice
+
+`SessionArtifact` is a closed artifact envelope. `SessionArtifactKind`, `SessionArtifactStatus`, and `SessionArtifactSchema` use explicit EF/wire conversion; unknown database values are rejected. Supported pairs are `rule-action-step` / `rule-action-step.v1`, `post-state-narrative` / `post-state-narrative.v1`, `narrative-text` / `narrative-text.v1`, `note-patch` / `note-patch.v1`, and `image` / `image.v1`.
+
+JSON artifacts are created only from typed payload records and persist `PayloadJson`; image artifacts are storage-backed and persist only `StorageKey`. The two backing modes are mutually exclusive in both aggregate validation and database check constraints. Draft → validated → committed transitions calculate or verify SHA-256, set validation/commit timestamps, and reject re-validation or re-commit. Identity, ownership, kind/schema/status, backing, checksum, and timestamps have no public setters. The former arbitrary `Kind` + `ContentJson` initializer contract is removed.
+
+All producers use `SessionArtifact` factories and `ISessionArtifactWriter`. Image attachment is orchestrated by `AttachSessionImageUseCase` through focused persistence and storage ports. It writes a unique final object, commits the artifact/image rows under the `(ExecutionId, Kind)` database constraint, translates a simultaneous loser to conflict, and deletes that loser's object as compensation. `GetSessionImageMediaQuery` enforces owner scope before opening storage; a retention deletion racing the open resolves to either a readable stream or not found.
+
+Session detail obtains artifact envelopes and artifact activity items through `GetSessionArtifactActivityQuery`, which owns the owner-scoped, no-tracking projection. Artifact HTTP endpoints contain no EF dependency. Retention reconciliation deletes the expired database artifact first, then its object; failed object cleanup becomes an orphan handled after the configured grace period. Missing referenced objects remain reported for operational repair.
+
 ## Diagnostics, telemetry, and retention
 
 Development-only diagnostics may expose bounded, redacted worker/provider timing and validation details to authorized owners. Production omits diagnostic payloads. Credentials, private Object/module state, hidden rule branches, package configuration, and player secrets remain forbidden in every environment.

@@ -173,6 +173,7 @@ public sealed record SessionArtifactResponse(
     string ExecutionId,
     string Kind,
     string Status,
+    string Schema,
     string ContentType,
     string? MediaUrl,
     string? MetadataJson,

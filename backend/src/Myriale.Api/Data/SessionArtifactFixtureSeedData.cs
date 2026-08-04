@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Myriale.Api.Application.SessionArtifacts;
 using Myriale.Api.Services;
 
 namespace Myriale.Api.Data;
@@ -17,6 +18,7 @@ public static class SessionArtifactFixtureSeedData
     public static async Task SeedAsync(
         ApplicationDbContext db,
         ISessionObjectStorage storage,
+        ISessionArtifactWriter artifactWriter,
         IConfiguration configuration,
         CancellationToken cancellationToken = default)
     {
@@ -41,43 +43,19 @@ public static class SessionArtifactFixtureSeedData
         var imageExecution = Execution("EXE-DEVELOPMENT-IMAGE", SessionExecutionKinds.Image, "fixture-image", timestamp.AddSeconds(1));
         var noteAttempt = Attempt("ATT-DEVELOPMENT-NOTE", noteExecution.Id, timestamp);
         var imageAttempt = Attempt("ATT-DEVELOPMENT-IMAGE", imageExecution.Id, timestamp.AddSeconds(1));
-        var noteArtifact = new SessionArtifact
-        {
-            Id = NoteArtifactId,
-            SessionId = SessionId,
-            ExecutionId = noteExecution.Id,
-            AttemptId = noteAttempt.Id,
-            Kind = "note-patch",
-            Status = "committed",
-            ContentType = "application/json",
-            Checksum = new string('b', 64),
-            ContentJson = "{\"title\":\"銀の鍵\",\"body\":\"水没した閲覧室で銀の鍵を見つけた。\"}",
-            MetadataJson = "{\"fixture\":true}",
-            CreatedAt = timestamp,
-            ValidatedAt = timestamp,
-            CommittedAt = timestamp,
-        };
-        var imageArtifact = new SessionArtifact
-        {
-            Id = ImageArtifactId,
-            SessionId = SessionId,
-            ExecutionId = imageExecution.Id,
-            AttemptId = imageAttempt.Id,
-            Kind = "image",
-            Status = "committed",
-            ContentType = "image/png",
-            StorageKey = StorageKey,
-            Checksum = checksum,
-            MetadataJson = moderation,
-            CreatedAt = timestamp.AddSeconds(1),
-            ValidatedAt = timestamp.AddSeconds(1),
-            CommittedAt = timestamp.AddSeconds(1),
-        };
+        var noteArtifact = SessionArtifact.CreateCommittedJson(
+            NoteArtifactId, SessionId, noteExecution.Id, noteAttempt.Id,
+            new NotePatchArtifactPayload("銀の鍵", "水没した閲覧室で銀の鍵を見つけた。"),
+            "{\"fixture\":true}", timestamp);
+        var imageArtifact = SessionArtifact.CreateCommittedImage(
+            ImageArtifactId, SessionId, imageExecution.Id, imageAttempt.Id, StorageKey,
+            "image/png", checksum, moderation, timestamp.AddSeconds(1));
 
         db.Sessions.Add(session);
         db.SessionExecutions.AddRange(noteExecution, imageExecution);
         db.SessionExecutionAttempts.AddRange(noteAttempt, imageAttempt);
-        db.SessionArtifacts.AddRange(noteArtifact, imageArtifact);
+        artifactWriter.Add(noteArtifact);
+        artifactWriter.Add(imageArtifact);
         db.SessionNoteProposals.Add(SessionNoteProposal.Create(
             NoteArtifactId,
             SessionId,
@@ -89,21 +67,9 @@ public static class SessionArtifactFixtureSeedData
             "水没した閲覧室で銀の鍵を見つけた。",
             "開発・テスト用の決定的な変更案です。",
             timestamp));
-        db.SessionImages.Add(new SessionImage
-        {
-            Id = ImageId,
-            SessionId = SessionId,
-            SourceTurnId = "TURN-DEVELOPMENT-FIXTURE",
-            ArtifactId = ImageArtifactId,
-            StorageKey = StorageKey,
-            ContentType = "image/png",
-            SizeBytes = TinyPng.LongLength,
-            Width = 1,
-            Height = 1,
-            Checksum = checksum,
-            ModerationMetadataJson = moderation,
-            CreatedAt = timestamp.AddSeconds(1),
-        });
+        db.SessionImages.Add(SessionImage.Create(
+            ImageId, imageArtifact, "TURN-DEVELOPMENT-FIXTURE", null,
+            TinyPng.LongLength, 1, 1, null));
         await db.SaveChangesAsync(cancellationToken);
     }
 

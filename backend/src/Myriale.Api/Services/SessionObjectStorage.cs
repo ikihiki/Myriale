@@ -1,6 +1,5 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Myriale.Api.Data;
+using Myriale.Api.Application.SessionArtifacts;
 
 namespace Myriale.Api.Services;
 
@@ -77,7 +76,7 @@ public sealed class FileSessionObjectStorage(IHostEnvironment environment) : ISe
 public sealed record SessionArtifactReconciliationResult(int ExpiredDeleted, int OrphansDeleted, int MissingObjects);
 
 public sealed class SessionArtifactReconciler(
-    ApplicationDbContext db,
+    ISessionArtifactRetentionRepository repository,
     ISessionObjectStorage storage,
     IOptions<SessionImageOptions> options,
     TimeProvider timeProvider,
@@ -87,32 +86,34 @@ public sealed class SessionArtifactReconciler(
     {
         using var activity = SessionExecutionTelemetry.ActivitySource.StartActivity("session.artifact.reconcile");
         var now = timeProvider.GetUtcNow();
-        var images = await db.SessionImages.ToListAsync(cancellationToken);
-        var objects = await storage.ListAsync(cancellationToken);
-        var objectKeys = objects.Select(item => item.Key).ToHashSet(StringComparer.Ordinal);
-        var referencedKeys = images.Select(item => item.StorageKey).ToHashSet(StringComparer.Ordinal);
-        var expired = images.Where(image => image.RetainUntil is not null && image.RetainUntil < now).ToArray();
-        foreach (var image in expired)
+        var images = await repository.ListImagesAsync(cancellationToken);
+        var expiredDeleted = 0;
+        var expiredKeys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var image in images.Where(image => image.RetainUntil is not null && image.RetainUntil < now))
         {
+            if (!await repository.DeleteExpiredAsync(image.ImageId, now, cancellationToken)) continue;
+            expiredDeleted++;
+            expiredKeys.Add(image.StorageKey);
             await storage.DeleteAsync(image.StorageKey, cancellationToken);
-            db.SessionImages.Remove(image);
         }
 
+        var objects = await storage.ListAsync(cancellationToken);
+        var objectKeys = objects.Select(item => item.Key).ToHashSet(StringComparer.Ordinal);
+        var referencedKeys = images.Where(image => !expiredKeys.Contains(image.StorageKey))
+            .Select(image => image.StorageKey).ToHashSet(StringComparer.Ordinal);
         var orphanCutoff = now.AddMinutes(-options.Value.OrphanGraceMinutes);
         var orphans = objects.Where(item => !referencedKeys.Contains(item.Key) && item.LastModifiedAt < orphanCutoff).ToArray();
         foreach (var orphan in orphans) await storage.DeleteAsync(orphan.Key, cancellationToken);
 
-        if (expired.Length > 0) await db.SaveChangesAsync(cancellationToken);
-        var expiredKeys = expired.Select(item => item.StorageKey).ToHashSet(StringComparer.Ordinal);
-        var missing = images.Count(image => !expiredKeys.Contains(image.StorageKey) && !objectKeys.Contains(image.StorageKey));
+        var missing = referencedKeys.Count(key => !objectKeys.Contains(key));
         if (missing > 0) logger.LogWarning("Session artifact reconciliation found missing objects. MissingObjects={MissingObjects}", missing);
         logger.LogInformation(
             "Session artifact reconciliation completed. ExpiredDeleted={ExpiredDeleted} OrphansDeleted={OrphansDeleted} MissingObjects={MissingObjects}",
-            expired.Length, orphans.Length, missing);
-        activity?.SetTag("myriale.artifact.expired_deleted", expired.Length);
+            expiredDeleted, orphans.Length, missing);
+        activity?.SetTag("myriale.artifact.expired_deleted", expiredDeleted);
         activity?.SetTag("myriale.artifact.orphans_deleted", orphans.Length);
         activity?.SetTag("myriale.artifact.missing_objects", missing);
-        return new(expired.Length, orphans.Length, missing);
+        return new(expiredDeleted, orphans.Length, missing);
     }
 }
 

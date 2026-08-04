@@ -42,9 +42,9 @@ Audit telemetry/log output for forbidden data: player text, full prompt/Narrativ
 
 - Note proposals do not update canon until apply/edit-apply succeeds with the expected revision. A revision conflict requires re-review.
 - Image failure is partial success and must not remove Narrative.
-- Attach an existing image Execution/Attempt through authenticated `POST /api/session-artifacts/images/attach`. The endpoint accepts PNG only and verifies signature, configured `SessionImages` byte/dimension limits, SHA-256 checksum, and `ModerationDecision=approved` before committing storage and database rows.
-- The authorized media endpoint must return 404 for another owner.
-- `SessionArtifactRetentionWorker` lists storage every `SessionImages:ReconciliationIntervalMinutes`, removes rows/objects past `RetainUntil`, and deletes unreferenced objects only after `SessionImages:OrphanGraceMinutes`. Search `session.artifact.reconcile` logs for `ExpiredDeleted`, `OrphansDeleted`, and `MissingObjects`; investigate missing objects before repairing or removing their database rows.
+- Attach an existing image Execution/Attempt through authenticated `POST /api/session-artifacts/images/attach`. The endpoint accepts PNG only and verifies signature, configured `SessionImages` byte/dimension limits, SHA-256 checksum, and `ModerationDecision=approved` before committing storage and database rows. Storage is written first; a database failure or simultaneous-attach loser deletes its unique object as compensation, and the loser receives HTTP 409.
+- The authorized media endpoint supports byte ranges and returns 404 for another owner, a missing object, or a retention delete that wins the read race.
+- `SessionArtifactRetentionWorker` lists storage every `SessionImages:ReconciliationIntervalMinutes`, removes an expired artifact row before deleting its object, and deletes unreferenced objects only after `SessionImages:OrphanGraceMinutes`. A failed post-commit object delete is therefore recovered as an orphan. Search `session.artifact.reconcile` logs for `ExpiredDeleted`, `OrphansDeleted`, and `MissingObjects`; investigate missing referenced objects before repairing or removing their database rows.
 - Development uses the deterministic note + one-pixel PNG Session fixture when `SessionArtifactFixture:Enabled=true`. Test hosts opt in with `SessionArtifactFixture:EnableInTestHost=true`. Disable the fixture outside development/demo environments.
 
 ## Database initialization

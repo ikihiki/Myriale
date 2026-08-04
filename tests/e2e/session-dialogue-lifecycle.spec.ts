@@ -298,9 +298,9 @@ test('creates a session, completes multiple dialogues, reloads, and reuses the R
   const retryRequests = api.inputRequests.filter((request) => request.text === '古い扉の紋章を調べる');
   expect(retryRequests).toHaveLength(2);
   expect(retryRequests[0].requestId).toMatch(/^scenario-turn-/);
-  expect(retryRequests[0].requestedOutputs).toEqual(['scenario-turn']);
+  expect(retryRequests[0]).not.toHaveProperty('requestedOutputs');
   expect(retryRequests[1].requestId).toBe(retryRequests[0].requestId);
-  expect(retryRequests[1].requestedOutputs).toEqual(['scenario-turn']);
+  expect(retryRequests[1]).not.toHaveProperty('requestedOutputs');
 
   await page.reload();
   await expect(page.getByTestId('session-activity-feed')).toContainText('書架の奥から司書が現れ、静かに名乗った。', { timeout: 15_000 });
