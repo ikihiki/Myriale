@@ -44,6 +44,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.Entity<AiProviderRuntimeSettings>().Property(settings => settings.Revision).IsConcurrencyToken();
         builder.Entity<Scenario>().Property(scenario => scenario.Revision).IsConcurrencyToken();
         builder.Entity<ScenarioDefinitionVersion>().Property(version => version.Revision).IsConcurrencyToken();
         builder.Entity<ScenarioDefinitionVersion>().Ignore(version => version.DomainEvents);

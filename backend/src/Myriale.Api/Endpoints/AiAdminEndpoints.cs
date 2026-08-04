@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
+using Myriale.Api.Application.AiProviders;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Services;
@@ -64,21 +65,21 @@ public static class AiAdminEndpoints
 
     private static async Task<IResult> ActivateAsync(
         ActivateAiProviderRequest request,
-        IAiCredentialStore store,
-        IAiProviderSelectionStore selection,
-        IAiProfileCatalog catalog,
-        ApplicationDbContext db,
+        ActivateAiProviderUseCase useCase,
+        AiProviderAdministrationQueryService query,
         CancellationToken cancellationToken)
     {
-        AiProfileDescriptor profile;
-        try { profile = await catalog.ResolveAsync(request.Provider, cancellationToken); }
-        catch (AiProviderException exception) { return ValidationProblem("使用するAI profileを確認してください。", "provider", exception.Message); }
-        if (string.IsNullOrWhiteSpace(profile.ApiKey) && string.IsNullOrWhiteSpace(await store.GetAsync(profile.CredentialId, cancellationToken)))
-            return Results.Conflict(new AiAdminErrorResponse("先にcredentialを登録してください。", new Dictionary<string, string[]> { ["provider"] = ["Credential未設定のprofileは使用できません。"] }));
-        await selection.SetActiveProviderAsync(profile.Id, cancellationToken);
-        var key = await db.AiProviderKeys.AsNoTracking().SingleOrDefaultAsync(x => x.Provider == profile.CredentialId, cancellationToken);
-        var isDb = await db.AiProviderProfileDefinitions.AnyAsync(item => item.Id == profile.Id, cancellationToken);
-        return Results.Ok(await ToResponseAsync(profile, isDb ? "database" : "configuration", key, profile.Id, store, cancellationToken));
+        var result = await useCase.ExecuteAsync(
+            new ActivateAiProviderCommand(request.Provider, request.ExpectedRevision),
+            cancellationToken);
+        if (result.Outcome == ActivateAiProviderOutcome.UnknownProvider)
+            return ValidationProblem("使用するAI profileを確認してください。", "provider", result.ErrorMessage ?? "AI profileが見つかりません。");
+        if (result.Outcome == ActivateAiProviderOutcome.CredentialMissing)
+            return Results.Conflict(new AiAdminErrorResponse("先にcredentialを登録してください。", new Dictionary<string, string[]> { ["provider"] = [result.ErrorMessage ?? "Credential未設定のprofileは使用できません。"] }));
+        if (result.Outcome == ActivateAiProviderOutcome.Conflict)
+            return Results.Conflict(new AiAdminErrorResponse("使用するAI profileが更新されています。", new Dictionary<string, string[]> { ["provider"] = [result.ErrorMessage ?? "再読み込みしてください。"] }));
+
+        return Results.Ok(await query.GetProviderAsync(result.Profile!, result.Profile!.Id, cancellationToken));
     }
 
     private static async Task<IResult> UpsertAsync(

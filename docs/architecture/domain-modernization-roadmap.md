@@ -40,6 +40,7 @@ Scenario authoring established the reference architecture for Myriale domain cod
 ## Delivered slices
 
 - **Progression Runtime (August 2026):** transition receipts now expose a native status enum and aggregate-owned lifecycle, while an application command and focused EF repository preserve owner scoping, atomic revision claims, and lease-generation fencing. See `progression-runtime.md`.
+- **AI Provider Administration — active selection (August 2026):** runtime selection now uses a revision-protected singleton aggregate, activation command outcomes, a focused EF repository, separated fallback query policy, and a legacy selection-store adapter. Profile and credential lifecycle extraction remains a later slice. See `ai-provider-administration.md`.
 
 ## Deliberate boundaries
 

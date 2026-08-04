@@ -37,6 +37,7 @@ public sealed class AiEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/admin/ai-keys/")).StatusCode);
 
         var client = await CreateSignedInClientAsync(grantAdmin: false);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PutAsJsonAsync("/api/admin/ai-keys/active-provider", new { provider = "openai" })).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/admin/ai-keys/")).StatusCode);
         client = await CreateSignedInClientAsync(grantAdmin: true);
 
@@ -94,6 +95,20 @@ public sealed class AiEndpointTests : IDisposable
         var providers = (await listed.Content.ReadFromJsonAsync<JsonElement>()).EnumerateArray().ToArray();
         Assert.True(providers.Single(item => item.GetProperty("provider").GetString() == "runpod").GetProperty("active").GetBoolean());
         Assert.False(providers.Single(item => item.GetProperty("provider").GetString() == "openai").GetProperty("active").GetBoolean());
+    }
+
+    [Fact]
+    public async Task AdminAiKeys_MapsStaleActivationRevisionToConflict()
+    {
+        var client = await CreateSignedInClientAsync(grantAdmin: true);
+        using var saved = await client.PutAsJsonAsync("/api/admin/ai-keys/runpod", new { displayName = "Runpod Serverless", secret = "runpod-secret-5678" });
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        using var activated = await client.PutAsJsonAsync("/api/admin/ai-keys/active-provider", new { provider = "runpod" });
+        Assert.Equal(HttpStatusCode.OK, activated.StatusCode);
+
+        using var stale = await client.PutAsJsonAsync("/api/admin/ai-keys/active-provider", new { provider = "openai", expectedRevision = 0 });
+
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
     }
 
     [Fact]

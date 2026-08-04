@@ -31,7 +31,7 @@ public sealed record UpsertAiProviderKeyRequest(
     string? Model = null,
     string? CredentialId = null,
     bool Enabled = true);
-public sealed record ActivateAiProviderRequest(string Provider);
+public sealed record ActivateAiProviderRequest(string Provider, long? ExpectedRevision = null);
 
 public sealed record AiPromptTestRequest(string Prompt);
 

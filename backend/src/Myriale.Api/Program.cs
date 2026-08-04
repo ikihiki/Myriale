@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Myriale.Api.Application.AiProviders;
 using Myriale.Api.Application.ProgressionRuntime;
 using Myriale.Api.Application.SessionExecutions;
 using Myriale.Api.Application.Scenarios;
@@ -8,6 +9,7 @@ using Myriale.Api.Application.SessionMemory;
 using Myriale.Api.Data;
 using Myriale.Api.Endpoints;
 using Myriale.Api.Domain.Scenarios;
+using Myriale.Api.Infrastructure.AiProviders;
 using Myriale.Api.Infrastructure.ProgressionRuntime;
 using Myriale.Api.Infrastructure.SessionExecutions;
 using Myriale.Api.Infrastructure.Scenarios;
@@ -35,6 +37,12 @@ builder.Services.AddOptions<AiProviderOptions>()
         && options.LeaseRecoveryIntervalSeconds > 0, "AI quota and recovery limits must be positive.")
     .ValidateOnStart();
 builder.Services.AddScoped<IAiCredentialStore, DataProtectionAiCredentialStore>();
+builder.Services.AddScoped<EfActiveAiProviderSettingsRepository>();
+builder.Services.AddScoped<IActiveAiProviderSettingsRepository>(services => services.GetRequiredService<EfActiveAiProviderSettingsRepository>());
+builder.Services.AddScoped<IActiveAiProviderSettingsReader>(services => services.GetRequiredService<EfActiveAiProviderSettingsRepository>());
+builder.Services.AddScoped<ActiveAiProviderQueryService>();
+builder.Services.AddScoped<ActivateAiProviderUseCase>();
+builder.Services.AddScoped<AiProviderAdministrationQueryService>();
 builder.Services.AddScoped<IAiProviderSelectionStore, DbAiProviderSelectionStore>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<OpenAiCompatibleTextProvider>();
