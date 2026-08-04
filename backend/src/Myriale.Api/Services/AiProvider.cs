@@ -8,6 +8,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 using Myriale.Api.Contracts;
+using Myriale.Api.Application.AiProviders;
 
 namespace Myriale.Api.Services;
 
@@ -63,10 +64,6 @@ public interface IAiTextProvider
 public sealed class AiProviderOptions
 {
     public const string SectionName = "AiProvider";
-    public string Provider { get; set; } = "mock";
-    public string Model { get; set; } = "gpt-4.1-mini";
-    public string? BaseUrl { get; set; }
-    public string? ApiKey { get; set; }
     public int TimeoutSeconds { get; set; } = 300;
     public int MaxOutputTokens { get; set; } = 1200;
     public double Temperature { get; set; } = 0.4;
@@ -78,42 +75,23 @@ public sealed class AiProviderOptions
     public int LeaseRecoveryIntervalSeconds { get; set; } = 60;
     public string? DefaultActionDecisionProfileId { get; set; }
     public string? DefaultNarrativeProfileId { get; set; }
-    public string? CatalogJson { get; set; }
-    public Dictionary<string, AiProviderProfileOptions> Providers { get; set; } = new(StringComparer.OrdinalIgnoreCase);
-    public Dictionary<string, AiProfileOptions> Profiles { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
-public sealed class AiProviderProfileOptions
+public sealed class AiRuntimeOptions
 {
-    public string? BaseUrl { get; set; }
-    public string? Model { get; set; }
-    public string? ApiKey { get; set; }
+    public const string SectionName = "AiRuntime";
+    public string Mode { get; set; } = "provider";
 }
 
-public sealed class AiProfileOptions
-{
-    public string DisplayName { get; set; } = string.Empty;
-    public string Provider { get; set; } = string.Empty;
-    public string? BaseUrl { get; set; }
-    public string? Model { get; set; }
-    public string? ApiKey { get; set; }
-}
-
-public interface IAiCredentialStore
-{
-    Task SaveAsync(string provider, string displayName, string secret, CancellationToken cancellationToken);
-    Task<string?> GetAsync(string provider, CancellationToken cancellationToken);
-    Task DeleteAsync(string provider, CancellationToken cancellationToken);
-    string Mask(string secret);
-}
+internal sealed record AiProviderRequestOptions(string BaseUrl, string Model, int TimeoutSeconds, int MaxOutputTokens, double Temperature, int MaxAttempts, int InitialBackoffMilliseconds);
 
 public sealed class OpenAiCompatibleTextProvider(
     IHttpClientFactory clients,
-    IAiCredentialStore credentials,
+    IAiRuntimeCredentialResolver credentials,
     IOptions<AiProviderOptions> configuredOptions,
     IAiProfileCatalog catalog,
-    ILogger<OpenAiCompatibleTextProvider> logger,
-    IAiProviderSelectionStore? selection = null) : IAiTextProvider
+    ActiveAiProviderQueryService selection,
+    ILogger<OpenAiCompatibleTextProvider> logger) : IAiTextProvider
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -122,21 +100,17 @@ public sealed class OpenAiCompatibleTextProvider(
 
     public async Task<AiTextResponse> GenerateAsync(AiTextRequest request, CancellationToken cancellationToken)
     {
-        var profileId = selection is null
-            ? (await catalog.GetAsync(cancellationToken)).DefaultNarrativeProfileId
-            : await selection.GetActiveProviderAsync(cancellationToken);
+        var profileId = await selection.GetActiveProviderAsync(cancellationToken);
         return await GenerateForProfileAsync(profileId, request, cancellationToken);
     }
 
     public async Task<AiTextResponse> GenerateForProfileAsync(string profileId, AiTextRequest request, CancellationToken cancellationToken)
     {
         var profile = await catalog.ResolveAsync(profileId, cancellationToken);
-        if (profile.Adapter != "openai-compatible")
-            throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, $"AI adapter '{profile.Adapter}' is not supported.", false);
-        var credential = profile.ApiKey ?? await credentials.GetAsync(profile.CredentialId, cancellationToken);
-        if (string.IsNullOrWhiteSpace(credential))
+        var credential = await credentials.ResolveAsync(profile.CredentialId, cancellationToken);
+        if (credential is null)
             throw new AiProviderException(AiProviderErrorCodes.InvalidCredential, "AI Provider credentialが設定されていません。", false);
-        return await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile), credential, request, cancellationToken);
+        return await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile), credential.Secret, request, cancellationToken);
     }
 
     public async Task<AiTextResponse> GenerateForProviderAsync(string provider, string credential, AiTextRequest request, CancellationToken cancellationToken)
@@ -160,7 +134,7 @@ public sealed class OpenAiCompatibleTextProvider(
         await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile), credential, probe, cancellationToken);
     }
 
-    private async Task<AiTextResponse> SendWithRetryAsync(string provider, AiProviderOptions options, string credential, AiTextRequest request, CancellationToken cancellationToken)
+    private async Task<AiTextResponse> SendWithRetryAsync(string provider, AiProviderRequestOptions options, string credential, AiTextRequest request, CancellationToken cancellationToken)
     {
         AiProviderException? last = null;
         for (var attempt = 1; attempt <= Math.Max(1, options.MaxAttempts); attempt++)
@@ -187,7 +161,7 @@ public sealed class OpenAiCompatibleTextProvider(
         throw last ?? new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "AI Provider request failed.", true);
     }
 
-    private async Task<AiTextResponse> SendAsync(string provider, AiProviderOptions options, string credential, AiTextRequest input, int attempt, CancellationToken cancellationToken)
+    private async Task<AiTextResponse> SendAsync(string provider, AiProviderRequestOptions options, string credential, AiTextRequest input, int attempt, CancellationToken cancellationToken)
     {
         var client = clients.CreateClient("OpenAiCompatible");
         var endpoint = new Uri(new Uri(ResolveBaseUrl(options.BaseUrl)), "chat/completions");
@@ -335,17 +309,14 @@ public sealed class OpenAiCompatibleTextProvider(
         return compact.Length <= maxLength ? compact : compact[..maxLength] + "…";
     }
 
-    private static AiProviderOptions ResolveProfileOptions(AiProviderOptions configured, AiProfileDescriptor profile) => new()
-    {
-        Provider = profile.Id,
-        BaseUrl = profile.BaseUrl,
-        Model = profile.Model,
-        TimeoutSeconds = configured.TimeoutSeconds,
-        MaxOutputTokens = configured.MaxOutputTokens,
-        Temperature = configured.Temperature,
-        MaxAttempts = configured.MaxAttempts,
-        InitialBackoffMilliseconds = configured.InitialBackoffMilliseconds,
-    };
+    private static AiProviderRequestOptions ResolveProfileOptions(AiProviderOptions configured, AiProfileDescriptor profile) => new(
+        profile.BaseUrl,
+        profile.Model,
+        configured.TimeoutSeconds,
+        configured.MaxOutputTokens,
+        configured.Temperature,
+        configured.MaxAttempts,
+        configured.InitialBackoffMilliseconds);
 
     private static string ResolveBaseUrl(string? configured) =>
         (configured ?? throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "AI Provider BaseUrl is required.", false)).TrimEnd('/') + "/";

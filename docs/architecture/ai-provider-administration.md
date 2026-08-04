@@ -1,30 +1,32 @@
 # AI provider administration architecture
 
-The active runtime provider is the first DDD/CQRS-lite slice of AI provider administration. Provider profile definitions and credential storage remain existing infrastructure-owned resources; this slice intentionally does not aggregate them or change the OpenAI-compatible transport.
+AI provider administration is split into three independent boundaries: the completed active-provider selection aggregate, provider profile definitions, and credentials. The split is intentionally destructive; the former AI keys route, mixed profile/key DTO, legacy catalog parser, and selection compatibility store do not exist.
 
-## Write boundary
+## Domain and persistence
 
-`AiProviderRuntimeSettings` is the singleton aggregate for runtime selection. It owns `ActiveProvider`, `Revision`, and `UpdatedAt`; activation is performed through `Activate`, and mutable state is not publicly settable. `Revision` is an EF optimistic-concurrency token.
+`AiProviderProfile` owns `AiProviderProfileId`, OpenAI-compatible endpoint/model metadata, the referenced `AiCredentialId`, enabled state, `Revision`, and `UpdatedAt`. `AiCredential` owns encrypted secret material, a non-secret hint, identity, and revision. Both aggregates validate creation, expose private setters, require expected revisions for mutation, and use EF optimistic-concurrency tokens.
 
-`ActivateAiProviderUseCase` resolves the requested profile, verifies that its configured or database credential is available, loads or creates the singleton through `IActiveAiProviderSettingsRepository`, applies the transition, and saves it. Outcomes distinguish unknown profiles, missing credentials, and concurrency conflicts. The optional `expectedRevision` request field provides client-side stale-write detection while requests that omit it remain compatible.
+Connection validation is stored as `AiProviderProfileValidation`. Each record is fenced by profile ID/revision and credential ID/revision, so replacing a credential or editing a profile makes an older result `Untested` for the current snapshot rather than transferring validity to a different connection.
 
-`EfActiveAiProviderSettingsRepository` owns tracked singleton load/create/save behavior. A stale update and the primary-key race between simultaneous first creates both become a stable conflict rather than an unhandled database error.
+`IAiProviderProfileRepository` and `IAiCredentialRepository` are focused write/read ports. Their EF implementations normalize unique-create and stale-write failures to conflict outcomes. Credential deletion is rejected while a database or deployment-owned profile references it. Disabling or deleting the active database profile is rejected; changing the active profile remains the responsibility of the existing activation command.
 
-## Read and compatibility boundaries
+## Runtime resolution
 
-`ActiveAiProviderQueryService` contains runtime fallback policy independently of writes:
+`IAiDeploymentProfileSource` reads typed `AiDeployment:Profiles` configuration. Database definitions override deployment definitions with the same profile ID. `IAiProfileCatalog` is the runtime profile registry and exposes descriptors without secrets.
 
-1. use a persisted selection when it still resolves;
-2. otherwise use the legacy `AiProvider:Provider` configuration when it is non-mock and resolves;
-3. otherwise use the catalog narrative default.
+`IAiRuntimeCredentialResolver` resolves typed `AiDeployment:Credentials` first and encrypted database credentials second. Deployment-owned secrets therefore retain precedence without being copied into descriptors, queries, HTTP responses, logs, or frontend state. Runtime tuning remains under `AiProvider`; runtime adapter selection is under `AiRuntime`.
 
-`IActiveAiProviderSettingsReader` supplies the persisted projection without tracking. Existing provider consumers continue to use `IAiProviderSelectionStore`; `DbAiProviderSelectionStore` is now a compatibility adapter over the query and activation use cases.
+## Application and HTTP
 
-The activation endpoint binds the existing route and response contract, invokes the command, maps stale writes to HTTP 409, and obtains its response projection from `AiProviderAdministrationQueryService`. It no longer receives `ApplicationDbContext`.
+Profile commands create, update, enable, disable, and delete definitions. Credential commands set, replace, and delete secrets. Every update/delete request carries an expected revision. Connection and prompt tests carry both the profile and credential revision, recheck the fence after provider I/O, and return conflict if either resource changed.
 
-## Deliberate next steps
+The admin snapshot query combines deployment and database profile definitions, credential availability/source, active state, references, and the latest validation valid for the current revision fence. `AiAdminEndpoints` receives application services only; it has no `ApplicationDbContext` dependency.
 
-- Profile definition commands and queries remain in the existing admin endpoint and catalog service.
-- Credential lifecycle remains in `IAiCredentialStore`.
-- Transport adapter extraction and account-domain changes are out of scope.
-- Existing configuration fallback and all `IAiProviderSelectionStore` consumers remain supported.
+Routes:
+
+- `/api/admin/ai-profiles`
+- `/api/admin/ai-credentials`
+- `/api/admin/ai-profiles/{id}/connection-tests`
+- `/api/admin/ai-profiles/{id}/prompt-tests`
+
+The frontend mirrors the split with separate Profile and Credential forms/tables. It carries revisions through edits, state transitions, deletion, and tests. Storybook covers replacement and profile-scoped connection testing.

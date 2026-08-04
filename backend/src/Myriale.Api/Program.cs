@@ -44,29 +44,39 @@ builder.Services.AddOptions<AiProviderOptions>()
         && options.MaxTokensPerSession > 0
         && options.LeaseRecoveryIntervalSeconds > 0, "AI quota and recovery limits must be positive.")
     .ValidateOnStart();
-builder.Services.AddScoped<IAiCredentialStore, DataProtectionAiCredentialStore>();
+builder.Services.AddOptions<AiProviderDeploymentOptions>()
+    .Bind(builder.Configuration.GetSection(AiProviderDeploymentOptions.SectionName));
+builder.Services.AddOptions<AiRuntimeOptions>()
+    .Bind(builder.Configuration.GetSection(AiRuntimeOptions.SectionName));
+builder.Services.AddSingleton<IAiDeploymentProfileSource, OptionsAiDeploymentProfileSource>();
+builder.Services.AddScoped<IAiSecretProtector, DataProtectionAiSecretProtector>();
+builder.Services.AddScoped<IAiProviderProfileRepository, EfAiProviderProfileRepository>();
+builder.Services.AddScoped<IAiCredentialRepository, EfAiCredentialRepository>();
+builder.Services.AddScoped<IAiRuntimeCredentialResolver, AiRuntimeCredentialResolver>();
+builder.Services.AddScoped<AiProviderProfileUseCases>();
+builder.Services.AddScoped<AiCredentialUseCases>();
+builder.Services.AddScoped<AiProviderTestUseCases>();
 builder.Services.AddScoped<EfActiveAiProviderSettingsRepository>();
 builder.Services.AddScoped<IActiveAiProviderSettingsRepository>(services => services.GetRequiredService<EfActiveAiProviderSettingsRepository>());
 builder.Services.AddScoped<IActiveAiProviderSettingsReader>(services => services.GetRequiredService<EfActiveAiProviderSettingsRepository>());
 builder.Services.AddScoped<ActiveAiProviderQueryService>();
 builder.Services.AddScoped<ActivateAiProviderUseCase>();
 builder.Services.AddScoped<AiProviderAdministrationQueryService>();
-builder.Services.AddScoped<IAiProviderSelectionStore, DbAiProviderSelectionStore>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<OpenAiCompatibleTextProvider>();
 builder.Services.AddScoped<IAiTextProvider>(services => services.GetRequiredService<OpenAiCompatibleTextProvider>());
 builder.Services.AddScoped<MockAiNarrativeGenerator>();
 builder.Services.AddScoped<ProviderNarrativeGenerator>();
 builder.Services.AddScoped<INarrativeGenerator>(services =>
-    string.Equals(builder.Configuration["AiProvider:Provider"], "mock", StringComparison.OrdinalIgnoreCase)
+    string.Equals(builder.Configuration["AiRuntime:Mode"], "mock", StringComparison.OrdinalIgnoreCase)
         ? services.GetRequiredService<MockAiNarrativeGenerator>()
         : services.GetRequiredService<ProviderNarrativeGenerator>());
 builder.Services.AddScoped<IScenarioTurnAi>(services =>
-    string.Equals(builder.Configuration["AiProvider:Provider"], "mock", StringComparison.OrdinalIgnoreCase)
+    string.Equals(builder.Configuration["AiRuntime:Mode"], "mock", StringComparison.OrdinalIgnoreCase)
         ? services.GetRequiredService<MockAiNarrativeGenerator>()
         : services.GetRequiredService<ProviderNarrativeGenerator>());
 builder.Services.AddScoped<IActionRecommendationGenerator>(services =>
-    string.Equals(builder.Configuration["AiProvider:Provider"], "mock", StringComparison.OrdinalIgnoreCase)
+    string.Equals(builder.Configuration["AiRuntime:Mode"], "mock", StringComparison.OrdinalIgnoreCase)
         ? services.GetRequiredService<MockAiNarrativeGenerator>()
         : services.GetRequiredService<ProviderNarrativeGenerator>());
 builder.Services.AddScoped<IProgressionReceiptRepository, EfProgressionReceiptRepository>();

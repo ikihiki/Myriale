@@ -106,13 +106,6 @@ describe('TanStack app routing', () => {
     expect(router.state.location.pathname).toBe('/scenarios');
   });
 
-  it('redirects the legacy AI key URL to /admin', async () => {
-    const router = createAppRouter({ initialUrl: '/account/admin/ai-keys' });
-    await router.load();
-
-    expect(router.state.location.pathname).toBe('/admin');
-  });
-
   it('matches the canonical AI Provider admin route', async () => {
     const router = createAppRouter({ initialUrl: '/admin' });
     await router.load();
@@ -136,7 +129,7 @@ describe('TanStack app routing', () => {
     expect(appHrefForStoryKey('playSession', { sessionId: 'SES-LIVE-123' })).toBe('/sessions/SES-LIVE-123');
     expect(appPathForStoryKey('playSession')).toBe('/sessions');
     expect(appPathForStoryKey('sessionList')).toBe('/sessions');
-    expect(appPathForStoryKey('adminAiKeys')).toBe('/admin');
+    expect(appPathForStoryKey('adminAiProviders')).toBe('/admin');
     expect(appPathForStoryKey('scenarioEdit', { scenarioId: 'SCN-AWAKENING-LAB' })).toBe('/scenarios/SCN-AWAKENING-LAB/edit');
     expect(appHrefForStoryKey('startSession', { query: { scenarioId: 'SCN-001' } })).toBe('/sessions/start?scenarioId=SCN-001');
   });

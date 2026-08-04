@@ -11,8 +11,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<ScenarioObjectType> ScenarioObjectTypes => Set<ScenarioObjectType>();
     public DbSet<ScenarioObjectTypeAction> ScenarioObjectTypeActions => Set<ScenarioObjectTypeAction>();
     public DbSet<ScenarioObject> ScenarioObjects => Set<ScenarioObject>();
-    public DbSet<AiProviderKey> AiProviderKeys => Set<AiProviderKey>();
-    public DbSet<AiProviderProfileDefinition> AiProviderProfileDefinitions => Set<AiProviderProfileDefinition>();
+    public DbSet<AiCredential> AiCredentials => Set<AiCredential>();
+    public DbSet<AiProviderProfile> AiProviderProfiles => Set<AiProviderProfile>();
+    public DbSet<AiProviderProfileValidation> AiProviderProfileValidations => Set<AiProviderProfileValidation>();
     public DbSet<AiProviderRuntimeSettings> AiProviderRuntimeSettings => Set<AiProviderRuntimeSettings>();
     public DbSet<ModulePackage> ModulePackages => Set<ModulePackage>();
     public DbSet<ScenarioProgressionNode> ScenarioProgressionNodes => Set<ScenarioProgressionNode>();
@@ -44,6 +45,16 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.Entity<AiProviderProfile>().Property(profile => profile.Id).HasConversion(id => id.Value, value => new AiProviderProfileId(value));
+        builder.Entity<AiProviderProfile>().Property(profile => profile.CredentialId).HasConversion(id => id.Value, value => new AiCredentialId(value));
+        builder.Entity<AiProviderProfile>().Property(profile => profile.Adapter).HasConversion<string>();
+        builder.Entity<AiProviderProfile>().Property(profile => profile.Revision).IsConcurrencyToken();
+        builder.Entity<AiCredential>().Property(credential => credential.Id).HasConversion(id => id.Value, value => new AiCredentialId(value));
+        builder.Entity<AiCredential>().Property(credential => credential.Revision).IsConcurrencyToken();
+        builder.Entity<AiProviderProfileValidation>().Property(validation => validation.ProfileId).HasConversion(id => id.Value, value => new AiProviderProfileId(value));
+        builder.Entity<AiProviderProfileValidation>().Property(validation => validation.CredentialId).HasConversion(id => id.Value, value => new AiCredentialId(value));
+        builder.Entity<AiProviderProfileValidation>().Property(validation => validation.Status).HasConversion<string>();
+        builder.Entity<AiProviderProfileValidation>().HasIndex(validation => new { validation.ProfileId, validation.TestedAt });
         builder.Entity<AiProviderRuntimeSettings>().Property(settings => settings.Revision).IsConcurrencyToken();
         builder.Entity<Scenario>().Property(scenario => scenario.Revision).IsConcurrencyToken();
         builder.Entity<ScenarioDefinitionVersion>().Property(version => version.Revision).IsConcurrencyToken();

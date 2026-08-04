@@ -1,11 +1,10 @@
-using System.Diagnostics.Metrics;
 using System.Net;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Myriale.Api.Application.AiProviders;
 using Myriale.Api.Services;
 
 namespace Myriale.Api.Tests;
@@ -13,160 +12,25 @@ namespace Myriale.Api.Tests;
 public sealed class OpenAiCompatibleTextProviderTests
 {
     [Fact]
-    public async Task Generate_UsesStrictJsonSchemaAndCapturesMetadata()
+    public async Task Generate_UsesRuntimeProfileCredentialAndStrictSchema()
     {
-        var handler = new QueueHandler(new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent("{\"id\":\"resp-1\",\"choices\":[{\"message\":{\"content\":\"{\\\"ok\\\":true}\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":4}}", Encoding.UTF8, "application/json")
-        });
-        var provider = Create(handler);
-
+        var handler = Success(); var catalog = Catalog(Profile("runpod", "https://example.test/openai/v1", "Qwen/Qwen3-8B", "shared"));
+        var provider = Create(handler, catalog, new CredentialResolver("secret"));
         var result = await provider.GenerateAsync(Request(), default);
-
-        Assert.Contains("\"type\":\"json_schema\"", handler.LastBody, StringComparison.Ordinal);
+        Assert.Equal("https://example.test/openai/v1/chat/completions", handler.LastUri?.ToString());
         Assert.Contains("\"strict\":true", handler.LastBody, StringComparison.Ordinal);
-        Assert.DoesNotContain("chat_template_kwargs", handler.LastBody, StringComparison.Ordinal);
-        Assert.Equal("resp-1", result.Metadata.ResponseId);
-        Assert.Equal(11, result.Metadata.InputTokens);
-        Assert.Equal(4, result.Metadata.OutputTokens);
+        Assert.Contains("chat_template_kwargs", handler.LastBody, StringComparison.Ordinal);
         Assert.Equal("stop", result.Metadata.FinishReason);
     }
 
     [Fact]
-    public async Task Generate_ActiveRootSettingsOverridePlaceholderProfile()
+    public async Task GenerateForProfile_ResolvesSharedCredentialWithoutProfileSecret()
     {
-        var handler = new QueueHandler(new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent("{\"choices\":[{\"message\":{\"content\":\"{\\\"ok\\\":true}\"},\"finish_reason\":\"stop\"}]}", Encoding.UTF8, "application/json")
-        });
-        var options = Options.Create(new AiProviderOptions
-        {
-            Provider = "runpod",
-            BaseUrl = "https://api.runpod.ai/v2/real-endpoint/openai/v1",
-            Model = "Qwen/Qwen3-8B",
-            ApiKey = "active-key",
-            MaxAttempts = 1,
-            Providers = new Dictionary<string, AiProviderProfileOptions>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["runpod"] = new()
-                {
-                    BaseUrl = "https://api.runpod.ai/v2/YOUR_ENDPOINT_ID/openai/v1",
-                    Model = "YOUR_VLLM_MODEL"
-                }
-            }
-        });
-        var provider = new OpenAiCompatibleTextProvider(
-            new Factory(new HttpClient(handler)),
-            new CredentialStore(),
-            options,
-            new OptionsCatalog(options.Value),
-            NullLogger<OpenAiCompatibleTextProvider>.Instance);
-
-        await provider.GenerateAsync(Request(), default);
-
-        Assert.Equal("https://api.runpod.ai/v2/real-endpoint/openai/v1/chat/completions", handler.LastUri?.ToString());
-        using var body = JsonDocument.Parse(handler.LastBody);
-        Assert.Equal("Qwen/Qwen3-8B", body.RootElement.GetProperty("model").GetString());
-        Assert.False(body.RootElement.GetProperty("chat_template_kwargs").GetProperty("enable_thinking").GetBoolean());
-    }
-
-    [Fact]
-    public async Task Generate_UsesRuntimeSelectedProviderForTheNextRequest()
-    {
-        var handler = new QueueHandler(
-            new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent("{\"choices\":[{\"message\":{\"content\":\"{\\\"ok\\\":true}\"},\"finish_reason\":\"stop\"}]}", Encoding.UTF8, "application/json")
-            },
-            new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent("{\"choices\":[{\"message\":{\"content\":\"{\\\"ok\\\":true}\"},\"finish_reason\":\"stop\"}]}", Encoding.UTF8, "application/json")
-            });
-        var selection = new SelectionStore("openai");
-        var options = Options.Create(new AiProviderOptions
-        {
-            Provider = "openai",
-            BaseUrl = "https://api.openai.test/v1",
-            Model = "gpt-test",
-            ApiKey = "openai-key",
-            MaxAttempts = 1,
-            Providers = new Dictionary<string, AiProviderProfileOptions>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["runpod"] = new()
-                {
-                    BaseUrl = "https://api.runpod.test/openai/v1",
-                    Model = "qwen-test",
-                    ApiKey = "runpod-key"
-                }
-            }
-        });
-        var provider = new OpenAiCompatibleTextProvider(
-            new Factory(new HttpClient(handler)),
-            new CredentialStore(),
-            options,
-            new OptionsCatalog(options.Value),
-            NullLogger<OpenAiCompatibleTextProvider>.Instance,
-            selection);
-
-        await provider.GenerateAsync(Request(), default);
-        Assert.Equal("https://api.openai.test/v1/chat/completions", handler.LastUri?.ToString());
-        selection.Provider = "runpod";
-        await provider.GenerateAsync(Request(), default);
-        Assert.Equal("https://api.runpod.test/openai/v1/chat/completions", handler.LastUri?.ToString());
-        using var body = JsonDocument.Parse(handler.LastBody);
-        Assert.Equal("qwen-test", body.RootElement.GetProperty("model").GetString());
-    }
-
-    [Fact]
-    public async Task Generate_RetriesRateLimitAndReportsFinalAttempt()
-    {
-        var rateLimited = new HttpResponseMessage(HttpStatusCode.TooManyRequests)
-        {
-            Content = new StringContent("{\"error\":\"rate limited\"}")
-        };
-        rateLimited.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.Zero);
-        var handler = new QueueHandler(
-            rateLimited,
-            new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent("{\"id\":\"resp-2\",\"choices\":[{\"message\":{\"content\":\"{\\\"ok\\\":true}\"},\"finish_reason\":\"stop\"}]}", Encoding.UTF8, "application/json")
-            });
-
-        var result = await Create(handler).GenerateAsync(Request(), default);
-
-        Assert.Equal(2, handler.RequestCount);
-        Assert.Equal(2, result.Metadata.AttemptCount);
-    }
-
-    [Fact]
-    public async Task Generate_LogsProviderStatusRequestIdAndRedactedErrorBody()
-    {
-        var response = new HttpResponseMessage(HttpStatusCode.BadRequest)
-        {
-            ReasonPhrase = "Bad Request",
-            Content = new StringContent("{\"error\":{\"message\":\"response_format unsupported for Bearer diagnostic-token\"}}")
-        };
-        response.Headers.TryAddWithoutValidation("x-request-id", "req-diagnostic-1");
-        var handler = new QueueHandler(response);
-        var logger = new RecordingLogger<OpenAiCompatibleTextProvider>();
-        var options = Options.Create(new AiProviderOptions
-        {
-            Provider = "runpod",
-            BaseUrl = "https://example.test/openai/v1",
-            Model = "test-model",
-            ApiKey = "fallback",
-            MaxAttempts = 1
-        });
-        var provider = new OpenAiCompatibleTextProvider(new Factory(new HttpClient(handler)), new CredentialStore(), options, new OptionsCatalog(options.Value), logger);
-
-        await Assert.ThrowsAsync<AiProviderException>(() => provider.GenerateAsync(Request(), default));
-
-        var entry = Assert.Single(logger.Entries);
-        Assert.Contains("StatusCode=400", entry, StringComparison.Ordinal);
-        Assert.Contains("ProviderRequestId=req-diagnostic-1", entry, StringComparison.Ordinal);
-        Assert.Contains("response_format unsupported", entry, StringComparison.Ordinal);
-        Assert.DoesNotContain("diagnostic-token", entry, StringComparison.Ordinal);
-        Assert.Contains("[REDACTED]", entry, StringComparison.Ordinal);
+        var handler = Success(); var resolver = new CredentialResolver("shared-secret");
+        var provider = Create(handler, Catalog(Profile("acme", "https://acme.test/v1", "acme-model", "shared-main")), resolver);
+        await provider.GenerateForProfileAsync("acme", Request(), default);
+        Assert.Equal("shared-main", resolver.LastId);
+        Assert.DoesNotContain("shared-secret", handler.LastBody, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -178,186 +42,45 @@ public sealed class OpenAiCompatibleTextProviderTests
     {
         var handler = new QueueHandler(new HttpResponseMessage(status) { Content = new StringContent("{\"error\":\"failure\"}") });
         var exception = await Assert.ThrowsAsync<AiProviderException>(() => Create(handler, maxAttempts: 1).GenerateAsync(Request(), default));
-        Assert.Equal(code, exception.Code);
-        Assert.Equal(retryable, exception.Retryable);
+        Assert.Equal(code, exception.Code); Assert.Equal(retryable, exception.Retryable);
     }
 
     [Fact]
-    public async Task Generate_EmitsBoundedProviderFailureAndRetryTelemetry()
+    public async Task Generate_RetriesRateLimit()
     {
-        var measurements = new List<(string Name, Dictionary<string, object?> Tags)>();
-        using var listener = new MeterListener();
-        listener.InstrumentPublished = (instrument, activeListener) =>
-        {
-            if (instrument.Meter.Name == SessionExecutionTelemetry.MeterName)
-                activeListener.EnableMeasurementEvents(instrument);
-        };
-        listener.SetMeasurementEventCallback<long>((instrument, _, tags, _) =>
-        {
-            if (instrument.Name is "myriale.ai.provider.requests" or "myriale.ai.provider.retries")
-                measurements.Add((instrument.Name, tags.ToArray().ToDictionary(item => item.Key, item => item.Value)));
-        });
-        listener.Start();
-
-        var rateLimited = new HttpResponseMessage(HttpStatusCode.TooManyRequests)
-        {
-            Content = new StringContent("{\"error\":\"rate limited\"}")
-        };
-        rateLimited.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.Zero);
-        var handler = new QueueHandler(rateLimited, new HttpResponseMessage(HttpStatusCode.InternalServerError)
-        {
-            Content = new StringContent("{\"error\":\"provider unavailable\"}")
-        });
-
-        await Assert.ThrowsAsync<AiProviderException>(() => Create(handler).GenerateAsync(Request(), default));
-
-        Assert.Contains(measurements, measurement => measurement.Name == "myriale.ai.provider.retries"
-            && Equals(measurement.Tags["error.type"], AiProviderErrorCodes.RateLimited));
-        Assert.Contains(measurements, measurement => measurement.Name == "myriale.ai.provider.requests"
-            && Equals(measurement.Tags["myriale.provider.status"], "failed")
-            && Equals(measurement.Tags["error.type"], AiProviderErrorCodes.ProviderUnavailable));
-        Assert.All(measurements, measurement =>
-        {
-            Assert.DoesNotContain("prompt", measurement.Tags.Keys);
-            Assert.DoesNotContain("response", measurement.Tags.Keys);
-            Assert.DoesNotContain("myriale.session.id", measurement.Tags.Keys);
-        });
+        var limited = new HttpResponseMessage(HttpStatusCode.TooManyRequests) { Content = new StringContent("rate limited") };
+        limited.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.Zero);
+        var handler = new QueueHandler(limited, SuccessResponse());
+        var result = await Create(handler).GenerateAsync(Request(), default);
+        Assert.Equal(2, handler.RequestCount); Assert.Equal(2, result.Metadata.AttemptCount);
     }
 
-    [Fact]
-    public async Task Generate_ClassifiesModelNotFound()
+    private static OpenAiCompatibleTextProvider Create(QueueHandler handler, IAiProfileCatalog? catalog = null, IAiRuntimeCredentialResolver? resolver = null, int maxAttempts = 2)
     {
-        var handler = new QueueHandler(new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent("model not found") });
-        var exception = await Assert.ThrowsAsync<AiProviderException>(() => Create(handler, maxAttempts: 1).GenerateAsync(Request(), default));
-        Assert.Equal(AiProviderErrorCodes.ModelNotFound, exception.Code);
+        catalog ??= Catalog(Profile("runpod", "https://example.test/openai/v1", "test-model", "runpod"));
+        resolver ??= new CredentialResolver("secret");
+        var active = new ActiveAiProviderQueryService(new Reader("runpod"), catalog);
+        return new(new Factory(new HttpClient(handler)), resolver, Options.Create(new AiProviderOptions { MaxAttempts = maxAttempts, InitialBackoffMilliseconds = 0 }), catalog, active, NullLogger<OpenAiCompatibleTextProvider>.Instance);
     }
-
-    [Fact]
-    public async Task GenerateForProfile_UsesArbitraryProfileEndpointModelAndCredential()
+    private static AiProfileDescriptor Profile(string id, string baseUrl, string model, string credentialId) => new(id, id, baseUrl, model, credentialId, true, Myriale.Api.Data.AiProfileDefinitionSource.Deployment, 0);
+    private static IAiProfileCatalog Catalog(params AiProfileDescriptor[] profiles) => new CatalogStub(profiles);
+    private static QueueHandler Success() => new(SuccessResponse());
+    private static HttpResponseMessage SuccessResponse() => new(HttpStatusCode.OK) { Content = new StringContent("{\"id\":\"resp-1\",\"choices\":[{\"message\":{\"content\":\"{\\\"ok\\\":true}\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":4}}", Encoding.UTF8, "application/json") };
+    private static AiTextRequest Request() { using var schema = JsonDocument.Parse("{\"type\":\"object\"}"); return new([new ChatMessage(ChatRole.User, "test")], ChatResponseFormat.ForJsonSchema(schema.RootElement.Clone(), "test")); }
+    private sealed class CatalogStub(IEnumerable<AiProfileDescriptor> values) : IAiProfileCatalog
     {
-        var handler = new QueueHandler(new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent("{\"choices\":[{\"message\":{\"content\":\"{\\\"ok\\\":true}\"},\"finish_reason\":\"stop\"}]}", Encoding.UTF8, "application/json")
-        });
-        var credentials = new RecordingCredentialStore();
-        var options = Options.Create(new AiProviderOptions
-        {
-            MaxAttempts = 1,
-            Profiles = new Dictionary<string, AiProfileOptions>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["acme-economy"] = new()
-                {
-                    DisplayName = "Acme Economy",
-                    Provider = "acme-credential",
-                    BaseUrl = "https://api.acme.test/v2/economy/openai/v1",
-                    Model = "acme-economy-model",
-                },
-            },
-        });
-        var provider = new OpenAiCompatibleTextProvider(
-            new Factory(new HttpClient(handler)), credentials, options, new OptionsCatalog(options.Value), NullLogger<OpenAiCompatibleTextProvider>.Instance);
-
-        await provider.GenerateForProfileAsync("ACME-ECONOMY", Request(), default);
-
-        Assert.Equal("acme-credential", credentials.LastProvider);
-        Assert.Equal("https://api.acme.test/v2/economy/openai/v1/chat/completions", handler.LastUri?.ToString());
-        using var body = JsonDocument.Parse(handler.LastBody);
-        Assert.Equal("acme-economy-model", body.RootElement.GetProperty("model").GetString());
+        private readonly Dictionary<string, AiProfileDescriptor> _profiles = values.ToDictionary(x => x.Id, StringComparer.OrdinalIgnoreCase);
+        public Task<AiProfileCatalogSnapshot> GetAsync(CancellationToken ct) { var first = _profiles.Keys.First(); return Task.FromResult(new AiProfileCatalogSnapshot(_profiles, first, first)); }
+        public Task<AiProfileDescriptor> ResolveAsync(string id, CancellationToken ct) => Task.FromResult(_profiles[id]);
+        public async Task<string> ResolveActionDecisionProfileIdAsync(string? requested, CancellationToken ct) => requested ?? (await GetAsync(ct)).DefaultActionDecisionProfileId;
+        public async Task<string> ResolveNarrativeProfileIdAsync(string? requested, CancellationToken ct) => requested ?? (await GetAsync(ct)).DefaultNarrativeProfileId;
     }
-
-    private static OpenAiCompatibleTextProvider Create(QueueHandler handler, int maxAttempts = 2)
-    {
-        var client = new HttpClient(handler);
-        var options = Options.Create(new AiProviderOptions { Provider = "runpod", BaseUrl = "https://example.test/openai/v1", Model = "test-model", ApiKey = "fallback", MaxAttempts = maxAttempts, InitialBackoffMilliseconds = 0 });
-        return new OpenAiCompatibleTextProvider(new Factory(client), new CredentialStore(), options, new OptionsCatalog(options.Value), NullLogger<OpenAiCompatibleTextProvider>.Instance);
-    }
-    private static AiTextRequest Request()
-    {
-        using var schema = JsonDocument.Parse("{\"type\":\"object\"}");
-        return new(
-            [new ChatMessage(ChatRole.System, "system"), new ChatMessage(ChatRole.User, "user")],
-            ChatResponseFormat.ForJsonSchema(schema.RootElement.Clone(), "test"));
-    }
-
-    private sealed class OptionsCatalog(AiProviderOptions options) : IAiProfileCatalog
-    {
-        public Task<AiProfileCatalogSnapshot> GetAsync(CancellationToken cancellationToken)
-        {
-            var profiles = new Dictionary<string, AiProfileDescriptor>(StringComparer.OrdinalIgnoreCase);
-            foreach (var item in options.Profiles)
-            {
-                var credentialId = item.Value.Provider.Trim().ToLowerInvariant();
-                profiles[item.Key] = new(item.Key, item.Value.DisplayName, "openai-compatible", item.Value.BaseUrl!, item.Value.Model!, credentialId, true, item.Value.ApiKey);
-            }
-            if (profiles.Count == 0)
-            {
-                var id = options.Provider.Trim().ToLowerInvariant();
-                var providerOptions = options.Providers.GetValueOrDefault(id);
-                foreach (var configured in options.Providers)
-                    profiles[configured.Key] = new(configured.Key, configured.Key, "openai-compatible", configured.Value.BaseUrl!, configured.Value.Model!, configured.Key, true, configured.Value.ApiKey);
-                profiles[id] = new(id, id, "openai-compatible", options.BaseUrl ?? providerOptions?.BaseUrl ?? "https://api.openai.com/v1", options.Model ?? providerOptions?.Model ?? "test-model", id, true, options.ApiKey ?? providerOptions?.ApiKey);
-            }
-            var defaultId = profiles.Keys.First();
-            return Task.FromResult(new AiProfileCatalogSnapshot(profiles, defaultId, defaultId));
-        }
-        public async Task<AiProfileDescriptor> ResolveAsync(string profileId, CancellationToken cancellationToken) => (await GetAsync(cancellationToken)).Profiles[profileId];
-        public async Task<string> ResolveActionDecisionProfileIdAsync(string? requested, CancellationToken cancellationToken) => requested ?? (await GetAsync(cancellationToken)).DefaultActionDecisionProfileId;
-        public async Task<string> ResolveNarrativeProfileIdAsync(string? requested, CancellationToken cancellationToken) => requested ?? (await GetAsync(cancellationToken)).DefaultNarrativeProfileId;
-    }
-
+    private sealed class CredentialResolver(string secret) : IAiRuntimeCredentialResolver { public string? LastId { get; private set; } public Task<ResolvedAiCredential?> ResolveAsync(string id, CancellationToken ct) { LastId = id; return Task.FromResult<ResolvedAiCredential?>(new(secret, Myriale.Api.Data.AiCredentialSource.Database, 1, "masked")); } }
+    private sealed class Reader(string provider) : IActiveAiProviderSettingsReader { public Task<ActiveAiProviderSelection?> GetAsync(CancellationToken ct) => Task.FromResult<ActiveAiProviderSelection?>(new(provider, 1)); }
     private sealed class Factory(HttpClient client) : IHttpClientFactory { public HttpClient CreateClient(string name) => client; }
-    private sealed class CredentialStore : IAiCredentialStore
-    {
-        public Task SaveAsync(string provider, string displayName, string secret, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<string?> GetAsync(string provider, CancellationToken cancellationToken) => Task.FromResult<string?>("secret");
-        public Task DeleteAsync(string provider, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public string Mask(string secret) => throw new NotSupportedException();
-    }
-    private sealed class RecordingCredentialStore : IAiCredentialStore
-    {
-        public string? LastProvider { get; private set; }
-        public Task SaveAsync(string provider, string displayName, string secret, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<string?> GetAsync(string provider, CancellationToken cancellationToken)
-        {
-            LastProvider = provider;
-            return Task.FromResult<string?>("shared-runpod-secret");
-        }
-        public Task DeleteAsync(string provider, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public string Mask(string secret) => throw new NotSupportedException();
-    }
-
-    private sealed class SelectionStore(string provider) : IAiProviderSelectionStore
-    {
-        public string Provider { get; set; } = provider;
-        public Task<string> GetActiveProviderAsync(CancellationToken cancellationToken) => Task.FromResult(Provider);
-        public Task SetActiveProviderAsync(string provider, CancellationToken cancellationToken)
-        {
-            Provider = provider;
-            return Task.CompletedTask;
-        }
-    }
-
-    private sealed class RecordingLogger<T> : ILogger<T>
-    {
-        public List<string> Entries { get; } = [];
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-        public bool IsEnabled(LogLevel logLevel) => true;
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
-            Entries.Add(formatter(state, exception));
-    }
-
     private sealed class QueueHandler(params HttpResponseMessage[] responses) : HttpMessageHandler
     {
-        private readonly Queue<HttpResponseMessage> _responses = new(responses);
-        public string LastBody { get; private set; } = string.Empty;
-        public Uri? LastUri { get; private set; }
-        public int RequestCount { get; private set; }
-        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            RequestCount++;
-            LastUri = request.RequestUri;
-            LastBody = await request.Content!.ReadAsStringAsync(cancellationToken);
-            return _responses.Dequeue();
-        }
+        private readonly Queue<HttpResponseMessage> _responses = new(responses); public string LastBody { get; private set; } = ""; public Uri? LastUri { get; private set; } public int RequestCount { get; private set; }
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) { RequestCount++; LastUri = request.RequestUri; LastBody = await request.Content!.ReadAsStringAsync(ct); return _responses.Dequeue(); }
     }
 }

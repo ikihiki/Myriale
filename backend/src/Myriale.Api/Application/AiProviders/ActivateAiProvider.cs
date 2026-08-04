@@ -22,7 +22,7 @@ public sealed record ActivateAiProviderResult(
 public sealed class ActivateAiProviderUseCase(
     IActiveAiProviderSettingsRepository repository,
     IAiProfileCatalog catalog,
-    IAiCredentialStore credentialStore,
+    IAiRuntimeCredentialResolver credentialResolver,
     TimeProvider timeProvider)
 {
     public async Task<ActivateAiProviderResult> ExecuteAsync(
@@ -39,10 +39,8 @@ public sealed class ActivateAiProviderUseCase(
             return new(ActivateAiProviderOutcome.UnknownProvider, ErrorMessage: exception.Message);
         }
 
-        var credential = profile.ApiKey;
-        if (string.IsNullOrWhiteSpace(credential))
-            credential = await credentialStore.GetAsync(profile.CredentialId, cancellationToken);
-        if (string.IsNullOrWhiteSpace(credential))
+        var credential = await credentialResolver.ResolveAsync(profile.CredentialId, cancellationToken);
+        if (credential is null)
             return new(ActivateAiProviderOutcome.CredentialMissing, profile, ErrorMessage: "Credential未設定のprofileは使用できません。");
 
         var settings = await repository.LoadAsync(cancellationToken);

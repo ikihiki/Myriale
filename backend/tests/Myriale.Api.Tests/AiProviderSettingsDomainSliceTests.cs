@@ -1,6 +1,5 @@
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Myriale.Api.Application.AiProviders;
 using Myriale.Api.Data;
 using Myriale.Api.Endpoints;
@@ -53,23 +52,13 @@ public sealed class AiProviderSettingsDomainSliceTests
     }
 
     [Fact]
-    public async Task ActiveProviderQuery_UsesConfigurationThenCatalogFallbackWithoutWriting()
+    public async Task ActiveProviderQuery_UsesSelectionThenCatalogFallbackWithoutWriting()
     {
-        var profiles = Profiles();
-        var catalog = new FakeCatalog(profiles, "narrative-default");
-        var configured = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["AiProvider:Provider"] = "configured",
-        }).Build();
-
-        var fromConfiguration = await new ActiveAiProviderQueryService(
-            new FakeReader(null), catalog, configured).GetActiveProviderAsync(default);
-        var fromCatalog = await new ActiveAiProviderQueryService(
-            new FakeReader(new ActiveAiProviderSelection("missing", 3)), catalog,
-            new ConfigurationBuilder().Build()).GetActiveProviderAsync(default);
-
-        Assert.Equal("configured", fromConfiguration);
-        Assert.Equal("narrative-default", fromCatalog);
+        var catalog = new FakeCatalog(Profiles(), "narrative-default");
+        var selected = await new ActiveAiProviderQueryService(new FakeReader(new ActiveAiProviderSelection("configured", 1)), catalog).GetActiveProviderAsync(default);
+        var fallback = await new ActiveAiProviderQueryService(new FakeReader(new ActiveAiProviderSelection("missing", 3)), catalog).GetActiveProviderAsync(default);
+        Assert.Equal("configured", selected);
+        Assert.Equal("narrative-default", fallback);
     }
 
     [Theory]
@@ -82,7 +71,7 @@ public sealed class AiProviderSettingsDomainSliceTests
     {
         var catalog = new FakeCatalog(profileExists ? Profiles() : new Dictionary<string, AiProfileDescriptor>(), "narrative-default");
         var useCase = new ActivateAiProviderUseCase(
-            new FakeRepository(), catalog, new FakeCredentialStore(credentialExists ? "secret" : null), new FixedTimeProvider(Now));
+            new FakeRepository(), catalog, new FakeCredentialResolver(credentialExists ? "secret" : null), new FixedTimeProvider(Now));
 
         var result = await useCase.ExecuteAsync(new ActivateAiProviderCommand("configured"), default);
 
@@ -94,7 +83,7 @@ public sealed class AiProviderSettingsDomainSliceTests
     {
         var repository = new FakeRepository { SaveOutcome = ActiveAiProviderSettingsSaveOutcome.Conflict };
         var useCase = new ActivateAiProviderUseCase(
-            repository, new FakeCatalog(Profiles(), "narrative-default"), new FakeCredentialStore("secret"), new FixedTimeProvider(Now));
+            repository, new FakeCatalog(Profiles(), "narrative-default"), new FakeCredentialResolver("secret"), new FixedTimeProvider(Now));
 
         var result = await useCase.ExecuteAsync(new ActivateAiProviderCommand("configured"), default);
 
@@ -108,7 +97,7 @@ public sealed class AiProviderSettingsDomainSliceTests
     {
         var repository = new FakeRepository { Settings = AiProviderRuntimeSettings.Create("narrative-default", Now) };
         var useCase = new ActivateAiProviderUseCase(
-            repository, new FakeCatalog(Profiles(), "narrative-default"), new FakeCredentialStore("secret"), new FixedTimeProvider(Now.AddMinutes(1)));
+            repository, new FakeCatalog(Profiles(), "narrative-default"), new FakeCredentialResolver("secret"), new FixedTimeProvider(Now.AddMinutes(1)));
 
         var success = await useCase.ExecuteAsync(new ActivateAiProviderCommand("configured", 1), default);
         var stale = await useCase.ExecuteAsync(new ActivateAiProviderCommand("narrative-default", 1), default);
@@ -175,8 +164,8 @@ public sealed class AiProviderSettingsDomainSliceTests
 
     private static Dictionary<string, AiProfileDescriptor> Profiles() => new(StringComparer.OrdinalIgnoreCase)
     {
-        ["configured"] = new("configured", "Configured", "openai-compatible", "https://configured.test/v1", "model", "configured", true),
-        ["narrative-default"] = new("narrative-default", "Default", "openai-compatible", "https://default.test/v1", "model", "default", true),
+        ["configured"] = new("configured", "Configured", "https://configured.test/v1", "model", "configured", true, AiProfileDefinitionSource.Deployment, 0),
+        ["narrative-default"] = new("narrative-default", "Default", "https://default.test/v1", "model", "default", true, AiProfileDefinitionSource.Deployment, 0),
     };
 
     private sealed class FakeRepository : IActiveAiProviderSettingsRepository
@@ -193,12 +182,9 @@ public sealed class AiProviderSettingsDomainSliceTests
         public Task<ActiveAiProviderSelection?> GetAsync(CancellationToken cancellationToken) => Task.FromResult(selection);
     }
 
-    private sealed class FakeCredentialStore(string? credential) : IAiCredentialStore
+    private sealed class FakeCredentialResolver(string? credential) : IAiRuntimeCredentialResolver
     {
-        public Task SaveAsync(string provider, string displayName, string secret, CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task<string?> GetAsync(string provider, CancellationToken cancellationToken) => Task.FromResult(credential);
-        public Task DeleteAsync(string provider, CancellationToken cancellationToken) => Task.CompletedTask;
-        public string Mask(string secret) => "masked";
+        public Task<ResolvedAiCredential?> ResolveAsync(string credentialId, CancellationToken cancellationToken) => Task.FromResult(credential is null ? null : new ResolvedAiCredential(credential, AiCredentialSource.Database, 1, "masked"));
     }
 
     private sealed class FakeCatalog(IReadOnlyDictionary<string, AiProfileDescriptor> profiles, string narrativeDefault) : IAiProfileCatalog

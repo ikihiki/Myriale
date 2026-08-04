@@ -22,7 +22,7 @@ const navigationPaths: Record<StoryKey, string> = {
   withdraw: '/account/withdraw',
   adminUsers: '/account/admin/users',
   auditLog: '/account/admin/audit-log',
-  adminAiKeys: '/admin',
+  adminAiProviders: '/admin',
 };
 
 export function appPathForStoryKey(key: StoryKey, options?: AppNavigateOptions): string {

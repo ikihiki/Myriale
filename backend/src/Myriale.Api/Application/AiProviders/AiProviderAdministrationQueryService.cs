@@ -1,49 +1,40 @@
-using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Services;
 
 namespace Myriale.Api.Application.AiProviders;
 
-public sealed class AiProviderAdministrationQueryService(
-    ApplicationDbContext db,
-    IAiCredentialStore credentialStore)
+public sealed class AiProviderAdministrationQueryService(IAiDeploymentProfileSource deployment, IAiProviderProfileRepository profiles, IAiCredentialRepository credentials, IAiRuntimeCredentialResolver resolver, IActiveAiProviderSettingsReader active)
 {
-    public async Task<AiProviderKeyResponse> GetProviderAsync(
-        AiProfileDescriptor profile,
-        string? activeProvider,
-        CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<AiAdminProfileResponse>> ListProfilesAsync(CancellationToken ct)
     {
-        var key = await db.AiProviderKeys.AsNoTracking()
-            .SingleOrDefaultAsync(item => item.Provider == profile.CredentialId, cancellationToken);
-        var definitionSource = await db.AiProviderProfileDefinitions.AsNoTracking()
-            .AnyAsync(item => item.Id == profile.Id, cancellationToken)
-            ? "database"
-            : "configuration";
-        var configuredSecret = profile.ApiKey;
-        var databaseSecret = string.IsNullOrWhiteSpace(configuredSecret)
-            ? await credentialStore.GetAsync(profile.CredentialId, cancellationToken)
-            : null;
-        var secret = configuredSecret ?? databaseSecret;
-        var credentialSource = !string.IsNullOrWhiteSpace(configuredSecret)
-            ? "environment"
-            : !string.IsNullOrWhiteSpace(databaseSecret) ? "database" : "none";
+        var all = new Dictionary<string, AiProfileDescriptor>(deployment.GetProfiles(), StringComparer.OrdinalIgnoreCase);
+        var dbProfiles = await profiles.ListAsync(ct);
+        foreach (var p in dbProfiles) all[p.Id.Value] = new(p.Id.Value, p.DisplayName, p.BaseUrl, p.Model, p.CredentialId.Value, p.Enabled, AiProfileDefinitionSource.Database, p.Revision);
+        var selected = (await active.GetAsync(ct))?.Provider;
+        var result = new List<AiAdminProfileResponse>();
+        foreach (var profile in all.Values.OrderBy(x => x.Id, StringComparer.Ordinal))
+        {
+            var credential = await resolver.ResolveAsync(profile.CredentialId, ct); var validation = await credentials.GetLatestValidationAsync(new(profile.Id), ct);
+            var validForFence = validation is not null && validation.ProfileRevision == profile.Revision && validation.CredentialRevision == (credential?.Revision ?? -1);
+            result.Add(new(profile.Id, profile.DisplayName, profile.Adapter, profile.BaseUrl, profile.Model, profile.CredentialId, profile.Enabled, Wire(profile.Source), profile.Revision,
+                string.Equals(selected, profile.Id, StringComparison.OrdinalIgnoreCase), Wire(credential?.Source ?? AiCredentialSource.None), credential is not null, credential?.Revision ?? 0,
+                Wire(validForFence ? validation!.Status : AiCredentialValidationStatus.Untested), validForFence ? validation!.TestedAt : null));
+        }
+        return result;
+    }
+    public async Task<IReadOnlyList<AiAdminCredentialResponse>> ListCredentialsAsync(CancellationToken ct)
+    {
+        var result = new List<AiAdminCredentialResponse>(); var dbProfiles = await profiles.ListAsync(ct); var deploymentProfiles = deployment.GetProfiles().Values;
+        foreach (var credential in await credentials.ListAsync(ct))
+            result.Add(new(credential.Id.Value, credential.DisplayName, $"••••••••{credential.SecretHint}", Wire(AiCredentialSource.Database), credential.Revision, credential.UpdatedAt,
+                dbProfiles.Count(p => p.CredentialId == credential.Id) + deploymentProfiles.Count(p => string.Equals(p.CredentialId, credential.Id.Value, StringComparison.OrdinalIgnoreCase))));
+        return result;
+    }
 
-        return new AiProviderKeyResponse(
-            profile.Id,
-            profile.DisplayName,
-            profile.Adapter,
-            profile.BaseUrl,
-            profile.Model,
-            profile.CredentialId,
-            profile.Enabled,
-            definitionSource,
-            !string.IsNullOrWhiteSpace(secret),
-            string.IsNullOrWhiteSpace(secret) ? "未設定" : credentialStore.Mask(secret),
-            credentialSource,
-            string.Equals(activeProvider, profile.Id, StringComparison.OrdinalIgnoreCase),
-            key?.Status ?? "untested",
-            key?.UpdatedAt ?? default,
-            key?.LastValidatedAt);
+    private static string Wire<T>(T value) where T : struct, Enum
+    {
+        var text = value.ToString();
+        return char.ToLowerInvariant(text[0]) + text[1..];
     }
 }

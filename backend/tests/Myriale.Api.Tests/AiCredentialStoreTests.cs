@@ -1,7 +1,8 @@
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
+using Myriale.Api.Application.AiProviders;
 using Myriale.Api.Data;
+using Myriale.Api.Infrastructure.AiProviders;
 using Myriale.Api.Services;
 
 namespace Myriale.Api.Tests;
@@ -9,37 +10,16 @@ namespace Myriale.Api.Tests;
 public sealed class AiCredentialStoreTests
 {
     [Fact]
-    public async Task EnvironmentCredentialOverridesEncryptedDatabaseCredential()
+    public async Task DeploymentCredentialOverridesEncryptedDatabaseCredential()
     {
-        var databasePath = Path.Combine(Path.GetTempPath(), $"myriale-ai-credential-{Guid.NewGuid():N}.db");
-        var keyPath = Path.Combine(Path.GetTempPath(), $"myriale-ai-keyring-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(keyPath);
-        try
-        {
-            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseSqlite($"Data Source={databasePath}")
-                .Options;
-            await using var db = new ApplicationDbContext(options);
-            await db.Database.EnsureCreatedAsync();
-            var protection = DataProtectionProvider.Create(new DirectoryInfo(keyPath));
-            var databaseStore = new DataProtectionAiCredentialStore(db, protection, new ConfigurationBuilder().Build());
-            await databaseStore.SaveAsync("runpod", "Runpod", "database-secret", default);
-
-            var configuration = new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    ["AiProvider:Provider"] = "runpod",
-                    ["AiProvider:ApiKey"] = "vault-secret"
-                })
-                .Build();
-            var vaultBackedStore = new DataProtectionAiCredentialStore(db, protection, configuration);
-
-            Assert.Equal("vault-secret", await vaultBackedStore.GetAsync("runpod", default));
-        }
-        finally
-        {
-            if (File.Exists(databasePath)) File.Delete(databasePath);
-            if (Directory.Exists(keyPath)) Directory.Delete(keyPath, recursive: true);
-        }
+        await using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite("Data Source=:memory:").Options);
+        await db.Database.OpenConnectionAsync(); await db.Database.EnsureCreatedAsync();
+        var repository = new EfAiCredentialRepository(db); var protector = new FakeProtector();
+        repository.Add(AiCredential.Create("shared", "DB", protector.Protect("database-secret"), "cret", DateTimeOffset.UtcNow)); await repository.SaveAsync(default);
+        var deployment = Options.Create(new AiProviderDeploymentOptions { Credentials = new() { ["shared"] = new() { Secret = "deployment-secret" } } });
+        var resolver = new AiRuntimeCredentialResolver(deployment, repository, protector);
+        var result = await resolver.ResolveAsync("shared", default);
+        Assert.Equal("deployment-secret", result!.Secret); Assert.Equal(AiCredentialSource.Deployment, result.Source); Assert.Equal(0, result.Revision);
     }
+    private sealed class FakeProtector : IAiSecretProtector { public string Protect(string secret) => "protected:" + secret; public string Unprotect(string secret) => secret[10..]; }
 }

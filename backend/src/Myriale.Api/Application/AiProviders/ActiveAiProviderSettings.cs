@@ -25,8 +25,7 @@ public interface IActiveAiProviderSettingsReader
 
 public sealed class ActiveAiProviderQueryService(
     IActiveAiProviderSettingsReader reader,
-    IAiProfileCatalog catalog,
-    IConfiguration configuration)
+    IAiProfileCatalog catalog)
 {
     public async Task<string> GetActiveProviderAsync(CancellationToken cancellationToken)
     {
@@ -34,13 +33,6 @@ public sealed class ActiveAiProviderQueryService(
         if (!string.IsNullOrWhiteSpace(selected?.Provider))
         {
             try { return (await catalog.ResolveAsync(selected.Provider, cancellationToken)).Id; }
-            catch (AiProviderException) { }
-        }
-
-        var configured = configuration["AiProvider:Provider"];
-        if (!string.IsNullOrWhiteSpace(configured) && !string.Equals(configured, "mock", StringComparison.OrdinalIgnoreCase))
-        {
-            try { return (await catalog.ResolveAsync(configured, cancellationToken)).Id; }
             catch (AiProviderException) { }
         }
 
