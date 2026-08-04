@@ -327,10 +327,7 @@ public sealed class ModuleHandoffDomainSliceTests
             LeaseToken = "lease", LeaseOwner = "worker", LeaseExpiresAt = Now.AddMinutes(5),
             CreatedAt = Now, QueuedAt = Now, StartedAt = Now,
         });
-        db.SessionExecutionAttempts.Add(new SessionExecutionAttempt
-        {
-            Id = "ATT-1", ExecutionId = "EXE-1", AttemptNumber = 1, Status = "running", StartedAt = Now,
-        });
+        db.SessionExecutionAttempts.Add(SessionExecutionAttempt.Start("ATT-1", "EXE-1", 1, "worker", Now));
         await db.SaveChangesAsync();
     }
 

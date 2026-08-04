@@ -7,58 +7,92 @@ public enum SessionExecutionStatus { Queued, Running, RetryWait, CancelRequested
 public enum SessionExecutionTriggerType { PlayerInput, ModuleOutcome, Manual }
 public enum SessionExecutionPublishPolicy { Required, Optional }
 
-public static class SessionExecutionKinds
+internal static class SessionExecutionValues
 {
-    public const SessionExecutionKind ScenarioTurn = SessionExecutionKind.ScenarioTurn;
-    public const SessionExecutionKind Narrative = SessionExecutionKind.Narrative;
-    public const SessionExecutionKind ModuleHandoff = SessionExecutionKind.ModuleHandoff;
-    public const SessionExecutionKind NoteProposal = SessionExecutionKind.NoteProposal;
-    public const SessionExecutionKind Image = SessionExecutionKind.Image;
-}
+    public static bool IsActive(this SessionExecutionStatus status) => status is SessionExecutionStatus.Queued or SessionExecutionStatus.Running or SessionExecutionStatus.RetryWait or SessionExecutionStatus.CancelRequested;
+    public static bool IsTerminal(this SessionExecutionStatus status) => status is SessionExecutionStatus.Succeeded or SessionExecutionStatus.Failed or SessionExecutionStatus.Cancelled or SessionExecutionStatus.Superseded;
 
-public static class SessionExecutionStatuses
-{
-    public const SessionExecutionStatus Queued = SessionExecutionStatus.Queued;
-    public const SessionExecutionStatus Running = SessionExecutionStatus.Running;
-    public const SessionExecutionStatus RetryWait = SessionExecutionStatus.RetryWait;
-    public const SessionExecutionStatus CancelRequested = SessionExecutionStatus.CancelRequested;
-    public const SessionExecutionStatus Succeeded = SessionExecutionStatus.Succeeded;
-    public const SessionExecutionStatus Failed = SessionExecutionStatus.Failed;
-    public const SessionExecutionStatus Cancelled = SessionExecutionStatus.Cancelled;
-    public const SessionExecutionStatus Superseded = SessionExecutionStatus.Superseded;
-
-    public static bool IsActive(SessionExecutionStatus status) => status is SessionExecutionStatus.Queued or SessionExecutionStatus.Running or SessionExecutionStatus.RetryWait or SessionExecutionStatus.CancelRequested;
-    public static bool IsTerminal(SessionExecutionStatus status) => status is SessionExecutionStatus.Succeeded or SessionExecutionStatus.Failed or SessionExecutionStatus.Cancelled or SessionExecutionStatus.Superseded;
-}
-
-public static class SessionExecutionEnumValues
-{
-    public static string ToWireValue(this SessionExecutionKind value) => value switch
+    public static string ToContractValue(this SessionExecutionKind value) => value switch
     {
         SessionExecutionKind.ScenarioTurn => "scenario-turn", SessionExecutionKind.Narrative => "narrative",
         SessionExecutionKind.ModuleHandoff => "module-handoff", SessionExecutionKind.NoteProposal => "note-proposal",
         SessionExecutionKind.Image => "image", _ => throw new ArgumentOutOfRangeException(nameof(value)),
     };
-    public static string ToWireValue(this SessionExecutionStatus value) => value switch
+    public static string ToContractValue(this SessionExecutionStatus value) => value switch
     {
         SessionExecutionStatus.Queued => "queued", SessionExecutionStatus.Running => "running", SessionExecutionStatus.RetryWait => "retry-wait",
         SessionExecutionStatus.CancelRequested => "cancel-requested", SessionExecutionStatus.Succeeded => "succeeded", SessionExecutionStatus.Failed => "failed",
         SessionExecutionStatus.Cancelled => "cancelled", SessionExecutionStatus.Superseded => "superseded", _ => throw new ArgumentOutOfRangeException(nameof(value)),
     };
-    public static string ToWireValue(this SessionExecutionTriggerType value) => value switch
+    public static string ToContractValue(this SessionExecutionAttemptStatus value) => value switch
+    {
+        SessionExecutionAttemptStatus.Running => "running", SessionExecutionAttemptStatus.Expired => "expired",
+        SessionExecutionAttemptStatus.Succeeded => "succeeded", SessionExecutionAttemptStatus.Failed => "failed",
+        SessionExecutionAttemptStatus.Cancelled => "cancelled", SessionExecutionAttemptStatus.Superseded => "superseded",
+        _ => throw new ArgumentOutOfRangeException(nameof(value)),
+    };
+    public static string ToContractValue(this SessionExecutionTriggerType value) => value switch
     {
         SessionExecutionTriggerType.PlayerInput => "player-input", SessionExecutionTriggerType.ModuleOutcome => "module-outcome",
         SessionExecutionTriggerType.Manual => "manual", _ => throw new ArgumentOutOfRangeException(nameof(value)),
     };
-    public static string ToWireValue(this SessionExecutionPublishPolicy value) => value switch
+    public static string ToContractValue(this SessionExecutionPublishPolicy value) => value switch
     {
         SessionExecutionPublishPolicy.Required => "required", SessionExecutionPublishPolicy.Optional => "optional",
         _ => throw new ArgumentOutOfRangeException(nameof(value)),
     };
-    public static SessionExecutionKind ParseKind(string value) => value switch { "scenario-turn" => SessionExecutionKind.ScenarioTurn, "narrative" => SessionExecutionKind.Narrative, "module-handoff" => SessionExecutionKind.ModuleHandoff, "note-proposal" => SessionExecutionKind.NoteProposal, "image" => SessionExecutionKind.Image, _ => throw new InvalidOperationException($"Unknown SessionExecution kind '{value}'.") };
-    public static SessionExecutionStatus ParseStatus(string value) => value switch { "queued" => SessionExecutionStatus.Queued, "running" => SessionExecutionStatus.Running, "retry-wait" => SessionExecutionStatus.RetryWait, "cancel-requested" => SessionExecutionStatus.CancelRequested, "succeeded" => SessionExecutionStatus.Succeeded, "failed" => SessionExecutionStatus.Failed, "cancelled" => SessionExecutionStatus.Cancelled, "superseded" => SessionExecutionStatus.Superseded, _ => throw new InvalidOperationException($"Unknown SessionExecution status '{value}'.") };
-    public static SessionExecutionTriggerType ParseTriggerType(string value) => value switch { "player-input" => SessionExecutionTriggerType.PlayerInput, "module-outcome" => SessionExecutionTriggerType.ModuleOutcome, "manual" => SessionExecutionTriggerType.Manual, _ => throw new InvalidOperationException($"Unknown SessionExecution trigger type '{value}'.") };
-    public static SessionExecutionPublishPolicy ParsePublishPolicy(string value) => value switch { "required" => SessionExecutionPublishPolicy.Required, "optional" => SessionExecutionPublishPolicy.Optional, _ => throw new InvalidOperationException($"Unknown SessionExecution publish policy '{value}'.") };
+}
+
+internal static class SessionExecutionStorageValues
+{
+    public static SessionExecutionKind Kind(string value) => value switch
+    {
+        "scenario-turn" => SessionExecutionKind.ScenarioTurn,
+        "narrative" => SessionExecutionKind.Narrative,
+        "module-handoff" => SessionExecutionKind.ModuleHandoff,
+        "note-proposal" => SessionExecutionKind.NoteProposal,
+        "image" => SessionExecutionKind.Image,
+        _ => throw new InvalidOperationException($"Unknown SessionExecution kind '{value}'."),
+    };
+
+    public static SessionExecutionStatus Status(string value) => value switch
+    {
+        "queued" => SessionExecutionStatus.Queued,
+        "running" => SessionExecutionStatus.Running,
+        "retry-wait" => SessionExecutionStatus.RetryWait,
+        "cancel-requested" => SessionExecutionStatus.CancelRequested,
+        "succeeded" => SessionExecutionStatus.Succeeded,
+        "failed" => SessionExecutionStatus.Failed,
+        "cancelled" => SessionExecutionStatus.Cancelled,
+        "superseded" => SessionExecutionStatus.Superseded,
+        _ => throw new InvalidOperationException($"Unknown SessionExecution status '{value}'."),
+    };
+
+    public static SessionExecutionAttemptStatus AttemptStatus(string value) => value switch
+    {
+        "running" => SessionExecutionAttemptStatus.Running,
+        "expired" => SessionExecutionAttemptStatus.Expired,
+        "succeeded" => SessionExecutionAttemptStatus.Succeeded,
+        "failed" => SessionExecutionAttemptStatus.Failed,
+        "cancelled" => SessionExecutionAttemptStatus.Cancelled,
+        "superseded" => SessionExecutionAttemptStatus.Superseded,
+        _ => throw new InvalidOperationException($"Unknown SessionExecution attempt status '{value}'."),
+    };
+
+    public static SessionExecutionTriggerType TriggerType(string value) => value switch
+    {
+        "player-input" => SessionExecutionTriggerType.PlayerInput,
+        "module-outcome" => SessionExecutionTriggerType.ModuleOutcome,
+        "manual" => SessionExecutionTriggerType.Manual,
+        _ => throw new InvalidOperationException($"Unknown SessionExecution trigger type '{value}'."),
+    };
+
+    public static SessionExecutionPublishPolicy PublishPolicy(string value) => value switch
+    {
+        "required" => SessionExecutionPublishPolicy.Required,
+        "optional" => SessionExecutionPublishPolicy.Optional,
+        _ => throw new InvalidOperationException($"Unknown SessionExecution publish policy '{value}'."),
+    };
 }
 
 public sealed class SessionExecutionRevisionConflictException(long expected, long actual) : Exception($"SessionExecution revision conflict. Expected {expected}, actual {actual}.")
@@ -134,7 +168,7 @@ public sealed class SessionExecution
 
     public void RequestCancellation(DateTimeOffset now)
     {
-        if (SessionExecutionStatuses.IsTerminal(Status)) return;
+        if (Status.IsTerminal()) return;
         if (Status is SessionExecutionStatus.Queued or SessionExecutionStatus.RetryWait)
         {
             TransitionTo(SessionExecutionStatus.CancelRequested); CancelRequestedAt = now;
@@ -148,14 +182,14 @@ public sealed class SessionExecution
 
     public void Dismiss(DateTimeOffset now)
     {
-        if (!SessionExecutionStatuses.IsTerminal(Status) || DismissedAt is not null) return;
+        if (!Status.IsTerminal() || DismissedAt is not null) return;
         DismissedAt = now;
         Revision++;
     }
 
     internal void TransitionTo(SessionExecutionStatus status)
     {
-        if (!CanTransition(Status, status)) throw new InvalidOperationException($"Invalid SessionExecution transition: {Status.ToWireValue()} -> {status.ToWireValue()}.");
+        if (!CanTransition(Status, status)) throw new InvalidOperationException($"Invalid SessionExecution transition: {Status.ToContractValue()} -> {status.ToContractValue()}.");
         Status = status;
         // A same-status Running -> Running transition is a new lease generation and must advance
         // the fence revision even though the lifecycle label does not change.

@@ -8,7 +8,7 @@ Session processing follows five durable concepts:
 
 - `SessionPlayerInput` is immutable after acceptance.
 - `SessionExecution` owns the mutable `scenario-turn` lifecycle, lease, retry schedule, and terminal status.
-- `SessionExecutionAttempt` is append-only worker/provider diagnostics.
+- `SessionExecutionAttempt` owns a typed running-to-terminal lifecycle and bounded worker/provider diagnostics; lifecycle and diagnostic setters are nonpublic.
 - `SessionRuleActionStep` links one input to its immutable snapshot, decision, configured result/extension, effect commit, post-state, and narrative checkpoint.
 - `SessionArtifact` stores explicitly versioned envelopes for durable intermediate/final results.
 - `SessionTurn` contains only successfully published narrative canon; operational errors are not Turns.
@@ -33,7 +33,7 @@ The durable `ScenarioTurnStage` sequence is `snapshot` → `decision` → `resol
 
 Input acceptance computes a normalized payload hash and creates the input/execution atomically. `(SessionId, RequestId)` and `(SessionId, IdempotencyKey)` are unique. Same-key/same-payload retries return the existing resources; changed payloads are rejected.
 
-Workers claim queued, retry-wait, or expired-running work with a bounded lease token and fencing revision. Every checkpoint publication verifies ownership of the current lease and applicable Session/Object revisions. A late worker cannot overwrite a replacement worker or commit from a stale action snapshot.
+Workers use `ISessionExecutionOperationsRepository` to atomically claim queued, retry-wait, or expired-running work with a bounded lease token and fencing revision. PostgreSQL selection remains `FOR UPDATE SKIP LOCKED`. Claim context loading supplies kind, Session ID, and trace parent without giving the worker an `ApplicationDbContext`; heartbeat and finalization classify stale claims, revision conflicts, and transient database conflicts separately. Every checkpoint publication verifies ownership of the current lease and applicable Session/Object revisions. A late worker cannot overwrite a replacement worker or commit from a stale action snapshot.
 
 Database uniqueness ensures one canonical snapshot, decision, extension invocation, state commit, and narrative per action step. Checkpoint completion is recorded in the same transaction as its artifact/domain mutation so recovery can skip completed work safely.
 
@@ -49,7 +49,7 @@ Completed Module outcomes enqueue through `EnqueueModuleHandoffCommand` and `IMo
 
 `ModuleHandoffExecutionHandler` is a thin `ISessionExecutionHandler` adapter with no `ApplicationDbContext`. Its orchestrator uses an immutable source snapshot query, pure causality validator, public-only request builder, AI interaction recorder, typed artifact writer, Session handoff append port, publish unit of work, and Progression commands. Private Module configuration/context/state, capabilities, random receipts, and package paths never enter `NarrativeHandoffRequest`.
 
-Publication rechecks lease token/generation plus accepted Session head/revision. The Turn append, `narrative-text` artifact, optional narrative signal, progression receipt, and node movement commit in one transaction. `SourceModuleTurnId` and `(ExecutionId, Kind)` uniqueness select one concurrent winner; a loser or retry that observes the existing Turn returns success without generating or appending a second canonical result. Session advancement returns `superseded`. The worker finalizer remains the sole SessionExecution lifecycle closer. After commit, `IProgressionReceiptCommand` claims and starts any receipt through the completed Progression Runtime.
+Publication rechecks lease token/generation plus accepted Session head/revision. The Turn append, `narrative-text` artifact, optional narrative signal, progression receipt, and node movement commit in one transaction. `SourceModuleTurnId` and `(ExecutionId, Kind)` uniqueness select one concurrent winner; a loser or retry that observes the existing Turn returns success without generating or appending a second canonical result. Session advancement returns `superseded`. The operations repository is the sole SessionExecution lifecycle closer. After commit, `IProgressionReceiptCommand` claims and starts any receipt through the completed Progression Runtime.
 
 ## Retry boundaries
 
@@ -97,4 +97,4 @@ Inputs, action-step audit records, committed artifacts, and published Turns foll
 
 User-driven lifecycle changes enter through application use cases (`Get`, `Retry`, `Cancel`, and `Dismiss`) and a restricted repository abstraction. HTTP endpoints only translate authentication and use-case outcomes. `Retry`, `RequestCancellation`, and `Dismiss` enforce lifecycle rules on the aggregate, while revision-based EF concurrency conflicts are returned as HTTP 409.
 
-Cancellation deliberately keeps the existing lease rules: a queued or retry-wait execution is cancelled immediately and has its lease cleared; a running execution moves to `cancel-requested` while retaining its lease so the fenced worker/finalizer can close the active attempt. Queue claim SQL, PostgreSQL `FOR UPDATE SKIP LOCKED`, heartbeat fencing, and finalizer fence semantics remain unchanged.
+Cancellation deliberately keeps the existing lease rules: a queued or retry-wait execution is cancelled immediately and has its lease cleared; a running execution moves to `cancel-requested` while retaining its lease so the fenced operations repository can close the active attempt. `SessionExecutionAttemptStatus` and `Start`/`Expire`/`Succeed`/`Fail`/`Cancel`/`Supersede` replace raw status strings and direct diagnostics mutation. Retry backoff, jitter, worker timings, and `TimeProvider` are injectable. Operational metrics execute database-side grouping, counts, and oldest-queue aggregation and cache only one bounded row per execution kind. The old state-machine/completion/kind/status compatibility types and parser facade do not exist.

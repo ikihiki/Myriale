@@ -155,10 +155,12 @@ builder.Services.AddScoped<GetSessionDetailQueryService>();
 builder.Services.AddScoped<GetSessionTurnQueryService>();
 builder.Services.AddScoped<GetSessionTurnInspectionQueryService>();
 builder.Services.AddScoped<GetSessionActionRecommendationContextQuery>();
-builder.Services.AddScoped<ISessionExecutionQueue, SessionExecutionQueue>();
-builder.Services.AddScoped<SessionExecutionFinalizer>();
+builder.Services.AddScoped<ISessionExecutionOperationsRepository, EfSessionExecutionOperationsRepository>();
+builder.Services.AddSingleton<ISessionExecutionJitter, RandomSessionExecutionJitter>();
+builder.Services.AddSingleton<ISessionExecutionRetryPolicy, SessionExecutionRetryPolicy>();
 builder.Services.AddScoped<ISessionExecutionHandler, ScenarioTurnExecutionHandler>();
 builder.Services.AddScoped<ISessionExecutionHandler, ModuleHandoffExecutionHandler>();
+builder.Services.AddSingleton(new SessionExecutionWorkerSettings());
 builder.Services.AddHostedService<SessionExecutionWorker>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddOptions<SessionExecutionMetricsOptions>()

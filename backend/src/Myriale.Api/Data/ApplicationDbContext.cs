@@ -362,16 +362,16 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .OnDelete(DeleteBehavior.Cascade);
         builder.Entity<SessionExecution>()
             .Property(execution => execution.Kind)
-            .HasConversion(value => value.ToWireValue(), value => SessionExecutionEnumValues.ParseKind(value));
+            .HasConversion(value => value.ToContractValue(), value => SessionExecutionStorageValues.Kind(value));
         builder.Entity<SessionExecution>()
             .Property(execution => execution.Status)
-            .HasConversion(value => value.ToWireValue(), value => SessionExecutionEnumValues.ParseStatus(value));
+            .HasConversion(value => value.ToContractValue(), value => SessionExecutionStorageValues.Status(value));
         builder.Entity<SessionExecution>()
             .Property(execution => execution.TriggerType)
-            .HasConversion(value => value.ToWireValue(), value => SessionExecutionEnumValues.ParseTriggerType(value));
+            .HasConversion(value => value.ToContractValue(), value => SessionExecutionStorageValues.TriggerType(value));
         builder.Entity<SessionExecution>()
             .Property(execution => execution.PublishPolicy)
-            .HasConversion(value => value.ToWireValue(), value => SessionExecutionEnumValues.ParsePublishPolicy(value));
+            .HasConversion(value => value.ToContractValue(), value => SessionExecutionStorageValues.PublishPolicy(value));
         builder.Entity<SessionExecution>()
             .Property(execution => execution.Revision)
             .IsConcurrencyToken();
@@ -385,6 +385,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .WithMany(session => session.Executions)
             .HasForeignKey(execution => execution.SessionId)
             .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<SessionExecutionAttempt>()
+            .Property(attempt => attempt.Status)
+            .HasConversion(value => value.ToContractValue(), value => SessionExecutionStorageValues.AttemptStatus(value));
         builder.Entity<SessionExecutionAttempt>()
             .HasIndex(attempt => new { attempt.ExecutionId, attempt.AttemptNumber })
             .IsUnique();

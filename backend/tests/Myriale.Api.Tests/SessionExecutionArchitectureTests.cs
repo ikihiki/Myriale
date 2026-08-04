@@ -8,19 +8,26 @@ namespace Myriale.Api.Tests;
 public sealed class SessionExecutionArchitectureTests
 {
     [Fact]
-    public void StateMachineRejectsInvalidTerminalTransition()
+    public void AggregateRejectsInvalidTerminalTransitionAndLegacyTypesAreAbsent()
     {
-        var execution = Execution(SessionExecutionStatuses.Succeeded);
-        Assert.False(SessionExecutionStateMachine.CanTransition(SessionExecutionStatuses.Succeeded, SessionExecutionStatuses.Queued));
-        Assert.Throws<InvalidOperationException>(() => SessionExecutionStateMachine.Transition(execution, SessionExecutionStatuses.Queued));
+        var execution = Execution(SessionExecutionStatus.Succeeded);
+        Assert.False(SessionExecution.CanTransition(SessionExecutionStatus.Succeeded, SessionExecutionStatus.Queued));
+        Assert.Throws<InvalidOperationException>(() => execution.TransitionTo(SessionExecutionStatus.Queued));
+
+        var assembly = typeof(SessionExecution).Assembly;
+        Assert.Null(assembly.GetType("Myriale.Api.Services.SessionExecutionStateMachine"));
+        Assert.Null(assembly.GetType("Myriale.Api.Services.SessionExecutionCompletion"));
+        Assert.Null(assembly.GetType("Myriale.Api.Data.SessionExecutionKinds"));
+        Assert.Null(assembly.GetType("Myriale.Api.Data.SessionExecutionStatuses"));
+        Assert.Null(assembly.GetType("Myriale.Api.Data.SessionExecutionEnumValues"));
     }
 
     [Theory]
-    [InlineData(SessionExecutionStatuses.Queued, true, false, false)]
-    [InlineData(SessionExecutionStatuses.Running, true, false, false)]
-    [InlineData(SessionExecutionStatuses.Failed, false, true, true)]
-    [InlineData(SessionExecutionStatuses.Cancelled, false, true, true)]
-    [InlineData(SessionExecutionStatuses.Superseded, false, false, true)]
+    [InlineData(SessionExecutionStatus.Queued, true, false, false)]
+    [InlineData(SessionExecutionStatus.Running, true, false, false)]
+    [InlineData(SessionExecutionStatus.Failed, false, true, true)]
+    [InlineData(SessionExecutionStatus.Cancelled, false, true, true)]
+    [InlineData(SessionExecutionStatus.Superseded, false, false, true)]
     public void ProjectionUsesStatusCapabilities(SessionExecutionStatus status, bool canCancel, bool canRetry, bool canDismiss)
     {
         var execution = Execution(status); execution.IsRetryable = true;
@@ -34,8 +41,12 @@ public sealed class SessionExecutionArchitectureTests
     [Fact]
     public void DevelopmentProjectionContainsTraceButProductionOmitsDiagnostics()
     {
-        var execution = Execution(SessionExecutionStatuses.Failed);
-        execution.Attempts.Add(new SessionExecutionAttempt { Id = "ATT-1", ExecutionId = execution.Id, AttemptNumber = 1, Status = "failed", StartedAt = DateTimeOffset.UtcNow, TraceId = "trace-id", SpanId = "span-id", ExceptionChain = "TimeoutException", RedactedResponseExcerpt = "Authorization=[REDACTED]" });
+        var execution = Execution(SessionExecutionStatus.Failed);
+        var attempt = SessionExecutionAttempt.Start("ATT-1", execution.Id, 1, "worker", DateTimeOffset.UtcNow);
+        attempt.RecordTrace(null, "trace-id", "span-id");
+        attempt.RecordFailureDiagnostics("TimeoutException", "Authorization=[REDACTED]");
+        attempt.Fail(DateTimeOffset.UtcNow, "timeout", "provider", true);
+        execution.Attempts.Add(attempt);
         var development = SessionExecutionProjection.ToResponse(execution, true);
         var production = SessionExecutionProjection.ToResponse(execution, false);
         Assert.Equal("trace-id", Assert.Single(development.DevelopmentDiagnostics!.Attempts).TraceId);
@@ -105,6 +116,15 @@ public sealed class SessionExecutionArchitectureTests
     }
 
     [Fact]
+    public void WorkerUsesOperationsRepositoryInsteadOfApplicationDbContext()
+    {
+        var constructor = Assert.Single(typeof(SessionExecutionWorker).GetConstructors());
+        Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(ApplicationDbContext));
+        Assert.Contains(typeof(Myriale.Api.Application.SessionExecutions.ISessionExecutionOperationsRepository),
+            typeof(SessionExecutionWorker).Assembly.GetTypes());
+    }
+
+    [Fact]
     public void ScenarioTurnHandler_IsThinAndHasNoDbContextDependency()
     {
         var constructor = Assert.Single(typeof(ScenarioTurnExecutionHandler).GetConstructors());
@@ -139,7 +159,7 @@ public sealed class SessionExecutionArchitectureTests
     {
         Id = "EXE-1",
         SessionId = "SES-1",
-        Kind = SessionExecutionKinds.Narrative,
+        Kind = SessionExecutionKind.Narrative,
         TriggerType = SessionExecutionTriggerType.PlayerInput,
         TriggerId = "INP-1",
         Status = status,

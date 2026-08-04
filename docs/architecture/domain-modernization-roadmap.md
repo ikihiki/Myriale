@@ -7,7 +7,7 @@ Scenario authoring established the reference architecture for Myriale domain cod
 | Domain | Aggregate / process boundary | Current priority | Main reason |
 |---|---|---:|---|
 | Session Memory | `SessionNote` and `SessionNoteProposal` review process | High | User edits and AI proposal review mutate the same note through separate endpoints; concurrency and review idempotency must share one policy. |
-| Session Execution | `SessionExecution` with attempts, lease, retry, cancellation, and dismissal lifecycle | High | Lifecycle rules exist but are split across endpoints, queue, finalizer, and a state-machine helper. |
+| Session Execution | `SessionExecution` with attempts, lease, retry, cancellation, and dismissal lifecycle | Delivered | Typed attempts and one operations repository now own atomic claim, context, heartbeat, finalization, retry, and database-side metrics while preserving lease fencing. |
 | Progression Runtime | `SessionProgressState` plus independently leased transition receipts | High | Receipt claim/completion/retry rules are mutable process state and need an explicit aggregate/repository boundary. |
 | Module Execution | `ModuleExecution`, request receipts, and outcome application receipts | Delivered | Native lifecycle enums, aggregate behavior, commands/queries, owner-scoped repository, and database-authoritative idempotency/concurrency replaced the legacy facade. |
 | AI Provider Administration | provider profiles, credentials, and active runtime selection | Delivered | Profile and credential aggregates, revision-fenced commands/tests, deployment/DB resolution, thin endpoints, and split frontend contracts are complete. |
@@ -40,6 +40,8 @@ Scenario authoring established the reference architecture for Myriale domain cod
 - Existing HTTP wire values remain stable unless a versioned contract change is explicitly approved.
 
 ## Delivered slices
+
+- **Session Execution operations (August 2026):** `SessionExecutionAttemptStatus` and aggregate transition/diagnostic APIs replace raw mutable attempt strings. `ISessionExecutionOperationsRepository` centralizes atomic batch claim, claim context, heartbeat, finalization, and database-side metrics while preserving PostgreSQL `FOR UPDATE SKIP LOCKED`, lease-token and revision fences. Workers no longer resolve `ApplicationDbContext`; retry policy, jitter, timings, and `TimeProvider` are injectable. Stale claims, revision conflicts, and transient database conflicts are distinct outcomes, and the legacy state machine, completion helper, kind/status aliases, and parser facade are removed. See `session-executions-and-artifacts.md`.
 
 - **Module Execution (August 2026):** the legacy 958-line service/facade and process-local semaphore were removed. Explicit detached/session initialization, dispatch, and query use cases now coordinate aggregate-owned state, durable receipts, projection, runtime, effects, and handoff responsibilities. See `module-execution.md`.
 - **Progression Runtime (August 2026):** transition receipts now expose a native status enum and aggregate-owned lifecycle, while an application command and focused EF repository preserve owner scoping, atomic revision claims, and lease-generation fencing. See `progression-runtime.md`.

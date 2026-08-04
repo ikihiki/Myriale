@@ -39,8 +39,8 @@ public static class SessionArtifactFixtureSeedData
             "ミラ / 星図を読む巡礼者", false,
             new SessionState { SessionId = SessionId, Revision = 1, FlagsJson = "{}", UpdatedAt = timestamp }, timestamp);
         session.AdvanceRuntime(timestamp);
-        var noteExecution = Execution("EXE-DEVELOPMENT-NOTE", SessionExecutionKinds.NoteProposal, "fixture-note", timestamp);
-        var imageExecution = Execution("EXE-DEVELOPMENT-IMAGE", SessionExecutionKinds.Image, "fixture-image", timestamp.AddSeconds(1));
+        var noteExecution = Execution("EXE-DEVELOPMENT-NOTE", SessionExecutionKind.NoteProposal, "fixture-note", timestamp);
+        var imageExecution = Execution("EXE-DEVELOPMENT-IMAGE", SessionExecutionKind.Image, "fixture-image", timestamp.AddSeconds(1));
         var noteAttempt = Attempt("ATT-DEVELOPMENT-NOTE", noteExecution.Id, timestamp);
         var imageAttempt = Attempt("ATT-DEVELOPMENT-IMAGE", imageExecution.Id, timestamp.AddSeconds(1));
         var noteArtifact = SessionArtifact.CreateCommittedJson(
@@ -80,7 +80,7 @@ public static class SessionArtifactFixtureSeedData
         Kind = kind,
         TriggerType = SessionExecutionTriggerType.Manual,
         TriggerId = key,
-        Status = SessionExecutionStatuses.Succeeded,
+        Status = SessionExecutionStatus.Succeeded,
         Revision = 1,
         IdempotencyKey = key,
         PayloadHash = new string('a', 64),
@@ -94,14 +94,10 @@ public static class SessionArtifactFixtureSeedData
         CompletedAt = timestamp,
     };
 
-    private static SessionExecutionAttempt Attempt(string id, string executionId, DateTimeOffset timestamp) => new()
+    private static SessionExecutionAttempt Attempt(string id, string executionId, DateTimeOffset timestamp)
     {
-        Id = id,
-        ExecutionId = executionId,
-        AttemptNumber = 1,
-        Status = "succeeded",
-        WorkerId = "fixture",
-        StartedAt = timestamp,
-        CompletedAt = timestamp,
-    };
+        var attempt = SessionExecutionAttempt.Start(id, executionId, 1, "fixture", timestamp);
+        attempt.Succeed(timestamp);
+        return attempt;
+    }
 }

@@ -595,9 +595,14 @@ public sealed class EfScenarioNarrativePublisher(
         execution.Stage = step.Stage.ToWireValue();
         artifactWriter.AddNarrative(execution.SessionId, execution.Id, context.AttemptId, narrative.Value, now);
         var attempt = await db.SessionExecutionAttempts.SingleAsync(item => item.Id == context.AttemptId, cancellationToken);
-        attempt.Provider = narrative.Metadata.Provider;
-        attempt.Model = narrative.Metadata.Model;
-        attempt.ProviderRequestId = narrative.Metadata.ResponseId;
+        attempt.RecordProviderDiagnostics(
+            narrative.Metadata.Provider,
+            narrative.Metadata.Model,
+            narrative.Metadata.ResponseId,
+            narrative.Metadata.LatencyMilliseconds,
+            narrative.Metadata.InputTokens,
+            narrative.Metadata.OutputTokens,
+            narrative.Metadata.FinishReason);
         try
         {
             await db.SaveChangesAsync(cancellationToken);

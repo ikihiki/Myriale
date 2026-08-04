@@ -130,7 +130,7 @@ public sealed class GetSessionTurnInspectionQueryService(ApplicationDbContext db
             new ScenarioInspectionMetadata(session.ScenarioId, session.Scenario.Title, session.ScenarioDefinitionVersionId),
             new TurnInspectionMetadata(turn.Id, turn.Position, turn.Kind.ToWireValue(), turn.Heading, turn.NarrativeBody, turn.CreatedAt),
             new PlayerInputInspection(turn.PlayerInput.Id, turn.PlayerInput.Text, turn.PlayerInput.InteractionType.ToWireValue(), turn.PlayerInput.CreatedAt),
-            new ExecutionInspection(execution.Id, execution.Kind.ToWireValue(), execution.Status.ToWireValue(), execution.Stage, execution.AttemptCount,
+            new ExecutionInspection(execution.Id, execution.Kind.ToContractValue(), execution.Status.ToContractValue(), execution.Stage, execution.AttemptCount,
                 execution.CreatedAt, execution.QueuedAt, execution.StartedAt, execution.CompletedAt, Elapsed(execution.StartedAt ?? execution.QueuedAt, execution.CompletedAt)), interactions, rule);
     }
     private static IReadOnlyList<RuleStateChangeInspection> DeriveChanges(RuleActionSnapshot? snapshot, RulePostState? postState, long preRevision, long? postRevision)
@@ -217,7 +217,7 @@ internal static class SessionQueryMapper
     {
         var byInput = executions.Where(x => x.DismissedAt == null && x.TriggerType == SessionExecutionTriggerType.PlayerInput).ToDictionary(x => x.TriggerId);
         return inputs.Where(x => x.NarrativeTurn is null && byInput.ContainsKey(x.Id)).OrderBy(x => x.CreatedAt).ThenBy(x => x.Id, StringComparer.Ordinal).Select(x => { var e = byInput[x.Id];
-            return new SessionPendingPlayerInputResponse(x.Id, x.RequestId, x.Text, x.InteractionType.ToWireValue(), x.AcceptedAfterTurnId, e.Status.ToWireValue(),
+            return new SessionPendingPlayerInputResponse(x.Id, x.RequestId, x.Text, x.InteractionType.ToWireValue(), x.AcceptedAfterTurnId, e.Status.ToContractValue(),
                 e.IsRetryable, e.ErrorCode, e.UserErrorMessage, e.AttemptCount, e.CompletedAt ?? e.NextAttemptAt ?? e.StartedAt ?? e.QueuedAt); }).ToList();
     }
     internal static IReadOnlyList<SessionActivityResponse> Activity(IReadOnlyList<SessionTurnResponse> turns, IReadOnlyList<SessionPlayerInput> inputs,

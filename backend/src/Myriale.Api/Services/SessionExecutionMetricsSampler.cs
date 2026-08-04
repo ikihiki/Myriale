@@ -1,6 +1,6 @@
 using System.Diagnostics.Metrics;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Myriale.Api.Application.SessionExecutions;
 using Myriale.Api.Data;
 
 namespace Myriale.Api.Services;
@@ -24,11 +24,11 @@ public sealed class SessionExecutionMetricSnapshot
 {
     private static readonly string[] KnownKinds =
     [
-        SessionExecutionKinds.ScenarioTurn.ToWireValue(),
-        SessionExecutionKinds.Narrative.ToWireValue(),
-        SessionExecutionKinds.ModuleHandoff.ToWireValue(),
-        SessionExecutionKinds.NoteProposal.ToWireValue(),
-        SessionExecutionKinds.Image.ToWireValue(),
+        SessionExecutionKind.ScenarioTurn.ToContractValue(),
+        SessionExecutionKind.Narrative.ToContractValue(),
+        SessionExecutionKind.ModuleHandoff.ToContractValue(),
+        SessionExecutionKind.NoteProposal.ToContractValue(),
+        SessionExecutionKind.Image.ToContractValue(),
     ];
 
     private IReadOnlyList<SessionExecutionMetricSample> samples = EmptySamples();
@@ -93,40 +93,26 @@ public sealed class SessionExecutionMetricsSampler(
     {
         var now = timeProvider.GetUtcNow();
         await using var scope = scopeFactory.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var active = await db.SessionExecutions.AsNoTracking()
-            .Where(execution => execution.Status == SessionExecutionStatuses.Queued
-                || execution.Status == SessionExecutionStatuses.Running
-                || execution.Status == SessionExecutionStatuses.RetryWait
-                || execution.Status == SessionExecutionStatuses.CancelRequested)
-            .Select(execution => new
-            {
-                execution.Kind,
-                execution.Status,
-                execution.QueuedAt,
-                execution.StartedAt,
-                execution.LeaseExpiresAt,
-            })
-            .ToListAsync(cancellationToken);
-
-        var stuckBefore = now.AddSeconds(-options.Value.StuckAfterSeconds);
+        var repository = scope.ServiceProvider.GetRequiredService<ISessionExecutionOperationsRepository>();
+        var rows = await repository.ReadMetricsAsync(
+            now,
+            now.AddSeconds(-options.Value.StuckAfterSeconds),
+            cancellationToken);
+        var byKind = rows.ToDictionary(row => row.Kind.ToContractValue(), StringComparer.Ordinal);
         var samples = SessionExecutionMetricSnapshot.Kinds.Select(kind =>
         {
-            var rows = active.Where(execution => execution.Kind.ToWireValue() == kind).ToArray();
-            var queued = rows.Where(execution => execution.Status == SessionExecutionStatuses.Queued).ToArray();
+            if (!byKind.TryGetValue(kind, out var row)) return new SessionExecutionMetricSample(kind, 0, 0, 0, 0, 0);
             return new SessionExecutionMetricSample(
                 kind,
-                queued.LongLength,
-                rows.LongCount(execution => execution.Status is SessionExecutionStatuses.Running or SessionExecutionStatuses.CancelRequested),
-                rows.LongCount(execution => execution.Status == SessionExecutionStatuses.RetryWait),
-                queued.Length == 0 ? 0 : Math.Max(0, (now - queued.Min(execution => execution.QueuedAt)).TotalSeconds),
-                rows.LongCount(execution => execution.Status is SessionExecutionStatuses.Running or SessionExecutionStatuses.CancelRequested
-                    && ((execution.LeaseExpiresAt is not null && execution.LeaseExpiresAt < now)
-                        || (execution.StartedAt is not null && execution.StartedAt < stuckBefore))));
+                row.QueueDepth,
+                row.Running,
+                row.RetryWait,
+                row.OldestQueuedAt is null ? 0 : Math.Max(0, (now - row.OldestQueuedAt.Value).TotalSeconds),
+                row.Stuck);
         }).ToArray();
 
         snapshot.Update(samples);
-        logger.LogDebug("Sampled session execution metrics. ActiveExecutions={ActiveExecutions}", active.Count);
+        logger.LogDebug("Sampled session execution metrics. KindGroups={KindGroups}", rows.Count);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

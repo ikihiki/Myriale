@@ -36,10 +36,10 @@ public static class SessionExecutionTelemetry
     public static readonly Histogram<long> ArtifactSize = Meter.CreateHistogram<long>("myriale.artifact.size", "By");
 
     public static TagList Tags(SessionExecutionKind kind, SessionExecutionStatus status, string? provider = null, string? model = null, string? errorCode = null) =>
-        Tags(kind.ToWireValue(), status.ToWireValue(), provider, model, errorCode);
+        Tags(kind.ToContractValue(), status.ToContractValue(), provider, model, errorCode);
 
     public static TagList Tags(SessionExecutionKind kind, string status, string? provider = null, string? model = null, string? errorCode = null) =>
-        Tags(kind.ToWireValue(), status, provider, model, errorCode);
+        Tags(kind.ToContractValue(), status, provider, model, errorCode);
 
     public static TagList Tags(string kind, string status, string? provider = null, string? model = null, string? errorCode = null)
     {
@@ -51,10 +51,10 @@ public static class SessionExecutionTelemetry
     }
 
     public static void RecordSessionAdvanced(SessionExecutionKind kind, SessionExecutionStatus status) =>
-        RecordSessionAdvanced(kind.ToWireValue(), status.ToWireValue());
+        RecordSessionAdvanced(kind.ToContractValue(), status.ToContractValue());
 
     public static void RecordInvalidSignal(SessionExecutionKind kind, SessionExecutionStatus status) =>
-        RecordInvalidSignal(kind.ToWireValue(), status.ToWireValue());
+        RecordInvalidSignal(kind.ToContractValue(), status.ToContractValue());
 
     public static void RecordSessionAdvanced(string kind, string status) =>
         SessionAdvanced.Add(1, Tags(kind, status, errorCode: "session_advanced"));

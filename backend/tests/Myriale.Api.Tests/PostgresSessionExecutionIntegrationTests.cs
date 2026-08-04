@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Myriale.Api.Application.SessionExecutions;
 using Myriale.Api.Data;
+using Myriale.Api.Infrastructure.SessionExecutions;
 using Myriale.Api.Services;
 using Npgsql;
 
@@ -36,14 +38,14 @@ public sealed class PostgresSessionExecutionIntegrationTests
             await command.ExecuteScalarAsync();
 
         await using var competingDb = database.CreateContext();
-        var queue = new SessionExecutionQueue(competingDb, new MutableTimeProvider(now));
-        var claim = Assert.Single(await queue.ClaimAsync("worker-next", 1, TimeSpan.FromMinutes(2), CancellationToken.None));
+        var queue = Operations(competingDb, new MutableTimeProvider(now));
+        var claim = Assert.Single((await queue.ClaimBatchAsync("worker-next", 1, TimeSpan.FromMinutes(2), CancellationToken.None)).Claims);
         Assert.Equal("EXE-NEXT", claim.ExecutionId);
 
         await lockTransaction.RollbackAsync();
         await using var finalDb = database.CreateContext();
-        var finalQueue = new SessionExecutionQueue(finalDb, new MutableTimeProvider(now));
-        var nextClaim = Assert.Single(await finalQueue.ClaimAsync("worker-high", 1, TimeSpan.FromMinutes(2), CancellationToken.None));
+        var finalQueue = Operations(finalDb, new MutableTimeProvider(now));
+        var nextClaim = Assert.Single((await finalQueue.ClaimBatchAsync("worker-high", 1, TimeSpan.FromMinutes(2), CancellationToken.None)).Claims);
         Assert.Equal("EXE-HIGH", nextClaim.ExecutionId);
     }
 
@@ -57,27 +59,27 @@ public sealed class PostgresSessionExecutionIntegrationTests
         await database.Db.SaveChangesAsync();
 
         var time = new MutableTimeProvider(now);
-        var queue = new SessionExecutionQueue(database.Db, time);
-        var first = Assert.Single(await queue.ClaimAsync("worker-a", 1, TimeSpan.FromMinutes(2), CancellationToken.None));
+        var queue = Operations(database.Db, time);
+        var first = Assert.Single((await queue.ClaimBatchAsync("worker-a", 1, TimeSpan.FromMinutes(2), CancellationToken.None)).Claims);
         time.Advance(TimeSpan.FromMinutes(1));
-        Assert.True(await queue.HeartbeatAsync(first, TimeSpan.FromMinutes(2), CancellationToken.None));
+        Assert.Equal(SessionExecutionOperationOutcome.Success, await queue.HeartbeatAsync(first, TimeSpan.FromMinutes(2), CancellationToken.None));
 
         time.Advance(TimeSpan.FromSeconds(90));
         await using (var earlyDb = database.CreateContext())
         {
-            var earlyQueue = new SessionExecutionQueue(earlyDb, time);
-            Assert.Empty(await earlyQueue.ClaimAsync("worker-b", 1, TimeSpan.FromMinutes(2), CancellationToken.None));
+            var earlyQueue = Operations(earlyDb, time);
+            Assert.Empty((await earlyQueue.ClaimBatchAsync("worker-b", 1, TimeSpan.FromMinutes(2), CancellationToken.None)).Claims);
         }
 
         time.Advance(TimeSpan.FromSeconds(31));
         await using var reclaimDb = database.CreateContext();
-        var reclaimQueue = new SessionExecutionQueue(reclaimDb, time);
-        var reclaimed = Assert.Single(await reclaimQueue.ClaimAsync("worker-b", 1, TimeSpan.FromMinutes(2), CancellationToken.None));
+        var reclaimQueue = Operations(reclaimDb, time);
+        var reclaimed = Assert.Single((await reclaimQueue.ClaimBatchAsync("worker-b", 1, TimeSpan.FromMinutes(2), CancellationToken.None)).Claims);
         Assert.NotEqual(first.LeaseToken, reclaimed.LeaseToken);
         Assert.True(reclaimed.Revision > first.Revision);
-        Assert.False(await reclaimQueue.HeartbeatAsync(first, TimeSpan.FromMinutes(2), CancellationToken.None));
+        Assert.Equal(SessionExecutionOperationOutcome.StaleClaim, await reclaimQueue.HeartbeatAsync(first, TimeSpan.FromMinutes(2), CancellationToken.None));
         var expiredAttempt = await reclaimDb.SessionExecutionAttempts.SingleAsync(item => item.Id == first.AttemptId);
-        Assert.Equal("expired", expiredAttempt.Status);
+        Assert.Equal(SessionExecutionAttemptStatus.Expired, expiredAttempt.Status);
         Assert.Equal("lease_expired", expiredAttempt.ErrorCode);
         Assert.NotNull(expiredAttempt.CompletedAt);
     }
@@ -156,6 +158,11 @@ public sealed class PostgresSessionExecutionIntegrationTests
         Assert.Equal(now.AddMinutes(2), execution.LeaseExpiresAt);
     }
 
+    private static EfSessionExecutionOperationsRepository Operations(ApplicationDbContext db, TimeProvider time) =>
+        new(db, time, new SessionExecutionRetryPolicy(new FixedJitter()));
+
+    private sealed class FixedJitter : ISessionExecutionJitter { public double NextUnit() => 0; }
+
     private static SessionExecution InputExecution(SessionPlayerInput input, DateTimeOffset now) => new()
     {
         Id = $"EXE-{input.Id}", SessionId = input.SessionId, Kind = SessionExecutionKind.ScenarioTurn,
@@ -200,10 +207,10 @@ public sealed class PostgresSessionExecutionIntegrationTests
     {
         Id = id,
         SessionId = sessionId,
-        Kind = SessionExecutionKinds.Narrative,
+        Kind = SessionExecutionKind.Narrative,
         TriggerType = SessionExecutionTriggerType.PlayerInput,
         TriggerId = $"INP-{id}",
-        Status = SessionExecutionStatuses.Queued,
+        Status = SessionExecutionStatus.Queued,
         IdempotencyKey = id,
         PayloadHash = new string('a', 64),
         Priority = priority,

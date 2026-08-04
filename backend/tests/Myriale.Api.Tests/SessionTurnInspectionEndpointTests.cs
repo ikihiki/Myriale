@@ -167,16 +167,18 @@ public sealed class SessionTurnInspectionEndpointTests : IDisposable
 
     private static SessionExecution Execution(string id, string sessionId, string inputId, DateTimeOffset startedAt) => new()
     {
-        Id = id, SessionId = sessionId, Kind = SessionExecutionKinds.ScenarioTurn, TriggerType = SessionExecutionTriggerType.PlayerInput, TriggerId = inputId,
-        Status = SessionExecutionStatuses.Succeeded, Stage = ScenarioTurnStage.Completed.ToWireValue(), AttemptCount = id == ExecutionId ? 2 : 1,
+        Id = id, SessionId = sessionId, Kind = SessionExecutionKind.ScenarioTurn, TriggerType = SessionExecutionTriggerType.PlayerInput, TriggerId = inputId,
+        Status = SessionExecutionStatus.Succeeded, Stage = ScenarioTurnStage.Completed.ToWireValue(), AttemptCount = id == ExecutionId ? 2 : 1,
         IdempotencyKey = id, PayloadHash = new string('a', 64), CreatedAt = startedAt, QueuedAt = startedAt,
         StartedAt = startedAt, CompletedAt = startedAt.AddMilliseconds(900),
     };
 
-    private static SessionExecutionAttempt Attempt(string id, string executionId, int number, DateTimeOffset startedAt) => new()
+    private static SessionExecutionAttempt Attempt(string id, string executionId, int number, DateTimeOffset startedAt)
     {
-        Id = id, ExecutionId = executionId, AttemptNumber = number, Status = "succeeded", StartedAt = startedAt, CompletedAt = startedAt.AddMilliseconds(100),
-    };
+        var attempt = SessionExecutionAttempt.Start(id, executionId, number, "fixture", startedAt);
+        attempt.Succeed(startedAt.AddMilliseconds(100));
+        return attempt;
+    }
 
     private static SessionAiInteraction Interaction(string id, string executionId, string attemptId, int sequence, string stage, DateTimeOffset startedAt, string prompt, string result) => new()
     {

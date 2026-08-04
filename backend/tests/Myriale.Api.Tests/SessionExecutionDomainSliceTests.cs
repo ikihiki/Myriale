@@ -28,6 +28,49 @@ public sealed class SessionExecutionDomainSliceTests
     }
 
     [Fact]
+    public void AttemptStatusIsNativeEnumAndLifecycleSettersAreNotPublic()
+    {
+        Assert.True(typeof(SessionExecutionAttemptStatus).IsEnum);
+        foreach (var propertyName in new[]
+                 {
+                     nameof(SessionExecutionAttempt.Status), nameof(SessionExecutionAttempt.CompletedAt),
+                     nameof(SessionExecutionAttempt.ErrorCode), nameof(SessionExecutionAttempt.Provider),
+                     nameof(SessionExecutionAttempt.TraceId), nameof(SessionExecutionAttempt.SentPrompt),
+                 })
+            Assert.False(typeof(SessionExecutionAttempt).GetProperty(propertyName)!.SetMethod!.IsPublic);
+    }
+
+    [Theory]
+    [InlineData(SessionExecutionAttemptStatus.Expired)]
+    [InlineData(SessionExecutionAttemptStatus.Succeeded)]
+    [InlineData(SessionExecutionAttemptStatus.Failed)]
+    [InlineData(SessionExecutionAttemptStatus.Cancelled)]
+    [InlineData(SessionExecutionAttemptStatus.Superseded)]
+    public void AttemptTransitionMatrixAllowsOnlyRunningToOneTerminalState(SessionExecutionAttemptStatus terminal)
+    {
+        var attempt = SessionExecutionAttempt.Start("ATT-1", "EXE-1", 1, "worker", Now);
+        attempt.RecordProviderDiagnostics("provider", "model", "request");
+        attempt.RecordTrace("correlation", "trace", "span");
+        attempt.RecordFailureDiagnostics("TimeoutException", "redacted");
+        attempt.RecordPayloadDiagnostics("prompt", "result", "valid", "v1", "hash", 42);
+
+        switch (terminal)
+        {
+            case SessionExecutionAttemptStatus.Expired: attempt.Expire(Now.AddSeconds(1)); break;
+            case SessionExecutionAttemptStatus.Succeeded: attempt.Succeed(Now.AddSeconds(1)); break;
+            case SessionExecutionAttemptStatus.Failed: attempt.Fail(Now.AddSeconds(1), "error", "provider", true); break;
+            case SessionExecutionAttemptStatus.Cancelled: attempt.Cancel(Now.AddSeconds(1), "cancelled", "cancellation"); break;
+            case SessionExecutionAttemptStatus.Superseded: attempt.Supersede(Now.AddSeconds(1), "advanced", "fence"); break;
+            default: throw new ArgumentOutOfRangeException(nameof(terminal));
+        }
+
+        Assert.Equal(terminal, attempt.Status);
+        Assert.Equal(Now.AddSeconds(1), attempt.CompletedAt);
+        Assert.Throws<InvalidOperationException>(() => attempt.Succeed(Now.AddSeconds(2)));
+        Assert.Throws<InvalidOperationException>(() => attempt.RecordTrace(null, null, null));
+    }
+
+    [Fact]
     public void AggregateOwnsRetryCancellationAndDismissBehavior()
     {
         var failed = Execution(SessionExecutionStatus.Failed);

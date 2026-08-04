@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using Microsoft.EntityFrameworkCore;
+using Myriale.Api.Application.SessionExecutions;
 using Myriale.Api.Data;
 
 namespace Myriale.Api.Services;
@@ -13,15 +13,20 @@ public interface ISessionExecutionHandler
     Task<SessionExecutionHandlerResult> ExecuteAsync(SessionExecutionContext context, CancellationToken cancellationToken);
 }
 
+public sealed class SessionExecutionWorkerSettings
+{
+    public int ClaimBatchSize { get; init; } = 8;
+    public TimeSpan LeaseDuration { get; init; } = TimeSpan.FromMinutes(2);
+    public TimeSpan HeartbeatInterval { get; init; } = TimeSpan.FromSeconds(30);
+    public TimeSpan IdleDelay { get; init; } = TimeSpan.FromMilliseconds(250);
+}
+
 public sealed class SessionExecutionWorker(
     IServiceScopeFactory scopeFactory,
     TimeProvider timeProvider,
+    SessionExecutionWorkerSettings settings,
     ILogger<SessionExecutionWorker> logger) : BackgroundService
 {
-    internal const int ClaimBatchSize = 8;
-    internal static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(2);
-    internal static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(30);
-    private static readonly TimeSpan IdleDelay = TimeSpan.FromMilliseconds(250);
     private readonly string workerId = $"worker-{Environment.MachineName}-{Guid.NewGuid():N}";
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -33,10 +38,10 @@ public sealed class SessionExecutionWorker(
                 var claims = await ClaimAsync(stoppingToken);
                 if (claims.Count == 0)
                 {
-                    await Task.Delay(IdleDelay, timeProvider, stoppingToken);
+                    await Task.Delay(settings.IdleDelay, timeProvider, stoppingToken);
                     continue;
                 }
-                await Task.WhenAll(claims.Select(claim => RunAsync(claim, stoppingToken)));
+                await Task.WhenAll(claims.Select(claim => RunClaimAsync(claim, stoppingToken)));
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
             catch (Exception exception)
@@ -47,27 +52,19 @@ public sealed class SessionExecutionWorker(
         }
     }
 
-    private async Task<IReadOnlyList<SessionExecutionClaim>> ClaimAsync(CancellationToken cancellationToken)
+    internal async Task RunClaimAsync(SessionExecutionClaim claim, CancellationToken stoppingToken)
     {
         await using var scope = scopeFactory.CreateAsyncScope();
-        var queue = scope.ServiceProvider.GetRequiredService<ISessionExecutionQueue>();
-        return await queue.ClaimAsync(workerId, ClaimBatchSize, LeaseDuration, cancellationToken);
-    }
+        var operations = scope.ServiceProvider.GetRequiredService<ISessionExecutionOperationsRepository>();
+        var loaded = await operations.LoadClaimContextAsync(claim, stoppingToken);
+        if (loaded.Outcome != SessionExecutionOperationOutcome.Success || loaded.Context is null) return;
+        var context = loaded.Context;
 
-    private async Task RunAsync(SessionExecutionClaim claim, CancellationToken stoppingToken)
-    {
-        await using var scope = scopeFactory.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var execution = await db.SessionExecutions.AsNoTracking().SingleOrDefaultAsync(
-            item => item.Id == claim.ExecutionId && item.LeaseToken == claim.LeaseToken && item.Revision == claim.Revision,
-            stoppingToken);
-        if (execution is null) return;
-
-        using var activity = StartActivity(execution, claim.AttemptNumber);
+        using var activity = StartActivity(context);
         using var logScope = logger.BeginScope(new Dictionary<string, object?>
         {
-            ["SessionId"] = execution.SessionId,
-            ["ExecutionId"] = execution.Id,
+            ["SessionId"] = context.SessionId,
+            ["ExecutionId"] = claim.ExecutionId,
             ["AttemptId"] = claim.AttemptId,
             ["TraceId"] = activity?.TraceId.ToString(),
             ["SpanId"] = activity?.SpanId.ToString(),
@@ -77,7 +74,7 @@ public sealed class SessionExecutionWorker(
         SessionExecutionHandlerResult result;
         try
         {
-            var handler = scope.ServiceProvider.GetServices<ISessionExecutionHandler>().SingleOrDefault(item => item.Kind == execution.Kind);
+            var handler = scope.ServiceProvider.GetServices<ISessionExecutionHandler>().SingleOrDefault(item => item.Kind == context.Kind);
             if (handler is null)
                 result = new(false, false, "handler_not_configured", "この生成処理はまだ構成されていません。");
             else
@@ -91,13 +88,12 @@ public sealed class SessionExecutionWorker(
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
                 catch (OperationCanceledException) when (executionCancellation.IsCancellationRequested)
                 {
-                    // FinishAsync distinguishes a user cancellation from a lost/reclaimed lease.
-                    result = new(false, false, "execution_cancelled", "生成処理はキャンセルされました。");
+                    result = new(false, false, "execution_cancelled", "生成処理はキャンセルされました。", ErrorCategory: "cancellation");
                 }
                 catch (Exception exception)
                 {
                     activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
-                    logger.LogWarning(exception, "Session execution handler failed. Kind={Kind}", execution.Kind);
+                    logger.LogWarning(exception, "Session execution handler failed. Kind={Kind}", context.Kind);
                     result = new(false, true, "execution_failed", "生成処理に失敗しました。入力内容は保存されています。", ErrorCategory: "internal");
                 }
             }
@@ -108,8 +104,24 @@ public sealed class SessionExecutionWorker(
             try { await heartbeat; }
             catch (OperationCanceledException) { }
         }
-        var finalizer = scope.ServiceProvider.GetRequiredService<SessionExecutionFinalizer>();
-        await finalizer.FinishAsync(claim, result, activity, stoppingToken);
+
+        var finalized = await operations.FinalizeAsync(new(
+            claim,
+            new(result.Succeeded, result.Retryable, result.ErrorCode, result.UserMessage, result.TerminalStatus, result.ErrorCategory),
+            Activity.Current?.TraceId.ToString(),
+            activity?.TraceId.ToString(),
+            activity?.SpanId.ToString()), stoppingToken);
+        RecordFinalizationTelemetry(finalized);
+    }
+
+    private async Task<IReadOnlyList<SessionExecutionClaim>> ClaimAsync(CancellationToken cancellationToken)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var operations = scope.ServiceProvider.GetRequiredService<ISessionExecutionOperationsRepository>();
+        var result = await operations.ClaimBatchAsync(workerId, settings.ClaimBatchSize, settings.LeaseDuration, cancellationToken);
+        if (result.Outcome == SessionExecutionOperationOutcome.TransientDatabaseConflict)
+            logger.LogDebug("Session execution claim encountered a transient database conflict.");
+        return result.Claims;
     }
 
     private async Task HeartbeatAsync(
@@ -119,10 +131,11 @@ public sealed class SessionExecutionWorker(
     {
         while (!executionCancellation.IsCancellationRequested)
         {
-            await Task.Delay(HeartbeatInterval, timeProvider, executionCancellation.Token);
+            await Task.Delay(settings.HeartbeatInterval, timeProvider, executionCancellation.Token);
             await using var scope = scopeFactory.CreateAsyncScope();
-            var queue = scope.ServiceProvider.GetRequiredService<ISessionExecutionQueue>();
-            if (!await queue.HeartbeatAsync(claim, LeaseDuration, stoppingToken))
+            var operations = scope.ServiceProvider.GetRequiredService<ISessionExecutionOperationsRepository>();
+            var outcome = await operations.HeartbeatAsync(claim, settings.LeaseDuration, stoppingToken);
+            if (outcome is SessionExecutionOperationOutcome.StaleClaim or SessionExecutionOperationOutcome.RevisionConflict)
             {
                 executionCancellation.Cancel();
                 return;
@@ -130,15 +143,38 @@ public sealed class SessionExecutionWorker(
         }
     }
 
-    private static Activity? StartActivity(SessionExecution execution, int attemptNumber)
+    private static Activity? StartActivity(SessionExecutionClaimContext context)
     {
         ActivityContext parent = default;
-        if (!string.IsNullOrWhiteSpace(execution.TraceParent)) ActivityContext.TryParse(execution.TraceParent, null, out parent);
+        if (!string.IsNullOrWhiteSpace(context.TraceParent)) ActivityContext.TryParse(context.TraceParent, null, out parent);
         var activity = SessionExecutionTelemetry.ActivitySource.StartActivity("session.execution.run", ActivityKind.Internal, parent);
-        activity?.SetTag("myriale.execution.kind", execution.Kind);
-        activity?.SetTag("myriale.execution.attempt_number", attemptNumber);
-        activity?.SetTag("myriale.execution.id", execution.Id);
-        activity?.SetTag("myriale.session.id", execution.SessionId);
+        activity?.SetTag("myriale.execution.kind", context.Kind.ToContractValue());
+        activity?.SetTag("myriale.execution.attempt_number", context.Claim.AttemptNumber);
+        activity?.SetTag("myriale.execution.id", context.Claim.ExecutionId);
+        activity?.SetTag("myriale.session.id", context.SessionId);
         return activity;
+    }
+
+    private static void RecordFinalizationTelemetry(SessionExecutionFinalizeResult result)
+    {
+        if (result.Outcome != SessionExecutionOperationOutcome.Success || result.Kind is null || result.Status is null || result.CompletedAt is null)
+            return;
+        var kind = result.Kind.Value;
+        var status = result.Status.Value;
+        var tags = SessionExecutionTelemetry.Tags(kind, status, errorCode: result.ErrorCode);
+        if (status == SessionExecutionStatus.Succeeded) SessionExecutionTelemetry.Completed.Add(1, tags);
+        else if (status == SessionExecutionStatus.Cancelled) SessionExecutionTelemetry.Cancelled.Add(1, tags);
+        else if (status == SessionExecutionStatus.Superseded)
+        {
+            SessionExecutionTelemetry.Superseded.Add(1, tags);
+            if (result.ErrorCode == "session_advanced") SessionExecutionTelemetry.RecordSessionAdvanced(kind, status);
+        }
+        else if (status == SessionExecutionStatus.RetryWait) SessionExecutionTelemetry.Retried.Add(1, tags);
+        else if (status == SessionExecutionStatus.Failed) SessionExecutionTelemetry.Failed.Add(1, tags);
+        if (result.RetryDelay is { } retryDelay) SessionExecutionTelemetry.RetryDelay.Record(retryDelay.TotalSeconds, tags);
+        if (result.AttemptStartedAt is { } attemptStarted)
+            SessionExecutionTelemetry.AttemptDuration.Record((result.CompletedAt.Value - attemptStarted).TotalSeconds, tags);
+        if (result.ExecutionStartedAt is { } executionStarted && status.IsTerminal())
+            SessionExecutionTelemetry.Duration.Record((result.CompletedAt.Value - executionStarted).TotalSeconds, tags);
     }
 }

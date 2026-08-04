@@ -12,9 +12,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Myriale.Api.Application.SessionExecutions;
 using Myriale.Api.Application.SessionArtifacts;
 using Myriale.Api.Endpoints;
 using Myriale.Api.Data;
+using Myriale.Api.Infrastructure.SessionExecutions;
 using Myriale.Api.Infrastructure.SessionArtifacts;
 using Myriale.Api.Services;
 
@@ -70,8 +72,10 @@ public sealed class SessionArtifactInfrastructureTests
         await using var db = Db(connection);
         await db.Database.EnsureCreatedAsync();
         var now = new DateTimeOffset(2026, 8, 4, 12, 0, 0, TimeSpan.Zero);
-        SeedExecutionGraph(db, "EXE-UNIQUE", SessionExecutionKinds.Image, SessionExecutionStatuses.Succeeded, now, suffix: "UNIQUE");
-        db.SessionExecutionAttempts.Add(new SessionExecutionAttempt { Id = "ATT-UNIQUE", ExecutionId = "EXE-UNIQUE", AttemptNumber = 1, Status = "succeeded", StartedAt = now });
+        SeedExecutionGraph(db, "EXE-UNIQUE", SessionExecutionKind.Image, SessionExecutionStatus.Succeeded, now, suffix: "UNIQUE");
+        var uniqueAttempt = SessionExecutionAttempt.Start("ATT-UNIQUE", "EXE-UNIQUE", 1, "fixture", now);
+        uniqueAttempt.Succeed(now);
+        db.SessionExecutionAttempts.Add(uniqueAttempt);
         await db.SaveChangesAsync();
         var repository = new EfSessionArtifactRepository(db);
 
@@ -96,15 +100,19 @@ public sealed class SessionArtifactInfrastructureTests
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
         var services = new ServiceCollection();
+        var now = new DateTimeOffset(2026, 7, 21, 12, 0, 0, TimeSpan.Zero);
         services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connection));
+        services.AddSingleton<TimeProvider>(new FixedTimeProvider(now));
+        services.AddSingleton<ISessionExecutionJitter>(new FixedJitter());
+        services.AddSingleton<ISessionExecutionRetryPolicy, SessionExecutionRetryPolicy>();
+        services.AddScoped<ISessionExecutionOperationsRepository, EfSessionExecutionOperationsRepository>();
         await using var provider = services.BuildServiceProvider();
         await using (var scope = provider.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             await db.Database.EnsureCreatedAsync();
-            var now = new DateTimeOffset(2026, 7, 21, 12, 0, 0, TimeSpan.Zero);
-            SeedExecutionGraph(db, "EXE-QUEUE", SessionExecutionKinds.Narrative, SessionExecutionStatuses.Queued, now.AddMinutes(-2));
-            SeedExecutionGraph(db, "EXE-STUCK", SessionExecutionKinds.Image, SessionExecutionStatuses.Running, now.AddMinutes(-20), now.AddMinutes(-1), suffix: "2");
+            SeedExecutionGraph(db, "EXE-QUEUE", SessionExecutionKind.Narrative, SessionExecutionStatus.Queued, now.AddMinutes(-2));
+            SeedExecutionGraph(db, "EXE-STUCK", SessionExecutionKind.Image, SessionExecutionStatus.Running, now.AddMinutes(-20), now.AddMinutes(-1), suffix: "2");
             await db.SaveChangesAsync();
         }
         var snapshot = new SessionExecutionMetricSnapshot();
@@ -114,9 +122,9 @@ public sealed class SessionArtifactInfrastructureTests
 
         await sampler.SampleOnceAsync();
 
-        Assert.Equal(1, snapshot.Read().Single(item => item.Kind == SessionExecutionKinds.Narrative.ToWireValue()).QueueDepth);
-        Assert.Equal(120, snapshot.Read().Single(item => item.Kind == SessionExecutionKinds.Narrative.ToWireValue()).OldestQueuedAgeSeconds);
-        Assert.Equal(1, snapshot.Read().Single(item => item.Kind == SessionExecutionKinds.Image.ToWireValue()).Stuck);
+        Assert.Equal(1, snapshot.Read().Single(item => item.Kind == SessionExecutionKind.Narrative.ToContractValue()).QueueDepth);
+        Assert.Equal(120, snapshot.Read().Single(item => item.Kind == SessionExecutionKind.Narrative.ToContractValue()).OldestQueuedAgeSeconds);
+        Assert.Equal(1, snapshot.Read().Single(item => item.Kind == SessionExecutionKind.Image.ToContractValue()).Stuck);
     }
 
     private static FormFile FormFile(byte[] content, string contentType)
@@ -130,8 +138,10 @@ public sealed class SessionArtifactInfrastructureTests
     private static void SeedImageGraph(ApplicationDbContext db, string imageId, string key, DateTimeOffset? retainUntil, string suffix = "")
     {
         var now = new DateTimeOffset(2026, 7, 21, 10, 0, 0, TimeSpan.Zero);
-        SeedExecutionGraph(db, "EXE-IMG" + suffix, SessionExecutionKinds.Image, SessionExecutionStatuses.Succeeded, now, suffix: suffix);
-        db.SessionExecutionAttempts.Add(new SessionExecutionAttempt { Id = "ATT-IMG" + suffix, ExecutionId = "EXE-IMG" + suffix, AttemptNumber = 1, Status = "succeeded", StartedAt = now });
+        SeedExecutionGraph(db, "EXE-IMG" + suffix, SessionExecutionKind.Image, SessionExecutionStatus.Succeeded, now, suffix: suffix);
+        var attempt = SessionExecutionAttempt.Start("ATT-IMG" + suffix, "EXE-IMG" + suffix, 1, "fixture", now);
+        attempt.Succeed(now);
+        db.SessionExecutionAttempts.Add(attempt);
         var artifact = SessionArtifact.CreateCommittedImage(
             "ART-IMG" + suffix, "SES-" + suffix, "EXE-IMG" + suffix, "ATT-IMG" + suffix,
             key, "image/png", new string('a', 64), "{\"decision\":\"approved\"}", now);
@@ -150,8 +160,10 @@ public sealed class SessionArtifactInfrastructureTests
         }
         if (!db.Scenarios.Local.Any(item => item.Id == scenarioId)) db.Scenarios.Add(new Scenario { Id = scenarioId, Title = "Fixture", Summary = "Fixture", Genre = "Fixture", Tone = "Fixture", Lore = "Fixture", AiFreedom = "Fixture", HeroMode = HeroMode.Fixed, Hero = "Fixture", Opening = "Fixture", IllustrationStyle = "Fixture", IllustrationMood = "Fixture", IllustrationNegative = "", SampleScene = "Fixture", Status = ScenarioPublicationStatus.Published, AuthorId = ownerId, CreatedAt = queuedAt, UpdatedAt = queuedAt });
         if (!db.Sessions.Local.Any(item => item.Id == sessionId)) db.Sessions.Add(new Session { Id = sessionId, OwnerId = ownerId, ScenarioId = scenarioId, SelectedHero = "Fixture", Status = SessionStatus.Active, CreatedAt = queuedAt, UpdatedAt = queuedAt });
-        db.SessionExecutions.Add(new SessionExecution { Id = executionId, SessionId = sessionId, Kind = kind, TriggerType = SessionExecutionTriggerType.Manual, TriggerId = executionId, Status = status, IdempotencyKey = executionId, PayloadHash = new string('a', 64), CreatedAt = queuedAt, QueuedAt = queuedAt, StartedAt = status == SessionExecutionStatuses.Running ? queuedAt : null, LeaseExpiresAt = leaseExpiresAt });
+        db.SessionExecutions.Add(new SessionExecution { Id = executionId, SessionId = sessionId, Kind = kind, TriggerType = SessionExecutionTriggerType.Manual, TriggerId = executionId, Status = status, IdempotencyKey = executionId, PayloadHash = new string('a', 64), CreatedAt = queuedAt, QueuedAt = queuedAt, StartedAt = status == SessionExecutionStatus.Running ? queuedAt : null, LeaseExpiresAt = leaseExpiresAt });
     }
+
+    private sealed class FixedJitter : ISessionExecutionJitter { public double NextUnit() => 0; }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider { public override DateTimeOffset GetUtcNow() => now; }
 
@@ -195,8 +207,11 @@ public sealed class SessionImageAttachEndpointTests : IDisposable
         await using (var scope = factory.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            db.SessionExecutions.Add(new SessionExecution { Id = "EXE-IMAGE-ATTACH", SessionId = sessionId, Kind = SessionExecutionKinds.Image, TriggerType = SessionExecutionTriggerType.Manual, TriggerId = "fixture", Status = SessionExecutionStatuses.Succeeded, IdempotencyKey = "image-attach", PayloadHash = new string('a', 64), CreatedAt = DateTimeOffset.UtcNow, QueuedAt = DateTimeOffset.UtcNow });
-            db.SessionExecutionAttempts.Add(new SessionExecutionAttempt { Id = "ATT-IMAGE-ATTACH", ExecutionId = "EXE-IMAGE-ATTACH", AttemptNumber = 1, Status = "succeeded", StartedAt = DateTimeOffset.UtcNow });
+            db.SessionExecutions.Add(new SessionExecution { Id = "EXE-IMAGE-ATTACH", SessionId = sessionId, Kind = SessionExecutionKind.Image, TriggerType = SessionExecutionTriggerType.Manual, TriggerId = "fixture", Status = SessionExecutionStatus.Succeeded, IdempotencyKey = "image-attach", PayloadHash = new string('a', 64), CreatedAt = DateTimeOffset.UtcNow, QueuedAt = DateTimeOffset.UtcNow });
+            var attachNow = DateTimeOffset.UtcNow;
+            var attachAttempt = SessionExecutionAttempt.Start("ATT-IMAGE-ATTACH", "EXE-IMAGE-ATTACH", 1, "fixture", attachNow);
+            attachAttempt.Succeed(attachNow);
+            db.SessionExecutionAttempts.Add(attachAttempt);
             await db.SaveChangesAsync();
         }
         var checksum = Convert.ToHexStringLower(SHA256.HashData(SessionArtifactFixtureSeedData.TinyPng));

@@ -2,7 +2,7 @@
 
 ## Queue or worker outage
 
-1. Check `myriale.session.execution.queue_depth`, `running`, `retry_wait`, `oldest_queued_age`, and `stuck` in the Aspire Dashboard/collector. Gauges are cached database samples; the default refresh is 15 seconds (`SessionExecutionMetrics:SampleIntervalSeconds`) and stuck age is 600 seconds (`SessionExecutionMetrics:StuckAfterSeconds`).
+1. Check `myriale.session.execution.queue_depth`, `running`, `retry_wait`, `oldest_queued_age`, and `stuck` in the Aspire Dashboard/collector. Gauges are cached database-side grouped/count/min samples (never a materialized active-row scan); the default refresh is 15 seconds (`SessionExecutionMetrics:SampleIntervalSeconds`) and stuck age is 600 seconds (`SessionExecutionMetrics:StuckAfterSeconds`).
 2. Search logs for structured `SessionId`, `ExecutionId`, `AttemptId`, trace ID, claim, retry, recovery, and publish decisions. Never paste player input or provider credentials into incidents.
 3. Verify API health and that `SessionExecutionWorker` is running. Restarting is safe: queued rows remain durable and expired running leases are reclaimable.
 4. Confirm the oldest running leases expire and are reclaimed once. Repeated lease expiry indicates a provider timeout, worker crash, or too-short lease.

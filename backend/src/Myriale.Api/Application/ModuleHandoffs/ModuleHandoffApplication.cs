@@ -270,9 +270,10 @@ public sealed class EfModuleHandoffAiInteractionRecorder(
                 var attempt = await db.SessionExecutionAttempts.SingleOrDefaultAsync(item => item.Id == context.AttemptId, cancellationToken);
                 if (attempt is not null)
                 {
-                    attempt.ExceptionChain = string.Join(" -> ", Enumerate(exception).Select(item => item.GetType().Name));
-                    attempt.RedactedResponseExcerpt = DevelopmentErrorDetails.From(environment, exception) is { } details
-                        ? SessionExecutionDiagnostics.Redact(details) : null;
+                    attempt.RecordFailureDiagnostics(
+                        string.Join(" -> ", Enumerate(exception).Select(item => item.GetType().Name)),
+                        DevelopmentErrorDetails.From(environment, exception) is { } details
+                            ? SessionExecutionDiagnostics.Redact(details) : null);
                     await db.SaveChangesAsync(cancellationToken);
                 }
             }
@@ -317,16 +318,17 @@ public sealed class EfModuleHandoffAiInteractionRecorder(
         var attempt = await db.SessionExecutionAttempts.SingleOrDefaultAsync(item => item.Id == context.AttemptId, cancellationToken);
         if (attempt is not null)
         {
-            attempt.Provider = metadata?.Provider;
-            attempt.Model = metadata?.Model;
-            attempt.ProviderRequestId = metadata?.ResponseId;
-            attempt.LatencyMilliseconds = metadata?.LatencyMilliseconds;
-            attempt.InputTokens = metadata?.InputTokens;
-            attempt.OutputTokens = metadata?.OutputTokens;
-            attempt.FinishReason = metadata?.FinishReason;
-            attempt.ErrorCode = errorCode;
-            attempt.ErrorCategory = errorCode is null ? null : "ai-provider";
-            attempt.Retryable = retryable;
+            attempt.RecordProviderDiagnostics(
+                metadata?.Provider,
+                metadata?.Model,
+                metadata?.ResponseId,
+                metadata?.LatencyMilliseconds,
+                metadata?.InputTokens,
+                metadata?.OutputTokens,
+                metadata?.FinishReason,
+                errorCode,
+                errorCode is null ? null : "ai-provider",
+                retryable);
         }
         await db.SaveChangesAsync(cancellationToken);
     }
@@ -363,15 +365,15 @@ public sealed class ModuleHandoffNarrativeService(
             activity?.SetTag("ai.provider.name", generation.Metadata.Provider);
             activity?.SetTag("ai.model.name", generation.Metadata.Model);
             SessionExecutionTelemetry.ProviderDuration.Record(generation.Metadata.LatencyMilliseconds,
-                SessionExecutionTelemetry.Tags(SessionExecutionKinds.ModuleHandoff, SessionExecutionStatuses.Running,
+                SessionExecutionTelemetry.Tags(SessionExecutionKind.ModuleHandoff, SessionExecutionStatus.Running,
                     generation.Metadata.Provider, generation.Metadata.Model));
             if (generation.Metadata.InputTokens is not null)
                 SessionExecutionTelemetry.ProviderInputTokens.Record(generation.Metadata.InputTokens.Value,
-                    SessionExecutionTelemetry.Tags(SessionExecutionKinds.ModuleHandoff, SessionExecutionStatuses.Running,
+                    SessionExecutionTelemetry.Tags(SessionExecutionKind.ModuleHandoff, SessionExecutionStatus.Running,
                         generation.Metadata.Provider, generation.Metadata.Model));
             if (generation.Metadata.OutputTokens is not null)
                 SessionExecutionTelemetry.ProviderOutputTokens.Record(generation.Metadata.OutputTokens.Value,
-                    SessionExecutionTelemetry.Tags(SessionExecutionKinds.ModuleHandoff, SessionExecutionStatuses.Running,
+                    SessionExecutionTelemetry.Tags(SessionExecutionKind.ModuleHandoff, SessionExecutionStatus.Running,
                         generation.Metadata.Provider, generation.Metadata.Model));
             return new(request, generation);
         }
@@ -502,7 +504,7 @@ public sealed class EfModuleHandoffPublishUnitOfWork(
         if (db.Database.IsNpgsql())
             return db.SessionExecutions.FromSqlInterpolated($$"""
                 SELECT * FROM "SessionExecutions"
-                WHERE "Id" = {{context.ExecutionId}} AND "Status" = {{SessionExecutionStatuses.Running}}
+                WHERE "Id" = {{context.ExecutionId}} AND "Status" = {{SessionExecutionStatus.Running}}
                   AND "LeaseToken" = {{context.LeaseToken}} AND "Revision" = {{context.Revision}}
                 FOR UPDATE
                 """).SingleOrDefaultAsync(cancellationToken);
