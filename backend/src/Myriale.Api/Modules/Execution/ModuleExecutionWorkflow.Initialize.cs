@@ -53,7 +53,7 @@ internal sealed partial class ModuleExecutionWorkflow
                         item => item.Id == sessionId && item.OwnerId == ownerId,
                         cancellationToken);
                 if (session is null) return new ModuleExecutionResult(ModuleExecutionOutcome.NotFound);
-                if (session.Status != "active")
+                if (session.Status != SessionStatus.Active)
                     return Conflict("session_not_active", "アクティブではないセッションにModule Turnを追加できません。");
                 if (!allowManagedSession && await db.SessionProgressionModuleSnapshots.AsNoTracking()
                         .AnyAsync(snapshot => snapshot.SessionId == sessionId, cancellationToken))
@@ -119,22 +119,8 @@ internal sealed partial class ModuleExecutionWorkflow
             SessionTurn? turn = null;
             if (session is not null)
             {
-                turn = new SessionTurn
-                {
-                    Id = NewSessionTurnId(),
-                    SessionId = session.Id,
-                    PreviousTurnId = session.HeadTurnId,
-                    Position = (session.HeadTurn?.Position ?? 0) + 1,
-                    Kind = "module",
-                    CreatedAt = now,
-                    ModuleExecution = execution,
-                };
+                turn = session.AppendModuleTurn(NewSessionTurnId(), execution, now);
                 execution.AttachSessionTurn(turn.Id);
-                session.HeadTurnId = turn.Id;
-                session.HeadTurn = turn;
-                session.Revision++;
-                session.UpdatedAt = now;
-                db.SessionTurns.Add(turn);
             }
             db.ModuleExecutions.Add(execution);
             db.ModuleExecutionRequests.Add(receipt);

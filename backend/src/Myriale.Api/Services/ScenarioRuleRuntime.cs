@@ -290,7 +290,7 @@ public sealed class ScenarioEffectApplier(ScenarioRuleEvaluator evaluator, Scena
                     break;
                 case MoveSessionEffect moveSession:
                     var sessionDestination = ResolveLocation(world, moveSession.LocationCode, moveSession.LocationId);
-                    world.Session.CurrentLocationId = sessionDestination.Id;
+                    world.Session.MoveTo(sessionDestination.Id, DateTimeOffset.UtcNow);
                     targetId = sessionDestination.Id; path = "currentLocationId"; value = JsonSerializer.SerializeToElement(sessionDestination.Code);
                     break;
                 case SetSessionFlagEffect flag:
@@ -303,7 +303,7 @@ public sealed class ScenarioEffectApplier(ScenarioRuleEvaluator evaluator, Scena
                     events.Add(codec.ToElement(new EffectSet([emitted]))[0].Clone());
                     break;
                 case CompleteSessionEffect:
-                    world.Session.Status = "completed";
+                    world.Session.Complete(DateTimeOffset.UtcNow);
                     break;
             }
             applied.Add(new(effect.Type, targetId, path, value));

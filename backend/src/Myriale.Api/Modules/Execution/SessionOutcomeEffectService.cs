@@ -81,7 +81,7 @@ public sealed partial class SessionOutcomeEffectService(ApplicationDbContext db)
             return Invalid("session_state_too_large", "Session flag stateが上限を超えています。");
 
         var now = DateTimeOffset.UtcNow;
-        session.UpdatedAt = now;
+        session.Touch(now);
         state.FlagsJson = flagsJson;
         state.Revision++;
         state.UpdatedAt = now;

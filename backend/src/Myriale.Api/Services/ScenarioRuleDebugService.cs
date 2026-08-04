@@ -32,13 +32,10 @@ public sealed class ScenarioRuleDebugService(
         var location = definition.Locations.SingleOrDefault(item => item.Code == request.CurrentLocationCode)
             ?? throw new ScenarioTurnValidationException("invalid_debug_location");
         var now = DateTimeOffset.UtcNow;
-        var session = new Session
-        {
-            Id = "DEBUG", OwnerId = "DEBUG", ScenarioId = scenarioId,
-            ScenarioDefinitionVersionId = definition.Id, CurrentLocationId = location.Id,
-            Status = "debug", CreatedAt = now, UpdatedAt = now,
-            State = new SessionState { SessionId = "DEBUG", FlagsJson = JsonSerializer.Serialize(request.Flags ?? new Dictionary<string, bool>()), UpdatedAt = now },
-        };
+        var session = Session.Create(
+            "DEBUG", "DEBUG", scenarioId, definition.Id, location.Id, null, null, "DEBUG", false,
+            new SessionState { SessionId = "DEBUG", FlagsJson = JsonSerializer.Serialize(request.Flags ?? new Dictionary<string, bool>()), UpdatedAt = now },
+            now, SessionStatus.Debug);
 
         var overrides = (request.Objects ?? []).ToDictionary(item => item.ObjectCode, StringComparer.Ordinal);
         var states = new List<SessionObjectState>();
@@ -98,7 +95,7 @@ public sealed class ScenarioRuleDebugService(
         else throw new ScenarioTurnValidationException("invalid_debug_trigger");
 
         var resolution = effectApplier.ResolveAndApply(world, decision);
-        session.Revision++;
+        session.AdvanceRuntime(now);
         var postState = effectApplier.ProjectPostState(world);
         return new(snapshot, decision, resolution.Rule?.RuleCode, resolution.Effects, postState,
             resolution.Facts, resolution.Events, resolution.Hints, resolution.ForbiddenFacts);

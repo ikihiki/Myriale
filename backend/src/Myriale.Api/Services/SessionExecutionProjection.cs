@@ -74,6 +74,6 @@ public static class SessionExecutionProjection
     private static IReadOnlyList<T> DeserializeList<T>(string? json) => string.IsNullOrWhiteSpace(json) ? [] : JsonSerializer.Deserialize<List<T>>(json, Json) ?? [];
 
     public static SessionPlayerInputResponse ToResponse(SessionPlayerInput input) => new(
-        input.Id, input.RequestId, input.Text, input.InteractionType, input.AcceptedAfterTurnId,
+        input.Id, input.RequestId, input.Text, input.InteractionType.ToWireValue(), input.AcceptedAfterTurnId,
         input.AcceptedSessionRevision, input.SupersedesInputId, input.CreatedAt);
 }

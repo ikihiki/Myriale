@@ -2,11 +2,11 @@ using Myriale.Api.Contracts;
 
 namespace Myriale.Api.Services;
 
-public sealed class DemoHomeDashboardService(IPlaySessionListingService sessions) : IHomeDashboardService
+public sealed class DemoHomeDashboardService(Myriale.Api.Application.Sessions.ListSessionsQueryService sessions) : IHomeDashboardService
 {
     public async Task<HomeDashboardResponse> GetDashboardAsync(string ownerId, CancellationToken cancellationToken)
     {
-        var activeSessions = await sessions.ListAsync(ownerId, includeCompleted: false, cancellationToken);
+        var activeSessions = await sessions.ExecuteAsync(ownerId, includeCompleted: false, cancellationToken);
         return new HomeDashboardResponse(
             Account: new AccountSummaryDto(
                 DisplayName: "ミリア",

@@ -294,7 +294,7 @@ export async function acceptSessionInput(
   if (!baseUrl) throw sessionApiError('Session APIが設定されていません。', 503, 'session_api_unavailable');
   const response = await sessionFetch(`${baseUrl}/${encodeURIComponent(sessionId)}/inputs`, {
     method: 'POST', credentials: 'include', headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ requestId, text, interactionType, requestedOutputs: ['scenario-turn'], supersedesInputId, actionDecisionAiProfileId, narrativeAiProfileId }),
+    body: JSON.stringify({ requestId, text, interactionType, supersedesInputId, actionDecisionAiProfileId, narrativeAiProfileId }),
   });
   if (!response.ok) throw await toSessionApiError(response, 'Player Inputを受け付けられませんでした。');
   return response.json() as Promise<SessionInputAcceptedApiResponse>;

@@ -32,19 +32,11 @@ public static class SessionArtifactFixtureSeedData
         await using (var image = new MemoryStream(TinyPng, writable: false))
             await storage.PutAsync(StorageKey, image, "image/png", cancellationToken);
 
-        var session = new Session
-        {
-            Id = SessionId,
-            OwnerId = owner.Id,
-            ScenarioId = "SCN-STAR-LIBRARY",
-            CreationRequestId = "development-artifact-fixture",
-            SelectedHero = "ミラ / 星図を読む巡礼者",
-            Status = "active",
-            Revision = 1,
-            CreatedAt = timestamp,
-            UpdatedAt = timestamp,
-            State = new SessionState { SessionId = SessionId, Revision = 1, FlagsJson = "{}", UpdatedAt = timestamp },
-        };
+        var session = Session.Create(
+            SessionId, owner.Id, "SCN-STAR-LIBRARY", null, null, "development-artifact-fixture", null,
+            "ミラ / 星図を読む巡礼者", false,
+            new SessionState { SessionId = SessionId, Revision = 1, FlagsJson = "{}", UpdatedAt = timestamp }, timestamp);
+        session.AdvanceRuntime(timestamp);
         var noteExecution = Execution("EXE-DEVELOPMENT-NOTE", SessionExecutionKinds.NoteProposal, "fixture-note", timestamp);
         var imageExecution = Execution("EXE-DEVELOPMENT-IMAGE", SessionExecutionKinds.Image, "fixture-image", timestamp.AddSeconds(1));
         var noteAttempt = Attempt("ATT-DEVELOPMENT-NOTE", noteExecution.Id, timestamp);

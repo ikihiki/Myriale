@@ -135,6 +135,20 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .HasForeignKey(transition => transition.TargetNodeId)
             .OnDelete(DeleteBehavior.Restrict);
         builder.Entity<Session>()
+            .Property(session => session.Status)
+            .HasConversion(value => value.ToWireValue(), value => SessionEnumValues.ParseStatus(value));
+        builder.Entity<SessionTurn>()
+            .Property(turn => turn.Kind)
+            .HasConversion(value => value.ToWireValue(), value => SessionEnumValues.ParseTurnKind(value));
+        builder.Entity<SessionTurn>()
+            .Property(turn => turn.DialogueTurnType)
+            .HasConversion(
+                value => value == null ? null : value.Value.ToWireValue(),
+                value => value == null ? null : SessionEnumValues.ParseTurnType(value));
+        builder.Entity<SessionPlayerInput>()
+            .Property(input => input.InteractionType)
+            .HasConversion(value => value.ToWireValue(), value => SessionEnumValues.ParseInteractionType(value));
+        builder.Entity<Session>()
             .Property(session => session.Revision)
             .IsConcurrencyToken();
         builder.Entity<Session>()

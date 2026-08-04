@@ -111,7 +111,7 @@ public sealed class ScenarioTurnExecutionHandler(
                         Parse(boundState.StateJson)), cancellationToken);
                     step.ExtensionReceiptJson = JsonSerializer.Serialize(extensionResult, Json);
                 }
-                world.Session.Revision++; world.Session.UpdatedAt = DateTimeOffset.UtcNow;
+                world.Session.AdvanceRuntime(DateTimeOffset.UtcNow);
                 var postState = effectApplier.ProjectPostState(world);
                 var facts = resolution.Facts.Concat(extensionResult?.Facts ?? []).ToList();
                 var events = resolution.Events.Concat(extensionResult?.Events ?? []).ToList();
@@ -178,17 +178,13 @@ public sealed class ScenarioTurnExecutionHandler(
             if (!string.Equals(session.HeadTurnId, execution.AcceptedHeadTurnId, StringComparison.Ordinal))
                 return new(false, false, "session_advanced", "Sessionが先へ進みました。", SessionExecutionStatuses.Superseded);
             var nowPublished = DateTimeOffset.UtcNow;
-            var turn = new SessionTurn
-            {
-                Id = $"TRN-{Guid.NewGuid():N}".ToUpperInvariant(), SessionId = session.Id, PreviousTurnId = session.HeadTurnId,
-                Position = (session.HeadTurn?.Position ?? 0) + 1, Kind = "narrative", DialogueSchemaVersion = ScenarioTurnSchemas.PostStateNarrative,
-                ContextSchemaVersion = ScenarioTurnSchemas.NarrativeContext, PromptVersion = ScenarioTurnSchemas.NarrativePrompt,
-                DialogueTurnType = "action-result", Heading = narrative.Value.Heading, NarrativeBody = narrative.Value.Body,
-                PlayerInputId = input.Id, SourceSessionRevision = step.PostSessionRevision, AiProvider = narrative.Metadata.Provider, AiModel = narrative.Metadata.Model,
-                AiResponseId = narrative.Metadata.ResponseId, AiInputTokens = narrative.Metadata.InputTokens, AiOutputTokens = narrative.Metadata.OutputTokens,
-                AiLatencyMilliseconds = narrative.Metadata.LatencyMilliseconds, AiAttemptCount = narrative.Metadata.AttemptCount, AiFinishReason = narrative.Metadata.FinishReason, CreatedAt = nowPublished,
-            };
-            db.SessionTurns.Add(turn); session.HeadTurnId = turn.Id; session.HeadTurn = turn; session.Revision++; session.UpdatedAt = nowPublished;
+            var turn = session.AppendScenarioNarrative(
+                $"TRN-{Guid.NewGuid():N}".ToUpperInvariant(), input.Id, ScenarioTurnSchemas.PostStateNarrative,
+                ScenarioTurnSchemas.NarrativeContext, ScenarioTurnSchemas.NarrativePrompt, narrative.Value.Heading,
+                narrative.Value.Body, null, step.PostSessionRevision!.Value,
+                new SessionTurnAiMetadata(narrative.Metadata.Provider, narrative.Metadata.Model, narrative.Metadata.ResponseId,
+                    narrative.Metadata.InputTokens, narrative.Metadata.OutputTokens, narrative.Metadata.LatencyMilliseconds,
+                    narrative.Metadata.AttemptCount, narrative.Metadata.FinishReason), nowPublished);
             step.NarrativePublishedAt = nowPublished; step.Stage = ScenarioTurnStages.Completed; step.UpdatedAt = nowPublished; execution.Stage = ScenarioTurnStages.Completed;
             db.SessionArtifacts.Add(CreateArtifact(execution, context.AttemptId, "post-state-narrative.v1", JsonSerializer.Serialize(narrative.Value, Json)));
             var attempt = await db.SessionExecutionAttempts.SingleAsync(item => item.Id == context.AttemptId, cancellationToken);

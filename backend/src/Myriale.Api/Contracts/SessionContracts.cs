@@ -1,17 +1,5 @@
 namespace Myriale.Api.Contracts;
 
-public static class NarrativeInteractionTypes
-{
-    public const string Dialogue = "dialogue";
-    public const string Clarification = "clarification";
-
-    public static readonly IReadOnlySet<string> Allowed = new HashSet<string>(StringComparer.Ordinal)
-    {
-        Dialogue,
-        Clarification,
-    };
-}
-
 public sealed record CreateSessionRequest(
     string ScenarioId,
     string RequestId,
@@ -97,8 +85,7 @@ public sealed record SessionResponse(
 public sealed record CreateSessionInputRequest(
     string RequestId,
     string Text,
-    string InteractionType = NarrativeInteractionTypes.Dialogue,
-    IReadOnlyList<string>? RequestedOutputs = null,
+    string InteractionType = "dialogue",
     string? SupersedesInputId = null,
     string? ActionDecisionAiProfileId = null,
     string? NarrativeAiProfileId = null);

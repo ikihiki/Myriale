@@ -127,35 +127,13 @@ public sealed class ModuleHandoffExecutionHandler(
             ValidatedAt = now,
             CommittedAt = now,
         };
-        var turn = new SessionTurn
-        {
-            Id = $"TRN-{Guid.NewGuid():N}".ToUpperInvariant(),
-            SessionId = current.SessionId,
-            PreviousTurnId = source!.Id,
-            Position = source.Position + 1,
-            Kind = "narrative",
-            DialogueSchemaVersion = NarrativeDocumentSchemas.ModuleHandoff,
-            DialogueTurnType = "module-handoff",
-            Heading = "確定した結果を受ける",
-            NarrativeBody = generation.Value,
-            AiProvider = generation.Metadata.Provider,
-            AiModel = generation.Metadata.Model,
-            AiResponseId = generation.Metadata.ResponseId,
-            AiInputTokens = generation.Metadata.InputTokens,
-            AiOutputTokens = generation.Metadata.OutputTokens,
-            AiLatencyMilliseconds = generation.Metadata.LatencyMilliseconds,
-            AiAttemptCount = generation.Metadata.AttemptCount,
-            AiFinishReason = generation.Metadata.FinishReason,
-            SourceModuleTurnId = source.Id,
-            SourceSessionRevision = sourceStateRevision,
-            CreatedAt = now,
-        };
-        current.Session.HeadTurnId = turn.Id;
-        current.Session.HeadTurn = turn;
-        current.Session.Revision++;
-        current.Session.UpdatedAt = now;
+        var turn = current.Session.AppendModuleHandoffNarrative(
+            $"TRN-{Guid.NewGuid():N}".ToUpperInvariant(), source!.Id, NarrativeDocumentSchemas.ModuleHandoff,
+            "確定した結果を受ける", generation.Value, sourceStateRevision,
+            new SessionTurnAiMetadata(generation.Metadata.Provider, generation.Metadata.Model, generation.Metadata.ResponseId,
+                generation.Metadata.InputTokens, generation.Metadata.OutputTokens, generation.Metadata.LatencyMilliseconds,
+                generation.Metadata.AttemptCount, generation.Metadata.FinishReason), now);
         db.SessionArtifacts.Add(artifact);
-        db.SessionTurns.Add(turn);
         if (current.Session.Progress is not null
             && JsonSerializer.Deserialize<string[]>(current.Session.Progress.CurrentNode.AllowedNarrativeSignalsJson, _json)?.Contains(request.Outcome.Code) == true)
         {
