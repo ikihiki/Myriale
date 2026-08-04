@@ -26,6 +26,8 @@ using Myriale.Api.Infrastructure.ModuleExecutions;
 using Myriale.Api.Infrastructure.SessionExecutions;
 using Myriale.Api.Infrastructure.Scenarios;
 using Myriale.Api.Infrastructure.SessionMemory;
+using Myriale.Api.Infrastructure.ModuleHandoffs;
+using Myriale.Api.Infrastructure.ScenarioTurns;
 using Myriale.Api.Modules;
 using Myriale.Api.Modules.Execution;
 using Myriale.Api.Modules.Runtime;
@@ -108,9 +110,6 @@ builder.Services.AddScoped<PublishScenarioDefinitionUseCase>();
 builder.Services.AddScoped<ScenarioDefinitionReadinessPolicy>();
 builder.Services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
 builder.Services.AddScoped<IDomainEventHandler<ScenarioDefinitionPublished>, ScenarioDefinitionPublishedLoggingHandler>();
-builder.Services.AddScoped<ScenarioDefinitionPublicationAudit>();
-builder.Services.AddScoped<IDomainEventHandler<ScenarioDefinitionPublished>, ScenarioDefinitionPublicationAuditHandler>();
-builder.Services.AddScoped<ScenarioDefinitionAuthoringService>();
 builder.Services.AddScoped<ScenarioRuleEvaluator>();
 builder.Services.AddScoped<ScenarioRuleConfigurationResolver>();
 builder.Services.AddScoped<ScenarioRuleWorldSnapshotFactory>();
@@ -329,30 +328,19 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-    if (app.Configuration.GetValue("Database:RecreateOnStartup", true))
+    var recreateOnStartup = app.Configuration.GetValue("Database:RecreateOnStartup", true);
+    if (!recreateOnStartup)
+        throw new InvalidOperationException(
+            "Database:RecreateOnStartup=false is unsupported until production EF migrations and an upgrade/rollback runbook exist. " +
+            "Myriale currently requires a destructive clean-schema baseline.");
+
+    if (db.Database.IsNpgsql())
     {
-        if (db.Database.IsNpgsql())
-        {
-            await db.Database.ExecuteSqlRawAsync("""
-                DO $$
-                DECLARE schema_to_drop text;
-                BEGIN
-                    FOR schema_to_drop IN
-                        SELECT schema_name
-                        FROM information_schema.schemata
-                        WHERE schema_name <> 'information_schema'
-                          AND schema_name NOT LIKE 'pg_%'
-                    LOOP
-                        EXECUTE format('DROP SCHEMA %I CASCADE', schema_to_drop);
-                    END LOOP;
-                END $$;
-                CREATE SCHEMA public;
-                """);
-        }
-        else
-        {
-            await db.Database.EnsureDeletedAsync();
-        }
+        await db.Database.ExecuteSqlRawAsync("DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;");
+    }
+    else
+    {
+        await db.Database.EnsureDeletedAsync();
     }
 
     await db.Database.EnsureCreatedAsync();

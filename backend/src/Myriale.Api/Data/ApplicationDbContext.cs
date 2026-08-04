@@ -170,6 +170,12 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         builder.Entity<SessionPlayerInput>()
             .Property(input => input.InteractionType)
             .HasConversion(value => value.ToWireValue(), value => SessionEnumValues.ParseInteractionType(value));
+        builder.Entity<SessionAiInteraction>()
+            .Property(interaction => interaction.Stage)
+            .HasConversion(value => value.ToWireValue(), value => SessionAiInteractionValues.ParseStage(value));
+        builder.Entity<SessionAiInteraction>()
+            .Property(interaction => interaction.Status)
+            .HasConversion(value => value.ToWireValue(), value => SessionAiInteractionValues.ParseStatus(value));
         builder.Entity<Session>()
             .Property(session => session.Revision)
             .IsConcurrencyToken();

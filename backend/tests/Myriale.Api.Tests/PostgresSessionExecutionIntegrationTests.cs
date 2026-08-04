@@ -21,6 +21,28 @@ public sealed class PostgresSessionExecutionIntegrationTests
     public const string ConnectionEnvironmentVariable = "MYRIALE_TEST_POSTGRES";
 
     [PostgresFact]
+    public async Task DestructiveBaselineCreatesTypedLifecycleColumnsAndRequiredIndexes()
+    {
+        await using var database = await PostgresFixture.CreateAsync();
+        await using var command = database.Db.Database.GetDbConnection().CreateCommand();
+        command.CommandText = """
+            SELECT
+                (SELECT data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'SessionAiInteractions' AND column_name = 'Stage'),
+                (SELECT data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'SessionAiInteractions' AND column_name = 'Status'),
+                (SELECT COUNT(*) FROM pg_indexes WHERE schemaname = 'public' AND indexname IN (
+                    'IX_SessionTurns_SessionId_Position',
+                    'IX_SessionPlayerInputs_SessionId_RequestId',
+                    'IX_SessionExecutions_SessionId_IdempotencyKey'))
+            """;
+        await database.Db.Database.OpenConnectionAsync();
+        await using var reader = await command.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        Assert.Equal("text", reader.GetString(0));
+        Assert.Equal("text", reader.GetString(1));
+        Assert.Equal(3L, reader.GetInt64(2));
+    }
+
+    [PostgresFact]
     public async Task ClaimAsyncUsesSkipLockedAndClaimsNextEligibleExecution()
     {
         await using var database = await PostgresFixture.CreateAsync();

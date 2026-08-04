@@ -562,8 +562,8 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
             .Include(version => version.ProgressionTransitions)
             .SingleAsync(version => version.Id == "SDV-STAR-LIBRARY-1");
 
-        var service = new Myriale.Api.Services.ScenarioDefinitionAuthoringService(db);
-        var draft = await service.GetOrCreateDraftAsync(published.ScenarioId, CancellationToken.None);
+        var drafts = scope.ServiceProvider.GetRequiredService<Myriale.Api.Application.Scenarios.ScenarioDefinitionDraftService>();
+        var draft = await drafts.GetOrCreateDraftAsync(published.ScenarioId, CancellationToken.None);
 
         Assert.Equal(2, draft.Version);
         Assert.Equal(Myriale.Api.Data.DefinitionStatus.Draft, draft.Status);

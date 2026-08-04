@@ -49,4 +49,4 @@ Audit telemetry/log output for forbidden data: player text, full prompt/Narrativ
 
 ## Database initialization
 
-PostgreSQL、SQLiteともに起動時にdatabaseを再作成し、Entity Framework Coreの`EnsureCreated`で現在のschemaを作成する。この起動方式では既存データを保持しない。Session Executionの運用開始前に、再作成後の空のdatabaseへseedが投入されたことを確認する。
+PostgreSQL、SQLiteともに起動時に破壊的なclean-schema baselineを作成し、Entity Framework Coreの`EnsureCreated`で現在のmodelからschemaを生成する。SQLiteはdatabaseを削除し、PostgreSQLはMyrialeが所有する`public` schemaだけをdrop/recreateする。`Database:RecreateOnStartup=false`は、EF migrationとupgrade/rollback手順が導入されるまで起動時に拒否される。この方式では既存データを保持しない。Session Executionの運用開始前に、再作成後の空のdatabaseへseedが投入されたことを確認する。永続本番運用の前提は`docs/runbooks/schema-baseline.md`を参照する。

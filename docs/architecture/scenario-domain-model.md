@@ -392,31 +392,11 @@ IScenarioDefinitionRepository
 
 Repositories do not replace database constraints. Version allocation, one-Draft-per-Scenario, and publication races require transactions, uniqueness constraints, and optimistic or pessimistic concurrency handling.
 
-## Current implementation gaps
+## Current implementation status
 
-1. `Scenario` is an anemic EF entity with public setters; invariants are distributed across endpoints and services.
-2. `ScenarioDefinitionVersion` behaves like a separate aggregate but is not modeled as one explicitly.
-3. Published Definitions are protected from ordinary updates, but published Scenario fields can still be overwritten directly.
-4. `Scenario.Status` duplicates or ambiguously summarizes Definition publication state.
-5. Scenario metadata and rule data are saved by separate requests and transactions, so partial success is possible.
-6. Saving a Definition Draft does not update `Scenario.UpdatedAt`.
-7. Progression is not versioned with the pinned Definition.
-8. `HeroMode`, `Status`, `Visibility`, and `ExecutionMode` are open strings rather than closed domain values.
-9. Endpoint validation does not consistently cover every EF maximum-length constraint.
-10. Rule data remains JSON in persistence entities, while substantial domain validation is concentrated in services.
+The modernization sequence below has been delivered: Scenario and Scenario Definition expose aggregate behavior with non-public lifecycle setters; publication, Hero mode, action visibility, and execution mode are closed domain values; publication is coordinated by application use cases with optimistic concurrency and database uniqueness; progression and runtime execution pin the published Definition; and endpoints no longer perform EF mutation. Rule authoring JSON remains intentionally open at the persistence/wire boundary, while the runtime converts stable condition/effect discriminators to typed domain models before evaluation.
 
-## Migration sequence
-
-1. Introduce closed domain values for publication status, Hero mode, action visibility, and execution mode.
-2. Add `ScenarioTitle`, `HeroPolicy`, and `IllustrationPrompt` value objects and map API DTOs into them.
-3. Add intention-revealing behavior to `Scenario` and reduce public-setter mutation.
-4. Treat `ScenarioDefinitionVersion` as an aggregate root and move publication invariants into it.
-5. Convert persisted JSON into typed domain values at the application/persistence boundary.
-6. Move Progression into a versioned Definition boundary.
-7. Centralize publication in an application service and save Scenario plus Definition atomically.
-8. Add concurrency-safe Draft uniqueness and version allocation.
-9. Pin every execution-affecting setting through `ScenarioDefinitionId` and cover reproducibility with tests.
-10. Connect readiness and publication operations to the frontend Scenario API.
+Remaining limitations are operational rather than compatibility facades: the current database lifecycle is a destructive `EnsureCreated` baseline, domain events are synchronous/non-durable, and persistent production deployment requires migrations plus upgrade/rollback procedures. See `domain-modernization-roadmap.md` and `../runbooks/schema-baseline.md`.
 
 ## Required invariant tests
 

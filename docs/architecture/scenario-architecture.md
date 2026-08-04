@@ -8,7 +8,7 @@ Scenario authoring remains in the API project, but is organized into Domain, App
 - HTTP handlers create command records and invoke `CreateScenarioUseCase`, `UpdateScenarioUseCase`, `CreateScenarioDefinitionDraftUseCase`, `SaveScenarioDefinitionUseCase`, or `PublishScenarioDefinitionUseCase`.
 - `ScenarioDefinitionDraftService` atomically allocates a definition version through the concurrency-protected Scenario row. Database uniqueness still enforces one `(ScenarioId, Version)` and one draft.
 - `IScenarioDefinitionRepository` is intentionally focused on aggregate loading: `GetDraft`, `GetLatestPublished`, `GetById`, and `Add`.
-- `ScenarioDefinitionValidator`, `ScenarioDefinitionMapper`, `ScenarioDefinitionWriter`, and `ScenarioRuleJsonCodec` separate validation, API mapping, persistence mapping, and JSON representation. `ScenarioDefinitionAuthoringService` is only a compatibility facade for older internal tests/callers.
+- `ScenarioDefinitionValidator`, `ScenarioDefinitionMapper`, `ScenarioDefinitionWriter`, and `ScenarioRuleJsonCodec` separate validation, API mapping, persistence mapping, and JSON representation. Deleted compatibility facades are not retained.
 
 ## Read path
 
@@ -20,7 +20,7 @@ Scenario authoring remains in the API project, but is organized into Domain, App
 
 ## Domain events
 
-Publishing records `ScenarioDefinitionPublished`. After the successful database save, `DomainEventDispatcher` invokes scoped handlers synchronously. `ScenarioDefinitionPublishedLoggingHandler` emits a structured production log, while `ScenarioDefinitionPublicationAuditHandler` provides an in-process audit projection used by tests and scoped consumers. This is deliberately **post-commit, synchronous, and not durable**: handler failure is visible to the request, and there is no outbox or replay guarantee.
+Publishing records `ScenarioDefinitionPublished`. After the successful database save, `DomainEventDispatcher` invokes scoped handlers synchronously. The only production reaction is structured logging; tests register an in-memory recording handler when verifying dispatcher behavior. This is deliberately **post-commit, synchronous, and not durable**: handler failure is visible to the request, and there is no outbox or replay guarantee. No critical external side effect may rely on this dispatcher; adding one requires a transactional outbox and idempotent delivery.
 
 ## Typed JSON boundary
 

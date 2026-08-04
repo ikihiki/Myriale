@@ -165,7 +165,7 @@ public sealed class CreateSessionUseCase(ISessionCreationRepository repository, 
                 ruleResolver.InitialState(definition, item).ToJsonString(), now));
         }
         if (source.InitialNode is not null)
-            session.Progress = new SessionProgressState { SessionId = sessionId, CurrentNodeId = source.InitialNode.Id, Revision = 0, UpdatedAt = now };
+            session.Progress = SessionProgressState.Start(sessionId, source.InitialNode.Id, now);
         foreach (var transition in source.ModuleTransitions)
         {
             if (string.IsNullOrWhiteSpace(transition.ModuleVersion) || transition.ModuleDigest?.Length != 64

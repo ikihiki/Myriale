@@ -39,20 +39,3 @@ public sealed class ScenarioDefinitionPublishedLoggingHandler(
         return Task.CompletedTask;
     }
 }
-
-public sealed class ScenarioDefinitionPublicationAudit
-{
-    private readonly List<ScenarioDefinitionPublished> _published = [];
-    public IReadOnlyList<ScenarioDefinitionPublished> Published => _published;
-    internal void Record(ScenarioDefinitionPublished value) => _published.Add(value);
-}
-
-public sealed class ScenarioDefinitionPublicationAuditHandler(ScenarioDefinitionPublicationAudit audit)
-    : IDomainEventHandler<ScenarioDefinitionPublished>
-{
-    public Task HandleAsync(ScenarioDefinitionPublished domainEvent, CancellationToken cancellationToken)
-    {
-        audit.Record(domainEvent);
-        return Task.CompletedTask;
-    }
-}

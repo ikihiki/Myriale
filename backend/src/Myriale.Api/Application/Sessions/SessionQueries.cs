@@ -106,10 +106,10 @@ public sealed class GetSessionTurnInspectionQueryService(ApplicationDbContext db
         var interactions = (await db.SessionAiInteractions.AsNoTracking().Where(x => x.SessionId == sessionId && x.ExecutionId == execution.Id)
             .Select(x => new { Interaction = x, x.Attempt.AttemptNumber }).ToListAsync(ct))
             .OrderBy(x => x.Interaction.StartedAt).ThenBy(x => x.AttemptNumber).ThenBy(x => x.Interaction.Sequence).ThenBy(x => x.Interaction.Id, StringComparer.Ordinal)
-            .Select(x => new SessionAiInteractionInspection(x.Interaction.Id, x.AttemptNumber, x.Interaction.Sequence, x.Interaction.Stage, x.Interaction.AiProfileId,
+            .Select(x => new SessionAiInteractionInspection(x.Interaction.Id, x.AttemptNumber, x.Interaction.Sequence, x.Interaction.Stage.ToWireValue(), x.Interaction.AiProfileId,
                 x.Interaction.Provider, x.Interaction.Model, x.Interaction.ProviderRequestId, x.Interaction.StartedAt, x.Interaction.CompletedAt,
                 Math.Max(0, (long)(x.Interaction.CompletedAt - x.Interaction.StartedAt).TotalMilliseconds), x.Interaction.LatencyMilliseconds, x.Interaction.InputTokens, x.Interaction.OutputTokens,
-                x.Interaction.FinishReason, x.Interaction.Status, x.Interaction.ErrorCode, x.Interaction.SentPrompt, x.Interaction.ReceivedResult, x.Interaction.ValidationResult)).ToList();
+                x.Interaction.FinishReason, x.Interaction.Status.ToWireValue(), x.Interaction.ErrorCode, x.Interaction.SentPrompt, x.Interaction.ReceivedResult, x.Interaction.ValidationResult)).ToList();
         var step = await db.SessionRuleActionSteps.AsNoTracking().SingleOrDefaultAsync(x => x.ExecutionId == execution.Id, ct);
         RuleEngineInspection? rule = null;
         if (step is not null)
@@ -145,10 +145,16 @@ public sealed class GetSessionTurnInspectionQueryService(ApplicationDbContext db
         var afterObjects = postState.Objects.ToDictionary(x => x.Id, StringComparer.Ordinal);
         foreach (var id in beforeObjects.Keys.Union(afterObjects.Keys, StringComparer.Ordinal).Order(StringComparer.Ordinal))
         {
-            var hasBefore = beforeObjects.TryGetValue(id, out var before);
-            var hasAfter = afterObjects.TryGetValue(id, out var after);
-            if (!hasBefore || !hasAfter)
-            { changes.Add(new("object", id, "object", hasBefore ? JsonSerializer.SerializeToElement(before) : null, hasAfter ? JsonSerializer.SerializeToElement(after) : null)); continue; }
+            if (!beforeObjects.TryGetValue(id, out var before))
+            {
+                changes.Add(new("object", id, "object", null, JsonSerializer.SerializeToElement(afterObjects[id])));
+                continue;
+            }
+            if (!afterObjects.TryGetValue(id, out var after))
+            {
+                changes.Add(new("object", id, "object", JsonSerializer.SerializeToElement(before), null));
+                continue;
+            }
             if (before.LocationId != after.LocationId) changes.Add(new("object", id, "locationId", JsonSerializer.SerializeToElement(before.LocationId), JsonSerializer.SerializeToElement(after.LocationId)));
             if (before.Revision != after.Revision) changes.Add(new("object", id, "revision", JsonSerializer.SerializeToElement(before.Revision), JsonSerializer.SerializeToElement(after.Revision)));
             AddJsonChanges(changes, id, "state", before.State, after.State);

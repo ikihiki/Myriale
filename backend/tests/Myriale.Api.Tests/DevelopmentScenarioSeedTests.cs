@@ -196,35 +196,23 @@ public sealed class DevelopmentScenarioSeedTests : IDisposable
     }
 
     [Fact]
-    public async Task Startup_RepairsLegacySystemSeedOwnershipWithoutReplacingAnExplicitOwner()
+    public async Task Seed_RepairsLegacySystemOwnershipWithoutReplacingAnExplicitOwner()
     {
-        string seedUserId;
-        using (var firstFactory = CreateFactory(recreateOnStartup: true))
-        {
-            await using var scope = firstFactory.Services.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var seedUser = await db.Users.SingleAsync(user => user.Email == AccountSeedData.DefaultEmail);
-            seedUserId = seedUser.Id;
-            var scenario = await db.Scenarios.SingleAsync(item => item.Id == "SCN-AWAKENING-LAB");
-            scenario.AuthorId = "SYSTEM-SEED";
-            await db.SaveChangesAsync();
-        }
+        using var factory = CreateFactory(recreateOnStartup: true);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var seedUser = await db.Users.SingleAsync(user => user.Email == AccountSeedData.DefaultEmail);
+        var scenario = await db.Scenarios.SingleAsync(item => item.Id == "SCN-AWAKENING-LAB");
+        scenario.AuthorId = "SYSTEM-SEED";
+        await db.SaveChangesAsync();
 
-        using (var repairedFactory = CreateFactory(recreateOnStartup: false))
-        {
-            await using var scope = repairedFactory.Services.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            Assert.Equal(seedUserId, (await db.Scenarios.SingleAsync(item => item.Id == "SCN-AWAKENING-LAB")).AuthorId);
+        await ScenarioSeedData.SeedAsync(db, seedUser.Id);
+        Assert.Equal(seedUser.Id, scenario.AuthorId);
 
-            var scenario = await db.Scenarios.SingleAsync(item => item.Id == "SCN-AWAKENING-LAB");
-            scenario.AuthorId = "EXPLICIT-OWNER";
-            await db.SaveChangesAsync();
-        }
-
-        using var preservedFactory = CreateFactory(recreateOnStartup: false);
-        await using var preservedScope = preservedFactory.Services.CreateAsyncScope();
-        var preservedDb = preservedScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        Assert.Equal("EXPLICIT-OWNER", (await preservedDb.Scenarios.SingleAsync(item => item.Id == "SCN-AWAKENING-LAB")).AuthorId);
+        scenario.AuthorId = "EXPLICIT-OWNER";
+        await db.SaveChangesAsync();
+        await ScenarioSeedData.SeedAsync(db, seedUser.Id);
+        Assert.Equal("EXPLICIT-OWNER", scenario.AuthorId);
     }
 
     public void Dispose()

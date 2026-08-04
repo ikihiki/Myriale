@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Myriale.Api.Application.Scenarios;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Services;
@@ -201,9 +202,8 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         string draftId;
         await using (var scope = factory.Services.CreateAsyncScope())
         {
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var service = new ScenarioDefinitionAuthoringService(db);
-            draftId = (await service.GetOrCreateDraftAsync("SCN-STAR-LIBRARY", CancellationToken.None)).Id;
+            var drafts = scope.ServiceProvider.GetRequiredService<ScenarioDefinitionDraftService>();
+            draftId = (await drafts.GetOrCreateDraftAsync("SCN-STAR-LIBRARY", CancellationToken.None)).Id;
         }
 
         using var created = await client.PostAsJsonAsync("/api/sessions/", new
@@ -320,8 +320,8 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         Assert.Equal("unknown_model_action_selection", session.GetProperty("executions")[0].GetProperty("errorCode").GetString());
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var interaction = await db.SessionAiInteractions.SingleAsync(item => item.SessionId == sessionId && item.Stage == SessionAiInteractionStages.ActionDecision);
-        Assert.Equal(SessionAiInteractionStatuses.ValidationFailed, interaction.Status);
+        var interaction = await db.SessionAiInteractions.SingleAsync(item => item.SessionId == sessionId && item.Stage == SessionAiInteractionStage.ActionDecision);
+        Assert.Equal(SessionAiInteractionStatus.ValidationFailed, interaction.Status);
         Assert.Equal("action prompt", interaction.SentPrompt);
         Assert.Equal("action result", interaction.ReceivedResult);
     }

@@ -45,9 +45,7 @@ public sealed class EnsureProgressionSignalCommand(ApplicationDbContext db)
         db.SessionProgressionTransitionReceipts.Add(SessionProgressionTransitionReceipt.Create(
             $"PTR-{Guid.NewGuid():N}".ToUpperInvariant(), session.Id, signal.Id, transition.Id,
             transition.SourceNodeId, transition.TargetNodeId, moduleSnapshot, now));
-        progress.CurrentNodeId = transition.TargetNodeId;
-        progress.Revision++;
-        progress.UpdatedAt = now;
+        progress.MoveTo(transition.TargetNodeId, progress.Revision, now);
         return signal.Id;
     }
 }

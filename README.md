@@ -180,13 +180,13 @@ Definitionのマージ優先順位は、同じprofile IDに対して次の順で
 
 Credentialはdefinitionとは別に、configuration / Vault（CatalogJson内の`apiKey`または既存appsettings互換設定）を先に解決し、見つからない場合だけ暗号化DB credentialへフォールバックします。管理APIはsecret本体を返しません。
 
-AI管理権限を持つアカウントは`/account/admin/ai-keys`から任意IDのprofile定義を作成・更新・削除し、接続テストや使用profileの切り替えを行えます。DB profileには`displayName`、`adapter`、`baseUrl`、`model`、`credentialId`、`enabled`と任意のsecretを指定します。現在の既定値`Database:RecreateOnStartup=true`ではAPI再起動時にDBが再作成されるため、永続的な本番設定にはVaultを使用してください。
+AI管理権限を持つアカウントは`/account/admin/ai-providers`からprofile定義とcredentialを分離して作成・更新・削除し、接続テストや使用profileの切り替えを行えます。DB profileには`displayName`、`adapter`、`baseUrl`、`model`、`credentialId`、`enabled`を保存し、secretはcredential操作で別管理します。現在は破壊的schema baselineのみをサポートするため、永続的な設定にはVaultを使用してください。
 
 APIキーはブラウザー、フロントエンド環境変数、ソースコード、ログへ渡さないでください。
 
 ### 外部 PostgreSQL の接続
 
-Forgeへのpublish時は、生成HelmチャートにCloudNativePGの`myriale-postgres` Clusterを含めます。PR環境は1Gi、通常環境は8Giの永続ボリュームを使用します。CNPGが生成する`myriale-postgres-app` Secretの`uri`をAPIの`POSTGRES_URL`へ注入します。現在のAPIはclean database専用です。`Database:RecreateOnStartup=true`で起動時にdatabaseを再作成し、EF Coreの`EnsureCreated`で現在のmodelからschemaを作成します。再起動前のdatabase内容は保持されないため、Scenario、Session、アカウント、管理画面で保存したAIキーを含む全データが破棄されます。PRごとにClusterとデータが分離され、PR環境の削除時にもデータベースが削除されます。
+Forgeへのpublish時は、生成HelmチャートにCloudNativePGの`myriale-postgres` Clusterを含めます。PR環境は1Gi、通常環境は8Giの永続ボリュームを使用します。CNPGが生成する`myriale-postgres-app` Secretの`uri`をAPIの`POSTGRES_URL`へ注入します。現在のAPIはclean database専用です。起動時にPostgreSQLの`public` schemaを破棄して再作成し、EF Coreの`EnsureCreated`で現在のmodelからschemaを作成します。`Database:RecreateOnStartup=false`はmigration未導入のため拒否されます。再起動前のdatabase内容は保持されず、Scenario、Session、アカウント、DB credentialを含む全データが破棄されます。PRごとにClusterとデータが分離され、PR環境の削除時にもデータベースが削除されます。永続本番運用には`docs/runbooks/schema-baseline.md`の前提を満たす必要があります。
 
 外部 PostgreSQL を使う場合は、Aspire AppHost の起動前に接続情報を環境変数で渡します。接続文字列は次のいずれかを指定できます。
 

@@ -152,9 +152,9 @@ public sealed class SessionTurnInspectionEndpointTests : IDisposable
             Attempt("ATT-INSPECTION-2", ExecutionId, 2, baseTime.AddMilliseconds(500)),
             Attempt("ATT-OTHER-TURN", "EXE-OTHER-TURN", 1, baseTime.AddSeconds(2)));
         db.SessionAiInteractions.AddRange(
-            Interaction("AII-NARRATIVE", ExecutionId, "ATT-INSPECTION-2", 2, SessionAiInteractionStages.Narrative, baseTime.AddMilliseconds(600), "narrative prompt", "narrative result"),
-            Interaction("AII-ACTION", ExecutionId, "ATT-INSPECTION-1", 1, SessionAiInteractionStages.ActionDecision, baseTime.AddMilliseconds(200), "action prompt", "action result"),
-            Interaction("AII-OTHER-TURN", "EXE-OTHER-TURN", "ATT-OTHER-TURN", 1, SessionAiInteractionStages.Narrative, baseTime.AddSeconds(2), "other prompt", "other result"));
+            Interaction("AII-NARRATIVE", ExecutionId, "ATT-INSPECTION-2", 2, SessionAiInteractionStage.Narrative, baseTime.AddMilliseconds(600), "narrative prompt", "narrative result"),
+            Interaction("AII-ACTION", ExecutionId, "ATT-INSPECTION-1", 1, SessionAiInteractionStage.ActionDecision, baseTime.AddMilliseconds(200), "action prompt", "action result"),
+            Interaction("AII-OTHER-TURN", "EXE-OTHER-TURN", "ATT-OTHER-TURN", 1, SessionAiInteractionStage.Narrative, baseTime.AddSeconds(2), "other prompt", "other result"));
         db.SessionRuleActionSteps.Add(RuleStep(baseTime));
         await db.SaveChangesAsync();
     }
@@ -180,12 +180,12 @@ public sealed class SessionTurnInspectionEndpointTests : IDisposable
         return attempt;
     }
 
-    private static SessionAiInteraction Interaction(string id, string executionId, string attemptId, int sequence, string stage, DateTimeOffset startedAt, string prompt, string result) => new()
+    private static SessionAiInteraction Interaction(string id, string executionId, string attemptId, int sequence, SessionAiInteractionStage stage, DateTimeOffset startedAt, string prompt, string result) => new()
     {
         Id = id, SessionId = executionId == "EXE-OTHER-SESSION" ? "SES-OTHER" : SessionId, ExecutionId = executionId, AttemptId = attemptId,
         Sequence = sequence, Stage = stage, AiProfileId = "profile-test", Provider = "provider-test", Model = "model-test",
         ProviderRequestId = $"request-{id}", StartedAt = startedAt, CompletedAt = startedAt.AddMilliseconds(25), LatencyMilliseconds = 25,
-        InputTokens = 11, OutputTokens = 7, FinishReason = "stop", Status = SessionAiInteractionStatuses.Succeeded,
+        InputTokens = 11, OutputTokens = 7, FinishReason = "stop", Status = SessionAiInteractionStatus.Succeeded,
         SentPrompt = prompt, ReceivedResult = result, ValidationResult = "{\"status\":\"valid\"}",
     };
 

@@ -142,15 +142,15 @@ public sealed class ScenarioArchitectureHardeningTests
         var logger = new RecordingLogger<ScenarioDefinitionPublishedLoggingHandler>();
         var services = new ServiceCollection();
         services.AddSingleton<ILogger<ScenarioDefinitionPublishedLoggingHandler>>(logger);
-        services.AddSingleton<ScenarioDefinitionPublicationAudit>();
+        services.AddSingleton<PublicationRecorder>();
         services.AddSingleton<IDomainEventHandler<ScenarioDefinitionPublished>, ScenarioDefinitionPublishedLoggingHandler>();
-        services.AddSingleton<IDomainEventHandler<ScenarioDefinitionPublished>, ScenarioDefinitionPublicationAuditHandler>();
+        services.AddSingleton<IDomainEventHandler<ScenarioDefinitionPublished>, RecordingPublicationHandler>();
         await using var provider = services.BuildServiceProvider();
         var published = new ScenarioDefinitionPublished("scenario", "definition", 4, DateTimeOffset.UtcNow);
 
         await new DomainEventDispatcher(provider).DispatchAsync([published], default);
 
-        Assert.Same(published, Assert.Single(provider.GetRequiredService<ScenarioDefinitionPublicationAudit>().Published));
+        Assert.Same(published, Assert.Single(provider.GetRequiredService<PublicationRecorder>().Published));
         var log = Assert.Single(logger.Entries);
         Assert.Equal(LogLevel.Information, log.Level);
         Assert.Contains("ScenarioId=scenario", log.Message, StringComparison.Ordinal);
@@ -169,6 +169,21 @@ public sealed class ScenarioArchitectureHardeningTests
     private sealed class NoopDispatcher : IDomainEventDispatcher
     {
         public Task DispatchAsync(IEnumerable<IDomainEvent> events, CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class PublicationRecorder
+    {
+        public List<ScenarioDefinitionPublished> Published { get; } = [];
+    }
+
+    private sealed class RecordingPublicationHandler(PublicationRecorder recorder)
+        : IDomainEventHandler<ScenarioDefinitionPublished>
+    {
+        public Task HandleAsync(ScenarioDefinitionPublished domainEvent, CancellationToken cancellationToken)
+        {
+            recorder.Published.Add(domainEvent);
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class RecordingLogger<T> : ILogger<T>
