@@ -30,6 +30,17 @@ public sealed class MockAiNarrativeGenerator(
         return new(result, MockMetadata(), JsonSerializer.Serialize(audit), JsonSerializer.Serialize(result));
     }
 
+    public async Task<NarrativeGeneration<EntityStateTransitionResult>> GenerateEntityStateTransitionAsync(
+        EntityStateTransitionRequest request, CancellationToken cancellationToken)
+    {
+        var client = httpClientFactory.CreateClient("MockAi");
+        using var response = await client.PostAsJsonAsync("/mock-ai/entity-state-transition", request, cancellationToken);
+        if (!response.IsSuccessStatusCode) throw new NarrativeGenerationException("Entity state transition provider returned an error.");
+        var result = await response.Content.ReadFromJsonAsync<EntityStateTransitionResult>(StrictDialogueResultJsonOptions, cancellationToken)
+            ?? throw new NarrativeGenerationException("Entity state transition provider returned an invalid response.");
+        return new(result, MockMetadata(), JsonSerializer.Serialize(request), JsonSerializer.Serialize(result));
+    }
+
     public async Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeAsync(PostStateNarrativeRequest request, CancellationToken cancellationToken)
     {
         var client = httpClientFactory.CreateClient("MockAi");

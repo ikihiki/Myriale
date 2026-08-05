@@ -13,9 +13,13 @@ public interface IActionRecommendationGenerator
 public interface IScenarioTurnAiService
 {
     Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionAsync(ModelActionDecisionRequest request, CancellationToken cancellationToken);
+    Task<NarrativeGeneration<EntityStateTransitionResult>> GenerateEntityStateTransitionAsync(EntityStateTransitionRequest request, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("Entity state transition generation is not configured.");
     Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeAsync(PostStateNarrativeRequest request, CancellationToken cancellationToken);
     Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionForProfileAsync(AiProviderProfileId profileId, ModelActionDecisionRequest request, CancellationToken cancellationToken) =>
         DecideActionAsync(request, cancellationToken);
+    Task<NarrativeGeneration<EntityStateTransitionResult>> GenerateEntityStateTransitionForProfileAsync(AiProviderProfileId profileId, EntityStateTransitionRequest request, CancellationToken cancellationToken) =>
+        GenerateEntityStateTransitionAsync(request, cancellationToken);
     Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeForProfileAsync(AiProviderProfileId profileId, PostStateNarrativeRequest request, CancellationToken cancellationToken) =>
         GeneratePostStateNarrativeAsync(request, cancellationToken);
 }

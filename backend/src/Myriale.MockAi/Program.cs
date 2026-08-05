@@ -37,6 +37,32 @@ app.MapPost("/mock-ai/rule-action-decision", (MockRuleActionDecisionRequest requ
     return Results.Ok(new { schemaVersion = "model-action-decision-result.v3", selectionCode = selected.SelectionCode, arguments = new { } });
 });
 
+app.MapPost("/mock-ai/entity-state-transition", (MockEntityStateTransitionRequest request) =>
+{
+    var next = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(request.CurrentAiState.GetRawText()) ?? [];
+    foreach (var property in request.AiStateSchema.GetProperty("properties").EnumerateObject())
+    {
+        if (next.ContainsKey(property.Name)) continue;
+        next[property.Name] = property.Value.GetProperty("type").GetString() switch
+        {
+            "boolean" => JsonSerializer.SerializeToElement(false),
+            "number" or "integer" => JsonSerializer.SerializeToElement(0),
+            _ => JsonSerializer.SerializeToElement("neutral"),
+        };
+    }
+    return Results.Ok(new
+    {
+        schemaVersion = "entity-state-transition.v1",
+        entityCode = request.EntityCode,
+        expectedRevision = request.ExpectedRevision,
+        nextAiState = next,
+        revealedFacts = Array.Empty<string>(),
+        narrativeHints = new[] { $"{request.EntityCode}は直前の会話状態を引き継いで応答する。" },
+        forbiddenFacts = request.ForbiddenFacts,
+        privateReason = "deterministic mock transition",
+    });
+});
+
 app.MapPost("/mock-ai/post-state-narrative", (MockPostStateNarrativeRequest request) =>
 {
     var facts = request.Facts.Count == 0 ? "確定した状態" : string.Join("、", request.Facts);
@@ -124,6 +150,21 @@ public sealed record MockObjectActions(string ObjectCode, string ObjectName, IRe
 public sealed record MockActionDecisionCandidate(string SelectionCode, string ActionCode, string Label, string Description, JsonElement ArgumentSchema);
 public sealed record MockRulePublicLocation(string Id, string Code, string Name, string Description);
 public sealed record MockRulePublicAction(string ObjectId, string ActionId, string Code, string Label, string Description, JsonElement ArgumentSchema, bool Enabled);
+public sealed record MockEntityStateTransitionRequest(
+    string SchemaVersion,
+    string EntityCode,
+    long ExpectedRevision,
+    JsonElement StructuredProfile,
+    string ProfileMarkdown,
+    JsonElement AiStateSchema,
+    JsonElement CurrentAiState,
+    JsonElement PublicState,
+    string PlayerInput,
+    string SessionLocationCode,
+    string EntityLocationCode,
+    IReadOnlyList<string> CommittedFacts,
+    IReadOnlyList<string> ForbiddenFacts);
+
 public sealed record MockPostStateNarrativeRequest(string SchemaVersion, MockNarrativeScenario Scenario, string PlayerInput, MockRulePublicObject SelectedObject, MockRulePublicAction SelectedAction, MockRulePostState PostState, IReadOnlyList<string> Facts, IReadOnlyList<JsonElement> Events, IReadOnlyList<string> NarrativeHints, IReadOnlyList<string> ForbiddenNarrativeFacts);
 public sealed record MockRulePostState(string SchemaVersion, MockRulePublicLocation CurrentLocation, IReadOnlyList<MockRulePublicObject> Objects, IReadOnlyDictionary<string, bool> SessionFlags, long SessionStateRevision);
 public sealed record MockRulePublicObject(string Id, string Code, string Name, string LocationId, bool IsGlobal, long Revision, JsonElement State);

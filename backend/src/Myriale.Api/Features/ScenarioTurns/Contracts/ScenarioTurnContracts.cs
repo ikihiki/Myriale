@@ -15,6 +15,7 @@ public static class ScenarioTurnSchemas
     public const string ModelActionDecisionResult = "model-action-decision-result.v3";
     public const string ModelActionDecisionPrompt = "model-action-decision-prompt.v3";
     public const string ActionStep = "rule-action-step.v1";
+    public const string EntityStateTransition = "entity-state-transition.v1";
     public const string PostStateNarrative = "post-state-narrative.v1";
     public const string NarrativeContext = "post-state-context.v1";
     public const string NarrativePrompt = "post-state-prompt.v1";
@@ -53,6 +54,32 @@ public sealed record RuleActionDecisionResult(string SchemaVersion, ScenarioObje
 public sealed record RuleAppliedEffect(string Type, string? TargetId, string? Path, JsonElement? Value);
 [CrossSliceContract]
 public sealed record RulePostState(string SchemaVersion, RulePublicLocation CurrentLocation, IReadOnlyList<RulePublicObject> Objects, IReadOnlyDictionary<string, bool> SessionFlags, long SessionStateRevision);
+[CrossSliceContract]
+public sealed record EntityStateTransitionRequest(
+    string SchemaVersion,
+    string EntityCode,
+    long ExpectedRevision,
+    JsonElement StructuredProfile,
+    string ProfileMarkdown,
+    JsonElement AiStateSchema,
+    JsonElement CurrentAiState,
+    JsonElement PublicState,
+    string PlayerInput,
+    string SessionLocationCode,
+    string EntityLocationCode,
+    IReadOnlyList<string> CommittedFacts,
+    IReadOnlyList<string> ForbiddenFacts);
+[CrossSliceContract]
+public sealed record EntityStateTransitionResult(
+    string SchemaVersion,
+    string EntityCode,
+    long ExpectedRevision,
+    JsonElement NextAiState,
+    IReadOnlyList<string> RevealedFacts,
+    IReadOnlyList<string> NarrativeHints,
+    IReadOnlyList<string> ForbiddenFacts,
+    string? PrivateReason);
+
 [CrossSliceContract]
 public sealed record PostStateNarrativeRequest(string SchemaVersion, NarrativeScenarioInput Scenario, string PlayerInput, RulePublicObject SelectedObject, RulePublicAction SelectedAction, RulePostState PostState, IReadOnlyList<string> Facts, IReadOnlyList<JsonElement> Events, IReadOnlyList<string> NarrativeHints, IReadOnlyList<string> ForbiddenNarrativeFacts);
 [CrossSliceContract]

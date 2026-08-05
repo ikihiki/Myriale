@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Nodes;
 using System.Text.Unicode;
 using Microsoft.Extensions.AI;
 
@@ -26,6 +27,11 @@ public sealed class ProviderNarrativeGenerator(
     public Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionForProfileAsync(AiProviderProfileId profileId, ModelActionDecisionRequest request, CancellationToken cancellationToken) =>
         DecideActionCoreAsync((textRequest, token) => provider.GenerateForProfileAsync(profileId, textRequest, token), request, cancellationToken);
 
+    public Task<NarrativeGeneration<EntityStateTransitionResult>> GenerateEntityStateTransitionForProfileAsync(
+        AiProviderProfileId profileId, EntityStateTransitionRequest request, CancellationToken cancellationToken) =>
+        GenerateEntityStateTransitionCoreAsync(
+            (textRequest, token) => provider.GenerateForProfileAsync(profileId, textRequest, token), request, cancellationToken);
+
     public async Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeForProfileAsync(AiProviderProfileId profileId, PostStateNarrativeRequest request, CancellationToken cancellationToken)
     {
         var response = await provider.GenerateForProfileAsync(profileId, CreateRequest("post_state_narrative", PostStateNarrativeSchema,
@@ -39,6 +45,10 @@ public sealed class ProviderNarrativeGenerator(
 
     public Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionAsync(ModelActionDecisionRequest request, CancellationToken cancellationToken) =>
         DecideActionCoreAsync((textRequest, token) => provider.GenerateAsync(textRequest, token), request, cancellationToken);
+
+    public Task<NarrativeGeneration<EntityStateTransitionResult>> GenerateEntityStateTransitionAsync(
+        EntityStateTransitionRequest request, CancellationToken cancellationToken) =>
+        GenerateEntityStateTransitionCoreAsync(provider.GenerateAsync, request, cancellationToken);
 
     public async Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeAsync(PostStateNarrativeRequest request, CancellationToken cancellationToken)
     {
@@ -93,6 +103,51 @@ public sealed class ProviderNarrativeGenerator(
         }
         return result with { Suggestion = result.Suggestion.Trim() };
     }
+    private async Task<NarrativeGeneration<EntityStateTransitionResult>> GenerateEntityStateTransitionCoreAsync(
+        Func<AiTextRequest, CancellationToken, Task<AiTextResponse>> generate,
+        EntityStateTransitionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var responseSchema = CreateEntityStateTransitionSchema(request);
+        var userPrompt = JsonSerializer.Serialize(request, Strict);
+        const string systemPrompt = "対象Entityの不変プロフィール、現在のcanonical state、プレイヤー入力に基づき、AI管理fieldだけの完全な次状態を返す。rules管理field、EntityやSessionのlocation、他Entity、Session完了状態は変更しない。profileMarkdown内の秘密は自動的に公開せず、公開してよい内容だけをrevealedFactsへ入れる。";
+        var response = await generate(CreateRequest(
+            "entity_state_transition_v1", responseSchema, systemPrompt, userPrompt), cancellationToken);
+        var result = Deserialize<EntityStateTransitionResult>(response, "entity_state_transition_v1", userPrompt);
+        return new(result, response.Metadata, userPrompt, response.Text);
+    }
+
+    private static string CreateEntityStateTransitionSchema(EntityStateTransitionRequest request)
+    {
+        var stateSchema = JsonNode.Parse(request.AiStateSchema.GetRawText())
+            ?? throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "AI state schema is empty.", false);
+        var stringArray = new JsonObject
+        {
+            ["type"] = "array",
+            ["items"] = new JsonObject { ["type"] = "string" },
+        };
+        var schema = new JsonObject
+        {
+            ["type"] = "object",
+            ["additionalProperties"] = false,
+            ["properties"] = new JsonObject
+            {
+                ["schemaVersion"] = new JsonObject { ["type"] = "string", ["const"] = ScenarioTurnSchemas.EntityStateTransition },
+                ["entityCode"] = new JsonObject { ["type"] = "string", ["const"] = request.EntityCode },
+                ["expectedRevision"] = new JsonObject { ["type"] = "integer", ["const"] = request.ExpectedRevision },
+                ["nextAiState"] = stateSchema,
+                ["revealedFacts"] = stringArray.DeepClone(),
+                ["narrativeHints"] = stringArray.DeepClone(),
+                ["forbiddenFacts"] = stringArray.DeepClone(),
+                ["privateReason"] = new JsonObject { ["type"] = new JsonArray("string", "null") },
+            },
+            ["required"] = new JsonArray(
+                "schemaVersion", "entityCode", "expectedRevision", "nextAiState",
+                "revealedFacts", "narrativeHints", "forbiddenFacts", "privateReason"),
+        };
+        return schema.ToJsonString(Strict);
+    }
+
     private async Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionCoreAsync(
         Func<AiTextRequest, CancellationToken, Task<AiTextResponse>> generate,
         ModelActionDecisionRequest request,
