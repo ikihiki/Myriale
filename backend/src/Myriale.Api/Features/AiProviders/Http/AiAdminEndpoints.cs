@@ -27,17 +27,17 @@ public static class AiAdminEndpoints
 
     private static async Task<IResult> CreateProfileAsync(CreateAiProviderProfileRequest request, AiProviderProfileUseCases useCases, AiProviderAdministrationQueryService query, CancellationToken ct) =>
         await MapProfileAsync(await useCases.CreateAsync(new(request.Id, request.DisplayName, request.BaseUrl, request.Model, request.CredentialId, request.Enabled), ct), query, ct, created: true);
-    private static async Task<IResult> UpdateProfileAsync(string id, UpdateAiProviderProfileRequest request, AiProviderProfileUseCases useCases, AiProviderAdministrationQueryService query, CancellationToken ct) =>
+    private static async Task<IResult> UpdateProfileAsync(AiProviderProfileId id, UpdateAiProviderProfileRequest request, AiProviderProfileUseCases useCases, AiProviderAdministrationQueryService query, CancellationToken ct) =>
         await MapProfileAsync(await useCases.UpdateAsync(new(id, request.DisplayName, request.BaseUrl, request.Model, request.CredentialId, request.ExpectedRevision), ct), query, ct);
-    private static async Task<IResult> EnableProfileAsync(string id, ExpectedRevisionRequest request, AiProviderProfileUseCases useCases, AiProviderAdministrationQueryService query, CancellationToken ct) =>
+    private static async Task<IResult> EnableProfileAsync(AiProviderProfileId id, ExpectedRevisionRequest request, AiProviderProfileUseCases useCases, AiProviderAdministrationQueryService query, CancellationToken ct) =>
         await MapProfileAsync(await useCases.EnableAsync(new(id, request.ExpectedRevision), ct), query, ct);
-    private static async Task<IResult> DisableProfileAsync(string id, ExpectedRevisionRequest request, AiProviderProfileUseCases useCases, AiProviderAdministrationQueryService query, CancellationToken ct) =>
+    private static async Task<IResult> DisableProfileAsync(AiProviderProfileId id, ExpectedRevisionRequest request, AiProviderProfileUseCases useCases, AiProviderAdministrationQueryService query, CancellationToken ct) =>
         await MapProfileAsync(await useCases.DisableAsync(new(id, request.ExpectedRevision), ct), query, ct);
-    private static async Task<IResult> DeleteProfileAsync(string id, long expectedRevision, AiProviderProfileUseCases useCases, CancellationToken ct) => Map(await useCases.DeleteAsync(new(id, expectedRevision), ct), noContent: true);
+    private static async Task<IResult> DeleteProfileAsync(AiProviderProfileId id, long expectedRevision, AiProviderProfileUseCases useCases, CancellationToken ct) => Map(await useCases.DeleteAsync(new(id, expectedRevision), ct), noContent: true);
 
     private static async Task<IResult> SetCredentialAsync(SetAiCredentialRequest request, AiCredentialUseCases useCases, CancellationToken ct) => MapCredential(await useCases.SetAsync(new(request.Id, request.DisplayName, request.Secret), ct), created: true);
-    private static async Task<IResult> ReplaceCredentialAsync(string id, ReplaceAiCredentialRequest request, AiCredentialUseCases useCases, CancellationToken ct) => MapCredential(await useCases.ReplaceAsync(new(id, request.DisplayName, request.Secret, request.ExpectedRevision), ct));
-    private static async Task<IResult> DeleteCredentialAsync(string id, long expectedRevision, AiCredentialUseCases useCases, CancellationToken ct) => Map(await useCases.DeleteAsync(new(id, expectedRevision), ct), noContent: true);
+    private static async Task<IResult> ReplaceCredentialAsync(AiCredentialId id, ReplaceAiCredentialRequest request, AiCredentialUseCases useCases, CancellationToken ct) => MapCredential(await useCases.ReplaceAsync(new(id, request.DisplayName, request.Secret, request.ExpectedRevision), ct));
+    private static async Task<IResult> DeleteCredentialAsync(AiCredentialId id, long expectedRevision, AiCredentialUseCases useCases, CancellationToken ct) => Map(await useCases.DeleteAsync(new(id, expectedRevision), ct), noContent: true);
 
     private static async Task<IResult> ActivateAsync(ActivateAiProviderRequest request, ActivateAiProviderUseCase useCase, AiProviderAdministrationQueryService query, CancellationToken ct)
     {
@@ -47,7 +47,7 @@ public static class AiAdminEndpoints
         if (result.Outcome == ActivateAiProviderOutcome.Conflict) return Results.Conflict(Error(result.ErrorMessage));
         return Results.Ok((await query.ListProfilesAsync(ct)).Single(x => x.Id == result.Profile!.Id));
     }
-    private static async Task<IResult> ConnectionTestAsync(string id, AiProfileTestRequest request, AiProviderTestUseCases useCases, CancellationToken ct)
+    private static async Task<IResult> ConnectionTestAsync(AiProviderProfileId id, AiProfileTestRequest request, AiProviderTestUseCases useCases, CancellationToken ct)
     {
         var result = await useCases.TestConnectionAsync(new(id, request.ExpectedProfileRevision, request.ExpectedCredentialRevision), ct);
         var response = result.Value is null ? null : new AiConnectionTestResponse(
@@ -60,13 +60,13 @@ public static class AiAdminEndpoints
             _ => Map(result)
         };
     }
-    private static async Task<IResult> PromptTestAsync(string id, AiPromptTestRequest request, AiProviderTestUseCases useCases, CancellationToken ct) =>
+    private static async Task<IResult> PromptTestAsync(AiProviderProfileId id, AiPromptTestRequest request, AiProviderTestUseCases useCases, CancellationToken ct) =>
         Map(await useCases.PromptAsync(new(id, request.Prompt, request.ExpectedProfileRevision, request.ExpectedCredentialRevision), ct));
 
     private static async Task<IResult> MapProfileAsync(AiAdministrationResult<AiProviderProfile> result, AiProviderAdministrationQueryService query, CancellationToken ct, bool created = false)
     {
         if (result.Outcome != AiAdministrationOutcome.Success) return Map(result);
-        var response = (await query.ListProfilesAsync(ct)).Single(profile => profile.Id == result.Value!.Id.AsPrimitive());
+        var response = (await query.ListProfilesAsync(ct)).Single(profile => profile.Id == result.Value!.Id);
         return created ? Results.Json(response, statusCode: StatusCodes.Status201Created) : Results.Ok(response);
     }
 
@@ -74,7 +74,7 @@ public static class AiAdminEndpoints
     {
         if (result.Outcome != AiAdministrationOutcome.Success) return Map(result);
         var credential = result.Value!;
-        var response = new AiAdminCredentialResponse(credential.Id.AsPrimitive(), credential.DisplayName, $"••••••••{credential.SecretHint}", "database", credential.Revision, credential.UpdatedAt, 0);
+        var response = new AiAdminCredentialResponse(credential.Id, credential.DisplayName, $"••••••••{credential.SecretHint}", "database", credential.Revision, credential.UpdatedAt, 0);
         return created ? Results.Json(response, statusCode: StatusCodes.Status201Created) : Results.Ok(response);
     }
 

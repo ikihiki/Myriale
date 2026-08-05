@@ -4,8 +4,8 @@ namespace Myriale.Api.Bootstrap.Seeding;
 
 public static class ScenarioSeedData
 {
-    private const string AwakeningLaboratoryId = "SCN-AWAKENING-LAB";
-    private const string LighthouseConfessionId = "SCN-LIGHTHOUSE-CONFESSION";
+    private static readonly ScenarioId AwakeningLaboratoryId = new("SCN-AWAKENING-LAB");
+    private static readonly ScenarioId LighthouseConfessionId = new("SCN-LIGHTHOUSE-CONFESSION");
 
     private const string BasicInformation = """
         # あなたの役割
@@ -63,7 +63,7 @@ public static class ScenarioSeedData
     {
         var awakeningTimestamp = new DateTimeOffset(2026, 7, 26, 0, 0, 0, TimeSpan.Zero);
         var lighthouseTimestamp = new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero);
-        var authorId = string.IsNullOrWhiteSpace(developmentAuthorId) ? "SYSTEM-SEED" : developmentAuthorId;
+        var authorId = new AccountId(string.IsNullOrWhiteSpace(developmentAuthorId) ? "SYSTEM-SEED" : developmentAuthorId);
 
         await SeedScenarioAsync(db, CreateAwakeningLaboratory(authorId, awakeningTimestamp), developmentAuthorId, cancellationToken);
         await SeedScenarioAsync(db, CreateLighthouseConfession(authorId, lighthouseTimestamp), developmentAuthorId, cancellationToken);
@@ -80,8 +80,8 @@ public static class ScenarioSeedData
         if (existing is not null)
         {
             if (!string.IsNullOrWhiteSpace(developmentAuthorId)
-                && string.Equals(existing.AuthorId, "SYSTEM-SEED", StringComparison.Ordinal))
-                existing.AuthorId = developmentAuthorId;
+                && string.Equals(existing.AuthorId.AsPrimitive(), "SYSTEM-SEED", StringComparison.Ordinal))
+                existing.AuthorId = new AccountId(developmentAuthorId);
             return;
         }
 
@@ -89,7 +89,7 @@ public static class ScenarioSeedData
         db.ScenarioDefinitionVersions.Add(ScenarioDefinitionSeedFactory.CreatePublished(scenario.Id, scenario.CreatedAt));
     }
 
-    private static Scenario CreateAwakeningLaboratory(string authorId, DateTimeOffset timestamp) => new()
+    private static Scenario CreateAwakeningLaboratory(AccountId authorId, DateTimeOffset timestamp) => new()
     {
         Id = AwakeningLaboratoryId,
         Title = "目覚めの研究室",
@@ -105,7 +105,7 @@ public static class ScenarioSeedData
         UpdatedAt = timestamp,
     };
 
-    private static Scenario CreateLighthouseConfession(string authorId, DateTimeOffset timestamp) => new()
+    private static Scenario CreateLighthouseConfession(AccountId authorId, DateTimeOffset timestamp) => new()
     {
         Id = LighthouseConfessionId,
         Title = "灯台守の告白",

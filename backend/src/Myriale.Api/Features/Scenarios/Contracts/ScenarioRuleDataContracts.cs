@@ -159,8 +159,8 @@ public sealed class ScenarioObjectRuleMutationInputJsonConverter : JsonConverter
 }
 
 public sealed record ScenarioRuleDataResponse(
-    string ScenarioId,
-    string DefinitionVersionId,
+    ScenarioId ScenarioId,
+    ScenarioDefinitionVersionId DefinitionVersionId,
     int Version,
     string Status,
     int SchemaVersion,
@@ -172,6 +172,6 @@ public sealed record ScenarioRuleDataResponse(
     string StartLocationCode);
 
 public sealed record ScenarioDefinitionReadinessResponse(
-    string DefinitionVersionId,
+    ScenarioDefinitionVersionId DefinitionVersionId,
     bool Ready,
     IReadOnlyDictionary<string, string[]> Errors);

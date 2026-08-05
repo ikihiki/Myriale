@@ -15,7 +15,7 @@ public sealed class ScenarioRuleDebugService(
     IScenarioTurnAi ai)
 {
     public async Task<ScenarioRuleDebugResponse?> ExecuteAsync(
-        string scenarioId,
+        ScenarioId scenarioId,
         ScenarioRuleDebugRequest request,
         CancellationToken cancellationToken)
     {
@@ -33,8 +33,8 @@ public sealed class ScenarioRuleDebugService(
             ?? throw new ScenarioTurnValidationException("invalid_debug_location");
         var now = DateTimeOffset.UtcNow;
         var session = Session.Create(
-            "DEBUG", "DEBUG", scenarioId, definition.Id, location.Id, null, null, "DEBUG", false,
-            SessionState.Create("DEBUG", request.Flags ?? new Dictionary<string, bool>(), now),
+            new SessionId("DEBUG"), new AccountId("DEBUG"), scenarioId, definition.Id, location.Id, null, null, "DEBUG", false,
+            SessionState.Create(new SessionId("DEBUG"), request.Flags ?? new Dictionary<string, bool>(), now),
             now, SessionStatus.Debug);
 
         var overrides = (request.Objects ?? []).ToDictionary(item => item.ObjectCode, StringComparer.Ordinal);
@@ -52,7 +52,7 @@ public sealed class ScenarioRuleDebugService(
                     ? stateOverride.State.GetRawText()
                     : throw new ScenarioTurnValidationException("invalid_debug_object_state");
             states.Add(SessionObjectState.Create(
-                $"DEBUG-{item.Id}", session.Id, item.Id, objectLocation.Id, stateJson, now));
+                new SessionObjectStateId($"DEBUG-{item.Id}"), session.Id, item.Id, objectLocation.Id, stateJson, now));
         }
 
         var world = snapshotFactory.Create(session, definition, states);

@@ -25,13 +25,13 @@ public sealed class AiProviderProfile
     public long Revision { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
-    public static AiProviderProfile Create(string id, string displayName, string baseUrl, string model, string credentialId, bool enabled, DateTimeOffset now) =>
-        new(new AiProviderProfileId(id), displayName, ParseBaseUrl(baseUrl), model, new AiCredentialId(credentialId), enabled, now);
+    public static AiProviderProfile Create(AiProviderProfileId id, string displayName, string baseUrl, string model, AiCredentialId credentialId, bool enabled, DateTimeOffset now) =>
+        new(id, displayName, ParseBaseUrl(baseUrl), model, credentialId, enabled, now);
 
-    public void Update(string displayName, string baseUrl, string model, string credentialId, long expectedRevision, DateTimeOffset now)
+    public void Update(string displayName, string baseUrl, string model, AiCredentialId credentialId, long expectedRevision, DateTimeOffset now)
     {
         RequireRevision(expectedRevision); DisplayName = ValidateDisplayName(displayName); BaseUrl = NormalizeBaseUrl(ParseBaseUrl(baseUrl));
-        Model = ValidateModel(model); CredentialId = new AiCredentialId(credentialId); Touch(now);
+        Model = ValidateModel(model); CredentialId = credentialId; Touch(now);
     }
     public void Enable(long expectedRevision, DateTimeOffset now) { RequireRevision(expectedRevision); if (!Enabled) { Enabled = true; Touch(now); } }
     public void Disable(long expectedRevision, DateTimeOffset now) { RequireRevision(expectedRevision); if (Enabled) { Enabled = false; Touch(now); } }

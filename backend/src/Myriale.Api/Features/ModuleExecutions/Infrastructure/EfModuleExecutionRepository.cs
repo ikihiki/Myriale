@@ -6,14 +6,14 @@ namespace Myriale.Api.Features.ModuleExecutions.Infrastructure;
 
 public sealed class EfModuleExecutionRepository(ApplicationDbContext db) : IModuleExecutionRepository
 {
-    public Task<ModuleExecution?> GetOwnedAsync(string executionId, string ownerId, bool tracking, CancellationToken cancellationToken)
+    public Task<ModuleExecution?> GetOwnedAsync(ModuleExecutionId executionId, AccountId ownerId, bool tracking, CancellationToken cancellationToken)
     {
         IQueryable<ModuleExecution> query = db.ModuleExecutions.Include(x => x.Requests).Include(x => x.OutcomeApplication);
         if (!tracking) query = query.AsNoTracking();
         return query.SingleOrDefaultAsync(x => x.Id == executionId && x.OwnerId == ownerId, cancellationToken);
     }
 
-    public Task<ModuleExecutionRequest?> GetReceiptAsync(string ownerId, string requestId, bool tracking, CancellationToken cancellationToken)
+    public Task<ModuleExecutionRequest?> GetReceiptAsync(AccountId ownerId, string requestId, bool tracking, CancellationToken cancellationToken)
     {
         IQueryable<ModuleExecutionRequest> query = db.ModuleExecutionRequests;
         if (!tracking) query = query.AsNoTracking();

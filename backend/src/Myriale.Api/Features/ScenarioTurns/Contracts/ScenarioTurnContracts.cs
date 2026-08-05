@@ -20,11 +20,11 @@ public static class ScenarioTurnSchemas
 }
 
 [CrossSliceContract]
-public sealed record RulePublicLocation(string Id, string Code, string Name, string Description);
+public sealed record RulePublicLocation(ScenarioLocationId Id, string Code, string Name, string Description);
 [CrossSliceContract]
-public sealed record RulePublicObject(string Id, string Code, string Name, string LocationId, bool IsGlobal, long Revision, JsonElement State);
+public sealed record RulePublicObject(ScenarioObjectId Id, string Code, string Name, ScenarioLocationId LocationId, bool IsGlobal, long Revision, JsonElement State);
 [CrossSliceContract]
-public sealed record RulePublicAction(string ObjectId, string ActionId, string Code, string Label, string Description, JsonElement ArgumentSchema, bool Enabled);
+public sealed record RulePublicAction(ScenarioObjectId ObjectId, ScenarioObjectTypeActionId ActionId, string Code, string Label, string Description, JsonElement ArgumentSchema, bool Enabled);
 public sealed record RuleActionSnapshot(string SchemaVersion, string SnapshotId, RulePublicLocation CurrentLocation, IReadOnlyList<RulePublicObject> Objects, IReadOnlyList<RulePublicAction> Actions);
 [CrossSliceContract]
 public sealed record ModelActionDecisionLocation(string Code, string Name, string Description);
@@ -43,7 +43,7 @@ public sealed record ModelActionDecisionResult(string SchemaVersion, string Sele
 public sealed record ModelActionDecisionPromptAudit(string PromptVersion, string SystemPrompt, ModelActionDecisionRequest ModelRequest, string ResponseSchemaVersion);
 
 public sealed record RuleActionDecisionRequest(string SchemaVersion, string PlayerInput, RuleActionSnapshot Snapshot);
-public sealed record RuleActionDecisionResult(string SchemaVersion, string ObjectId, string ActionId, JsonElement Arguments);
+public sealed record RuleActionDecisionResult(string SchemaVersion, ScenarioObjectId ObjectId, ScenarioObjectTypeActionId ActionId, JsonElement Arguments);
 public sealed record RuleAppliedEffect(string Type, string? TargetId, string? Path, JsonElement? Value);
 [CrossSliceContract]
 public sealed record RulePostState(string SchemaVersion, RulePublicLocation CurrentLocation, IReadOnlyList<RulePublicObject> Objects, IReadOnlyDictionary<string, bool> SessionFlags, long SessionStateRevision);
@@ -52,10 +52,10 @@ public sealed record PostStateNarrativeRequest(string SchemaVersion, NarrativeSc
 [CrossSliceContract]
 public sealed record PostStateNarrativeResult(string SchemaVersion, string Heading, string Body);
 
-public sealed record SessionObjectStateResponse(string ObjectId, string Code, string Name, string LocationId, bool IsGlobal, long Revision, JsonElement State);
+public sealed record SessionObjectStateResponse(ScenarioObjectId ObjectId, string Code, string Name, ScenarioLocationId LocationId, bool IsGlobal, long Revision, JsonElement State);
 public sealed record SessionRuleActionStepResponse(
-    string Id,
-    string ExecutionId,
+    SessionRuleActionStepId Id,
+    SessionExecutionId ExecutionId,
     string Stage,
     string SchemaVersion,
     RuleActionSnapshot? ActionSnapshot,
@@ -66,8 +66,8 @@ public sealed record SessionRuleActionStepResponse(
     DateTimeOffset? NarrativePublishedAt);
 
 public sealed record SessionScenarioTurnSelectedActionResponse(
-    string ObjectId,
-    string ActionId,
+    ScenarioObjectId ObjectId,
+    ScenarioObjectTypeActionId ActionId,
     string? ObjectCode,
     string? ObjectLabel,
     string? ActionCode,

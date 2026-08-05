@@ -8,8 +8,8 @@ public sealed class ScenarioDefinitionVersion : IHasDomainEvents
     private readonly List<IDomainEvent> _domainEvents = [];
     internal ScenarioDefinitionVersion() { }
 
-    [Key] public string Id { get; internal set; } = string.Empty;
-    [Required] public string ScenarioId { get; internal set; } = string.Empty;
+    [Key] public ScenarioDefinitionVersionId Id { get; internal set; }
+    [Required] public ScenarioId ScenarioId { get; internal set; }
     public Scenario Scenario { get; internal set; } = null!;
     public int Version { get; internal set; }
     [MaxLength(20)] public DefinitionStatus Status { get; internal set; } = DefinitionStatus.Draft;
@@ -41,7 +41,7 @@ public sealed class ScenarioDefinitionVersion : IHasDomainEvents
 
     public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents;
 
-    public static ScenarioDefinitionVersion CreateDraft(string id, string scenarioId, int version, DateTimeOffset now) => new()
+    public static ScenarioDefinitionVersion CreateDraft(ScenarioDefinitionVersionId id, ScenarioId scenarioId, int version, DateTimeOffset now) => new()
     {
         Id = id,
         ScenarioId = scenarioId,
@@ -95,8 +95,8 @@ public sealed class ScenarioDefinitionVersion : IHasDomainEvents
 
 public sealed class ScenarioLocation
 {
-    [Key] public string Id { get; set; } = string.Empty;
-    [Required] public string DefinitionVersionId { get; set; } = string.Empty;
+    [Key] public ScenarioLocationId Id { get; set; }
+    [Required] public ScenarioDefinitionVersionId DefinitionVersionId { get; set; } = new(string.Empty);
     public ScenarioDefinitionVersion DefinitionVersion { get; set; } = null!;
     [MaxLength(80)] public string Code { get; set; } = string.Empty;
     [MaxLength(160)] public string Name { get; set; } = string.Empty;
@@ -106,8 +106,8 @@ public sealed class ScenarioLocation
 
 public sealed class ScenarioObjectType
 {
-    [Key] public string Id { get; set; } = string.Empty;
-    [Required] public string DefinitionVersionId { get; set; } = string.Empty;
+    [Key] public ScenarioObjectTypeId Id { get; set; }
+    [Required] public ScenarioDefinitionVersionId DefinitionVersionId { get; set; } = new(string.Empty);
     public ScenarioDefinitionVersion DefinitionVersion { get; set; } = null!;
     [MaxLength(80)] public string Code { get; set; } = string.Empty;
     [MaxLength(160)] public string Name { get; set; } = string.Empty;
@@ -122,8 +122,8 @@ public sealed class ScenarioObjectType
 
 public sealed class ScenarioObjectTypeAction
 {
-    [Key] public string Id { get; set; } = string.Empty;
-    [Required] public string ObjectTypeId { get; set; } = string.Empty;
+    [Key] public ScenarioObjectTypeActionId Id { get; set; }
+    [Required] public ScenarioObjectTypeId ObjectTypeId { get; set; } = new(string.Empty);
     public ScenarioObjectType ObjectType { get; set; } = null!;
     [MaxLength(80)] public string Code { get; set; } = string.Empty;
     [MaxLength(160)] public string Label { get; set; } = string.Empty;
@@ -136,13 +136,13 @@ public sealed class ScenarioObjectTypeAction
 
 public sealed class ScenarioObject
 {
-    [Key] public string Id { get; set; } = string.Empty;
-    [Required] public string DefinitionVersionId { get; set; } = string.Empty;
+    [Key] public ScenarioObjectId Id { get; set; }
+    [Required] public ScenarioDefinitionVersionId DefinitionVersionId { get; set; } = new(string.Empty);
     public ScenarioDefinitionVersion DefinitionVersion { get; set; } = null!;
     [MaxLength(80)] public string Code { get; set; } = string.Empty;
     [MaxLength(160)] public string Name { get; set; } = string.Empty;
     public string ProfileMarkdown { get; set; } = string.Empty;
-    [Required] public string LocationId { get; set; } = string.Empty;
+    [Required] public ScenarioLocationId LocationId { get; set; } = new(string.Empty);
     public ScenarioLocation Location { get; set; } = null!;
     public string InitialStateOverrideJson { get; set; } = "{}";
     public string MixinTypeCodesJson { get; set; } = string.Empty;

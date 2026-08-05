@@ -9,7 +9,7 @@ public sealed class ScenarioDefinitionDraftService(
     ScenarioDefinitionMapper mapper,
     ScenarioDefinitionWriter writer)
 {
-    public async Task<ScenarioDefinitionVersion> GetOrCreateDraftAsync(string scenarioId, CancellationToken cancellationToken)
+    public async Task<ScenarioDefinitionVersion> GetOrCreateDraftAsync(ScenarioId scenarioId, CancellationToken cancellationToken)
     {
         for (var attempt = 0; attempt < 3; attempt++)
         {
@@ -20,7 +20,7 @@ public sealed class ScenarioDefinitionDraftService(
             if (scenario.DefinitionVersionCounter == 0)
                 scenario.DefinitionVersionCounter = await db.ScenarioDefinitionVersions.Where(x => x.ScenarioId == scenarioId)
                     .MaxAsync(x => (int?)x.Version, cancellationToken) ?? 0;
-            var draft = ScenarioDefinitionVersion.CreateDraft($"SDV-{Guid.NewGuid():N}", scenarioId, scenario.AllocateDefinitionVersion(now), now);
+            var draft = ScenarioDefinitionVersion.CreateDraft(new ScenarioDefinitionVersionId($"SDV-{Guid.NewGuid():N}"), scenarioId, scenario.AllocateDefinitionVersion(now), now);
             draft.SnapshotScenario(scenario);
             var published = await repository.GetLatestPublishedAsync(scenarioId, cancellationToken);
             if (published is not null)
@@ -38,12 +38,12 @@ public sealed class ScenarioDefinitionDraftService(
 
     private static void CloneProgression(ScenarioDefinitionVersion source, ScenarioDefinitionVersion target)
     {
-        var ids = source.ProgressionNodes.ToDictionary(x => x.Id, _ => $"SPN-{Guid.NewGuid():N}");
+        var ids = source.ProgressionNodes.ToDictionary(x => x.Id, _ => new ScenarioProgressionNodeId($"SPN-{Guid.NewGuid():N}"));
         foreach (var x in source.ProgressionNodes) target.ProgressionNodes.Add(new ScenarioProgressionNode
         { Id = ids[x.Id], DefinitionVersionId = target.Id, Code = x.Code, IsInitial = x.IsInitial, AllowedNarrativeSignalsJson = x.AllowedNarrativeSignalsJson });
         foreach (var x in source.ProgressionTransitions) target.ProgressionTransitions.Add(new ScenarioProgressionTransition
         {
-            Id = $"SPT-{Guid.NewGuid():N}", DefinitionVersionId = target.Id, SourceNodeId = ids[x.SourceNodeId], SignalCode = x.SignalCode,
+            Id = new ScenarioProgressionTransitionId($"SPT-{Guid.NewGuid():N}"), DefinitionVersionId = target.Id, SourceNodeId = ids[x.SourceNodeId], SignalCode = x.SignalCode,
             TriggerDescription = x.TriggerDescription, TargetNodeId = ids[x.TargetNodeId], ModuleId = x.ModuleId, ModuleVersion = x.ModuleVersion,
             ModuleDigest = x.ModuleDigest, ModuleConfigurationJson = x.ModuleConfigurationJson, ModuleContextJson = x.ModuleContextJson,
             ModuleRandomValueCount = x.ModuleRandomValueCount,

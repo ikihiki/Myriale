@@ -10,15 +10,15 @@ public enum SessionExecutionOperationOutcome
 }
 
 public sealed record SessionExecutionClaim(
-    string ExecutionId,
+    SessionExecutionId ExecutionId,
     string LeaseToken,
     long Revision,
-    string AttemptId,
+    SessionExecutionAttemptId AttemptId,
     int AttemptNumber);
 
 public sealed record SessionExecutionClaimContext(
     SessionExecutionClaim Claim,
-    string SessionId,
+    SessionId SessionId,
     SessionExecutionKind Kind,
     string? TraceParent);
 

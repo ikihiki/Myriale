@@ -25,7 +25,7 @@ public static class DemoModuleSeedData
 
         await ConfigureTransitionAsync(
             db,
-            "SPT-STAR-LIBRARY-DOOR-REACHED",
+            new ScenarioProgressionTransitionId("SPT-STAR-LIBRARY-DOOR-REACHED"),
             installed.Package,
             "銀の鍵と星図灯で『閉じた星座』の扉を開く",
             "水没した地下図書館・閉じた星座の扉",
@@ -34,7 +34,7 @@ public static class DemoModuleSeedData
             cancellationToken);
         await ConfigureTransitionAsync(
             db,
-            "SPT-NEON-ARCHIVE-FIREWALL-REACHED",
+            new ScenarioProgressionTransitionId("SPT-NEON-ARCHIVE-FIREWALL-REACHED"),
             installed.Package,
             "量子鍵と星図デッキで『閉じた星座』ファイアウォールを突破する",
             "オルフェウス地下データ書庫・閉じた星座ゲート",
@@ -68,8 +68,9 @@ public static class DemoModuleSeedData
 
     private static async Task ConfigureBattleTransitionAsync(ApplicationDbContext db, ModulePackageSnapshot package, CancellationToken cancellationToken)
     {
-        var transition = await db.ScenarioProgressionTransitions.SingleAsync(item => item.Id == "SPT-STAR-LIBRARY-GUARDIAN-AWAKENED", cancellationToken);
-        transition.ModuleId = package.ModuleId.AsPrimitive();
+        var transitionId = new ScenarioProgressionTransitionId("SPT-STAR-LIBRARY-GUARDIAN-AWAKENED");
+        var transition = await db.ScenarioProgressionTransitions.SingleAsync(item => item.Id == transitionId, cancellationToken);
+        transition.ModuleId = package.ModuleId;
         transition.ModuleVersion = package.Version.AsPrimitive();
         transition.ModuleDigest = package.Digest.AsPrimitive();
         transition.ModuleConfigurationJson = JsonSerializer.Serialize(new
@@ -86,7 +87,7 @@ public static class DemoModuleSeedData
 
     private static async Task ConfigureTransitionAsync(
         ApplicationDbContext db,
-        string transitionId,
+        ScenarioProgressionTransitionId transitionId,
         ModulePackageSnapshot package,
         string purpose,
         string location,
@@ -96,7 +97,7 @@ public static class DemoModuleSeedData
     {
         var transition = await db.ScenarioProgressionTransitions
             .SingleAsync(item => item.Id == transitionId, cancellationToken);
-        transition.ModuleId = package.ModuleId.AsPrimitive();
+        transition.ModuleId = package.ModuleId;
         transition.ModuleVersion = package.Version.AsPrimitive();
         transition.ModuleDigest = package.Digest.AsPrimitive();
         transition.ModuleConfigurationJson = JsonSerializer.Serialize(new

@@ -46,12 +46,12 @@ public sealed class ModuleUiResourceService(
 
     private async Task<ResolvedUi> ResolveAsync(string ownerId, string executionId, CancellationToken cancellationToken)
     {
-        var execution = await executions.FindAsync(ownerId, executionId, cancellationToken);
+        var execution = await executions.FindAsync(new AccountId(ownerId), new ModuleExecutionId(executionId), cancellationToken);
         if (execution is null) return new(StatusCodes.Status404NotFound);
         ModulePackageResolution resolution;
         try
         {
-            resolution = await catalog.ResolveAsync(new(execution.ModuleId), new(execution.ModuleVersion), new(execution.ModuleDigest), cancellationToken);
+            resolution = await catalog.ResolveAsync(execution.ModuleId, execution.ModuleVersion, execution.ModuleDigest, cancellationToken);
         }
         catch (ArgumentException) { return Error(StatusCodes.Status503ServiceUnavailable, "package_unavailable", "実行に固定されたモジュールパッケージ識別子が不正です。"); }
         if (resolution.Availability == ModulePackageAvailability.Disabled)

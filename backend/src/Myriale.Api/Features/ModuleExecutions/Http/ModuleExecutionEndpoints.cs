@@ -18,25 +18,25 @@ public static class ModuleExecutionEndpoints
         InitializeDetachedModuleExecutionCommand command, CancellationToken cancellationToken)
     {
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
-        return string.IsNullOrWhiteSpace(ownerId) ? Results.Unauthorized() : ToResult(await command.ExecuteAsync(ownerId, request, cancellationToken));
+        return string.IsNullOrWhiteSpace(ownerId) ? Results.Unauthorized() : ToResult(await command.ExecuteAsync(new AccountId(ownerId), request, cancellationToken));
     }
 
-    private static async Task<IResult> GetAsync(string executionId, ClaimsPrincipal principal, GetModuleExecutionQuery query, CancellationToken cancellationToken)
+    private static async Task<IResult> GetAsync(ModuleExecutionId executionId, ClaimsPrincipal principal, GetModuleExecutionQuery query, CancellationToken cancellationToken)
     {
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
-        return string.IsNullOrWhiteSpace(ownerId) ? Results.Unauthorized() : ToResult(await query.ExecuteAsync(ownerId, executionId, cancellationToken));
+        return string.IsNullOrWhiteSpace(ownerId) ? Results.Unauthorized() : ToResult(await query.ExecuteAsync(new AccountId(ownerId), executionId, cancellationToken));
     }
 
-    private static async Task<IResult> DispatchAsync(string executionId, DispatchModuleExecutionRequest request, ClaimsPrincipal principal,
+    private static async Task<IResult> DispatchAsync(ModuleExecutionId executionId, DispatchModuleExecutionRequest request, ClaimsPrincipal principal,
         DispatchModuleExecutionCommand command, CancellationToken cancellationToken)
     {
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
-        return string.IsNullOrWhiteSpace(ownerId) ? Results.Unauthorized() : ToResult(await command.ExecuteAsync(ownerId, executionId, request, cancellationToken));
+        return string.IsNullOrWhiteSpace(ownerId) ? Results.Unauthorized() : ToResult(await command.ExecuteAsync(new AccountId(ownerId), executionId, request, cancellationToken));
     }
 
     internal static IResult ToResult(ModuleExecutionResult result) => result.Outcome switch
     {
-        ModuleExecutionOutcome.Created when result.Execution is not null => Results.Created($"/api/module-executions/{result.Execution.Id}", result.Execution),
+        ModuleExecutionOutcome.Created when result.Execution is not null => Results.Created($"/api/module-executions/{result.Execution.Id.AsPrimitive()}", result.Execution),
         ModuleExecutionOutcome.Success when result.Execution is not null => Results.Ok(result.Execution),
         ModuleExecutionOutcome.NotFound => Results.NotFound(),
         ModuleExecutionOutcome.InvalidRequest => Results.BadRequest(result.Error),

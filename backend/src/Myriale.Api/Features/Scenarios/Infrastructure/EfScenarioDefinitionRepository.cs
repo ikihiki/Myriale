@@ -6,14 +6,14 @@ namespace Myriale.Api.Features.Scenarios.Infrastructure;
 
 public sealed class EfScenarioDefinitionRepository(ApplicationDbContext db) : IScenarioDefinitionRepository
 {
-    public Task<ScenarioDefinitionVersion?> GetDraftAsync(string scenarioId, CancellationToken cancellationToken) =>
+    public Task<ScenarioDefinitionVersion?> GetDraftAsync(ScenarioId scenarioId, CancellationToken cancellationToken) =>
         Graph().SingleOrDefaultAsync(x => x.ScenarioId == scenarioId && x.Status == DefinitionStatus.Draft, cancellationToken);
 
-    public Task<ScenarioDefinitionVersion?> GetLatestPublishedAsync(string scenarioId, CancellationToken cancellationToken) =>
+    public Task<ScenarioDefinitionVersion?> GetLatestPublishedAsync(ScenarioId scenarioId, CancellationToken cancellationToken) =>
         Graph().Where(x => x.ScenarioId == scenarioId && x.Status == DefinitionStatus.Published)
             .OrderByDescending(x => x.Version).FirstOrDefaultAsync(cancellationToken);
 
-    public Task<ScenarioDefinitionVersion?> GetByIdAsync(string definitionId, CancellationToken cancellationToken) =>
+    public Task<ScenarioDefinitionVersion?> GetByIdAsync(ScenarioDefinitionVersionId definitionId, CancellationToken cancellationToken) =>
         Graph().SingleOrDefaultAsync(x => x.Id == definitionId, cancellationToken);
 
     public async Task AddAsync(ScenarioDefinitionVersion definition, CancellationToken cancellationToken) =>

@@ -26,16 +26,16 @@ public static class ProgressionReceiptStatusValues
 }
 
 public sealed record ProgressionModuleSnapshot(
-    string ModuleId,
-    string ModuleVersion,
-    string ModuleDigest,
+    ModulePackageModuleId ModuleId,
+    ModulePackageVersion ModuleVersion,
+    ModulePackageDigest ModuleDigest,
     string ConfigurationJson,
     string ContextJson,
     int RandomValueCount)
 {
-    public bool IsComplete => !string.IsNullOrWhiteSpace(ModuleId)
-        && !string.IsNullOrWhiteSpace(ModuleVersion)
-        && ModuleDigest.Length == 64
+    public bool IsComplete => !ModuleId.Equals(default)
+        && !ModuleVersion.Equals(default)
+        && ModuleDigest.AsPrimitive().Length == 64
         && !string.IsNullOrWhiteSpace(ConfigurationJson)
         && !string.IsNullOrWhiteSpace(ContextJson)
         && RandomValueCount >= 0;
@@ -46,20 +46,20 @@ public sealed class SessionProgressionTransitionReceipt
     public const string MissingSnapshotErrorCode = "module_snapshot_missing";
     public const string MissingSnapshotErrorMessage = "進行遷移にModule snapshotが設定されていません。";
 
-    [Key, MaxLength(40)] public string Id { get; private set; } = string.Empty;
-    [Required, MaxLength(40)] public string SessionId { get; private set; } = string.Empty;
-    [Required, MaxLength(40)] public string SourceSignalId { get; private set; } = string.Empty;
-    [Required, MaxLength(80)] public string TransitionId { get; private set; } = string.Empty;
-    [Required, MaxLength(80)] public string FromNodeId { get; private set; } = string.Empty;
-    [Required, MaxLength(80)] public string ToNodeId { get; private set; } = string.Empty;
+    [Key, MaxLength(40)] public SessionProgressionTransitionReceiptId Id { get; private set; }
+    [Required, MaxLength(40)] public SessionId SessionId { get; private set; }
+    [Required, MaxLength(40)] public SessionNarrativeSignalId SourceSignalId { get; private set; }
+    [Required, MaxLength(80)] public ScenarioProgressionTransitionId TransitionId { get; private set; }
+    [Required, MaxLength(80)] public ScenarioProgressionNodeId FromNodeId { get; private set; }
+    [Required, MaxLength(80)] public ScenarioProgressionNodeId ToNodeId { get; private set; }
     [Required, MaxLength(32)] public ProgressionReceiptStatus Status { get; private set; } = ProgressionReceiptStatus.Pending;
-    [MaxLength(160)] public string? ModuleId { get; private set; }
-    [MaxLength(80)] public string? ModuleVersion { get; private set; }
-    [MaxLength(64)] public string? ModuleDigest { get; private set; }
+    [MaxLength(160)] public ModulePackageModuleId? ModuleId { get; private set; }
+    [MaxLength(80)] public ModulePackageVersion? ModuleVersion { get; private set; }
+    [MaxLength(64)] public ModulePackageDigest? ModuleDigest { get; private set; }
     public string? ModuleConfigurationJson { get; private set; }
     public string? ModuleContextJson { get; private set; }
     public int ModuleRandomValueCount { get; private set; }
-    [MaxLength(40)] public string? ModuleTurnId { get; private set; }
+    [MaxLength(40)] public SessionTurnId? ModuleTurnId { get; private set; }
     public long Revision { get; private set; }
     public int AttemptCount { get; private set; }
     [MaxLength(40)] public string? LeaseId { get; private set; }
@@ -77,12 +77,12 @@ public sealed class SessionProgressionTransitionReceipt
     public SessionTurn? ModuleTurn { get; private set; }
 
     public static SessionProgressionTransitionReceipt Create(
-        string id,
-        string sessionId,
-        string sourceSignalId,
-        string transitionId,
-        string fromNodeId,
-        string toNodeId,
+        SessionProgressionTransitionReceiptId id,
+        SessionId sessionId,
+        SessionNarrativeSignalId sourceSignalId,
+        ScenarioProgressionTransitionId transitionId,
+        ScenarioProgressionNodeId fromNodeId,
+        ScenarioProgressionNodeId toNodeId,
         ProgressionModuleSnapshot? snapshot,
         DateTimeOffset now)
     {
@@ -115,7 +115,7 @@ public sealed class SessionProgressionTransitionReceipt
     public ProgressionModuleSnapshot? ModuleSnapshot => ModuleId is null || ModuleVersion is null || ModuleDigest is null
         || ModuleConfigurationJson is null || ModuleContextJson is null
         ? null
-        : new(ModuleId, ModuleVersion, ModuleDigest, ModuleConfigurationJson, ModuleContextJson, ModuleRandomValueCount);
+        : new(ModuleId.Value, ModuleVersion.Value, ModuleDigest.Value, ModuleConfigurationJson, ModuleContextJson, ModuleRandomValueCount);
 
     public bool CanClaim(DateTimeOffset now) => Status != ProgressionReceiptStatus.Completed
         && IsRetryable
@@ -146,7 +146,7 @@ public sealed class SessionProgressionTransitionReceipt
         return true;
     }
 
-    public bool Complete(string leaseId, string moduleTurnId, DateTimeOffset now)
+    public bool Complete(string leaseId, SessionTurnId moduleTurnId, DateTimeOffset now)
     {
         if (!OwnsLease(leaseId)) return false;
         Status = ProgressionReceiptStatus.Completed;

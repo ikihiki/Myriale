@@ -3,7 +3,7 @@ namespace Myriale.Api.Features.SessionExecutions.Contracts;
 public sealed record SessionExecutionCapabilities(bool CanRetry, bool CanCancel, bool CanDismiss);
 
 public sealed record SessionExecutionAttemptDiagnosticsResponse(
-    string Id,
+    SessionExecutionAttemptId Id,
     int AttemptNumber,
     string Status,
     string? WorkerId,
@@ -32,9 +32,9 @@ public sealed record SessionExecutionAttemptDiagnosticsResponse(
     int? ContextSizeBytes);
 
 public sealed record SessionExecutionDiagnosticsResponse(
-    string SessionId,
+    SessionId SessionId,
     string TriggerType,
-    string TriggerId,
+    SessionExecutionTriggerId TriggerId,
     long Revision,
     string? LeaseOwner,
     string? LeaseTokenHint,
@@ -42,11 +42,11 @@ public sealed record SessionExecutionDiagnosticsResponse(
     IReadOnlyList<SessionExecutionAttemptDiagnosticsResponse> Attempts);
 
 public sealed record SessionExecutionResponse(
-    string Id,
-    string SessionId,
+    SessionExecutionId Id,
+    SessionId SessionId,
     string Kind,
     string TriggerType,
-    string TriggerId,
+    SessionExecutionTriggerId TriggerId,
     string Status,
     long Revision,
     bool IsRetryable,
@@ -65,5 +65,5 @@ public sealed record SessionExecutionResponse(
     string? Stage = null,
     int SchemaVersion = 1,
     SessionScenarioTurnProjectionResponse? ScenarioTurn = null,
-    string? ActionDecisionAiProfileId = null,
-    string? NarrativeAiProfileId = null);
+    AiProviderProfileId? ActionDecisionAiProfileId = null,
+    AiProviderProfileId? NarrativeAiProfileId = null);

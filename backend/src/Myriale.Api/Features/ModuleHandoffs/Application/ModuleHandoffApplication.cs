@@ -13,7 +13,7 @@ public enum EnqueueModuleHandoffOutcome { Enqueued, Existing }
 
 public interface IModuleHandoffEnqueuePort
 {
-    Task<EnqueueModuleHandoffOutcome> EnqueueAsync(ModuleExecution execution, string narrativeAiProfileId, CancellationToken cancellationToken);
+    Task<EnqueueModuleHandoffOutcome> EnqueueAsync(ModuleExecution execution, AiProviderProfileId narrativeAiProfileId, CancellationToken cancellationToken);
 }
 
 public sealed class EnqueueModuleHandoffCommand(
@@ -44,29 +44,29 @@ public sealed class EnqueueModuleHandoffCommand(
 }
 
 public sealed record ModuleHandoffSourceSnapshot(
-    string ExecutionId,
-    string SessionId,
-    string OwnerId,
+    SessionExecutionId ExecutionId,
+    SessionId SessionId,
+    AccountId OwnerId,
     SessionExecutionTriggerType TriggerType,
-    string TriggerId,
+    SessionExecutionTriggerId TriggerId,
     string IdempotencyKey,
-    string? AcceptedHeadTurnId,
+    SessionTurnId? AcceptedHeadTurnId,
     long AcceptedSessionRevision,
-    string NarrativeAiProfileId,
-    string? SourceTurnId,
-    string? SourceSessionId,
+    AiProviderProfileId NarrativeAiProfileId,
+    SessionTurnId? SourceTurnId,
+    SessionId? SourceSessionId,
     SessionTurnKind? SourceTurnKind,
-    string? ModuleExecutionId,
+    ModuleExecutionId? ModuleExecutionId,
     ModuleExecutionStatus? ModuleExecutionStatus,
     string? OutcomeJson,
     string? ViewStateJson,
-    string? OutcomeApplicationSessionId,
+    SessionId? OutcomeApplicationSessionId,
     long? OutcomeAppliedSessionRevision,
-    string? SessionHeadTurnId,
+    SessionTurnId? SessionHeadTurnId,
     long SessionRevision,
     long SessionStateRevision,
     string SessionFlagsJson,
-    string? ScenarioDefinitionVersionId,
+    ScenarioDefinitionVersionId? ScenarioDefinitionVersionId,
     string ScenarioTitle,
     string ScenarioSummary,
     string ScenarioGenre,
@@ -76,7 +76,7 @@ public sealed record ModuleHandoffSourceSnapshot(
     string SelectedHero,
     string ScenarioOpening,
     IReadOnlyList<NarrativeEntityInput> Entities,
-    string? ExistingNarrativeTurnId);
+    SessionTurnId? ExistingNarrativeTurnId);
 
 public interface IModuleHandoffSourceSnapshotQuery
 {
@@ -93,14 +93,15 @@ public sealed class ModuleHandoffCausalityValidator
             return new("invalid_trigger", "Module handoffの起点を確認できませんでした。");
         if (source.SourceTurnId is null || source.SourceSessionId != source.SessionId
             || source.SourceTurnKind != SessionTurnKind.Module || source.ModuleExecutionId is null
-            || source.SessionId.Length == 0 || source.TriggerId != source.SourceTurnId
+            || source.SessionId.AsPrimitive().Length == 0
+            || source.TriggerId.AsPrimitive() != source.SourceTurnId.Value.AsPrimitive()
             || source.AcceptedHeadTurnId != source.SourceTurnId
             || source.IdempotencyKey != $"module-handoff:{source.ModuleExecutionId}")
             return new("module_execution_missing", "Module実行とSession Turnの因果関係を確認できませんでした。");
         if (source.ExistingNarrativeTurnId is not null) return null;
         if (source.SessionHeadTurnId != source.SourceTurnId || source.SessionRevision != source.AcceptedSessionRevision)
             return new("session_advanced", "Sessionが先へ進んだため、この結果は適用されませんでした。", true);
-        if (string.IsNullOrWhiteSpace(source.NarrativeAiProfileId))
+        if (string.IsNullOrWhiteSpace(source.NarrativeAiProfileId.AsPrimitive()))
             return new("narrative_profile_missing", "Narrative AI profileを確認できませんでした。");
         return null;
     }
@@ -187,15 +188,15 @@ public sealed class ModuleHandoffNarrativeService(
             activity?.SetTag("ai.model.name", generation.Metadata.Model);
             SessionExecutionTelemetry.ProviderDuration.Record(generation.Metadata.LatencyMilliseconds,
                 SessionExecutionTelemetry.Tags(SessionExecutionKind.ModuleHandoff, SessionExecutionStatus.Running,
-                    generation.Metadata.Provider, generation.Metadata.Model));
+                    generation.Metadata.Provider.AsPrimitive(), generation.Metadata.Model));
             if (generation.Metadata.InputTokens is not null)
                 SessionExecutionTelemetry.ProviderInputTokens.Record(generation.Metadata.InputTokens.Value,
                     SessionExecutionTelemetry.Tags(SessionExecutionKind.ModuleHandoff, SessionExecutionStatus.Running,
-                        generation.Metadata.Provider, generation.Metadata.Model));
+                        generation.Metadata.Provider.AsPrimitive(), generation.Metadata.Model));
             if (generation.Metadata.OutputTokens is not null)
                 SessionExecutionTelemetry.ProviderOutputTokens.Record(generation.Metadata.OutputTokens.Value,
                     SessionExecutionTelemetry.Tags(SessionExecutionKind.ModuleHandoff, SessionExecutionStatus.Running,
-                        generation.Metadata.Provider, generation.Metadata.Model));
+                        generation.Metadata.Provider.AsPrimitive(), generation.Metadata.Model));
             return new(request, generation);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
@@ -213,39 +214,39 @@ public sealed class ModuleHandoffNarrativeService(
 
 public interface IModuleHandoffArtifactWriter
 {
-    void Add(string sessionId, string executionId, string attemptId, NarrativeGeneration<string> narrative, DateTimeOffset now);
+    void Add(SessionId sessionId, SessionExecutionId executionId, SessionExecutionAttemptId attemptId, NarrativeGeneration<string> narrative, DateTimeOffset now);
 }
 
 public sealed class ModuleHandoffArtifactWriter(ISessionArtifactWriter writer) : IModuleHandoffArtifactWriter
 {
     private static readonly JsonSerializerOptions Json = ModuleJsonSerializerOptions.Create();
-    public void Add(string sessionId, string executionId, string attemptId, NarrativeGeneration<string> narrative, DateTimeOffset now) =>
+    public void Add(SessionId sessionId, SessionExecutionId executionId, SessionExecutionAttemptId attemptId, NarrativeGeneration<string> narrative, DateTimeOffset now) =>
         writer.Add(SessionArtifact.CreateCommittedJson(
-            $"ART-{Guid.NewGuid():N}".ToUpperInvariant(), sessionId, executionId, attemptId,
+            new SessionArtifactId($"ART-{Guid.NewGuid():N}".ToUpperInvariant()), sessionId, executionId, attemptId,
             new NarrativeTextArtifactPayload(narrative.Value),
             JsonSerializer.Serialize(new { narrative.Metadata.Provider, narrative.Metadata.Model, narrative.Metadata.ResponseId }), now, Json));
 }
 
 public interface IModuleHandoffSessionTurnAppender
 {
-    SessionTurn Append(Session session, string sourceTurnId, long sourceStateRevision,
+    SessionTurn Append(Session session, SessionTurnId sourceTurnId, long sourceStateRevision,
         NarrativeGeneration<string> narrative, DateTimeOffset now);
 }
 
 public sealed class ModuleHandoffSessionTurnAppender : IModuleHandoffSessionTurnAppender
 {
-    public SessionTurn Append(Session session, string sourceTurnId, long sourceStateRevision,
+    public SessionTurn Append(Session session, SessionTurnId sourceTurnId, long sourceStateRevision,
         NarrativeGeneration<string> narrative, DateTimeOffset now) =>
         session.AppendModuleHandoffNarrative(
-            $"TRN-{Guid.NewGuid():N}".ToUpperInvariant(), sourceTurnId, NarrativeDocumentSchemas.ModuleHandoff,
+            new SessionTurnId($"TRN-{Guid.NewGuid():N}".ToUpperInvariant()), sourceTurnId, NarrativeDocumentSchemas.ModuleHandoff,
             "確定した結果を受ける", narrative.Value, sourceStateRevision,
-            new SessionTurnAiMetadata(narrative.Metadata.Provider, narrative.Metadata.Model, narrative.Metadata.ResponseId,
+            new SessionTurnAiMetadata(narrative.Metadata.Provider.AsPrimitive(), narrative.Metadata.Model, narrative.Metadata.ResponseId,
                 narrative.Metadata.InputTokens, narrative.Metadata.OutputTokens, narrative.Metadata.LatencyMilliseconds,
                 narrative.Metadata.AttemptCount, narrative.Metadata.FinishReason), now);
 }
 
 public enum ModuleHandoffPublishOutcome { Published, Existing, LeaseLost, SessionAdvanced, Conflict }
-public sealed record ModuleHandoffPublishResult(ModuleHandoffPublishOutcome Outcome, string? OwnerId = null, string? NarrativeTurnId = null);
+public sealed record ModuleHandoffPublishResult(ModuleHandoffPublishOutcome Outcome, AccountId? OwnerId = null, SessionTurnId? NarrativeTurnId = null);
 
 public interface IModuleHandoffPublishUnitOfWork
 {
@@ -272,7 +273,7 @@ public sealed class ModuleHandoffExecutionOrchestrator(
                 causalError.Superseded ? nameof(SessionExecutionStatus.Superseded) : null);
         if (source.ExistingNarrativeTurnId is not null)
         {
-            await progression.ExecuteForNarrativeTurnAsync(source.OwnerId, source.ExistingNarrativeTurnId, cancellationToken);
+            await progression.ExecuteForNarrativeTurnAsync(source.OwnerId, source.ExistingNarrativeTurnId.Value, cancellationToken);
             return new(true);
         }
 
@@ -299,7 +300,7 @@ public sealed class ModuleHandoffExecutionOrchestrator(
         if (published.Outcome == ModuleHandoffPublishOutcome.Conflict)
             return new(false, false, "publication_conflict", "Module handoffの公開競合が発生しました。");
         if (published.OwnerId is not null && published.NarrativeTurnId is not null)
-            await progression.ExecuteForNarrativeTurnAsync(published.OwnerId, published.NarrativeTurnId, cancellationToken);
+            await progression.ExecuteForNarrativeTurnAsync(published.OwnerId.Value, published.NarrativeTurnId.Value, cancellationToken);
         return new(true);
     }
 

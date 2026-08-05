@@ -6,14 +6,14 @@ namespace Myriale.Api.Features.SessionExecutions.Infrastructure;
 
 public sealed class EfSessionExecutionRepository(ApplicationDbContext db) : ISessionExecutionRepository
 {
-    public Task<SessionExecution?> GetOwnedAsync(string executionId, string ownerId, bool tracking, CancellationToken cancellationToken)
+    public Task<SessionExecution?> GetOwnedAsync(SessionExecutionId executionId, AccountId ownerId, bool tracking, CancellationToken cancellationToken)
     {
         IQueryable<SessionExecution> query = db.SessionExecutions.Include(item => item.Attempts);
         if (!tracking) query = query.AsNoTracking();
         return query.SingleOrDefaultAsync(item => item.Id == executionId && item.Session.OwnerId == ownerId, cancellationToken);
     }
 
-    public async Task<SessionExecutionMutationResult> MutateOwnedWithLockAsync(string executionId, string ownerId, Action<SessionExecution> mutation, CancellationToken cancellationToken)
+    public async Task<SessionExecutionMutationResult> MutateOwnedWithLockAsync(SessionExecutionId executionId, AccountId ownerId, Action<SessionExecution> mutation, CancellationToken cancellationToken)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var execution = db.Database.IsNpgsql()

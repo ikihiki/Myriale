@@ -6,11 +6,11 @@ public sealed class SessionImage
 {
     internal SessionImage() { }
 
-    [Key, MaxLength(40)] public string Id { get; internal set; } = string.Empty;
-    [Required, MaxLength(40)] public string SessionId { get; internal set; } = string.Empty;
-    [MaxLength(40)] public string? SourceTurnId { get; internal set; }
-    [MaxLength(40)] public string? SourceInputId { get; internal set; }
-    [Required, MaxLength(40)] public string ArtifactId { get; internal set; } = string.Empty;
+    [Key, MaxLength(40)] public SessionImageId Id { get; internal set; }
+    [Required, MaxLength(40)] public SessionId SessionId { get; internal set; }
+    [MaxLength(40)] public SessionTurnId? SourceTurnId { get; internal set; }
+    [MaxLength(40)] public SessionPlayerInputId? SourceInputId { get; internal set; }
+    [Required, MaxLength(40)] public SessionArtifactId ArtifactId { get; internal set; }
     [Required, MaxLength(500)] public string StorageKey { get; internal set; } = string.Empty;
     [Required, MaxLength(160)] public string ContentType { get; internal set; } = string.Empty;
     public long SizeBytes { get; internal set; }
@@ -23,16 +23,15 @@ public sealed class SessionImage
     public SessionArtifact Artifact { get; internal set; } = null!;
 
     public static SessionImage Create(
-        string id,
+        SessionImageId id,
         SessionArtifact artifact,
-        string? sourceTurnId,
-        string? sourceInputId,
+        SessionTurnId? sourceTurnId,
+        SessionPlayerInputId? sourceInputId,
         long sizeBytes,
         int width,
         int height,
         DateTimeOffset? retainUntil)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(id);
         ArgumentNullException.ThrowIfNull(artifact);
         if (artifact.Kind != SessionArtifactKind.Image || artifact.Schema != SessionArtifactSchema.ImageV1
             || artifact.Status != SessionArtifactStatus.Committed || string.IsNullOrWhiteSpace(artifact.StorageKey)

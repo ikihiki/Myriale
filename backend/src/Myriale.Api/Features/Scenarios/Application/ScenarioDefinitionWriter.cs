@@ -19,21 +19,21 @@ public sealed class ScenarioDefinitionWriter(ApplicationDbContext db, ScenarioRu
         version.ReplaceAuthoringHeader(request.SchemaVersion, request.StartLocationCode.Trim(), now);
         var locations = (request.Locations ?? []).Select(x => new ScenarioLocation
         {
-            Id = $"SLOC-{Guid.NewGuid():N}", DefinitionVersionId = version.Id, Code = x.Code.Trim(), Name = x.Name.Trim(),
+            Id = new ScenarioLocationId($"SLOC-{Guid.NewGuid():N}"), DefinitionVersionId = version.Id, Code = x.Code.Trim(), Name = x.Name.Trim(),
             Description = x.Description?.Trim() ?? string.Empty, AuthoringDataJson = Element(x.AuthoringData, "{}"),
         }).ToDictionary(x => x.Code, StringComparer.Ordinal);
         foreach (var input in request.ObjectTypes ?? [])
         {
             var type = new ScenarioObjectType
             {
-                Id = $"SOT-{Guid.NewGuid():N}", DefinitionVersionId = version.Id, Code = input.Code.Trim(), Name = input.Name.Trim(),
+                Id = new ScenarioObjectTypeId($"SOT-{Guid.NewGuid():N}"), DefinitionVersionId = version.Id, Code = input.Code.Trim(), Name = input.Name.Trim(),
                 Description = input.Description?.Trim() ?? string.Empty, SchemaVersion = input.SchemaVersion,
                 StateSchemaJson = codec.Encode(new StateSchema(input.StateSchema)), DefaultStateJson = codec.Encode(new StateValue(input.DefaultState)),
                 PublicProjectionJson = codec.Encode(new PublicProjection(input.PublicProjection)), GenericActionRulesJson = JsonSerializer.Serialize(input.ActionRules ?? [], Options),
             };
             foreach (var actionInput in input.Actions ?? []) type.Actions.Add(new ScenarioObjectTypeAction
             {
-                Id = $"SOTA-{Guid.NewGuid():N}", ObjectTypeId = type.Id, Code = actionInput.Code.Trim(), Label = actionInput.Label.Trim(),
+                Id = new ScenarioObjectTypeActionId($"SOTA-{Guid.NewGuid():N}"), ObjectTypeId = type.Id, Code = actionInput.Code.Trim(), Label = actionInput.Label.Trim(),
                 Description = actionInput.Description?.Trim() ?? string.Empty, ArgumentSchemaJson = Element(actionInput.ArgumentSchema, "{}"),
                 AvailabilityConditionJson = codec.Encode(actionInput.AvailabilityCondition),
                 Visibility = ScenarioEnumValues.ParseActionVisibility(actionInput.Visibility), ExecutionMode = ScenarioEnumValues.ParseActionExecutionMode(actionInput.ExecutionMode),
@@ -43,7 +43,7 @@ public sealed class ScenarioDefinitionWriter(ApplicationDbContext db, ScenarioRu
         foreach (var location in locations.Values) version.Locations.Add(location);
         foreach (var input in request.Objects ?? []) version.Objects.Add(new ScenarioObject
         {
-            Id = $"SOBJ-{Guid.NewGuid():N}", DefinitionVersionId = version.Id, Code = input.Code.Trim(), Name = input.Name.Trim(),
+            Id = new ScenarioObjectId($"SOBJ-{Guid.NewGuid():N}"), DefinitionVersionId = version.Id, Code = input.Code.Trim(), Name = input.Name.Trim(),
             ProfileMarkdown = input.ProfileMarkdown?.Trim() ?? string.Empty, LocationId = locations[input.LocationCode].Id,
             InitialStateOverrideJson = codec.Encode(new StateValue(input.InitialStateOverride)),
             MixinTypeCodesJson = JsonSerializer.Serialize(input.MixinTypeCodes.Select(x => x.Trim()).Where(x => x.Length > 0)),

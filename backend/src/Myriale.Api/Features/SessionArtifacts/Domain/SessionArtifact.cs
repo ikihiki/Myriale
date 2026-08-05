@@ -63,10 +63,10 @@ public sealed class SessionArtifact
 {
     internal SessionArtifact() { }
 
-    [Key, MaxLength(40)] public string Id { get; internal set; } = string.Empty;
-    [Required, MaxLength(40)] public string SessionId { get; internal set; } = string.Empty;
-    [Required, MaxLength(40)] public string ExecutionId { get; internal set; } = string.Empty;
-    [Required, MaxLength(40)] public string AttemptId { get; internal set; } = string.Empty;
+    [Key, MaxLength(40)] public SessionArtifactId Id { get; internal set; }
+    [Required, MaxLength(40)] public SessionId SessionId { get; internal set; }
+    [Required, MaxLength(40)] public SessionExecutionId ExecutionId { get; internal set; }
+    [Required, MaxLength(40)] public SessionExecutionAttemptId AttemptId { get; internal set; }
     [Required, MaxLength(32)] public SessionArtifactKind Kind { get; internal set; }
     [Required, MaxLength(32)] public SessionArtifactStatus Status { get; internal set; }
     [Required, MaxLength(64)] public SessionArtifactSchema Schema { get; internal set; }
@@ -83,10 +83,10 @@ public sealed class SessionArtifact
     public SessionExecutionAttempt Attempt { get; internal set; } = null!;
 
     public static SessionArtifact CreateCommittedJson(
-        string id,
-        string sessionId,
-        string executionId,
-        string attemptId,
+        SessionArtifactId id,
+        SessionId sessionId,
+        SessionExecutionId executionId,
+        SessionExecutionAttemptId attemptId,
         SessionArtifactPayload payload,
         string? metadataJson,
         DateTimeOffset now,
@@ -99,19 +99,15 @@ public sealed class SessionArtifact
     }
 
     public static SessionArtifact CreateDraftJson(
-        string id,
-        string sessionId,
-        string executionId,
-        string attemptId,
+        SessionArtifactId id,
+        SessionId sessionId,
+        SessionExecutionId executionId,
+        SessionExecutionAttemptId attemptId,
         SessionArtifactPayload payload,
         string? metadataJson,
         DateTimeOffset now,
         JsonSerializerOptions? serializerOptions = null)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(id);
-        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(executionId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(attemptId);
         ArgumentNullException.ThrowIfNull(payload);
         ValidatePayload(payload);
         EnsureJsonBacked(payload.Kind, payload.Schema);
@@ -136,10 +132,10 @@ public sealed class SessionArtifact
     }
 
     public static SessionArtifact CreateCommittedImage(
-        string id,
-        string sessionId,
-        string executionId,
-        string attemptId,
+        SessionArtifactId id,
+        SessionId sessionId,
+        SessionExecutionId executionId,
+        SessionExecutionAttemptId attemptId,
         string storageKey,
         string contentType,
         string checksum,
@@ -153,20 +149,16 @@ public sealed class SessionArtifact
     }
 
     public static SessionArtifact CreateDraftImage(
-        string id,
-        string sessionId,
-        string executionId,
-        string attemptId,
+        SessionArtifactId id,
+        SessionId sessionId,
+        SessionExecutionId executionId,
+        SessionExecutionAttemptId attemptId,
         string storageKey,
         string contentType,
         string checksum,
         string moderationMetadataJson,
         DateTimeOffset now)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(id);
-        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(executionId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(attemptId);
         ArgumentException.ThrowIfNullOrWhiteSpace(storageKey);
         if (!string.Equals(contentType, "image/png", StringComparison.Ordinal)) throw new ArgumentException("Only PNG image artifacts are supported.", nameof(contentType));
         ValidateChecksum(checksum);

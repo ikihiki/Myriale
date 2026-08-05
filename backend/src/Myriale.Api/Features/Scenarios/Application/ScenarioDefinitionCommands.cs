@@ -3,9 +3,9 @@ using Myriale.Api.Infrastructure.Persistence;
 
 namespace Myriale.Api.Features.Scenarios.Application;
 
-public sealed record CreateScenarioDefinitionDraftCommand(string ScenarioId, string AuthorId);
-public sealed record SaveScenarioDefinitionCommand(string ScenarioId, string AuthorId, ScenarioRuleDataRequest Request);
-public sealed record PublishScenarioDefinitionCommand(string ScenarioId, string AuthorId);
+public sealed record CreateScenarioDefinitionDraftCommand(ScenarioId ScenarioId, AccountId AuthorId);
+public sealed record SaveScenarioDefinitionCommand(ScenarioId ScenarioId, AccountId AuthorId, ScenarioRuleDataRequest Request);
+public sealed record PublishScenarioDefinitionCommand(ScenarioId ScenarioId, AccountId AuthorId);
 public enum ScenarioDefinitionCommandOutcome { Success, NotFound, Invalid, Conflict, NotReady }
 public sealed record ScenarioDefinitionCommandResult(ScenarioDefinitionCommandOutcome Outcome, ScenarioRuleDataResponse? Definition = null, IReadOnlyDictionary<string, string[]>? Errors = null, bool Created = false);
 

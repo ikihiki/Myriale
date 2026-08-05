@@ -11,9 +11,9 @@ public sealed class ScenarioModuleExtensionAdapter(InitializeDetachedModuleExecu
         CancellationToken cancellationToken)
     {
         var binding = new ModuleObjectActionContext(
-            request.ObjectId,
-            request.ObjectTypeId,
-            request.ActionId,
+            request.ObjectId.AsPrimitive(),
+            request.ObjectTypeId is { } objectTypeId ? objectTypeId.AsPrimitive() : null!,
+            request.ActionId.AsPrimitive(),
             request.Arguments,
             request.ObjectState);
         var result = await executions.ExecuteAsync(
@@ -21,8 +21,8 @@ public sealed class ScenarioModuleExtensionAdapter(InitializeDetachedModuleExecu
             new InitializeModuleExecutionRequest(
                 $"scenario-extension:{request.InvocationId}",
                 request.ModuleId,
-                request.Version,
-                request.Digest,
+                new(request.Version),
+                new(request.Digest),
                 request.Configuration,
                 JsonSerializer.SerializeToElement(binding, ModuleJsonSerializerOptions.Create()),
                 0),
@@ -33,7 +33,7 @@ public sealed class ScenarioModuleExtensionAdapter(InitializeDetachedModuleExecu
 
         var outcome = execution.Outcome;
         return new ScenarioExtensionResult(
-            execution.Id,
+            new SessionExecutionId(execution.Id.AsPrimitive()),
             execution.Status.ToWireValue(),
             execution.Revision,
             execution.AvailableActions,

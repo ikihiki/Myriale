@@ -5,7 +5,7 @@ public sealed class DemoHomeDashboardService(Myriale.Api.Features.Sessions.Appli
 {
     public async Task<HomeDashboardResponse> GetDashboardAsync(string ownerId, CancellationToken cancellationToken)
     {
-        var activeSessions = await sessions.ExecuteAsync(ownerId, includeCompleted: false, cancellationToken);
+        var activeSessions = await sessions.ExecuteAsync(new AccountId(ownerId), includeCompleted: false, cancellationToken);
         return new HomeDashboardResponse(
             Account: new AccountSummaryDto(
                 DisplayName: "ミリア",

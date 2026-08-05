@@ -9,9 +9,9 @@ namespace Myriale.Api.Features.Sessions.Application;
 
 public sealed class ListSessionsQueryService(ApplicationDbContext db)
 {
-    public async Task<IReadOnlyList<PlaySessionSummaryDto>> ExecuteAsync(string ownerId, bool includeCompleted, CancellationToken ct) =>
+    public async Task<IReadOnlyList<PlaySessionSummaryDto>> ExecuteAsync(AccountId ownerId, bool includeCompleted, CancellationToken ct) =>
         (await db.Sessions.AsNoTracking().Where(s => s.OwnerId == ownerId && (includeCompleted || s.Status != SessionStatus.Completed))
-            .Select(s => new PlaySessionSummaryDto(s.Id, s.ScenarioId, s.Scenario.Title, s.SelectedHero, s.Status.ToWireValue(), s.HeadTurnId,
+            .Select(s => new PlaySessionSummaryDto(s.Id.AsPrimitive(), s.ScenarioId.AsPrimitive(), s.Scenario.Title, s.SelectedHero, s.Status.ToWireValue(), s.HeadTurnId == null ? null : s.HeadTurnId.Value.AsPrimitive(),
                 s.HeadTurn == null ? null : s.HeadTurn.Position, s.Turns.Count,
                 s.Summaries.OrderByDescending(x => x.ToPosition).ThenByDescending(x => x.Version).ThenByDescending(x => x.Id).Select(x => x.Body).FirstOrDefault(),
                 s.CreatedAt, s.UpdatedAt)).ToListAsync(ct)).OrderByDescending(x => x.UpdatedAt).ThenBy(x => x.Id, StringComparer.Ordinal).ToList();
@@ -19,7 +19,7 @@ public sealed class ListSessionsQueryService(ApplicationDbContext db)
 
 public sealed class GetSessionTurnQueryService(ApplicationDbContext db, IModuleExecutionProjection modules)
 {
-    public async Task<SessionTurnResponse?> ExecuteAsync(string ownerId, string sessionId, string turnId, CancellationToken ct)
+    public async Task<SessionTurnResponse?> ExecuteAsync(AccountId ownerId, SessionId sessionId, SessionTurnId turnId, CancellationToken ct)
     {
         var turn = await db.SessionTurns.AsNoTracking().Include(x => x.PlayerInput).Include(x => x.NarrativeSignals)
             .Include(x => x.ModuleExecution).SingleOrDefaultAsync(x => x.Id == turnId && x.SessionId == sessionId && x.Session.OwnerId == ownerId, ct);
@@ -33,7 +33,7 @@ public sealed class GetSessionDetailQueryService(ApplicationDbContext db, IModul
     IHostEnvironment environment, ScenarioRuleConfigurationResolver ruleResolver,
     GetSessionArtifactActivityQuery artifactActivityQuery)
 {
-    public async Task<SessionResponse?> ExecuteAsync(string ownerId, string sessionId, CancellationToken ct)
+    public async Task<SessionResponse?> ExecuteAsync(AccountId ownerId, SessionId sessionId, CancellationToken ct)
     {
         var session = await db.Sessions.AsNoTracking().Include(x => x.State).Include(x => x.Progress).ThenInclude(x => x!.CurrentNode)
             .Include(x => x.ProgressionTransitionReceipts).SingleOrDefaultAsync(x => x.Id == sessionId && x.OwnerId == ownerId, ct);
@@ -42,11 +42,11 @@ public sealed class GetSessionDetailQueryService(ApplicationDbContext db, IModul
             .Where(x => x.SessionId == sessionId).OrderBy(x => x.Position).ToListAsync(ct);
         var handoffs = await db.SessionExecutions.AsNoTracking().Where(x => x.SessionId == sessionId && x.Kind == SessionExecutionKind.ModuleHandoff)
             .ToDictionaryAsync(x => x.TriggerId, ct);
-        var turnResponses = turns.Select(x => SessionQueryMapper.ToTurn(x, modules, SessionQueryMapper.ToHandoff(handoffs.GetValueOrDefault(x.Id)))).OfType<SessionTurnResponse>().ToList();
+        var turnResponses = turns.Select(x => SessionQueryMapper.ToTurn(x, modules, SessionQueryMapper.ToHandoff(handoffs.GetValueOrDefault(new SessionExecutionTriggerId(x.Id.AsPrimitive()))))).OfType<SessionTurnResponse>().ToList();
         var storedExecutions = (await db.SessionExecutions.AsNoTracking().Include(x => x.Attempts).Where(x => x.SessionId == sessionId && x.DismissedAt == null).ToListAsync(ct)).OrderBy(x => x.CreatedAt).ToList();
-        var visibleInputIds = storedExecutions.Where(x => x.TriggerType == SessionExecutionTriggerType.PlayerInput).Select(x => x.TriggerId).ToHashSet(StringComparer.Ordinal);
-        visibleInputIds.UnionWith(turns.Select(x => x.PlayerInputId).OfType<string>());
-        var inputs = (await db.SessionPlayerInputs.AsNoTracking().Where(x => x.SessionId == sessionId).ToListAsync(ct)).Where(x => visibleInputIds.Contains(x.Id)).OrderBy(x => x.CreatedAt).ToList();
+        var visibleInputIds = storedExecutions.Where(x => x.TriggerType == SessionExecutionTriggerType.PlayerInput).Select(x => x.TriggerId).ToHashSet();
+        visibleInputIds.UnionWith(turns.Where(x => x.PlayerInputId is not null).Select(x => new SessionExecutionTriggerId(x.PlayerInputId!.Value.AsPrimitive())));
+        var inputs = (await db.SessionPlayerInputs.AsNoTracking().Where(x => x.SessionId == sessionId).ToListAsync(ct)).Where(x => visibleInputIds.Contains(new SessionExecutionTriggerId(x.Id.AsPrimitive()))).OrderBy(x => x.CreatedAt).ToList();
         var pending = SessionQueryMapper.Pending(inputs, storedExecutions);
         var artifactProjection = await artifactActivityQuery.ExecuteAsync(ownerId, sessionId, ct);
         var proposals = (await db.SessionNoteProposals.AsNoTracking().Where(x => x.SessionId == sessionId).ToListAsync(ct)).OrderBy(x => x.CreatedAt).ToList();
@@ -69,7 +69,7 @@ public sealed class GetSessionDetailQueryService(ApplicationDbContext db, IModul
         var stepResponses = ruleSteps.Select(x => new SessionRuleActionStepResponse(x.Id, x.ExecutionId, x.Stage.ToWireValue(), ScenarioTurnSchemas.ActionStep,
             Parse<RuleActionSnapshot>(x.ActionSnapshotJson), Parse<RuleActionDecisionResult>(x.DecisionJson), Parse<RulePostState>(x.PublicPostStateJson),
             Parse<ScenarioExtensionResult>(x.ExtensionReceiptJson), x.AppliedAt, x.NarrativePublishedAt)).ToList();
-        var stepsByExecution = ruleSteps.ToDictionary(x => x.ExecutionId, StringComparer.Ordinal);
+        var stepsByExecution = ruleSteps.ToDictionary(x => x.ExecutionId);
         var executionResponses = storedExecutions.Select(x => SessionExecutionProjection.ToResponse(x, environment.IsDevelopment(), stepsByExecution.GetValueOrDefault(x.Id))).ToList();
         var transition = session.ProgressionTransitionReceipts.OrderByDescending(x => x.CreatedAt).FirstOrDefault();
         return new SessionResponse(session.Id, session.ScenarioId, session.Status.ToWireValue(), session.HeadTurnId, session.Revision, session.InterpretationEnabled,
@@ -93,17 +93,17 @@ public sealed class GetSessionDetailQueryService(ApplicationDbContext db, IModul
 
 public sealed class GetSessionTurnInspectionQueryService(ApplicationDbContext db)
 {
-    public async Task<SessionTurnInspectionResponse?> ExecuteAsync(string userId, bool isAdministrator, string sessionId, string turnId, CancellationToken ct)
+    public async Task<SessionTurnInspectionResponse?> ExecuteAsync(AccountId userId, bool isAdministrator, SessionId sessionId, SessionTurnId turnId, CancellationToken ct)
     {
         var turn = await db.SessionTurns.AsNoTracking().Include(x => x.PlayerInput).Include(x => x.Session).ThenInclude(x => x.Scenario)
             .SingleOrDefaultAsync(x => x.Id == turnId && x.SessionId == sessionId, ct);
         if (turn is null || (!isAdministrator && turn.Session.Scenario.AuthorId != userId) || turn.PlayerInput is null) return null;
         var execution = await db.SessionExecutions.AsNoTracking().SingleOrDefaultAsync(x => x.SessionId == sessionId && x.Kind == SessionExecutionKind.ScenarioTurn
-            && x.TriggerType == SessionExecutionTriggerType.PlayerInput && x.TriggerId == turn.PlayerInputId, ct);
+            && x.TriggerType == SessionExecutionTriggerType.PlayerInput && x.TriggerId == new SessionExecutionTriggerId(turn.PlayerInput.Id.AsPrimitive()), ct);
         if (execution is null) return null;
         var interactions = (await db.SessionAiInteractions.AsNoTracking().Where(x => x.SessionId == sessionId && x.ExecutionId == execution.Id)
             .Select(x => new { Interaction = x, x.Attempt.AttemptNumber }).ToListAsync(ct))
-            .OrderBy(x => x.Interaction.StartedAt).ThenBy(x => x.AttemptNumber).ThenBy(x => x.Interaction.Sequence).ThenBy(x => x.Interaction.Id, StringComparer.Ordinal)
+            .OrderBy(x => x.Interaction.StartedAt).ThenBy(x => x.AttemptNumber).ThenBy(x => x.Interaction.Sequence).ThenBy(x => x.Interaction.Id.AsPrimitive(), StringComparer.Ordinal)
             .Select(x => new SessionAiInteractionInspection(x.Interaction.Id, x.AttemptNumber, x.Interaction.Sequence, x.Interaction.Stage.ToWireValue(), x.Interaction.AiProfileId,
                 x.Interaction.Provider, x.Interaction.Model, x.Interaction.ProviderRequestId, x.Interaction.StartedAt, x.Interaction.CompletedAt,
                 Math.Max(0, (long)(x.Interaction.CompletedAt - x.Interaction.StartedAt).TotalMilliseconds), x.Interaction.LatencyMilliseconds, x.Interaction.InputTokens, x.Interaction.OutputTokens,
@@ -139,37 +139,37 @@ public sealed class GetSessionTurnInspectionQueryService(ApplicationDbContext db
             changes.Add(new("location", null, "currentLocationId", JsonSerializer.SerializeToElement(snapshot.CurrentLocation.Id), JsonSerializer.SerializeToElement(postState.CurrentLocation.Id)));
         if (postRevision is not null && preRevision != postRevision)
             changes.Add(new("session-state", null, "revision", JsonSerializer.SerializeToElement(preRevision), JsonSerializer.SerializeToElement(postRevision.Value)));
-        var beforeObjects = snapshot.Objects.ToDictionary(x => x.Id, StringComparer.Ordinal);
-        var afterObjects = postState.Objects.ToDictionary(x => x.Id, StringComparer.Ordinal);
-        foreach (var id in beforeObjects.Keys.Union(afterObjects.Keys, StringComparer.Ordinal).Order(StringComparer.Ordinal))
+        var beforeObjects = snapshot.Objects.ToDictionary(x => x.Id);
+        var afterObjects = postState.Objects.ToDictionary(x => x.Id);
+        foreach (var id in beforeObjects.Keys.Union(afterObjects.Keys).OrderBy(x => x.AsPrimitive(), StringComparer.Ordinal))
         {
             if (!beforeObjects.TryGetValue(id, out var before))
             {
-                changes.Add(new("object", id, "object", null, JsonSerializer.SerializeToElement(afterObjects[id])));
+                changes.Add(new("object", id.AsPrimitive(), "object", null, JsonSerializer.SerializeToElement(afterObjects[id])));
                 continue;
             }
             if (!afterObjects.TryGetValue(id, out var after))
             {
-                changes.Add(new("object", id, "object", JsonSerializer.SerializeToElement(before), null));
+                changes.Add(new("object", id.AsPrimitive(), "object", JsonSerializer.SerializeToElement(before), null));
                 continue;
             }
-            if (before.LocationId != after.LocationId) changes.Add(new("object", id, "locationId", JsonSerializer.SerializeToElement(before.LocationId), JsonSerializer.SerializeToElement(after.LocationId)));
-            if (before.Revision != after.Revision) changes.Add(new("object", id, "revision", JsonSerializer.SerializeToElement(before.Revision), JsonSerializer.SerializeToElement(after.Revision)));
+            if (before.LocationId != after.LocationId) changes.Add(new("object", id.AsPrimitive(), "locationId", JsonSerializer.SerializeToElement(before.LocationId), JsonSerializer.SerializeToElement(after.LocationId)));
+            if (before.Revision != after.Revision) changes.Add(new("object", id.AsPrimitive(), "revision", JsonSerializer.SerializeToElement(before.Revision), JsonSerializer.SerializeToElement(after.Revision)));
             AddJsonChanges(changes, id, "state", before.State, after.State);
         }
         return changes;
     }
-    private static void AddJsonChanges(ICollection<RuleStateChangeInspection> changes, string objectId, string path, JsonElement before, JsonElement after)
+    private static void AddJsonChanges(ICollection<RuleStateChangeInspection> changes, ScenarioObjectId objectId, string path, JsonElement before, JsonElement after)
     {
         if (JsonElement.DeepEquals(before, after)) return;
-        if (before.ValueKind != JsonValueKind.Object || after.ValueKind != JsonValueKind.Object) { changes.Add(new("object", objectId, path, before.Clone(), after.Clone())); return; }
+        if (before.ValueKind != JsonValueKind.Object || after.ValueKind != JsonValueKind.Object) { changes.Add(new("object", objectId.AsPrimitive(), path, before.Clone(), after.Clone())); return; }
         var beforeProperties = before.EnumerateObject().ToDictionary(x => x.Name, x => x.Value, StringComparer.Ordinal);
         var afterProperties = after.EnumerateObject().ToDictionary(x => x.Name, x => x.Value, StringComparer.Ordinal);
         foreach (var name in beforeProperties.Keys.Union(afterProperties.Keys, StringComparer.Ordinal).Order(StringComparer.Ordinal))
         {
             var hasBefore = beforeProperties.TryGetValue(name, out var beforeValue); var hasAfter = afterProperties.TryGetValue(name, out var afterValue);
             var propertyPath = $"{path}.{name}";
-            if (!hasBefore || !hasAfter) { changes.Add(new("object", objectId, propertyPath, hasBefore ? beforeValue.Clone() : null, hasAfter ? afterValue.Clone() : null)); continue; }
+            if (!hasBefore || !hasAfter) { changes.Add(new("object", objectId.AsPrimitive(), propertyPath, hasBefore ? beforeValue.Clone() : null, hasAfter ? afterValue.Clone() : null)); continue; }
             AddJsonChanges(changes, objectId, propertyPath, beforeValue, afterValue);
         }
     }
@@ -181,7 +181,7 @@ public sealed class GetSessionTurnInspectionQueryService(ApplicationDbContext db
 public sealed record SessionActionRecommendationContext(NarrativeActionRecommendationRequest Request);
 public sealed class GetSessionActionRecommendationContextQuery(ApplicationDbContext db, INarrativeRecentTurnSelector recentTurnSelector)
 {
-    public async Task<SessionActionRecommendationContext?> ExecuteAsync(string ownerId, string sessionId, CancellationToken ct)
+    public async Task<SessionActionRecommendationContext?> ExecuteAsync(AccountId ownerId, SessionId sessionId, CancellationToken ct)
     {
         var session = await db.Sessions.AsNoTracking().Include(x => x.ScenarioDefinitionVersion).Include(x => x.State)
             .SingleOrDefaultAsync(x => x.Id == sessionId && x.OwnerId == ownerId, ct);
@@ -212,15 +212,15 @@ internal static class SessionQueryMapper
         }
         return turn.ModuleExecution is null ? null : new(turn.Id, turn.Position, turn.PreviousTurnId, turn.Kind.ToWireValue(), modules.ToResponse(turn.ModuleExecution), null, handoff, turn.CreatedAt);
     }
-    internal static async Task<NarrativeHandoffStatusResponse?> LoadHandoffAsync(ApplicationDbContext db, string turnId, CancellationToken ct) =>
-        ToHandoff(await db.SessionExecutions.AsNoTracking().SingleOrDefaultAsync(x => x.Kind == SessionExecutionKind.ModuleHandoff && x.TriggerId == turnId, ct));
+    internal static async Task<NarrativeHandoffStatusResponse?> LoadHandoffAsync(ApplicationDbContext db, SessionTurnId turnId, CancellationToken ct) =>
+        ToHandoff(await db.SessionExecutions.AsNoTracking().SingleOrDefaultAsync(x => x.Kind == SessionExecutionKind.ModuleHandoff && x.TriggerId == new SessionExecutionTriggerId(turnId.AsPrimitive()), ct));
     internal static NarrativeHandoffStatusResponse? ToHandoff(SessionExecution? execution) => execution is null ? null : new(
         execution.Status == SessionExecutionStatus.Succeeded ? "completed" : execution.Status is SessionExecutionStatus.Failed or SessionExecutionStatus.Superseded or SessionExecutionStatus.Cancelled ? "failed" : "pending",
         execution.ErrorCode, execution.UserErrorMessage, execution.CompletedAt ?? execution.NextAttemptAt ?? execution.CreatedAt);
     internal static List<SessionPendingPlayerInputResponse> Pending(IReadOnlyList<SessionPlayerInput> inputs, IReadOnlyList<SessionExecution> executions)
     {
         var byInput = executions.Where(x => x.DismissedAt == null && x.TriggerType == SessionExecutionTriggerType.PlayerInput).ToDictionary(x => x.TriggerId);
-        return inputs.Where(x => x.NarrativeTurn is null && byInput.ContainsKey(x.Id)).OrderBy(x => x.CreatedAt).ThenBy(x => x.Id, StringComparer.Ordinal).Select(x => { var e = byInput[x.Id];
+        return inputs.Where(x => x.NarrativeTurn is null && byInput.ContainsKey(new SessionExecutionTriggerId(x.Id.AsPrimitive()))).OrderBy(x => x.CreatedAt).ThenBy(x => x.Id.AsPrimitive(), StringComparer.Ordinal).Select(x => { var e = byInput[new SessionExecutionTriggerId(x.Id.AsPrimitive())];
             return new SessionPendingPlayerInputResponse(x.Id, x.RequestId, x.Text, x.InteractionType.ToWireValue(), x.AcceptedAfterTurnId, e.Status.ToContractValue(),
                 e.IsRetryable, e.ErrorCode, e.UserErrorMessage, e.AttemptCount, e.CompletedAt ?? e.NextAttemptAt ?? e.StartedAt ?? e.QueuedAt); }).ToList();
     }
@@ -228,9 +228,11 @@ internal static class SessionQueryMapper
         IReadOnlyList<SessionExecution> executions, IReadOnlyList<SessionArtifactActivityItem> artifacts)
     {
         var rows = new List<(DateTimeOffset At,int Rank,string Type,string Id,string? Causal)>();
-        rows.AddRange(turns.Select(x => (x.CreatedAt,4,"turn",x.Id,x.Narrative?.PlayerInputId ?? x.Narrative?.SourceModuleTurnId)));
-        rows.AddRange(inputs.Select(x => (x.CreatedAt,1,"input",x.Id,x.AcceptedAfterTurnId))); rows.AddRange(executions.Select(x => (x.CreatedAt,2,"execution",x.Id,(string?)x.TriggerId)));
-        rows.AddRange(artifacts.Select(x => (x.CreatedAt,3,"artifact",x.Id,(string?)x.ExecutionId)));
+        rows.AddRange(turns.Select(x => (x.CreatedAt,4,"turn",x.Id.AsPrimitive(),
+            x.Narrative?.PlayerInputId is { } inputId ? inputId.AsPrimitive() : x.Narrative?.SourceModuleTurnId is { } moduleTurnId ? moduleTurnId.AsPrimitive() : null)));
+        rows.AddRange(inputs.Select(x => (x.CreatedAt,1,"input",x.Id.AsPrimitive(),x.AcceptedAfterTurnId is { } acceptedTurnId ? acceptedTurnId.AsPrimitive() : null)));
+        rows.AddRange(executions.Select(x => (x.CreatedAt,2,"execution",x.Id.AsPrimitive(),(string?)x.TriggerId.AsPrimitive())));
+        rows.AddRange(artifacts.Select(x => (x.CreatedAt,3,"artifact",x.Id.AsPrimitive(),(string?)x.ExecutionId.AsPrimitive())));
         return rows.OrderBy(x => x.At).ThenBy(x => x.Rank).ThenBy(x => x.Id, StringComparer.Ordinal).Select((x,i) => new SessionActivityResponse(x.Type,x.Id,i+1,x.Causal)).ToList();
     }
 }

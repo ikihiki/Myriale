@@ -9,14 +9,14 @@ public interface ISessionArtifactWriter
 }
 
 public sealed record SessionImageAttachmentTarget(
-    string SessionId,
-    string ExecutionId,
-    string AttemptId,
+    SessionId SessionId,
+    SessionExecutionId ExecutionId,
+    SessionExecutionAttemptId AttemptId,
     SessionExecutionKind ExecutionKind,
     bool AttemptExists,
     bool AlreadyAttached);
 public sealed record SessionImageMediaDescriptor(string StorageKey, string ContentType);
-public sealed record SessionImageRetentionItem(string ImageId, string ArtifactId, string StorageKey, DateTimeOffset? RetainUntil);
+public sealed record SessionImageRetentionItem(SessionImageId ImageId, SessionArtifactId ArtifactId, string StorageKey, DateTimeOffset? RetainUntil);
 
 public enum SessionImagePersistenceOutcome
 {
@@ -26,15 +26,15 @@ public enum SessionImagePersistenceOutcome
 
 public interface ISessionArtifactRepository
 {
-    Task<SessionImageAttachmentTarget?> FindImageAttachmentTargetAsync(string ownerId, string sessionId, string executionId, string attemptId, CancellationToken cancellationToken);
+    Task<SessionImageAttachmentTarget?> FindImageAttachmentTargetAsync(AccountId ownerId, SessionId sessionId, SessionExecutionId executionId, SessionExecutionAttemptId attemptId, CancellationToken cancellationToken);
     Task<SessionImagePersistenceOutcome> TryAddImageAsync(SessionArtifact artifact, SessionImage image, CancellationToken cancellationToken);
-    Task<SessionImageMediaDescriptor?> FindImageMediaAsync(string ownerId, string imageId, CancellationToken cancellationToken);
+    Task<SessionImageMediaDescriptor?> FindImageMediaAsync(AccountId ownerId, SessionImageId imageId, CancellationToken cancellationToken);
 }
 
 public interface ISessionArtifactRetentionRepository
 {
     Task<IReadOnlyList<SessionImageRetentionItem>> ListImagesAsync(CancellationToken cancellationToken);
-    Task<bool> DeleteExpiredAsync(string imageId, DateTimeOffset now, CancellationToken cancellationToken);
+    Task<bool> DeleteExpiredAsync(SessionImageId imageId, DateTimeOffset now, CancellationToken cancellationToken);
 }
 
 public enum AttachSessionImageOutcome
@@ -46,21 +46,21 @@ public enum AttachSessionImageOutcome
 }
 
 public sealed record AttachSessionImageCommand(
-    string OwnerId,
-    string SessionId,
-    string ExecutionId,
-    string AttemptId,
+    AccountId OwnerId,
+    SessionId SessionId,
+    SessionExecutionId ExecutionId,
+    SessionExecutionAttemptId AttemptId,
     IFormFile File,
     string Checksum,
     string ModerationDecision,
     string? ModerationMetadataJson,
-    string? SourceTurnId,
-    string? SourceInputId,
+    SessionTurnId? SourceTurnId,
+    SessionPlayerInputId? SourceInputId,
     DateTimeOffset? RetainUntil);
 
 public sealed record AttachedSessionImage(
-    string ImageId,
-    string ArtifactId,
+    SessionImageId ImageId,
+    SessionArtifactId ArtifactId,
     string ContentType,
     long SizeBytes,
     int Width,
@@ -105,8 +105,8 @@ public sealed class AttachSessionImageUseCase(
         }
 
         var now = timeProvider.GetUtcNow();
-        var artifactId = $"ART-{Guid.NewGuid():N}".ToUpperInvariant();
-        var imageId = $"IMG-{Guid.NewGuid():N}".ToUpperInvariant();
+        var artifactId = new SessionArtifactId($"ART-{Guid.NewGuid():N}".ToUpperInvariant());
+        var imageId = new SessionImageId($"IMG-{Guid.NewGuid():N}".ToUpperInvariant());
         var storageKey = $"sessions/{command.SessionId}/images/{artifactId}.png";
         await using var content = new MemoryStream(validated.Content, writable: false);
         await storage.PutAsync(storageKey, content, validated.ContentType, cancellationToken);
@@ -140,7 +140,7 @@ public sealed record SessionImageMedia(Stream Content, string ContentType, long 
 
 public sealed class GetSessionImageMediaQuery(ISessionArtifactRepository repository, ISessionObjectStorage storage)
 {
-    public async Task<SessionImageMedia?> ExecuteAsync(string ownerId, string imageId, CancellationToken cancellationToken)
+    public async Task<SessionImageMedia?> ExecuteAsync(AccountId ownerId, SessionImageId imageId, CancellationToken cancellationToken)
     {
         var descriptor = await repository.FindImageMediaAsync(ownerId, imageId, cancellationToken);
         if (descriptor is null) return null;
@@ -149,14 +149,14 @@ public sealed class GetSessionImageMediaQuery(ISessionArtifactRepository reposit
     }
 }
 
-public sealed record SessionArtifactActivityItem(string Id, string ExecutionId, DateTimeOffset CreatedAt);
+public sealed record SessionArtifactActivityItem(SessionArtifactId Id, SessionExecutionId ExecutionId, DateTimeOffset CreatedAt);
 public sealed record SessionArtifactActivityProjection(
     IReadOnlyList<SessionArtifactResponse> Artifacts,
     IReadOnlyList<SessionArtifactActivityItem> ActivityItems);
 
 public sealed class GetSessionArtifactActivityQuery(ApplicationDbContext db)
 {
-    public async Task<SessionArtifactActivityProjection> ExecuteAsync(string ownerId, string sessionId, CancellationToken cancellationToken)
+    public async Task<SessionArtifactActivityProjection> ExecuteAsync(AccountId ownerId, SessionId sessionId, CancellationToken cancellationToken)
     {
         var rows = await (
             from artifact in db.SessionArtifacts.AsNoTracking()
@@ -172,12 +172,12 @@ public sealed class GetSessionArtifactActivityQuery(ApplicationDbContext db)
                 artifact.Status,
                 artifact.Schema,
                 artifact.ContentType,
-                ImageId = image == null ? null : image.Id,
+                ImageId = image == null ? (SessionImageId?)null : image.Id,
                 artifact.MetadataJson,
                 artifact.CreatedAt,
                 artifact.CommittedAt,
             }).ToListAsync(cancellationToken);
-        var ordered = rows.OrderBy(row => row.CreatedAt).ThenBy(row => row.Id, StringComparer.Ordinal).ToList();
+        var ordered = rows.OrderBy(row => row.CreatedAt).ThenBy(row => row.Id.AsPrimitive(), StringComparer.Ordinal).ToList();
         return new(
             ordered.Select(row => new SessionArtifactResponse(
                 row.Id, row.ExecutionId, row.Kind.ToWireValue(), row.Status.ToWireValue(), row.Schema.ToWireValue(), row.ContentType,

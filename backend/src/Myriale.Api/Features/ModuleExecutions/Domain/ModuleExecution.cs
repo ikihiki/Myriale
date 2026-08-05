@@ -32,9 +32,9 @@ public static class ModuleExecutionStatusValues
 }
 
 public sealed record ModuleExecutionPackageSnapshot(
-    string ModuleId,
-    string Version,
-    string Digest,
+    ModulePackageModuleId ModuleId,
+    ModulePackageVersion Version,
+    ModulePackageDigest Digest,
     string ContractVersion,
     IReadOnlyList<string> Capabilities,
     int ConfigurationSchemaVersion,
@@ -42,11 +42,11 @@ public sealed record ModuleExecutionPackageSnapshot(
 
 public sealed class ModuleExecution
 {
-    [Key, MaxLength(40)] public string Id { get; internal set; } = string.Empty;
-    [Required, MaxLength(450)] public string OwnerId { get; internal set; } = string.Empty;
-    [Required, MaxLength(200)] public string ModuleId { get; internal set; } = string.Empty;
-    [Required, MaxLength(64)] public string ModuleVersion { get; internal set; } = string.Empty;
-    [Required, MaxLength(64)] public string ModuleDigest { get; internal set; } = string.Empty;
+    [Key, MaxLength(40)] public ModuleExecutionId Id { get; internal set; }
+    [Required, MaxLength(450)] public AccountId OwnerId { get; internal set; }
+    [Required, MaxLength(200)] public ModulePackageModuleId ModuleId { get; internal set; }
+    [Required, MaxLength(64)] public ModulePackageVersion ModuleVersion { get; internal set; }
+    [Required, MaxLength(64)] public ModulePackageDigest ModuleDigest { get; internal set; }
     [Required, MaxLength(32)] public string ContractVersion { get; internal set; } = string.Empty;
     [Required] public string CapabilitiesJson { get; internal set; } = "[]";
     public int ConfigurationSchemaVersion { get; internal set; }
@@ -63,13 +63,13 @@ public sealed class ModuleExecution
     public DateTimeOffset CreatedAt { get; internal set; }
     public DateTimeOffset UpdatedAt { get; internal set; }
     public DateTimeOffset? CompletedAt { get; internal set; }
-    [MaxLength(40)] public string? SessionTurnId { get; internal set; }
+    [MaxLength(40)] public SessionTurnId? SessionTurnId { get; internal set; }
     public ModuleOutcomeApplication? OutcomeApplication { get; internal set; }
     public ICollection<ModuleExecutionRequest> Requests { get; internal set; } = [];
     public SessionTurn? SessionTurn { get; internal set; }
 
     public static ModuleExecution Create(
-        string id, string ownerId, ModuleExecutionPackageSnapshot package,
+        ModuleExecutionId id, AccountId ownerId, ModuleExecutionPackageSnapshot package,
         JsonElement configuration, JsonElement context, DateTimeOffset now) => new()
     {
         Id = id, OwnerId = ownerId, ModuleId = package.ModuleId, ModuleVersion = package.Version,
@@ -81,7 +81,7 @@ public sealed class ModuleExecution
         Status = ModuleExecutionStatus.Initializing, Revision = -1, CreatedAt = now, UpdatedAt = now,
     };
 
-    public void AttachSessionTurn(string sessionTurnId)
+    public void AttachSessionTurn(SessionTurnId sessionTurnId)
     {
         if (SessionTurnId is not null && SessionTurnId != sessionTurnId) throw new InvalidOperationException("Module execution already belongs to another session turn.");
         SessionTurnId = sessionTurnId;

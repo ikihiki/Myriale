@@ -11,10 +11,10 @@ public sealed record SessionMemoryCommandResult(
     string? ErrorCode = null,
     string? ErrorMessage = null);
 
-public sealed record CreateSessionNoteCommand(string SessionId, string OwnerId, UpsertSessionLorebookEntryRequest Request);
-public sealed record UpdateSessionNoteCommand(string SessionId, string NoteId, string OwnerId, UpsertSessionLorebookEntryRequest Request);
+public sealed record CreateSessionNoteCommand(SessionId SessionId, AccountId OwnerId, UpsertSessionLorebookEntryRequest Request);
+public sealed record UpdateSessionNoteCommand(SessionId SessionId, SessionNoteId NoteId, AccountId OwnerId, UpsertSessionLorebookEntryRequest Request);
 public sealed record ReviewSessionNoteProposalCommand(
-    string ArtifactId, string OwnerId, SessionNoteProposalStatus Status, ReviewSessionNoteProposalRequest Request);
+    SessionArtifactId ArtifactId, AccountId OwnerId, SessionNoteProposalStatus Status, ReviewSessionNoteProposalRequest Request);
 
 public sealed class CreateSessionNoteUseCase(ISessionMemoryRepository repository)
 {
@@ -25,15 +25,16 @@ public sealed class CreateSessionNoteUseCase(ISessionMemoryRepository repository
         if (input.Error is not null) return input.Error;
         if (!await repository.TurnsBelongToSessionAsync(command.SessionId, input.TurnIds, cancellationToken)) return SessionNoteRequestValidator.InvalidTurn();
         var now = DateTimeOffset.UtcNow;
-        var note = SessionNote.Create(NewId("LOR"), command.SessionId, input.Kind, input.Title, input.AliasesJson, input.Body,
+        var note = SessionNote.Create(NewNoteId("LOR"), command.SessionId, input.Kind, input.Title, input.AliasesJson, input.Body,
             input.CanonStatus, command.Request.FirstTurnId, command.Request.UpdatedFromTurnId, now);
         repository.AddNote(note);
-        repository.AddRevision(note.CaptureRevision(NewId("NRV"), now));
+        repository.AddRevision(note.CaptureRevision(NewRevisionId(), now));
         await repository.SaveChangesAsync(cancellationToken);
         return new(SessionMemoryCommandOutcome.Success, SessionMemoryMapper.ToResponse(note));
     }
 
-    internal static string NewId(string prefix) => $"{prefix}-{Guid.NewGuid():N}".ToUpperInvariant();
+    internal static SessionNoteId NewNoteId(string prefix) => new($"{prefix}-{Guid.NewGuid():N}".ToUpperInvariant());
+    internal static SessionNoteRevisionId NewRevisionId() => new($"NRV-{Guid.NewGuid():N}".ToUpperInvariant());
 }
 
 public sealed class UpdateSessionNoteUseCase(ISessionMemoryRepository repository)
@@ -49,7 +50,7 @@ public sealed class UpdateSessionNoteUseCase(ISessionMemoryRepository repository
         var now = DateTimeOffset.UtcNow;
         note.Edit(input.Kind, input.Title, input.AliasesJson, input.Body, input.CanonStatus,
             command.Request.FirstTurnId, command.Request.UpdatedFromTurnId, now);
-        repository.AddRevision(note.CaptureRevision(CreateSessionNoteUseCase.NewId("NRV"), now));
+        repository.AddRevision(note.CaptureRevision(CreateSessionNoteUseCase.NewRevisionId(), now));
         try { await repository.SaveChangesAsync(cancellationToken); }
         catch (DbUpdateConcurrencyException) { return RevisionConflict("Lorebook entryが更新されています。再読み込みしてください。"); }
         return new(SessionMemoryCommandOutcome.Success, SessionMemoryMapper.ToResponse(note));
@@ -77,18 +78,18 @@ public sealed class ReviewSessionNoteProposalUseCase(ISessionMemoryRepository re
             if (proposal.NoteId is null)
             {
                 if (command.Request.ExpectedNoteRevision != 0) return UpdateSessionNoteUseCase.RevisionConflict("ノートが更新されています。");
-                note = SessionNote.CreateFromProposal(CreateSessionNoteUseCase.NewId("NOT"), proposal, title, body, now);
+                note = SessionNote.CreateFromProposal(CreateSessionNoteUseCase.NewNoteId("NOT"), proposal, title, body, now);
                 repository.AddNote(note);
             }
             else
             {
-                note = await repository.GetNoteAsync(proposal.NoteId, cancellationToken);
+                note = await repository.GetNoteAsync(proposal.NoteId.Value, cancellationToken);
                 if (note is null) return new(SessionMemoryCommandOutcome.NotFound);
                 if (note.Revision != command.Request.ExpectedNoteRevision || note.Revision != proposal.ExpectedNoteRevision)
                     return UpdateSessionNoteUseCase.RevisionConflict("ノートが更新されています。差分を再確認してください。");
                 note.ApplyProposal(title, body, now);
             }
-            repository.AddRevision(note.CaptureRevision(CreateSessionNoteUseCase.NewId("NRV"), now, proposal.ArtifactId));
+            repository.AddRevision(note.CaptureRevision(CreateSessionNoteUseCase.NewRevisionId(), now, proposal.ArtifactId));
         }
 
         proposal.Review(command.Status, note?.Id, now);
@@ -116,7 +117,7 @@ internal static class SessionNoteRequestValidator
         var aliases = (request.Aliases ?? []).Select(alias => alias.Trim()).Where(alias => alias.Length > 0)
             .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         if (aliases.Length > 20) return Error("invalid_lorebook_aliases", "別名は20件以内で指定してください。");
-        var turnIds = new[] { request.FirstTurnId, request.UpdatedFromTurnId }.OfType<string>().Distinct().ToArray();
+        var turnIds = new[] { request.FirstTurnId, request.UpdatedFromTurnId }.OfType<SessionTurnId>().Distinct().ToArray();
         return new(kind, canonStatus, title, body, JsonSerializer.Serialize(aliases), turnIds, null);
     }
 
@@ -129,4 +130,4 @@ internal static class SessionNoteRequestValidator
 
 internal sealed record ValidatedSessionNoteRequest(
     SessionNoteKind Kind, SessionNoteCanonStatus CanonStatus, string Title, string Body, string AliasesJson,
-    IReadOnlyCollection<string> TurnIds, SessionMemoryCommandResult? Error);
+    IReadOnlyCollection<SessionTurnId> TurnIds, SessionMemoryCommandResult? Error);

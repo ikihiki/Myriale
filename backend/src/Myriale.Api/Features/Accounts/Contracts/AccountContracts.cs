@@ -2,7 +2,7 @@
 namespace Myriale.Api.Features.Accounts.Contracts;
 
 public sealed record AccountUserResponse(
-    string Id,
+    AccountId Id,
     string DisplayName,
     string Email,
     string Bio,

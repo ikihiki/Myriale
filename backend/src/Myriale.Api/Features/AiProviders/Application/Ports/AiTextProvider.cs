@@ -39,7 +39,7 @@ public sealed class AiProviderException(
 public sealed record AiTextRequest(IReadOnlyList<ChatMessage> Messages, ChatResponseFormatJson ResponseFormat);
 
 [CrossSliceContract]
-public sealed record AiGenerationMetadata(string Provider, string Model, string? ResponseId, int? InputTokens, int? OutputTokens, long LatencyMilliseconds, int AttemptCount, string? FinishReason);
+public sealed record AiGenerationMetadata(AiProviderProfileId Provider, string Model, string? ResponseId, int? InputTokens, int? OutputTokens, long LatencyMilliseconds, int AttemptCount, string? FinishReason);
 
 [CrossSliceContract]
 public sealed record AiTextResponse(string Text, AiGenerationMetadata Metadata);
@@ -48,7 +48,7 @@ public sealed record AiTextResponse(string Text, AiGenerationMetadata Metadata);
 public interface IAiTextProvider
 {
     Task<AiTextResponse> GenerateAsync(AiTextRequest request, CancellationToken cancellationToken);
-    Task<AiTextResponse> GenerateForProfileAsync(string profileId, AiTextRequest request, CancellationToken cancellationToken) => GenerateAsync(request, cancellationToken);
-    Task<AiTextResponse> GenerateForProviderAsync(string provider, string credential, AiTextRequest request, CancellationToken cancellationToken);
-    Task TestConnectionAsync(string provider, string credential, CancellationToken cancellationToken);
+    Task<AiTextResponse> GenerateForProfileAsync(AiProviderProfileId profileId, AiTextRequest request, CancellationToken cancellationToken) => GenerateAsync(request, cancellationToken);
+    Task<AiTextResponse> GenerateForProviderAsync(AiProviderProfileId provider, string credential, AiTextRequest request, CancellationToken cancellationToken);
+    Task TestConnectionAsync(AiProviderProfileId provider, string credential, CancellationToken cancellationToken);
 }

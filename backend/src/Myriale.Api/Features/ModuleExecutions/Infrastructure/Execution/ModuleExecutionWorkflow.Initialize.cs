@@ -15,20 +15,20 @@ namespace Myriale.Api.Features.ModuleExecutions.Infrastructure;
 internal sealed partial class ModuleExecutionWorkflow
 {
     public Task<ModuleExecutionResult> InitializeDetachedAsync(
-        string ownerId,
+        AccountId ownerId,
         InitializeModuleExecutionRequest request,
         CancellationToken cancellationToken) =>
         InitializeCoreAsync(ownerId, null, request, cancellationToken, 0, allowManagedSession: true);
 
     public Task<ModuleExecutionResult> InitializeSessionTurnAsync(
-        string ownerId, string sessionId, InitializeModuleExecutionRequest request,
+        AccountId ownerId, SessionId sessionId, InitializeModuleExecutionRequest request,
         SessionTurnInitializationPolicy policy, CancellationToken cancellationToken) =>
         InitializeCoreAsync(ownerId, sessionId, request, cancellationToken, 0,
             allowManagedSession: policy == SessionTurnInitializationPolicy.ScenarioProgression);
 
     private async Task<ModuleExecutionResult> InitializeCoreAsync(
-        string ownerId,
-        string? sessionId,
+        AccountId ownerId,
+        SessionId? sessionId,
         InitializeModuleExecutionRequest request,
         CancellationToken cancellationToken,
         int positionRetryCount,
@@ -36,8 +36,7 @@ internal sealed partial class ModuleExecutionWorkflow
     {
             var inputError = ValidateCommon(request.RequestId, request.RandomValueCount);
             if (inputError is not null) return inputError;
-            if (string.IsNullOrWhiteSpace(request.ModuleId) || string.IsNullOrWhiteSpace(request.Version)
-                || request.Digest?.Trim().Length != 64 || request.Configuration.ValueKind == JsonValueKind.Undefined
+            if (request.Configuration.ValueKind == JsonValueKind.Undefined
                 || request.Context.ValueKind == JsonValueKind.Undefined)
                 return BadRequest("invalid_request", "モジュール識別情報、configuration、contextを確認してください。");
 
@@ -58,16 +57,16 @@ internal sealed partial class ModuleExecutionWorkflow
                     return Conflict("scenario_module_turn_managed", "Scenario進行用Module Turnはhostオーケストレーターだけが開始できます。");
             }
 
-            var digest = request.Digest.Trim().ToLowerInvariant();
+            var digest = request.Digest;
             if (!ModuleRequestFingerprint.TryCreate(writer =>
             {
                 writer.WriteStartObject();
                 writer.WriteString("operation", "initialize");
                 if (sessionId is null) writer.WriteNull("sessionId");
-                else writer.WriteString("sessionId", sessionId);
-                writer.WriteString("moduleId", request.ModuleId);
-                writer.WriteString("version", request.Version);
-                writer.WriteString("digest", digest);
+                else writer.WriteString("sessionId", sessionId.Value.AsPrimitive());
+                writer.WriteString("moduleId", request.ModuleId.AsPrimitive());
+                writer.WriteString("version", request.Version.AsPrimitive());
+                writer.WriteString("digest", digest.AsPrimitive());
                 writer.WritePropertyName("configuration");
                 ModuleRequestFingerprint.WriteCanonical(writer, request.Configuration);
                 writer.WritePropertyName("context");
@@ -92,7 +91,7 @@ internal sealed partial class ModuleExecutionWorkflow
             ModulePackageResolution packageResolution;
             try
             {
-                packageResolution = await packageCatalog.ResolveAsync(new(request.ModuleId), new(request.Version), new(digest), cancellationToken);
+                packageResolution = await packageCatalog.ResolveAsync(request.ModuleId, request.Version, digest, cancellationToken);
             }
             catch (ArgumentException)
             {
@@ -108,7 +107,7 @@ internal sealed partial class ModuleExecutionWorkflow
             var package = packageResolution.Package;
             var manifest = package.Manifest;
             var packageSnapshot = new ModuleExecutionPackageSnapshot(
-                package.ModuleId.AsPrimitive(), package.Version.AsPrimitive(), package.Digest.AsPrimitive(), package.ContractVersion,
+                package.ModuleId, package.Version, package.Digest, package.ContractVersion,
                 manifest.Capabilities ?? [], manifest.Configuration.SchemaVersion, manifest.Configuration.StateSchemaVersion);
             var now = DateTimeOffset.UtcNow;
             var execution = ModuleExecution.Create(
@@ -155,8 +154,8 @@ internal sealed partial class ModuleExecutionWorkflow
 
 
     private async Task<ModuleExecutionResult> ResumeInitializationAsync(
-        string ownerId,
-        long receiptId,
+        AccountId ownerId,
+        ModuleExecutionRequestId receiptId,
         string payloadHash,
         CancellationToken cancellationToken)
     {
@@ -178,7 +177,7 @@ internal sealed partial class ModuleExecutionWorkflow
     {
         try
         {
-            var identity = new ModulePackageIdentity(execution.ModuleId, execution.ModuleVersion, execution.ModuleDigest);
+            var identity = new ModulePackageIdentity(execution.ModuleId.AsPrimitive(), execution.ModuleVersion.AsPrimitive(), execution.ModuleDigest.AsPrimitive());
             var configuration = Parse(execution.ConfigurationJson);
             var validation = await runtime.ValidateConfigAsync(
                 identity,

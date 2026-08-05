@@ -326,7 +326,7 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
     private static void ValidateModuleBinding(ScenarioModuleBinding? binding, string path, Action<string, string> add)
     {
         if (binding is null) return;
-        if (string.IsNullOrWhiteSpace(binding.ModuleId)) add($"{path}.moduleId", "Module ID is required.");
+        if (string.IsNullOrWhiteSpace(binding.ModuleId.AsPrimitive())) add($"{path}.moduleId", "Module ID is required.");
         if (string.IsNullOrWhiteSpace(binding.Version)) add($"{path}.version", "Module version is required.");
         if (string.IsNullOrWhiteSpace(binding.Digest)) add($"{path}.digest", "Module digest is required.");
         RequireObject(binding.Configuration, $"{path}.configuration", add);

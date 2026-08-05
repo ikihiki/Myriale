@@ -3,11 +3,11 @@ namespace Myriale.Api.Features.SessionMemory.Application;
 
 public interface ISessionMemoryRepository
 {
-    Task<bool> SessionExistsAsync(string sessionId, string ownerId, CancellationToken cancellationToken);
-    Task<bool> TurnsBelongToSessionAsync(string sessionId, IReadOnlyCollection<string> turnIds, CancellationToken cancellationToken);
-    Task<SessionNote?> GetNoteAsync(string sessionId, string noteId, string ownerId, CancellationToken cancellationToken);
-    Task<SessionNote?> GetNoteAsync(string noteId, CancellationToken cancellationToken);
-    Task<SessionNoteProposal?> GetProposalAsync(string artifactId, string ownerId, CancellationToken cancellationToken);
+    Task<bool> SessionExistsAsync(SessionId sessionId, AccountId ownerId, CancellationToken cancellationToken);
+    Task<bool> TurnsBelongToSessionAsync(SessionId sessionId, IReadOnlyCollection<SessionTurnId> turnIds, CancellationToken cancellationToken);
+    Task<SessionNote?> GetNoteAsync(SessionId sessionId, SessionNoteId noteId, AccountId ownerId, CancellationToken cancellationToken);
+    Task<SessionNote?> GetNoteAsync(SessionNoteId noteId, CancellationToken cancellationToken);
+    Task<SessionNoteProposal?> GetProposalAsync(SessionArtifactId artifactId, AccountId ownerId, CancellationToken cancellationToken);
     void AddNote(SessionNote note);
     void AddRevision(SessionNoteRevision revision);
     Task SaveChangesAsync(CancellationToken cancellationToken);

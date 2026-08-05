@@ -45,10 +45,10 @@ public static class ScenarioTurnStageValues
 
 public sealed class SessionObjectState
 {
-    [Key, MaxLength(40)] public string Id { get; internal set; } = string.Empty;
-    [Required, MaxLength(40)] public string SessionId { get; internal set; } = string.Empty;
-    [Required] public string ScenarioObjectId { get; internal set; } = string.Empty;
-    [Required] public string LocationId { get; internal set; } = string.Empty;
+    [Key, MaxLength(40)] public SessionObjectStateId Id { get; internal set; }
+    [Required, MaxLength(40)] public SessionId SessionId { get; internal set; }
+    [Required] public ScenarioObjectId ScenarioObjectId { get; internal set; }
+    [Required] public ScenarioLocationId LocationId { get; internal set; }
     [Required] public string StateJson { get; internal set; } = "{}";
     public long Revision { get; internal set; }
     public DateTimeOffset UpdatedAt { get; internal set; }
@@ -57,12 +57,9 @@ public sealed class SessionObjectState
     public ScenarioLocation Location { get; internal set; } = null!;
 
     public static SessionObjectState Create(
-        string id, string sessionId, string scenarioObjectId, string locationId,
+        SessionObjectStateId id, SessionId sessionId, ScenarioObjectId scenarioObjectId, ScenarioLocationId locationId,
         string stateJson, DateTimeOffset now)
     {
-        if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(sessionId)
-            || string.IsNullOrWhiteSpace(scenarioObjectId) || string.IsNullOrWhiteSpace(locationId))
-            throw new ArgumentException("Object state identity, session, object, and location are required.");
         _ = System.Text.Json.JsonDocument.Parse(stateJson);
         return new SessionObjectState
         {
@@ -76,11 +73,10 @@ public sealed class SessionObjectState
         };
     }
 
-    public void Apply(string stateJson, string locationId, long expectedRevision, DateTimeOffset now)
+    public void Apply(string stateJson, ScenarioLocationId locationId, long expectedRevision, DateTimeOffset now)
     {
         if (Revision != expectedRevision)
-            throw new ScenarioRuntimeRevisionConflictException(ScenarioObjectId, expectedRevision, Revision);
-        if (string.IsNullOrWhiteSpace(locationId)) throw new ArgumentException("Location is required.", nameof(locationId));
+            throw new ScenarioRuntimeRevisionConflictException(ScenarioObjectId.AsPrimitive(), expectedRevision, Revision);
         _ = System.Text.Json.JsonDocument.Parse(stateJson);
         StateJson = stateJson;
         LocationId = locationId;
@@ -91,11 +87,11 @@ public sealed class SessionObjectState
 
 public sealed class SessionRuleActionStep
 {
-    [Key, MaxLength(40)] public string Id { get; internal set; } = string.Empty;
-    [Required, MaxLength(40)] public string SessionId { get; internal set; } = string.Empty;
-    [Required, MaxLength(40)] public string ExecutionId { get; internal set; } = string.Empty;
-    [Required, MaxLength(40)] public string PlayerInputId { get; internal set; } = string.Empty;
-    [Required] public string ScenarioDefinitionVersionId { get; internal set; } = string.Empty;
+    [Key, MaxLength(40)] public SessionRuleActionStepId Id { get; internal set; }
+    [Required, MaxLength(40)] public SessionId SessionId { get; internal set; }
+    [Required, MaxLength(40)] public SessionExecutionId ExecutionId { get; internal set; }
+    [Required, MaxLength(40)] public SessionPlayerInputId PlayerInputId { get; internal set; }
+    [Required] public ScenarioDefinitionVersionId ScenarioDefinitionVersionId { get; internal set; }
     [Required, MaxLength(40)] public ScenarioTurnStage Stage { get; internal set; } = ScenarioTurnStage.Snapshot;
     public int SchemaVersion { get; internal set; } = 1;
     public long PreSessionRevision { get; internal set; }
@@ -125,12 +121,11 @@ public sealed class SessionRuleActionStep
     public SessionPlayerInput PlayerInput { get; internal set; } = null!;
 
     public static SessionRuleActionStep CreateSnapshot(
-        string id, string sessionId, string executionId, string playerInputId,
-        string definitionVersionId, long preSessionRevision, string objectRevisionsJson,
+        SessionRuleActionStepId id, SessionId sessionId, SessionExecutionId executionId, SessionPlayerInputId playerInputId,
+        ScenarioDefinitionVersionId definitionVersionId, long preSessionRevision, string objectRevisionsJson,
         string actionSnapshotJson, DateTimeOffset now, DateTimeOffset? startedAt = null)
     {
-        if (new[] { id, sessionId, executionId, playerInputId, definitionVersionId, objectRevisionsJson, actionSnapshotJson }
-            .Any(string.IsNullOrWhiteSpace))
+        if (string.IsNullOrWhiteSpace(objectRevisionsJson) || string.IsNullOrWhiteSpace(actionSnapshotJson))
             throw new ArgumentException("Scenario action snapshot fields are required.");
         return new SessionRuleActionStep
         {
@@ -191,7 +186,7 @@ public sealed class SessionRuleActionStep
         if (AppliedAt is not null) return false;
         EnsureStage(ScenarioTurnStage.EffectCommit);
         if (PreSessionRevision != expectedPreSessionRevision)
-            throw new ScenarioRuntimeRevisionConflictException(SessionId, expectedPreSessionRevision, PreSessionRevision);
+            throw new ScenarioRuntimeRevisionConflictException(SessionId.AsPrimitive(), expectedPreSessionRevision, PreSessionRevision);
         if (postSessionRevision <= expectedPreSessionRevision)
             throw new ArgumentOutOfRangeException(nameof(postSessionRevision));
         PostSessionRevision = postSessionRevision;

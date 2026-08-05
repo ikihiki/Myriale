@@ -115,20 +115,20 @@ public sealed class SessionExecution
             [SessionExecutionStatus.Succeeded] = Set(), [SessionExecutionStatus.Superseded] = Set(),
         };
 
-    [Key, MaxLength(40)] public string Id { get; internal set; } = string.Empty;
-    [Required, MaxLength(40)] public string SessionId { get; internal set; } = string.Empty;
+    [Key, MaxLength(40)] public SessionExecutionId Id { get; internal set; }
+    [Required, MaxLength(40)] public SessionId SessionId { get; internal set; }
     [Required, MaxLength(32)] public SessionExecutionKind Kind { get; internal set; } = SessionExecutionKind.Narrative;
     [Required, MaxLength(32)] public SessionExecutionTriggerType TriggerType { get; internal set; } = SessionExecutionTriggerType.PlayerInput;
-    [Required, MaxLength(40)] public string TriggerId { get; internal set; } = string.Empty;
+    [Required, MaxLength(40)] public SessionExecutionTriggerId TriggerId { get; internal set; }
     [Required, MaxLength(32)] public SessionExecutionStatus Status { get; internal set; } = SessionExecutionStatus.Queued;
     [MaxLength(40)] public string? Stage { get; internal set; }
     public int SchemaVersion { get; internal set; } = 1;
     public long Revision { get; internal set; }
     [Required, MaxLength(160)] public string IdempotencyKey { get; internal set; } = string.Empty;
     [Required, MaxLength(64)] public string PayloadHash { get; internal set; } = string.Empty;
-    [MaxLength(80)] public string? ActionDecisionAiProfileId { get; internal set; }
-    [MaxLength(80)] public string? NarrativeAiProfileId { get; internal set; }
-    [MaxLength(40)] public string? AcceptedHeadTurnId { get; internal set; }
+    [MaxLength(80)] public AiProviderProfileId? ActionDecisionAiProfileId { get; internal set; }
+    [MaxLength(80)] public AiProviderProfileId? NarrativeAiProfileId { get; internal set; }
+    [MaxLength(40)] public SessionTurnId? AcceptedHeadTurnId { get; internal set; }
     public long AcceptedSessionRevision { get; internal set; }
     [Required, MaxLength(32)] public SessionExecutionPublishPolicy PublishPolicy { get; internal set; } = SessionExecutionPublishPolicy.Required;
     public int Priority { get; internal set; }
@@ -142,7 +142,7 @@ public sealed class SessionExecution
     [MaxLength(80)] public string? ErrorCode { get; internal set; }
     [MaxLength(500)] public string? UserErrorMessage { get; internal set; }
     [MaxLength(512)] public string? TraceParent { get; internal set; }
-    [MaxLength(40)] public string? SupersededByExecutionId { get; internal set; }
+    [MaxLength(40)] public SessionExecutionId? SupersededByExecutionId { get; internal set; }
     public DateTimeOffset CreatedAt { get; internal set; }
     public DateTimeOffset QueuedAt { get; internal set; }
     public DateTimeOffset? StartedAt { get; internal set; }

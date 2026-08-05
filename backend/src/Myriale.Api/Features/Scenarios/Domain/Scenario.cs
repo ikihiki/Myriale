@@ -7,7 +7,7 @@ public sealed class Scenario
     internal Scenario() { }
 
     [Key]
-    public string Id { get; internal set; } = string.Empty;
+    public ScenarioId Id { get; internal set; }
 
     [Required]
     [MaxLength(160)]
@@ -50,7 +50,7 @@ public sealed class Scenario
     public ScenarioPublicationStatus Status { get; internal set; } = ScenarioPublicationStatus.Draft;
 
     [Required]
-    public string AuthorId { get; internal set; } = string.Empty;
+    public AccountId AuthorId { get; internal set; } = new(string.Empty);
 
     public DateTimeOffset CreatedAt { get; internal set; }
 
@@ -61,7 +61,7 @@ public sealed class Scenario
 
     /// <summary>Atomically allocates monotonically increasing definition versions.</summary>
     public int DefinitionVersionCounter { get; internal set; }
-    public static Scenario Create(string id, string authorId, ScenarioTitle title, DateTimeOffset now) => new()
+    public static Scenario Create(ScenarioId id, AccountId authorId, ScenarioTitle title, DateTimeOffset now) => new()
     {
         Id = id,
         AuthorId = authorId,

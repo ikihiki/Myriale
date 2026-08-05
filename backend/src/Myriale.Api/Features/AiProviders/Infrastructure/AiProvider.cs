@@ -55,7 +55,7 @@ public sealed class OpenAiCompatibleTextProvider(
         return await GenerateForProfileAsync(profileId, request, cancellationToken);
     }
 
-    public async Task<AiTextResponse> GenerateForProfileAsync(string profileId, AiTextRequest request, CancellationToken cancellationToken)
+    public async Task<AiTextResponse> GenerateForProfileAsync(AiProviderProfileId profileId, AiTextRequest request, CancellationToken cancellationToken)
     {
         var profile = await catalog.ResolveAsync(profileId, cancellationToken);
         var credential = await credentials.ResolveAsync(profile.CredentialId, cancellationToken);
@@ -64,7 +64,7 @@ public sealed class OpenAiCompatibleTextProvider(
         return await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile), credential.Secret, request, cancellationToken);
     }
 
-    public async Task<AiTextResponse> GenerateForProviderAsync(string provider, string credential, AiTextRequest request, CancellationToken cancellationToken)
+    public async Task<AiTextResponse> GenerateForProviderAsync(AiProviderProfileId provider, string credential, AiTextRequest request, CancellationToken cancellationToken)
     {
         var profile = await catalog.ResolveAsync(provider, cancellationToken);
         if (string.IsNullOrWhiteSpace(credential))
@@ -72,7 +72,7 @@ public sealed class OpenAiCompatibleTextProvider(
         return await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile), credential, request, cancellationToken);
     }
 
-    public async Task TestConnectionAsync(string provider, string credential, CancellationToken cancellationToken)
+    public async Task TestConnectionAsync(AiProviderProfileId provider, string credential, CancellationToken cancellationToken)
     {
         var profile = await catalog.ResolveAsync(provider, cancellationToken);
         using var schema = JsonDocument.Parse("{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"ok\":{\"type\":\"boolean\"}},\"required\":[\"ok\"]}");
@@ -85,7 +85,7 @@ public sealed class OpenAiCompatibleTextProvider(
         await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile), credential, probe, cancellationToken);
     }
 
-    private async Task<AiTextResponse> SendWithRetryAsync(string provider, AiProviderRequestOptions options, string credential, AiTextRequest request, CancellationToken cancellationToken)
+    private async Task<AiTextResponse> SendWithRetryAsync(AiProviderProfileId provider, AiProviderRequestOptions options, string credential, AiTextRequest request, CancellationToken cancellationToken)
     {
         AiProviderException? last = null;
         for (var attempt = 1; attempt <= Math.Max(1, options.MaxAttempts); attempt++)
@@ -95,11 +95,11 @@ public sealed class OpenAiCompatibleTextProvider(
             {
                 last = exception;
                 var delay = exception.RetryAfter ?? TimeSpan.FromMilliseconds(Math.Max(0, options.InitialBackoffMilliseconds) * Math.Pow(2, attempt - 1));
-                SessionExecutionTelemetry.ProviderRetries.Add(1, SessionExecutionTelemetry.ProviderTags(provider, options.Model, "retry", exception.Code));
+                SessionExecutionTelemetry.ProviderRetries.Add(1, SessionExecutionTelemetry.ProviderTags(provider.AsPrimitive(), options.Model, "retry", exception.Code));
                 logger.LogWarning(
                     exception,
                     "AI Provider request attempt failed and will be retried. Provider={Provider} Model={Model} Schema={SchemaName} Attempt={Attempt} MaxAttempts={MaxAttempts} ErrorCode={ErrorCode} RetryDelayMilliseconds={RetryDelayMilliseconds}",
-                    provider,
+                    provider.AsPrimitive(),
                     options.Model,
                     request.ResponseFormat.SchemaName,
                     attempt,
@@ -112,7 +112,7 @@ public sealed class OpenAiCompatibleTextProvider(
         throw last ?? new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "AI Provider request failed.", true);
     }
 
-    private async Task<AiTextResponse> SendAsync(string provider, AiProviderRequestOptions options, string credential, AiTextRequest input, int attempt, CancellationToken cancellationToken)
+    private async Task<AiTextResponse> SendAsync(AiProviderProfileId provider, AiProviderRequestOptions options, string credential, AiTextRequest input, int attempt, CancellationToken cancellationToken)
     {
         var client = clients.CreateClient("OpenAiCompatible");
         var endpoint = new Uri(new Uri(ResolveBaseUrl(options.BaseUrl)), "chat/completions");
@@ -155,7 +155,7 @@ public sealed class OpenAiCompatibleTextProvider(
                 var providerException = await ClassifyAsync(response);
                 logger.LogWarning(
                     "AI Provider returned an unsuccessful response. Provider={Provider} Model={Model} Schema={SchemaName} Endpoint={Endpoint} Attempt={Attempt} StatusCode={StatusCode} ReasonPhrase={ReasonPhrase} ProviderRequestId={ProviderRequestId} ErrorCode={ErrorCode} ResponseBody={ResponseBody}",
-                    provider,
+                    provider.AsPrimitive(),
                     options.Model,
                     input.ResponseFormat.SchemaName,
                     endpoint.GetLeftPart(UriPartial.Path),
@@ -181,12 +181,12 @@ public sealed class OpenAiCompatibleTextProvider(
                 if (usage.TryGetProperty("prompt_tokens", out var promptTokens)) inputTokens = promptTokens.GetInt32();
                 if (usage.TryGetProperty("completion_tokens", out var completionTokens)) outputTokens = completionTokens.GetInt32();
             }
-            SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider, options.Model, "succeeded"));
+            SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider.AsPrimitive(), options.Model, "succeeded"));
             return new AiTextResponse(text, new(provider, options.Model, root.TryGetProperty("id", out var id) ? id.GetString() : null, inputTokens, outputTokens, stopwatch.ElapsedMilliseconds, attempt, finishReason));
         }
         catch (AiProviderException exception)
         {
-            SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider, options.Model, "failed", exception.Code));
+            SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider.AsPrimitive(), options.Model, "failed", exception.Code));
             throw;
         }
         catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
@@ -194,7 +194,7 @@ public sealed class OpenAiCompatibleTextProvider(
             logger.LogWarning(exception,
                 "AI Provider request timed out. Provider={Provider} Model={Model} Schema={SchemaName} Endpoint={Endpoint} Attempt={Attempt} TimeoutSeconds={TimeoutSeconds}",
                 provider, options.Model, input.ResponseFormat.SchemaName, endpoint.GetLeftPart(UriPartial.Path), attempt, options.TimeoutSeconds);
-            SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider, options.Model, "failed", AiProviderErrorCodes.Timeout));
+            SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider.AsPrimitive(), options.Model, "failed", AiProviderErrorCodes.Timeout));
             throw new AiProviderException(AiProviderErrorCodes.Timeout, "AI Provider request timed out.", true, null, exception);
         }
         catch (HttpRequestException exception)
@@ -202,7 +202,7 @@ public sealed class OpenAiCompatibleTextProvider(
             logger.LogWarning(exception,
                 "AI Provider transport failed. Provider={Provider} Model={Model} Schema={SchemaName} Endpoint={Endpoint} Attempt={Attempt} HttpRequestError={HttpRequestError} StatusCode={StatusCode}",
                 provider, options.Model, input.ResponseFormat.SchemaName, endpoint.GetLeftPart(UriPartial.Path), attempt, exception.HttpRequestError, exception.StatusCode is null ? null : (int)exception.StatusCode);
-            SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider, options.Model, "failed", AiProviderErrorCodes.ProviderUnavailable));
+            SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider.AsPrimitive(), options.Model, "failed", AiProviderErrorCodes.ProviderUnavailable));
             throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "AI Provider is unavailable.", true, null, exception);
         }
         catch (Exception exception) when (exception is JsonException or KeyNotFoundException or InvalidOperationException)
@@ -210,7 +210,7 @@ public sealed class OpenAiCompatibleTextProvider(
             logger.LogWarning(exception,
                 "AI Provider response envelope was invalid. Provider={Provider} Model={Model} Schema={SchemaName} Endpoint={Endpoint} Attempt={Attempt} ExceptionType={ExceptionType}",
                 provider, options.Model, input.ResponseFormat.SchemaName, endpoint.GetLeftPart(UriPartial.Path), attempt, exception.GetType().Name);
-            SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider, options.Model, "failed", AiProviderErrorCodes.SchemaFailure));
+            SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider.AsPrimitive(), options.Model, "failed", AiProviderErrorCodes.SchemaFailure));
             throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "AI Provider returned an invalid response envelope.", false, null, exception);
         }
     }

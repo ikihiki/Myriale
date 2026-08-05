@@ -7,10 +7,10 @@ namespace Myriale.Api.Bootstrap.Seeding;
 
 public static class SessionArtifactFixtureSeedData
 {
-    public const string SessionId = "SES-DEVELOPMENT-ARTIFACT-FIXTURE";
-    public const string ImageId = "IMG-DEVELOPMENT-FIXTURE";
-    public const string ImageArtifactId = "ART-DEVELOPMENT-IMAGE";
-    public const string NoteArtifactId = "ART-DEVELOPMENT-NOTE";
+    public static readonly SessionId SessionId = new("SES-DEVELOPMENT-ARTIFACT-FIXTURE");
+    public static readonly SessionImageId ImageId = new("IMG-DEVELOPMENT-FIXTURE");
+    public static readonly SessionArtifactId ImageArtifactId = new("ART-DEVELOPMENT-IMAGE");
+    public static readonly SessionArtifactId NoteArtifactId = new("ART-DEVELOPMENT-NOTE");
     public const string StorageKey = "fixtures/session-artifacts/tiny.png";
     public static readonly byte[] TinyPng = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
 
@@ -25,7 +25,7 @@ public static class SessionArtifactFixtureSeedData
         if (await db.Sessions.AnyAsync(item => item.Id == SessionId, cancellationToken)) return;
         var owner = await db.Users.SingleOrDefaultAsync(item => item.Email == AccountSeedData.DefaultEmail, cancellationToken);
         if (owner is null) return;
-        if (!await db.Scenarios.AnyAsync(item => item.Id == "SCN-STAR-LIBRARY", cancellationToken)) return;
+        if (!await db.Scenarios.AnyAsync(item => item.Id == new ScenarioId("SCN-STAR-LIBRARY"), cancellationToken)) return;
 
         var timestamp = new DateTimeOffset(2026, 7, 21, 9, 0, 0, TimeSpan.Zero);
         var checksum = Convert.ToHexStringLower(SHA256.HashData(TinyPng));
@@ -34,14 +34,14 @@ public static class SessionArtifactFixtureSeedData
             await storage.PutAsync(StorageKey, image, "image/png", cancellationToken);
 
         var session = Session.Create(
-            SessionId, owner.Id, "SCN-STAR-LIBRARY", null, null, "development-artifact-fixture", null,
+            SessionId, new AccountId(owner.Id), new ScenarioId("SCN-STAR-LIBRARY"), null, null, "development-artifact-fixture", null,
             "ミラ / 星図を読む巡礼者", false,
             new SessionState { SessionId = SessionId, Revision = 1, FlagsJson = "{}", UpdatedAt = timestamp }, timestamp);
         session.AdvanceRuntime(timestamp);
-        var noteExecution = Execution("EXE-DEVELOPMENT-NOTE", SessionExecutionKind.NoteProposal, "fixture-note", timestamp);
-        var imageExecution = Execution("EXE-DEVELOPMENT-IMAGE", SessionExecutionKind.Image, "fixture-image", timestamp.AddSeconds(1));
-        var noteAttempt = Attempt("ATT-DEVELOPMENT-NOTE", noteExecution.Id, timestamp);
-        var imageAttempt = Attempt("ATT-DEVELOPMENT-IMAGE", imageExecution.Id, timestamp.AddSeconds(1));
+        var noteExecution = Execution(new SessionExecutionId("EXE-DEVELOPMENT-NOTE"), SessionExecutionKind.NoteProposal, "fixture-note", timestamp);
+        var imageExecution = Execution(new SessionExecutionId("EXE-DEVELOPMENT-IMAGE"), SessionExecutionKind.Image, "fixture-image", timestamp.AddSeconds(1));
+        var noteAttempt = Attempt(new SessionExecutionAttemptId("ATT-DEVELOPMENT-NOTE"), noteExecution.Id, timestamp);
+        var imageAttempt = Attempt(new SessionExecutionAttemptId("ATT-DEVELOPMENT-IMAGE"), imageExecution.Id, timestamp.AddSeconds(1));
         var noteArtifact = SessionArtifact.CreateCommittedJson(
             NoteArtifactId, SessionId, noteExecution.Id, noteAttempt.Id,
             new NotePatchArtifactPayload("銀の鍵", "水没した閲覧室で銀の鍵を見つけた。"),
@@ -58,7 +58,7 @@ public static class SessionArtifactFixtureSeedData
         db.SessionNoteProposals.Add(SessionNoteProposal.Create(
             NoteArtifactId,
             SessionId,
-            "TURN-DEVELOPMENT-FIXTURE",
+            new SessionTurnId("TURN-DEVELOPMENT-FIXTURE"),
             null,
             0,
             "銀の鍵",
@@ -67,18 +67,18 @@ public static class SessionArtifactFixtureSeedData
             "開発・テスト用の決定的な変更案です。",
             timestamp));
         db.SessionImages.Add(SessionImage.Create(
-            ImageId, imageArtifact, "TURN-DEVELOPMENT-FIXTURE", null,
+            ImageId, imageArtifact, new SessionTurnId("TURN-DEVELOPMENT-FIXTURE"), null,
             TinyPng.LongLength, 1, 1, null));
         await db.SaveChangesAsync(cancellationToken);
     }
 
-    private static SessionExecution Execution(string id, SessionExecutionKind kind, string key, DateTimeOffset timestamp) => new()
+    private static SessionExecution Execution(SessionExecutionId id, SessionExecutionKind kind, string key, DateTimeOffset timestamp) => new()
     {
         Id = id,
         SessionId = SessionId,
         Kind = kind,
         TriggerType = SessionExecutionTriggerType.Manual,
-        TriggerId = key,
+        TriggerId = new SessionExecutionTriggerId(key),
         Status = SessionExecutionStatus.Succeeded,
         Revision = 1,
         IdempotencyKey = key,
@@ -93,7 +93,7 @@ public static class SessionArtifactFixtureSeedData
         CompletedAt = timestamp,
     };
 
-    private static SessionExecutionAttempt Attempt(string id, string executionId, DateTimeOffset timestamp)
+    private static SessionExecutionAttempt Attempt(SessionExecutionAttemptId id, SessionExecutionId executionId, DateTimeOffset timestamp)
     {
         var attempt = SessionExecutionAttempt.Start(id, executionId, 1, "fixture", timestamp);
         attempt.Succeed(timestamp);

@@ -3,8 +3,8 @@ using Myriale.Api.Infrastructure.Persistence;
 
 namespace Myriale.Api.Features.Scenarios.Application;
 
-public sealed record CreateScenarioCommand(string AuthorId, CreateScenarioRequest Request);
-public sealed record UpdateScenarioCommand(string ScenarioId, string AuthorId, CreateScenarioRequest Request);
+public sealed record CreateScenarioCommand(AccountId AuthorId, CreateScenarioRequest Request);
+public sealed record UpdateScenarioCommand(ScenarioId ScenarioId, AccountId AuthorId, CreateScenarioRequest Request);
 public enum ScenarioCommandOutcome { Success, NotFound, Invalid, Conflict }
 public sealed record ScenarioCommandResult(ScenarioCommandOutcome Outcome, ScenarioDraftResponse? Scenario = null, IReadOnlyDictionary<string, string[]>? Errors = null);
 
@@ -15,7 +15,7 @@ public sealed class CreateScenarioUseCase(ApplicationDbContext db)
         var errors = ScenarioRequestValidator.Validate(command.Request);
         if (errors.Count > 0) return new(ScenarioCommandOutcome.Invalid, Errors: errors);
         var now = DateTimeOffset.UtcNow;
-        var scenario = Scenario.Create($"SCN-{Guid.NewGuid():N}"[..12].ToUpperInvariant(), command.AuthorId, new ScenarioTitle(command.Request.Title), now);
+        var scenario = Scenario.Create(new ScenarioId($"SCN-{Guid.NewGuid():N}"[..12].ToUpperInvariant()), command.AuthorId, new ScenarioTitle(command.Request.Title), now);
         ScenarioRequestValidator.Apply(scenario, command.Request, now);
         db.Scenarios.Add(scenario);
         await db.SaveChangesAsync(cancellationToken);

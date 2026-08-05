@@ -5,8 +5,8 @@ namespace Myriale.Api.Features.ProgressionRuntime.Application;
 
 public interface IProgressionReceiptCommand
 {
-    Task ExecuteForNarrativeTurnAsync(string ownerId, string narrativeTurnId, CancellationToken cancellationToken);
-    Task ExecuteAsync(string ownerId, string receiptId, CancellationToken cancellationToken);
+    Task ExecuteForNarrativeTurnAsync(AccountId ownerId, SessionTurnId narrativeTurnId, CancellationToken cancellationToken);
+    Task ExecuteAsync(AccountId ownerId, SessionProgressionTransitionReceiptId receiptId, CancellationToken cancellationToken);
 }
 
 public sealed class EnsureProgressionReceiptCommand(
@@ -17,14 +17,14 @@ public sealed class EnsureProgressionReceiptCommand(
 {
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(2);
 
-    public async Task ExecuteForNarrativeTurnAsync(string ownerId, string narrativeTurnId, CancellationToken cancellationToken)
+    public async Task ExecuteForNarrativeTurnAsync(AccountId ownerId, SessionTurnId narrativeTurnId, CancellationToken cancellationToken)
     {
         var receiptIds = await repository.ListOwnedIdsForNarrativeTurnAsync(ownerId, narrativeTurnId, cancellationToken);
         foreach (var receiptId in receiptIds)
             await ExecuteAsync(ownerId, receiptId, cancellationToken);
     }
 
-    public async Task ExecuteAsync(string ownerId, string receiptId, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(AccountId ownerId, SessionProgressionTransitionReceiptId receiptId, CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();
         var leaseId = $"PTL-{Guid.NewGuid():N}".ToUpperInvariant();
@@ -76,7 +76,7 @@ public sealed class EnsureProgressionReceiptCommand(
             return;
         }
 
-        if (!await repository.CompleteAsync(receiptId, leaseId, claim.Revision, result.SessionTurnId, timeProvider.GetUtcNow(), cancellationToken))
+        if (!await repository.CompleteAsync(receiptId, leaseId, claim.Revision, result.SessionTurnId.Value, timeProvider.GetUtcNow(), cancellationToken))
             logger.LogInformation("Progression receipt {ReceiptId} rejected completion from a stale lease.", receiptId);
     }
 

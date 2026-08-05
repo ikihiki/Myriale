@@ -14,8 +14,8 @@ namespace Myriale.Api.Features.ModuleExecutions.Infrastructure;
 internal sealed partial class ModuleExecutionWorkflow
 {
     public async Task<ModuleExecutionResult> DispatchAsync(
-        string ownerId,
-        string executionId,
+        AccountId ownerId,
+        ModuleExecutionId executionId,
         DispatchModuleExecutionRequest request,
         CancellationToken cancellationToken)
     {
@@ -23,8 +23,8 @@ internal sealed partial class ModuleExecutionWorkflow
     }
 
     private async Task<ModuleExecutionResult> DispatchCoreAsync(
-        string ownerId,
-        string executionId,
+        AccountId ownerId,
+        ModuleExecutionId executionId,
         DispatchModuleExecutionRequest request,
         CancellationToken cancellationToken)
     {
@@ -44,7 +44,7 @@ internal sealed partial class ModuleExecutionWorkflow
             {
                 writer.WriteStartObject();
                 writer.WriteString("operation", "dispatch");
-                writer.WriteString("executionId", executionId);
+                writer.WriteString("executionId", executionId.AsPrimitive());
                 writer.WriteNumber("expectedRevision", request.ExpectedRevision);
                 writer.WritePropertyName("action");
                 ModuleRequestFingerprint.WriteCanonical(writer, request.Action);
@@ -106,8 +106,8 @@ internal sealed partial class ModuleExecutionWorkflow
 
 
     private async Task<ModuleExecutionResult> ResumeDispatchAsync(
-        string ownerId,
-        long receiptId,
+        AccountId ownerId,
+        ModuleExecutionRequestId receiptId,
         string payloadHash,
         CancellationToken cancellationToken)
     {
@@ -140,7 +140,7 @@ internal sealed partial class ModuleExecutionWorkflow
         try
         {
             var transition = await runtime.DispatchAsync(
-                new ModulePackageIdentity(execution.ModuleId, execution.ModuleVersion, execution.ModuleDigest),
+                new ModulePackageIdentity(execution.ModuleId.AsPrimitive(), execution.ModuleVersion.AsPrimitive(), execution.ModuleDigest.AsPrimitive()),
                 new ModuleDispatchRequest(
                     receipt.RequestId,
                     receipt.ExpectedRevision!.Value,

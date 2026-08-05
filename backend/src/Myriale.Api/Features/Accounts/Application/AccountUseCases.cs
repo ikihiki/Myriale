@@ -49,7 +49,7 @@ public interface IAccountPasswordResetTokenTransport
 }
 
 public sealed record AccountSnapshot(
-    string Id,
+    AccountId Id,
     string DisplayName,
     string Email,
     string Bio,
@@ -58,7 +58,7 @@ public sealed record AccountSnapshot(
     bool CanDebugDialogue)
 {
     public static AccountSnapshot From(ApplicationUser user) => new(
-        user.Id,
+        new AccountId(user.Id),
         user.DisplayName,
         user.Email ?? string.Empty,
         user.Bio,

@@ -6,15 +6,15 @@ public sealed class SessionNote
 {
     internal SessionNote() { }
 
-    [Key, MaxLength(40)] public string Id { get; internal set; } = string.Empty;
-    [Required, MaxLength(40)] public string SessionId { get; internal set; } = string.Empty;
+    [Key, MaxLength(40)] public SessionNoteId Id { get; internal set; }
+    [Required, MaxLength(40)] public SessionId SessionId { get; internal set; }
     [Required, MaxLength(32)] public SessionNoteKind Kind { get; internal set; }
     [Required, MaxLength(160)] public string Title { get; internal set; } = string.Empty;
     [Required] public string AliasesJson { get; internal set; } = "[]";
     [Required] public string Body { get; internal set; } = string.Empty;
     [Required, MaxLength(24)] public SessionNoteCanonStatus CanonStatus { get; internal set; }
-    [MaxLength(40)] public string? FirstTurnId { get; internal set; }
-    [MaxLength(40)] public string? UpdatedFromTurnId { get; internal set; }
+    [MaxLength(40)] public SessionTurnId? FirstTurnId { get; internal set; }
+    [MaxLength(40)] public SessionTurnId? UpdatedFromTurnId { get; internal set; }
     [Required, MaxLength(24)] public SessionNoteUpdateSource UpdateSource { get; internal set; }
     public long Revision { get; internal set; }
     public DateTimeOffset CreatedAt { get; internal set; }
@@ -24,8 +24,8 @@ public sealed class SessionNote
     public ICollection<SessionTurnLorebookReference> TurnReferences { get; internal set; } = [];
 
     public static SessionNote Create(
-        string id, string sessionId, SessionNoteKind kind, string title, string aliasesJson, string body,
-        SessionNoteCanonStatus canonStatus, string? firstTurnId, string? updatedFromTurnId, DateTimeOffset now) => new()
+        SessionNoteId id, SessionId sessionId, SessionNoteKind kind, string title, string aliasesJson, string body,
+        SessionNoteCanonStatus canonStatus, SessionTurnId? firstTurnId, SessionTurnId? updatedFromTurnId, DateTimeOffset now) => new()
     {
         Id = id,
         SessionId = sessionId,
@@ -42,7 +42,7 @@ public sealed class SessionNote
         UpdatedAt = now,
     };
 
-    public static SessionNote CreateFromProposal(string id, SessionNoteProposal proposal, string title, string body, DateTimeOffset now) => new()
+    public static SessionNote CreateFromProposal(SessionNoteId id, SessionNoteProposal proposal, string title, string body, DateTimeOffset now) => new()
     {
         Id = id,
         SessionId = proposal.SessionId,
@@ -60,7 +60,7 @@ public sealed class SessionNote
     };
 
     public void Edit(SessionNoteKind kind, string title, string aliasesJson, string body, SessionNoteCanonStatus canonStatus,
-        string? firstTurnId, string? updatedFromTurnId, DateTimeOffset now)
+        SessionTurnId? firstTurnId, SessionTurnId? updatedFromTurnId, DateTimeOffset now)
     {
         Kind = kind;
         Title = title;
@@ -82,7 +82,7 @@ public sealed class SessionNote
         UpdatedAt = now;
     }
 
-    public SessionNoteRevision CaptureRevision(string id, DateTimeOffset now, string? sourceArtifactId = null) => new()
+    public SessionNoteRevision CaptureRevision(SessionNoteRevisionId id, DateTimeOffset now, SessionArtifactId? sourceArtifactId = null) => new()
     {
         Id = id,
         Note = this,
@@ -97,12 +97,12 @@ public sealed class SessionNote
 
 public sealed class SessionNoteRevision
 {
-    [Key, MaxLength(40)] public string Id { get; set; } = string.Empty;
-    [Required, MaxLength(40)] public string NoteId { get; set; } = string.Empty;
+    [Key, MaxLength(40)] public SessionNoteRevisionId Id { get; set; }
+    [Required, MaxLength(40)] public SessionNoteId NoteId { get; set; }
     public long Revision { get; set; }
     [Required, MaxLength(160)] public string Title { get; set; } = string.Empty;
     [Required] public string Body { get; set; } = string.Empty;
-    [MaxLength(40)] public string? SourceArtifactId { get; set; }
+    [MaxLength(40)] public SessionArtifactId? SourceArtifactId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public SessionNote Note { get; set; } = null!;
 }
@@ -111,10 +111,10 @@ public sealed class SessionNoteProposal
 {
     internal SessionNoteProposal() { }
 
-    [Key, MaxLength(40)] public string ArtifactId { get; internal set; } = string.Empty;
-    [Required, MaxLength(40)] public string SessionId { get; internal set; } = string.Empty;
-    [Required, MaxLength(40)] public string SourceTurnId { get; internal set; } = string.Empty;
-    [MaxLength(40)] public string? NoteId { get; internal set; }
+    [Key, MaxLength(40)] public SessionArtifactId ArtifactId { get; internal set; }
+    [Required, MaxLength(40)] public SessionId SessionId { get; internal set; }
+    [Required, MaxLength(40)] public SessionTurnId SourceTurnId { get; internal set; }
+    [MaxLength(40)] public SessionNoteId? NoteId { get; internal set; }
     public long ExpectedNoteRevision { get; internal set; }
     [Required, MaxLength(160)] public string ProposedTitle { get; internal set; } = string.Empty;
     [Required] public string BeforeBody { get; internal set; } = string.Empty;
@@ -125,7 +125,7 @@ public sealed class SessionNoteProposal
     public DateTimeOffset CreatedAt { get; internal set; }
     public DateTimeOffset? ReviewedAt { get; internal set; }
 
-    public static SessionNoteProposal Create(string artifactId, string sessionId, string sourceTurnId, string? noteId,
+    public static SessionNoteProposal Create(SessionArtifactId artifactId, SessionId sessionId, SessionTurnId sourceTurnId, SessionNoteId? noteId,
         long expectedNoteRevision, string proposedTitle, string beforeBody, string proposedBody, string rationale, DateTimeOffset now) => new()
     {
         ArtifactId = artifactId,
@@ -142,7 +142,7 @@ public sealed class SessionNoteProposal
         CreatedAt = now,
     };
 
-    public bool Review(SessionNoteProposalStatus status, string? noteId, DateTimeOffset now)
+    public bool Review(SessionNoteProposalStatus status, SessionNoteId? noteId, DateTimeOffset now)
     {
         if (Status is SessionNoteProposalStatus.Applied or SessionNoteProposalStatus.Rejected || Status == status) return false;
         if (status is SessionNoteProposalStatus.Pending) throw new ArgumentOutOfRangeException(nameof(status));
@@ -156,10 +156,10 @@ public sealed class SessionNoteProposal
 
 public sealed class SessionSummary
 {
-    [Key, MaxLength(40)] public string Id { get; set; } = string.Empty;
-    [Required, MaxLength(40)] public string SessionId { get; set; } = string.Empty;
-    [Required, MaxLength(40)] public string FromTurnId { get; set; } = string.Empty;
-    [Required, MaxLength(40)] public string ToTurnId { get; set; } = string.Empty;
+    [Key, MaxLength(40)] public SessionSummaryId Id { get; set; }
+    [Required, MaxLength(40)] public SessionId SessionId { get; set; }
+    [Required, MaxLength(40)] public SessionTurnId FromTurnId { get; set; }
+    [Required, MaxLength(40)] public SessionTurnId ToTurnId { get; set; }
     public int FromPosition { get; set; }
     public int ToPosition { get; set; }
     public int Version { get; set; }
@@ -177,8 +177,8 @@ public sealed class SessionSummary
 
 public sealed class SessionTurnLorebookReference
 {
-    [Required, MaxLength(40)] public string TurnId { get; set; } = string.Empty;
-    [Required, MaxLength(40)] public string NoteId { get; set; } = string.Empty;
+    [Required, MaxLength(40)] public SessionTurnId TurnId { get; set; }
+    [Required, MaxLength(40)] public SessionNoteId NoteId { get; set; }
     [Required, MaxLength(32)] public string Reason { get; set; } = "relevant";
     public SessionTurn Turn { get; set; } = null!;
     public SessionNote Note { get; set; } = null!;

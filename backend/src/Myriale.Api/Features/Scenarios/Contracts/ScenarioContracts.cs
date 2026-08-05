@@ -17,7 +17,7 @@ public sealed record CreateScenarioRequest(
     string? SampleScene);
 
 public sealed record ScenarioDraftResponse(
-    string Id,
+    ScenarioId Id,
     string Title,
     string Summary,
     string Genre,

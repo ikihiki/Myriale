@@ -8,19 +8,19 @@ using Myriale.Api.Features.ModulePackages.Application;
 namespace Myriale.Api.Features.Sessions.Application;
 
 public enum SessionCommandOutcome { Created, Accepted, Replay, Invalid, Forbidden, NotFound, Conflict, RateLimited, RetryableConflict }
-public sealed record SessionCommandResult(SessionCommandOutcome Outcome, string? SessionId = null, SessionPlayerInput? Input = null,
+public sealed record SessionCommandResult(SessionCommandOutcome Outcome, SessionId? SessionId = null, SessionPlayerInput? Input = null,
     SessionExecution? Execution = null, string? ErrorCode = null, string? ErrorMessage = null);
 
-public sealed record AcceptSessionInputCommand(string OwnerId, string SessionId, string RequestId, string Text,
-    string InteractionType, string? SupersedesInputId, string? ActionDecisionAiProfileId, string? NarrativeAiProfileId);
+public sealed record AcceptSessionInputCommand(AccountId OwnerId, SessionId SessionId, string RequestId, string Text,
+    string InteractionType, SessionPlayerInputId? SupersedesInputId, AiProviderProfileId? ActionDecisionAiProfileId, AiProviderProfileId? NarrativeAiProfileId);
 
 public interface ISessionInputAcceptanceRepository
 {
-    Task<Session?> LoadOwnedAsync(string ownerId, string sessionId, CancellationToken cancellationToken);
-    Task<(SessionPlayerInput Input, SessionExecution Execution)?> FindReplayAsync(string sessionId, string requestId, CancellationToken cancellationToken);
-    Task<bool> HasBlockingModuleHeadAsync(string sessionId, string? headTurnId, CancellationToken cancellationToken);
-    Task<bool> IsModuleHandoffPendingAsync(string sessionId, string? headTurnId, CancellationToken cancellationToken);
-    Task<int> CountRecentInputsAsync(string sessionId, DateTimeOffset cutoff, CancellationToken cancellationToken);
+    Task<Session?> LoadOwnedAsync(AccountId ownerId, SessionId sessionId, CancellationToken cancellationToken);
+    Task<(SessionPlayerInput Input, SessionExecution Execution)?> FindReplayAsync(SessionId sessionId, string requestId, CancellationToken cancellationToken);
+    Task<bool> HasBlockingModuleHeadAsync(SessionId sessionId, SessionTurnId? headTurnId, CancellationToken cancellationToken);
+    Task<bool> IsModuleHandoffPendingAsync(SessionId sessionId, SessionTurnId? headTurnId, CancellationToken cancellationToken);
+    Task<int> CountRecentInputsAsync(SessionId sessionId, DateTimeOffset cutoff, CancellationToken cancellationToken);
     Task<SessionRepositoryCommitOutcome> CommitInputAsync(Session session, SessionExecution execution, CancellationToken cancellationToken);
     void ClearTracking();
 }
@@ -42,7 +42,7 @@ public sealed class AcceptSessionInputUseCase(
         if (!SessionEnumValues.TryParseInteractionType(command.InteractionType?.Trim(), out var interactionType))
             return Invalid("invalid_interaction_type", "InteractionTypeが不正です。");
 
-        string actionProfile; string narrativeProfile;
+        AiProviderProfileId actionProfile; AiProviderProfileId narrativeProfile;
         try
         {
             actionProfile = await profiles.ResolveActionDecisionProfileIdAsync(command.ActionDecisionAiProfileId, cancellationToken);
@@ -68,13 +68,13 @@ public sealed class AcceptSessionInputUseCase(
         if (await repository.CountRecentInputsAsync(command.SessionId, now.AddMinutes(-1), cancellationToken) >= aiOptions.Value.SessionRequestsPerMinute)
             return new(SessionCommandOutcome.RateLimited, ErrorCode: "session_rate_limited", ErrorMessage: "SessionのAI入力上限に達しました。しばらく待って再試行してください。");
 
-        var input = session.AcceptInput($"INP-{Guid.NewGuid():N}".ToUpperInvariant(), requestId, text, interactionType, payloadHash,
+        var input = session.AcceptInput(new SessionPlayerInputId($"INP-{Guid.NewGuid():N}".ToUpperInvariant()), requestId, text, interactionType, payloadHash,
             command.OwnerId, command.SupersedesInputId, now);
         var execution = new SessionExecution
         {
-            Id = $"EXE-{Guid.NewGuid():N}".ToUpperInvariant(), SessionId = command.SessionId,
+            Id = new SessionExecutionId($"EXE-{Guid.NewGuid():N}".ToUpperInvariant()), SessionId = command.SessionId,
             Kind = SessionExecutionKind.ScenarioTurn, TriggerType = SessionExecutionTriggerType.PlayerInput,
-            Stage = ScenarioTurnStage.Snapshot.ToWireValue(), SchemaVersion = 1, TriggerId = input.Id,
+            Stage = ScenarioTurnStage.Snapshot.ToWireValue(), SchemaVersion = 1, TriggerId = new SessionExecutionTriggerId(input.Id.AsPrimitive()),
             Status = SessionExecutionStatus.Queued, Revision = 0, IdempotencyKey = requestId, PayloadHash = payloadHash,
             ActionDecisionAiProfileId = actionProfile, NarrativeAiProfileId = narrativeProfile,
             AcceptedHeadTurnId = input.AcceptedAfterTurnId, AcceptedSessionRevision = input.AcceptedSessionRevision,
@@ -99,7 +99,7 @@ public sealed class AcceptSessionInputUseCase(
     private static SessionCommandResult Conflict(string code, string message) => new(SessionCommandOutcome.Conflict, ErrorCode: code, ErrorMessage: message);
 }
 
-public sealed record CreateSessionCommand(string OwnerId, string ScenarioId, string RequestId, bool InterpretationEnabled, string? SelectedHero);
+public sealed record CreateSessionCommand(AccountId OwnerId, ScenarioId ScenarioId, string RequestId, bool InterpretationEnabled, string? SelectedHero);
 public sealed record SessionCreationSource(bool CanDebugDialogue, ScenarioDefinitionVersion Definition, ScenarioLocation InitialLocation,
     ScenarioProgressionNode? InitialNode, IReadOnlyList<ScenarioProgressionTransition> ModuleTransitions);
 public enum SessionCreationSourceOutcome { Found, ScenarioNotFound, PublishedDefinitionRequired, InitialLocationRequired }
@@ -107,8 +107,8 @@ public sealed record SessionCreationSourceResult(SessionCreationSourceOutcome Ou
 
 public interface ISessionCreationRepository
 {
-    Task<Session?> FindReplayAsync(string ownerId, string requestId, CancellationToken cancellationToken);
-    Task<SessionCreationSourceResult> LoadSourceAsync(string ownerId, string scenarioId, CancellationToken cancellationToken);
+    Task<Session?> FindReplayAsync(AccountId ownerId, string requestId, CancellationToken cancellationToken);
+    Task<SessionCreationSourceResult> LoadSourceAsync(AccountId ownerId, ScenarioId scenarioId, CancellationToken cancellationToken);
     Task<SessionRepositoryCommitOutcome> CommitCreationAsync(Session session, CancellationToken cancellationToken);
     void ClearTracking();
 }
@@ -117,9 +117,9 @@ public sealed class CreateSessionUseCase(ISessionCreationRepository repository, 
 {
     public async Task<SessionCommandResult> ExecuteAsync(CreateSessionCommand command, CancellationToken cancellationToken)
     {
-        var scenarioId = command.ScenarioId?.Trim() ?? string.Empty;
+        var scenarioId = new ScenarioId(command.ScenarioId.AsPrimitive().Trim());
         var requestId = command.RequestId?.Trim() ?? string.Empty;
-        if (scenarioId.Length == 0) return Invalid("invalid_scenario_id", "ScenarioIdを指定してください。");
+        if (scenarioId.AsPrimitive().Length == 0) return Invalid("invalid_scenario_id", "ScenarioIdを指定してください。");
         if (requestId.Length is 0 or > 120) return Invalid("invalid_request_id", "RequestIdを120文字以内で指定してください。");
         var selectedRequestHero = command.SelectedHero?.Trim();
         var replay = await repository.FindReplayAsync(command.OwnerId, requestId, cancellationToken);
@@ -149,7 +149,7 @@ public sealed class CreateSessionUseCase(ISessionCreationRepository repository, 
             return Conflict("scenario_module_unavailable", "Scenarioが使用するModule packageは承認済みかつ有効である必要があります。");
 
         var now = timeProvider.GetUtcNow();
-        var sessionId = $"SES-{Guid.NewGuid():N}".ToUpperInvariant();
+        var sessionId = new SessionId($"SES-{Guid.NewGuid():N}".ToUpperInvariant());
         var state = new SessionState { SessionId = sessionId, Revision = 0, FlagsJson = "{}", UpdatedAt = now };
         var session = Session.Create(sessionId, command.OwnerId, scenarioId, definition.Id, source.InitialLocation.Id,
             requestId, payloadHash, selectedHero, command.InterpretationEnabled, state, now);
@@ -158,7 +158,7 @@ public sealed class CreateSessionUseCase(ISessionCreationRepository repository, 
             var configuration = ruleResolver.Resolve(definition, item);
             if (configuration.Conflicts.Count > 0) return Conflict("invalid_rule_configuration", string.Join("; ", configuration.Conflicts));
             session.ObjectStates.Add(SessionObjectState.Create(
-                $"SOS-{Guid.NewGuid():N}".ToUpperInvariant(), sessionId, item.Id, item.LocationId,
+                new SessionObjectStateId($"SOS-{Guid.NewGuid():N}".ToUpperInvariant()), sessionId, item.Id, item.LocationId,
                 ruleResolver.InitialState(definition, item).ToJsonString(), now));
         }
         if (source.InitialNode is not null)
@@ -168,11 +168,11 @@ public sealed class CreateSessionUseCase(ISessionCreationRepository repository, 
             if (string.IsNullOrWhiteSpace(transition.ModuleVersion) || transition.ModuleDigest?.Length != 64
                 || string.IsNullOrWhiteSpace(transition.ModuleConfigurationJson) || string.IsNullOrWhiteSpace(transition.ModuleContextJson)
                 || transition.ModuleRandomValueCount < 0) return Conflict("scenario_module_snapshot_invalid", "ScenarioのModule設定が不完全です。");
-            session.ProgressionModuleSnapshots.Add(new SessionProgressionModuleSnapshot { Id = $"PMS-{Guid.NewGuid():N}".ToUpperInvariant(), SessionId = sessionId,
-                TransitionId = transition.Id, ModuleId = transition.ModuleId!, ModuleVersion = transition.ModuleVersion!, ModuleDigest = transition.ModuleDigest!,
+            session.ProgressionModuleSnapshots.Add(new SessionProgressionModuleSnapshot { Id = new SessionProgressionModuleSnapshotId($"PMS-{Guid.NewGuid():N}".ToUpperInvariant()), SessionId = sessionId,
+                TransitionId = transition.Id, ModuleId = transition.ModuleId!.Value, ModuleVersion = new(transition.ModuleVersion!), ModuleDigest = new(transition.ModuleDigest!),
                 ConfigurationJson = transition.ModuleConfigurationJson!, ContextJson = transition.ModuleContextJson!, RandomValueCount = transition.ModuleRandomValueCount, CreatedAt = now });
         }
-        session.AppendOpeningTurn($"TRN-{Guid.NewGuid():N}".ToUpperInvariant(), NarrativeDocumentSchemas.ScenarioOpening,
+        session.AppendOpeningTurn(new SessionTurnId($"TRN-{Guid.NewGuid():N}".ToUpperInvariant()), NarrativeDocumentSchemas.ScenarioOpening,
             definition.ScenarioTitle.Value, definition.ScenarioOpening, now);
         var commit = await repository.CommitCreationAsync(session, cancellationToken);
         if (commit == SessionRepositoryCommitOutcome.Committed) return new(SessionCommandOutcome.Created, session.Id);
@@ -188,10 +188,10 @@ public sealed class CreateSessionUseCase(ISessionCreationRepository repository, 
     {
         foreach (var transition in transitions)
         {
-            if (string.IsNullOrWhiteSpace(transition.ModuleId) || string.IsNullOrWhiteSpace(transition.ModuleVersion) || string.IsNullOrWhiteSpace(transition.ModuleDigest)) return false;
+            if (transition.ModuleId is null || string.IsNullOrWhiteSpace(transition.ModuleId.Value.AsPrimitive()) || string.IsNullOrWhiteSpace(transition.ModuleVersion) || string.IsNullOrWhiteSpace(transition.ModuleDigest)) return false;
             try
             {
-                var resolution = await modulePackages.ResolveAsync(new(transition.ModuleId), new(transition.ModuleVersion), new(transition.ModuleDigest), cancellationToken);
+                var resolution = await modulePackages.ResolveAsync(transition.ModuleId.Value, new(transition.ModuleVersion), new(transition.ModuleDigest), cancellationToken);
                 if (resolution.Availability != ModulePackageAvailability.Available) return false;
             }
             catch (ArgumentException) { return false; }
@@ -199,7 +199,7 @@ public sealed class CreateSessionUseCase(ISessionCreationRepository repository, 
         return true;
     }
 
-    private static string HashCreation(string scenarioId, bool interpretation, string? hero) =>
+    private static string HashCreation(ScenarioId scenarioId, bool interpretation, string? hero) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { scenarioId, interpretation, hero })))).ToLowerInvariant();
     private static SessionCommandResult Invalid(string code, string message) => new(SessionCommandOutcome.Invalid, ErrorCode: code, ErrorMessage: message);
     private static SessionCommandResult Conflict(string code, string message) => new(SessionCommandOutcome.Conflict, ErrorCode: code, ErrorMessage: message);

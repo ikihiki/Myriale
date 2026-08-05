@@ -9,8 +9,8 @@ public interface IHasDomainEvents
 }
 
 public sealed record ScenarioDefinitionPublished(
-    string ScenarioId,
-    string DefinitionVersionId,
+    ScenarioId ScenarioId,
+    ScenarioDefinitionVersionId DefinitionVersionId,
     int Version,
     DateTimeOffset PublishedAt) : IDomainEvent;
 

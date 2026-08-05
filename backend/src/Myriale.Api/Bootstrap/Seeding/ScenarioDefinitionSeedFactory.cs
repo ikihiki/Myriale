@@ -2,12 +2,12 @@ namespace Myriale.Api.Bootstrap.Seeding;
 
 internal static class ScenarioDefinitionSeedFactory
 {
-    public static ScenarioDefinitionVersion CreatePublished(string scenarioId, DateTimeOffset timestamp)
+    public static ScenarioDefinitionVersion CreatePublished(ScenarioId scenarioId, DateTimeOffset timestamp)
     {
-        if (scenarioId == "SCN-AWAKENING-LAB") return CreateAwakeningLaboratory(scenarioId, timestamp);
-        if (scenarioId == "SCN-LIGHTHOUSE-CONFESSION") return CreateLighthouseConfession(scenarioId, timestamp);
+        if (scenarioId == new ScenarioId("SCN-AWAKENING-LAB")) return CreateAwakeningLaboratory(scenarioId, timestamp);
+        if (scenarioId == new ScenarioId("SCN-LIGHTHOUSE-CONFESSION")) return CreateLighthouseConfession(scenarioId, timestamp);
 
-        var slug = scenarioId.Replace("SCN-", string.Empty, StringComparison.Ordinal);
+        var slug = scenarioId.AsPrimitive().Replace("SCN-", string.Empty, StringComparison.Ordinal);
         var version = NewVersion(scenarioId, slug, timestamp, 1, "start");
         var location = NewLocation(version, slug, "START", "start", "開始地点", "シナリオの開始地点。");
         var type = NewBooleanType(version, slug, "FEATURE", "feature", "調査対象", "調査できるシナリオオブジェクト。", "examined");
@@ -17,7 +17,7 @@ internal static class ScenarioDefinitionSeedFactory
         return version;
     }
 
-    private static ScenarioDefinitionVersion CreateAwakeningLaboratory(string scenarioId, DateTimeOffset timestamp)
+    private static ScenarioDefinitionVersion CreateAwakeningLaboratory(ScenarioId scenarioId, DateTimeOffset timestamp)
     {
         const string slug = "AWAKENING-LAB";
         var version = NewVersion(scenarioId, slug, timestamp, 2, "start");
@@ -79,7 +79,7 @@ internal static class ScenarioDefinitionSeedFactory
         return version;
     }
 
-    private static ScenarioDefinitionVersion CreateLighthouseConfession(string scenarioId, DateTimeOffset timestamp)
+    private static ScenarioDefinitionVersion CreateLighthouseConfession(ScenarioId scenarioId, DateTimeOffset timestamp)
     {
         const string slug = "LIGHTHOUSE-CONFESSION";
         var version = NewVersion(scenarioId, slug, timestamp, 1, "interview-room");
@@ -93,7 +93,7 @@ internal static class ScenarioDefinitionSeedFactory
 
         var keeper = new ScenarioObjectType
         {
-            Id = $"SOT-{slug}-KEEPER",
+            Id = new ScenarioObjectTypeId($"SOT-{slug}-KEEPER"),
             DefinitionVersionId = version.Id,
             Code = "conversation-npc",
             Name = "状態を持つ会話NPC",
@@ -239,16 +239,16 @@ internal static class ScenarioDefinitionSeedFactory
         return type;
     }
 
-    private static ScenarioDefinitionVersion NewVersion(string scenarioId, string slug, DateTimeOffset timestamp, int versionNumber, string startLocationCode) => new()
+    private static ScenarioDefinitionVersion NewVersion(ScenarioId scenarioId, string slug, DateTimeOffset timestamp, int versionNumber, string startLocationCode) => new()
     {
-        Id = $"SDV-{slug}-{versionNumber}", ScenarioId = scenarioId, Version = versionNumber, Status = DefinitionStatus.Published,
+        Id = new ScenarioDefinitionVersionId($"SDV-{slug}-{versionNumber}"), ScenarioId = scenarioId, Version = versionNumber, Status = DefinitionStatus.Published,
         SchemaVersion = 2, StartLocationCode = startLocationCode,
         CreatedAt = timestamp, UpdatedAt = timestamp, PublishedAt = timestamp,
     };
 
     private static ScenarioLocation NewLocation(ScenarioDefinitionVersion version, string slug, string idSuffix, string code, string name, string description)
     {
-        var location = new ScenarioLocation { Id = $"SLOC-{slug}-{idSuffix}", DefinitionVersionId = version.Id, Code = code, Name = name, Description = description, AuthoringDataJson = "{}" };
+        var location = new ScenarioLocation { Id = new ScenarioLocationId($"SLOC-{slug}-{idSuffix}"), DefinitionVersionId = version.Id, Code = code, Name = name, Description = description, AuthoringDataJson = "{}" };
         version.Locations.Add(location);
         return location;
     }
@@ -257,7 +257,7 @@ internal static class ScenarioDefinitionSeedFactory
     {
         var type = new ScenarioObjectType
         {
-            Id = $"SOT-{slug}-{idSuffix}", DefinitionVersionId = version.Id, Code = code, Name = name, Description = description, SchemaVersion = 1,
+            Id = new ScenarioObjectTypeId($"SOT-{slug}-{idSuffix}"), DefinitionVersionId = version.Id, Code = code, Name = name, Description = description, SchemaVersion = 1,
             StateSchemaJson = $"{{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{{\"{property}\":{{\"type\":\"boolean\"}}}},\"required\":[\"{property}\"]}}",
             DefaultStateJson = $"{{\"{property}\":false}}", PublicProjectionJson = $"{{\"include\":[\"{property}\"]}}",
         };
@@ -269,7 +269,7 @@ internal static class ScenarioDefinitionSeedFactory
     {
         var action = new ScenarioObjectTypeAction
         {
-            Id = $"SOTA-{slug}-{idSuffix}", ObjectTypeId = type.Id, Code = code, Label = label, Description = description,
+            Id = new ScenarioObjectTypeActionId($"SOTA-{slug}-{idSuffix}"), ObjectTypeId = type.Id, Code = code, Label = label, Description = description,
             ArgumentSchemaJson = argumentSchema ?? "{\"type\":\"object\",\"additionalProperties\":false}", AvailabilityConditionJson = "{}", Visibility = ActionVisibility.AiChoice, ExecutionMode = ActionExecutionMode.Rule,
         };
         type.Actions.Add(action);
@@ -278,7 +278,7 @@ internal static class ScenarioDefinitionSeedFactory
 
     private static ScenarioObject NewObject(ScenarioDefinitionVersion version, string slug, string idSuffix, string code, string name, ScenarioObjectType type, ScenarioLocation location, string? profileMarkdown = null)
     {
-        var item = new ScenarioObject { Id = $"SOBJ-{slug}-{idSuffix}", DefinitionVersionId = version.Id, Code = code, Name = name, ProfileMarkdown = profileMarkdown?.Trim() ?? $"## 外観・概要\n\n{type.Description}", LocationId = location.Id, InitialStateOverrideJson = "{}", MixinTypeCodesJson = $"[\"{type.Code}\"]" };
+        var item = new ScenarioObject { Id = new ScenarioObjectId($"SOBJ-{slug}-{idSuffix}"), DefinitionVersionId = version.Id, Code = code, Name = name, ProfileMarkdown = profileMarkdown?.Trim() ?? $"## 外観・概要\n\n{type.Description}", LocationId = location.Id, InitialStateOverrideJson = "{}", MixinTypeCodesJson = $"[\"{type.Code}\"]" };
         version.Objects.Add(item);
         return item;
     }

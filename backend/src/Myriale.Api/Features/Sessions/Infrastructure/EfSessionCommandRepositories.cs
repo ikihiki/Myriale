@@ -6,11 +6,11 @@ namespace Myriale.Api.Features.Sessions.Infrastructure;
 
 public sealed class EfSessionInputAcceptanceRepository(ApplicationDbContext db) : ISessionInputAcceptanceRepository
 {
-    public Task<Session?> LoadOwnedAsync(string ownerId, string sessionId, CancellationToken cancellationToken) => db.Sessions
+    public Task<Session?> LoadOwnedAsync(AccountId ownerId, SessionId sessionId, CancellationToken cancellationToken) => db.Sessions
         .Include(item => item.HeadTurn)
         .SingleOrDefaultAsync(item => item.Id == sessionId && item.OwnerId == ownerId, cancellationToken);
 
-    public async Task<(SessionPlayerInput Input, SessionExecution Execution)?> FindReplayAsync(string sessionId, string requestId, CancellationToken cancellationToken)
+    public async Task<(SessionPlayerInput Input, SessionExecution Execution)?> FindReplayAsync(SessionId sessionId, string requestId, CancellationToken cancellationToken)
     {
         var input = await db.SessionPlayerInputs.AsNoTracking().SingleOrDefaultAsync(x => x.SessionId == sessionId && x.RequestId == requestId, cancellationToken);
         if (input is null) return null;
@@ -18,20 +18,20 @@ public sealed class EfSessionInputAcceptanceRepository(ApplicationDbContext db) 
         return (input, execution);
     }
 
-    public async Task<bool> HasBlockingModuleHeadAsync(string sessionId, string? headTurnId, CancellationToken cancellationToken)
+    public async Task<bool> HasBlockingModuleHeadAsync(SessionId sessionId, SessionTurnId? headTurnId, CancellationToken cancellationToken)
     {
         if (headTurnId is null) return false;
         return await db.SessionTurns.AsNoTracking().AnyAsync(turn => turn.SessionId == sessionId && turn.Id == headTurnId
             && turn.Kind == SessionTurnKind.Module && turn.NarrativeTurn == null, cancellationToken);
     }
 
-    public async Task<bool> IsModuleHandoffPendingAsync(string sessionId, string? headTurnId, CancellationToken cancellationToken)
+    public async Task<bool> IsModuleHandoffPendingAsync(SessionId sessionId, SessionTurnId? headTurnId, CancellationToken cancellationToken)
     {
         if (headTurnId is null) return false;
         return await db.ModuleExecutions.AsNoTracking().AnyAsync(x => x.SessionTurnId == headTurnId && x.Status == ModuleExecutionStatus.Completed, cancellationToken);
     }
 
-    public async Task<int> CountRecentInputsAsync(string sessionId, DateTimeOffset cutoff, CancellationToken cancellationToken)
+    public async Task<int> CountRecentInputsAsync(SessionId sessionId, DateTimeOffset cutoff, CancellationToken cancellationToken)
     {
         if (db.Database.IsNpgsql()) return await db.SessionPlayerInputs.CountAsync(x => x.SessionId == sessionId && x.CreatedAt >= cutoff, cancellationToken);
         return (await db.SessionPlayerInputs.AsNoTracking().Where(x => x.SessionId == sessionId).Select(x => x.CreatedAt).ToListAsync(cancellationToken)).Count(x => x >= cutoff);
@@ -50,12 +50,12 @@ public sealed class EfSessionInputAcceptanceRepository(ApplicationDbContext db) 
 
 public sealed class EfSessionCreationRepository(ApplicationDbContext db) : ISessionCreationRepository
 {
-    public Task<Session?> FindReplayAsync(string ownerId, string requestId, CancellationToken cancellationToken) => db.Sessions.AsNoTracking()
+    public Task<Session?> FindReplayAsync(AccountId ownerId, string requestId, CancellationToken cancellationToken) => db.Sessions.AsNoTracking()
         .SingleOrDefaultAsync(x => x.OwnerId == ownerId && x.CreationRequestId == requestId, cancellationToken);
 
-    public async Task<SessionCreationSourceResult> LoadSourceAsync(string ownerId, string scenarioId, CancellationToken cancellationToken)
+    public async Task<SessionCreationSourceResult> LoadSourceAsync(AccountId ownerId, ScenarioId scenarioId, CancellationToken cancellationToken)
     {
-        var canDebug = await db.Users.AsNoTracking().Where(x => x.Id == ownerId).Select(x => x.CanDebugDialogue).SingleOrDefaultAsync(cancellationToken);
+        var canDebug = await db.Users.AsNoTracking().Where(x => x.Id == ownerId.AsPrimitive()).Select(x => x.CanDebugDialogue).SingleOrDefaultAsync(cancellationToken);
         if (!await db.Scenarios.AsNoTracking().AnyAsync(x => x.Id == scenarioId, cancellationToken))
             return new(SessionCreationSourceOutcome.ScenarioNotFound);
         var definition = await db.ScenarioDefinitionVersions.AsNoTracking()

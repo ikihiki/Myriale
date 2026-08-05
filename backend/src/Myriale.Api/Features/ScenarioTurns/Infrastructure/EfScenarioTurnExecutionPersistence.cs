@@ -16,21 +16,21 @@ public sealed class EfScenarioExecutionFence(ApplicationDbContext db) : IScenari
                 && item.Revision == context.Revision)
             .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.Stage, stage.ToWireValue()), cancellationToken);
         if (updated != 1) return null;
-        return await (
-            from item in db.SessionExecutions.AsNoTracking()
-            join input in db.SessionPlayerInputs.AsNoTracking() on item.TriggerId equals input.Id
-            where item.Id == context.ExecutionId
-            select new ScenarioExecutionCheckpoint(
-                item.Id, item.SessionId, item.TriggerId, input.Text,
-                item.AcceptedHeadTurnId, item.AcceptedSessionRevision,
-                item.ActionDecisionAiProfileId!, item.NarrativeAiProfileId!))
-            .SingleAsync(cancellationToken);
+        var item = await db.SessionExecutions.AsNoTracking()
+            .SingleAsync(candidate => candidate.Id == context.ExecutionId, cancellationToken);
+        var inputId = new SessionPlayerInputId(item.TriggerId.AsPrimitive());
+        var input = await db.SessionPlayerInputs.AsNoTracking()
+            .SingleAsync(candidate => candidate.Id == inputId, cancellationToken);
+        return new ScenarioExecutionCheckpoint(
+            item.Id, item.SessionId, input.Id, input.Text,
+            item.AcceptedHeadTurnId, item.AcceptedSessionRevision,
+            item.ActionDecisionAiProfileId!.Value, item.NarrativeAiProfileId!.Value);
     }
 }
 
 public sealed class EfScenarioWorldSnapshotQuery(ApplicationDbContext db, ScenarioRuleWorldSnapshotFactory factory) : IScenarioWorldSnapshotQuery
 {
-    public async Task<ScenarioRuleWorldSnapshot> LoadAsync(string sessionId, CancellationToken cancellationToken)
+    public async Task<ScenarioRuleWorldSnapshot> LoadAsync(SessionId sessionId, CancellationToken cancellationToken)
     {
         var session = await db.Sessions.AsNoTracking().Include(item => item.State)
             .SingleAsync(item => item.Id == sessionId, cancellationToken);
@@ -49,7 +49,7 @@ public sealed class EfScenarioActionSnapshotRepository(ApplicationDbContext db) 
 {
     private static readonly JsonSerializerOptions Json = ScenarioJson.Options;
 
-    public Task<ScenarioActionStepSnapshot?> FindAsync(string executionId, CancellationToken cancellationToken) =>
+    public Task<ScenarioActionStepSnapshot?> FindAsync(SessionExecutionId executionId, CancellationToken cancellationToken) =>
         db.SessionRuleActionSteps.AsNoTracking().Where(item => item.ExecutionId == executionId)
             .Select(item => Map(item)).SingleOrDefaultAsync(cancellationToken);
 
@@ -62,11 +62,11 @@ public sealed class EfScenarioActionSnapshotRepository(ApplicationDbContext db) 
         if (fenced is null) return ScenarioCheckpointWriteOutcome.LeaseLost;
         if (await db.SessionRuleActionSteps.AnyAsync(item => item.ExecutionId == context.ExecutionId, cancellationToken))
             return ScenarioCheckpointWriteOutcome.Existing;
-        if (!string.Equals(fenced.AcceptedHeadTurnId, execution.AcceptedHeadTurnId, StringComparison.Ordinal)
+        if (fenced.AcceptedHeadTurnId != execution.AcceptedHeadTurnId
             || world.SessionRevision != fenced.AcceptedSessionRevision + 1)
             return ScenarioCheckpointWriteOutcome.Conflict;
         var step = SessionRuleActionStep.CreateSnapshot(
-            $"RST-{Guid.NewGuid():N}".ToUpperInvariant(), execution.SessionId, execution.ExecutionId,
+            new SessionRuleActionStepId($"RST-{Guid.NewGuid():N}".ToUpperInvariant()), execution.SessionId, execution.ExecutionId,
             execution.PlayerInputId, world.ScenarioDefinitionVersionId, world.SessionRevision,
             JsonSerializer.Serialize(world.Objects.ToDictionary(item => item.Id, item => item.Revision), Json),
             JsonSerializer.Serialize(snapshot, Json), now);
@@ -148,7 +148,7 @@ public sealed class EfScenarioAiInteractionRecorder(ApplicationDbContext db, ILo
 {
     private static readonly JsonSerializerOptions Json = ScenarioJson.Options;
 
-    public async Task<RuleActionDecisionResult?> FindRecordedDecisionAsync(string executionId, CancellationToken cancellationToken)
+    public async Task<RuleActionDecisionResult?> FindRecordedDecisionAsync(SessionExecutionId executionId, CancellationToken cancellationToken)
     {
         var recorded = await db.SessionAiInteractions.AsNoTracking()
             .Where(item => item.ExecutionId == executionId && item.Stage == SessionAiInteractionStage.ActionDecision
@@ -162,20 +162,20 @@ public sealed class EfScenarioAiInteractionRecorder(ApplicationDbContext db, ILo
     }
 
     public Task RecordSuccessAsync<T>(ScenarioExecutionCheckpoint execution, SessionExecutionContext context, int sequence,
-        SessionAiInteractionStage stage, string profileId, DateTimeOffset startedAt, NarrativeGeneration<T> generation,
+        SessionAiInteractionStage stage, AiProviderProfileId profileId, DateTimeOffset startedAt, NarrativeGeneration<T> generation,
         string canonicalResultJson, CancellationToken cancellationToken) =>
         PersistAsync(execution, context, sequence, stage, profileId, startedAt, generation,
             SessionAiInteractionStatus.Succeeded, null, null, canonicalResultJson, cancellationToken);
 
     public Task RecordValidationFailureAsync<T>(ScenarioExecutionCheckpoint execution, SessionExecutionContext context, int sequence,
-        SessionAiInteractionStage stage, string profileId, DateTimeOffset startedAt, NarrativeGeneration<T> generation,
+        SessionAiInteractionStage stage, AiProviderProfileId profileId, DateTimeOffset startedAt, NarrativeGeneration<T> generation,
         ScenarioTurnValidationException exception, CancellationToken cancellationToken) =>
         PersistAsync(execution, context, sequence, stage, profileId, startedAt, generation,
             SessionAiInteractionStatus.ValidationFailed, exception.Code, exception.Message,
             JsonSerializer.Serialize(new { status = "invalid", code = exception.Code }, Json), cancellationToken);
 
     public async Task TryRecordProviderFailureAsync(ScenarioExecutionCheckpoint execution, SessionExecutionContext context, int sequence,
-        SessionAiInteractionStage stage, string profileId, DateTimeOffset startedAt, AiProviderException exception, CancellationToken cancellationToken)
+        SessionAiInteractionStage stage, AiProviderProfileId profileId, DateTimeOffset startedAt, AiProviderException exception, CancellationToken cancellationToken)
     {
         try
         {
@@ -199,11 +199,11 @@ public sealed class EfScenarioAiInteractionRecorder(ApplicationDbContext db, ILo
     }
 
     private async Task PersistAsync<T>(ScenarioExecutionCheckpoint execution, SessionExecutionContext context, int sequence,
-        SessionAiInteractionStage stage, string profileId, DateTimeOffset startedAt, NarrativeGeneration<T> generation,
+        SessionAiInteractionStage stage, AiProviderProfileId profileId, DateTimeOffset startedAt, NarrativeGeneration<T> generation,
         SessionAiInteractionStatus status, string? errorCode, string? errorMessage, string validationResult, CancellationToken cancellationToken)
     {
         var interaction = await FindOrCreateAsync(execution, context, sequence, stage, profileId, startedAt, cancellationToken);
-        interaction.Provider = generation.Metadata.Provider;
+        interaction.Provider = generation.Metadata.Provider.AsPrimitive();
         interaction.Model = generation.Metadata.Model;
         interaction.ProviderRequestId = generation.Metadata.ResponseId;
         interaction.CompletedAt = DateTimeOffset.UtcNow;
@@ -221,14 +221,14 @@ public sealed class EfScenarioAiInteractionRecorder(ApplicationDbContext db, ILo
     }
 
     private async Task<SessionAiInteraction> FindOrCreateAsync(ScenarioExecutionCheckpoint execution, SessionExecutionContext context,
-        int sequence, SessionAiInteractionStage stage, string profileId, DateTimeOffset startedAt, CancellationToken cancellationToken)
+        int sequence, SessionAiInteractionStage stage, AiProviderProfileId profileId, DateTimeOffset startedAt, CancellationToken cancellationToken)
     {
         var interaction = await db.SessionAiInteractions.SingleOrDefaultAsync(
             item => item.AttemptId == context.AttemptId && item.Stage == stage, cancellationToken);
         if (interaction is not null) return interaction;
         interaction = new SessionAiInteraction
         {
-            Id = $"AII-{Guid.NewGuid():N}".ToUpperInvariant(), SessionId = execution.SessionId,
+            Id = new SessionAiInteractionId($"AII-{Guid.NewGuid():N}".ToUpperInvariant()), SessionId = execution.SessionId,
             ExecutionId = execution.ExecutionId, AttemptId = context.AttemptId, Sequence = sequence,
             Stage = stage, AiProfileId = profileId, StartedAt = startedAt,
         };
@@ -261,7 +261,7 @@ public sealed class EfScenarioEffectCommitUnitOfWork(
         var plan = JsonSerializer.Deserialize<ScenarioEffectPlan>(step.ResolutionPlanJson, Json)
             ?? throw new ScenarioTurnValidationException("invalid_effect_plan");
         var session = await db.Sessions.Include(item => item.State).SingleAsync(item => item.Id == execution.SessionId, cancellationToken);
-        if (session.Revision != plan.Session.ExpectedRevision || !string.Equals(session.HeadTurnId, execution.AcceptedHeadTurnId, StringComparison.Ordinal))
+        if (session.Revision != plan.Session.ExpectedRevision || session.HeadTurnId != execution.AcceptedHeadTurnId)
             return new(ScenarioCheckpointWriteOutcome.Conflict);
         var states = await db.SessionObjectStates.Where(item => item.SessionId == execution.SessionId).ToListAsync(cancellationToken);
         foreach (var patch in plan.Objects)
@@ -335,7 +335,7 @@ public sealed class EfScenarioNarrativePublisher(
         var input = await db.SessionPlayerInputs.SingleAsync(item => item.Id == step.PlayerInputId, cancellationToken);
         if (await db.SessionTurns.AnyAsync(item => item.PlayerInputId == input.Id, cancellationToken)) return ScenarioNarrativePublishOutcome.Existing;
         var session = await db.Sessions.Include(item => item.HeadTurn).SingleAsync(item => item.Id == execution.SessionId, cancellationToken);
-        if (!string.Equals(session.HeadTurnId, execution.AcceptedHeadTurnId, StringComparison.Ordinal))
+        if (session.HeadTurnId != execution.AcceptedHeadTurnId)
             return ScenarioNarrativePublishOutcome.SessionAdvanced;
         var now = timeProvider.GetUtcNow();
         _ = appender.Append(session, input, step, narrative, now);
@@ -344,7 +344,7 @@ public sealed class EfScenarioNarrativePublisher(
         artifactWriter.AddNarrative(execution.SessionId, execution.Id, context.AttemptId, narrative.Value, now);
         var attempt = await db.SessionExecutionAttempts.SingleAsync(item => item.Id == context.AttemptId, cancellationToken);
         attempt.RecordProviderDiagnostics(
-            narrative.Metadata.Provider,
+            narrative.Metadata.Provider.AsPrimitive(),
             narrative.Metadata.Model,
             narrative.Metadata.ResponseId,
             narrative.Metadata.LatencyMilliseconds,

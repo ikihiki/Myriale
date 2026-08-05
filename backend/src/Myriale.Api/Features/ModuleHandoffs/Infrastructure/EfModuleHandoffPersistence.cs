@@ -15,19 +15,19 @@ public sealed class EfModuleHandoffEnqueuePort(ApplicationDbContext db, TimeProv
 {
     public async Task<EnqueueModuleHandoffOutcome> EnqueueAsync(
         ModuleExecution execution,
-        string narrativeAiProfileId,
+        AiProviderProfileId narrativeAiProfileId,
         CancellationToken cancellationToken)
     {
         var source = await db.SessionTurns.Include(turn => turn.Session)
             .SingleOrDefaultAsync(turn => turn.Id == execution.SessionTurnId, cancellationToken)
             ?? throw new ModuleHandoffValidationException("module_execution_missing", "Module Turnを確認できませんでした。");
         var linkedExecutionId = await db.SessionTurns.Where(turn => turn.Id == source.Id)
-            .Select(turn => turn.ModuleExecution == null ? null : turn.ModuleExecution.Id)
+            .Select(turn => turn.ModuleExecution == null ? (ModuleExecutionId?)null : turn.ModuleExecution.Id)
             .SingleAsync(cancellationToken);
-        if (source.Kind != SessionTurnKind.Module || !string.Equals(linkedExecutionId, execution.Id, StringComparison.Ordinal)
-            || !string.Equals(source.SessionId, source.Session.Id, StringComparison.Ordinal))
+        if (source.Kind != SessionTurnKind.Module || linkedExecutionId != execution.Id
+            || source.SessionId != source.Session.Id)
             throw new ModuleHandoffValidationException("module_execution_missing", "Module実行とSession Turnの因果関係を確認できませんでした。");
-        if (!string.Equals(source.Session.HeadTurnId, source.Id, StringComparison.Ordinal))
+        if (source.Session.HeadTurnId != source.Id)
             throw new ModuleHandoffValidationException("session_advanced", "Sessionが先へ進んだためhandoffを開始できません。");
 
         var idempotencyKey = $"module-handoff:{execution.Id}";
@@ -38,15 +38,15 @@ public sealed class EfModuleHandoffEnqueuePort(ApplicationDbContext db, TimeProv
         var now = timeProvider.GetUtcNow();
         db.SessionExecutions.Add(new SessionExecution
         {
-            Id = $"EXE-{Guid.NewGuid():N}".ToUpperInvariant(),
+            Id = new SessionExecutionId($"EXE-{Guid.NewGuid():N}".ToUpperInvariant()),
             SessionId = source.SessionId,
             Kind = SessionExecutionKind.ModuleHandoff,
             TriggerType = SessionExecutionTriggerType.ModuleOutcome,
-            TriggerId = source.Id,
+            TriggerId = new SessionExecutionTriggerId(source.Id.AsPrimitive()),
             Status = SessionExecutionStatus.Queued,
             Revision = 0,
             IdempotencyKey = idempotencyKey,
-            PayloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(execution.Id))).ToLowerInvariant(),
+            PayloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(execution.Id.AsPrimitive()))).ToLowerInvariant(),
             NarrativeAiProfileId = narrativeAiProfileId,
             AcceptedHeadTurnId = source.Id,
             AcceptedSessionRevision = source.Session.Revision,
@@ -66,12 +66,13 @@ public sealed class EfModuleHandoffSourceSnapshotQuery(ApplicationDbContext db) 
             && item.Revision == context.Revision, cancellationToken);
         if (execution is null) return null;
 
+        var triggerTurnId = new SessionTurnId(execution.TriggerId.AsPrimitive());
         var source = await db.SessionTurns.AsNoTracking()
             .Include(turn => turn.Session).ThenInclude(session => session.State)
             .Include(turn => turn.Session).ThenInclude(session => session.ScenarioDefinitionVersion)
             .Include(turn => turn.ModuleExecution).ThenInclude(module => module!.OutcomeApplication)
-            .SingleOrDefaultAsync(turn => turn.Id == execution.TriggerId, cancellationToken);
-        var existing = source is null ? null : await db.SessionTurns.AsNoTracking()
+            .SingleOrDefaultAsync(turn => turn.Id == triggerTurnId, cancellationToken);
+        SessionTurnId? existing = source is null ? null : await db.SessionTurns.AsNoTracking()
             .Where(turn => turn.SourceModuleTurnId == source.Id).Select(turn => turn.Id)
             .SingleOrDefaultAsync(cancellationToken);
         var definitionId = source?.Session.ScenarioDefinitionVersionId;
@@ -80,9 +81,9 @@ public sealed class EfModuleHandoffSourceSnapshotQuery(ApplicationDbContext db) 
             .Select(item => new NarrativeEntityInput(item.Code, item.Name, item.ProfileMarkdown)).ToListAsync(cancellationToken);
         var definition = source?.Session.ScenarioDefinitionVersion;
         return new(
-            execution.Id, execution.SessionId, source?.Session.OwnerId ?? string.Empty, execution.TriggerType,
+            execution.Id, execution.SessionId, source?.Session.OwnerId ?? default, execution.TriggerType,
             execution.TriggerId, execution.IdempotencyKey, execution.AcceptedHeadTurnId, execution.AcceptedSessionRevision,
-            execution.NarrativeAiProfileId ?? string.Empty, source?.Id, source?.SessionId, source?.Kind, source?.ModuleExecution?.Id,
+            execution.NarrativeAiProfileId ?? default, source?.Id, source?.SessionId, source?.Kind, source?.ModuleExecution?.Id,
             source?.ModuleExecution?.Status, source?.ModuleExecution?.OutcomeJson, source?.ModuleExecution?.ViewStateJson,
             source?.ModuleExecution?.OutcomeApplication?.SessionId, source?.ModuleExecution?.OutcomeApplication?.AppliedSessionRevision,
             source?.Session.HeadTurnId, source?.Session.Revision ?? 0, source?.Session.State.Revision ?? 0,
@@ -143,14 +144,14 @@ public sealed class EfModuleHandoffAiInteractionRecorder(
         {
             interaction = new SessionAiInteraction
             {
-                Id = $"AII-{Guid.NewGuid():N}".ToUpperInvariant(), SessionId = source.SessionId,
+                Id = new SessionAiInteractionId($"AII-{Guid.NewGuid():N}".ToUpperInvariant()), SessionId = source.SessionId,
                 ExecutionId = source.ExecutionId, AttemptId = context.AttemptId, Sequence = 1,
                 Stage = SessionAiInteractionStage.ModuleHandoff, AiProfileId = source.NarrativeAiProfileId, StartedAt = startedAt,
             };
             db.SessionAiInteractions.Add(interaction);
         }
         interaction.CompletedAt = DateTimeOffset.UtcNow;
-        interaction.Provider = metadata?.Provider;
+        interaction.Provider = metadata?.Provider.AsPrimitive();
         interaction.Model = metadata?.Model;
         interaction.ProviderRequestId = metadata?.ResponseId;
         interaction.LatencyMilliseconds = metadata?.LatencyMilliseconds ?? Math.Max(0, (long)(interaction.CompletedAt - startedAt).TotalMilliseconds);
@@ -167,7 +168,7 @@ public sealed class EfModuleHandoffAiInteractionRecorder(
         if (attempt is not null)
         {
             attempt.RecordProviderDiagnostics(
-                metadata?.Provider,
+                metadata?.Provider.AsPrimitive(),
                 metadata?.Model,
                 metadata?.ResponseId,
                 metadata?.LatencyMilliseconds,
@@ -203,12 +204,13 @@ public sealed class EfModuleHandoffPublishUnitOfWork(
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var execution = await LoadFencedAsync(context, cancellationToken);
         if (execution is null) return new(ModuleHandoffPublishOutcome.LeaseLost);
+        var triggerTurnId = new SessionTurnId(execution.TriggerId.AsPrimitive());
         var source = await db.SessionTurns
             .Include(turn => turn.Session).ThenInclude(session => session.HeadTurn)
             .Include(turn => turn.Session).ThenInclude(session => session.State)
             .Include(turn => turn.Session).ThenInclude(session => session.Progress).ThenInclude(progress => progress!.CurrentNode)
             .Include(turn => turn.ModuleExecution).ThenInclude(module => module!.OutcomeApplication)
-            .SingleOrDefaultAsync(turn => turn.Id == execution.TriggerId, cancellationToken);
+            .SingleOrDefaultAsync(turn => turn.Id == triggerTurnId, cancellationToken);
         if (source?.ModuleExecution is null || source.Kind != SessionTurnKind.Module || source.SessionId != execution.SessionId
             || execution.TriggerType != SessionExecutionTriggerType.ModuleOutcome || execution.AcceptedHeadTurnId != source.Id
             || execution.IdempotencyKey != $"module-handoff:{source.ModuleExecution.Id}")

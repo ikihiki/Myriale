@@ -16,7 +16,7 @@ public sealed class AiCredential
     [MaxLength(16)] public string SecretHint { get; private set; } = string.Empty;
     public long Revision { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
-    public static AiCredential Create(string id, string displayName, string protectedSecret, string secretHint, DateTimeOffset now) => new(new(id), displayName, protectedSecret, secretHint, now);
+    public static AiCredential Create(AiCredentialId id, string displayName, string protectedSecret, string secretHint, DateTimeOffset now) => new(id, displayName, protectedSecret, secretHint, now);
     public void Replace(string displayName, string protectedSecret, string secretHint, long expectedRevision, DateTimeOffset now)
     { RequireRevision(expectedRevision); DisplayName = ValidateDisplayName(displayName); ProtectedSecret = Required(protectedSecret); SecretHint = secretHint; Revision++; UpdatedAt = now; }
     public void RequireRevision(long expectedRevision) { if (Revision != expectedRevision) throw new AiRevisionConflictException(); }
@@ -28,8 +28,8 @@ public sealed class AiProviderProfileValidation
 {
     private AiProviderProfileValidation() { }
     private AiProviderProfileValidation(AiProviderProfileId profileId, long profileRevision, AiCredentialId credentialId, long credentialRevision, AiCredentialValidationStatus status, string? errorCode, DateTimeOffset testedAt)
-    { Id = Guid.NewGuid(); ProfileId = profileId; ProfileRevision = profileRevision; CredentialId = credentialId; CredentialRevision = credentialRevision; Status = status; ErrorCode = errorCode; TestedAt = testedAt; }
-    [Key] public Guid Id { get; private set; }
+    { Id = new AiProviderProfileValidationId(Guid.NewGuid()); ProfileId = profileId; ProfileRevision = profileRevision; CredentialId = credentialId; CredentialRevision = credentialRevision; Status = status; ErrorCode = errorCode; TestedAt = testedAt; }
+    [Key] public AiProviderProfileValidationId Id { get; private set; }
     public AiProviderProfileId ProfileId { get; private set; }
     public long ProfileRevision { get; private set; }
     public AiCredentialId CredentialId { get; private set; }

@@ -53,13 +53,13 @@ public static class SessionAiInteractionValues
 
 public sealed class SessionAiInteraction
 {
-    [Key, MaxLength(40)] public string Id { get; internal set; } = string.Empty;
-    [Required, MaxLength(40)] public string SessionId { get; internal set; } = string.Empty;
-    [Required, MaxLength(40)] public string ExecutionId { get; internal set; } = string.Empty;
-    [Required, MaxLength(40)] public string AttemptId { get; internal set; } = string.Empty;
+    [Key, MaxLength(40)] public SessionAiInteractionId Id { get; internal set; }
+    [Required, MaxLength(40)] public SessionId SessionId { get; internal set; }
+    [Required, MaxLength(40)] public SessionExecutionId ExecutionId { get; internal set; }
+    [Required, MaxLength(40)] public SessionExecutionAttemptId AttemptId { get; internal set; }
     public int Sequence { get; internal set; }
     [Required, MaxLength(32)] public SessionAiInteractionStage Stage { get; internal set; }
-    [Required, MaxLength(80)] public string AiProfileId { get; internal set; } = string.Empty;
+    [Required, MaxLength(80)] public AiProviderProfileId AiProfileId { get; internal set; }
     [MaxLength(80)] public string? Provider { get; internal set; }
     [MaxLength(160)] public string? Model { get; internal set; }
     [MaxLength(160)] public string? ProviderRequestId { get; internal set; }

@@ -14,8 +14,8 @@ public enum SessionExecutionAttemptStatus
 
 public sealed class SessionExecutionAttempt
 {
-    [Key, MaxLength(40)] public string Id { get; internal set; } = string.Empty;
-    [Required, MaxLength(40)] public string ExecutionId { get; internal set; } = string.Empty;
+    [Key, MaxLength(40)] public SessionExecutionAttemptId Id { get; internal set; }
+    [Required, MaxLength(40)] public SessionExecutionId ExecutionId { get; internal set; }
     public int AttemptNumber { get; internal set; }
     [Required, MaxLength(32)] public SessionExecutionAttemptStatus Status { get; private set; } = SessionExecutionAttemptStatus.Running;
     [MaxLength(120)] public string? WorkerId { get; internal set; }
@@ -46,10 +46,8 @@ public sealed class SessionExecutionAttempt
     public SessionExecution Execution { get; internal set; } = null!;
     public ICollection<SessionAiInteraction> AiInteractions { get; internal set; } = [];
 
-    public static SessionExecutionAttempt Start(string id, string executionId, int attemptNumber, string workerId, DateTimeOffset startedAt)
+    public static SessionExecutionAttempt Start(SessionExecutionAttemptId id, SessionExecutionId executionId, int attemptNumber, string workerId, DateTimeOffset startedAt)
     {
-        if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("Attempt ID is required.", nameof(id));
-        if (string.IsNullOrWhiteSpace(executionId)) throw new ArgumentException("Execution ID is required.", nameof(executionId));
         if (attemptNumber <= 0) throw new ArgumentOutOfRangeException(nameof(attemptNumber));
         if (string.IsNullOrWhiteSpace(workerId)) throw new ArgumentException("Worker ID is required.", nameof(workerId));
         return new SessionExecutionAttempt

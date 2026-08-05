@@ -1,8 +1,8 @@
 namespace Myriale.Api.Features.SessionArtifacts.Contracts;
 
 public sealed record SessionArtifactResponse(
-    string Id,
-    string ExecutionId,
+    SessionArtifactId Id,
+    SessionExecutionId ExecutionId,
     string Kind,
     string Status,
     string Schema,
@@ -15,9 +15,9 @@ public sealed record SessionArtifactResponse(
 public sealed record SessionActivityResponse(string Type, string Id, long Order, string? CausalId = null);
 
 public sealed record SessionNoteProposalResponse(
-    string ArtifactId,
-    string SourceTurnId,
-    string? NoteId,
+    SessionArtifactId ArtifactId,
+    SessionTurnId SourceTurnId,
+    SessionNoteId? NoteId,
     long ExpectedNoteRevision,
     string ProposedTitle,
     string BeforeBody,
@@ -43,8 +43,8 @@ public sealed class AttachSessionImageRequest
 }
 
 public sealed record SessionImageAttachmentResponse(
-    string ImageId,
-    string ArtifactId,
+    SessionImageId ImageId,
+    SessionArtifactId ArtifactId,
     string MediaUrl,
     string ContentType,
     long SizeBytes,

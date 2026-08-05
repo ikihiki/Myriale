@@ -24,8 +24,11 @@ public static class SessionArtifactEndpoints
         var owner = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         if (owner is null) return Results.Unauthorized();
         var result = await useCase.ExecuteAsync(new(
-            owner, request.SessionId, request.ExecutionId, request.AttemptId, request.File, request.Checksum,
-            request.ModerationDecision, request.ModerationMetadataJson, request.SourceTurnId, request.SourceInputId,
+            new AccountId(owner), new SessionId(request.SessionId), new SessionExecutionId(request.ExecutionId),
+            new SessionExecutionAttemptId(request.AttemptId), request.File, request.Checksum, request.ModerationDecision,
+            request.ModerationMetadataJson,
+            request.SourceTurnId is null ? null : new SessionTurnId(request.SourceTurnId),
+            request.SourceInputId is null ? null : new SessionPlayerInputId(request.SourceInputId),
             request.RetainUntil), cancellationToken);
         if (result.Outcome == AttachSessionImageOutcome.Created)
         {
@@ -45,14 +48,14 @@ public static class SessionArtifactEndpoints
     }
 
     private static async Task<IResult> GetMediaAsync(
-        string imageId,
+        SessionImageId imageId,
         ClaimsPrincipal principal,
         GetSessionImageMediaQuery query,
         CancellationToken cancellationToken)
     {
         var owner = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         if (owner is null) return Results.Unauthorized();
-        var media = await query.ExecuteAsync(owner, imageId, cancellationToken);
+        var media = await query.ExecuteAsync(new AccountId(owner), imageId, cancellationToken);
         return media is null
             ? Results.NotFound()
             : Results.Stream(media.Content, media.ContentType, enableRangeProcessing: true);

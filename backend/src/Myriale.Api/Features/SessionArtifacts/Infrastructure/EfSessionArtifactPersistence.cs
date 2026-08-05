@@ -15,7 +15,7 @@ public sealed class EfSessionArtifactRepository(ApplicationDbContext db)
     : ISessionArtifactRepository, ISessionArtifactRetentionRepository
 {
     public async Task<SessionImageAttachmentTarget?> FindImageAttachmentTargetAsync(
-        string ownerId, string sessionId, string executionId, string attemptId, CancellationToken cancellationToken)
+        AccountId ownerId, SessionId sessionId, SessionExecutionId executionId, SessionExecutionAttemptId attemptId, CancellationToken cancellationToken)
     {
         var target = await db.SessionExecutions.AsNoTracking()
             .Where(execution => execution.Id == executionId && execution.SessionId == sessionId && execution.Session.OwnerId == ownerId)
@@ -50,7 +50,7 @@ public sealed class EfSessionArtifactRepository(ApplicationDbContext db)
     }
 
     public Task<SessionImageMediaDescriptor?> FindImageMediaAsync(
-        string ownerId, string imageId, CancellationToken cancellationToken) =>
+        AccountId ownerId, SessionImageId imageId, CancellationToken cancellationToken) =>
         db.SessionImages.AsNoTracking()
             .Where(image => image.Id == imageId && image.Artifact.Status == SessionArtifactStatus.Committed
                 && image.Artifact.Execution.Session.OwnerId == ownerId)
@@ -62,7 +62,7 @@ public sealed class EfSessionArtifactRepository(ApplicationDbContext db)
             .Select(image => new SessionImageRetentionItem(image.Id, image.ArtifactId, image.StorageKey, image.RetainUntil))
             .ToListAsync(cancellationToken);
 
-    public async Task<bool> DeleteExpiredAsync(string imageId, DateTimeOffset now, CancellationToken cancellationToken)
+    public async Task<bool> DeleteExpiredAsync(SessionImageId imageId, DateTimeOffset now, CancellationToken cancellationToken)
     {
         var image = await db.SessionImages.Include(item => item.Artifact)
             .SingleOrDefaultAsync(item => item.Id == imageId, cancellationToken);

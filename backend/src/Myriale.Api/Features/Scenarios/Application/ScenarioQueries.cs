@@ -3,11 +3,11 @@ using Myriale.Api.Infrastructure.Persistence;
 
 namespace Myriale.Api.Features.Scenarios.Application;
 
-public sealed record ScenarioRecommendationContext(string Id, string Title, string Genre, string Tone, string Lore, string Opening);
+public sealed record ScenarioRecommendationContext(ScenarioId Id, string Title, string Genre, string Tone, string Lore, string Opening);
 
 public sealed class ScenarioQueryService(ApplicationDbContext db)
 {
-    public async Task<IReadOnlyList<ScenarioDraftResponse>> ListAsync(string? authorId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<ScenarioDraftResponse>> ListAsync(AccountId? authorId, CancellationToken cancellationToken)
     {
         var rows = await db.Scenarios.AsNoTracking()
             .Where(x => x.Status == ScenarioPublicationStatus.Published || authorId != null && x.AuthorId == authorId)
@@ -17,7 +17,7 @@ public sealed class ScenarioQueryService(ApplicationDbContext db)
         return rows.OrderByDescending(x => x.UpdatedAt).ThenBy(x => x.Title.Value).Select(ToResponse).ToList();
     }
 
-    public async Task<ScenarioDraftResponse?> GetAsync(string scenarioId, string? authorId, CancellationToken cancellationToken)
+    public async Task<ScenarioDraftResponse?> GetAsync(ScenarioId scenarioId, AccountId? authorId, CancellationToken cancellationToken)
     {
         var row = await db.Scenarios.AsNoTracking()
             .Where(x => x.Id == scenarioId && (x.Status == ScenarioPublicationStatus.Published || authorId != null && x.AuthorId == authorId))
@@ -27,22 +27,22 @@ public sealed class ScenarioQueryService(ApplicationDbContext db)
         return row is null ? null : ToResponse(row);
     }
 
-    public async Task<ScenarioRecommendationContext?> GetRecommendationContextAsync(string scenarioId, CancellationToken cancellationToken)
+    public async Task<ScenarioRecommendationContext?> GetRecommendationContextAsync(ScenarioId scenarioId, CancellationToken cancellationToken)
     {
         var row = await db.Scenarios.AsNoTracking().Where(x => x.Id == scenarioId)
             .Select(x => new { x.Id, x.Title, x.Genre, x.Tone, x.Lore, x.Opening }).SingleOrDefaultAsync(cancellationToken);
         return row is null ? null : new(row.Id, row.Title, row.Genre, row.Tone, row.Lore, row.Opening);
     }
 
-    public Task<bool> IsOwnerAsync(string scenarioId, string? authorId, CancellationToken cancellationToken) =>
-        string.IsNullOrWhiteSpace(authorId) ? Task.FromResult(false) :
+    public Task<bool> IsOwnerAsync(ScenarioId scenarioId, AccountId? authorId, CancellationToken cancellationToken) =>
+        authorId is null ? Task.FromResult(false) :
         db.Scenarios.AsNoTracking().AnyAsync(x => x.Id == scenarioId && x.AuthorId == authorId, cancellationToken);
 
     private static ScenarioDraftResponse ToResponse(ScenarioRow x) => new(x.Id, x.Title, x.Summary, x.Genre, x.Tone, x.Lore, x.AiFreedom,
         x.HeroMode.ToWireValue(), x.HeroFreeGenerationAllowed, x.Hero, x.Opening, x.IllustrationStyle, x.IllustrationMood,
         x.IllustrationNegative, x.SampleScene, x.Status.ToWireValue(), DateOnly.FromDateTime(x.UpdatedAt.UtcDateTime));
 
-    private sealed record ScenarioRow(string Id, ScenarioTitle Title, string Summary, string Genre, string Tone, string Lore, string AiFreedom,
+    private sealed record ScenarioRow(ScenarioId Id, ScenarioTitle Title, string Summary, string Genre, string Tone, string Lore, string AiFreedom,
         HeroMode HeroMode, bool HeroFreeGenerationAllowed, string Hero, string Opening, IllustrationPrompt IllustrationStyle,
         IllustrationPrompt IllustrationMood, IllustrationPrompt IllustrationNegative, string SampleScene, ScenarioPublicationStatus Status, DateTimeOffset UpdatedAt);
 }

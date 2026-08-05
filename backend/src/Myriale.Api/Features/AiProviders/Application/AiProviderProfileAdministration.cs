@@ -26,15 +26,15 @@ public interface IAiCredentialRepository
     Task<bool> SaveAsync(CancellationToken cancellationToken);
 }
 
-public sealed record CreateAiProviderProfileCommand(string Id, string DisplayName, string BaseUrl, string Model, string CredentialId, bool Enabled);
-public sealed record UpdateAiProviderProfileCommand(string Id, string DisplayName, string BaseUrl, string Model, string CredentialId, long ExpectedRevision);
-public sealed record ChangeAiProviderProfileStateCommand(string Id, long ExpectedRevision);
-public sealed record DeleteAiProviderProfileCommand(string Id, long ExpectedRevision);
-public sealed record SetAiCredentialCommand(string Id, string DisplayName, string Secret);
-public sealed record ReplaceAiCredentialCommand(string Id, string DisplayName, string Secret, long ExpectedRevision);
-public sealed record DeleteAiCredentialCommand(string Id, long ExpectedRevision);
-public sealed record TestAiProviderProfileCommand(string Id, long ExpectedProfileRevision, long ExpectedCredentialRevision);
-public sealed record PromptTestAiProviderProfileCommand(string Id, string Prompt, long ExpectedProfileRevision, long ExpectedCredentialRevision);
+public sealed record CreateAiProviderProfileCommand(AiProviderProfileId Id, string DisplayName, string BaseUrl, string Model, AiCredentialId CredentialId, bool Enabled);
+public sealed record UpdateAiProviderProfileCommand(AiProviderProfileId Id, string DisplayName, string BaseUrl, string Model, AiCredentialId CredentialId, long ExpectedRevision);
+public sealed record ChangeAiProviderProfileStateCommand(AiProviderProfileId Id, long ExpectedRevision);
+public sealed record DeleteAiProviderProfileCommand(AiProviderProfileId Id, long ExpectedRevision);
+public sealed record SetAiCredentialCommand(AiCredentialId Id, string DisplayName, string Secret);
+public sealed record ReplaceAiCredentialCommand(AiCredentialId Id, string DisplayName, string Secret, long ExpectedRevision);
+public sealed record DeleteAiCredentialCommand(AiCredentialId Id, long ExpectedRevision);
+public sealed record TestAiProviderProfileCommand(AiProviderProfileId Id, long ExpectedProfileRevision, long ExpectedCredentialRevision);
+public sealed record PromptTestAiProviderProfileCommand(AiProviderProfileId Id, string Prompt, long ExpectedProfileRevision, long ExpectedCredentialRevision);
 
 public sealed class AiProviderProfileUseCases(IAiProviderProfileRepository repository, IActiveAiProviderSettingsReader active, TimeProvider time)
 {
@@ -52,7 +52,7 @@ public sealed class AiProviderProfileUseCases(IAiProviderProfileRepository repos
     {
         try
         {
-            var profile = await repository.LoadAsync(new(command.Id), ct); if (profile is null) return NotFound<AiProviderProfile>();
+            var profile = await repository.LoadAsync(command.Id, ct); if (profile is null) return NotFound<AiProviderProfile>();
             profile.Update(command.DisplayName, command.BaseUrl, command.Model, command.CredentialId, command.ExpectedRevision, time.GetUtcNow());
             return await repository.SaveAsync(ct) ? new(AiAdministrationOutcome.Success, profile) : Conflict<AiProviderProfile>();
         }
@@ -65,8 +65,8 @@ public sealed class AiProviderProfileUseCases(IAiProviderProfileRepository repos
     {
         try
         {
-            var profile = await repository.LoadAsync(new(command.Id), ct); if (profile is null) return NotFound<AiProviderProfile>();
-            if (!enabled && string.Equals((await active.GetAsync(ct))?.Provider, profile.Id.AsPrimitive(), StringComparison.OrdinalIgnoreCase)) return new(AiAdministrationOutcome.ActiveProfile, Error: "The active profile cannot be disabled.");
+            var profile = await repository.LoadAsync(command.Id, ct); if (profile is null) return NotFound<AiProviderProfile>();
+            if (!enabled && (await active.GetAsync(ct))?.Provider == profile.Id) return new(AiAdministrationOutcome.ActiveProfile, Error: "The active profile cannot be disabled.");
             if (enabled) profile.Enable(command.ExpectedRevision, time.GetUtcNow()); else profile.Disable(command.ExpectedRevision, time.GetUtcNow());
             return await repository.SaveAsync(ct) ? new(AiAdministrationOutcome.Success, profile) : Conflict<AiProviderProfile>();
         }
@@ -76,9 +76,9 @@ public sealed class AiProviderProfileUseCases(IAiProviderProfileRepository repos
     {
         try
         {
-            var profile = await repository.LoadAsync(new(command.Id), ct); if (profile is null) return NotFound<bool>();
+            var profile = await repository.LoadAsync(command.Id, ct); if (profile is null) return NotFound<bool>();
             profile.RequireRevision(command.ExpectedRevision);
-            if (string.Equals((await active.GetAsync(ct))?.Provider, profile.Id.AsPrimitive(), StringComparison.OrdinalIgnoreCase)) return new(AiAdministrationOutcome.ActiveProfile, Error: "The active profile cannot be deleted.");
+            if ((await active.GetAsync(ct))?.Provider == profile.Id) return new(AiAdministrationOutcome.ActiveProfile, Error: "The active profile cannot be deleted.");
             repository.Remove(profile); return await repository.SaveAsync(ct) ? new(AiAdministrationOutcome.Success, true) : Conflict<bool>();
         }
         catch (AiRevisionConflictException) { return Conflict<bool>(); }
@@ -93,8 +93,8 @@ public sealed class AiCredentialUseCases(IAiCredentialRepository repository, IAi
     {
         try
         {
-            var id = new AiCredentialId(command.Id); if (await repository.LoadAsync(id, ct) is not null) return Conflict<AiCredential>();
-            var secret = RequiredSecret(command.Secret); var credential = AiCredential.Create(id.AsPrimitive(), command.DisplayName, protector.Protect(secret), AiRuntimeCredentialResolver.Hint(secret), time.GetUtcNow());
+            var id = command.Id; if (await repository.LoadAsync(id, ct) is not null) return Conflict<AiCredential>();
+            var secret = RequiredSecret(command.Secret); var credential = AiCredential.Create(id, command.DisplayName, protector.Protect(secret), AiRuntimeCredentialResolver.Hint(secret), time.GetUtcNow());
             repository.Add(credential); return await repository.SaveAsync(ct) ? new(AiAdministrationOutcome.Success, credential) : Conflict<AiCredential>();
         }
         catch (ArgumentException exception) { return new(AiAdministrationOutcome.ValidationFailed, Error: exception.Message); }
@@ -103,7 +103,7 @@ public sealed class AiCredentialUseCases(IAiCredentialRepository repository, IAi
     {
         try
         {
-            var credential = await repository.LoadAsync(new(command.Id), ct); if (credential is null) return NotFound<AiCredential>();
+            var credential = await repository.LoadAsync(command.Id, ct); if (credential is null) return NotFound<AiCredential>();
             var secret = RequiredSecret(command.Secret); credential.Replace(command.DisplayName, protector.Protect(secret), AiRuntimeCredentialResolver.Hint(secret), command.ExpectedRevision, time.GetUtcNow());
             return await repository.SaveAsync(ct) ? new(AiAdministrationOutcome.Success, credential) : Conflict<AiCredential>();
         }
@@ -114,10 +114,10 @@ public sealed class AiCredentialUseCases(IAiCredentialRepository repository, IAi
     {
         try
         {
-            var credential = await repository.LoadAsync(new(command.Id), ct); if (credential is null) return NotFound<bool>();
+            var credential = await repository.LoadAsync(command.Id, ct); if (credential is null) return NotFound<bool>();
             credential.RequireRevision(command.ExpectedRevision);
             if (await profiles.IsCredentialReferencedAsync(credential.Id, ct)
-                || deploymentProfiles.GetProfiles().Values.Any(profile => string.Equals(profile.CredentialId, credential.Id.AsPrimitive(), StringComparison.OrdinalIgnoreCase)))
+                || deploymentProfiles.GetProfiles().Values.Any(profile => profile.CredentialId == credential.Id))
                 return new(AiAdministrationOutcome.CredentialReferenced, Error: "The credential is referenced by a profile.");
             repository.Remove(credential); return await repository.SaveAsync(ct) ? new(AiAdministrationOutcome.Success, true) : Conflict<bool>();
         }
@@ -128,8 +128,8 @@ public sealed class AiCredentialUseCases(IAiCredentialRepository repository, IAi
     private static AiAdministrationResult<T> NotFound<T>() => new(AiAdministrationOutcome.NotFound, Error: "The resource was not found.");
 }
 
-public sealed record AiConnectionTestResult(string ProfileId, long ProfileRevision, string CredentialId, long CredentialRevision, AiCredentialValidationStatus Status, DateTimeOffset TestedAt);
-public sealed record AiPromptProbeResult(string Provider, string Model, string Response, int? InputTokens, int? OutputTokens, long LatencyMilliseconds, string? FinishReason);
+public sealed record AiConnectionTestResult(AiProviderProfileId ProfileId, long ProfileRevision, AiCredentialId CredentialId, long CredentialRevision, AiCredentialValidationStatus Status, DateTimeOffset TestedAt);
+public sealed record AiPromptProbeResult(AiProviderProfileId Provider, string Model, string Response, int? InputTokens, int? OutputTokens, long LatencyMilliseconds, string? FinishReason);
 
 public sealed class AiProviderTestUseCases(IAiProfileCatalog catalog, IAiRuntimeCredentialResolver credentials, IAiCredentialRepository credentialRepository, IAiTextProvider provider, TimeProvider time)
 {
@@ -145,7 +145,7 @@ public sealed class AiProviderTestUseCases(IAiProfileCatalog catalog, IAiRuntime
         catch (AiProviderException ex) { status = ToStatus(ex.Code); error = ex.Code; }
         var currentProfile = await catalog.ResolveAsync(profile.Id, ct); var currentCredential = await credentials.ResolveAsync(profile.CredentialId, ct);
         if (currentProfile.Revision != profile.Revision || currentCredential?.Revision != credential.Revision) return Conflict<AiConnectionTestResult>();
-        credentialRepository.AddValidation(AiProviderProfileValidation.Record(new(profile.Id), profile.Revision, new(profile.CredentialId), credential.Revision, status, error, testedAt));
+        credentialRepository.AddValidation(AiProviderProfileValidation.Record(profile.Id, profile.Revision, profile.CredentialId, credential.Revision, status, error, testedAt));
         if (!await credentialRepository.SaveAsync(ct)) return Conflict<AiConnectionTestResult>();
         var result = new AiConnectionTestResult(profile.Id, profile.Revision, profile.CredentialId, credential.Revision, status, testedAt);
         return status == AiCredentialValidationStatus.Valid ? new(AiAdministrationOutcome.Success, result) : new(AiAdministrationOutcome.ProviderFailure, result, error);

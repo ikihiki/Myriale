@@ -15,23 +15,23 @@ public static class SessionExecutionEndpoints
         return routes;
     }
 
-    private static Task<IResult> GetAsync(string executionId, ClaimsPrincipal principal, GetSessionExecutionQuery query, CancellationToken cancellationToken) =>
+    private static Task<IResult> GetAsync(SessionExecutionId executionId, ClaimsPrincipal principal, GetSessionExecutionQuery query, CancellationToken cancellationToken) =>
         ExecuteAsync(principal, owner => query.ExecuteAsync(executionId, owner, cancellationToken));
 
-    private static Task<IResult> RetryAsync(string executionId, ClaimsPrincipal principal, RetrySessionExecutionCommand command, CancellationToken cancellationToken) =>
+    private static Task<IResult> RetryAsync(SessionExecutionId executionId, ClaimsPrincipal principal, RetrySessionExecutionCommand command, CancellationToken cancellationToken) =>
         ExecuteAsync(principal, owner => command.ExecuteAsync(executionId, owner, cancellationToken));
 
-    private static Task<IResult> CancelAsync(string executionId, ClaimsPrincipal principal, CancelSessionExecutionCommand command, CancellationToken cancellationToken) =>
+    private static Task<IResult> CancelAsync(SessionExecutionId executionId, ClaimsPrincipal principal, CancelSessionExecutionCommand command, CancellationToken cancellationToken) =>
         ExecuteAsync(principal, owner => command.ExecuteAsync(executionId, owner, cancellationToken));
 
-    private static Task<IResult> DismissAsync(string executionId, ClaimsPrincipal principal, DismissSessionExecutionCommand command, CancellationToken cancellationToken) =>
+    private static Task<IResult> DismissAsync(SessionExecutionId executionId, ClaimsPrincipal principal, DismissSessionExecutionCommand command, CancellationToken cancellationToken) =>
         ExecuteAsync(principal, owner => command.ExecuteAsync(executionId, owner, cancellationToken));
 
-    private static async Task<IResult> ExecuteAsync(ClaimsPrincipal principal, Func<string, Task<SessionExecutionUseCaseResult>> execute)
+    private static async Task<IResult> ExecuteAsync(ClaimsPrincipal principal, Func<AccountId, Task<SessionExecutionUseCaseResult>> execute)
     {
         var owner = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         if (owner is null) return Results.Unauthorized();
-        var result = await execute(owner);
+        var result = await execute(new AccountId(owner));
         return result.Outcome switch
         {
             SessionExecutionUseCaseOutcome.Success => Results.Ok(result.Execution),

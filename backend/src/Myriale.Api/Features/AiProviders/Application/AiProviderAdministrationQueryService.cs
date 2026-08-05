@@ -5,17 +5,17 @@ public sealed class AiProviderAdministrationQueryService(IAiDeploymentProfileSou
 {
     public async Task<IReadOnlyList<AiAdminProfileResponse>> ListProfilesAsync(CancellationToken ct)
     {
-        var all = new Dictionary<string, AiProfileDescriptor>(deployment.GetProfiles(), StringComparer.OrdinalIgnoreCase);
+        var all = deployment.GetProfiles().ToDictionary(pair => pair.Key, pair => pair.Value);
         var dbProfiles = await profiles.ListAsync(ct);
-        foreach (var p in dbProfiles) all[p.Id.AsPrimitive()] = new(p.Id.AsPrimitive(), p.DisplayName, p.BaseUrl, p.Model, p.CredentialId.AsPrimitive(), p.Enabled, AiProfileDefinitionSource.Database, p.Revision);
+        foreach (var p in dbProfiles) all[p.Id] = new(p.Id, p.DisplayName, p.BaseUrl, p.Model, p.CredentialId, p.Enabled, AiProfileDefinitionSource.Database, p.Revision);
         var selected = (await active.GetAsync(ct))?.Provider;
         var result = new List<AiAdminProfileResponse>();
-        foreach (var profile in all.Values.OrderBy(x => x.Id, StringComparer.Ordinal))
+        foreach (var profile in all.Values.OrderBy(x => x.Id.AsPrimitive(), StringComparer.Ordinal))
         {
-            var credential = await resolver.ResolveAsync(profile.CredentialId, ct); var validation = await credentials.GetLatestValidationAsync(new(profile.Id), ct);
+            var credential = await resolver.ResolveAsync(profile.CredentialId, ct); var validation = await credentials.GetLatestValidationAsync(profile.Id, ct);
             var validForFence = validation is not null && validation.ProfileRevision == profile.Revision && validation.CredentialRevision == (credential?.Revision ?? -1);
             result.Add(new(profile.Id, profile.DisplayName, profile.Adapter, profile.BaseUrl, profile.Model, profile.CredentialId, profile.Enabled, Wire(profile.Source), profile.Revision,
-                string.Equals(selected, profile.Id, StringComparison.OrdinalIgnoreCase), Wire(credential?.Source ?? AiCredentialSource.None), credential is not null, credential?.Revision ?? 0,
+                selected == profile.Id, Wire(credential?.Source ?? AiCredentialSource.None), credential is not null, credential?.Revision ?? 0,
                 Wire(validForFence ? validation!.Status : AiCredentialValidationStatus.Untested), validForFence ? validation!.TestedAt : null));
         }
         return result;
@@ -24,8 +24,8 @@ public sealed class AiProviderAdministrationQueryService(IAiDeploymentProfileSou
     {
         var result = new List<AiAdminCredentialResponse>(); var dbProfiles = await profiles.ListAsync(ct); var deploymentProfiles = deployment.GetProfiles().Values;
         foreach (var credential in await credentials.ListAsync(ct))
-            result.Add(new(credential.Id.AsPrimitive(), credential.DisplayName, $"••••••••{credential.SecretHint}", Wire(AiCredentialSource.Database), credential.Revision, credential.UpdatedAt,
-                dbProfiles.Count(p => p.CredentialId == credential.Id) + deploymentProfiles.Count(p => string.Equals(p.CredentialId, credential.Id.AsPrimitive(), StringComparison.OrdinalIgnoreCase))));
+            result.Add(new(credential.Id, credential.DisplayName, $"••••••••{credential.SecretHint}", Wire(AiCredentialSource.Database), credential.Revision, credential.UpdatedAt,
+                dbProfiles.Count(p => p.CredentialId == credential.Id) + deploymentProfiles.Count(p => p.CredentialId == credential.Id)));
         return result;
     }
 

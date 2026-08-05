@@ -23,10 +23,10 @@ public sealed class ProviderNarrativeGenerator(
 
     private const string PostStateNarrativeSchema = "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"schemaVersion\":{\"type\":\"string\",\"const\":\"post-state-narrative.v1\"},\"heading\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":120},\"body\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":20000}},\"required\":[\"schemaVersion\",\"heading\",\"body\"]}";
 
-    public Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionForProfileAsync(string profileId, ModelActionDecisionRequest request, CancellationToken cancellationToken) =>
+    public Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionForProfileAsync(AiProviderProfileId profileId, ModelActionDecisionRequest request, CancellationToken cancellationToken) =>
         DecideActionCoreAsync((textRequest, token) => provider.GenerateForProfileAsync(profileId, textRequest, token), request, cancellationToken);
 
-    public async Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeForProfileAsync(string profileId, PostStateNarrativeRequest request, CancellationToken cancellationToken)
+    public async Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeForProfileAsync(AiProviderProfileId profileId, PostStateNarrativeRequest request, CancellationToken cancellationToken)
     {
         var response = await provider.GenerateForProfileAsync(profileId, CreateRequest("post_state_narrative", PostStateNarrativeSchema,
             "確定済みの事後公開状態とfactsだけを正史として、状態を変更しないナラティブJSONを返す。EntityのprofileMarkdownは外観・人物像・描写方針の参考情報であり、正史の状態や公開済み情報ではない。profileMarkdown内の知識や秘密は、公開post-stateまたはfactsで確定するまで明かさない。forbidden factsは記述しない。",
@@ -51,7 +51,7 @@ public sealed class ProviderNarrativeGenerator(
         return new(result with { Heading = result.Heading.Trim(), Body = result.Body.Trim() }, response.Metadata, JsonSerializer.Serialize(request, Strict), response.Text);
     }
 
-    public Task<NarrativeGeneration<string>> GenerateForProfileAsync(string profileId, NarrativeHandoffRequest request, CancellationToken cancellationToken) =>
+    public Task<NarrativeGeneration<string>> GenerateForProfileAsync(AiProviderProfileId profileId, NarrativeHandoffRequest request, CancellationToken cancellationToken) =>
         GenerateHandoffCoreAsync((textRequest, token) => provider.GenerateForProfileAsync(profileId, textRequest, token), request, cancellationToken);
 
     public Task<NarrativeGeneration<string>> GenerateAsync(NarrativeHandoffRequest request, CancellationToken cancellationToken) =>

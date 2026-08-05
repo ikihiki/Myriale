@@ -6,7 +6,7 @@ namespace Myriale.Api.Features.SessionMemory.Application;
 
 public sealed class SessionMemoryQueryService(ApplicationDbContext db)
 {
-    public async Task<SessionMemoryResponse?> GetAsync(string sessionId, string ownerId, CancellationToken cancellationToken)
+    public async Task<SessionMemoryResponse?> GetAsync(SessionId sessionId, AccountId ownerId, CancellationToken cancellationToken)
     {
         if (!await db.Sessions.AsNoTracking().AnyAsync(session => session.Id == sessionId && session.OwnerId == ownerId, cancellationToken))
             return null;
@@ -25,7 +25,7 @@ public static class SessionMemoryMapper
     public static SessionLorebookEntryResponse ToResponse(SessionNote note) => new(
         note.Id, note.Kind.ToWireValue(), note.Title, JsonSerializer.Deserialize<IReadOnlyList<string>>(note.AliasesJson) ?? [], note.Body,
         note.CanonStatus.ToWireValue(), note.FirstTurnId, note.UpdatedFromTurnId, note.UpdateSource.ToWireValue(), note.Revision,
-        note.CreatedAt, note.UpdatedAt, note.TurnReferences.Select(reference => reference.TurnId).Order().ToArray());
+        note.CreatedAt, note.UpdatedAt, note.TurnReferences.Select(reference => reference.TurnId).OrderBy(id => id.AsPrimitive(), StringComparer.Ordinal).ToArray());
 
     public static SessionNoteProposalResponse ToResponse(SessionNoteProposal proposal) => new(
         proposal.ArtifactId, proposal.SourceTurnId, proposal.NoteId, proposal.ExpectedNoteRevision, proposal.ProposedTitle,

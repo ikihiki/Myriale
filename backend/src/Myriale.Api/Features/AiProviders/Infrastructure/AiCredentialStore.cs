@@ -5,7 +5,7 @@ using Myriale.Api.Features.AiProviders.Application;
 namespace Myriale.Api.Features.AiProviders.Infrastructure;
 
 public sealed record ResolvedAiCredential(string Secret, AiCredentialSource Source, long Revision, string MaskedSecret);
-public interface IAiRuntimeCredentialResolver { Task<ResolvedAiCredential?> ResolveAsync(string credentialId, CancellationToken cancellationToken); }
+public interface IAiRuntimeCredentialResolver { Task<ResolvedAiCredential?> ResolveAsync(AiCredentialId credentialId, CancellationToken cancellationToken); }
 public interface IAiSecretProtector { string Protect(string secret); string Unprotect(string protectedSecret); }
 public sealed class DataProtectionAiSecretProtector(IDataProtectionProvider protection) : IAiSecretProtector
 {
@@ -15,12 +15,11 @@ public sealed class DataProtectionAiSecretProtector(IDataProtectionProvider prot
 }
 public sealed class AiRuntimeCredentialResolver(IOptions<AiProviderDeploymentOptions> deployment, IAiCredentialRepository repository, IAiSecretProtector protector) : IAiRuntimeCredentialResolver
 {
-    public async Task<ResolvedAiCredential?> ResolveAsync(string credentialId, CancellationToken cancellationToken)
+    public async Task<ResolvedAiCredential?> ResolveAsync(AiCredentialId credentialId, CancellationToken cancellationToken)
     {
-        var id = new AiCredentialId(credentialId);
-        if (deployment.Value.Credentials.TryGetValue(id.AsPrimitive(), out var configured) && !string.IsNullOrWhiteSpace(configured.Secret))
+        if (deployment.Value.Credentials.TryGetValue(credentialId.AsPrimitive(), out var configured) && !string.IsNullOrWhiteSpace(configured.Secret))
             return new(configured.Secret, AiCredentialSource.Deployment, 0, Mask(configured.Secret));
-        var credential = await repository.LoadAsync(id, cancellationToken);
+        var credential = await repository.LoadAsync(credentialId, cancellationToken);
         return credential is null ? null : new(protector.Unprotect(credential.ProtectedSecret), AiCredentialSource.Database, credential.Revision, MaskHint(credential.SecretHint));
     }
     public static string Hint(string secret) => secret.Length <= 4 ? secret : secret[^4..];

@@ -10,10 +10,10 @@ public sealed record SessionTurnAiMetadata(string? Provider = null, string? Mode
 
 public sealed class SessionTurn
 {
-    [Key, MaxLength(40)] public string Id { get; internal set; } = string.Empty;
-    [Required, MaxLength(40)] public string SessionId { get; internal set; } = string.Empty;
+    [Key, MaxLength(40)] public SessionTurnId Id { get; internal set; }
+    [Required, MaxLength(40)] public SessionId SessionId { get; internal set; }
     public int Position { get; internal set; }
-    [MaxLength(40)] public string? PreviousTurnId { get; internal set; }
+    [MaxLength(40)] public SessionTurnId? PreviousTurnId { get; internal set; }
     [Required, MaxLength(32)] public SessionTurnKind Kind { get; internal set; } = SessionTurnKind.Module;
     [MaxLength(40)] public string? DialogueSchemaVersion { get; internal set; }
     [MaxLength(40)] public string? ContextSchemaVersion { get; internal set; }
@@ -25,8 +25,8 @@ public sealed class SessionTurn
     [MaxLength(120)] public string? Heading { get; internal set; }
     public string? NarrativeBody { get; internal set; }
     [MaxLength(500)] public string? Interpretation { get; internal set; }
-    [MaxLength(40)] public string? SourceModuleTurnId { get; internal set; }
-    [MaxLength(40)] public string? PlayerInputId { get; internal set; }
+    [MaxLength(40)] public SessionTurnId? SourceModuleTurnId { get; internal set; }
+    [MaxLength(40)] public SessionPlayerInputId? PlayerInputId { get; internal set; }
     [MaxLength(40)] public string? AiProvider { get; internal set; }
     [MaxLength(160)] public string? AiModel { get; internal set; }
     [MaxLength(160)] public string? AiResponseId { get; internal set; }
@@ -48,41 +48,41 @@ public sealed class SessionTurn
     public ICollection<SessionTurnLorebookReference> LorebookReferences { get; internal set; } = [];
     public ICollection<SessionNarrativeSignal> NarrativeSignals { get; internal set; } = [];
 
-    public static SessionTurn CreateOpening(string id, string sessionId, string schemaVersion, string heading, string body, long sourceRevision, DateTimeOffset now) =>
+    public static SessionTurn CreateOpening(SessionTurnId id, SessionId sessionId, string schemaVersion, string heading, string body, long sourceRevision, DateTimeOffset now) =>
         Narrative(id, sessionId, 1, null, SessionTurnType.Opening, schemaVersion, heading, body, null, null, null, sourceRevision, SessionTurnAiMetadata.None, now);
 
-    public static SessionTurn CreateScenarioNarrative(string id, string sessionId, int position, string? previousTurnId, string playerInputId,
+    public static SessionTurn CreateScenarioNarrative(SessionTurnId id, SessionId sessionId, int position, SessionTurnId? previousTurnId, SessionPlayerInputId playerInputId,
         string schemaVersion, string? contextSchemaVersion, string? promptVersion, string? heading, string body, string? interpretation,
         long sourceRevision, SessionTurnAiMetadata ai, DateTimeOffset now)
     {
-        if (string.IsNullOrWhiteSpace(previousTurnId) || string.IsNullOrWhiteSpace(playerInputId)) throw new InvalidOperationException("Action result requires predecessor and player input.");
+        if (previousTurnId is null) throw new InvalidOperationException("Action result requires predecessor and player input.");
         var turn = Narrative(id, sessionId, position, previousTurnId, SessionTurnType.ActionResult, schemaVersion, heading, body,
             playerInputId, null, interpretation, sourceRevision, ai, now);
         turn.ContextSchemaVersion = contextSchemaVersion; turn.PromptVersion = promptVersion; return turn;
     }
 
-    public static SessionTurn CreateModule(string id, string sessionId, int position, string? previousTurnId, ModuleExecution execution, DateTimeOffset now)
+    public static SessionTurn CreateModule(SessionTurnId id, SessionId sessionId, int position, SessionTurnId? previousTurnId, ModuleExecution execution, DateTimeOffset now)
     {
         if (execution is null) throw new ArgumentNullException(nameof(execution));
-        if (position > 1 && string.IsNullOrWhiteSpace(previousTurnId)) throw new InvalidOperationException("Non-root module turn requires predecessor.");
+        if (position > 1 && previousTurnId is null) throw new InvalidOperationException("Non-root module turn requires predecessor.");
         return new SessionTurn { Id = id, SessionId = sessionId, Position = position, PreviousTurnId = previousTurnId,
             Kind = SessionTurnKind.Module, ModuleExecution = execution, CreatedAt = now };
     }
 
-    public static SessionTurn CreateModuleHandoff(string id, string sessionId, int position, string? previousTurnId, string sourceModuleTurnId,
+    public static SessionTurn CreateModuleHandoff(SessionTurnId id, SessionId sessionId, int position, SessionTurnId? previousTurnId, SessionTurnId sourceModuleTurnId,
         string schemaVersion, string? heading, string body, long sourceRevision, SessionTurnAiMetadata ai, DateTimeOffset now)
     {
-        if (string.IsNullOrWhiteSpace(sourceModuleTurnId) || !string.Equals(previousTurnId, sourceModuleTurnId, StringComparison.Ordinal))
+        if (previousTurnId != sourceModuleTurnId)
             throw new InvalidOperationException("Module handoff requires its source module as predecessor.");
         return Narrative(id, sessionId, position, previousTurnId, SessionTurnType.ModuleHandoff, schemaVersion, heading, body,
             null, sourceModuleTurnId, null, sourceRevision, ai, now);
     }
 
-    private static SessionTurn Narrative(string id, string sessionId, int position, string? previousTurnId, SessionTurnType type,
-        string schemaVersion, string? heading, string body, string? playerInputId, string? sourceModuleTurnId, string? interpretation,
+    private static SessionTurn Narrative(SessionTurnId id, SessionId sessionId, int position, SessionTurnId? previousTurnId, SessionTurnType type,
+        string schemaVersion, string? heading, string body, SessionPlayerInputId? playerInputId, SessionTurnId? sourceModuleTurnId, string? interpretation,
         long sourceRevision, SessionTurnAiMetadata ai, DateTimeOffset now)
     {
-        if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(sessionId) || position < 1 || string.IsNullOrWhiteSpace(schemaVersion))
+        if (position < 1 || string.IsNullOrWhiteSpace(schemaVersion))
             throw new ArgumentException("Canonical narrative turn data is required.");
         if (type == SessionTurnType.Opening && (previousTurnId is not null || playerInputId is not null || sourceModuleTurnId is not null))
             throw new InvalidOperationException("Opening turn cannot have causal sources.");

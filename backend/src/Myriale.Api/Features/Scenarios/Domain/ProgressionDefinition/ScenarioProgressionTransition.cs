@@ -5,13 +5,13 @@ namespace Myriale.Api.Features.Scenarios.Domain;
 public sealed class ScenarioProgressionTransition
 {
     [Key, MaxLength(80)]
-    public string Id { get; set; } = string.Empty;
+    public ScenarioProgressionTransitionId Id { get; set; }
 
     [Required]
-    public string DefinitionVersionId { get; set; } = string.Empty;
+    public ScenarioDefinitionVersionId DefinitionVersionId { get; set; } = new(string.Empty);
 
     [Required, MaxLength(80)]
-    public string SourceNodeId { get; set; } = string.Empty;
+    public ScenarioProgressionNodeId SourceNodeId { get; set; } = new(string.Empty);
 
     [Required, MaxLength(80)]
     public string SignalCode { get; set; } = string.Empty;
@@ -20,10 +20,10 @@ public sealed class ScenarioProgressionTransition
     public string TriggerDescription { get; set; } = string.Empty;
 
     [Required, MaxLength(80)]
-    public string TargetNodeId { get; set; } = string.Empty;
+    public ScenarioProgressionNodeId TargetNodeId { get; set; } = new(string.Empty);
 
     [MaxLength(160)]
-    public string? ModuleId { get; set; }
+    public ModulePackageModuleId? ModuleId { get; set; }
 
     [MaxLength(80)]
     public string? ModuleVersion { get; set; }

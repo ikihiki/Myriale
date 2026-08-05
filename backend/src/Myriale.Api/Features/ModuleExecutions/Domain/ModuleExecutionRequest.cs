@@ -8,9 +8,9 @@ public enum ModuleExecutionRequestStatus { Pending, Succeeded, Rejected }
 
 public sealed class ModuleExecutionRequest
 {
-    public long Id { get; internal set; }
-    [Required, MaxLength(450)] public string OwnerId { get; internal set; } = string.Empty;
-    [Required, MaxLength(40)] public string ExecutionId { get; internal set; } = string.Empty;
+    public ModuleExecutionRequestId Id { get; internal set; }
+    [Required, MaxLength(450)] public AccountId OwnerId { get; internal set; }
+    [Required, MaxLength(40)] public ModuleExecutionId ExecutionId { get; internal set; }
     [Required, MaxLength(128)] public string RequestId { get; internal set; } = string.Empty;
     [Required, MaxLength(20)] public ModuleExecutionRequestOperation Operation { get; internal set; }
     public long? ExpectedRevision { get; internal set; }
@@ -26,7 +26,7 @@ public sealed class ModuleExecutionRequest
     public ModuleOutcomeApplication? OutcomeApplication { get; internal set; }
     public ModuleExecution Execution { get; internal set; } = null!;
 
-    public static ModuleExecutionRequest CreateInitialization(string ownerId, string executionId, string requestId,
+    public static ModuleExecutionRequest CreateInitialization(AccountId ownerId, ModuleExecutionId executionId, string requestId,
         string payloadHash, long? expectedSessionRevision, IReadOnlyList<uint> randomValues, JsonSerializerOptions json, DateTimeOffset now) => new()
     {
         OwnerId = ownerId, ExecutionId = executionId, RequestId = requestId, Operation = ModuleExecutionRequestOperation.Initialize,
@@ -34,7 +34,7 @@ public sealed class ModuleExecutionRequest
         RandomValuesJson = JsonSerializer.Serialize(randomValues, json), CreatedAt = now,
     };
 
-    public static ModuleExecutionRequest CreateDispatch(string ownerId, string executionId, string requestId,
+    public static ModuleExecutionRequest CreateDispatch(AccountId ownerId, ModuleExecutionId executionId, string requestId,
         string payloadHash, long expectedRevision, long? expectedSessionRevision, JsonElement action,
         IReadOnlyList<uint> randomValues, JsonSerializerOptions json, DateTimeOffset now) => new()
     {

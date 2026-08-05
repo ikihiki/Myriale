@@ -53,7 +53,7 @@ public sealed class EfSessionExecutionOperationsRepository(
                 execution.ErrorCode = null;
                 execution.UserErrorMessage = null;
                 var attempt = SessionExecutionAttempt.Start(
-                    $"ATT-{Guid.NewGuid():N}".ToUpperInvariant(),
+                    new SessionExecutionAttemptId($"ATT-{Guid.NewGuid():N}".ToUpperInvariant()),
                     execution.Id,
                     execution.AttemptCount,
                     workerId,
@@ -384,7 +384,7 @@ public sealed class EfSessionExecutionOperationsRepository(
                 || execution.Status == SessionExecutionStatus.Running && execution.LeaseExpiresAt <= now)
             .OrderByDescending(execution => execution.Priority)
             .ThenBy(execution => execution.QueuedAt)
-            .ThenBy(execution => execution.Id, StringComparer.Ordinal)
+            .ThenBy(execution => execution.Id.AsPrimitive(), StringComparer.Ordinal)
             .Take(maxBatchSize)
             .ToList();
     }

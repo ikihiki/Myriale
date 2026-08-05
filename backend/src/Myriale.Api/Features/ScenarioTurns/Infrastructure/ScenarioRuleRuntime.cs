@@ -5,14 +5,14 @@ using Myriale.Api.Features.Scenarios.Domain;
 
 namespace Myriale.Api.Features.ScenarioTurns.Infrastructure;
 
-public sealed record ScenarioRuleLocationSnapshot(string Id, string Code, string Name, string Description);
+public sealed record ScenarioRuleLocationSnapshot(ScenarioLocationId Id, string Code, string Name, string Description);
 public sealed record ScenarioRuleObjectSnapshot(
-    string Id,
+    ScenarioObjectId Id,
     string Code,
     string Name,
     string ProfileMarkdown,
     bool IsGlobal,
-    string LocationId,
+    ScenarioLocationId LocationId,
     long Revision,
     JsonElement State,
     IReadOnlySet<string> PublicFields,
@@ -29,10 +29,10 @@ public sealed record ScenarioRuleNarrativeSnapshot(
     string Opening,
     IReadOnlyList<NarrativeEntityInput> Entities);
 public sealed record ScenarioRuleWorldSnapshot(
-    string SessionId,
-    string OwnerId,
-    string ScenarioDefinitionVersionId,
-    string CurrentLocationId,
+    SessionId SessionId,
+    AccountId OwnerId,
+    ScenarioDefinitionVersionId ScenarioDefinitionVersionId,
+    ScenarioLocationId CurrentLocationId,
     long SessionRevision,
     SessionStatus SessionStatus,
     long SessionStateRevision,
@@ -46,7 +46,7 @@ public sealed class ScenarioRuleWorldSnapshotFactory(ScenarioRuleConfigurationRe
     public ScenarioRuleWorldSnapshot Create(Session session, ScenarioDefinitionVersion definition, IReadOnlyList<SessionObjectState> states)
     {
         var flags = JsonSerializer.Deserialize<Dictionary<string, bool>>(session.State.FlagsJson) ?? [];
-        var byState = states.ToDictionary(state => state.ScenarioObjectId, StringComparer.Ordinal);
+        var byState = states.ToDictionary(state => state.ScenarioObjectId);
         var objects = definition.Objects.OrderBy(item => item.Code, StringComparer.Ordinal).Select(item =>
         {
             var state = byState[item.Id];
@@ -78,10 +78,10 @@ public sealed class ScenarioRuleWorldSnapshotFactory(ScenarioRuleConfigurationRe
     private static JsonElement Parse(string json) { using var document = JsonDocument.Parse(json); return document.RootElement.Clone(); }
 }
 
-public sealed record ScenarioSessionPatch(long ExpectedRevision, string CurrentLocationId, bool Complete);
+public sealed record ScenarioSessionPatch(long ExpectedRevision, ScenarioLocationId CurrentLocationId, bool Complete);
 public sealed record ScenarioSessionStatePatch(long ExpectedRevision, IReadOnlyDictionary<string, bool> Flags);
-public sealed record ScenarioObjectPatch(string ObjectId, long ExpectedRevision, string LocationId, JsonElement State);
-public sealed record ScenarioPlacementChange(string TargetId, string LocationId, bool IsSession);
+public sealed record ScenarioObjectPatch(ScenarioObjectId ObjectId, long ExpectedRevision, ScenarioLocationId LocationId, JsonElement State);
+public sealed record ScenarioPlacementChange(string TargetId, ScenarioLocationId LocationId, bool IsSession);
 public sealed record ScenarioEffectPlan(
     ScenarioSessionPatch Session,
     ScenarioSessionStatePatch? SessionState,
@@ -240,8 +240,8 @@ public sealed class ScenarioActionEnumerator(ScenarioRuleEvaluator evaluator, Sc
                 actions.Add(new(item.Id, action.Id, action.Code, action.Label, action.Description, action.ArgumentSchema.Clone(), enabled));
             }
         }
-        actions.Add(new("system", "clarify", "clarify", "状況を確認する", "状態を変更せず現在の状況を説明する。", Parse("{\"type\":\"object\",\"additionalProperties\":false}"), true));
-        actions.Add(new("system", "no-op", "no-op", "様子を見る", "状態を変更せず物語を続ける。", Parse("{\"type\":\"object\",\"additionalProperties\":false}"), true));
+        actions.Add(new(new("system"), new("clarify"), "clarify", "状況を確認する", "状態を変更せず現在の状況を説明する。", Parse("{\"type\":\"object\",\"additionalProperties\":false}"), true));
+        actions.Add(new(new("system"), new("no-op"), "no-op", "様子を見る", "状態を変更せず物語を続ける。", Parse("{\"type\":\"object\",\"additionalProperties\":false}"), true));
         return new(ScenarioTurnSchemas.ActionSnapshot, snapshotId,
             new(location.Id, location.Code, location.Name, location.Description), objects, actions);
     }
@@ -260,7 +260,7 @@ public sealed class ScenarioRuleResolutionService(ScenarioRuleEvaluator evaluato
 {
     public ScenarioRuleResolution Resolve(ScenarioRuleWorldSnapshot world, RuleActionDecisionResult decision, string invocationId)
     {
-        if (decision.ObjectId == "system") return new(null, EmptyPlan(world));
+        if (decision.ObjectId == new ScenarioObjectId("system")) return new(null, EmptyPlan(world));
         var source = world.Objects.SingleOrDefault(item => item.Id == decision.ObjectId)
             ?? throw new ScenarioTurnValidationException("invalid_effect_object");
         var action = source.Actions.SingleOrDefault(item => item.Id == decision.ActionId)
@@ -275,8 +275,7 @@ public sealed class ScenarioRuleResolutionService(ScenarioRuleEvaluator evaluato
         var rule = matches[0];
         var mutableStates = world.Objects.ToDictionary(
             item => item.Id,
-            item => new MutableObject(item, JsonNode.Parse(item.State.GetRawText()) as JsonObject ?? []),
-            StringComparer.Ordinal);
+            item => new MutableObject(item, JsonNode.Parse(item.State.GetRawText()) as JsonObject ?? []));
         var flags = new Dictionary<string, bool>(world.SessionFlags, StringComparer.Ordinal);
         var flagsChanged = false;
         var currentLocationId = world.CurrentLocationId;
@@ -290,36 +289,38 @@ public sealed class ScenarioRuleResolutionService(ScenarioRuleEvaluator evaluato
 
         foreach (var effect in rule.Effects.Effects)
         {
-            string? targetId = source.Id;
+            string? targetId = source.Id.AsPrimitive();
             string? path = null;
             JsonElement? value = null;
             switch (effect)
             {
                 case StateEffect stateEffect:
-                    targetId = ResolveObject(world, source, stateEffect.ObjectCode, stateEffect.ObjectId).Id;
+                    var stateTarget = ResolveObject(world, source, stateEffect.ObjectCode, stateEffect.ObjectId);
+                    targetId = stateTarget.Id.AsPrimitive();
                     var statePath = ValidateStatePath(stateEffect.Path);
                     value = stateEffect.Value ?? throw new ScenarioTurnValidationException("invalid_effect_value");
-                    ApplyState(mutableStates[targetId], stateEffect.Type, statePath, value.Value);
+                    ApplyState(mutableStates[stateTarget.Id], stateEffect.Type, statePath, value.Value);
                     path = stateEffect.Path;
                     break;
                 case MoveObjectEffect moveObject:
-                    targetId = ResolveObject(world, source, moveObject.ObjectCode, moveObject.ObjectId).Id;
+                    var moveTarget = ResolveObject(world, source, moveObject.ObjectCode, moveObject.ObjectId);
+                    targetId = moveTarget.Id.AsPrimitive();
                     var destination = ResolveLocation(world, moveObject.LocationCode, moveObject.LocationId);
-                    mutableStates[targetId].LocationId = destination.Id;
-                    mutableStates[targetId].Changed = true;
+                    mutableStates[moveTarget.Id].LocationId = destination.Id;
+                    mutableStates[moveTarget.Id].Changed = true;
                     path = "locationId"; value = JsonSerializer.SerializeToElement(destination.Code);
                     placements.Add(new(targetId, destination.Id, false));
                     break;
                 case MoveSessionEffect moveSession:
                     var sessionDestination = ResolveLocation(world, moveSession.LocationCode, moveSession.LocationId);
-                    currentLocationId = sessionDestination.Id; targetId = world.SessionId;
+                    currentLocationId = sessionDestination.Id; targetId = world.SessionId.AsPrimitive();
                     path = "currentLocationId"; value = JsonSerializer.SerializeToElement(sessionDestination.Code);
-                    placements.Add(new(world.SessionId, sessionDestination.Id, true));
+                    placements.Add(new(world.SessionId.AsPrimitive(), sessionDestination.Id, true));
                     break;
                 case SetSessionFlagEffect flag:
                     if (string.IsNullOrWhiteSpace(flag.Flag)) throw new ScenarioTurnValidationException("invalid_effect_flag");
                     if (flag.Value is null) throw new ScenarioTurnValidationException("invalid_effect_value");
-                    flags[flag.Flag] = flag.Value.Value; flagsChanged = true; targetId = world.SessionId;
+                    flags[flag.Flag] = flag.Value.Value; flagsChanged = true; targetId = world.SessionId.AsPrimitive();
                     path = $"flags.{flag.Flag}"; value = JsonSerializer.SerializeToElement(flag.Value.Value);
                     break;
                 case TextEffect text when text.Type == "emit-fact": facts.Add(RequiredText(text.Text)); targetId = null; break;
@@ -331,7 +332,7 @@ public sealed class ScenarioRuleResolutionService(ScenarioRuleEvaluator evaluato
                         _ = ResolveLocation(world, emitted.LocationCode, emitted.LocationId);
                     events.Add(codec.ToElement(new EffectSet([emitted]))[0].Clone()); targetId = null; break;
                 case CompleteSessionEffect:
-                    complete = true; targetId = world.SessionId; path = "status"; value = JsonSerializer.SerializeToElement("completed"); break;
+                    complete = true; targetId = world.SessionId.AsPrimitive(); path = "status"; value = JsonSerializer.SerializeToElement("completed"); break;
                 default: throw new ScenarioTurnValidationException("invalid_effect_variant");
             }
             applied.Add(new(effect.Type, targetId, path, value?.Clone()));
@@ -350,7 +351,7 @@ public sealed class ScenarioRuleResolutionService(ScenarioRuleEvaluator evaluato
 
     public RulePostState ProjectPostState(ScenarioRuleWorldSnapshot world, ScenarioEffectPlan plan)
     {
-        var patches = plan.Objects.ToDictionary(item => item.ObjectId, StringComparer.Ordinal);
+        var patches = plan.Objects.ToDictionary(item => item.ObjectId);
         var location = world.Locations.Single(item => item.Id == plan.Session.CurrentLocationId);
         var objects = world.Objects.Select(item =>
         {
@@ -378,7 +379,7 @@ public sealed class ScenarioRuleResolutionService(ScenarioRuleEvaluator evaluato
             throw new ScenarioTurnValidationException("invalid_extension_binding");
         return new ScenarioExtensionRequest(
             invocationId, world.OwnerId, world.SessionId, source.Id, action.ObjectTypeId, action.Id, rule.Id,
-            rule.ModuleId!, rule.ModuleVersion, rule.ModuleDigest, rule.ModuleConfiguration.Value.Clone(),
+            rule.ModuleId!.Value, rule.ModuleVersion, rule.ModuleDigest, rule.ModuleConfiguration.Value.Clone(),
             decision.Arguments.Clone(), source.State.Clone());
     }
 
@@ -388,7 +389,7 @@ public sealed class ScenarioRuleResolutionService(ScenarioRuleEvaluator evaluato
             throw new ScenarioTurnValidationException("invalid_session_patch");
         if (plan.SessionState is { } state && state.ExpectedRevision != world.SessionStateRevision)
             throw new ScenarioTurnValidationException("invalid_session_state_patch");
-        var duplicates = plan.Objects.GroupBy(item => item.ObjectId, StringComparer.Ordinal).FirstOrDefault(group => group.Count() > 1);
+        var duplicates = plan.Objects.GroupBy(item => item.ObjectId).FirstOrDefault(group => group.Count() > 1);
         if (duplicates is not null) throw new ScenarioTurnValidationException("duplicate_object_patch");
         foreach (var patch in plan.Objects)
         {
@@ -400,18 +401,16 @@ public sealed class ScenarioRuleResolutionService(ScenarioRuleEvaluator evaluato
         }
     }
 
-    private static ScenarioRuleObjectSnapshot ResolveObject(ScenarioRuleWorldSnapshot world, ScenarioRuleObjectSnapshot source, string? code, string? id)
+    private static ScenarioRuleObjectSnapshot ResolveObject(ScenarioRuleWorldSnapshot world, ScenarioRuleObjectSnapshot source, string? code, ScenarioObjectId? id)
     {
-        var reference = code ?? id;
-        if (string.IsNullOrWhiteSpace(reference)) return source;
-        return world.Objects.SingleOrDefault(item => item.Code == reference || item.Id == reference)
+        if (string.IsNullOrWhiteSpace(code) && id is null) return source;
+        return world.Objects.SingleOrDefault(item => item.Code == code || id is { } objectId && item.Id == objectId)
             ?? throw new ScenarioTurnValidationException("invalid_effect_object");
     }
 
-    private static ScenarioRuleLocationSnapshot ResolveLocation(ScenarioRuleWorldSnapshot world, string? code, string? id)
+    private static ScenarioRuleLocationSnapshot ResolveLocation(ScenarioRuleWorldSnapshot world, string? code, ScenarioLocationId? id)
     {
-        var reference = code ?? id;
-        return world.Locations.SingleOrDefault(item => item.Code == reference || item.Id == reference)
+        return world.Locations.SingleOrDefault(item => item.Code == code || id is { } locationId && item.Id == locationId)
             ?? throw new ScenarioTurnValidationException("invalid_move_target");
     }
 
@@ -484,7 +483,7 @@ public sealed class ScenarioRuleResolutionService(ScenarioRuleEvaluator evaluato
     {
         public ScenarioRuleObjectSnapshot Source { get; } = source;
         public JsonObject State { get; } = state;
-        public string LocationId { get; set; } = source.LocationId;
+        public ScenarioLocationId LocationId { get; set; } = source.LocationId;
         public bool Changed { get; set; }
     }
 }
@@ -493,13 +492,13 @@ public sealed class ScenarioTurnValidationException(string code) : Exception(cod
 
 public sealed record ScenarioExtensionRequest(
     string InvocationId,
-    string OwnerId,
-    string SessionId,
-    string ObjectId,
-    string ObjectTypeId,
-    string ActionId,
+    AccountId OwnerId,
+    SessionId SessionId,
+    ScenarioObjectId ObjectId,
+    ScenarioObjectTypeId? ObjectTypeId,
+    ScenarioObjectTypeActionId ActionId,
     string RuleId,
-    string ModuleId,
+    ModulePackageModuleId ModuleId,
     string Version,
     string Digest,
     JsonElement Configuration,
@@ -507,7 +506,7 @@ public sealed record ScenarioExtensionRequest(
     JsonElement ObjectState);
 
 public sealed record ScenarioExtensionResult(
-    string ExecutionId,
+    SessionExecutionId ExecutionId,
     string Status,
     long Revision,
     IReadOnlyList<Myriale.ModuleSdk.ModuleAvailableAction> AvailableActions,

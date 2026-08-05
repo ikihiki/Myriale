@@ -9,7 +9,7 @@ internal static class ScenarioTestFixtureData
     [
         new Scenario
         {
-            Id = "SCN-STAR-LIBRARY",
+            Id = new ScenarioId("SCN-STAR-LIBRARY"),
             Title = "星喰いの地下図書館",
             Summary = "地下に沈んだ王都で、銀の鍵と星図灯を携え、記憶を奪う禁書と閉じた星座の扉に挑む探索譚。",
             Genre = "ダークファンタジー探索譚",
@@ -25,13 +25,13 @@ internal static class ScenarioTestFixtureData
             IllustrationNegative = "現代車両、銃器、過度な流血",
             SampleScene = "水没した閲覧室で、星図を抱えた司書が振り向く。",
             Status = ScenarioPublicationStatus.Published,
-            AuthorId = "TEST-AUTHOR",
+            AuthorId = new AccountId("TEST-AUTHOR"),
             CreatedAt = new DateTimeOffset(2026, 6, 10, 0, 0, 0, TimeSpan.Zero),
             UpdatedAt = new DateTimeOffset(2026, 7, 19, 0, 0, 0, TimeSpan.Zero),
         },
         new Scenario
         {
-            Id = "SCN-NEON-ARCHIVE",
+            Id = new ScenarioId("SCN-NEON-ARCHIVE"),
             Title = "ネオン喰いの地下データ書庫",
             Summary = "酸性雨に沈む企業都市の地下で、量子鍵と星図デッキを携え、記憶を焼く禁制アーカイブと閉鎖ゲートを突破するサイバーパンク潜入譚。",
             Genre = "サイバーパンク潜入スリラー",
@@ -47,13 +47,13 @@ internal static class ScenarioTestFixtureData
             IllustrationNegative = "中世装備、牧歌的風景、明るい昼光、コミカルなデフォルメ",
             SampleScene = "浸水した地下サーバー群の奥で、閉じた星座ゲートと企業Black ICEの輪郭がネオンに浮かぶ。",
             Status = ScenarioPublicationStatus.Published,
-            AuthorId = "TEST-AUTHOR",
+            AuthorId = new AccountId("TEST-AUTHOR"),
             CreatedAt = new DateTimeOffset(2026, 7, 23, 0, 0, 0, TimeSpan.Zero),
             UpdatedAt = new DateTimeOffset(2026, 7, 23, 0, 0, 0, TimeSpan.Zero),
         },
         new Scenario
         {
-            Id = "SCN-ASH-STATION",
+            Id = new ScenarioId("SCN-ASH-STATION"),
             Title = "灰の駅と宛名のない切符",
             Summary = "朝が来ない荒野を、宛名のない切符だけを頼りに渡るロードムービー。",
             Genre = "終末ロードムービー",
@@ -69,13 +69,13 @@ internal static class ScenarioTestFixtureData
             IllustrationNegative = "鮮やかな原色、近未来都市",
             SampleScene = "灰の降る無人駅で、宛名のない切符が淡く光る。",
             Status = ScenarioPublicationStatus.Published,
-            AuthorId = "TEST-AUTHOR",
+            AuthorId = new AccountId("TEST-AUTHOR"),
             CreatedAt = new DateTimeOffset(2026, 6, 12, 0, 0, 0, TimeSpan.Zero),
             UpdatedAt = new DateTimeOffset(2026, 7, 19, 0, 0, 0, TimeSpan.Zero),
         },
         new Scenario
         {
-            Id = "SCN-MOONLIT-GARDEN",
+            Id = new ScenarioId("SCN-MOONLIT-GARDEN"),
             Title = "月虹の庭と眠らない時計",
             Summary = "月虹が咲く庭園で、止まらない時計塔と消えた庭師の秘密を追う幻想譚。",
             Genre = "幻想庭園ミステリ",
@@ -91,13 +91,13 @@ internal static class ScenarioTestFixtureData
             IllustrationNegative = "現代的な電子機器、昼の青空、過度な恐怖表現",
             SampleScene = "月虹の花が揺れる庭園で、止まらない時計塔を三人の旅人が見上げる。",
             Status = ScenarioPublicationStatus.Published,
-            AuthorId = "TEST-AUTHOR",
+            AuthorId = new AccountId("TEST-AUTHOR"),
             CreatedAt = new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero),
             UpdatedAt = new DateTimeOffset(2026, 7, 19, 0, 0, 0, TimeSpan.Zero),
         },
         new Scenario
         {
-            Id = "SCN-GLASS-FOREST",
+            Id = new ScenarioId("SCN-GLASS-FOREST"),
             Title = "硝子の森と夜明けの司書",
             Summary = "嘘を映す硝子の森で、夜明けを失った書架の秘密を追う幻想ミステリ。",
             Genre = "幻想ミステリ",
@@ -113,7 +113,7 @@ internal static class ScenarioTestFixtureData
             IllustrationNegative = "現代建築、原色、コミカルな表現",
             SampleScene = "硝子の木々の間で、司書が割れた本を拾い上げる。",
             Status = ScenarioPublicationStatus.Published,
-            AuthorId = "TEST-AUTHOR",
+            AuthorId = new AccountId("TEST-AUTHOR"),
             CreatedAt = new DateTimeOffset(2026, 6, 16, 0, 0, 0, TimeSpan.Zero),
             UpdatedAt = new DateTimeOffset(2026, 7, 19, 0, 0, 0, TimeSpan.Zero),
         },
@@ -123,40 +123,40 @@ internal static class ScenarioTestFixtureData
     [
         new ScenarioProgressionNode
         {
-            Id = "SPN-STAR-LIBRARY-EXPLORATION",
-            DefinitionVersionId = "SDV-STAR-LIBRARY-1",
+            Id = new ScenarioProgressionNodeId("SPN-STAR-LIBRARY-EXPLORATION"),
+            DefinitionVersionId = new ScenarioDefinitionVersionId("SDV-STAR-LIBRARY-1"),
             Code = "exploration",
             IsInitial = true,
             AllowedNarrativeSignalsJson = "[\"constellation-door-reached\"]",
         },
         new ScenarioProgressionNode
         {
-            Id = "SPN-NEON-ARCHIVE-INFILTRATION",
-            DefinitionVersionId = "SDV-NEON-ARCHIVE-1",
+            Id = new ScenarioProgressionNodeId("SPN-NEON-ARCHIVE-INFILTRATION"),
+            DefinitionVersionId = new ScenarioDefinitionVersionId("SDV-NEON-ARCHIVE-1"),
             Code = "archive-infiltration",
             IsInitial = true,
             AllowedNarrativeSignalsJson = "[\"constellation-firewall-reached\"]",
         },
         new ScenarioProgressionNode
         {
-            Id = "SPN-NEON-ARCHIVE-GATE-CHECK",
-            DefinitionVersionId = "SDV-NEON-ARCHIVE-1",
+            Id = new ScenarioProgressionNodeId("SPN-NEON-ARCHIVE-GATE-CHECK"),
+            DefinitionVersionId = new ScenarioDefinitionVersionId("SDV-NEON-ARCHIVE-1"),
             Code = "constellation-gate-check",
             IsInitial = false,
             AllowedNarrativeSignalsJson = "[]",
         },
         new ScenarioProgressionNode
         {
-            Id = "SPN-STAR-LIBRARY-DOOR-CHECK",
-            DefinitionVersionId = "SDV-STAR-LIBRARY-1",
+            Id = new ScenarioProgressionNodeId("SPN-STAR-LIBRARY-DOOR-CHECK"),
+            DefinitionVersionId = new ScenarioDefinitionVersionId("SDV-STAR-LIBRARY-1"),
             Code = "constellation-door-check",
             IsInitial = false,
             AllowedNarrativeSignalsJson = "[\"constellation-guardian-awakened\"]",
         },
         new ScenarioProgressionNode
         {
-            Id = "SPN-STAR-LIBRARY-GUARDIAN-BATTLE",
-            DefinitionVersionId = "SDV-STAR-LIBRARY-1",
+            Id = new ScenarioProgressionNodeId("SPN-STAR-LIBRARY-GUARDIAN-BATTLE"),
+            DefinitionVersionId = new ScenarioDefinitionVersionId("SDV-STAR-LIBRARY-1"),
             Code = "guardian-battle",
             IsInitial = false,
             AllowedNarrativeSignalsJson = "[]",
@@ -167,30 +167,30 @@ internal static class ScenarioTestFixtureData
     [
         new ScenarioProgressionTransition
         {
-            Id = "SPT-STAR-LIBRARY-DOOR-REACHED",
-            DefinitionVersionId = "SDV-STAR-LIBRARY-1",
-            SourceNodeId = "SPN-STAR-LIBRARY-EXPLORATION",
+            Id = new ScenarioProgressionTransitionId("SPT-STAR-LIBRARY-DOOR-REACHED"),
+            DefinitionVersionId = new ScenarioDefinitionVersionId("SDV-STAR-LIBRARY-1"),
+            SourceNodeId = new ScenarioProgressionNodeId("SPN-STAR-LIBRARY-EXPLORATION"),
             SignalCode = "constellation-door-reached",
             TriggerDescription = "Playerが閉じた星座の扉の場所まで実際に到達したときだけ発火する。扉について話す、尋ねる、遠くから見るだけでは発火しない。",
-            TargetNodeId = "SPN-STAR-LIBRARY-DOOR-CHECK",
+            TargetNodeId = new ScenarioProgressionNodeId("SPN-STAR-LIBRARY-DOOR-CHECK"),
         },
         new ScenarioProgressionTransition
         {
-            Id = "SPT-NEON-ARCHIVE-FIREWALL-REACHED",
-            DefinitionVersionId = "SDV-NEON-ARCHIVE-1",
-            SourceNodeId = "SPN-NEON-ARCHIVE-INFILTRATION",
+            Id = new ScenarioProgressionTransitionId("SPT-NEON-ARCHIVE-FIREWALL-REACHED"),
+            DefinitionVersionId = new ScenarioDefinitionVersionId("SDV-NEON-ARCHIVE-1"),
+            SourceNodeId = new ScenarioProgressionNodeId("SPN-NEON-ARCHIVE-INFILTRATION"),
             SignalCode = "constellation-firewall-reached",
             TriggerDescription = "Playerが地下データ書庫の最深部にある『閉じた星座』ファイアウォールへ実際に到達したときだけ発火する。ゲートについて調べる、遠隔スキャンする、噂を聞くだけでは発火しない。",
-            TargetNodeId = "SPN-NEON-ARCHIVE-GATE-CHECK",
+            TargetNodeId = new ScenarioProgressionNodeId("SPN-NEON-ARCHIVE-GATE-CHECK"),
         },
         new ScenarioProgressionTransition
         {
-            Id = "SPT-STAR-LIBRARY-GUARDIAN-AWAKENED",
-            DefinitionVersionId = "SDV-STAR-LIBRARY-1",
-            SourceNodeId = "SPN-STAR-LIBRARY-DOOR-CHECK",
+            Id = new ScenarioProgressionTransitionId("SPT-STAR-LIBRARY-GUARDIAN-AWAKENED"),
+            DefinitionVersionId = new ScenarioDefinitionVersionId("SDV-STAR-LIBRARY-1"),
+            SourceNodeId = new ScenarioProgressionNodeId("SPN-STAR-LIBRARY-DOOR-CHECK"),
             SignalCode = "constellation-guardian-awakened",
             TriggerDescription = "星座の扉の確定Outcomeで図書館の守護者が起動し、そのNarrative handoffが完了したときに発火する。",
-            TargetNodeId = "SPN-STAR-LIBRARY-GUARDIAN-BATTLE",
+            TargetNodeId = new ScenarioProgressionNodeId("SPN-STAR-LIBRARY-GUARDIAN-BATTLE"),
         },
     ];
 

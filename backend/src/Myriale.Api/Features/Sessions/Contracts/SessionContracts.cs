@@ -1,18 +1,18 @@
 namespace Myriale.Api.Features.Sessions.Contracts;
 
 public sealed record CreateSessionRequest(
-    string ScenarioId,
+    ScenarioId ScenarioId,
     string RequestId,
     bool InterpretationEnabled = false,
     string? SelectedHero = null);
 
 public sealed record NarrativeTurnResponse(
-    string? SourceModuleTurnId,
+    SessionTurnId? SourceModuleTurnId,
     long? SourceSessionRevision,
     string Body,
-    string? PlayerInputId = null,
+    SessionPlayerInputId? PlayerInputId = null,
     string? PlayerInput = null,
-    string? AcceptedAfterTurnId = null,
+    SessionTurnId? AcceptedAfterTurnId = null,
     IReadOnlyList<string>? Signals = null,
     string? Interpretation = null,
     string? SchemaVersion = null,
@@ -26,9 +26,9 @@ public sealed record NarrativeHandoffStatusResponse(
     DateTimeOffset UpdatedAt);
 
 public sealed record SessionTurnResponse(
-    string Id,
+    SessionTurnId Id,
     int Position,
-    string? PreviousTurnId,
+    SessionTurnId? PreviousTurnId,
     string Kind,
     ModuleExecutionResponse? Execution,
     NarrativeTurnResponse? Narrative,
@@ -43,15 +43,15 @@ public sealed record SessionProgressionResponse(
     string CurrentNode,
     long Revision,
     string? TransitionStatus,
-    string? ModuleTurnId,
+    SessionTurnId? ModuleTurnId,
     string? ErrorCode);
 
 public sealed record SessionPendingPlayerInputResponse(
-    string PlayerInputId,
+    SessionPlayerInputId PlayerInputId,
     string RequestId,
     string Input,
     string InteractionType,
-    string? AcceptedAfterTurnId,
+    SessionTurnId? AcceptedAfterTurnId,
     string Status,
     bool IsRetryable,
     string? ErrorCode,
@@ -60,10 +60,10 @@ public sealed record SessionPendingPlayerInputResponse(
     DateTimeOffset UpdatedAt);
 
 public sealed record SessionResponse(
-    string Id,
-    string ScenarioId,
+    SessionId Id,
+    ScenarioId ScenarioId,
     string Status,
-    string? HeadTurnId,
+    SessionTurnId? HeadTurnId,
     long Revision,
     bool InterpretationEnabled,
     SessionStateResponse State,
@@ -77,8 +77,8 @@ public sealed record SessionResponse(
     IReadOnlyList<SessionArtifactResponse>? Artifacts = null,
     IReadOnlyList<SessionActivityResponse>? Activity = null,
     IReadOnlyList<SessionNoteProposalResponse>? NoteProposals = null,
-    string? ScenarioDefinitionVersionId = null,
-    string? CurrentLocationId = null,
+    ScenarioDefinitionVersionId? ScenarioDefinitionVersionId = null,
+    ScenarioLocationId? CurrentLocationId = null,
     IReadOnlyList<SessionObjectStateResponse>? ObjectStates = null,
     IReadOnlyList<SessionRuleActionStepResponse>? RuleActionSteps = null);
 
@@ -86,18 +86,18 @@ public sealed record CreateSessionInputRequest(
     string RequestId,
     string Text,
     string InteractionType = "dialogue",
-    string? SupersedesInputId = null,
-    string? ActionDecisionAiProfileId = null,
-    string? NarrativeAiProfileId = null);
+    SessionPlayerInputId? SupersedesInputId = null,
+    AiProviderProfileId? ActionDecisionAiProfileId = null,
+    AiProviderProfileId? NarrativeAiProfileId = null);
 
 public sealed record SessionPlayerInputResponse(
-    string Id,
+    SessionPlayerInputId Id,
     string RequestId,
     string Text,
     string InteractionType,
-    string? AcceptedAfterTurnId,
+    SessionTurnId? AcceptedAfterTurnId,
     long AcceptedSessionRevision,
-    string? SupersedesInputId,
+    SessionPlayerInputId? SupersedesInputId,
     DateTimeOffset CreatedAt);
 
 public sealed record SessionInputAcceptedResponse(SessionPlayerInputResponse Input, SessionExecutionResponse Execution);

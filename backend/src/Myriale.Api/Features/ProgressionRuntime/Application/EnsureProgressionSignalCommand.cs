@@ -9,7 +9,7 @@ public sealed class EnsureProgressionSignalCommand(ApplicationDbContext db)
 {
     private static readonly JsonSerializerOptions Json = ModuleJsonSerializerOptions.Create();
 
-    public async Task<string?> PrepareAsync(
+    public async Task<SessionNarrativeSignalId?> PrepareAsync(
         Session session,
         SessionTurn narrativeTurn,
         string signalCode,
@@ -31,7 +31,7 @@ public sealed class EnsureProgressionSignalCommand(ApplicationDbContext db)
             .SingleOrDefaultAsync(item => item.SessionId == session.Id && item.TransitionId == transition.Id, cancellationToken);
         var signal = new SessionNarrativeSignal
         {
-            Id = $"NSG-{Guid.NewGuid():N}".ToUpperInvariant(),
+            Id = new SessionNarrativeSignalId($"NSG-{Guid.NewGuid():N}".ToUpperInvariant()),
             SessionId = session.Id,
             NarrativeTurnId = narrativeTurn.Id,
             Code = signalCode,
@@ -43,7 +43,7 @@ public sealed class EnsureProgressionSignalCommand(ApplicationDbContext db)
             snapshot.ModuleId, snapshot.ModuleVersion, snapshot.ModuleDigest,
             snapshot.ConfigurationJson, snapshot.ContextJson, snapshot.RandomValueCount);
         db.SessionProgressionTransitionReceipts.Add(SessionProgressionTransitionReceipt.Create(
-            $"PTR-{Guid.NewGuid():N}".ToUpperInvariant(), session.Id, signal.Id, transition.Id,
+            new SessionProgressionTransitionReceiptId($"PTR-{Guid.NewGuid():N}".ToUpperInvariant()), session.Id, signal.Id, transition.Id,
             transition.SourceNodeId, transition.TargetNodeId, moduleSnapshot, now));
         progress.MoveTo(transition.TargetNodeId, progress.Revision, now);
         return signal.Id;

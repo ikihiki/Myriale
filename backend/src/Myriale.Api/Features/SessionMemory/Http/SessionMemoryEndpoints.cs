@@ -18,29 +18,29 @@ public static class SessionMemoryEndpoints
             .WithTags("Session Artifacts")
             .RequireAuthorization()
             .RequireCors("MyrialeFrontend");
-        artifactGroup.MapPost("/note-proposals/{artifactId}/apply", (string artifactId, ReviewSessionNoteProposalRequest request, ClaimsPrincipal principal, ReviewSessionNoteProposalUseCase useCase, CancellationToken ct) => ReviewAsync(artifactId, SessionNoteProposalStatus.Applied, request, principal, useCase, ct));
-        artifactGroup.MapPost("/note-proposals/{artifactId}/edit-apply", (string artifactId, ReviewSessionNoteProposalRequest request, ClaimsPrincipal principal, ReviewSessionNoteProposalUseCase useCase, CancellationToken ct) => ReviewAsync(artifactId, SessionNoteProposalStatus.Applied, request, principal, useCase, ct));
-        artifactGroup.MapPost("/note-proposals/{artifactId}/reject", (string artifactId, ClaimsPrincipal principal, ReviewSessionNoteProposalUseCase useCase, CancellationToken ct) => ReviewAsync(artifactId, SessionNoteProposalStatus.Rejected, new(0), principal, useCase, ct));
-        artifactGroup.MapPost("/note-proposals/{artifactId}/snooze", (string artifactId, ClaimsPrincipal principal, ReviewSessionNoteProposalUseCase useCase, CancellationToken ct) => ReviewAsync(artifactId, SessionNoteProposalStatus.Snoozed, new(0), principal, useCase, ct));
+        artifactGroup.MapPost("/note-proposals/{artifactId}/apply", (SessionArtifactId artifactId, ReviewSessionNoteProposalRequest request, ClaimsPrincipal principal, ReviewSessionNoteProposalUseCase useCase, CancellationToken ct) => ReviewAsync(artifactId, SessionNoteProposalStatus.Applied, request, principal, useCase, ct));
+        artifactGroup.MapPost("/note-proposals/{artifactId}/edit-apply", (SessionArtifactId artifactId, ReviewSessionNoteProposalRequest request, ClaimsPrincipal principal, ReviewSessionNoteProposalUseCase useCase, CancellationToken ct) => ReviewAsync(artifactId, SessionNoteProposalStatus.Applied, request, principal, useCase, ct));
+        artifactGroup.MapPost("/note-proposals/{artifactId}/reject", (SessionArtifactId artifactId, ClaimsPrincipal principal, ReviewSessionNoteProposalUseCase useCase, CancellationToken ct) => ReviewAsync(artifactId, SessionNoteProposalStatus.Rejected, new(0), principal, useCase, ct));
+        artifactGroup.MapPost("/note-proposals/{artifactId}/snooze", (SessionArtifactId artifactId, ClaimsPrincipal principal, ReviewSessionNoteProposalUseCase useCase, CancellationToken ct) => ReviewAsync(artifactId, SessionNoteProposalStatus.Snoozed, new(0), principal, useCase, ct));
         return routes;
     }
 
     private static async Task<IResult> GetAsync(
-        string sessionId, ClaimsPrincipal principal, SessionMemoryQueryService queries, CancellationToken cancellationToken)
+        SessionId sessionId, ClaimsPrincipal principal, SessionMemoryQueryService queries, CancellationToken cancellationToken)
     {
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         if (ownerId is null) return Results.Unauthorized();
-        var memory = await queries.GetAsync(sessionId, ownerId, cancellationToken);
+        var memory = await queries.GetAsync(sessionId, new AccountId(ownerId), cancellationToken);
         return memory is null ? Results.NotFound() : Results.Ok(memory);
     }
 
     private static async Task<IResult> CreateAsync(
-        string sessionId, UpsertSessionLorebookEntryRequest request, ClaimsPrincipal principal,
+        SessionId sessionId, UpsertSessionLorebookEntryRequest request, ClaimsPrincipal principal,
         CreateSessionNoteUseCase useCase, CancellationToken cancellationToken)
     {
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         if (ownerId is null) return Results.Unauthorized();
-        var result = await useCase.ExecuteAsync(new(sessionId, ownerId, request), cancellationToken);
+        var result = await useCase.ExecuteAsync(new(sessionId, new AccountId(ownerId), request), cancellationToken);
         return result.Outcome switch
         {
             SessionMemoryCommandOutcome.Success => Results.Created($"/api/sessions/{sessionId}/memory/lorebook/{result.Note!.Id}", result.Note),
@@ -52,12 +52,12 @@ public static class SessionMemoryEndpoints
     }
 
     private static async Task<IResult> UpdateAsync(
-        string sessionId, string noteId, UpsertSessionLorebookEntryRequest request, ClaimsPrincipal principal,
+        SessionId sessionId, SessionNoteId noteId, UpsertSessionLorebookEntryRequest request, ClaimsPrincipal principal,
         UpdateSessionNoteUseCase useCase, CancellationToken cancellationToken)
     {
         var ownerId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         if (ownerId is null) return Results.Unauthorized();
-        var result = await useCase.ExecuteAsync(new(sessionId, noteId, ownerId, request), cancellationToken);
+        var result = await useCase.ExecuteAsync(new(sessionId, noteId, new AccountId(ownerId), request), cancellationToken);
         return result.Outcome switch
         {
             SessionMemoryCommandOutcome.Success => Results.Ok(result.Note),
@@ -69,12 +69,12 @@ public static class SessionMemoryEndpoints
     }
 
     private static async Task<IResult> ReviewAsync(
-        string artifactId, SessionNoteProposalStatus status, ReviewSessionNoteProposalRequest request,
+        SessionArtifactId artifactId, SessionNoteProposalStatus status, ReviewSessionNoteProposalRequest request,
         ClaimsPrincipal principal, ReviewSessionNoteProposalUseCase useCase, CancellationToken cancellationToken)
     {
         var owner = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         if (owner is null) return Results.Unauthorized();
-        var result = await useCase.ExecuteAsync(new(artifactId, owner, status, request), cancellationToken);
+        var result = await useCase.ExecuteAsync(new(artifactId, new AccountId(owner), status, request), cancellationToken);
         return result.Outcome switch
         {
             SessionMemoryCommandOutcome.Success => Results.Ok(result.Proposal),

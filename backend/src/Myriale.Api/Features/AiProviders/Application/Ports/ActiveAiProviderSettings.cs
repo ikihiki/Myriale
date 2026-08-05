@@ -1,7 +1,7 @@
 
 namespace Myriale.Api.Features.AiProviders.Application.Ports;
 
-public sealed record ActiveAiProviderSelection(string Provider, long Revision);
+public sealed record ActiveAiProviderSelection(AiProviderProfileId Provider, long Revision);
 
 public enum ActiveAiProviderSettingsSaveOutcome
 {
@@ -25,10 +25,10 @@ public sealed class ActiveAiProviderQueryService(
     IActiveAiProviderSettingsReader reader,
     IAiProfileCatalog catalog)
 {
-    public async Task<string> GetActiveProviderAsync(CancellationToken cancellationToken)
+    public async Task<AiProviderProfileId> GetActiveProviderAsync(CancellationToken cancellationToken)
     {
         var selected = await reader.GetAsync(cancellationToken);
-        if (!string.IsNullOrWhiteSpace(selected?.Provider))
+        if (selected is not null)
         {
             try { return (await catalog.ResolveAsync(selected.Provider, cancellationToken)).Id; }
             catch (AiProviderException) { }

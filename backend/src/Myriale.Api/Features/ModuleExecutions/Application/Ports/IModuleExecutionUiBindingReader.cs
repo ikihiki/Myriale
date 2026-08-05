@@ -3,10 +3,10 @@ using Myriale.Api.Architecture;
 namespace Myriale.Api.Features.ModuleExecutions.Application.Ports;
 
 [CrossSliceContract]
-public sealed record ModuleExecutionUiBinding(string ModuleId, string ModuleVersion, string ModuleDigest, string ContractVersion);
+public sealed record ModuleExecutionUiBinding(ModulePackageModuleId ModuleId, ModulePackageVersion ModuleVersion, ModulePackageDigest ModuleDigest, string ContractVersion);
 
 [CrossSliceContract]
 public interface IModuleExecutionUiBindingReader
 {
-    Task<ModuleExecutionUiBinding?> FindAsync(string ownerId, string executionId, CancellationToken cancellationToken);
+    Task<ModuleExecutionUiBinding?> FindAsync(AccountId ownerId, ModuleExecutionId executionId, CancellationToken cancellationToken);
 }

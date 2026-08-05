@@ -6,14 +6,14 @@ using Myriale.Api.Features.SessionArtifacts.Application;
 namespace Myriale.Api.Features.ScenarioTurns.Application;
 
 public sealed record ScenarioExecutionCheckpoint(
-    string ExecutionId,
-    string SessionId,
-    string PlayerInputId,
+    SessionExecutionId ExecutionId,
+    SessionId SessionId,
+    SessionPlayerInputId PlayerInputId,
     string PlayerInput,
-    string? AcceptedHeadTurnId,
+    SessionTurnId? AcceptedHeadTurnId,
     long AcceptedSessionRevision,
-    string ActionAiProfileId,
-    string NarrativeAiProfileId);
+    AiProviderProfileId ActionAiProfileId,
+    AiProviderProfileId NarrativeAiProfileId);
 
 public interface IScenarioExecutionFence
 {
@@ -22,14 +22,14 @@ public interface IScenarioExecutionFence
 
 public interface IScenarioWorldSnapshotQuery
 {
-    Task<ScenarioRuleWorldSnapshot> LoadAsync(string sessionId, CancellationToken cancellationToken);
+    Task<ScenarioRuleWorldSnapshot> LoadAsync(SessionId sessionId, CancellationToken cancellationToken);
 }
 
 public sealed record ScenarioActionStepSnapshot(
-    string Id,
-    string SessionId,
-    string ExecutionId,
-    string PlayerInputId,
+    SessionRuleActionStepId Id,
+    SessionId SessionId,
+    SessionExecutionId ExecutionId,
+    SessionPlayerInputId PlayerInputId,
     ScenarioTurnStage Stage,
     long PreSessionRevision,
     long? PostSessionRevision,
@@ -52,7 +52,7 @@ public enum ScenarioCheckpointWriteOutcome { Written, Existing, LeaseLost, Confl
 
 public interface IScenarioActionSnapshotRepository
 {
-    Task<ScenarioActionStepSnapshot?> FindAsync(string executionId, CancellationToken cancellationToken);
+    Task<ScenarioActionStepSnapshot?> FindAsync(SessionExecutionId executionId, CancellationToken cancellationToken);
     Task<ScenarioCheckpointWriteOutcome> CreateAsync(SessionExecutionContext context, ScenarioExecutionCheckpoint execution, ScenarioRuleWorldSnapshot world, RuleActionSnapshot snapshot, DateTimeOffset now, CancellationToken cancellationToken);
     Task<ScenarioCheckpointWriteOutcome> RecordDecisionAsync(SessionExecutionContext context, RuleActionDecisionResult decision, DateTimeOffset now, CancellationToken cancellationToken);
     Task<ScenarioCheckpointWriteOutcome> RecordResolutionAsync(SessionExecutionContext context, ScenarioRuleResolution resolution, DateTimeOffset now, CancellationToken cancellationToken);
@@ -61,15 +61,15 @@ public interface IScenarioActionSnapshotRepository
 
 public interface IScenarioAiInteractionRecorder
 {
-    Task<RuleActionDecisionResult?> FindRecordedDecisionAsync(string executionId, CancellationToken cancellationToken);
+    Task<RuleActionDecisionResult?> FindRecordedDecisionAsync(SessionExecutionId executionId, CancellationToken cancellationToken);
     Task RecordSuccessAsync<T>(ScenarioExecutionCheckpoint execution, SessionExecutionContext context, int sequence,
-        SessionAiInteractionStage stage, string profileId, DateTimeOffset startedAt, NarrativeGeneration<T> generation,
+        SessionAiInteractionStage stage, AiProviderProfileId profileId, DateTimeOffset startedAt, NarrativeGeneration<T> generation,
         string canonicalResultJson, CancellationToken cancellationToken);
     Task RecordValidationFailureAsync<T>(ScenarioExecutionCheckpoint execution, SessionExecutionContext context, int sequence,
-        SessionAiInteractionStage stage, string profileId, DateTimeOffset startedAt, NarrativeGeneration<T> generation,
+        SessionAiInteractionStage stage, AiProviderProfileId profileId, DateTimeOffset startedAt, NarrativeGeneration<T> generation,
         ScenarioTurnValidationException exception, CancellationToken cancellationToken);
     Task TryRecordProviderFailureAsync(ScenarioExecutionCheckpoint execution, SessionExecutionContext context, int sequence,
-        SessionAiInteractionStage stage, string profileId, DateTimeOffset startedAt, AiProviderException exception, CancellationToken cancellationToken);
+        SessionAiInteractionStage stage, AiProviderProfileId profileId, DateTimeOffset startedAt, AiProviderException exception, CancellationToken cancellationToken);
 }
 
 public interface IScenarioAiDecisionService
@@ -127,21 +127,21 @@ public sealed class ScenarioAiDecisionService(
 
 public interface IScenarioTurnArtifactWriter
 {
-    void AddRuleStep(string sessionId, string executionId, string attemptId, SessionRuleActionStep step, DateTimeOffset now);
-    void AddNarrative(string sessionId, string executionId, string attemptId, PostStateNarrativeResult narrative, DateTimeOffset now);
+    void AddRuleStep(SessionId sessionId, SessionExecutionId executionId, SessionExecutionAttemptId attemptId, SessionRuleActionStep step, DateTimeOffset now);
+    void AddNarrative(SessionId sessionId, SessionExecutionId executionId, SessionExecutionAttemptId attemptId, PostStateNarrativeResult narrative, DateTimeOffset now);
 }
 
 public sealed class ScenarioTurnArtifactWriter(ISessionArtifactWriter writer) : IScenarioTurnArtifactWriter
 {
     private static readonly JsonSerializerOptions Json = ScenarioJson.Options;
-    public void AddRuleStep(string sessionId, string executionId, string attemptId, SessionRuleActionStep step, DateTimeOffset now) =>
+    public void AddRuleStep(SessionId sessionId, SessionExecutionId executionId, SessionExecutionAttemptId attemptId, SessionRuleActionStep step, DateTimeOffset now) =>
         writer.Add(SessionArtifact.CreateCommittedJson(
-            $"ART-{Guid.NewGuid():N}".ToUpperInvariant(), sessionId, executionId, attemptId,
+            new SessionArtifactId($"ART-{Guid.NewGuid():N}".ToUpperInvariant()), sessionId, executionId, attemptId,
             new RuleActionStepArtifactPayload(step.ActionSnapshotJson, step.DecisionJson, step.SelectedRuleId,
                 step.AppliedEffectsJson, step.PublicPostStateJson), null, now, Json));
-    public void AddNarrative(string sessionId, string executionId, string attemptId, PostStateNarrativeResult narrative, DateTimeOffset now) =>
+    public void AddNarrative(SessionId sessionId, SessionExecutionId executionId, SessionExecutionAttemptId attemptId, PostStateNarrativeResult narrative, DateTimeOffset now) =>
         writer.Add(SessionArtifact.CreateCommittedJson(
-            $"ART-{Guid.NewGuid():N}".ToUpperInvariant(), sessionId, executionId, attemptId,
+            new SessionArtifactId($"ART-{Guid.NewGuid():N}".ToUpperInvariant()), sessionId, executionId, attemptId,
             new PostStateNarrativeArtifactPayload(narrative.SchemaVersion, narrative.Heading, narrative.Body), null, now, Json));
 }
 
@@ -174,8 +174,8 @@ public sealed class ScenarioNarrativeGenerationService(
         var decision = JsonSerializer.Deserialize<RuleActionDecisionResult>(step.DecisionJson!, Json)!;
         var postState = JsonSerializer.Deserialize<RulePostState>(step.PublicPostStateJson!, Json)!;
         var action = snapshot.Actions.Single(item => item.ObjectId == decision.ObjectId && item.ActionId == decision.ActionId);
-        var selectedObject = decision.ObjectId == "system"
-            ? new RulePublicObject("system", "system", "システム", postState.CurrentLocation.Id, true, 0, Parse("{}"))
+        var selectedObject = decision.ObjectId == new ScenarioObjectId("system")
+            ? new RulePublicObject(new("system"), "system", "システム", postState.CurrentLocation.Id, true, 0, Parse("{}"))
             : snapshot.Objects.Single(item => item.Id == decision.ObjectId);
         var world = await worldQuery.LoadAsync(execution.SessionId, cancellationToken);
         var request = new PostStateNarrativeRequest(
@@ -232,8 +232,8 @@ public sealed class ScenarioSessionTurnAppender : IScenarioSessionTurnAppender
     public SessionTurn Append(Session session, SessionPlayerInput input, SessionRuleActionStep step,
         NarrativeGeneration<PostStateNarrativeResult> narrative, DateTimeOffset now)
     {
-        var id = $"TRN-{Guid.NewGuid():N}".ToUpperInvariant();
-        var ai = new SessionTurnAiMetadata(narrative.Metadata.Provider, narrative.Metadata.Model, narrative.Metadata.ResponseId,
+        var id = new SessionTurnId($"TRN-{Guid.NewGuid():N}".ToUpperInvariant());
+        var ai = new SessionTurnAiMetadata(narrative.Metadata.Provider.AsPrimitive(), narrative.Metadata.Model, narrative.Metadata.ResponseId,
             narrative.Metadata.InputTokens, narrative.Metadata.OutputTokens, narrative.Metadata.LatencyMilliseconds,
             narrative.Metadata.AttemptCount, narrative.Metadata.FinishReason);
         return session.Status == SessionStatus.Completed
@@ -311,7 +311,7 @@ public sealed class ScenarioTurnExecutionOrchestrator(
                     JsonSerializer.Deserialize<RuleActionSnapshot>(step.ActionSnapshotJson, Json)!.SnapshotId);
                 var decision = JsonSerializer.Deserialize<RuleActionDecisionResult>(step.DecisionJson!, Json)!;
                 ScenarioAiDecisionService.Validate(snapshot, decision);
-                var resolution = resolutionService.Resolve(world, decision, step.Id);
+                var resolution = resolutionService.Resolve(world, decision, step.Id.AsPrimitive());
                 var write = await steps.RecordResolutionAsync(context, resolution, timeProvider.GetUtcNow(), cancellationToken);
                 if (write == ScenarioCheckpointWriteOutcome.LeaseLost) return LeaseLost();
                 step = await steps.FindAsync(context.ExecutionId, cancellationToken);
@@ -385,7 +385,7 @@ public sealed class ScenarioTurnExecutionOrchestrator(
     {
         if (world.SessionRevision != step.PreSessionRevision) throw new ScenarioTurnValidationException("stale_session_revision");
         var expected = JsonSerializer.Deserialize<Dictionary<string, long>>(step.ObjectRevisionsJson, Json) ?? [];
-        if (world.Objects.Any(item => expected.GetValueOrDefault(item.Id, -1) != item.Revision))
+        if (world.Objects.Any(item => expected.GetValueOrDefault(item.Id.AsPrimitive(), -1) != item.Revision))
             throw new ScenarioTurnValidationException("stale_object_revision");
     }
 

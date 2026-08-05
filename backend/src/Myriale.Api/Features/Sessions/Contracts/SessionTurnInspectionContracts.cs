@@ -11,13 +11,13 @@ public sealed record SessionTurnInspectionResponse(
     IReadOnlyList<SessionAiInteractionInspection> AiInteractions,
     RuleEngineInspection? RuleEngine);
 
-public sealed record SessionInspectionMetadata(string Id, string Status, long Revision, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
-public sealed record ScenarioInspectionMetadata(string Id, string Title, string? DefinitionVersionId);
-public sealed record TurnInspectionMetadata(string Id, int Position, string Kind, string? Heading, string? NarrativeBody, DateTimeOffset CreatedAt);
-public sealed record PlayerInputInspection(string Id, string Text, string InteractionType, DateTimeOffset AcceptedAt);
+public sealed record SessionInspectionMetadata(SessionId Id, string Status, long Revision, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
+public sealed record ScenarioInspectionMetadata(ScenarioId Id, string Title, ScenarioDefinitionVersionId? DefinitionVersionId);
+public sealed record TurnInspectionMetadata(SessionTurnId Id, int Position, string Kind, string? Heading, string? NarrativeBody, DateTimeOffset CreatedAt);
+public sealed record PlayerInputInspection(SessionPlayerInputId Id, string Text, string InteractionType, DateTimeOffset AcceptedAt);
 
 public sealed record ExecutionInspection(
-    string Id,
+    SessionExecutionId Id,
     string Kind,
     string Status,
     string? Stage,
@@ -29,11 +29,11 @@ public sealed record ExecutionInspection(
     long? ElapsedMilliseconds);
 
 public sealed record SessionAiInteractionInspection(
-    string Id,
+    SessionAiInteractionId Id,
     int AttemptNumber,
     int Sequence,
     string Stage,
-    string AiProfileId,
+    AiProviderProfileId AiProfileId,
     string? Provider,
     string? Model,
     string? ProviderRequestId,
@@ -51,7 +51,7 @@ public sealed record SessionAiInteractionInspection(
     string? ValidationResult);
 
 public sealed record RuleEngineInspection(
-    string StepId,
+    SessionRuleActionStepId StepId,
     string Stage,
     string SchemaVersion,
     long PreSessionRevision,

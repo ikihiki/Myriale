@@ -1,19 +1,19 @@
 namespace Myriale.Api.Features.SessionMemory.Contracts;
 
 public sealed record SessionLorebookEntryResponse(
-    string Id,
+    SessionNoteId Id,
     string Kind,
     string DisplayName,
     IReadOnlyList<string> Aliases,
     string Content,
     string CanonStatus,
-    string? FirstTurnId,
-    string? UpdatedFromTurnId,
+    SessionTurnId? FirstTurnId,
+    SessionTurnId? UpdatedFromTurnId,
     string UpdateSource,
     long Revision,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    IReadOnlyList<string> ReferencedByTurnIds);
+    IReadOnlyList<SessionTurnId> ReferencedByTurnIds);
 
 public sealed record UpsertSessionLorebookEntryRequest(
     string Kind,
@@ -21,14 +21,14 @@ public sealed record UpsertSessionLorebookEntryRequest(
     IReadOnlyList<string>? Aliases,
     string Content,
     string CanonStatus,
-    string? FirstTurnId = null,
-    string? UpdatedFromTurnId = null,
+    SessionTurnId? FirstTurnId = null,
+    SessionTurnId? UpdatedFromTurnId = null,
     long? ExpectedRevision = null);
 
 public sealed record SessionSummaryResponse(
-    string Id,
-    string FromTurnId,
-    string ToTurnId,
+    SessionSummaryId Id,
+    SessionTurnId FromTurnId,
+    SessionTurnId ToTurnId,
     int FromPosition,
     int ToPosition,
     int Version,

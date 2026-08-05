@@ -1,7 +1,7 @@
 
 namespace Myriale.Api.Features.AiProviders.Application;
 
-public sealed record ActivateAiProviderCommand(string Provider, long? ExpectedRevision = null);
+public sealed record ActivateAiProviderCommand(AiProviderProfileId Provider, long? ExpectedRevision = null);
 
 public enum ActivateAiProviderOutcome
 {

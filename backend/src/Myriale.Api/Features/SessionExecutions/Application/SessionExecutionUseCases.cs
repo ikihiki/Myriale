@@ -7,7 +7,7 @@ public sealed record SessionExecutionUseCaseResult(SessionExecutionUseCaseOutcom
 
 public sealed class GetSessionExecutionQuery(ISessionExecutionRepository repository, IHostEnvironment environment)
 {
-    public async Task<SessionExecutionUseCaseResult> ExecuteAsync(string executionId, string ownerId, CancellationToken cancellationToken)
+    public async Task<SessionExecutionUseCaseResult> ExecuteAsync(SessionExecutionId executionId, AccountId ownerId, CancellationToken cancellationToken)
     {
         var execution = await repository.GetOwnedAsync(executionId, ownerId, tracking: false, cancellationToken);
         return execution is null
@@ -18,7 +18,7 @@ public sealed class GetSessionExecutionQuery(ISessionExecutionRepository reposit
 
 public sealed class RetrySessionExecutionCommand(ISessionExecutionRepository repository, IHostEnvironment environment, TimeProvider timeProvider)
 {
-    public async Task<SessionExecutionUseCaseResult> ExecuteAsync(string executionId, string ownerId, CancellationToken cancellationToken)
+    public async Task<SessionExecutionUseCaseResult> ExecuteAsync(SessionExecutionId executionId, AccountId ownerId, CancellationToken cancellationToken)
     {
         var execution = await repository.GetOwnedAsync(executionId, ownerId, tracking: true, cancellationToken);
         if (execution is null) return new(SessionExecutionUseCaseOutcome.NotFound);
@@ -33,7 +33,7 @@ public sealed class RetrySessionExecutionCommand(ISessionExecutionRepository rep
 
 public sealed class CancelSessionExecutionCommand(ISessionExecutionRepository repository, IHostEnvironment environment, TimeProvider timeProvider)
 {
-    public async Task<SessionExecutionUseCaseResult> ExecuteAsync(string executionId, string ownerId, CancellationToken cancellationToken)
+    public async Task<SessionExecutionUseCaseResult> ExecuteAsync(SessionExecutionId executionId, AccountId ownerId, CancellationToken cancellationToken)
     {
         SessionExecution? execution = null;
         var result = await repository.MutateOwnedWithLockAsync(executionId, ownerId, item =>
@@ -52,7 +52,7 @@ public sealed class CancelSessionExecutionCommand(ISessionExecutionRepository re
 
 public sealed class DismissSessionExecutionCommand(ISessionExecutionRepository repository, IHostEnvironment environment, TimeProvider timeProvider)
 {
-    public async Task<SessionExecutionUseCaseResult> ExecuteAsync(string executionId, string ownerId, CancellationToken cancellationToken)
+    public async Task<SessionExecutionUseCaseResult> ExecuteAsync(SessionExecutionId executionId, AccountId ownerId, CancellationToken cancellationToken)
     {
         var execution = await repository.GetOwnedAsync(executionId, ownerId, tracking: true, cancellationToken);
         if (execution is null) return new(SessionExecutionUseCaseOutcome.NotFound);

@@ -44,7 +44,7 @@ internal sealed partial class ModuleExecutionWorkflow : IModuleExecutionWorkflow
     }
 
     private async Task<ModuleExecutionResult> StoreRejectedReceiptAsync(
-        string ownerId,
+        AccountId ownerId,
         ModuleExecution execution,
         DispatchModuleExecutionRequest request,
         string payloadHash,
@@ -71,13 +71,13 @@ internal sealed partial class ModuleExecutionWorkflow : IModuleExecutionWorkflow
         }
     }
 
-    private async Task<bool> IsSessionAdvancedAsync(string executionId, CancellationToken cancellationToken) =>
+    private async Task<bool> IsSessionAdvancedAsync(ModuleExecutionId executionId, CancellationToken cancellationToken) =>
         await db.ModuleExecutions.AsNoTracking()
             .Where(execution => execution.Id == executionId && execution.SessionTurn != null)
             .Select(execution => execution.SessionTurn!.Session.HeadTurnId != execution.SessionTurn.Id)
             .SingleOrDefaultAsync(cancellationToken);
 
-    private async Task<long?> GetCurrentSessionRevisionAsync(string executionId, CancellationToken cancellationToken) =>
+    private async Task<long?> GetCurrentSessionRevisionAsync(ModuleExecutionId executionId, CancellationToken cancellationToken) =>
         await db.ModuleExecutions.AsNoTracking()
             .Where(execution => execution.Id == executionId && execution.SessionTurn != null)
             .Select(execution => (long?)execution.SessionTurn!.Session.State.Revision)
@@ -85,8 +85,8 @@ internal sealed partial class ModuleExecutionWorkflow : IModuleExecutionWorkflow
 
     private async Task<ModuleExecutionResult> AttachSessionTurnAsync(
         ModuleExecutionResult result,
-        string executionId,
-        string? sessionId,
+        ModuleExecutionId executionId,
+        SessionId? sessionId,
         CancellationToken cancellationToken)
     {
         if (sessionId is null) return result;
@@ -225,7 +225,7 @@ internal sealed partial class ModuleExecutionWorkflow : IModuleExecutionWorkflow
         _ => ModuleExecutionOutcome.Unavailable,
     };
 
-    private static string NewSessionTurnId() => $"TRN-{Guid.NewGuid():N}".ToUpperInvariant();
+    private static SessionTurnId NewSessionTurnId() => new($"TRN-{Guid.NewGuid():N}".ToUpperInvariant());
 
-    private static string NewExecutionId() => $"MEX-{Guid.NewGuid():N}".ToUpperInvariant();
+    private static ModuleExecutionId NewExecutionId() => new($"MEX-{Guid.NewGuid():N}".ToUpperInvariant());
 }

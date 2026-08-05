@@ -6,9 +6,9 @@ namespace Myriale.Api.Features.ProgressionRuntime.Infrastructure;
 
 public sealed class EfProgressionReceiptRepository(ApplicationDbContext db) : IProgressionReceiptRepository
 {
-    public async Task<IReadOnlyList<string>> ListOwnedIdsForNarrativeTurnAsync(
-        string ownerId,
-        string narrativeTurnId,
+    public async Task<IReadOnlyList<SessionProgressionTransitionReceiptId>> ListOwnedIdsForNarrativeTurnAsync(
+        AccountId ownerId,
+        SessionTurnId narrativeTurnId,
         CancellationToken cancellationToken) =>
         await db.SessionProgressionTransitionReceipts.AsNoTracking()
             .Where(receipt => receipt.SourceSignal.NarrativeTurnId == narrativeTurnId && receipt.Session.OwnerId == ownerId)
@@ -16,8 +16,8 @@ public sealed class EfProgressionReceiptRepository(ApplicationDbContext db) : IP
             .ToListAsync(cancellationToken);
 
     public async Task<ClaimedProgressionReceipt?> TryClaimOwnedAsync(
-        string ownerId,
-        string receiptId,
+        AccountId ownerId,
+        SessionProgressionTransitionReceiptId receiptId,
         string leaseId,
         DateTimeOffset now,
         DateTimeOffset leaseExpiresAt,
@@ -42,7 +42,7 @@ public sealed class EfProgressionReceiptRepository(ApplicationDbContext db) : IP
         var snapshot = candidate.ModuleId is null || candidate.ModuleVersion is null || candidate.ModuleDigest is null
             || candidate.ModuleConfigurationJson is null || candidate.ModuleContextJson is null
             ? null
-            : new ProgressionModuleSnapshot(candidate.ModuleId, candidate.ModuleVersion, candidate.ModuleDigest,
+            : new ProgressionModuleSnapshot(candidate.ModuleId.Value, candidate.ModuleVersion.Value, candidate.ModuleDigest.Value,
                 candidate.ModuleConfigurationJson, candidate.ModuleContextJson, candidate.ModuleRandomValueCount);
         if (snapshot is not { IsComplete: true })
         {
@@ -76,7 +76,7 @@ public sealed class EfProgressionReceiptRepository(ApplicationDbContext db) : IP
             : null;
     }
 
-    public async Task<bool> CompleteAsync(string receiptId, string leaseId, long revision, string moduleTurnId, DateTimeOffset now, CancellationToken cancellationToken) =>
+    public async Task<bool> CompleteAsync(SessionProgressionTransitionReceiptId receiptId, string leaseId, long revision, SessionTurnId moduleTurnId, DateTimeOffset now, CancellationToken cancellationToken) =>
         await Fenced(receiptId, leaseId, revision)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(item => item.Status, ProgressionReceiptStatus.Completed)
@@ -90,7 +90,7 @@ public sealed class EfProgressionReceiptRepository(ApplicationDbContext db) : IP
                 .SetProperty(item => item.CompletedAt, now)
                 .SetProperty(item => item.Revision, item => item.Revision + 1), cancellationToken) == 1;
 
-    public async Task<bool> FailAsync(string receiptId, string leaseId, long revision, string code, string message, bool retryable, DateTimeOffset now, CancellationToken cancellationToken) =>
+    public async Task<bool> FailAsync(SessionProgressionTransitionReceiptId receiptId, string leaseId, long revision, string code, string message, bool retryable, DateTimeOffset now, CancellationToken cancellationToken) =>
         await Fenced(receiptId, leaseId, revision)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(item => item.Status, ProgressionReceiptStatus.Failed)
@@ -102,7 +102,7 @@ public sealed class EfProgressionReceiptRepository(ApplicationDbContext db) : IP
                 .SetProperty(item => item.UpdatedAt, now)
                 .SetProperty(item => item.Revision, item => item.Revision + 1), cancellationToken) == 1;
 
-    public async Task<bool> ReleaseAsync(string receiptId, string leaseId, long revision, DateTimeOffset now, CancellationToken cancellationToken) =>
+    public async Task<bool> ReleaseAsync(SessionProgressionTransitionReceiptId receiptId, string leaseId, long revision, DateTimeOffset now, CancellationToken cancellationToken) =>
         await Fenced(receiptId, leaseId, revision)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(item => item.Status, ProgressionReceiptStatus.Pending)
@@ -111,7 +111,7 @@ public sealed class EfProgressionReceiptRepository(ApplicationDbContext db) : IP
                 .SetProperty(item => item.UpdatedAt, now)
                 .SetProperty(item => item.Revision, item => item.Revision + 1), cancellationToken) == 1;
 
-    private IQueryable<SessionProgressionTransitionReceipt> Fenced(string receiptId, string leaseId, long revision) =>
+    private IQueryable<SessionProgressionTransitionReceipt> Fenced(SessionProgressionTransitionReceiptId receiptId, string leaseId, long revision) =>
         db.SessionProgressionTransitionReceipts
             .Where(item => item.Id == receiptId && item.LeaseId == leaseId && item.Revision == revision);
 }

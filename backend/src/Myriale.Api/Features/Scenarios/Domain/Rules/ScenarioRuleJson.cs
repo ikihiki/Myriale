@@ -24,18 +24,18 @@ public sealed record EffectSet(IReadOnlyList<ScenarioEffect> Effects)
 }
 
 public abstract record ScenarioEffect(string Type);
-public sealed record StateEffect(string EffectType, string? Path, JsonElement? Value, string? ObjectCode, string? ObjectId) : ScenarioEffect(EffectType);
-public sealed record MoveObjectEffect(string? ObjectCode, string? ObjectId, string? LocationCode, string? LocationId) : ScenarioEffect("move-object");
-public sealed record MoveSessionEffect(string? LocationCode, string? LocationId) : ScenarioEffect("move-session");
+public sealed record StateEffect(string EffectType, string? Path, JsonElement? Value, string? ObjectCode, ScenarioObjectId? ObjectId) : ScenarioEffect(EffectType);
+public sealed record MoveObjectEffect(string? ObjectCode, ScenarioObjectId? ObjectId, string? LocationCode, ScenarioLocationId? LocationId) : ScenarioEffect("move-object");
+public sealed record MoveSessionEffect(string? LocationCode, ScenarioLocationId? LocationId) : ScenarioEffect("move-session");
 public sealed record SetSessionFlagEffect(string? Flag, bool? Value) : ScenarioEffect("set-session-flag");
 public sealed record TextEffect(string EffectType, string? Text) : ScenarioEffect(EffectType);
 public sealed record EmitEventEffect(
-    string? Event, string? LocationCode, string? LocationId,
+    string? Event, string? LocationCode, ScenarioLocationId? LocationId,
     IReadOnlyDictionary<string, JsonElement> Payload) : ScenarioEffect("emit-event");
 public sealed record CompleteSessionEffect() : ScenarioEffect("complete-session");
 
 public sealed record ScenarioModuleBinding(
-    string ModuleId,
+    ModulePackageModuleId ModuleId,
     string Version,
     string Digest,
     JsonElement Configuration);
@@ -198,7 +198,7 @@ public sealed class EffectSetJsonConverter : JsonConverter<EffectSet>
         if (StateTypes.Contains(type))
         {
             RejectUnknown(value, "type", "path", "value", "objectCode", "objectId");
-            return new StateEffect(type, String(value, "path"), Element(value, "value"), String(value, "objectCode"), String(value, "objectId"));
+            return new StateEffect(type, String(value, "path"), Element(value, "value"), String(value, "objectCode"), ObjectId(value, "objectId"));
         }
         if (TextTypes.Contains(type))
         {
@@ -219,13 +219,13 @@ public sealed class EffectSetJsonConverter : JsonConverter<EffectSet>
     private static ScenarioEffect ParseMoveObject(JsonElement value)
     {
         RejectUnknown(value, "type", "objectCode", "objectId", "locationCode", "locationId");
-        return new MoveObjectEffect(String(value, "objectCode"), String(value, "objectId"), String(value, "locationCode"), String(value, "locationId"));
+        return new MoveObjectEffect(String(value, "objectCode"), ObjectId(value, "objectId"), String(value, "locationCode"), LocationId(value, "locationId"));
     }
 
     private static ScenarioEffect ParseMoveSession(JsonElement value)
     {
         RejectUnknown(value, "type", "locationCode", "locationId");
-        return new MoveSessionEffect(String(value, "locationCode"), String(value, "locationId"));
+        return new MoveSessionEffect(String(value, "locationCode"), LocationId(value, "locationId"));
     }
 
     private static ScenarioEffect ParseFlag(JsonElement value)
@@ -240,7 +240,7 @@ public sealed class EffectSetJsonConverter : JsonConverter<EffectSet>
         var payload = value.EnumerateObject()
             .Where(property => property.Name is not ("type" or "event" or "locationCode" or "locationId"))
             .ToDictionary(property => property.Name, property => property.Value.Clone(), StringComparer.Ordinal);
-        return new EmitEventEffect(String(value, "event"), String(value, "locationCode"), String(value, "locationId"), payload);
+        return new EmitEventEffect(String(value, "event"), String(value, "locationCode"), LocationId(value, "locationId"), payload);
     }
 
     private static ScenarioEffect ParseComplete(JsonElement value)
@@ -256,15 +256,15 @@ public sealed class EffectSetJsonConverter : JsonConverter<EffectSet>
         switch (effect)
         {
             case StateEffect state:
-                WriteString(writer, "objectCode", state.ObjectCode); WriteString(writer, "objectId", state.ObjectId);
+                WriteString(writer, "objectCode", state.ObjectCode); WriteString(writer, "objectId", state.ObjectId is { } stateObjectId ? stateObjectId.AsPrimitive() : null);
                 WriteString(writer, "path", state.Path); WriteElement(writer, "value", state.Value);
                 break;
             case MoveObjectEffect move:
-                WriteString(writer, "objectCode", move.ObjectCode); WriteString(writer, "objectId", move.ObjectId);
-                WriteString(writer, "locationCode", move.LocationCode); WriteString(writer, "locationId", move.LocationId);
+                WriteString(writer, "objectCode", move.ObjectCode); WriteString(writer, "objectId", move.ObjectId is { } movedObjectId ? movedObjectId.AsPrimitive() : null);
+                WriteString(writer, "locationCode", move.LocationCode); WriteString(writer, "locationId", move.LocationId is { } movedLocationId ? movedLocationId.AsPrimitive() : null);
                 break;
             case MoveSessionEffect move:
-                WriteString(writer, "locationCode", move.LocationCode); WriteString(writer, "locationId", move.LocationId);
+                WriteString(writer, "locationCode", move.LocationCode); WriteString(writer, "locationId", move.LocationId is { } sessionLocationId ? sessionLocationId.AsPrimitive() : null);
                 break;
             case SetSessionFlagEffect flag:
                 WriteString(writer, "flag", flag.Flag); if (flag.Value is { } flagValue) writer.WriteBoolean("value", flagValue);
@@ -273,7 +273,7 @@ public sealed class EffectSetJsonConverter : JsonConverter<EffectSet>
                 WriteString(writer, "text", text.Text);
                 break;
             case EmitEventEffect emitted:
-                WriteString(writer, "event", emitted.Event); WriteString(writer, "locationCode", emitted.LocationCode); WriteString(writer, "locationId", emitted.LocationId);
+                WriteString(writer, "event", emitted.Event); WriteString(writer, "locationCode", emitted.LocationCode); WriteString(writer, "locationId", emitted.LocationId is { } eventLocationId ? eventLocationId.AsPrimitive() : null);
                 foreach (var pair in emitted.Payload) { writer.WritePropertyName(pair.Key); pair.Value.WriteTo(writer); }
                 break;
             case CompleteSessionEffect:
@@ -285,6 +285,8 @@ public sealed class EffectSetJsonConverter : JsonConverter<EffectSet>
     }
 
     private static string? String(JsonElement root, string name) => root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+    private static ScenarioObjectId? ObjectId(JsonElement root, string name) => String(root, name) is { } value ? new(value) : null;
+    private static ScenarioLocationId? LocationId(JsonElement root, string name) => String(root, name) is { } value ? new(value) : null;
     private static JsonElement? Element(JsonElement root, string name) => root.TryGetProperty(name, out var value) ? value.Clone() : null;
     private static void WriteString(Utf8JsonWriter writer, string name, string? value) { if (value is not null) writer.WriteString(name, value); }
     private static void WriteElement(Utf8JsonWriter writer, string name, JsonElement? value) { if (value is { } element) { writer.WritePropertyName(name); element.WriteTo(writer); } }

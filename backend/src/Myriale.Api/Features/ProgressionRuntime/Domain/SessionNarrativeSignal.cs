@@ -5,13 +5,13 @@ namespace Myriale.Api.Features.ProgressionRuntime.Domain;
 public sealed class SessionNarrativeSignal
 {
     [Key, MaxLength(40)]
-    public string Id { get; set; } = string.Empty;
+    public SessionNarrativeSignalId Id { get; set; }
 
     [Required, MaxLength(40)]
-    public string SessionId { get; set; } = string.Empty;
+    public SessionId SessionId { get; set; }
 
     [Required, MaxLength(40)]
-    public string NarrativeTurnId { get; set; } = string.Empty;
+    public SessionTurnId NarrativeTurnId { get; set; }
 
     [Required, MaxLength(80)]
     public string Code { get; set; } = string.Empty;

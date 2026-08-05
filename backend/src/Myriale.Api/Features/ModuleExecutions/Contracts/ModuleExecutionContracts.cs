@@ -5,9 +5,9 @@ namespace Myriale.Api.Features.ModuleExecutions.Contracts;
 
 public sealed record InitializeModuleExecutionRequest(
     string RequestId,
-    string ModuleId,
-    string Version,
-    string Digest,
+    ModulePackageModuleId ModuleId,
+    ModulePackageVersion Version,
+    ModulePackageDigest Digest,
     JsonElement Configuration,
     JsonElement Context,
     int RandomValueCount = 0);
@@ -18,15 +18,15 @@ public sealed record DispatchModuleExecutionRequest(
     JsonElement Action);
 
 public sealed record ModuleExecutionPackageResponse(
-    string ModuleId,
-    string Version,
-    string Digest,
+    ModulePackageModuleId ModuleId,
+    ModulePackageVersion Version,
+    ModulePackageDigest Digest,
     string ContractVersion,
     int ConfigurationSchemaVersion,
     int StateSchemaVersion);
 
 public sealed record ModuleExecutionResponse(
-    string Id,
+    ModuleExecutionId Id,
     ModuleExecutionPackageResponse Package,
     ModuleExecutionStatus Status,
     long Revision,
