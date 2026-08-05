@@ -505,16 +505,4 @@ public sealed record ScenarioExtensionRequest(
     JsonElement Arguments,
     JsonElement ObjectState);
 
-public sealed record ScenarioExtensionResult(
-    SessionExecutionId ExecutionId,
-    string Status,
-    long Revision,
-    IReadOnlyList<Myriale.ModuleSdk.ModuleAvailableAction> AvailableActions,
-    IReadOnlyList<RuleAppliedEffect> Effects,
-    IReadOnlyList<string> Facts,
-    IReadOnlyList<JsonElement> Events,
-    IReadOnlyList<string> NarrativeHints,
-    IReadOnlyList<string> ForbiddenNarrativeFacts,
-    JsonElement PublicState);
-
 public interface IScenarioExtensionAdapter { Task<ScenarioExtensionResult> ExecuteAsync(ScenarioExtensionRequest request, CancellationToken cancellationToken); }

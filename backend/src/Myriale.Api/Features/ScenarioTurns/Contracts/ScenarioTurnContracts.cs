@@ -61,6 +61,19 @@ public sealed record PostStateNarrativeResult(string SchemaVersion, string Headi
 [CrossSliceContract]
 public sealed record SessionObjectStateResponse(ScenarioObjectId ObjectId, string Code, string Name, ScenarioLocationId LocationId, bool IsGlobal, long Revision, JsonElement State);
 [CrossSliceContract]
+public sealed record ScenarioExtensionResult(
+    SessionExecutionId ExecutionId,
+    string Status,
+    long Revision,
+    IReadOnlyList<Myriale.ModuleSdk.ModuleAvailableAction> AvailableActions,
+    IReadOnlyList<RuleAppliedEffect> Effects,
+    IReadOnlyList<string> Facts,
+    IReadOnlyList<JsonElement> Events,
+    IReadOnlyList<string> NarrativeHints,
+    IReadOnlyList<string> ForbiddenNarrativeFacts,
+    JsonElement PublicState);
+
+[CrossSliceContract]
 public sealed record SessionRuleActionStepResponse(
     SessionRuleActionStepId Id,
     SessionExecutionId ExecutionId,
@@ -83,6 +96,7 @@ public sealed record SessionScenarioTurnSelectedActionResponse(
     string? ActionLabel,
     JsonElement? Arguments);
 
+[CrossSliceContract]
 public sealed record SessionScenarioTurnPostStateResponse(
     long Revision,
     RulePublicLocation CurrentLocation,
@@ -92,6 +106,7 @@ public sealed record SessionScenarioTurnPostStateResponse(
     IReadOnlyList<string> Hints,
     IReadOnlyList<RuleAppliedEffect> AppliedEffects);
 
+[CrossSliceContract]
 public sealed record SessionScenarioTurnProjectionResponse(
     string SchemaVersion,
     string Stage,

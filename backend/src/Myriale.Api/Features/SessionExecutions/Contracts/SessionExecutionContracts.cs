@@ -1,8 +1,10 @@
 using Myriale.Api.Architecture;
 namespace Myriale.Api.Features.SessionExecutions.Contracts;
 
+[CrossSliceContract]
 public sealed record SessionExecutionCapabilities(bool CanRetry, bool CanCancel, bool CanDismiss);
 
+[CrossSliceContract]
 public sealed record SessionExecutionAttemptDiagnosticsResponse(
     SessionExecutionAttemptId Id,
     int AttemptNumber,
@@ -32,6 +34,7 @@ public sealed record SessionExecutionAttemptDiagnosticsResponse(
     string? ContextHash,
     int? ContextSizeBytes);
 
+[CrossSliceContract]
 public sealed record SessionExecutionDiagnosticsResponse(
     SessionId SessionId,
     string TriggerType,
