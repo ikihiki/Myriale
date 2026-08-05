@@ -10,9 +10,11 @@ public sealed class EfProgressionReceiptRepository(ApplicationDbContext db) : IP
         AccountId ownerId,
         SessionTurnId narrativeTurnId,
         CancellationToken cancellationToken) =>
-        await db.SessionProgressionTransitionReceipts.AsNoTracking()
-            .Where(receipt => receipt.SourceSignal.NarrativeTurnId == narrativeTurnId && receipt.Session.OwnerId == ownerId)
-            .Select(receipt => receipt.Id)
+        await (from receipt in db.SessionProgressionTransitionReceipts.AsNoTracking()
+               join signal in db.SessionNarrativeSignals.AsNoTracking() on receipt.SourceSignalId equals signal.Id
+               join session in db.Sessions.AsNoTracking() on receipt.SessionId equals session.Id
+               where signal.NarrativeTurnId == narrativeTurnId && session.OwnerId == ownerId
+               select receipt.Id)
             .ToListAsync(cancellationToken);
 
     public async Task<ClaimedProgressionReceipt?> TryClaimOwnedAsync(
@@ -24,14 +26,15 @@ public sealed class EfProgressionReceiptRepository(ApplicationDbContext db) : IP
         CancellationToken cancellationToken)
     {
         db.ChangeTracker.Clear();
-        var candidate = await db.SessionProgressionTransitionReceipts.AsNoTracking()
-            .Where(item => item.Id == receiptId && item.Session.OwnerId == ownerId)
-            .Select(item => new
-            {
-                item.Id, item.SessionId, item.Revision, item.Status, item.IsRetryable, item.LeaseExpiresAt,
-                item.ModuleId, item.ModuleVersion, item.ModuleDigest, item.ModuleConfigurationJson,
-                item.ModuleContextJson, item.ModuleRandomValueCount,
-            })
+        var candidate = await (from receipt in db.SessionProgressionTransitionReceipts.AsNoTracking()
+                               join session in db.Sessions.AsNoTracking() on receipt.SessionId equals session.Id
+                               where receipt.Id == receiptId && session.OwnerId == ownerId
+                               select new
+                               {
+                                   receipt.Id, receipt.SessionId, receipt.Revision, receipt.Status, receipt.IsRetryable, receipt.LeaseExpiresAt,
+                                   receipt.ModuleId, receipt.ModuleVersion, receipt.ModuleDigest, receipt.ModuleConfigurationJson,
+                                   receipt.ModuleContextJson, receipt.ModuleRandomValueCount,
+                               })
             .SingleOrDefaultAsync(cancellationToken);
         if (candidate is null
             || candidate.Status == ProgressionReceiptStatus.Completed

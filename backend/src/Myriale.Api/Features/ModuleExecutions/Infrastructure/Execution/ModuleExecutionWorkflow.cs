@@ -72,15 +72,19 @@ internal sealed partial class ModuleExecutionWorkflow : IModuleExecutionWorkflow
     }
 
     private async Task<bool> IsSessionAdvancedAsync(ModuleExecutionId executionId, CancellationToken cancellationToken) =>
-        await db.ModuleExecutions.AsNoTracking()
-            .Where(execution => execution.Id == executionId && execution.SessionTurn != null)
-            .Select(execution => execution.SessionTurn!.Session.HeadTurnId != execution.SessionTurn.Id)
+        await (from execution in db.ModuleExecutions.AsNoTracking()
+               join turn in db.SessionTurns.AsNoTracking() on execution.SessionTurnId equals (SessionTurnId?)turn.Id
+               join session in db.Sessions.AsNoTracking() on turn.SessionId equals session.Id
+               where execution.Id == executionId
+               select session.HeadTurnId != turn.Id)
             .SingleOrDefaultAsync(cancellationToken);
 
     private async Task<long?> GetCurrentSessionRevisionAsync(ModuleExecutionId executionId, CancellationToken cancellationToken) =>
-        await db.ModuleExecutions.AsNoTracking()
-            .Where(execution => execution.Id == executionId && execution.SessionTurn != null)
-            .Select(execution => (long?)execution.SessionTurn!.Session.State.Revision)
+        await (from execution in db.ModuleExecutions.AsNoTracking()
+               join turn in db.SessionTurns.AsNoTracking() on execution.SessionTurnId equals (SessionTurnId?)turn.Id
+               join state in db.SessionStates.AsNoTracking() on turn.SessionId equals state.SessionId
+               where execution.Id == executionId
+               select (long?)state.Revision)
             .SingleOrDefaultAsync(cancellationToken);
 
     private async Task<ModuleExecutionResult> AttachSessionTurnAsync(
@@ -90,9 +94,10 @@ internal sealed partial class ModuleExecutionWorkflow : IModuleExecutionWorkflow
         CancellationToken cancellationToken)
     {
         if (sessionId is null) return result;
-        var turnId = await db.ModuleExecutions.AsNoTracking()
-            .Where(execution => execution.Id == executionId && execution.SessionTurn != null && execution.SessionTurn.SessionId == sessionId)
-            .Select(execution => execution.SessionTurnId)
+        var turnId = await (from execution in db.ModuleExecutions.AsNoTracking()
+                            join turn in db.SessionTurns.AsNoTracking() on execution.SessionTurnId equals (SessionTurnId?)turn.Id
+                            where execution.Id == executionId && turn.SessionId == sessionId
+                            select execution.SessionTurnId)
             .SingleOrDefaultAsync(cancellationToken);
         return turnId is null
             ? Conflict("session_turn_mismatch", "RequestIdに対応するModule Turnを確認できません。")

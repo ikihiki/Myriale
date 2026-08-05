@@ -16,9 +16,14 @@ public sealed class EnsureProgressionSignalCommand(ApplicationDbContext db)
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
-        var progress = session.Progress;
+        var progress = await db.SessionProgressStates
+            .SingleOrDefaultAsync(item => item.SessionId == session.Id, cancellationToken);
         if (progress is null) return null;
-        var allowed = JsonSerializer.Deserialize<string[]>(progress.CurrentNode.AllowedNarrativeSignalsJson, Json) ?? [];
+        var allowedSignalsJson = await db.ScenarioProgressionNodes.AsNoTracking()
+            .Where(item => item.Id == progress.CurrentNodeId)
+            .Select(item => item.AllowedNarrativeSignalsJson)
+            .SingleAsync(cancellationToken);
+        var allowed = JsonSerializer.Deserialize<string[]>(allowedSignalsJson, Json) ?? [];
         if (!allowed.Contains(signalCode, StringComparer.Ordinal)) return null;
         var existing = await db.SessionNarrativeSignals
             .SingleOrDefaultAsync(item => item.NarrativeTurnId == narrativeTurn.Id && item.Code == signalCode, cancellationToken);
