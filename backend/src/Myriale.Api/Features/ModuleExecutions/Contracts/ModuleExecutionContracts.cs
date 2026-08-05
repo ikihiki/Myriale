@@ -1,6 +1,5 @@
 using Myriale.Api.Architecture;
 using System.Text.Json;
-using Myriale.Api.Architecture;
 using Myriale.ModuleSdk;
 
 namespace Myriale.Api.Features.ModuleExecutions.Contracts;
