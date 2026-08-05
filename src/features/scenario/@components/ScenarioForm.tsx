@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { ScenarioAiAssistResponse, ScenarioAiKind } from '../../../app/scenarioApi';
+import type { ScenarioAiAssistResponse, ScenarioAiKind, ScenarioRuleDataReadinessDto } from '../../../app/scenarioApi';
 import { parseScenarioTags, serializeScenarioTags } from '../../../app/scenarioTags';
 import { Badge, Button, Input, Label, MarkdownEditor, Notice, SummaryCard, SummaryInset, Textarea } from '../../../components/ui';
 import { AppChrome, type Crumb } from '../../../shared/AppChrome';
@@ -79,11 +79,20 @@ export function ScenarioForm({
   const [suggestion, setSuggestion] = useState('AIの提案は、採用するまで本文に反映されません。');
   const [lastAiResponse, setLastAiResponse] = useState<ScenarioAiAssistResponse | null>(null);
   const [preview, setPreview] = useState('プレビュー未生成');
+  const [readiness, setReadiness] = useState<ScenarioRuleDataReadinessDto | null>(null);
+  const [checkingReadiness, setCheckingReadiness] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [published, setPublished] = useState(false);
 
   const currentIndex = wizardSteps.findIndex((step) => step.id === activeStep);
   const currentStep = wizardSteps[currentIndex];
+  const backendReadinessIssues = readiness
+    ? Object.entries(readiness.errors).flatMap(([path, messages]) => messages.map((message) => ({ path, message })))
+    : [];
   const update = <K extends keyof ScenarioFormValues>(key: K, value: ScenarioFormValues[K]) => {
     setValues((current) => ({ ...current, [key]: value }));
+    setReadiness(null);
+    setPublished(false);
   };
 
   const genreTags = parseScenarioTags(values.genre);
@@ -105,6 +114,39 @@ export function ScenarioForm({
     const warningCount = readinessIssues.filter((issue) => issue.severity === 'warning').length;
     setNotice(result.ok && warningCount > 0 ? `${result.message} 公開準備には未設定項目が${warningCount}件あります。` : result.message);
     if (!result.ok) setFieldErrors(result.fieldErrors);
+  };
+
+  const requestReadiness = async () => {
+    if (!actions.checkReadiness) return;
+    setCheckingReadiness(true);
+    setFieldErrors(undefined);
+    setRuleNoticeDanger(false);
+    setPublished(false);
+    try {
+      const result = await actions.checkReadiness();
+      setNotice(result.message);
+      setRuleNoticeDanger(!result.ok || result.value?.ready === false);
+      setReadiness(result.ok && result.value ? result.value : null);
+      if (!result.ok) setFieldErrors(result.fieldErrors);
+    } finally {
+      setCheckingReadiness(false);
+    }
+  };
+
+  const publishScenario = async () => {
+    if (!actions.publish || !readiness?.ready) return;
+    setPublishing(true);
+    setFieldErrors(undefined);
+    setRuleNoticeDanger(false);
+    try {
+      const result = await actions.publish();
+      setNotice(result.message);
+      setRuleNoticeDanger(!result.ok);
+      setPublished(result.ok);
+      if (!result.ok) setFieldErrors(result.fieldErrors);
+    } finally {
+      setPublishing(false);
+    }
   };
 
   const presentRuleNotice = (message: string, danger = false) => {
@@ -344,6 +386,36 @@ export function ScenarioForm({
             <div className={wizardPanelClass}>
               <ScenarioRuleDebugPresentation scenarioId={scenarioId} values={values} execute={actions.debug} />
             </div>
+          )}
+
+          {isEditing && actions.checkReadiness && actions.publish && (
+            <section className="mb-5 grid gap-3 rounded-2xl border border-[#17151f]/15 bg-white/65 p-4" aria-label="シナリオの公開">
+              <div>
+                <h2 className="mb-1 text-base">公開</h2>
+                <p className="m-0 text-sm text-myr-ink-subtle">保存済みの下書きをサーバーで検証してから公開します。未保存の変更は公開準備チェックに含まれません。</p>
+              </div>
+              {readiness && (
+                <div data-testid="publish-readiness" role="status" className="grid gap-2">
+                  <p className={`m-0 font-bold ${readiness.ready ? 'text-[#25633d]' : 'text-[#9b3030]'}`}>
+                    {readiness.ready ? '公開できます。' : '公開前に修正が必要です。'}
+                  </p>
+                  {backendReadinessIssues.length > 0 && (
+                    <ul className="m-0 grid gap-1 pl-5 text-sm text-[#9b3030]">
+                      {backendReadinessIssues.map((issue, index) => <li key={`${issue.path}-${index}`}><span>{issue.message}</span> <code>{issue.path}</code></li>)}
+                    </ul>
+                  )}
+                </div>
+              )}
+              {published && <p data-testid="publish-success" role="status" className="m-0 font-bold text-[#25633d]">公開が完了しました。</p>}
+              <div className={wizardButtonRowClass}>
+                <Button variant="secondary" size="sm" onClick={() => void requestReadiness()} disabled={saving || checkingReadiness || publishing}>
+                  {checkingReadiness ? '公開準備を確認中…' : '公開準備を確認'}
+                </Button>
+                <Button variant="primary" size="sm" onClick={() => void publishScenario()} disabled={!readiness?.ready || saving || checkingReadiness || publishing}>
+                  {publishing ? '公開中…' : 'シナリオを公開'}
+                </Button>
+              </div>
+            </section>
           )}
 
           <nav className={wizardActionsClass} aria-label="ウィザード操作">

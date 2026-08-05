@@ -51,7 +51,7 @@ export const AuthenticationReturnsToScenarioCreation: Story = {
     await step('ログインすると元のシナリオ作成画面へ戻る', async () => {
       await userEvent.clear(canvas.getByLabelText('メールアドレス'));
       await userEvent.type(canvas.getByLabelText('メールアドレス'), 'reader@myriale.example');
-      await userEvent.type(canvas.getByTestId('login-password'), 'a');
+      await userEvent.type(canvas.getByTestId('login-password'), 'letters1');
       await userEvent.click(canvas.getByRole('button', { name: 'ログインする' }));
       await expect(await canvas.findByRole('main', { name: 'シナリオ登録ウィザード' })).toBeVisible();
       await expect(canvas.getByTestId('app-url')).toHaveTextContent('/scenarios/new');
@@ -68,7 +68,7 @@ export const AuthenticationDefaultsToHome: Story = {
       await expect(await canvas.findByRole('main', { name: 'ログイン' })).toBeVisible();
       await userEvent.clear(canvas.getByLabelText('メールアドレス'));
       await userEvent.type(canvas.getByLabelText('メールアドレス'), 'reader@myriale.example');
-      await userEvent.type(canvas.getByTestId('login-password'), 'a');
+      await userEvent.type(canvas.getByTestId('login-password'), 'letters1');
       await userEvent.click(canvas.getByRole('button', { name: 'ログインする' }));
     });
     await step('デフォルトのホーム画面へ移動する', async () => {

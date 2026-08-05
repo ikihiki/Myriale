@@ -1,27 +1,33 @@
 using System.Diagnostics.Metrics;
 using System.Diagnostics;
-using Myriale.Api.Data;
-using Myriale.Api.Services;
+using Myriale.Api.Infrastructure.Persistence;
 
 namespace Myriale.Api.Tests;
 
 public sealed class SessionExecutionArchitectureTests
 {
     [Fact]
-    public void StateMachineRejectsInvalidTerminalTransition()
+    public void AggregateRejectsInvalidTerminalTransitionAndLegacyTypesAreAbsent()
     {
-        var execution = Execution(SessionExecutionStatuses.Succeeded);
-        Assert.False(SessionExecutionStateMachine.CanTransition(SessionExecutionStatuses.Succeeded, SessionExecutionStatuses.Queued));
-        Assert.Throws<InvalidOperationException>(() => SessionExecutionStateMachine.Transition(execution, SessionExecutionStatuses.Queued));
+        var execution = Execution(SessionExecutionStatus.Succeeded);
+        Assert.False(SessionExecution.CanTransition(SessionExecutionStatus.Succeeded, SessionExecutionStatus.Queued));
+        Assert.Throws<InvalidOperationException>(() => execution.TransitionTo(SessionExecutionStatus.Queued));
+
+        var assembly = typeof(SessionExecution).Assembly;
+        Assert.Null(assembly.GetType("Myriale.Api.Services.SessionExecutionStateMachine"));
+        Assert.Null(assembly.GetType("Myriale.Api.Services.SessionExecutionCompletion"));
+        Assert.Null(assembly.GetType("Myriale.Api.Data.SessionExecutionKinds"));
+        Assert.Null(assembly.GetType("Myriale.Api.Data.SessionExecutionStatuses"));
+        Assert.Null(assembly.GetType("Myriale.Api.Data.SessionExecutionEnumValues"));
     }
 
     [Theory]
-    [InlineData(SessionExecutionStatuses.Queued, true, false, false)]
-    [InlineData(SessionExecutionStatuses.Running, true, false, false)]
-    [InlineData(SessionExecutionStatuses.Failed, false, true, true)]
-    [InlineData(SessionExecutionStatuses.Cancelled, false, true, true)]
-    [InlineData(SessionExecutionStatuses.Superseded, false, false, true)]
-    public void ProjectionUsesStatusCapabilities(string status, bool canCancel, bool canRetry, bool canDismiss)
+    [InlineData(SessionExecutionStatus.Queued, true, false, false)]
+    [InlineData(SessionExecutionStatus.Running, true, false, false)]
+    [InlineData(SessionExecutionStatus.Failed, false, true, true)]
+    [InlineData(SessionExecutionStatus.Cancelled, false, true, true)]
+    [InlineData(SessionExecutionStatus.Superseded, false, false, true)]
+    public void ProjectionUsesStatusCapabilities(SessionExecutionStatus status, bool canCancel, bool canRetry, bool canDismiss)
     {
         var execution = Execution(status); execution.IsRetryable = true;
         var response = SessionExecutionProjection.ToResponse(execution, includeDevelopmentDiagnostics: false);
@@ -34,8 +40,12 @@ public sealed class SessionExecutionArchitectureTests
     [Fact]
     public void DevelopmentProjectionContainsTraceButProductionOmitsDiagnostics()
     {
-        var execution = Execution(SessionExecutionStatuses.Failed);
-        execution.Attempts.Add(new SessionExecutionAttempt { Id = "ATT-1", ExecutionId = execution.Id, AttemptNumber = 1, Status = "failed", StartedAt = DateTimeOffset.UtcNow, TraceId = "trace-id", SpanId = "span-id", ExceptionChain = "TimeoutException", RedactedResponseExcerpt = "Authorization=[REDACTED]" });
+        var execution = Execution(SessionExecutionStatus.Failed);
+        var attempt = SessionExecutionAttempt.Start(new SessionExecutionAttemptId("ATT-1"), execution.Id, 1, "worker", DateTimeOffset.UtcNow);
+        attempt.RecordTrace(null, "trace-id", "span-id");
+        attempt.RecordFailureDiagnostics("TimeoutException", "Authorization=[REDACTED]");
+        attempt.Fail(DateTimeOffset.UtcNow, "timeout", "provider", true);
+        execution.Attempts.Add(attempt);
         var development = SessionExecutionProjection.ToResponse(execution, true);
         var production = SessionExecutionProjection.ToResponse(execution, false);
         Assert.Equal("trace-id", Assert.Single(development.DevelopmentDiagnostics!.Attempts).TraceId);
@@ -104,13 +114,53 @@ public sealed class SessionExecutionArchitectureTests
             measurement.Tags.Keys));
     }
 
-    private static SessionExecution Execution(string status) => new()
+    [Fact]
+    public void WorkerUsesOperationsRepositoryInsteadOfApplicationDbContext()
     {
-        Id = "EXE-1",
-        SessionId = "SES-1",
-        Kind = SessionExecutionKinds.Narrative,
-        TriggerType = "player-input",
-        TriggerId = "INP-1",
+        var constructor = Assert.Single(typeof(SessionExecutionWorker).GetConstructors());
+        Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(ApplicationDbContext));
+        Assert.Contains(typeof(Myriale.Api.Features.SessionExecutions.Application.ISessionExecutionOperationsRepository),
+            typeof(SessionExecutionWorker).Assembly.GetTypes());
+    }
+
+    [Fact]
+    public void ScenarioTurnHandler_IsThinAndHasNoDbContextDependency()
+    {
+        var constructor = Assert.Single(typeof(ScenarioTurnExecutionHandler).GetConstructors());
+        Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(ApplicationDbContext));
+        Assert.Equal([typeof(Myriale.Api.Infrastructure.Composition.ScenarioTurns.ScenarioTurnExecutionOrchestrator)],
+            constructor.GetParameters().Select(parameter => parameter.ParameterType));
+    }
+
+    [Fact]
+    public void ScenarioTurnExecution_HasExplicitSplitServicesAndNoLegacyRuntimeTypes()
+    {
+        var assembly = typeof(ScenarioTurnExecutionHandler).Assembly;
+        var required = new[]
+        {
+            typeof(Myriale.Api.Infrastructure.Composition.ScenarioTurns.IScenarioWorldSnapshotQuery),
+            typeof(Myriale.Api.Infrastructure.Composition.ScenarioTurns.IScenarioActionSnapshotRepository),
+            typeof(Myriale.Api.Infrastructure.Composition.ScenarioTurns.IScenarioAiDecisionService),
+            typeof(Myriale.Api.Infrastructure.Composition.ScenarioTurns.IScenarioAiInteractionRecorder),
+            typeof(IScenarioRuleResolutionService),
+            typeof(Myriale.Api.Infrastructure.Composition.ScenarioTurns.IScenarioEffectCommitUnitOfWork),
+            typeof(Myriale.Api.Infrastructure.Composition.ScenarioTurns.IScenarioTurnArtifactWriter),
+            typeof(Myriale.Api.Infrastructure.Composition.ScenarioTurns.IScenarioNarrativePublisher),
+            typeof(Myriale.Api.Infrastructure.Composition.ScenarioTurns.IScenarioSessionTurnAppender),
+        };
+        Assert.All(required, type => Assert.True(type.IsInterface, type.Name));
+        Assert.Null(assembly.GetType("Myriale.Api.Services.ScenarioRuleWorld"));
+        Assert.Null(assembly.GetType("Myriale.Api.Services.ScenarioEffectApplier"));
+        Assert.Null(assembly.GetType("Myriale.Api.Data.ScenarioTurnStages"));
+    }
+
+    private static SessionExecution Execution(SessionExecutionStatus status) => new()
+    {
+        Id = new SessionExecutionId("EXE-1"),
+        SessionId = new SessionId("SES-1"),
+        Kind = SessionExecutionKind.Narrative,
+        TriggerType = SessionExecutionTriggerType.PlayerInput,
+        TriggerId = new SessionExecutionTriggerId("INP-1"),
         Status = status,
         IdempotencyKey = "request-1",
         PayloadHash = new string('a', 64),

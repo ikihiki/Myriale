@@ -1,0 +1,54 @@
+using Microsoft.Extensions.AI;
+using Myriale.Api.Architecture;
+
+namespace Myriale.Api.Features.AiProviders.Application.Services;
+
+[CrossSliceContract]
+public static class AiProviderErrorCodes
+{
+    public const string Timeout = "timeout";
+    public const string RateLimited = "rate_limited";
+    public const string ProviderUnavailable = "provider_unavailable";
+    public const string InvalidCredential = "invalid_credential";
+    public const string ModelNotFound = "model_not_found";
+    public const string SchemaFailure = "schema_failure";
+    public const string ContentRejected = "content_rejected";
+}
+
+[CrossSliceContract]
+public sealed class AiProviderException(
+    string code,
+    string message,
+    bool retryable,
+    TimeSpan? retryAfter = null,
+    Exception? inner = null,
+    string? providerResponseExcerpt = null,
+    string? sentPrompt = null,
+    string? receivedResult = null)
+    : Exception(message, inner)
+{
+    public string Code { get; } = code;
+    public bool Retryable { get; } = retryable;
+    public TimeSpan? RetryAfter { get; } = retryAfter;
+    public string? SentPrompt { get; } = sentPrompt;
+    public string? ReceivedResult { get; } = receivedResult;
+    public string? ProviderResponseExcerpt { get; } = providerResponseExcerpt;
+}
+
+[CrossSliceContract]
+public sealed record AiTextRequest(IReadOnlyList<ChatMessage> Messages, ChatResponseFormatJson ResponseFormat);
+
+[CrossSliceContract]
+public sealed record AiGenerationMetadata(AiProviderProfileId Provider, string Model, string? ResponseId, int? InputTokens, int? OutputTokens, long LatencyMilliseconds, int AttemptCount, string? FinishReason);
+
+[CrossSliceContract]
+public sealed record AiTextResponse(string Text, AiGenerationMetadata Metadata);
+
+[CrossSliceContract]
+public interface IAiTextService
+{
+    Task<AiTextResponse> GenerateAsync(AiTextRequest request, CancellationToken cancellationToken);
+    Task<AiTextResponse> GenerateForProfileAsync(AiProviderProfileId profileId, AiTextRequest request, CancellationToken cancellationToken) => GenerateAsync(request, cancellationToken);
+    Task<AiTextResponse> GenerateForProviderAsync(AiProviderProfileId provider, string credential, AiTextRequest request, CancellationToken cancellationToken);
+    Task TestConnectionAsync(AiProviderProfileId provider, string credential, CancellationToken cancellationToken);
+}

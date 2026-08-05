@@ -5,10 +5,7 @@ import type { AccountState } from '../types';
 
 const stateTones: Record<AccountState, BadgeTone> = {
   active: 'success',
-  unverified: 'warning',
-  pending: 'warning',
-  suspended: 'danger',
-  deleted: 'neutral',
+  withdrawn: 'neutral',
 };
 
 export function StatusBadge({ state, children }: { state: AccountState; children?: ReactNode }) {

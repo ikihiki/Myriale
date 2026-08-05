@@ -1,11 +1,19 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Reflection;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Myriale.Api.Data;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Myriale.Api.Infrastructure.Persistence;
+using Myriale.Api.Features.Accounts.Application;
+using Myriale.Api.Features.Accounts.Domain;
+using Myriale.Api.Features.Accounts.Identifiers;
+using Myriale.Api.Features.Accounts.Infrastructure;
 
 namespace Myriale.Api.Tests;
 
@@ -21,26 +29,34 @@ public sealed class AccountEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task Register_SignsIn_AndMeReturnsCurrentAccount()
+    public void AccountSnapshotConvertsIdentityStringIdAtTheMyrialeBoundary()
     {
-        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var user = ApplicationUser.Create("旅人", "boundary@example.test");
+        user.Id = "identity-user-1";
 
-        using var register = await client.PostAsJsonAsync("/api/account/register", new
-        {
-            displayName = "霧野しおり",
-            email = "reader@example.test",
-            password = "letters1"
-        });
+        var snapshot = AccountSnapshot.From(user);
+
+        Assert.Equal(new AccountId("identity-user-1"), snapshot.Id);
+        Assert.Equal("\"identity-user-1\"", JsonSerializer.Serialize(snapshot.Id));
+    }
+
+    [Fact]
+    public async Task Register_SignsIn_AndMeReturnsFormalActiveState()
+    {
+        var client = CreateClient();
+        using var register = await RegisterAsync(client, "reader@example.test", "霧野しおり");
 
         Assert.Equal(HttpStatusCode.OK, register.StatusCode);
         ApplyCookies(client, register);
         var registered = await register.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("霧野しおり", registered.GetProperty("displayName").GetString());
+        Assert.Equal("active", registered.GetProperty("state").GetString());
 
         using var me = await client.GetAsync("/api/account/me");
         Assert.Equal(HttpStatusCode.OK, me.StatusCode);
         var current = await me.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("reader@example.test", current.GetProperty("email").GetString());
+        Assert.Equal("active", current.GetProperty("state").GetString());
         Assert.False(current.GetProperty("canDebugDialogue").GetBoolean());
     }
 
@@ -55,14 +71,8 @@ public sealed class AccountEndpointTests : IDisposable
             Assert.Equal(1, await db.Users.CountAsync());
         }
 
-        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
-
-        using var login = await client.PostAsJsonAsync("/api/account/login", new
-        {
-            email = AccountSeedData.DefaultEmail,
-            password = AccountSeedData.DefaultPassword,
-        });
-
+        var client = CreateClient();
+        using var login = await client.PostAsJsonAsync("/api/account/login", new { email = AccountSeedData.DefaultEmail, password = AccountSeedData.DefaultPassword });
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         ApplyCookies(client, login);
 
@@ -76,23 +86,44 @@ public sealed class AccountEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task Register_DuplicateEmail_ReturnsConflict()
+    public async Task ProfileValidation_ReturnsFieldErrors()
     {
-        var client = _factory.CreateClient();
-        var payload = new { displayName = "旅人", email = "duplicate@example.test", password = "letters1" };
+        var client = CreateClient();
+        using var register = await RegisterAsync(client, "profile@example.test");
+        ApplyCookies(client, register);
 
-        using var first = await client.PostAsJsonAsync("/api/account/register", payload);
-        using var second = await client.PostAsJsonAsync("/api/account/register", payload);
+        using var response = await client.PutAsJsonAsync("/api/account/profile", new { displayName = " ", bio = new string('x', 401) });
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var error = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(error.GetProperty("errors").TryGetProperty("displayName", out _));
+        Assert.True(error.GetProperty("errors").TryGetProperty("bio", out _));
+    }
 
-        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
-        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+    [Fact]
+    public async Task DuplicateEmailRace_HasOneWinnerAndOneConflict()
+    {
+        var firstClient = CreateClient();
+        var secondClient = CreateClient();
+        var payload = new { displayName = "旅人", email = "race@example.test", password = "letters1" };
+
+        var responses = await Task.WhenAll(
+            firstClient.PostAsJsonAsync("/api/account/register", payload),
+            secondClient.PostAsJsonAsync("/api/account/register", payload));
+        try
+        {
+            Assert.Equal(new[] { HttpStatusCode.OK, HttpStatusCode.Conflict }, responses.Select(response => response.StatusCode).Order().ToArray());
+        }
+        finally
+        {
+            foreach (var response in responses) response.Dispose();
+        }
     }
 
     [Fact]
     public async Task Login_RejectsWrongPassword_AndAcceptsCorrectPassword()
     {
-        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
-        await client.PostAsJsonAsync("/api/account/register", new { displayName = "旅人", email = "login@example.test", password = "letters1" });
+        var client = CreateClient();
+        await RegisterAsync(client, "login@example.test");
         await client.PostAsync("/api/account/logout", null);
 
         using var failed = await client.PostAsJsonAsync("/api/account/login", new { email = "login@example.test", password = "wrong-password" });
@@ -103,16 +134,23 @@ public sealed class AccountEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task PasswordReset_UsesIdentityTokenProvider()
+    public async Task PasswordReset_UsesDedicatedDevelopmentTransport_AndPreventsEnumeration()
     {
-        var client = _factory.CreateClient();
-        await client.PostAsJsonAsync("/api/account/register", new { displayName = "旅人", email = "reset@example.test", password = "letters1" });
+        var client = CreateClient();
+        await RegisterAsync(client, "reset@example.test");
 
-        using var request = await client.PostAsJsonAsync("/api/account/password-reset/request", new { email = "reset@example.test" });
-        Assert.Equal(HttpStatusCode.OK, request.StatusCode);
-        var json = await request.Content.ReadFromJsonAsync<JsonElement>();
-        var token = json.GetProperty("resetToken").GetString();
+        using var known = await client.PostAsJsonAsync("/api/account/password-reset/request", new { email = "reset@example.test" });
+        using var unknown = await client.PostAsJsonAsync("/api/account/password-reset/request", new { email = "missing@example.test" });
+        Assert.Equal(HttpStatusCode.OK, known.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, unknown.StatusCode);
+        Assert.Equal(await known.Content.ReadAsStringAsync(), await unknown.Content.ReadAsStringAsync());
+
+        var json = await known.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.False(json.TryGetProperty("resetToken", out _));
+        var tokens = _factory.Services.GetRequiredService<IDevelopmentAccountPasswordResetTokenStore>();
+        var token = tokens.Take("reset@example.test");
         Assert.False(string.IsNullOrWhiteSpace(token));
+        Assert.Null(tokens.Take("missing@example.test"));
 
         using var confirm = await client.PostAsJsonAsync("/api/account/password-reset/confirm", new
         {
@@ -124,21 +162,68 @@ public sealed class AccountEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task Withdraw_SoftDeletesAndSignsOutAccount()
+    public async Task Withdraw_RejectsFutureProfileUpdatesAndLogin()
     {
-        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
-        using var register = await client.PostAsJsonAsync("/api/account/register", new { displayName = "退会する旅人", email = "withdraw@example.test", password = "letters1" });
+        var client = CreateClient();
+        using var register = await RegisterAsync(client, "withdraw@example.test", "退会する旅人");
         ApplyCookies(client, register);
 
         using var withdraw = await client.PostAsJsonAsync("/api/account/withdraw", new { confirmation = "withdraw@example.test" });
         Assert.Equal(HttpStatusCode.OK, withdraw.StatusCode);
         ApplyCookies(client, withdraw);
 
-        using var me = await client.GetAsync("/api/account/me");
-        Assert.Equal(HttpStatusCode.Unauthorized, me.StatusCode);
-
+        using var update = await client.PutAsJsonAsync("/api/account/profile", new { displayName = "戻る旅人", bio = "" });
+        Assert.Equal(HttpStatusCode.Unauthorized, update.StatusCode);
         using var login = await client.PostAsJsonAsync("/api/account/login", new { email = "withdraw@example.test", password = "letters1" });
         Assert.Equal(HttpStatusCode.Unauthorized, login.StatusCode);
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var user = await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Users.SingleAsync(user => user.WithdrawnAt != null);
+        Assert.Equal(AccountState.Withdrawn, user.State);
+        Assert.True(user.IsWithdrawn());
+    }
+
+    [Fact]
+    public async Task ProfileUpdateAndWithdrawal_UseIdentityConcurrencyStamp()
+    {
+        var client = CreateClient();
+        await RegisterAsync(client, "concurrency@example.test");
+
+        await using var firstScope = _factory.Services.CreateAsyncScope();
+        await using var secondScope = _factory.Services.CreateAsyncScope();
+        var firstUsers = firstScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var secondUsers = secondScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var profileWriter = await firstUsers.FindByEmailAsync("concurrency@example.test") ?? throw new InvalidOperationException();
+        var withdrawalWriter = await secondUsers.FindByEmailAsync("concurrency@example.test") ?? throw new InvalidOperationException();
+
+        profileWriter.UpdateProfile("更新した旅人", "競合テスト");
+        Assert.True((await firstUsers.UpdateAsync(profileWriter)).Succeeded);
+        withdrawalWriter.Withdraw(DateTimeOffset.UtcNow);
+        var losingResult = await secondUsers.UpdateAsync(withdrawalWriter);
+
+        Assert.False(losingResult.Succeeded);
+        Assert.Contains(losingResult.Errors, error => error.Code == "ConcurrencyFailure");
+    }
+
+    [Fact]
+    public async Task SecurityStampFailure_RollsBackWithdrawal()
+    {
+        using var failingFactory = _factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IAccountSecurityStampUpdater>();
+            services.AddScoped<IAccountSecurityStampUpdater, FailingSecurityStampUpdater>();
+        }));
+        var client = failingFactory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var register = await RegisterAsync(client, "stamp-failure@example.test");
+        ApplyCookies(client, register);
+
+        using var withdraw = await client.PostAsJsonAsync("/api/account/withdraw", new { confirmation = "stamp-failure@example.test" });
+        Assert.Equal(HttpStatusCode.BadRequest, withdraw.StatusCode);
+
+        await using var scope = failingFactory.Services.CreateAsyncScope();
+        var user = await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Users.SingleAsync(user => user.Email == "stamp-failure@example.test");
+        Assert.False(user.IsWithdrawn());
+        Assert.Equal(AccountState.Active, user.State);
     }
 
     public void Dispose()
@@ -146,6 +231,11 @@ public sealed class AccountEndpointTests : IDisposable
         _factory.Dispose();
         if (File.Exists(_dbPath)) File.Delete(_dbPath);
     }
+
+    private HttpClient CreateClient() => _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+    private static Task<HttpResponseMessage> RegisterAsync(HttpClient client, string email, string displayName = "旅人") =>
+        client.PostAsJsonAsync("/api/account/register", new { displayName, email, password = "letters1" });
 
     private static void ApplyCookies(HttpClient client, HttpResponseMessage response)
     {
@@ -156,5 +246,50 @@ public sealed class AccountEndpointTests : IDisposable
             if (!string.IsNullOrWhiteSpace(cookie)) client.DefaultRequestHeaders.Remove("Cookie");
             client.DefaultRequestHeaders.Add("Cookie", cookie);
         }
+    }
+
+    private sealed class FailingSecurityStampUpdater : IAccountSecurityStampUpdater
+    {
+        public Task<IdentityResult> UpdateAsync(ApplicationUser user) => Task.FromResult(IdentityResult.Failed(new IdentityError
+        {
+            Code = "SecurityStampFailure",
+            Description = "Injected failure",
+        }));
+    }
+}
+
+public sealed class AccountDomainAndArchitectureTests
+{
+    [Fact]
+    public void AccountProfileValidation_IsOwnedByAggregate()
+    {
+        var user = ApplicationUser.Create("旅人", "domain@example.test");
+        var exception = Assert.Throws<AccountValidationException>(() => user.UpdateProfile("", new string('x', 401)));
+        Assert.Contains("displayName", exception.Errors.Keys);
+        Assert.Contains("bio", exception.Errors.Keys);
+    }
+
+    [Fact]
+    public void AccountEndpointHandlers_DoNotReceiveIdentityOrDbInfrastructure()
+    {
+        var forbidden = new[] { typeof(ApplicationDbContext), typeof(UserManager<ApplicationUser>), typeof(SignInManager<ApplicationUser>) };
+        var parameters = typeof(AccountEndpoints).GetMethods(BindingFlags.NonPublic | BindingFlags.Static).SelectMany(method => method.GetParameters());
+        Assert.DoesNotContain(parameters, parameter => forbidden.Contains(parameter.ParameterType));
+    }
+
+    [Theory]
+    [InlineData(nameof(ApplicationUser.DisplayName))]
+    [InlineData(nameof(ApplicationUser.Bio))]
+    [InlineData(nameof(ApplicationUser.CanDebugDialogue))]
+    [InlineData(nameof(ApplicationUser.WithdrawnAt))]
+    public void AccountDomainPropertiesHaveNoPublicSetter(string propertyName) =>
+        Assert.False(typeof(ApplicationUser).GetProperty(propertyName)!.SetMethod?.IsPublic ?? false);
+
+    [Fact]
+    public void AccountWireContract_IsClosedAndResetResponseHasNoToken()
+    {
+        Assert.Equal(typeof(AccountState), typeof(AccountUserResponse).GetProperty(nameof(AccountUserResponse.State))!.PropertyType);
+        Assert.Null(typeof(PasswordResetRequestedResponse).GetProperty("ResetToken"));
+        Assert.Equal(new[] { AccountState.Active, AccountState.Withdrawn }, Enum.GetValues<AccountState>());
     }
 }

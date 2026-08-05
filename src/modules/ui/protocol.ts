@@ -22,6 +22,6 @@ export function isModuleUiInbound(value: unknown, executionId: string): value is
 }
 
 export function canDispatch(message: ModuleUiDispatch, execution: ModuleExecution, busy: boolean) {
-  if (busy || execution.status !== 'active' || message.expectedRevision !== execution.revision) return false;
+  if (busy || execution.status !== 'Active' || message.expectedRevision !== execution.revision) return false;
   return execution.availableActions.some((action: ModuleAvailableAction) => action.id === message.action.id && action.enabled);
 }

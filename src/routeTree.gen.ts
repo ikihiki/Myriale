@@ -29,7 +29,7 @@ import { Route as ScenariosNewRouteImport } from './routes/scenarios/new'
 import { Route as SessionsIndexRouteImport } from './routes/sessions/index'
 import { Route as SessionsSessionIdRouteRouteImport } from './routes/sessions/$sessionId/route'
 import { Route as SessionsStartRouteImport } from './routes/sessions/start'
-import { Route as AccountAdminAiKeysRouteImport } from './routes/account/admin/ai-keys'
+import { Route as AccountAdminAiProvidersRouteImport } from './routes/account/admin/ai-providers'
 import { Route as AccountAdminAuditLogRouteImport } from './routes/account/admin/audit-log'
 import { Route as AccountAdminUsersRouteRouteImport } from './routes/account/admin/users/route'
 import { Route as AccountProfileIndexRouteImport } from './routes/account/profile/index'
@@ -146,9 +146,9 @@ const SessionsStartRoute = SessionsStartRouteImport.update({
   path: '/start',
   getParentRoute: () => SessionsRouteRoute,
 } as any)
-const AccountAdminAiKeysRoute = AccountAdminAiKeysRouteImport.update({
-  id: '/ai-keys',
-  path: '/ai-keys',
+const AccountAdminAiProvidersRoute = AccountAdminAiProvidersRouteImport.update({
+  id: '/ai-providers',
+  path: '/ai-providers',
   getParentRoute: () => AccountAdminRouteRoute,
 } as any)
 const AccountAdminAuditLogRoute = AccountAdminAuditLogRouteImport.update({
@@ -248,7 +248,7 @@ export interface FileRoutesByFullPath {
   '/scenarios/': typeof ScenariosIndexRoute
   '/sessions/': typeof SessionsIndexRoute
   '/account/admin/users': typeof AccountAdminUsersRouteRouteWithChildren
-  '/account/admin/ai-keys': typeof AccountAdminAiKeysRoute
+  '/account/admin/ai-providers': typeof AccountAdminAiProvidersRoute
   '/account/admin/audit-log': typeof AccountAdminAuditLogRoute
   '/account/profile/edit': typeof AccountProfileEditRoute
   '/scenarios/$scenarioId/edit': typeof ScenariosScenarioIdEditRoute
@@ -280,7 +280,7 @@ export interface FileRoutesByTo {
   '/sessions/start': typeof SessionsStartRoute
   '/scenarios': typeof ScenariosIndexRoute
   '/sessions': typeof SessionsIndexRoute
-  '/account/admin/ai-keys': typeof AccountAdminAiKeysRoute
+  '/account/admin/ai-providers': typeof AccountAdminAiProvidersRoute
   '/account/admin/audit-log': typeof AccountAdminAuditLogRoute
   '/account/profile/edit': typeof AccountProfileEditRoute
   '/scenarios/$scenarioId/edit': typeof ScenariosScenarioIdEditRoute
@@ -318,7 +318,7 @@ export interface FileRoutesById {
   '/scenarios/': typeof ScenariosIndexRoute
   '/sessions/': typeof SessionsIndexRoute
   '/account/admin/users': typeof AccountAdminUsersRouteRouteWithChildren
-  '/account/admin/ai-keys': typeof AccountAdminAiKeysRoute
+  '/account/admin/ai-providers': typeof AccountAdminAiProvidersRoute
   '/account/admin/audit-log': typeof AccountAdminAuditLogRoute
   '/account/profile/edit': typeof AccountProfileEditRoute
   '/scenarios/$scenarioId/edit': typeof ScenariosScenarioIdEditRoute
@@ -357,7 +357,7 @@ export interface FileRouteTypes {
     | '/scenarios/'
     | '/sessions/'
     | '/account/admin/users'
-    | '/account/admin/ai-keys'
+    | '/account/admin/ai-providers'
     | '/account/admin/audit-log'
     | '/account/profile/edit'
     | '/scenarios/$scenarioId/edit'
@@ -389,7 +389,7 @@ export interface FileRouteTypes {
     | '/sessions/start'
     | '/scenarios'
     | '/sessions'
-    | '/account/admin/ai-keys'
+    | '/account/admin/ai-providers'
     | '/account/admin/audit-log'
     | '/account/profile/edit'
     | '/scenarios/$scenarioId/edit'
@@ -426,7 +426,7 @@ export interface FileRouteTypes {
     | '/scenarios/'
     | '/sessions/'
     | '/account/admin/users'
-    | '/account/admin/ai-keys'
+    | '/account/admin/ai-providers'
     | '/account/admin/audit-log'
     | '/account/profile/edit'
     | '/scenarios/$scenarioId/edit'
@@ -593,11 +593,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SessionsStartRouteImport
       parentRoute: typeof SessionsRouteRoute
     }
-    '/account/admin/ai-keys': {
-      id: '/account/admin/ai-keys'
-      path: '/ai-keys'
-      fullPath: '/account/admin/ai-keys'
-      preLoaderRoute: typeof AccountAdminAiKeysRouteImport
+    '/account/admin/ai-providers': {
+      id: '/account/admin/ai-providers'
+      path: '/ai-providers'
+      fullPath: '/account/admin/ai-providers'
+      preLoaderRoute: typeof AccountAdminAiProvidersRouteImport
       parentRoute: typeof AccountAdminRouteRoute
     }
     '/account/admin/audit-log': {
@@ -719,13 +719,13 @@ const AccountAdminUsersRouteRouteWithChildren =
 
 interface AccountAdminRouteRouteChildren {
   AccountAdminUsersRouteRoute: typeof AccountAdminUsersRouteRouteWithChildren
-  AccountAdminAiKeysRoute: typeof AccountAdminAiKeysRoute
+  AccountAdminAiProvidersRoute: typeof AccountAdminAiProvidersRoute
   AccountAdminAuditLogRoute: typeof AccountAdminAuditLogRoute
 }
 
 const AccountAdminRouteRouteChildren: AccountAdminRouteRouteChildren = {
   AccountAdminUsersRouteRoute: AccountAdminUsersRouteRouteWithChildren,
-  AccountAdminAiKeysRoute: AccountAdminAiKeysRoute,
+  AccountAdminAiProvidersRoute: AccountAdminAiProvidersRoute,
   AccountAdminAuditLogRoute: AccountAdminAuditLogRoute,
 }
 

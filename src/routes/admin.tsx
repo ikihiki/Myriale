@@ -1,4 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { AdminAiKeysPage } from '../features/admin/AdminAiKeysPage';
+import { AdminAiProvidersPage } from '../features/admin/AdminAiProvidersPage';
 
-export const Route = createFileRoute('/admin')({ component: AdminAiKeysPage });
+export const Route = createFileRoute('/admin')({ component: AdminAiProvidersPage });

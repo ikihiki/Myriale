@@ -7,9 +7,8 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Myriale.Api.Contracts;
-using Myriale.Api.Data;
-using Myriale.Api.Services;
+using Myriale.Api.Features.Scenarios.Application;
+using Myriale.Api.Infrastructure.Persistence;
 
 namespace Myriale.Api.Tests;
 
@@ -28,8 +27,8 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
             builder.UseSetting("DemoModules:EnableInTestHost", "true");
             builder.ConfigureServices(services =>
             {
-                services.RemoveAll<IScenarioTurnAi>();
-                services.AddSingleton<IScenarioTurnAi>(ai);
+                services.RemoveAll<IScenarioTurnAiService>();
+                services.AddSingleton<IScenarioTurnAiService>(ai);
             });
         });
     }
@@ -105,6 +104,11 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         Assert.Equal(["runpod-recommended", "runpod-recommended"], ai.NarrativeProfileIds);
         Assert.All(ai.NarrativeRequests, request => Assert.True(request.PostState.Objects.Single(item => item.Code == "north-door").State.GetProperty("open").GetBoolean()));
         Assert.All(ai.NarrativeRequests, request => Assert.Contains(request.Scenario.Entities, entity => entity.Code == "north-door" && entity.ProfileMarkdown.Contains("stone door", StringComparison.Ordinal)));
+        await using var verificationScope = factory.Services.CreateAsyncScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal(1, await verificationDb.SessionArtifacts.CountAsync(item => item.SessionId == new SessionId(sessionId) && item.Kind == SessionArtifactKind.RuleActionStep));
+        Assert.Equal(1, await verificationDb.SessionArtifacts.CountAsync(item => item.SessionId == new SessionId(sessionId) && item.Kind == SessionArtifactKind.PostStateNarrative));
+        Assert.Equal(1, await verificationDb.SessionRuleActionSteps.CountAsync(item => item.SessionId == new SessionId(sessionId) && item.AppliedAt != null));
         Assert.Equal(2, session.GetProperty("turns").GetArrayLength());
     }
 
@@ -144,8 +148,8 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         Assert.Equal("narrative result", interactionsJson[2].GetProperty("receivedResult").GetString());
 
         await using var scope = factory.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
-        var interactions = await db.SessionAiInteractions.Where(item => item.SessionId == sessionId).ToListAsync();
+        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
+        var interactions = await db.SessionAiInteractions.Where(item => item.SessionId == new SessionId(sessionId)).ToListAsync();
         Assert.Equal(3, interactions.Count);
         Assert.Equal(interactions.Count, interactions.Select(item => (item.AttemptId, item.Stage)).Distinct().Count());
     }
@@ -190,6 +194,45 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task SessionCreation_UsesOnlyPinnedDefinitionProgressionGraphAndSnapshots()
+    {
+        var client = await SignedInClientAsync();
+        ScenarioDefinitionVersionId draftId;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var drafts = scope.ServiceProvider.GetRequiredService<ScenarioDefinitionDraftService>();
+            draftId = (await drafts.GetOrCreateDraftAsync(new ScenarioId("SCN-STAR-LIBRARY"), CancellationToken.None)).Id;
+        }
+
+        using var created = await client.PostAsJsonAsync("/api/sessions/", new
+        {
+            scenarioId = "SCN-STAR-LIBRARY",
+            requestId = $"pinned-progression-{Guid.NewGuid():N}",
+        });
+        Assert.True(created.StatusCode == HttpStatusCode.Created, $"{created.StatusCode}: {await created.Content.ReadAsStringAsync()}");
+        var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
+
+        await using var verificationScope = factory.Services.CreateAsyncScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var session = await verificationDb.Sessions.SingleAsync(item => item.Id == new SessionId(sessionId));
+        var progress = await verificationDb.SessionProgressStates.SingleAsync(item => item.SessionId == session.Id);
+        var currentNode = await verificationDb.ScenarioProgressionNodes.SingleAsync(item => item.Id == progress.CurrentNodeId);
+        var snapshots = await verificationDb.SessionProgressionModuleSnapshots
+            .Where(snapshot => snapshot.SessionId == session.Id)
+            .ToListAsync();
+        var transitionIds = snapshots.Select(snapshot => snapshot.TransitionId).ToArray();
+        var transitions = await verificationDb.ScenarioProgressionTransitions
+            .Where(transition => transitionIds.Contains(transition.Id))
+            .ToListAsync();
+
+        Assert.Equal("SDV-STAR-LIBRARY-1", session.ScenarioDefinitionVersionId?.AsPrimitive());
+        Assert.Equal(session.ScenarioDefinitionVersionId, currentNode.DefinitionVersionId);
+        Assert.NotEmpty(snapshots);
+        Assert.All(transitions, transition => Assert.Equal(session.ScenarioDefinitionVersionId, transition.DefinitionVersionId));
+        Assert.DoesNotContain(transitions, transition => transition.DefinitionVersionId == draftId);
+    }
+
+    [Fact]
     public async Task ExplicitStartLocationAndObjectStateOverridesInitializeSession()
     {
         var client = await SignedInClientAsync();
@@ -200,37 +243,23 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
 
         await using var scope = factory.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
         var session = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
-            db.Sessions.Include(item => item.CurrentLocation).Include(item => item.ObjectStates),
-            item => item.Id == sessionId);
-        Assert.Equal("cellar", session.CurrentLocation!.Code);
+            db.Sessions, item => item.Id == new SessionId(sessionId));
+        var currentLocation = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
+            db.ScenarioLocations, item => item.Id == session.CurrentLocationId);
+        Assert.Equal("cellar", currentLocation.Code);
         var northDoorId = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
             db.ScenarioObjects.Where(item => item.DefinitionVersionId == session.ScenarioDefinitionVersionId && item.Code == "north-door").Select(item => item.Id));
-        var northDoorState = session.ObjectStates.Single(item => item.ScenarioObjectId == northDoorId);
+        var northDoorState = await db.SessionObjectStates.SingleAsync(item => item.SessionId == session.Id && item.ScenarioObjectId == northDoorId);
         using var state = JsonDocument.Parse(northDoorState.StateJson);
         Assert.True(state.RootElement.GetProperty("open").GetBoolean());
     }
 
     [Fact]
-    public async Task LegacyNarrativeOutputCannotBypassScenarioTurn()
+    public void InputContractDoesNotExposeRequestedOutputs()
     {
-        var client = await SignedInClientAsync();
-        var scenarioId = await CreatePublishedDoorScenarioAsync(client, "start");
-        using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-legacy-output-check" });
-        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
-
-        using var response = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", new
-        {
-            requestId = "legacy-output-check",
-            text = "北の扉を調べる",
-            requestedOutputs = new[] { "narrative" },
-        });
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var error = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("unsupported_output", error.GetProperty("code").GetString());
+        Assert.Null(typeof(CreateSessionInputRequest).GetProperty("RequestedOutputs"));
     }
 
     [Fact]
@@ -240,9 +269,11 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         string digest;
         await using (var scope = factory.Services.CreateAsyncScope())
         {
-            var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
+            var moduleId = new ModulePackageModuleId("com.myriale.rules.turn-battle");
+            var version = new ModulePackageVersion("1.0.0");
             digest = (await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
-                db.ModulePackages.Where(item => item.ModuleId == "com.myriale.rules.turn-battle" && item.Version == "1.0.0"))).Digest;
+                db.ModulePackages.Where(item => item.ModuleId == moduleId && item.Version == version))).Digest.AsPrimitive();
         }
         var scenarioId = await CreatePublishedGuardianScenarioAsync(client, digest);
         using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-guardian" });
@@ -261,12 +292,12 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         Assert.False(string.IsNullOrWhiteSpace(moduleExecutionId));
 
         await using var verificationScope = factory.Services.CreateAsyncScope();
-        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
         var moduleExecution = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
-            verificationDb.ModuleExecutions.Where(item => item.Id == moduleExecutionId));
-        Assert.Equal("com.myriale.rules.turn-battle", moduleExecution.ModuleId);
-        Assert.Equal("1.0.0", moduleExecution.ModuleVersion);
-        Assert.Equal(digest, moduleExecution.ModuleDigest);
+            verificationDb.ModuleExecutions.Where(item => item.Id == new ModuleExecutionId(moduleExecutionId!)));
+        Assert.Equal("com.myriale.rules.turn-battle", moduleExecution.ModuleId.AsPrimitive());
+        Assert.Equal("1.0.0", moduleExecution.ModuleVersion.AsPrimitive());
+        Assert.Equal(digest, moduleExecution.ModuleDigest.AsPrimitive());
         using var binding = JsonDocument.Parse(moduleExecution.ContextJson);
         Assert.Equal(step.GetProperty("decision").GetProperty("objectId").GetString(), binding.RootElement.GetProperty("objectId").GetString());
         Assert.Equal(step.GetProperty("decision").GetProperty("actionId").GetString(), binding.RootElement.GetProperty("actionId").GetString());
@@ -292,8 +323,8 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         Assert.Equal("unknown_model_action_selection", session.GetProperty("executions")[0].GetProperty("errorCode").GetString());
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var interaction = await db.SessionAiInteractions.SingleAsync(item => item.SessionId == sessionId && item.Stage == SessionAiInteractionStages.ActionDecision);
-        Assert.Equal(SessionAiInteractionStatuses.ValidationFailed, interaction.Status);
+        var interaction = await db.SessionAiInteractions.SingleAsync(item => item.SessionId == new SessionId(sessionId) && item.Stage == SessionAiInteractionStage.ActionDecision);
+        Assert.Equal(SessionAiInteractionStatus.ValidationFailed, interaction.Status);
         Assert.Equal("action prompt", interaction.SentPrompt);
         Assert.Equal("action result", interaction.ReceivedResult);
     }
@@ -310,9 +341,12 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         await ai.DecisionEntered.Task.WaitAsync(TimeSpan.FromSeconds(10));
         await using (var scope = factory.Services.CreateAsyncScope())
         {
-            var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
             var state = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
-                db.SessionObjectStates.Where(item => item.SessionId == sessionId && item.ScenarioObject.Code == "north-door"));
+                from item in db.SessionObjectStates
+                join scenarioObject in db.ScenarioObjects on item.ScenarioObjectId equals scenarioObject.Id
+                where item.SessionId == new SessionId(sessionId) && scenarioObject.Code == "north-door"
+                select item);
             state.Revision++;
             await db.SaveChangesAsync();
         }
@@ -479,7 +513,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
 
     public void Dispose() { factory.Dispose(); if (File.Exists(dbPath)) File.Delete(dbPath); }
 
-    private sealed class TestScenarioTurnAi : IScenarioTurnAi
+    private sealed class TestScenarioTurnAi : IScenarioTurnAiService
     {
         public int DecisionCalls { get; private set; }
         public int NarrativeCalls { get; private set; }
@@ -491,15 +525,15 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         public List<string> DecisionProfileIds { get; } = [];
         public List<string> NarrativeProfileIds { get; } = [];
         public List<PostStateNarrativeRequest> NarrativeRequests { get; } = [];
-        public Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionForProfileAsync(string profileId, ModelActionDecisionRequest request, CancellationToken cancellationToken)
+        public Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionForProfileAsync(AiProviderProfileId profileId, ModelActionDecisionRequest request, CancellationToken cancellationToken)
         {
-            DecisionProfileIds.Add(profileId);
+            DecisionProfileIds.Add(profileId.AsPrimitive());
             return DecideActionAsync(request, cancellationToken);
         }
 
-        public Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeForProfileAsync(string profileId, PostStateNarrativeRequest request, CancellationToken cancellationToken)
+        public Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeForProfileAsync(AiProviderProfileId profileId, PostStateNarrativeRequest request, CancellationToken cancellationToken)
         {
-            NarrativeProfileIds.Add(profileId);
+            NarrativeProfileIds.Add(profileId.AsPrimitive());
             return GeneratePostStateNarrativeAsync(request, cancellationToken);
         }
 
@@ -525,6 +559,6 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
             if (NarrativeFailuresRemaining-- > 0) throw new AiProviderException(AiProviderErrorCodes.Timeout, "retry", true, sentPrompt: "narrative prompt", receivedResult: "partial result");
             return Task.FromResult(new NarrativeGeneration<PostStateNarrativeResult>(new(ScenarioTurnSchemas.PostStateNarrative, "Door opened", "The north door now stands open."), Metadata(), "narrative prompt", "narrative result"));
         }
-        private static AiGenerationMetadata Metadata() => new("test", "deterministic", null, null, null, 1, 1, "stop");
+        private static AiGenerationMetadata Metadata() => new(new AiProviderProfileId("test"), "deterministic", null, null, null, 1, 1, "stop");
     }
 }

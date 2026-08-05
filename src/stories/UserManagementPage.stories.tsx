@@ -23,7 +23,7 @@ const viewUrl: Record<UMView, string> = {
   withdraw: '/account/withdraw',
   'admin-list': '/account/admin/users',
   'admin-detail': '/account/admin/users/USR-1088',
-  'admin-ai-keys': '/admin',
+  'admin-ai-providers': '/admin',
   audit: '/account/admin/audit-log',
 };
 
@@ -77,7 +77,7 @@ export const UM03LoginWithEmail: Story = {
     await step('Identity cookieセッションを開始し、戻り先がなければホームへ進む', async () => {
       await userEvent.clear(canvas.getByLabelText('メールアドレス'));
       await userEvent.type(canvas.getByLabelText('メールアドレス'), 'reader@myriale.example');
-      await userEvent.type(canvas.getByTestId('login-password'), 'a');
+      await userEvent.type(canvas.getByTestId('login-password'), 'letters1');
       await userEvent.click(canvas.getByRole('button', { name: 'ログインする' }));
       await expect(await canvas.findByRole('main', { name: 'Myrialeトップページ' })).toBeVisible();
       await expect(canvas.getByTestId('app-url')).toHaveTextContent('/');
@@ -110,33 +110,30 @@ export const UM14AdminUserDetail: Story = { name: 'US-UM14: 管理者として�
 export const UM15SupportLookup: Story = { name: 'US-UM15: サポート調査したい（Phase 3）', args: { initialView: 'admin-list' } };
 export const UM16AuditLog: Story = { name: 'US-UM16: 監査ログを確認したい（Phase 3）', args: { initialView: 'audit' } };
 
-export const UM17AdminAiKeys: Story = { name: 'Admin: AI Provider管理', args: { initialView: 'admin-ai-keys' }, play: async ({ canvasElement, step }) => { const canvas = within(canvasElement); await step('/adminをAppChrome付きの運用画面として表示する', async () => { await expect(await canvas.findByRole('main', { name: 'AI Provider管理' })).toBeVisible(); await expect(canvas.getByRole('navigation', { name: '主要セクション' })).toBeVisible(); await expect(canvas.getByTestId('app-url')).toHaveTextContent('/admin'); }); await step('Vault設定済みのOpenAIを確認し、接続テストを行う', async () => { const openai = await canvas.findByTestId('ai-key-row-openai'); await expect(openai).toHaveTextContent('Vault / 環境変数'); await expect(openai).toHaveTextContent('使用中'); await userEvent.click(within(openai).getByRole('button', { name: '接続テスト' })); await expect(await canvas.findByTestId('ai-key-notice')).toHaveTextContent('接続テストに成功'); }); await step('使用するAIをRunpodへ切り替える', async () => { const openai = canvas.getByTestId('ai-key-row-openai'); const runpod = canvas.getByTestId('ai-key-row-runpod'); await userEvent.click(within(runpod).getByRole('button', { name: 'このAIを使用' })); await expect(await canvas.findByTestId('ai-key-notice')).toHaveTextContent('使用するAIをRunpod Serverlessへ切り替えました'); await expect(runpod).toHaveTextContent('使用中'); await expect(openai).not.toHaveTextContent('使用中'); }); } };
+export const UM17AdminAiKeys: Story = { name: 'Admin: AI Provider管理', args: { initialView: 'admin-ai-providers' }, play: async ({ canvasElement, step }) => { const canvas = within(canvasElement); await step('/adminをAppChrome付きの運用画面として表示する', async () => { await expect(await canvas.findByRole('main', { name: 'AI Provider管理' })).toBeVisible(); await expect(canvas.getByRole('navigation', { name: '主要セクション' })).toBeVisible(); await expect(canvas.getByTestId('app-url')).toHaveTextContent('/admin'); }); await step('Vault設定済みのOpenAIを確認し、接続テストを行う', async () => { const openai = await canvas.findByTestId('ai-profile-row-openai'); await expect(openai).toHaveTextContent('deployment'); await expect(openai).toHaveTextContent('使用中'); await userEvent.click(within(openai).getByRole('button', { name: '接続テスト' })); await expect(await canvas.findByTestId('ai-admin-notice')).toHaveTextContent('接続テストを完了しました。'); }); await step('使用するAIをRunpodへ切り替える', async () => { const openai = canvas.getByTestId('ai-profile-row-openai'); const runpod = canvas.getByTestId('ai-profile-row-runpod'); await userEvent.click(within(runpod).getByRole('button', { name: '使用' })); await expect(await canvas.findByTestId('ai-admin-notice')).toHaveTextContent('使用するProfileを変更しました。'); await expect(runpod).toHaveTextContent('使用中'); await expect(openai).not.toHaveTextContent('使用中'); }); } };
 
 export const UM18AdminAiPromptTest: Story = {
   name: 'Admin: Provider行からテストプロンプトを送る',
-  args: { initialView: 'admin-ai-keys' },
+  args: { initialView: 'admin-ai-providers' },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await step('使用中ではないRunpodの行からプロンプトテストを開く', async () => {
-      const runpod = await canvas.findByTestId('ai-key-row-runpod');
+      const runpod = await canvas.findByTestId('ai-profile-row-runpod');
       await expect(runpod).not.toHaveTextContent('使用中');
-      await userEvent.click(within(runpod).getByRole('button', { name: 'プロンプトテスト' }));
+      await userEvent.click(within(runpod).getByRole('button', { name: 'プロンプト' }));
       await expect(await canvas.findByRole('region', { name: 'Runpod Serverlessのプロンプトテスト' })).toBeVisible();
     });
     await step('Runpodへテスト用プロンプトを直接送信する', async () => {
-      const prompt = canvas.getByLabelText('Runpod Serverlessのテスト用プロンプト');
+      const prompt = canvas.getByLabelText('テスト用プロンプト');
       await userEvent.clear(prompt);
       await userEvent.type(prompt, 'このProviderの特徴を一文で答えてください。');
-      await userEvent.click(canvas.getByRole('button', { name: 'Runpod Serverlessへ送信' }));
+      await userEvent.click(canvas.getByRole('button', { name: '送信' }));
     });
     await step('使用中を切り替えずRunpodの応答と診断情報を確認する', async () => {
       const result = await canvas.findByTestId('ai-prompt-result');
       await expect(result).toHaveTextContent('テスト応答: このProviderの特徴を一文で答えてください。');
-      await expect(result).toHaveTextContent('runpod');
-      await expect(result).toHaveTextContent('Qwen/Qwen3-8B');
-      await expect(result).toHaveTextContent('184 ms');
-      await expect(canvas.getByTestId('ai-key-row-openai')).toHaveTextContent('使用中');
-      await expect(canvas.getByTestId('ai-key-row-runpod')).not.toHaveTextContent('使用中');
+      await expect(canvas.getByTestId('ai-profile-row-openai')).toHaveTextContent('使用中');
+      await expect(canvas.getByTestId('ai-profile-row-runpod')).not.toHaveTextContent('使用中');
     });
   },
 };

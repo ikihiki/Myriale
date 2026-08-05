@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export type AccountState = 'active' | 'unverified' | 'suspended' | 'deleted' | 'pending';
+export type AccountState = 'active' | 'withdrawn';
 
 export type PasswordRequirement = {
   id: string;

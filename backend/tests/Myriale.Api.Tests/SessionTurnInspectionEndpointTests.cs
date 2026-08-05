@@ -7,18 +7,17 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Myriale.Api.Contracts;
-using Myriale.Api.Data;
+using Myriale.Api.Infrastructure.Persistence;
 
 namespace Myriale.Api.Tests;
 
 public sealed class SessionTurnInspectionEndpointTests : IDisposable
 {
     private const string Password = "letters1";
-    private const string SessionId = "SES-INSPECTION";
-    private const string TurnId = "TUR-INSPECTION";
-    private const string InputId = "INP-INSPECTION";
-    private const string ExecutionId = "EXE-INSPECTION";
+    private static readonly SessionId SessionId = new("SES-INSPECTION");
+    private static readonly SessionTurnId TurnId = new("TUR-INSPECTION");
+    private static readonly SessionPlayerInputId InputId = new("INP-INSPECTION");
+    private static readonly SessionExecutionId ExecutionId = new("EXE-INSPECTION");
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private readonly string dbPath = Path.Combine(Path.GetTempPath(), $"myriale-turn-inspection-{Guid.NewGuid():N}.db");
     private readonly WebApplicationFactory<Program> factory;
@@ -41,21 +40,21 @@ public sealed class SessionTurnInspectionEndpointTests : IDisposable
         await SeedAsync();
         await LoginAsync(adminClient, "admin@example.test");
 
-        using var authorResponse = await authorClient.GetAsync($"/api/sessions/{SessionId}/turns/{TurnId}/inspection");
+        using var authorResponse = await authorClient.GetAsync($"/api/sessions/{SessionId.AsPrimitive()}/turns/{TurnId.AsPrimitive()}/inspection");
         Assert.Equal(HttpStatusCode.OK, authorResponse.StatusCode);
         var inspection = await authorResponse.Content.ReadFromJsonAsync<JsonElement>();
 
-        Assert.Equal(SessionId, inspection.GetProperty("session").GetProperty("id").GetString());
+        Assert.Equal(SessionId.AsPrimitive(), inspection.GetProperty("session").GetProperty("id").GetString());
         Assert.False(string.IsNullOrWhiteSpace(inspection.GetProperty("scenario").GetProperty("title").GetString()));
-        Assert.Equal(TurnId, inspection.GetProperty("turn").GetProperty("id").GetString());
+        Assert.Equal(TurnId.AsPrimitive(), inspection.GetProperty("turn").GetProperty("id").GetString());
         Assert.Equal("The north door opens.", inspection.GetProperty("turn").GetProperty("narrativeBody").GetString());
         var playerInput = inspection.GetProperty("playerInput");
-        Assert.Equal(InputId, playerInput.GetProperty("id").GetString());
+        Assert.Equal(InputId.AsPrimitive(), playerInput.GetProperty("id").GetString());
         Assert.Equal("Open the north door", playerInput.GetProperty("text").GetString());
         Assert.Equal(new DateTimeOffset(2026, 7, 30, 10, 0, 0, TimeSpan.Zero), playerInput.GetProperty("acceptedAt").GetDateTimeOffset());
 
         var execution = inspection.GetProperty("execution");
-        Assert.Equal(ExecutionId, execution.GetProperty("id").GetString());
+        Assert.Equal(ExecutionId.AsPrimitive(), execution.GetProperty("id").GetString());
         Assert.Equal(900, execution.GetProperty("elapsedMilliseconds").GetInt64());
         Assert.False(execution.TryGetProperty("leaseOwner", out _));
         Assert.False(execution.TryGetProperty("traceParent", out _));
@@ -97,9 +96,9 @@ public sealed class SessionTurnInspectionEndpointTests : IDisposable
         Assert.Equal(400, timing.GetProperty("narrativeElapsedMilliseconds").GetInt64());
         Assert.Equal(900, timing.GetProperty("totalElapsedMilliseconds").GetInt64());
 
-        using var adminResponse = await adminClient.GetAsync($"/api/sessions/{SessionId}/turns/{TurnId}/inspection");
+        using var adminResponse = await adminClient.GetAsync($"/api/sessions/{SessionId.AsPrimitive()}/turns/{TurnId.AsPrimitive()}/inspection");
         Assert.Equal(HttpStatusCode.OK, adminResponse.StatusCode);
-        using var unrelatedResponse = await unrelatedClient.GetAsync($"/api/sessions/{SessionId}/turns/{TurnId}/inspection");
+        using var unrelatedResponse = await unrelatedClient.GetAsync($"/api/sessions/{SessionId.AsPrimitive()}/turns/{TurnId.AsPrimitive()}/inspection");
         Assert.Equal(HttpStatusCode.NotFound, unrelatedResponse.StatusCode);
     }
 
@@ -110,11 +109,11 @@ public sealed class SessionTurnInspectionEndpointTests : IDisposable
         await RegisterAsync(authorClient, "author@example.test");
         await SeedAsync();
 
-        using var missing = await authorClient.GetAsync($"/api/sessions/{SessionId}/turns/TUR-MISSING/inspection");
+        using var missing = await authorClient.GetAsync($"/api/sessions/{SessionId.AsPrimitive()}/turns/TUR-MISSING/inspection");
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
-        using var unrelated = await authorClient.GetAsync($"/api/sessions/{SessionId}/turns/TUR-OTHER-SESSION/inspection");
+        using var unrelated = await authorClient.GetAsync($"/api/sessions/{SessionId.AsPrimitive()}/turns/TUR-OTHER-SESSION/inspection");
         Assert.Equal(HttpStatusCode.NotFound, unrelated.StatusCode);
-        using var noInput = await authorClient.GetAsync($"/api/sessions/{SessionId}/turns/TUR-NO-INPUT/inspection");
+        using var noInput = await authorClient.GetAsync($"/api/sessions/{SessionId.AsPrimitive()}/turns/TUR-NO-INPUT/inspection");
         Assert.Equal(HttpStatusCode.NotFound, noInput.StatusCode);
     }
 
@@ -128,89 +127,91 @@ public sealed class SessionTurnInspectionEndpointTests : IDisposable
         if (admin is not null) Assert.True((await users.AddClaimAsync(admin, new Claim("myriale:admin", "true"))).Succeeded);
         var ownerId = await db.Users.Where(user => user.Email == "author@example.test").Select(user => user.Id).SingleAsync();
         var scenario = await db.Scenarios.OrderBy(item => item.Id).FirstAsync();
-        scenario.AuthorId = authorId;
+        scenario.AuthorId = new AccountId(authorId);
         var baseTime = new DateTimeOffset(2026, 7, 30, 10, 0, 0, TimeSpan.Zero);
 
         db.Sessions.AddRange(
-            new Session { Id = SessionId, OwnerId = ownerId, ScenarioId = scenario.Id, ScenarioDefinitionVersionId = null, SelectedHero = "hero", Status = "active", Revision = 8, CreatedAt = baseTime.AddMinutes(-2), UpdatedAt = baseTime.AddSeconds(1) },
-            new Session { Id = "SES-OTHER", OwnerId = ownerId, ScenarioId = scenario.Id, SelectedHero = "hero", Status = "active", CreatedAt = baseTime, UpdatedAt = baseTime });
+            new Session { Id = SessionId, OwnerId = new AccountId(ownerId), ScenarioId = scenario.Id, ScenarioDefinitionVersionId = null, SelectedHero = "hero", Status = SessionStatus.Active, Revision = 8, CreatedAt = baseTime.AddMinutes(-2), UpdatedAt = baseTime.AddSeconds(1) },
+            new Session { Id = new SessionId("SES-OTHER"), OwnerId = new AccountId(ownerId), ScenarioId = scenario.Id, SelectedHero = "hero", Status = SessionStatus.Active, CreatedAt = baseTime, UpdatedAt = baseTime });
         db.SessionPlayerInputs.AddRange(
             Input(InputId, SessionId, "Open the north door", baseTime),
-            Input("INP-OTHER-TURN", SessionId, "Inspect the hall", baseTime.AddSeconds(2)),
-            Input("INP-OTHER-SESSION", "SES-OTHER", "Other session", baseTime));
+            Input(new SessionPlayerInputId("INP-OTHER-TURN"), SessionId, "Inspect the hall", baseTime.AddSeconds(2)),
+            Input(new SessionPlayerInputId("INP-OTHER-SESSION"), new SessionId("SES-OTHER"), "Other session", baseTime));
         db.SessionTurns.AddRange(
-            new SessionTurn { Id = TurnId, SessionId = SessionId, Position = 1, Kind = "narrative", Heading = "Opened", NarrativeBody = "The north door opens.", PlayerInputId = InputId, CreatedAt = baseTime.AddSeconds(1) },
-            new SessionTurn { Id = "TUR-OTHER-TURN", SessionId = SessionId, Position = 2, PreviousTurnId = TurnId, Kind = "narrative", PlayerInputId = "INP-OTHER-TURN", CreatedAt = baseTime.AddSeconds(3) },
-            new SessionTurn { Id = "TUR-NO-INPUT", SessionId = SessionId, Position = 3, PreviousTurnId = "TUR-OTHER-TURN", Kind = "module", CreatedAt = baseTime.AddSeconds(4) },
-            new SessionTurn { Id = "TUR-OTHER-SESSION", SessionId = "SES-OTHER", Position = 1, Kind = "narrative", PlayerInputId = "INP-OTHER-SESSION", CreatedAt = baseTime.AddSeconds(1) });
+            new SessionTurn { Id = TurnId, SessionId = SessionId, Position = 1, Kind = SessionTurnKind.Narrative, Heading = "Opened", NarrativeBody = "The north door opens.", PlayerInputId = InputId, CreatedAt = baseTime.AddSeconds(1) },
+            new SessionTurn { Id = new SessionTurnId("TUR-OTHER-TURN"), SessionId = SessionId, Position = 2, PreviousTurnId = TurnId, Kind = SessionTurnKind.Narrative, PlayerInputId = new SessionPlayerInputId("INP-OTHER-TURN"), CreatedAt = baseTime.AddSeconds(3) },
+            new SessionTurn { Id = new SessionTurnId("TUR-NO-INPUT"), SessionId = SessionId, Position = 3, PreviousTurnId = new SessionTurnId("TUR-OTHER-TURN"), Kind = SessionTurnKind.Module, CreatedAt = baseTime.AddSeconds(4) },
+            new SessionTurn { Id = new SessionTurnId("TUR-OTHER-SESSION"), SessionId = new SessionId("SES-OTHER"), Position = 1, Kind = SessionTurnKind.Narrative, PlayerInputId = new SessionPlayerInputId("INP-OTHER-SESSION"), CreatedAt = baseTime.AddSeconds(1) });
         db.SessionExecutions.AddRange(
             Execution(ExecutionId, SessionId, InputId, baseTime),
-            Execution("EXE-OTHER-TURN", SessionId, "INP-OTHER-TURN", baseTime.AddSeconds(2)),
-            Execution("EXE-OTHER-SESSION", "SES-OTHER", "INP-OTHER-SESSION", baseTime));
+            Execution(new SessionExecutionId("EXE-OTHER-TURN"), SessionId, new SessionPlayerInputId("INP-OTHER-TURN"), baseTime.AddSeconds(2)),
+            Execution(new SessionExecutionId("EXE-OTHER-SESSION"), new SessionId("SES-OTHER"), new SessionPlayerInputId("INP-OTHER-SESSION"), baseTime));
         db.SessionExecutionAttempts.AddRange(
-            Attempt("ATT-INSPECTION-1", ExecutionId, 1, baseTime),
-            Attempt("ATT-INSPECTION-2", ExecutionId, 2, baseTime.AddMilliseconds(500)),
-            Attempt("ATT-OTHER-TURN", "EXE-OTHER-TURN", 1, baseTime.AddSeconds(2)));
+            Attempt(new SessionExecutionAttemptId("ATT-INSPECTION-1"), ExecutionId, 1, baseTime),
+            Attempt(new SessionExecutionAttemptId("ATT-INSPECTION-2"), ExecutionId, 2, baseTime.AddMilliseconds(500)),
+            Attempt(new SessionExecutionAttemptId("ATT-OTHER-TURN"), new SessionExecutionId("EXE-OTHER-TURN"), 1, baseTime.AddSeconds(2)));
         db.SessionAiInteractions.AddRange(
-            Interaction("AII-NARRATIVE", ExecutionId, "ATT-INSPECTION-2", 2, SessionAiInteractionStages.Narrative, baseTime.AddMilliseconds(600), "narrative prompt", "narrative result"),
-            Interaction("AII-ACTION", ExecutionId, "ATT-INSPECTION-1", 1, SessionAiInteractionStages.ActionDecision, baseTime.AddMilliseconds(200), "action prompt", "action result"),
-            Interaction("AII-OTHER-TURN", "EXE-OTHER-TURN", "ATT-OTHER-TURN", 1, SessionAiInteractionStages.Narrative, baseTime.AddSeconds(2), "other prompt", "other result"));
+            Interaction(new SessionAiInteractionId("AII-NARRATIVE"), ExecutionId, new SessionExecutionAttemptId("ATT-INSPECTION-2"), 2, SessionAiInteractionStage.Narrative, baseTime.AddMilliseconds(600), "narrative prompt", "narrative result"),
+            Interaction(new SessionAiInteractionId("AII-ACTION"), ExecutionId, new SessionExecutionAttemptId("ATT-INSPECTION-1"), 1, SessionAiInteractionStage.ActionDecision, baseTime.AddMilliseconds(200), "action prompt", "action result"),
+            Interaction(new SessionAiInteractionId("AII-OTHER-TURN"), new SessionExecutionId("EXE-OTHER-TURN"), new SessionExecutionAttemptId("ATT-OTHER-TURN"), 1, SessionAiInteractionStage.Narrative, baseTime.AddSeconds(2), "other prompt", "other result"));
         db.SessionRuleActionSteps.Add(RuleStep(baseTime));
         await db.SaveChangesAsync();
     }
 
-    private static SessionPlayerInput Input(string id, string sessionId, string text, DateTimeOffset createdAt) => new()
+    private static SessionPlayerInput Input(SessionPlayerInputId id, SessionId sessionId, string text, DateTimeOffset createdAt) => new()
     {
-        Id = id, SessionId = sessionId, RequestId = $"request-{id}", Text = text, InteractionType = "dialogue",
-        PayloadHash = new string('b', 64), CreatedBy = "test", CreatedAt = createdAt,
+        Id = id, SessionId = sessionId, RequestId = $"request-{id.AsPrimitive()}", Text = text, InteractionType = SessionInputInteractionType.Dialogue,
+        PayloadHash = new string('b', 64), CreatedBy = new AccountId("test"), CreatedAt = createdAt,
     };
 
-    private static SessionExecution Execution(string id, string sessionId, string inputId, DateTimeOffset startedAt) => new()
+    private static SessionExecution Execution(SessionExecutionId id, SessionId sessionId, SessionPlayerInputId inputId, DateTimeOffset startedAt) => new()
     {
-        Id = id, SessionId = sessionId, Kind = SessionExecutionKinds.ScenarioTurn, TriggerType = "player-input", TriggerId = inputId,
-        Status = SessionExecutionStatuses.Succeeded, Stage = ScenarioTurnStages.Completed, AttemptCount = id == ExecutionId ? 2 : 1,
-        IdempotencyKey = id, PayloadHash = new string('a', 64), CreatedAt = startedAt, QueuedAt = startedAt,
+        Id = id, SessionId = sessionId, Kind = SessionExecutionKind.ScenarioTurn, TriggerType = SessionExecutionTriggerType.PlayerInput, TriggerId = new SessionExecutionTriggerId(inputId.AsPrimitive()),
+        Status = SessionExecutionStatus.Succeeded, Stage = ScenarioTurnStage.Completed.ToWireValue(), AttemptCount = id == ExecutionId ? 2 : 1,
+        IdempotencyKey = id.AsPrimitive(), PayloadHash = new string('a', 64), CreatedAt = startedAt, QueuedAt = startedAt,
         StartedAt = startedAt, CompletedAt = startedAt.AddMilliseconds(900),
     };
 
-    private static SessionExecutionAttempt Attempt(string id, string executionId, int number, DateTimeOffset startedAt) => new()
+    private static SessionExecutionAttempt Attempt(SessionExecutionAttemptId id, SessionExecutionId executionId, int number, DateTimeOffset startedAt)
     {
-        Id = id, ExecutionId = executionId, AttemptNumber = number, Status = "succeeded", StartedAt = startedAt, CompletedAt = startedAt.AddMilliseconds(100),
-    };
+        var attempt = SessionExecutionAttempt.Start(id, executionId, number, "fixture", startedAt);
+        attempt.Succeed(startedAt.AddMilliseconds(100));
+        return attempt;
+    }
 
-    private static SessionAiInteraction Interaction(string id, string executionId, string attemptId, int sequence, string stage, DateTimeOffset startedAt, string prompt, string result) => new()
+    private static SessionAiInteraction Interaction(SessionAiInteractionId id, SessionExecutionId executionId, SessionExecutionAttemptId attemptId, int sequence, SessionAiInteractionStage stage, DateTimeOffset startedAt, string prompt, string result) => new()
     {
-        Id = id, SessionId = executionId == "EXE-OTHER-SESSION" ? "SES-OTHER" : SessionId, ExecutionId = executionId, AttemptId = attemptId,
-        Sequence = sequence, Stage = stage, AiProfileId = "profile-test", Provider = "provider-test", Model = "model-test",
-        ProviderRequestId = $"request-{id}", StartedAt = startedAt, CompletedAt = startedAt.AddMilliseconds(25), LatencyMilliseconds = 25,
-        InputTokens = 11, OutputTokens = 7, FinishReason = "stop", Status = SessionAiInteractionStatuses.Succeeded,
+        Id = id, SessionId = executionId == new SessionExecutionId("EXE-OTHER-SESSION") ? new SessionId("SES-OTHER") : SessionId, ExecutionId = executionId, AttemptId = attemptId,
+        Sequence = sequence, Stage = stage, AiProfileId = new AiProviderProfileId("profile-test"), Provider = "provider-test", Model = "model-test",
+        ProviderRequestId = $"request-{id.AsPrimitive()}", StartedAt = startedAt, CompletedAt = startedAt.AddMilliseconds(25), LatencyMilliseconds = 25,
+        InputTokens = 11, OutputTokens = 7, FinishReason = "stop", Status = SessionAiInteractionStatus.Succeeded,
         SentPrompt = prompt, ReceivedResult = result, ValidationResult = "{\"status\":\"valid\"}",
     };
 
     private static SessionRuleActionStep RuleStep(DateTimeOffset createdAt)
     {
-        var location = new RulePublicLocation("LOC-HALL", "hall", "Hall", "A stone hall");
-        var beforeObject = new RulePublicObject("OBJ-DOOR", "north-door", "North Door", location.Id, false, 0, JsonSerializer.SerializeToElement(new { open = false }));
+        var location = new RulePublicLocation(new ScenarioLocationId("LOC-HALL"), "hall", "Hall", "A stone hall");
+        var beforeObject = new RulePublicObject(new ScenarioObjectId("OBJ-DOOR"), "north-door", "North Door", location.Id, false, 0, JsonSerializer.SerializeToElement(new { open = false }));
         var afterObject = beforeObject with { Revision = 1, State = JsonSerializer.SerializeToElement(new { open = true }) };
         var snapshot = new RuleActionSnapshot(
             ScenarioTurnSchemas.ActionSnapshot,
             "snapshot-1",
             location,
             [beforeObject],
-            [new RulePublicAction(beforeObject.Id, "ACT-OPEN", "open", "Open", "Open the door", JsonSerializer.SerializeToElement(new { type = "object" }), true)]);
-        var decision = new RuleActionDecisionResult(ScenarioTurnSchemas.ActionDecision, beforeObject.Id, "ACT-OPEN", JsonSerializer.SerializeToElement(new { force = true }));
-        var effects = new[] { new RuleAppliedEffect("set-state", beforeObject.Id, "state.open", JsonSerializer.SerializeToElement(true)) };
+            [new RulePublicAction(beforeObject.Id, new ScenarioObjectTypeActionId("ACT-OPEN"), "open", "Open", "Open the door", JsonSerializer.SerializeToElement(new { type = "object" }), true)]);
+        var decision = new RuleActionDecisionResult(ScenarioTurnSchemas.ActionDecision, beforeObject.Id, new ScenarioObjectTypeActionId("ACT-OPEN"), JsonSerializer.SerializeToElement(new { force = true }));
+        var effects = new[] { new RuleAppliedEffect("set-state", beforeObject.Id.AsPrimitive(), "state.open", JsonSerializer.SerializeToElement(true)) };
         var postState = new RulePostState(ScenarioTurnSchemas.PostStateNarrative, location, [afterObject], new Dictionary<string, bool>(), 8);
-        return new SessionRuleActionStep
-        {
-            Id = "RAS-INSPECTION", SessionId = SessionId, ExecutionId = ExecutionId, PlayerInputId = InputId,
-            ScenarioDefinitionVersionId = "SDV-TEST", Stage = ScenarioTurnStages.Completed, PreSessionRevision = 7, PostSessionRevision = 8,
-            ObjectRevisionsJson = "{\"OBJ-DOOR\":0}", ActionSnapshotJson = JsonSerializer.Serialize(snapshot, Json), DecisionJson = JsonSerializer.Serialize(decision, Json),
-            SelectedRuleId = "RULE-OPEN", AppliedEffectsJson = JsonSerializer.Serialize(effects, Json), PublicPostStateJson = JsonSerializer.Serialize(postState, Json),
-            FactsJson = "[\"The door is open.\"]", EventsJson = "[{\"type\":\"door-opened\"}]", NarrativeHintsJson = "[\"Describe the opened door.\"]",
-            CreatedAt = createdAt, EnumeratedAt = createdAt.AddMilliseconds(100), SelectedAt = createdAt.AddMilliseconds(250),
-            AppliedAt = createdAt.AddMilliseconds(500), NarrativePublishedAt = createdAt.AddMilliseconds(900), UpdatedAt = createdAt.AddMilliseconds(900),
-        };
+        var step = SessionRuleActionStep.CreateSnapshot(
+            new SessionRuleActionStepId("RAS-INSPECTION"), SessionId, ExecutionId, InputId, new ScenarioDefinitionVersionId("SDV-TEST"), 7,
+            "{\"OBJ-DOOR\":0}", JsonSerializer.Serialize(snapshot, Json), createdAt.AddMilliseconds(100), createdAt);
+        step.RecordDecision(JsonSerializer.Serialize(decision, Json), createdAt.AddMilliseconds(250));
+        step.RecordResolution("RULE-OPEN", "{}", false, createdAt.AddMilliseconds(300));
+        step.CommitEffects(7, 8, JsonSerializer.Serialize(effects, Json), JsonSerializer.Serialize(postState, Json),
+            "[\"The door is open.\"]", "[{\"type\":\"door-opened\"}]", "[\"Describe the opened door.\"]", "[]",
+            createdAt.AddMilliseconds(500));
+        step.PublishNarrative(createdAt.AddMilliseconds(900));
+        return step;
     }
 
     private static async Task RegisterAsync(HttpClient client, string email)

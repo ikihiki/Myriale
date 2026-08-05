@@ -49,7 +49,7 @@ const meta: Meta = {
 export default meta;
 type Story = StoryObj;
 
-const allStates: AccountState[] = ['active', 'unverified', 'suspended', 'pending', 'deleted'];
+const allStates: AccountState[] = ['active', 'withdrawn'];
 
 export const DeskBrandComponent: Story = {
   name: 'DeskBrand — 霧のブランド印',
@@ -99,7 +99,7 @@ export const StatusBadges: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText('有効')).toBeVisible();
-    await expect(canvas.getByText('停止中')).toBeVisible();
+    await expect(canvas.getByText('退会済み')).toBeVisible();
   },
 };
 
@@ -249,8 +249,8 @@ export const Notices: Story = {
 
 const tableUsers: AdminUser[] = [
   { id: 'USR-1031', name: '霧野しおり', email: 'shiori@example.com', registered: '2026-01-12', lastLogin: '2026-06-20', state: 'active', sessions: 14 },
-  { id: 'USR-1042', name: '灰原ゆう', email: 'yu@example.com', registered: '2026-02-03', lastLogin: '2026-06-18', state: 'unverified', sessions: 2 },
-  { id: 'USR-1088', name: '星見れん', email: 'ren@example.com', registered: '2026-03-21', lastLogin: '2026-05-30', state: 'suspended', sessions: 7 },
+  { id: 'USR-1042', name: '灰原ゆう', email: 'yu@example.com', registered: '2026-02-03', lastLogin: '2026-06-18', state: 'active', sessions: 2 },
+  { id: 'USR-1088', name: '退会済みユーザー', email: 'withdrawn@example.invalid', registered: '2026-03-21', lastLogin: '2026-05-30', state: 'withdrawn', sessions: 7 },
 ];
 
 export const AdminUserTable: Story = {

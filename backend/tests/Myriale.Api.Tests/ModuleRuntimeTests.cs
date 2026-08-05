@@ -2,8 +2,9 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
-using Myriale.Api.Modules;
-using Myriale.Api.Modules.Runtime;
+using Myriale.Api.Features.ModulePackages;
+using Myriale.Api.Features.ModulePackages.Application;
+using Myriale.Api.Features.ModulePackages.Infrastructure;
 using Myriale.ModuleSdk;
 
 namespace Myriale.Api.Tests;
@@ -35,7 +36,7 @@ public sealed class ModuleRuntimeTests : IDisposable
     {
         var identity = await InstallAsync(enable: false);
         await using var scope = _factory.Services.CreateAsyncScope();
-        var runtime = scope.ServiceProvider.GetRequiredService<IModuleRuntime>();
+        var runtime = scope.ServiceProvider.GetRequiredService<IModuleRuntimeService>();
 
         var disabled = await Assert.ThrowsAsync<ModuleRuntimeException>(() =>
             runtime.ValidateConfigAsync(identity, new ModuleValidationRequest("validate-1", Json(new { })), default));
@@ -60,7 +61,7 @@ public sealed class ModuleRuntimeTests : IDisposable
     {
         var identity = await InstallAsync();
         await using var scope = _factory.Services.CreateAsyncScope();
-        var runtime = scope.ServiceProvider.GetRequiredService<IModuleRuntime>();
+        var runtime = scope.ServiceProvider.GetRequiredService<IModuleRuntimeService>();
 
         var wrongIdentity = identity with { ModuleId = "com.myriale.wrong" };
         var missing = await Assert.ThrowsAsync<ModuleRuntimeException>(() =>
@@ -81,7 +82,7 @@ public sealed class ModuleRuntimeTests : IDisposable
         var identity = await InstallAsync();
         await File.WriteAllTextAsync(Path.Combine(_storagePath, "expanded", identity.Digest, "module.dll"), "corrupt");
         await using var scope = _factory.Services.CreateAsyncScope();
-        var runtime = scope.ServiceProvider.GetRequiredService<IModuleRuntime>();
+        var runtime = scope.ServiceProvider.GetRequiredService<IModuleRuntimeService>();
 
         var unavailable = await Assert.ThrowsAsync<ModuleRuntimeException>(() =>
             runtime.InitializeAsync(identity, Initialize("initialize"), default));
@@ -94,7 +95,7 @@ public sealed class ModuleRuntimeTests : IDisposable
     {
         var identity = await InstallAsync();
         await using var scope = _factory.Services.CreateAsyncScope();
-        var runtime = scope.ServiceProvider.GetRequiredService<IModuleRuntime>();
+        var runtime = scope.ServiceProvider.GetRequiredService<IModuleRuntimeService>();
 
         var failed = await Assert.ThrowsAsync<ModuleRuntimeException>(() =>
             runtime.DispatchAsync(identity, Dispatch("throw", 0, new { mode = "throw" }), default));
@@ -115,7 +116,7 @@ public sealed class ModuleRuntimeTests : IDisposable
     {
         var identity = await InstallAsync();
         await using var scope = _factory.Services.CreateAsyncScope();
-        var runtime = scope.ServiceProvider.GetRequiredService<IModuleRuntime>();
+        var runtime = scope.ServiceProvider.GetRequiredService<IModuleRuntimeService>();
 
         var responseSize = await Assert.ThrowsAsync<ModuleRuntimeException>(() =>
             runtime.DispatchAsync(identity, Dispatch("response-size", 0, new { mode = "oversized-response" }), default));
@@ -131,7 +132,7 @@ public sealed class ModuleRuntimeTests : IDisposable
     {
         var identity = await InstallAsync();
         await using var scope = _factory.Services.CreateAsyncScope();
-        var runtime = scope.ServiceProvider.GetRequiredService<IModuleRuntime>();
+        var runtime = scope.ServiceProvider.GetRequiredService<IModuleRuntimeService>();
         var oversized = new string('x', 70_000);
 
         var violation = await Assert.ThrowsAsync<ModuleRuntimeException>(() =>
@@ -152,18 +153,22 @@ public sealed class ModuleRuntimeTests : IDisposable
     private async Task<ModulePackageIdentity> InstallAsync(bool enable = true)
     {
         await using var scope = _factory.Services.CreateAsyncScope();
-        var service = scope.ServiceProvider.GetRequiredService<IModulePackageService>();
+        var install = scope.ServiceProvider.GetRequiredService<InstallModulePackageCommand>();
+        var enableCommand = scope.ServiceProvider.GetRequiredService<EnableModulePackageCommand>();
         await using var stream = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "Myriale.HeadlessTestModule.dll"));
-        var result = await service.InstallAsync(stream, default);
-        if (enable) await service.SetEnabledAsync(result.Package.Digest, true, default);
-        return new ModulePackageIdentity(result.Package.ModuleId, result.Package.Version, result.Package.Digest);
+        var result = await install.ExecuteAsync(stream, default);
+        if (enable) result = result with { Package = (await enableCommand.ExecuteAsync(result.Package.Digest, result.Package.Revision, default))! };
+        return new ModulePackageIdentity(result.Package.ModuleId.AsPrimitive(), result.Package.Version.AsPrimitive(), result.Package.Digest.AsPrimitive());
     }
 
     private async Task SetEnabledAsync(string digest, bool enabled)
     {
         await using var scope = _factory.Services.CreateAsyncScope();
-        var service = scope.ServiceProvider.GetRequiredService<IModulePackageService>();
-        await service.SetEnabledAsync(digest, enabled, default);
+        var catalog = scope.ServiceProvider.GetRequiredService<IModulePackageCatalogService>();
+        var package = await catalog.GetAsync(new(digest), default);
+        Assert.NotNull(package);
+        if (enabled) await scope.ServiceProvider.GetRequiredService<EnableModulePackageCommand>().ExecuteAsync(package.Digest, package.Revision, default);
+        else await scope.ServiceProvider.GetRequiredService<DisableModulePackageCommand>().ExecuteAsync(package.Digest, package.Revision, default);
     }
 
     private static ModuleInitializationRequest Initialize(string requestId) =>

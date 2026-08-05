@@ -8,7 +8,6 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
-using Myriale.Api.Data;
 using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Myriale.Api.Tests;
@@ -61,9 +60,11 @@ public sealed class ModuleAdminEndpointTests : IDisposable
         using var reinstall = await InstallAsync(client, package);
         Assert.Equal(HttpStatusCode.OK, reinstall.StatusCode);
 
-        using var enable = await client.PostAsync($"/api/admin/modules/{digest}/enable", null);
+        var installedRevision = installed.GetProperty("package").GetProperty("revision").GetInt64();
+        using var enable = await client.PostAsJsonAsync($"/api/admin/modules/{digest}/enable", new { expectedRevision = installedRevision });
         Assert.Equal(HttpStatusCode.OK, enable.StatusCode);
-        Assert.True((await enable.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("isEnabled").GetBoolean());
+        var enabled = await enable.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(enabled.GetProperty("isEnabled").GetBoolean());
 
         using var list = await client.GetAsync("/api/admin/modules/");
         Assert.Equal(HttpStatusCode.OK, list.StatusCode);
@@ -71,7 +72,7 @@ public sealed class ModuleAdminEndpointTests : IDisposable
         Assert.Single(rows.EnumerateArray());
         Assert.True(rows[0].GetProperty("isEnabled").GetBoolean());
 
-        using var disable = await client.PostAsync($"/api/admin/modules/{digest}/disable", null);
+        using var disable = await client.PostAsJsonAsync($"/api/admin/modules/{digest}/disable", new { expectedRevision = enabled.GetProperty("revision").GetInt64() });
         Assert.Equal(HttpStatusCode.OK, disable.StatusCode);
         Assert.False((await disable.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("isEnabled").GetBoolean());
     }
@@ -116,7 +117,41 @@ public sealed class ModuleAdminEndpointTests : IDisposable
 
         using var get = await client.GetAsync($"/api/admin/modules/{digest}");
         Assert.Equal(HttpStatusCode.OK, get.StatusCode);
-        Assert.Equal("installed", (await get.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("status").GetString());
+        Assert.Equal("verified", (await get.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task RescanInvalidationFencesStaleEnableAndKeepsPackageDisabled()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await RegisterModuleAdminAsync(client);
+        using var install = await InstallAsync(client, CreatePackage());
+        var body = await install.Content.ReadFromJsonAsync<JsonElement>();
+        var package = body.GetProperty("package");
+        var digest = package.GetProperty("digest").GetString()!;
+        var staleRevision = package.GetProperty("revision").GetInt64();
+        await File.AppendAllTextAsync(Path.Combine(_storagePath, "packages", $"{digest}.myriale-module"), "corrupt");
+
+        using var scan = await client.PostAsync("/api/admin/modules/rescan", null);
+        Assert.Equal(HttpStatusCode.OK, scan.StatusCode);
+        using var staleEnable = await client.PostAsJsonAsync($"/api/admin/modules/{digest}/enable", new { expectedRevision = staleRevision });
+        Assert.Equal(HttpStatusCode.Conflict, staleEnable.StatusCode);
+        using var get = await client.GetAsync($"/api/admin/modules/{digest}");
+        var current = await get.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("invalid", current.GetProperty("status").GetString());
+        Assert.False(current.GetProperty("isEnabled").GetBoolean());
+        Assert.True(current.GetProperty("revision").GetInt64() > staleRevision);
+    }
+
+    [Fact]
+    public async Task InstallRejectsSymbolicLinkArchiveEntry()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await RegisterModuleAdminAsync(client);
+        using var response = await InstallAsync(client, CreateSymlinkPackage());
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var list = await client.GetAsync("/api/admin/modules/");
+        Assert.Empty((await list.Content.ReadFromJsonAsync<JsonElement>()).EnumerateArray());
     }
 
     [Fact]
@@ -270,6 +305,19 @@ public sealed class ModuleAdminEndpointTests : IDisposable
         var assemblyPath = Path.Combine(AppContext.BaseDirectory, "Myriale.HeadlessTestModule.dll");
         Assert.True(File.Exists(assemblyPath), $"Headless test module assembly was not found: {assemblyPath}");
         return File.ReadAllBytes(assemblyPath);
+    }
+
+    private static byte[] CreateSymlinkPackage()
+    {
+        using var buffer = new MemoryStream();
+        using (var archive = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            var link = archive.CreateEntry("module.dll");
+            link.ExternalAttributes = unchecked((int)0xA0000000);
+            using var writer = new StreamWriter(link.Open(), Encoding.UTF8);
+            writer.Write("target");
+        }
+        return buffer.ToArray();
     }
 
     private static byte[] CreatePackage(string? extraEntry = null, string runtimeSuffix = "")

@@ -2,7 +2,7 @@
 
 ## Queue or worker outage
 
-1. Check `myriale.session.execution.queue_depth`, `running`, `retry_wait`, `oldest_queued_age`, and `stuck` in the Aspire Dashboard/collector. Gauges are cached database samples; the default refresh is 15 seconds (`SessionExecutionMetrics:SampleIntervalSeconds`) and stuck age is 600 seconds (`SessionExecutionMetrics:StuckAfterSeconds`).
+1. Check `myriale.session.execution.queue_depth`, `running`, `retry_wait`, `oldest_queued_age`, and `stuck` in the Aspire Dashboard/collector. Gauges are cached database-side grouped/count/min samples (never a materialized active-row scan); the default refresh is 15 seconds (`SessionExecutionMetrics:SampleIntervalSeconds`) and stuck age is 600 seconds (`SessionExecutionMetrics:StuckAfterSeconds`).
 2. Search logs for structured `SessionId`, `ExecutionId`, `AttemptId`, trace ID, claim, retry, recovery, and publish decisions. Never paste player input or provider credentials into incidents.
 3. Verify API health and that `SessionExecutionWorker` is running. Restarting is safe: queued rows remain durable and expired running leases are reclaimable.
 4. Confirm the oldest running leases expire and are reclaimed once. Repeated lease expiry indicates a provider timeout, worker crash, or too-short lease.
@@ -27,7 +27,7 @@ Run only the evaluation category with `dotnet test backend/tests/Myriale.Api.Tes
 
 - A `session_advanced` result should end as `superseded` and publish no Turn.
 - Check the Session head, accepted head, Execution revision, lease token, unique PlayerInput/SourceModuleTurn constraint, and committed Artifact.
-- If a Turn already exists, normalize the Execution to success rather than publishing another Turn.
+- If a Turn already exists, normalize the Execution to success rather than publishing another Turn; the Progression receipt command may safely resume the unique post-commit receipt.
 - Cancellation loses only when the publish transaction committed first; otherwise the invalidated lease prevents late publication.
 
 ## Trace and diagnostics
@@ -42,11 +42,11 @@ Audit telemetry/log output for forbidden data: player text, full prompt/Narrativ
 
 - Note proposals do not update canon until apply/edit-apply succeeds with the expected revision. A revision conflict requires re-review.
 - Image failure is partial success and must not remove Narrative.
-- Attach an existing image Execution/Attempt through authenticated `POST /api/session-artifacts/images/attach`. The endpoint accepts PNG only and verifies signature, configured `SessionImages` byte/dimension limits, SHA-256 checksum, and `ModerationDecision=approved` before committing storage and database rows.
-- The authorized media endpoint must return 404 for another owner.
-- `SessionArtifactRetentionWorker` lists storage every `SessionImages:ReconciliationIntervalMinutes`, removes rows/objects past `RetainUntil`, and deletes unreferenced objects only after `SessionImages:OrphanGraceMinutes`. Search `session.artifact.reconcile` logs for `ExpiredDeleted`, `OrphansDeleted`, and `MissingObjects`; investigate missing objects before repairing or removing their database rows.
+- Attach an existing image Execution/Attempt through authenticated `POST /api/session-artifacts/images/attach`. The endpoint accepts PNG only and verifies signature, configured `SessionImages` byte/dimension limits, SHA-256 checksum, and `ModerationDecision=approved` before committing storage and database rows. Storage is written first; a database failure or simultaneous-attach loser deletes its unique object as compensation, and the loser receives HTTP 409.
+- The authorized media endpoint supports byte ranges and returns 404 for another owner, a missing object, or a retention delete that wins the read race.
+- `SessionArtifactRetentionWorker` lists storage every `SessionImages:ReconciliationIntervalMinutes`, removes an expired artifact row before deleting its object, and deletes unreferenced objects only after `SessionImages:OrphanGraceMinutes`. A failed post-commit object delete is therefore recovered as an orphan. Search `session.artifact.reconcile` logs for `ExpiredDeleted`, `OrphansDeleted`, and `MissingObjects`; investigate missing referenced objects before repairing or removing their database rows.
 - Development uses the deterministic note + one-pixel PNG Session fixture when `SessionArtifactFixture:Enabled=true`. Test hosts opt in with `SessionArtifactFixture:EnableInTestHost=true`. Disable the fixture outside development/demo environments.
 
 ## Database initialization
 
-PostgreSQL、SQLiteともに起動時にdatabaseを再作成し、Entity Framework Coreの`EnsureCreated`で現在のschemaを作成する。この起動方式では既存データを保持しない。Session Executionの運用開始前に、再作成後の空のdatabaseへseedが投入されたことを確認する。
+PostgreSQL、SQLiteともに起動時に破壊的なclean-schema baselineを作成し、Entity Framework Coreの`EnsureCreated`で現在のmodelからschemaを生成する。SQLiteはdatabaseを削除し、PostgreSQLはMyrialeが所有する`public` schemaだけをdrop/recreateする。`Database:RecreateOnStartup=false`は、EF migrationとupgrade/rollback手順が導入されるまで起動時に拒否される。この方式では既存データを保持しない。Session Executionの運用開始前に、再作成後の空のdatabaseへseedが投入されたことを確認する。永続本番運用の前提は`docs/runbooks/schema-baseline.md`を参照する。

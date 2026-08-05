@@ -50,7 +50,7 @@ describe('UserManagementPage — Identity-backed account UI', () => {
     render(<UserManagementPage initialView="login" api={createDemoAccountApi()} />);
 
     fireEvent.change(screen.getByLabelText('メールアドレス'), { target: { value: 'reader@myriale.example' } });
-    fireEvent.change(screen.getByTestId('login-password'), { target: { value: 'a' } });
+    fireEvent.change(screen.getByTestId('login-password'), { target: { value: 'letters1' } });
     fireEvent.click(screen.getByRole('button', { name: 'ログインする' }));
     expect(await screen.findByRole('region', { name: 'プロフィール' })).toBeVisible();
 
@@ -59,12 +59,13 @@ describe('UserManagementPage — Identity-backed account UI', () => {
     expect(screen.getByTestId('um-notice')).toHaveTextContent('認証セッションを無効化');
   });
 
-  it('US-UM04: 開発用トークンでパスワードを再設定できる', async () => {
+  it('US-UM04: 専用transportで受け取ったトークンでパスワードを再設定できる', async () => {
     render(<UserManagementPage initialView="reset" api={createDemoAccountApi()} />);
 
     fireEvent.change(screen.getByLabelText('メールアドレス'), { target: { value: 'reader@myriale.example' } });
     fireEvent.click(screen.getByRole('button', { name: '再設定リンクを送信する' }));
-    expect(await screen.findByDisplayValue('demo-reset-token')).toBeInTheDocument();
+    expect(await screen.findByTestId('um-notice')).toHaveTextContent('登録済みの場合');
+    fireEvent.change(screen.getByLabelText('再設定トークン'), { target: { value: 'demo-reset-token' } });
 
     fireEvent.change(screen.getByLabelText('新しいパスワード'), { target: { value: 'changed1' } });
     fireEvent.click(screen.getByRole('button', { name: 'パスワードを変更する' }));
@@ -101,17 +102,17 @@ describe('UserManagementPage — Identity-backed account UI', () => {
 
     expect(await screen.findByRole('navigation', { name: '主要セクション' })).toBeVisible();
     expect(screen.getByTestId('app-url')).toHaveTextContent('/admin');
-    const openai = await screen.findByTestId('ai-key-row-openai');
+    const openai = await screen.findByTestId('ai-profile-row-openai');
     expect(openai).toHaveTextContent('OpenAI');
-    expect(openai).toHaveTextContent('Vault / 環境変数');
+    expect(openai).toHaveTextContent('deployment');
     expect(openai).toHaveTextContent('使用中');
 
     fireEvent.click(within(openai).getByRole('button', { name: '接続テスト' }));
-    expect(await screen.findByTestId('ai-key-notice')).toHaveTextContent('OpenAIへの接続テストに成功');
+    expect(await screen.findByTestId('ai-admin-notice')).toHaveTextContent('接続テストを完了しました。');
 
-    const runpod = screen.getByTestId('ai-key-row-runpod');
-    fireEvent.click(within(runpod).getByRole('button', { name: 'このAIを使用' }));
-    expect(await screen.findByTestId('ai-key-notice')).toHaveTextContent('使用するAIをRunpod Serverlessへ切り替えました');
+    const runpod = screen.getByTestId('ai-profile-row-runpod');
+    fireEvent.click(within(runpod).getByRole('button', { name: '使用' }));
+    expect(await screen.findByTestId('ai-admin-notice')).toHaveTextContent('使用するProfileを変更しました。');
     expect(runpod).toHaveTextContent('使用中');
     expect(openai).not.toHaveTextContent('使用中');
   });
@@ -121,12 +122,12 @@ describe('UserManagementPage — Identity-backed account UI', () => {
 
     const profileId = await screen.findByRole('textbox', { name: 'Profile ID' });
     fireEvent.change(profileId, { target: { value: 'acme-story' } });
-    fireEvent.change(screen.getByRole('textbox', { name: '表示名' }), { target: { value: 'Acme Story' } });
-    fireEvent.change(screen.getByRole('textbox', { name: 'Base URL' }), { target: { value: 'https://ai.acme.test/v1' } });
-    fireEvent.change(screen.getByRole('textbox', { name: 'Model' }), { target: { value: 'acme/story-1' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Profile表示名' }), { target: { value: 'Acme Story' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Profile Base URL' }), { target: { value: 'https://ai.acme.test/v1' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Profile Model' }), { target: { value: 'acme/story-1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Profileを保存' }));
 
-    const row = await screen.findByTestId('ai-key-row-acme-story');
+    const row = await screen.findByTestId('ai-profile-row-acme-story');
     expect(row).toHaveTextContent('Acme Story');
     expect(row).toHaveTextContent('acme/story-1');
     expect(row).toHaveTextContent('database');

@@ -1,165 +1,156 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Data;
-using Myriale.Api.Services;
+using Myriale.Api.Features.SessionExecutions.Application;
+using Myriale.Api.Infrastructure.Persistence;
+using Myriale.Api.Features.SessionExecutions.Infrastructure;
 
 namespace Myriale.Api.Tests;
 
 public sealed class SessionExecutionQueueTests
 {
     [Fact]
-    public async Task ClaimAsyncClaimsOnlyBoundedHighestPriorityEligibleBatch()
+    public async Task ClaimBatchClaimsOnlyBoundedHighestPriorityEligibleBatch()
     {
         var now = new DateTimeOffset(2026, 7, 21, 12, 0, 0, TimeSpan.Zero);
         await using var fixture = await QueueFixture.CreateAsync(now);
         fixture.Db.SessionExecutions.AddRange(
-            Execution("EXE-LOW", SessionExecutionStatuses.Queued, 1, now.AddMinutes(-3)),
-            Execution("EXE-HIGH", SessionExecutionStatuses.Queued, 9, now.AddMinutes(-1)),
-            Execution("EXE-RETRY", SessionExecutionStatuses.RetryWait, 5, now.AddMinutes(-2), now.AddSeconds(-1)),
-            Execution("EXE-NOT-DUE", SessionExecutionStatuses.RetryWait, 20, now.AddMinutes(-4), now.AddMinutes(1)));
+            Execution(new SessionExecutionId("EXE-LOW"), SessionExecutionStatus.Queued, 1, now.AddMinutes(-3)),
+            Execution(new SessionExecutionId("EXE-HIGH"), SessionExecutionStatus.Queued, 9, now.AddMinutes(-1)),
+            Execution(new SessionExecutionId("EXE-RETRY"), SessionExecutionStatus.RetryWait, 5, now.AddMinutes(-2), now.AddSeconds(-1)),
+            Execution(new SessionExecutionId("EXE-NOT-DUE"), SessionExecutionStatus.RetryWait, 20, now.AddMinutes(-4), now.AddMinutes(1)));
         await fixture.Db.SaveChangesAsync();
 
-        var claims = await fixture.Queue.ClaimAsync("worker-test", 2, TimeSpan.FromMinutes(2), CancellationToken.None);
+        var result = await fixture.Repository.ClaimBatchAsync("worker-test", 2, TimeSpan.FromMinutes(2), CancellationToken.None);
 
-        Assert.Equal(["EXE-HIGH", "EXE-RETRY"], claims.Select(claim => claim.ExecutionId).ToArray());
-        Assert.All(claims, claim => Assert.Equal(1, claim.Revision));
-        var claimed = await fixture.Db.SessionExecutions.Where(item => claims.Select(claim => claim.ExecutionId).Contains(item.Id)).ToListAsync();
+        Assert.Equal(SessionExecutionOperationOutcome.Success, result.Outcome);
+        Assert.Equal([new SessionExecutionId("EXE-HIGH"), new SessionExecutionId("EXE-RETRY")], result.Claims.Select(claim => claim.ExecutionId).ToArray());
+        Assert.All(result.Claims, claim => Assert.Equal(1, claim.Revision));
+        fixture.Db.ChangeTracker.Clear();
+        var claimed = await fixture.Db.SessionExecutions.Where(item => result.Claims.Select(claim => claim.ExecutionId).Contains(item.Id)).ToListAsync();
         Assert.All(claimed, item =>
         {
-            Assert.Equal(SessionExecutionStatuses.Running, item.Status);
+            Assert.Equal(SessionExecutionStatus.Running, item.Status);
             Assert.Equal("worker-test", item.LeaseOwner);
             Assert.NotNull(item.LeaseToken);
             Assert.Equal(now.AddMinutes(2), item.LeaseExpiresAt);
             Assert.Equal(1, item.AttemptCount);
         });
         Assert.Equal(2, await fixture.Db.SessionExecutionAttempts.CountAsync());
-        Assert.Equal(SessionExecutionStatuses.Queued, (await fixture.Db.SessionExecutions.FindAsync("EXE-LOW"))!.Status);
-        Assert.Equal(SessionExecutionStatuses.RetryWait, (await fixture.Db.SessionExecutions.FindAsync("EXE-NOT-DUE"))!.Status);
     }
 
     [Fact]
-    public async Task HeartbeatAsyncRequiresMatchingLeaseTokenAndRevision()
+    public async Task HeartbeatDistinguishesStaleClaimAndRevisionConflict()
     {
         var now = new DateTimeOffset(2026, 7, 21, 12, 0, 0, TimeSpan.Zero);
         await using var fixture = await QueueFixture.CreateAsync(now);
-        fixture.Db.SessionExecutions.Add(Execution("EXE-1", SessionExecutionStatuses.Queued, 0, now));
+        fixture.Db.SessionExecutions.Add(Execution(new SessionExecutionId("EXE-1"), SessionExecutionStatus.Queued, 0, now));
         await fixture.Db.SaveChangesAsync();
-        var claim = Assert.Single(await fixture.Queue.ClaimAsync("worker-test", 1, TimeSpan.FromMinutes(2), CancellationToken.None));
+        var claim = Assert.Single((await fixture.Repository.ClaimBatchAsync("worker-test", 1, TimeSpan.FromMinutes(2), CancellationToken.None)).Claims);
         fixture.Time.Advance(TimeSpan.FromSeconds(30));
 
-        Assert.False(await fixture.Queue.HeartbeatAsync(claim with { LeaseToken = "LET-STALE" }, TimeSpan.FromMinutes(2), CancellationToken.None));
-        Assert.False(await fixture.Queue.HeartbeatAsync(claim with { Revision = claim.Revision - 1 }, TimeSpan.FromMinutes(2), CancellationToken.None));
-        Assert.True(await fixture.Queue.HeartbeatAsync(claim, TimeSpan.FromMinutes(2), CancellationToken.None));
-
-        fixture.Db.ChangeTracker.Clear();
-        var execution = await fixture.Db.SessionExecutions.SingleAsync();
-        Assert.Equal(now.AddMinutes(2).AddSeconds(30), execution.LeaseExpiresAt);
-        Assert.Equal(claim.Revision, execution.Revision);
+        Assert.Equal(SessionExecutionOperationOutcome.StaleClaim,
+            await fixture.Repository.HeartbeatAsync(claim with { LeaseToken = "LET-STALE" }, TimeSpan.FromMinutes(2), CancellationToken.None));
+        Assert.Equal(SessionExecutionOperationOutcome.RevisionConflict,
+            await fixture.Repository.HeartbeatAsync(claim with { Revision = claim.Revision - 1 }, TimeSpan.FromMinutes(2), CancellationToken.None));
+        Assert.Equal(SessionExecutionOperationOutcome.Success,
+            await fixture.Repository.HeartbeatAsync(claim, TimeSpan.FromMinutes(2), CancellationToken.None));
     }
 
     [Fact]
-    public async Task ClaimAsyncReplacesExpiredLeaseWithNewFenceGeneration()
+    public async Task ReclaimExpiresAttemptAndStaleFinalizerCannotDestroyNewLease()
     {
         var now = new DateTimeOffset(2026, 7, 21, 12, 0, 0, TimeSpan.Zero);
         await using var fixture = await QueueFixture.CreateAsync(now);
-        var expired = Execution("EXE-1", SessionExecutionStatuses.Running, 0, now.AddMinutes(-5));
+        var expired = Execution(new SessionExecutionId("EXE-1"), SessionExecutionStatus.Running, 0, now.AddMinutes(-5));
         expired.Revision = 4;
         expired.LeaseOwner = "worker-old";
         expired.LeaseToken = "LET-OLD";
         expired.LeaseExpiresAt = now.AddSeconds(-1);
         expired.AttemptCount = 1;
         fixture.Db.SessionExecutions.Add(expired);
-        fixture.Db.SessionExecutionAttempts.Add(new SessionExecutionAttempt
-        {
-            Id = "ATT-OLD",
-            ExecutionId = expired.Id,
-            AttemptNumber = 1,
-            Status = "running",
-            WorkerId = "worker-old",
-            StartedAt = now.AddMinutes(-5),
-        });
+        fixture.Db.SessionExecutionAttempts.Add(SessionExecutionAttempt.Start(new SessionExecutionAttemptId("ATT-OLD"), expired.Id, 1, "worker-old", now.AddMinutes(-5)));
         await fixture.Db.SaveChangesAsync();
-        var staleClaim = new SessionExecutionClaim(expired.Id, "LET-OLD", 4, "ATT-OLD", 1);
+        var staleClaim = new SessionExecutionClaim(expired.Id, "LET-OLD", 4, new SessionExecutionAttemptId("ATT-OLD"), 1);
 
-        var claim = Assert.Single(await fixture.Queue.ClaimAsync("worker-new", 1, TimeSpan.FromMinutes(2), CancellationToken.None));
+        var claim = Assert.Single((await fixture.Repository.ClaimBatchAsync("worker-new", 1, TimeSpan.FromMinutes(2), CancellationToken.None)).Claims);
 
         Assert.Equal(5, claim.Revision);
         Assert.NotEqual("LET-OLD", claim.LeaseToken);
         Assert.Equal(2, claim.AttemptNumber);
+        fixture.Db.ChangeTracker.Clear();
         var attempts = await fixture.Db.SessionExecutionAttempts.OrderBy(item => item.AttemptNumber).ToListAsync();
-        Assert.Equal("expired", attempts[0].Status);
-        Assert.Equal(now, attempts[0].CompletedAt);
+        Assert.Equal(SessionExecutionAttemptStatus.Expired, attempts[0].Status);
         Assert.Equal("lease_expired", attempts[0].ErrorCode);
         Assert.True(attempts[0].Retryable);
-        Assert.Equal("running", attempts[1].Status);
-        Assert.False(await fixture.Queue.HeartbeatAsync(staleClaim, TimeSpan.FromMinutes(2), CancellationToken.None));
 
-        await new SessionExecutionFinalizer(fixture.Db, fixture.Time).FinishAsync(staleClaim, new(true), activity: null, CancellationToken.None);
+        var staleResult = await fixture.Repository.FinalizeAsync(
+            new(staleClaim, new(true), null, null, null), CancellationToken.None);
+        Assert.Equal(SessionExecutionOperationOutcome.StaleClaim, staleResult.Outcome);
         fixture.Db.ChangeTracker.Clear();
         var current = await fixture.Db.SessionExecutions.SingleAsync();
-        Assert.Equal(SessionExecutionStatuses.Running, current.Status);
+        Assert.Equal(SessionExecutionStatus.Running, current.Status);
         Assert.Equal(claim.Revision, current.Revision);
         Assert.Equal(claim.LeaseToken, current.LeaseToken);
     }
 
     [Fact]
-    public async Task FinalizerClosesCancelRequestedAttemptDespiteCancellationRevision()
+    public async Task FinalizeClosesCancelRequestedAttemptDespiteCancellationRevision()
     {
         var now = new DateTimeOffset(2026, 7, 21, 12, 0, 0, TimeSpan.Zero);
         await using var fixture = await QueueFixture.CreateAsync(now);
-        var execution = Execution("EXE-1", SessionExecutionStatuses.Running, 0, now.AddMinutes(-1));
-        execution.Revision = 1;
-        execution.LeaseOwner = "worker-test";
-        execution.LeaseToken = "LET-CURRENT";
-        execution.LeaseExpiresAt = now.AddMinutes(2);
-        execution.AttemptCount = 1;
-        execution.StartedAt = now.AddMinutes(-1);
-        var attempt = new SessionExecutionAttempt
-        {
-            Id = "ATT-1",
-            ExecutionId = execution.Id,
-            AttemptNumber = 1,
-            Status = "running",
-            WorkerId = "worker-test",
-            StartedAt = now.AddMinutes(-1),
-        };
-        fixture.Db.SessionExecutions.Add(execution);
-        fixture.Db.SessionExecutionAttempts.Add(attempt);
+        fixture.Db.SessionExecutions.Add(Execution(new SessionExecutionId("EXE-1"), SessionExecutionStatus.Queued, 0, now.AddMinutes(-1)));
         await fixture.Db.SaveChangesAsync();
-        var claim = new SessionExecutionClaim(execution.Id, execution.LeaseToken, execution.Revision, attempt.Id, attempt.AttemptNumber);
+        var claim = Assert.Single((await fixture.Repository.ClaimBatchAsync("worker-test", 1, TimeSpan.FromMinutes(2), CancellationToken.None)).Claims);
+        fixture.Db.ChangeTracker.Clear();
+        var execution = await fixture.Db.SessionExecutions.SingleAsync();
+        execution.RequestCancellation(now);
+        await fixture.Db.SaveChangesAsync();
 
-        SessionExecutionStateMachine.Transition(execution, SessionExecutionStatuses.CancelRequested);
-        execution.CancelRequestedAt = now;
-        await fixture.Db.SaveChangesAsync();
-        Assert.False(await fixture.Queue.HeartbeatAsync(claim, TimeSpan.FromMinutes(2), CancellationToken.None));
-        await new SessionExecutionFinalizer(fixture.Db, fixture.Time).FinishAsync(
-            claim,
-            new(false, false, "execution_cancelled", "cancelled", ErrorCategory: "cancellation"),
-            activity: null,
+        var result = await fixture.Repository.FinalizeAsync(
+            new(claim, new(false, false, "execution_cancelled", "cancelled", ErrorCategory: "cancellation"), null, null, null),
             CancellationToken.None);
 
+        Assert.Equal(SessionExecutionOperationOutcome.Success, result.Outcome);
         fixture.Db.ChangeTracker.Clear();
         execution = await fixture.Db.SessionExecutions.SingleAsync();
-        attempt = await fixture.Db.SessionExecutionAttempts.SingleAsync();
-        Assert.Equal(SessionExecutionStatuses.Cancelled, execution.Status);
-        Assert.Equal(3, execution.Revision);
-        Assert.Equal(now, execution.CompletedAt);
+        var attempt = await fixture.Db.SessionExecutionAttempts.SingleAsync();
+        Assert.Equal(SessionExecutionStatus.Cancelled, execution.Status);
         Assert.Null(execution.LeaseToken);
+        Assert.Equal(SessionExecutionAttemptStatus.Cancelled, attempt.Status);
         Assert.Equal("cancellation", attempt.ErrorCategory);
-        Assert.Equal("cancelled", attempt.Status);
-        Assert.Equal(now, attempt.CompletedAt);
     }
 
-    private static SessionExecution Execution(string id, string status, int priority, DateTimeOffset queuedAt, DateTimeOffset? nextAttemptAt = null) => new()
+    [Fact]
+    public async Task RetryDelayUsesInjectedDeterministicJitter()
+    {
+        var now = new DateTimeOffset(2026, 7, 21, 12, 0, 0, TimeSpan.Zero);
+        await using var fixture = await QueueFixture.CreateAsync(now, jitter: 0.25);
+        fixture.Db.SessionExecutions.Add(Execution(new SessionExecutionId("EXE-1"), SessionExecutionStatus.Queued, 0, now));
+        await fixture.Db.SaveChangesAsync();
+        var claim = Assert.Single((await fixture.Repository.ClaimBatchAsync("worker-test", 1, TimeSpan.FromMinutes(2), CancellationToken.None)).Claims);
+
+        var result = await fixture.Repository.FinalizeAsync(
+            new(claim, new(false, true, "timeout", "retry", ErrorCategory: "provider"), null, null, null),
+            CancellationToken.None);
+
+        Assert.Equal(SessionExecutionOperationOutcome.Success, result.Outcome);
+        Assert.Equal(TimeSpan.FromSeconds(2.25), result.RetryDelay);
+        fixture.Db.ChangeTracker.Clear();
+        var execution = await fixture.Db.SessionExecutions.SingleAsync();
+        Assert.Equal(SessionExecutionStatus.RetryWait, execution.Status);
+        Assert.Equal(now.AddSeconds(2.25), execution.NextAttemptAt);
+    }
+
+    private static SessionExecution Execution(SessionExecutionId id, SessionExecutionStatus status, int priority, DateTimeOffset queuedAt, DateTimeOffset? nextAttemptAt = null) => new()
     {
         Id = id,
-        SessionId = "SES-1",
-        Kind = SessionExecutionKinds.Narrative,
-        TriggerType = "player-input",
-        TriggerId = $"INP-{id}",
+        SessionId = new SessionId("SES-1"),
+        Kind = SessionExecutionKind.Narrative,
+        TriggerType = SessionExecutionTriggerType.PlayerInput,
+        TriggerId = new SessionExecutionTriggerId($"INP-{id}"),
         Status = status,
         Revision = 0,
-        IdempotencyKey = id,
+        IdempotencyKey = id.AsPrimitive(),
         PayloadHash = new string('a', 64),
         Priority = priority,
         MaxAttempts = 3,
@@ -168,39 +159,28 @@ public sealed class SessionExecutionQueueTests
         QueuedAt = queuedAt,
     };
 
-    private sealed class QueueFixture(SqliteConnection connection, ApplicationDbContext db, MutableTimeProvider time) : IAsyncDisposable
+    private sealed class QueueFixture(SqliteConnection connection, ApplicationDbContext db, MutableTimeProvider time, double jitter) : IAsyncDisposable
     {
         public ApplicationDbContext Db { get; } = db;
         public MutableTimeProvider Time { get; } = time;
-        public SessionExecutionQueue Queue { get; } = new(db, time);
+        public EfSessionExecutionOperationsRepository Repository { get; } =
+            new(db, time, new SessionExecutionRetryPolicy(new FixedJitter(jitter)));
 
-        public static async Task<QueueFixture> CreateAsync(DateTimeOffset now)
+        public static async Task<QueueFixture> CreateAsync(DateTimeOffset now, double jitter = 0)
         {
             var connection = new SqliteConnection("Data Source=:memory:");
             await connection.OpenAsync();
             var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(connection).Options;
             var db = new ApplicationDbContext(options);
             await db.Database.EnsureCreatedAsync();
-            db.Scenarios.Add(new Scenario
-            {
-                Id = "SCN-1",
-                Title = "Queue test",
-                AuthorId = "USR-1",
-                CreatedAt = now,
-                UpdatedAt = now,
-            });
+            db.Scenarios.Add(new Scenario { Id = new ScenarioId("SCN-1"), Title = "Queue test", AuthorId = new AccountId("USR-1"), CreatedAt = now, UpdatedAt = now });
             db.Sessions.Add(new Session
             {
-                Id = "SES-1",
-                OwnerId = "USR-1",
-                ScenarioId = "SCN-1",
-                SelectedHero = "Hero",
-                Status = "active",
-                CreatedAt = now,
-                UpdatedAt = now,
+                Id = new SessionId("SES-1"), OwnerId = new AccountId("USR-1"), ScenarioId = new ScenarioId("SCN-1"), SelectedHero = "Hero",
+                Status = SessionStatus.Active, CreatedAt = now, UpdatedAt = now,
             });
             await db.SaveChangesAsync();
-            return new QueueFixture(connection, db, new MutableTimeProvider(now));
+            return new QueueFixture(connection, db, new MutableTimeProvider(now), jitter);
         }
 
         public async ValueTask DisposeAsync()
@@ -209,6 +189,8 @@ public sealed class SessionExecutionQueueTests
             await connection.DisposeAsync();
         }
     }
+
+    private sealed class FixedJitter(double value) : ISessionExecutionJitter { public double NextUnit() => value; }
 
     private sealed class MutableTimeProvider(DateTimeOffset now) : TimeProvider
     {

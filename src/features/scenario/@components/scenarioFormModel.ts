@@ -1,4 +1,4 @@
-import type { CreateScenarioPayload, ScenarioAiAssistResponse, ScenarioAiKind, ScenarioDraftDto, ScenarioRuleDebugRequest, ScenarioRuleDebugResponse } from '../../../app/scenarioApi';
+import type { CreateScenarioPayload, ScenarioAiAssistResponse, ScenarioAiKind, ScenarioDraftDto, ScenarioRuleDataReadinessDto, ScenarioRuleDebugRequest, ScenarioRuleDebugResponse } from '../../../app/scenarioApi';
 import { emptyScenarioRuleData } from './rule-data/scenarioRuleDataModel';
 
 export type ScenarioFormValues = Required<Omit<CreateScenarioPayload, 'tone' | 'lore' | 'ruleData'>> & {
@@ -15,11 +15,15 @@ export type ScenarioFormCommandResult<T = undefined> = {
 export type ScenarioFormSaveResult = ScenarioFormCommandResult<{ scenarioId: string }>;
 export type ScenarioFormAssistResult = ScenarioFormCommandResult<ScenarioAiAssistResponse>;
 export type ScenarioFormDebugResult = ScenarioFormCommandResult<ScenarioRuleDebugResponse>;
+export type ScenarioFormReadinessResult = ScenarioFormCommandResult<ScenarioRuleDataReadinessDto>;
+export type ScenarioFormPublishResult = ScenarioFormCommandResult;
 
 export type ScenarioFormActions = {
   save: (values: ScenarioFormValues) => Promise<ScenarioFormSaveResult>;
   assist: (values: ScenarioFormValues, kind: ScenarioAiKind, target: string) => Promise<ScenarioFormAssistResult>;
   debug: (values: ScenarioFormValues, request: ScenarioRuleDebugRequest) => Promise<ScenarioFormDebugResult>;
+  checkReadiness?: () => Promise<ScenarioFormReadinessResult>;
+  publish?: () => Promise<ScenarioFormPublishResult>;
 };
 
 export const emptyScenarioFormValues: ScenarioFormValues = {

@@ -1,6 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Myriale.Api.Services;
+using Myriale.Api.Features.Scenarios.Domain;
 
 namespace Myriale.Api.Tests;
 
@@ -49,5 +49,9 @@ public sealed class ScenarioRuleEvaluatorTests
         Assert.False(Evaluate("{\"op\":\"exists\",\"path\":\"session.flags.missing\"}"));
     }
 
-    private bool Evaluate(string condition) => _evaluator.Evaluate(condition, _state, _flags, _arguments);
+    private bool Evaluate(string condition)
+    {
+        try { return _evaluator.Evaluate(ConditionExpression.FromJson(condition), _state, _flags, _arguments); }
+        catch (JsonException) { return false; }
+    }
 }

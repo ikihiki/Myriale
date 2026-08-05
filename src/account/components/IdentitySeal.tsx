@@ -10,10 +10,7 @@ const sizeClassNames: Record<IdentitySize, string> = {
 
 const stateClassNames: Record<AccountState, string> = {
   active: '[background:radial-gradient(circle_at_32%_26%,rgba(255,255,255,.5),transparent_44%),conic-gradient(from_180deg,var(--verde),var(--mist),#7fd2ad,var(--verde))] text-[#0f2a1f]',
-  unverified: '[background:radial-gradient(circle_at_32%_26%,rgba(255,255,255,.5),transparent_44%),conic-gradient(from_180deg,var(--ember),var(--amber),#ffd9a8,var(--ember))]',
-  pending: '[background:radial-gradient(circle_at_32%_26%,rgba(255,255,255,.5),transparent_44%),conic-gradient(from_180deg,var(--ember),var(--amber),#ffd9a8,var(--ember))]',
-  suspended: '[background:radial-gradient(circle_at_32%_26%,rgba(255,255,255,.4),transparent_44%),conic-gradient(from_180deg,var(--seal),#e08a86,var(--seal))] text-white',
-  deleted: '[background:radial-gradient(circle_at_32%_26%,rgba(255,255,255,.2),transparent_44%),#6c6577] text-[#efe9ee] grayscale-[.4]',
+  withdrawn: '[background:radial-gradient(circle_at_32%_26%,rgba(255,255,255,.2),transparent_44%),#6c6577] text-[#efe9ee] grayscale-[.4]',
 };
 
 export function IdentitySeal({

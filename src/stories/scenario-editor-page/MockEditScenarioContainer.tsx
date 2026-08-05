@@ -31,6 +31,16 @@ export function MockEditScenarioContainer({ scenarioId }: { scenarioId: string }
     },
   });
 
+  const checkReadiness: NonNullable<ScenarioFormActions['checkReadiness']> = async () => ({
+    ok: true,
+    message: '公開準備が完了しています。シナリオを公開できます。',
+    value: { definitionVersionId: `demo-${scenarioId}`, ready: true, errors: {} },
+  });
+  const publish: NonNullable<ScenarioFormActions['publish']> = async () => ({
+    ok: true,
+    message: 'シナリオを公開しました。公開版として利用できます。',
+  });
+
   return <EditScenarioPresentation
     account={account}
     scenarioId={scenarioId}
@@ -38,7 +48,7 @@ export function MockEditScenarioContainer({ scenarioId }: { scenarioId: string }
     status="ready"
     saving={saving}
     aiWorking={false}
-    actions={{ save, assist, debug }}
+    actions={{ save, assist, debug, checkReadiness, publish }}
     onRetry={() => undefined}
     onLogout={() => undefined}
   />;

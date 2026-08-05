@@ -5,7 +5,7 @@ export type ModuleOutcome = { category: string; code: string; title: string; sum
 export type ModuleExecution = {
   id: string;
   package: { moduleId: string; version: string; digest: string; contractVersion: string };
-  status: string;
+  status: 'Initializing' | 'Active' | 'Completed' | 'Failed';
   revision: number;
   viewState: unknown;
   availableActions: ModuleAvailableAction[];

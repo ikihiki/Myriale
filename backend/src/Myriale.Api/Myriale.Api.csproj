@@ -9,9 +9,11 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.9" />
     <PackageReference Include="Microsoft.Extensions.AI" Version="10.8.0" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.6.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.9" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+    <PackageReference Include="UnitGenerator" Version="2.0.0" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
@@ -19,8 +21,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Myriale.Architecture.Analyzers\Myriale.Architecture.Analyzers.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Myriale.ModuleSdk\Myriale.ModuleSdk.csproj" />
     <ProjectReference Include="..\Myriale.ServiceDefaults\Myriale.ServiceDefaults.csproj" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <WarningsAsErrors>$(WarningsAsErrors);MYRSLICE001;MYRSLICE002;MYRSLICE003;MYRSLICE004;MYRSLICE005</WarningsAsErrors>
+  </PropertyGroup>
 
 </Project>

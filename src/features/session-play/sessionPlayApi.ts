@@ -160,8 +160,16 @@ export type SessionExecutionApiResponse = {
 };
 
 export type SessionArtifactApiResponse = {
-  id: string; executionId: string; kind: 'narrative-text' | 'note-patch' | 'image' | 'summary' | string;
-  status: string; contentType: string; mediaUrl?: string | null; metadataJson?: string | null; createdAt: string; committedAt?: string | null;
+  id: string;
+  executionId: string;
+  kind: 'rule-action-step' | 'post-state-narrative' | 'narrative-text' | 'note-patch' | 'image';
+  status: 'draft' | 'validated' | 'committed';
+  schema: 'rule-action-step.v1' | 'post-state-narrative.v1' | 'narrative-text.v1' | 'note-patch.v1' | 'image.v1';
+  contentType: string;
+  mediaUrl?: string | null;
+  metadataJson?: string | null;
+  createdAt: string;
+  committedAt?: string | null;
 };
 export type SessionActivityApiResponse = { type: 'input' | 'execution' | 'artifact' | 'turn'; id: string; order: number; causalId?: string | null };
 export type SessionNoteProposalApiResponse = {
@@ -294,7 +302,7 @@ export async function acceptSessionInput(
   if (!baseUrl) throw sessionApiError('Session APIが設定されていません。', 503, 'session_api_unavailable');
   const response = await sessionFetch(`${baseUrl}/${encodeURIComponent(sessionId)}/inputs`, {
     method: 'POST', credentials: 'include', headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ requestId, text, interactionType, requestedOutputs: ['scenario-turn'], supersedesInputId, actionDecisionAiProfileId, narrativeAiProfileId }),
+    body: JSON.stringify({ requestId, text, interactionType, supersedesInputId, actionDecisionAiProfileId, narrativeAiProfileId }),
   });
   if (!response.ok) throw await toSessionApiError(response, 'Player Inputを受け付けられませんでした。');
   return response.json() as Promise<SessionInputAcceptedApiResponse>;

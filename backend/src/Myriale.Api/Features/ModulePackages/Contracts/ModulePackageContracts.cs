@@ -1,0 +1,21 @@
+namespace Myriale.Api.Features.ModulePackages.Contracts;
+
+public sealed record ModulePackageResponse(
+    string Digest,
+    string ModuleId,
+    string Version,
+    string ContractVersion,
+    string DisplayName,
+    string Description,
+    string Status,
+    bool IsEnabled,
+    long Revision,
+    DateTimeOffset InstalledAt,
+    DateTimeOffset LastScannedAt,
+    string? LastError);
+
+public sealed record ModulePackageRevisionRequest(long ExpectedRevision);
+public sealed record ModulePackageInstallResponse(ModulePackageResponse Package, bool Created);
+public sealed record ModulePackageScanIssueResponse(string FileName, string Message);
+public sealed record ModulePackageScanResponse(int Installed, int Unchanged, int Missing, IReadOnlyList<ModulePackageScanIssueResponse> Issues);
+public sealed record ModulePackageErrorResponse(string Message, long? CurrentRevision = null);

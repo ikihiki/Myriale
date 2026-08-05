@@ -1,0 +1,69 @@
+using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+
+namespace Myriale.Api.Features.NarrativeGeneration.Infrastructure;
+
+public sealed class MockAiNarrativeGenerator(
+    IHttpClientFactory httpClientFactory,
+    IScenarioActionDecisionService actionDecisionMapper)
+    : INarrativeGenerator, IActionRecommendationGenerator, IScenarioTurnAiService
+{
+    private static readonly JsonSerializerOptions StrictDialogueResultJsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+    };
+
+    public async Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionAsync(ModelActionDecisionRequest request, CancellationToken cancellationToken)
+    {
+        var client = httpClientFactory.CreateClient("MockAi");
+        using var response = await client.PostAsJsonAsync("/mock-ai/rule-action-decision", request, cancellationToken);
+        if (!response.IsSuccessStatusCode) throw new NarrativeGenerationException("Action decision provider returned an error.");
+        var result = await response.Content.ReadFromJsonAsync<ModelActionDecisionResult>(StrictDialogueResultJsonOptions, cancellationToken)
+            ?? throw new NarrativeGenerationException("Action decision provider returned an invalid response.");
+        var audit = new ModelActionDecisionPromptAudit(
+            ScenarioTurnSchemas.ModelActionDecisionPrompt,
+            actionDecisionMapper.SystemPrompt,
+            request,
+            ScenarioTurnSchemas.ModelActionDecisionResult);
+        return new(result, MockMetadata(), JsonSerializer.Serialize(audit), JsonSerializer.Serialize(result));
+    }
+
+    public async Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeAsync(PostStateNarrativeRequest request, CancellationToken cancellationToken)
+    {
+        var client = httpClientFactory.CreateClient("MockAi");
+        using var response = await client.PostAsJsonAsync("/mock-ai/post-state-narrative", request, cancellationToken);
+        if (!response.IsSuccessStatusCode) throw new NarrativeGenerationException("Post-state narrative provider returned an error.");
+        var result = await response.Content.ReadFromJsonAsync<PostStateNarrativeResult>(StrictDialogueResultJsonOptions, cancellationToken)
+            ?? throw new NarrativeGenerationException("Post-state narrative provider returned an invalid response.");
+        return new(result, MockMetadata(), JsonSerializer.Serialize(request), JsonSerializer.Serialize(result));
+    }
+
+    public async Task<NarrativeActionRecommendationResult> RecommendActionAsync(
+        NarrativeActionRecommendationRequest request,
+        CancellationToken cancellationToken)
+    {
+        var client = httpClientFactory.CreateClient("MockAi");
+        using var response = await client.PostAsJsonAsync("/mock-ai/action-recommendation", request, cancellationToken);
+        if (!response.IsSuccessStatusCode) throw new NarrativeGenerationException("Action recommendation provider returned an error.");
+        var result = await response.Content.ReadFromJsonAsync<NarrativeActionRecommendationResult>(cancellationToken: cancellationToken);
+        if (string.IsNullOrWhiteSpace(result?.Suggestion) || result.Suggestion.Length > 500)
+            throw new NarrativeGenerationException("Action recommendation provider returned an invalid response.");
+        return result with { Suggestion = result.Suggestion.Trim() };
+    }
+
+    public async Task<NarrativeGeneration<string>> GenerateAsync(NarrativeHandoffRequest request, CancellationToken cancellationToken)
+    {
+        var client = httpClientFactory.CreateClient("MockAi");
+        using var response = await client.PostAsJsonAsync("/mock-ai/narrative-handoff", request, cancellationToken);
+        if (!response.IsSuccessStatusCode) throw new NarrativeGenerationException("Narrative provider returned an error.");
+        var body = await response.Content.ReadFromJsonAsync<NarrativeHandoffResponse>(cancellationToken: cancellationToken);
+        if (string.IsNullOrWhiteSpace(body?.Body) || body.Body.Length > 20_000)
+            throw new NarrativeGenerationException("Narrative provider returned an invalid response.");
+        return new(body.Body.Trim(), MockMetadata(), JsonSerializer.Serialize(request), JsonSerializer.Serialize(body));
+    }
+    private static AiGenerationMetadata MockMetadata() => new(new AiProviderProfileId("mock"), "deterministic", null, null, null, 0, 1, "stop");
+}
+
+public class NarrativeGenerationException(string message, Exception? innerException = null) : Exception(message, innerException);

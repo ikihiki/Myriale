@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Myriale.Api.Data;
+using Myriale.Api.Infrastructure.Persistence;
 
 namespace Myriale.Api.Tests;
 
@@ -43,8 +43,8 @@ public sealed class HomeDashboardEndpointTests : IDisposable
             var scenario = await db.Scenarios.OrderBy(item => item.Id).FirstAsync();
             await SessionListingEndpointTests.AddSessionAsync(
                 db,
-                "SES-HOME-REAL",
-                ownerId,
+                new SessionId("SES-HOME-REAL"),
+                new AccountId(ownerId),
                 scenario.Id,
                 "ホームの主人公",
                 "active",
@@ -53,8 +53,8 @@ public sealed class HomeDashboardEndpointTests : IDisposable
                 false);
             await SessionListingEndpointTests.AddSessionAsync(
                 db,
-                "SES-HOME-COMPLETED",
-                ownerId,
+                new SessionId("SES-HOME-COMPLETED"),
+                new AccountId(ownerId),
                 scenario.Id,
                 "完了した主人公",
                 "completed",

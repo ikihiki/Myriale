@@ -84,7 +84,8 @@ if (isPublishMode)
         var apiContainer = kubernetesResource.Workload?.PodTemplate.Spec.Containers
             .Single(container => container.Name == "myriale-api")
             ?? throw new InvalidOperationException("The Myriale API container was not generated.");
-        AddSecretEnvironment(apiContainer, "AiProvider__CatalogJson", "catalogJson");
+        AddSecretEnvironment(apiContainer, "AiDeployment__Credentials__openai__Secret", "openAiApiKey");
+        AddSecretEnvironment(apiContainer, "AiDeployment__Credentials__runpod__Secret", "runpodApiKey");
         kubernetesResource.AdditionalResources.Add(new MyrialeAiProviderExternalSecret());
 
         if (postgres is not null) return;
@@ -137,7 +138,7 @@ else
         // environments keep the explicit provider and credential semantics configured above.
         .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
         .WithEnvironment("DOTNET_ENVIRONMENT", "Development")
-        .WithEnvironment("AiProvider__Provider", "mock")
+        .WithEnvironment("AiRuntime__Mode", "mock")
         .WithEnvironment("MockAi__BaseUrl", mockAi.GetEndpoint("http"))
         .WaitFor(mockAi)
         .WithExternalHttpEndpoints();
@@ -214,7 +215,8 @@ internal sealed class MyrialeAiProviderExternalSecret : BaseKubernetesResource
             },
             Data =
             [
-                ExternalSecretData.FromAiVault("catalogJson", "catalogJson")
+                ExternalSecretData.FromAiVault("openAiApiKey", "openAiApiKey"),
+                ExternalSecretData.FromAiVault("runpodApiKey", "runpodApiKey")
             ]
         };
     }
