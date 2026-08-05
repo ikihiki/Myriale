@@ -60,16 +60,18 @@ public sealed class ScenarioRuleWorldSnapshotFactory(ScenarioRuleConfigurationRe
         }).ToArray();
         var locations = definition.Locations.OrderBy(item => item.Code, StringComparer.Ordinal)
             .Select(item => new ScenarioRuleLocationSnapshot(item.Id, item.Code, item.Name, item.Description)).ToArray();
+        var currentLocationId = session.CurrentLocationId
+            ?? throw new ScenarioTurnValidationException("scenario_location_not_pinned");
         var narrative = new ScenarioRuleNarrativeSnapshot(
             definition.ScenarioTitle.Value, definition.ScenarioSummary, definition.ScenarioGenre,
             definition.ScenarioTone, definition.ScenarioLore, definition.ScenarioAiFreedom,
             session.SelectedHero, definition.ScenarioOpening,
-            definition.Objects.OrderBy(item => item.Code, StringComparer.Ordinal)
+            objects.Where(item => item.IsGlobal || item.LocationId == currentLocationId)
                 .Select(item => new NarrativeEntityInput(item.Code, item.Name, item.ProfileMarkdown)).ToArray());
         return new ScenarioRuleWorldSnapshot(
             session.Id, session.OwnerId,
             session.ScenarioDefinitionVersionId ?? throw new ScenarioTurnValidationException("scenario_definition_not_pinned"),
-            session.CurrentLocationId ?? throw new ScenarioTurnValidationException("scenario_location_not_pinned"),
+            currentLocationId,
             session.Revision, session.Status, session.State.Revision,
             new ReadOnlyDictionary<string, bool>(new Dictionary<string, bool>(flags, StringComparer.Ordinal)),
             locations, objects, narrative);
