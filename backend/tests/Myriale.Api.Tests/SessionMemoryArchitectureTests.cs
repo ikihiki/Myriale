@@ -1,7 +1,7 @@
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.SessionMemory.Application;
-using Myriale.Api.Data;
+using Myriale.Api.Infrastructure.Persistence;
 
 namespace Myriale.Api.Tests;
 

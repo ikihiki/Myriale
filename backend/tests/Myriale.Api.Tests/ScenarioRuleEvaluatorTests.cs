@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Myriale.Api.Services;
 using Myriale.Api.Features.Scenarios.Domain;
 
 namespace Myriale.Api.Tests;

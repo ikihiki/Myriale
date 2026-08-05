@@ -6,9 +6,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Myriale.Api.Features.ModuleExecutions.Application;
-using Myriale.Api.Data;
 using Myriale.Api.Features.ModulePackages.Infrastructure;
-using Myriale.Api.Services;
 using Myriale.ModuleSdk;
 
 namespace Myriale.Api.Features.ModuleExecutions.Infrastructure;

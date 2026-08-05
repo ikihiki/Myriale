@@ -2,8 +2,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.SessionArtifacts.Application;
-using Myriale.Api.Data;
-using Myriale.Api.Services;
 
 namespace Myriale.Api.Features.ScenarioTurns.Application;
 

@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using Myriale.Api.Features.ModulePackages.Application;
-using Myriale.Api.Data;
 using Myriale.ModuleSdk;
 
 namespace Myriale.Api.Features.ModulePackages.Infrastructure;

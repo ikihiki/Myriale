@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Myriale.Api.Features.ModuleExecutions.Application;
 using Myriale.Api.Features.Sessions.Application;
 using Myriale.Api.Features.ModuleExecutions.Infrastructure;
-using Myriale.Api.Services;
+using Myriale.Api.Infrastructure.Hosting;
 
 namespace Myriale.Api.Features.Sessions.Http;
 

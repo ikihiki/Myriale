@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace Myriale.Api.Features.Scenarios.Infrastructure;
+namespace Myriale.Api.Bootstrap.Seeding;
 
 // API integration tests depend on deterministic scenarios, but application startup must remain empty.
 internal static class ScenarioTestFixtureData

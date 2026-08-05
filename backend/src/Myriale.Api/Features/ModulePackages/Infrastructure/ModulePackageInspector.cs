@@ -2,7 +2,6 @@ using System.IO.Compression;
 using System.Reflection;
 using Microsoft.Extensions.Options;
 using Myriale.Api.Features.ModulePackages.Application;
-using Myriale.Api.Data;
 using Myriale.Api.Features.ModulePackages;
 using Myriale.ModuleSdk;
 

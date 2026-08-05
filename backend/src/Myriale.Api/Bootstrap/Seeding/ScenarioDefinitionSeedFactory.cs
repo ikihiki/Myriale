@@ -1,4 +1,4 @@
-namespace Myriale.Api.Features.Scenarios.Infrastructure;
+namespace Myriale.Api.Bootstrap.Seeding;
 
 internal static class ScenarioDefinitionSeedFactory
 {

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
-using Myriale.Api.Services;
+using Myriale.Api.Infrastructure.Hosting;
 
 namespace Myriale.Api.Tests;
 

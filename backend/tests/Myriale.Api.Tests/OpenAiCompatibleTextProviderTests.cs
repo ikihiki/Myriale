@@ -5,7 +5,6 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Myriale.Api.Features.AiProviders.Application;
-using Myriale.Api.Services;
 
 namespace Myriale.Api.Tests;
 

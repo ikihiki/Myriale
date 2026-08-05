@@ -3,10 +3,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.ModuleHandoffs.Application;
 using Myriale.Api.Features.ScenarioTurns.Application;
-using Myriale.Api.Data;
+using Myriale.Api.Infrastructure.Persistence;
 using Myriale.Api.Features.ModuleHandoffs.Infrastructure;
 using Myriale.Api.Features.ScenarioTurns.Infrastructure;
-using Myriale.Api.Services;
 
 namespace Myriale.Api.Tests;
 
@@ -82,7 +81,8 @@ public sealed class Phase10ArchitectureTests
             .Where(type => type.Namespace?.Contains(".Application", StringComparison.Ordinal) == true)
             .SelectMany(type => ReferencedTypes(type).Select(reference => (Type: type, Reference: reference)))
             .Where(item => item.Reference.Namespace?.StartsWith("Myriale.Api.Endpoints", StringComparison.Ordinal) == true
-                || item.Reference.Namespace?.StartsWith("Myriale.Api.Infrastructure", StringComparison.Ordinal) == true)
+                || item.Reference.Namespace?.StartsWith("Myriale.Api.Infrastructure", StringComparison.Ordinal) == true
+                    && item.Reference != typeof(ApplicationDbContext))
             .Select(item => $"{item.Type.FullName} -> {item.Reference.FullName}")
             .Distinct(StringComparer.Ordinal)
             .ToArray();

@@ -2,9 +2,8 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.SessionArtifacts.Application;
 using Myriale.Api.Features.ModuleExecutions.Application;
-using Myriale.Api.Data;
+using Myriale.Api.Infrastructure.Persistence;
 using Myriale.Api.Features.ModuleExecutions.Infrastructure;
-using Myriale.Api.Services;
 
 namespace Myriale.Api.Features.Sessions.Application;
 

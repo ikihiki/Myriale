@@ -1,7 +1,6 @@
 using System.Diagnostics.Metrics;
 using Microsoft.Extensions.Options;
 using Myriale.Api.Features.SessionExecutions.Application;
-using Myriale.Api.Data;
 
 namespace Myriale.Api.Features.SessionExecutions.Infrastructure;
 

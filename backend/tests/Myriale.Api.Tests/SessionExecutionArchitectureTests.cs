@@ -1,7 +1,6 @@
 using System.Diagnostics.Metrics;
 using System.Diagnostics;
-using Myriale.Api.Data;
-using Myriale.Api.Services;
+using Myriale.Api.Infrastructure.Persistence;
 
 namespace Myriale.Api.Tests;
 

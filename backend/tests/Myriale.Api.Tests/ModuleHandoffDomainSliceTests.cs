@@ -5,10 +5,9 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 using Myriale.Api.Features.ModuleHandoffs.Application;
 using Myriale.Api.Features.ProgressionRuntime.Application;
-using Myriale.Api.Data;
+using Myriale.Api.Infrastructure.Persistence;
 using Myriale.Api.Features.ModuleHandoffs.Infrastructure;
 using Myriale.Api.Features.SessionArtifacts.Infrastructure;
-using Myriale.Api.Services;
 using Myriale.ModuleSdk;
 
 namespace Myriale.Api.Tests;

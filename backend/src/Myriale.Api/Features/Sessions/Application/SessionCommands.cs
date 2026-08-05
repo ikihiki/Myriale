@@ -4,8 +4,6 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using Myriale.Api.Features.ModulePackages.Application;
-using Myriale.Api.Data;
-using Myriale.Api.Services;
 
 namespace Myriale.Api.Features.Sessions.Application;
 

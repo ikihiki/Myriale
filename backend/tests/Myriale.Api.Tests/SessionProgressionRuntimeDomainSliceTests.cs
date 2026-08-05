@@ -2,10 +2,9 @@ using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Myriale.Api.Features.ProgressionRuntime.Application;
-using Myriale.Api.Data;
+using Myriale.Api.Infrastructure.Persistence;
 using Myriale.Api.Features.ProgressionRuntime.Infrastructure;
 using Myriale.Api.Features.ModuleExecutions.Application;
-using Myriale.Api.Services;
 
 namespace Myriale.Api.Tests;
 

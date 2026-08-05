@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.ModuleExecutions.Application;
-using Myriale.Api.Data;
+using Myriale.Api.Infrastructure.Persistence;
 
 namespace Myriale.Api.Features.ModuleExecutions.Infrastructure;
 

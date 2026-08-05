@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Data;
+using Myriale.Api.Infrastructure.Persistence;
 using Myriale.ModuleSdk;
 
 namespace Myriale.Api.Features.ProgressionRuntime.Application;

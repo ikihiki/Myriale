@@ -1,7 +1,5 @@
 using System.Text.Json;
 using Microsoft.Extensions.AI;
-using Myriale.Api.Data;
-using Myriale.Api.Services;
 
 namespace Myriale.Api.Features.AiProviders.Application;
 

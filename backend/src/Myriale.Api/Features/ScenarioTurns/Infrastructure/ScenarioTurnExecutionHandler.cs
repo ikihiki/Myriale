@@ -1,5 +1,4 @@
 using Myriale.Api.Features.ScenarioTurns.Application;
-using Myriale.Api.Data;
 
 namespace Myriale.Api.Features.ScenarioTurns.Infrastructure;
 

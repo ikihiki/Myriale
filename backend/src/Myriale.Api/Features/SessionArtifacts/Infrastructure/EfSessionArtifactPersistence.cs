@@ -1,7 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.SessionArtifacts.Application;
-using Myriale.Api.Data;
+using Myriale.Api.Infrastructure.Persistence;
 using Npgsql;
 
 namespace Myriale.Api.Features.SessionArtifacts.Infrastructure;

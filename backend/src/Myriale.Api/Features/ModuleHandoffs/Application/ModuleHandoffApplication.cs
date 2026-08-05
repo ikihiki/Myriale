@@ -5,8 +5,6 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.ProgressionRuntime.Application;
 using Myriale.Api.Features.SessionArtifacts.Application;
-using Myriale.Api.Data;
-using Myriale.Api.Services;
 using Myriale.ModuleSdk;
 
 namespace Myriale.Api.Features.ModuleHandoffs.Application;

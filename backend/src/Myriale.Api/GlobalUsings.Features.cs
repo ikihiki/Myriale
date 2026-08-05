@@ -1,4 +1,4 @@
-global using Myriale.Api.Data;
+global using Myriale.Api.Infrastructure.Persistence;
 global using Myriale.Api.Bootstrap.Seeding;
 global using Myriale.Api.Features.Accounts.Application;
 global using Myriale.Api.Features.Accounts.Contracts;

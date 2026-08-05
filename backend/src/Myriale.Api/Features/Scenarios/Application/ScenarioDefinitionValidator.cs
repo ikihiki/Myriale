@@ -1,7 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Myriale.Api.Features.Scenarios.Application;
-using Myriale.Api.Data;
 using Myriale.Api.Features.Scenarios.Domain;
 
 namespace Myriale.Api.Features.Scenarios.Application;

@@ -1,8 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.ScenarioTurns.Application;
-using Myriale.Api.Data;
-using Myriale.Api.Services;
+using Myriale.Api.Infrastructure.Persistence;
 
 namespace Myriale.Api.Features.ScenarioTurns.Infrastructure;
 

@@ -34,7 +34,7 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
         Assert.All(responses, response => Assert.Contains(response.StatusCode,
             new[] { HttpStatusCode.OK, HttpStatusCode.Created, HttpStatusCode.Conflict }));
         await using var scope = _factory.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
         var drafts = await db.ScenarioDefinitionVersions.AsNoTracking()
             .Where(x => x.ScenarioId == scenarioId && x.Status == DefinitionStatus.Draft).ToListAsync();
         var draft = Assert.Single(drafts);
@@ -539,7 +539,7 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
         var sessionId = sessionJson.GetProperty("id").GetString()!;
 
         using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
         var session = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
             db.Sessions.Include(item => item.ScenarioDefinitionVersion), item => item.Id == sessionId);
         Assert.Equal("固定された世界設定", session.ScenarioDefinitionVersion!.ScenarioLore);
@@ -556,7 +556,7 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
     {
         _ = _factory.CreateClient();
         using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
         var published = await db.ScenarioDefinitionVersions.AsNoTracking()
             .Include(version => version.ProgressionNodes)
             .Include(version => version.ProgressionTransitions)
@@ -621,7 +621,7 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
         foreach (var response in responses) response.Dispose();
 
         using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
         Assert.Equal(1, await db.ScenarioDefinitionVersions.CountAsync(
             version => version.ScenarioId == scenarioId && version.Status == DefinitionStatus.Draft));
     }

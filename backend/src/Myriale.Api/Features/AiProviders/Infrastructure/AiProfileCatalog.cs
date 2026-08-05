@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Options;
 using Myriale.Api.Features.AiProviders.Application;
-using Myriale.Api.Data;
 
 namespace Myriale.Api.Features.AiProviders.Infrastructure;
 

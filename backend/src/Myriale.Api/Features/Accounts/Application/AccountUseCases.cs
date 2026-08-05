@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using Myriale.Api.Data;
 
 namespace Myriale.Api.Features.Accounts.Application;
 

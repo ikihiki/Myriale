@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.Scenarios.Application;
-using Myriale.Api.Data;
+using Myriale.Api.Infrastructure.Persistence;
 
 namespace Myriale.Api.Features.Scenarios.Infrastructure;
 

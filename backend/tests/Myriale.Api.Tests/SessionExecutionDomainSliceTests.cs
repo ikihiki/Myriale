@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.FileProviders;
 using Myriale.Api.Features.SessionExecutions.Application;
-using Myriale.Api.Data;
+using Myriale.Api.Infrastructure.Persistence;
 using Myriale.Api.Features.SessionExecutions.Infrastructure;
 
 namespace Myriale.Api.Tests;

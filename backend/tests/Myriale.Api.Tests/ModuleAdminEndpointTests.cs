@@ -8,7 +8,6 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
-using Myriale.Api.Data;
 using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Myriale.Api.Tests;

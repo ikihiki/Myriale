@@ -1,4 +1,3 @@
-using Myriale.Api.Data;
 
 namespace Myriale.Api.Features.AiProviders.Contracts;
 

@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Myriale.Api.Services;
+namespace Myriale.Api.Infrastructure.Hosting;
 
 public static class DevelopmentErrorDetails
 {

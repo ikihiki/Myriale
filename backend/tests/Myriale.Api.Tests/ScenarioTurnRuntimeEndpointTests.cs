@@ -8,8 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Myriale.Api.Features.Scenarios.Application;
-using Myriale.Api.Data;
-using Myriale.Api.Services;
+using Myriale.Api.Infrastructure.Persistence;
 
 namespace Myriale.Api.Tests;
 
@@ -149,7 +148,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         Assert.Equal("narrative result", interactionsJson[2].GetProperty("receivedResult").GetString());
 
         await using var scope = factory.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
         var interactions = await db.SessionAiInteractions.Where(item => item.SessionId == sessionId).ToListAsync();
         Assert.Equal(3, interactions.Count);
         Assert.Equal(interactions.Count, interactions.Select(item => (item.AttemptId, item.Stage)).Distinct().Count());
@@ -240,7 +239,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
 
         await using var scope = factory.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+        var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
         var session = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
             db.Sessions.Include(item => item.CurrentLocation).Include(item => item.ObjectStates),
             item => item.Id == sessionId);
@@ -265,7 +264,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         string digest;
         await using (var scope = factory.Services.CreateAsyncScope())
         {
-            var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
             var moduleId = new ModulePackageModuleId("com.myriale.rules.turn-battle");
             var version = new ModulePackageVersion("1.0.0");
             digest = (await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
@@ -288,7 +287,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         Assert.False(string.IsNullOrWhiteSpace(moduleExecutionId));
 
         await using var verificationScope = factory.Services.CreateAsyncScope();
-        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
         var moduleExecution = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
             verificationDb.ModuleExecutions.Where(item => item.Id == moduleExecutionId));
         Assert.Equal("com.myriale.rules.turn-battle", moduleExecution.ModuleId);
@@ -337,7 +336,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         await ai.DecisionEntered.Task.WaitAsync(TimeSpan.FromSeconds(10));
         await using (var scope = factory.Services.CreateAsyncScope())
         {
-            var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
             var state = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
                 db.SessionObjectStates.Where(item => item.SessionId == sessionId && item.ScenarioObject.Code == "north-door"));
             state.Revision++;

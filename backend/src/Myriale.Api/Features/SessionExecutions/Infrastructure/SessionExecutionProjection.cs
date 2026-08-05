@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Myriale.Api.Data;
 
 namespace Myriale.Api.Features.SessionExecutions.Infrastructure;
 

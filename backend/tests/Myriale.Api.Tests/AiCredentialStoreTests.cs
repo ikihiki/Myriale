@@ -1,9 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Myriale.Api.Features.AiProviders.Application;
-using Myriale.Api.Data;
+using Myriale.Api.Infrastructure.Persistence;
 using Myriale.Api.Features.AiProviders.Infrastructure;
-using Myriale.Api.Services;
 
 namespace Myriale.Api.Tests;
 

@@ -2,7 +2,6 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Options;
 using Myriale.Api.Features.ModulePackages.Application;
-using Myriale.Api.Data;
 using Myriale.Api.Features.ModulePackages;
 
 namespace Myriale.Api.Features.ModulePackages.Infrastructure;

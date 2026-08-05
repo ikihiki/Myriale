@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.AiProviders.Application;
-using Myriale.Api.Data;
+using Myriale.Api.Infrastructure.Persistence;
 
 namespace Myriale.Api.Features.AiProviders.Infrastructure;
 

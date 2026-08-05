@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Data;
-using Myriale.Api.Services;
+using Myriale.Api.Infrastructure.Persistence;
 
 namespace Myriale.Api.Features.SessionArtifacts.Application;
 

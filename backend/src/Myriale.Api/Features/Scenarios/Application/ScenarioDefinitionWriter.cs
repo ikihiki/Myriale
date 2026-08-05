@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Myriale.Api.Data;
+using Myriale.Api.Infrastructure.Persistence;
 using Myriale.Api.Features.Scenarios.Domain;
 
 namespace Myriale.Api.Features.Scenarios.Application;

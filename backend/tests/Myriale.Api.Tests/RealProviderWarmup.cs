@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Myriale.Api.Services;
 
 namespace Myriale.Api.Tests;
 

@@ -3,8 +3,6 @@ using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Myriale.Api.Features.Scenarios.Application;
-using Myriale.Api.Data;
-using Myriale.Api.Services;
 
 namespace Myriale.Api.Features.Scenarios.Http;
 

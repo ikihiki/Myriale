@@ -1,8 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.SessionExecutions.Application;
-using Myriale.Api.Data;
+using Myriale.Api.Infrastructure.Persistence;
 using Myriale.Api.Features.SessionExecutions.Infrastructure;
-using Myriale.Api.Services;
 using Npgsql;
 
 namespace Myriale.Api.Tests;

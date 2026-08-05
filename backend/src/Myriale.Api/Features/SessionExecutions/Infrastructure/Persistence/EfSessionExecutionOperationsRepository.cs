@@ -2,9 +2,8 @@ using System.Data.Common;
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.SessionExecutions.Application;
-using Myriale.Api.Data;
+using Myriale.Api.Infrastructure.Persistence;
 
-using Myriale.Api.Services;
 
 namespace Myriale.Api.Features.SessionExecutions.Infrastructure;
 

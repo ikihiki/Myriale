@@ -2,7 +2,6 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.SessionArtifacts.Application;
-using Myriale.Api.Services;
 
 namespace Myriale.Api.Bootstrap.Seeding;
 

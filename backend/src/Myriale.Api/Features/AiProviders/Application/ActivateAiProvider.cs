@@ -1,5 +1,3 @@
-using Myriale.Api.Data;
-using Myriale.Api.Services;
 
 namespace Myriale.Api.Features.AiProviders.Application;
 

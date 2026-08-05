@@ -1,4 +1,3 @@
-using Myriale.Api.Data;
 using Myriale.Api.Features.ModulePackages;
 
 namespace Myriale.Api.Features.ModulePackages.Application;

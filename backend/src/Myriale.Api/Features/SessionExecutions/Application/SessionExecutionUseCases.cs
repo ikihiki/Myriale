@@ -1,6 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Data;
-using Myriale.Api.Services;
 
 namespace Myriale.Api.Features.SessionExecutions.Application;
 
