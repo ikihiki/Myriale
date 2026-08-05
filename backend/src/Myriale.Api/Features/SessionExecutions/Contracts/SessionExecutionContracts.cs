@@ -1,3 +1,4 @@
+using Myriale.Api.Architecture;
 namespace Myriale.Api.Features.SessionExecutions.Contracts;
 
 public sealed record SessionExecutionCapabilities(bool CanRetry, bool CanCancel, bool CanDismiss);
@@ -41,6 +42,7 @@ public sealed record SessionExecutionDiagnosticsResponse(
     DateTimeOffset? LeaseExpiresAt,
     IReadOnlyList<SessionExecutionAttemptDiagnosticsResponse> Attempts);
 
+[CrossSliceContract]
 public sealed record SessionExecutionResponse(
     SessionExecutionId Id,
     SessionId SessionId,

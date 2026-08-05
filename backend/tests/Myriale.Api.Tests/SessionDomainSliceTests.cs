@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
 using Myriale.Api.Features.ModulePackages.Application;
-using Myriale.Api.Features.Sessions.Application;
+using Myriale.Api.Infrastructure.Composition.Sessions;
 using Myriale.Api.Infrastructure.Persistence;
 
 namespace Myriale.Api.Tests;

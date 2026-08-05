@@ -1,5 +1,7 @@
+using Myriale.Api.Architecture;
 namespace Myriale.Api.Features.Dashboard.Contracts;
 
+[CrossSliceContract]
 public sealed record PlaySessionSummaryDto(
     string Id,
     string ScenarioId,

@@ -5,7 +5,7 @@ using Myriale.Api.Features.ModuleExecutions.Application;
 using Myriale.Api.Infrastructure.Persistence;
 using Myriale.Api.Features.ModuleExecutions.Infrastructure;
 
-namespace Myriale.Api.Features.Sessions.Application;
+namespace Myriale.Api.Infrastructure.Composition.Sessions;
 
 public sealed class ListSessionsQueryService(ApplicationDbContext db)
 {

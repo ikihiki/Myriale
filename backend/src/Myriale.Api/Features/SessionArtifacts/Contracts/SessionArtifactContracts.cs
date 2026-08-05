@@ -1,5 +1,7 @@
+using Myriale.Api.Architecture;
 namespace Myriale.Api.Features.SessionArtifacts.Contracts;
 
+[CrossSliceContract]
 public sealed record SessionArtifactResponse(
     SessionArtifactId Id,
     SessionExecutionId ExecutionId,
@@ -12,8 +14,10 @@ public sealed record SessionArtifactResponse(
     DateTimeOffset CreatedAt,
     DateTimeOffset? CommittedAt);
 
+[CrossSliceContract]
 public sealed record SessionActivityResponse(string Type, string Id, long Order, string? CausalId = null);
 
+[CrossSliceContract]
 public sealed record SessionNoteProposalResponse(
     SessionArtifactId ArtifactId,
     SessionTurnId SourceTurnId,

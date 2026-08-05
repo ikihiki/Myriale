@@ -1,3 +1,4 @@
+using Myriale.Api.Architecture;
 using System.Text.Json;
 using Myriale.ModuleSdk;
 
@@ -25,6 +26,7 @@ public sealed record ModuleExecutionPackageResponse(
     int ConfigurationSchemaVersion,
     int StateSchemaVersion);
 
+[CrossSliceContract]
 public sealed record ModuleExecutionResponse(
     ModuleExecutionId Id,
     ModuleExecutionPackageResponse Package,

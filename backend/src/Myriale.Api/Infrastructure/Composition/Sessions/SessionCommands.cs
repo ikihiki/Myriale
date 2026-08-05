@@ -5,7 +5,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Options;
 using Myriale.Api.Features.ModulePackages.Application;
 
-namespace Myriale.Api.Features.Sessions.Application;
+namespace Myriale.Api.Infrastructure.Composition.Sessions;
 
 public enum SessionCommandOutcome { Created, Accepted, Replay, Invalid, Forbidden, NotFound, Conflict, RateLimited, RetryableConflict }
 public sealed record SessionCommandResult(SessionCommandOutcome Outcome, SessionId? SessionId = null, SessionPlayerInput? Input = null,

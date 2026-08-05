@@ -117,13 +117,13 @@ public sealed class PostgresSessionExecutionIntegrationTests
         var secondSession = await secondDb.Sessions.SingleAsync(x => x.Id == new SessionId("SES-INPUT-RACE"));
         var firstInput = firstSession.AcceptInput(new SessionPlayerInputId("INP-RACE-1"), "request-1", "first", SessionInputInteractionType.Dialogue, new string('a', 64), new AccountId("USR-1"), null, now);
         var secondInput = secondSession.AcceptInput(new SessionPlayerInputId("INP-RACE-2"), "request-2", "second", SessionInputInteractionType.Dialogue, new string('b', 64), new AccountId("USR-1"), null, now);
-        var firstRepository = new Myriale.Api.Features.Sessions.Infrastructure.EfSessionInputAcceptanceRepository(firstDb);
-        var secondRepository = new Myriale.Api.Features.Sessions.Infrastructure.EfSessionInputAcceptanceRepository(secondDb);
+        var firstRepository = new Myriale.Api.Infrastructure.Composition.Sessions.EfSessionInputAcceptanceRepository(firstDb);
+        var secondRepository = new Myriale.Api.Infrastructure.Composition.Sessions.EfSessionInputAcceptanceRepository(secondDb);
         var outcomes = await Task.WhenAll(
             firstRepository.CommitInputAsync(firstSession, InputExecution(firstInput, now), CancellationToken.None),
             secondRepository.CommitInputAsync(secondSession, InputExecution(secondInput, now), CancellationToken.None));
-        Assert.Single(outcomes, x => x == Myriale.Api.Features.Sessions.Application.SessionRepositoryCommitOutcome.Committed);
-        Assert.Single(outcomes, x => x != Myriale.Api.Features.Sessions.Application.SessionRepositoryCommitOutcome.Committed);
+        Assert.Single(outcomes, x => x == Myriale.Api.Infrastructure.Composition.Sessions.SessionRepositoryCommitOutcome.Committed);
+        Assert.Single(outcomes, x => x != Myriale.Api.Infrastructure.Composition.Sessions.SessionRepositoryCommitOutcome.Committed);
         await using var verification = database.CreateContext();
         Assert.Single(await verification.SessionPlayerInputs.Where(x => x.SessionId == new SessionId("SES-INPUT-RACE")).ToListAsync());
         Assert.Single(await verification.SessionExecutions.Where(x => x.SessionId == new SessionId("SES-INPUT-RACE")).ToListAsync());
