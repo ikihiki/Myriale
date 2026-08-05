@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Myriale.Api/Myriale.Api.csproj" />
+    <Project Path="src/Myriale.Architecture.Analyzers/Myriale.Architecture.Analyzers.csproj" />
     <Project Path="src/Myriale.AppHost/Myriale.AppHost.csproj" />
     <Project Path="src/Myriale.ServiceDefaults/Myriale.ServiceDefaults.csproj" />
     <Project Path="src/Myriale.MockAi/Myriale.MockAi.csproj" />
@@ -12,6 +13,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Myriale.Api.Tests/Myriale.Api.Tests.csproj" />
+    <Project Path="tests/Myriale.Architecture.Analyzers.Tests/Myriale.Architecture.Analyzers.Tests.csproj" />
     <Project Path="tests/Myriale.MockAi.Tests/Myriale.MockAi.Tests.csproj" />
     <Project Path="tests/Myriale.ModuleSdk.Tests/Myriale.ModuleSdk.Tests.csproj" />
     <Project Path="tests/Myriale.TestModule/Myriale.TestModule.csproj" />

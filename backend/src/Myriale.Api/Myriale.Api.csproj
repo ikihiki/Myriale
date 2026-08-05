@@ -20,8 +20,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Myriale.Architecture.Analyzers\Myriale.Architecture.Analyzers.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Myriale.ModuleSdk\Myriale.ModuleSdk.csproj" />
     <ProjectReference Include="..\Myriale.ServiceDefaults\Myriale.ServiceDefaults.csproj" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <WarningsAsErrors>$(WarningsAsErrors);MYRSLICE001;MYRSLICE002;MYRSLICE003;MYRSLICE004;MYRSLICE005</WarningsAsErrors>
+  </PropertyGroup>
 
 </Project>
