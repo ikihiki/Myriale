@@ -3,19 +3,20 @@ import type { CanonicalScenarioRuleDataResponse } from './scenarioApi';
 import { canonicalRuleDataToForm, formRuleDataToCanonical } from './scenarioRuleDataAdapters';
 
 const canonicalFixture: CanonicalScenarioRuleDataResponse = {
-  scenarioId: 'SCN-1', definitionVersionId: 'SDV-1', version: 2, status: 'draft', schemaVersion: 2,
+  scenarioId: 'SCN-1', definitionVersionId: 'SDV-1', version: 2, status: 'draft', schemaVersion: 3,
   updatedAt: '2026-07-24T00:00:00Z', publishedAt: null,
   startLocationCode: 'hall',
   locations: [{ code: 'hall', name: '広間', description: '', authoringData: { atmosphere: '静寂', danger: '崩落' } }, { code: 'outside', name: '屋外', description: '', authoringData: {} }],
   objectTypes: [{
     code: 'door', name: '扉', description: '重い扉', schemaVersion: 1,
-    stateSchema: { type: 'object', additionalProperties: false, required: ['open'], properties: { open: { type: 'boolean', title: '開いている' } } },
+    profileSchema: { type: 'object', additionalProperties: false, required: ['role'], properties: { role: { type: 'string', title: '役割', description: '物語上の役割' }, rank: { type: 'number', title: '階級' } } }, profileDefaults: { rank: 1 },
+    stateSchema: { type: 'object', additionalProperties: false, required: ['open'], properties: { open: { type: 'boolean', title: '開いている', updateAuthority: 'rules' }, mood: { type: 'string', title: '気分', updateAuthority: 'ai', aiGuidance: '対話に応じて更新する' } } },
     defaultState: { open: false }, publicProjection: { include: ['open'] },
     actions: [{ code: 'open', label: '開ける', description: '扉を開ける', visibility: 'ai-choice', executionMode: 'rule', argumentSchema: { type: 'object', additionalProperties: false, properties: {}, required: [] }, availabilityCondition: { op: 'eq', path: 'state.open', value: false } }],
     actionRules: [{ code: 'generic-open', actionCode: 'open', condition: { op: 'eq', path: 'state.open', value: false }, priority: 50, authoringNote: 'generic', effects: [{ type: 'set-state', path: 'state.open', value: true }], moduleBinding: null }],
   }],
   objects: [{
-    code: 'north-door', name: '北の扉', profileMarkdown: '## 外観\n\n星図が刻まれた重い扉。', mixinTypeCodes: ['door'], stateSchema: { type: 'object', additionalProperties: false, properties: {}, required: [] }, defaultState: {}, publicProjection: { include: [] }, actions: [], locationCode: 'hall', initialStateOverride: { open: false }, isGlobal: false,
+    code: 'north-door', name: '北の扉', profileMarkdown: '## 外観\n\n星図が刻まれた重い扉。', mixinTypeCodes: ['door'], localProfileSchema: { type: 'object', additionalProperties: false, required: [], properties: { material: { type: 'string', title: '材質' } } }, localProfileDefaults: { material: 'stone' }, profileValues: { role: 'sealed-exit', rank: 2 }, stateSchema: { type: 'object', additionalProperties: false, properties: {}, required: [] }, defaultState: {}, publicProjection: { include: [] }, actions: [], locationCode: 'hall', initialStateOverride: { open: false }, isGlobal: false,
     actionRules: [{
       operation: 'override', targetTypeCode: 'door', targetRuleCode: 'generic-open',
       actionCode: 'open', condition: { op: 'eq', path: 'state.open', value: false }, priority: 100, authoringNote: '通常結果',
@@ -31,8 +32,8 @@ const canonicalFixture: CanonicalScenarioRuleDataResponse = {
 };
 
 describe('scenario rule-data adapters', () => {
-  it('rejects top-level schema version 1', () => {
-    expect(() => canonicalRuleDataToForm({ ...canonicalFixture, schemaVersion: 1 })).toThrow('Unsupported scenario rule schema version: 1');
+  it('rejects top-level schema version 2', () => {
+    expect(() => canonicalRuleDataToForm({ ...canonicalFixture, schemaVersion: 2 })).toThrow('Unsupported scenario rule schema version: 2');
   });
 
   it('maps strict generic rules and object operations into the editor model', () => {
@@ -41,6 +42,24 @@ describe('scenario rule-data adapters', () => {
     expect(form.objects[0].actionRules[0]).toMatchObject({ operation: 'override', targetTypeCode: 'door', targetRuleCode: 'generic-open' });
     const operation = form.objects[0].actionRules[0];
     expect(operation.operation === 'override' && operation.rule.effects[3]).toMatchObject({ kind: 'unsupported', type: 'set-session-flag' });
+  });
+
+  it('maps v3 structured profile fields, values, and state authority into the editor model', () => {
+    const form = canonicalRuleDataToForm(canonicalFixture);
+    expect(form.objectTypes[0].profileFields).toEqual([
+      { code: 'role', label: '役割', description: '物語上の役割', valueType: 'string', required: true },
+      { code: 'rank', label: '階級', description: '', valueType: 'number', required: false },
+    ]);
+    expect(form.objectTypes[0].profileDefaults).toEqual([{ profileCode: 'rank', value: '1' }]);
+    expect(form.objects[0]).toMatchObject({
+      localProfileFields: [{ code: 'material', label: '材質', description: '', valueType: 'string', required: false }],
+      localProfileDefaults: [{ profileCode: 'material', value: 'stone' }],
+      profileValues: [{ profileCode: 'role', value: 'sealed-exit' }, { profileCode: 'rank', value: '2' }],
+    });
+    expect(form.objectTypes[0].stateFields).toEqual([
+      { code: 'open', label: '開いている', valueType: 'boolean', defaultValue: 'false', visibility: 'public', updateAuthority: 'rules', aiGuidance: '' },
+      { code: 'mood', label: '気分', valueType: 'string', defaultValue: '', visibility: 'private', updateAuthority: 'ai', aiGuidance: '対話に応じて更新する' },
+    ]);
   });
 
   it('round-trips strict known operation shapes and preserves unknown effects losslessly', () => {

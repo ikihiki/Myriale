@@ -1,7 +1,7 @@
 import type { ScenarioRuleDataPayload } from '../../app/scenarioApi';
 
 export const completeDoorRuleDataFixture: ScenarioRuleDataPayload = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   startLocationCode: 'sunken-library',
   locations: [
     { code: 'sunken-library', name: '水没した閲覧室', description: '禁書と星図が残る開始地点。', atmosphere: '湿った静けさ', danger: '水位が上がり続ける' },
@@ -9,6 +9,10 @@ export const completeDoorRuleDataFixture: ScenarioRuleDataPayload = {
   ],
   objectTypes: [{
     code: 'archive-door', name: '書庫の扉', description: '開閉状態を持つ重い扉。', schemaVersion: 1,
+    profileFields: [
+      { code: 'role', label: '役割', description: '物語内で担う役割', valueType: 'string', required: true },
+      { code: 'weight', label: '重量', description: '描写に使う相対的な重量', valueType: 'number', required: false },
+    ], profileDefaults: [{ profileCode: 'weight', value: '80' }],
     stateFields: [
       { code: 'open', label: '開いている', valueType: 'boolean', defaultValue: 'false', visibility: 'public' },
       { code: 'seal-name', label: '封印名', valueType: 'string', defaultValue: 'Aster', visibility: 'private' },
@@ -20,7 +24,7 @@ export const completeDoorRuleDataFixture: ScenarioRuleDataPayload = {
     }],
   }],
   objects: [{
-    code: 'north-archive-door', name: '北書庫の扉', profileMarkdown: '## 外観\n\n星図が刻まれた重い石扉。', mixinTypeCodes: ['archive-door'], initialLocationCode: 'sunken-library', global: false,
+    code: 'north-archive-door', name: '北書庫の扉', profileMarkdown: '## 外観\n\n星図が刻まれた重い石扉。', mixinTypeCodes: ['archive-door'], localProfileFields: [{ code: 'material', label: '材質', description: '表面の材質', valueType: 'string', required: false }], localProfileDefaults: [{ profileCode: 'material', value: 'stone' }], profileValues: [{ profileCode: 'role', value: 'sealed archive entrance' }], initialLocationCode: 'sunken-library', global: false,
     stateFields: [], actions: [], initialStateOverrides: [], actionRules: [{
       operation: 'adjust', targetTypeCode: 'archive-door', targetRuleCode: 'generic-open', adjustments: {
         effects: [
@@ -33,7 +37,7 @@ export const completeDoorRuleDataFixture: ScenarioRuleDataPayload = {
 };
 
 export const westDoorAuthoringFixture: ScenarioRuleDataPayload = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   startLocationCode: 'inside',
   locations: [
     { code: 'inside', name: '地下研究室', description: '西と東に扉がある室内。', atmosphere: '機械音が低く響く', danger: '出口が閉ざされている' },
@@ -41,17 +45,19 @@ export const westDoorAuthoringFixture: ScenarioRuleDataPayload = {
   ],
   objectTypes: [{
     code: 'openable', name: '開閉可能', description: '開閉状態を提供するmixin。', schemaVersion: 1,
+    profileFields: [], profileDefaults: [],
     stateFields: [{ code: 'open', label: '開いている', valueType: 'boolean', defaultValue: 'false', visibility: 'public' }],
     actions: [{ code: 'open', label: '開ける', description: '対象を開く。', visibility: 'ai-choice', availabilityCondition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'open', valueType: 'boolean', value: false }, argumentFields: [] }],
     actionRules: [{ code: 'generic-open', actionCode: 'open', condition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'open', valueType: 'boolean', value: false }, priority: 100, note: 'Type generic rule', effects: [{ kind: 'set-state', targetObjectCode: '', stateCode: 'open', value: 'true' }], moduleBinding: null }],
   }, {
     code: 'exit-door', name: '出口の扉', description: '開閉状態を持ち、外へ出るための扉。', schemaVersion: 1,
+    profileFields: [], profileDefaults: [],
     stateFields: [],
     actions: [{ code: 'open-and-exit', label: '扉を開けて外へ出る', description: '扉を開き、そのまま屋外へ移動する。', visibility: 'ai-choice', availabilityCondition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'open', valueType: 'boolean', value: false }, argumentFields: [] }],
     actionRules: [{ code: 'generic-open-and-exit', actionCode: 'open-and-exit', condition: { kind: 'comparison', operator: 'eq', source: 'state', path: 'open', valueType: 'boolean', value: false }, priority: 100, note: '出口共通のrule', effects: [{ kind: 'set-state', targetObjectCode: '', stateCode: 'open', value: 'true' }], moduleBinding: null }],
   }],
   objects: [{
-    code: 'west-door', name: '西の扉', profileMarkdown: '## 外観\n\n西側の出口へ続く金属扉。', mixinTypeCodes: ['openable', 'exit-door'], initialLocationCode: 'inside', global: false,
+    code: 'west-door', name: '西の扉', profileMarkdown: '## 外観\n\n西側の出口へ続く金属扉。', mixinTypeCodes: ['openable', 'exit-door'], localProfileFields: [], localProfileDefaults: [], profileValues: [], initialLocationCode: 'inside', global: false,
     stateFields: [{ code: 'direction', label: '方向', valueType: 'string', defaultValue: 'west', visibility: 'public' }],
     actions: [{ code: 'inspect-exit', label: '出口を確認する', description: '出口の様子を確認するObject local action。', visibility: 'ai-choice', availabilityCondition: { kind: 'always' }, argumentFields: [] }],
     initialStateOverrides: [],

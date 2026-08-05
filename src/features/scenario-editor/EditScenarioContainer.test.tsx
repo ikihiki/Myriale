@@ -10,19 +10,20 @@ import { EditScenarioContainer } from './EditScenarioContainer';
 const scenario: ScenarioDraftDto = {
   id: 'SCN-1', title: '保存済みシナリオ', summary: '', genre: 'ミステリ', tone: '', lore: '', aiFreedom: '',
   heroMode: 'free', heroFreeGenerationAllowed: false, hero: '', opening: '', illustrationStyle: '', illustrationMood: '',
-  illustrationNegative: '', sampleScene: '', ruleData: { schemaVersion: 2, startLocationCode: '', locations: [], objectTypes: [], objects: [] }, status: 'published', updatedAt: '2026-07-24',
+  illustrationNegative: '', sampleScene: '', ruleData: { schemaVersion: 3, startLocationCode: '', locations: [], objectTypes: [], objects: [] }, status: 'published', updatedAt: '2026-07-24',
 };
 const ruleData: ScenarioRuleDataPayload = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   startLocationCode: 'hall',
   locations: [{ code: 'hall', name: '広間', description: '', atmosphere: '', danger: '' }],
   objectTypes: [{
     code: 'door', name: '保存済みの扉', description: '', schemaVersion: 1,
+    profileFields: [], profileDefaults: [],
     stateFields: [{ code: 'open', label: '開いている', valueType: 'boolean', defaultValue: 'false', visibility: 'public' }],
     actions: [],
     actionRules: [],
   }],
-  objects: [{ code: 'north-door', name: '北の扉', profileMarkdown: '## 外観\n\n石造りの扉。', mixinTypeCodes: ['door'], initialLocationCode: 'hall', global: false, stateFields: [], actions: [], initialStateOverrides: [], actionRules: [] }],
+  objects: [{ code: 'north-door', name: '北の扉', profileMarkdown: '## 外観\n\n石造りの扉。', mixinTypeCodes: ['door'], localProfileFields: [], localProfileDefaults: [], profileValues: [], initialLocationCode: 'hall', global: false, stateFields: [], actions: [], initialStateOverrides: [], actionRules: [] }],
 };
 
 afterEach(() => cleanup());

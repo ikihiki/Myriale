@@ -35,6 +35,42 @@ function schemaType(value: ScenarioJsonValue | undefined): ScenarioStateValueTyp
   return type === 'boolean' || type === 'number' ? type : 'string';
 }
 
+function profileFieldsFromCanonical(schema: ScenarioJsonObject) {
+  const properties = asObject(schema.properties);
+  const required = new Set(asArray(schema.required).filter((item): item is string => typeof item === 'string'));
+  return Object.entries(properties).map(([code, fieldSchema]) => ({
+    code,
+    label: typeof asObject(fieldSchema).title === 'string' ? String(asObject(fieldSchema).title) : code,
+    description: typeof asObject(fieldSchema).description === 'string' ? String(asObject(fieldSchema).description) : '',
+    valueType: schemaType(fieldSchema),
+    required: required.has(code),
+  }));
+}
+
+function valuesFromCanonical(values: ScenarioJsonObject) {
+  return Object.entries(values).map(([profileCode, value]) => ({ profileCode, value: scalarToString(value) }));
+}
+
+function profileSchemaToCanonical(fields: ScenarioObjectTypePayload['profileFields']): ScenarioJsonObject {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    properties: Object.fromEntries(fields.map((field) => [field.code, {
+      type: field.valueType,
+      title: field.label,
+      ...(field.description ? { description: field.description } : {}),
+    }])),
+    required: fields.filter((field) => field.required).map((field) => field.code),
+  };
+}
+
+function profileValuesToCanonical(fields: ScenarioObjectTypePayload['profileFields'], values: Array<{ profileCode: string; value: string }>): ScenarioJsonObject {
+  return Object.fromEntries(values.map((item) => {
+    const field = fields.find((candidate) => candidate.code === item.profileCode);
+    return [item.profileCode, parseValue(item.value, field?.valueType ?? 'string')];
+  }));
+}
+
 function actionFromCanonical(action: CanonicalScenarioActionDto) {
   const argumentProperties = asObject(action.argumentSchema.properties);
   const required = new Set(asArray(action.argumentSchema.required).filter((item): item is string => typeof item === 'string'));
@@ -128,12 +164,16 @@ function typeFromCanonical(type: CanonicalScenarioObjectTypeDto): ScenarioObject
     name: type.name,
     description: type.description ?? '',
     schemaVersion: 1,
+    profileFields: profileFieldsFromCanonical(type.profileSchema ?? {}),
+    profileDefaults: valuesFromCanonical(type.profileDefaults ?? {}),
     stateFields: Object.entries(properties).map(([code, schema]) => ({
       code,
       label: typeof asObject(schema).title === 'string' ? String(asObject(schema).title) : code,
       valueType: schemaType(schema),
       defaultValue: scalarToString(type.defaultState[code]),
       visibility: publicFields.has(code) ? 'public' as const : 'private' as const,
+      updateAuthority: asObject(schema).updateAuthority === 'ai' ? 'ai' as const : 'rules' as const,
+      aiGuidance: typeof asObject(schema).aiGuidance === 'string' ? String(asObject(schema).aiGuidance) : '',
     })),
     actions: type.actions.map(actionFromCanonical),
     actionRules: type.actionRules.map(ruleFromCanonical),
@@ -141,9 +181,9 @@ function typeFromCanonical(type: CanonicalScenarioObjectTypeDto): ScenarioObject
 }
 
 export function canonicalRuleDataToForm(response: CanonicalScenarioRuleDataResponse): ScenarioRuleDataPayload {
-  if (response.schemaVersion !== 2) throw new Error(`Unsupported scenario rule schema version: ${response.schemaVersion}`);
+  if (response.schemaVersion !== 3) throw new Error(`Unsupported scenario rule schema version: ${response.schemaVersion}`);
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     startLocationCode: response.startLocationCode,
     locations: response.locations.map((location) => ({
       code: location.code,
@@ -158,9 +198,12 @@ export function canonicalRuleDataToForm(response: CanonicalScenarioRuleDataRespo
       name: object.name,
       profileMarkdown: object.profileMarkdown,
       mixinTypeCodes: [...object.mixinTypeCodes],
+      localProfileFields: profileFieldsFromCanonical(object.localProfileSchema ?? {}),
+      localProfileDefaults: valuesFromCanonical(object.localProfileDefaults ?? {}),
+      profileValues: valuesFromCanonical(object.profileValues ?? {}),
       initialLocationCode: object.locationCode,
       global: object.isGlobal,
-      stateFields: typeFromCanonical({ code: object.code, name: object.name, description: null, schemaVersion: 1, stateSchema: object.stateSchema, defaultState: object.defaultState, publicProjection: object.publicProjection, actions: object.actions, actionRules: [] }).stateFields,
+      stateFields: typeFromCanonical({ code: object.code, name: object.name, description: null, schemaVersion: 1, profileSchema: {}, profileDefaults: {}, stateSchema: object.stateSchema, defaultState: object.defaultState, publicProjection: object.publicProjection, actions: object.actions, actionRules: [] }).stateFields,
       actions: object.actions.map(actionFromCanonical),
       initialStateOverrides: Object.entries(object.initialStateOverride).map(([stateCode, value]) => ({ stateCode, value: scalarToString(value) })),
       actionRules: object.actionRules.map(objectOperationFromCanonical),
@@ -262,7 +305,7 @@ function objectOperationToCanonical(operation: ScenarioObjectRuleOperationPayloa
 
 export function formRuleDataToCanonical(ruleData: ScenarioRuleDataPayload): CanonicalScenarioRuleDataRequest {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     startLocationCode: ruleData.startLocationCode,
     locations: ruleData.locations.map((location) => ({
       code: location.code,
@@ -275,13 +318,20 @@ export function formRuleDataToCanonical(ruleData: ScenarioRuleDataPayload): Cano
       name: type.name,
       description: type.description || null,
       schemaVersion: 1,
+      profileSchema: profileSchemaToCanonical(type.profileFields),
+      profileDefaults: profileValuesToCanonical(type.profileFields, type.profileDefaults),
       stateSchema: {
         type: 'object',
         additionalProperties: false,
-        properties: Object.fromEntries(type.stateFields.map((field) => [field.code, { type: field.valueType, title: field.label }])),
-        required: type.stateFields.map((field) => field.code),
+        properties: Object.fromEntries(type.stateFields.map((field) => [field.code, {
+          type: field.valueType,
+          title: field.label,
+          updateAuthority: field.updateAuthority ?? 'rules',
+          ...(field.aiGuidance ? { aiGuidance: field.aiGuidance } : {}),
+        }])),
+        required: type.stateFields.filter((field) => (field.updateAuthority ?? 'rules') === 'rules').map((field) => field.code),
       },
-      defaultState: Object.fromEntries(type.stateFields.map((field) => [field.code, parseValue(field.defaultValue, field.valueType)])),
+      defaultState: Object.fromEntries(type.stateFields.filter((field) => (field.updateAuthority ?? 'rules') === 'rules').map((field) => [field.code, parseValue(field.defaultValue, field.valueType)])),
       publicProjection: { include: type.stateFields.filter((field) => field.visibility === 'public').map((field) => field.code) },
       actions: type.actions.map((action) => actionToCanonical(action, type)),
       actionRules: type.actionRules.map((rule) => ruleToCanonical(rule, ruleData, type.code)),
@@ -291,9 +341,15 @@ export function formRuleDataToCanonical(ruleData: ScenarioRuleDataPayload): Cano
       name: object.name,
       profileMarkdown: object.profileMarkdown,
       mixinTypeCodes: [...object.mixinTypeCodes],
+      localProfileSchema: profileSchemaToCanonical(object.localProfileFields),
+      localProfileDefaults: profileValuesToCanonical(object.localProfileFields, object.localProfileDefaults),
+      profileValues: profileValuesToCanonical(
+        [...object.mixinTypeCodes.flatMap((code) => typeByCode(ruleData, code)?.profileFields ?? []), ...object.localProfileFields],
+        object.profileValues,
+      ),
       locationCode: object.initialLocationCode,
-      stateSchema: { type: 'object', additionalProperties: false, properties: Object.fromEntries(object.stateFields.map((field) => [field.code, { type: field.valueType, title: field.label }])), required: object.stateFields.map((field) => field.code) },
-      defaultState: Object.fromEntries(object.stateFields.map((field) => [field.code, parseValue(field.defaultValue, field.valueType)])),
+      stateSchema: { type: 'object', additionalProperties: false, properties: Object.fromEntries(object.stateFields.map((field) => [field.code, { type: field.valueType, title: field.label, updateAuthority: field.updateAuthority ?? 'rules', ...(field.aiGuidance ? { aiGuidance: field.aiGuidance } : {}) }])), required: object.stateFields.filter((field) => (field.updateAuthority ?? 'rules') === 'rules').map((field) => field.code) },
+      defaultState: Object.fromEntries(object.stateFields.filter((field) => (field.updateAuthority ?? 'rules') === 'rules').map((field) => [field.code, parseValue(field.defaultValue, field.valueType)])),
       publicProjection: { include: object.stateFields.filter((field) => field.visibility === 'public').map((field) => field.code) },
       actions: object.actions.map((action) => actionToCanonical(action, object)),
       initialStateOverride: Object.fromEntries(object.initialStateOverrides.map((item) => [item.stateCode, stateValue(ruleData, object.code, item.stateCode, item.value)])),
