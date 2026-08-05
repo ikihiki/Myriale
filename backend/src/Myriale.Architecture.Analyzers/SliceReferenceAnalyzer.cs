@@ -81,7 +81,6 @@ public sealed class SliceReferenceAnalyzer : DiagnosticAnalyzer
             var contractAttribute = startContext.Compilation.GetTypeByMetadataName(
                 SliceModel.ContractAttributeMetadataName);
             var reportedDiagnostics = new ConcurrentDictionary<DiagnosticKey, byte>();
-            var migrations = GetMigrations(startContext.Compilation);
 
             startContext.RegisterSymbolAction(
                 symbolContext => AnalyzeNamedType(
@@ -94,14 +93,12 @@ public sealed class SliceReferenceAnalyzer : DiagnosticAnalyzer
                 nodeContext => AnalyzeSyntaxNode(
                     nodeContext,
                     contractAttribute,
-                    migrations,
                     reportedDiagnostics),
                 SyntaxKinds);
             startContext.RegisterOperationBlockAction(
                 blockContext => AnalyzeOperationBlocks(
                     blockContext,
                     contractAttribute,
-                    migrations,
                     reportedDiagnostics));
         });
     }
@@ -190,7 +187,6 @@ public sealed class SliceReferenceAnalyzer : DiagnosticAnalyzer
     private static void AnalyzeSyntaxNode(
         SyntaxNodeAnalysisContext context,
         INamedTypeSymbol? contractAttribute,
-        ImmutableHashSet<(string Source, string Target)> migrations,
         ConcurrentDictionary<DiagnosticKey, byte> reportedDiagnostics)
     {
         if (!TryGetSourceLocation(context.ContainingSymbol, out var sourceLocation))
@@ -218,15 +214,13 @@ public sealed class SliceReferenceAnalyzer : DiagnosticAnalyzer
                 context.Node.GetLocation(),
                 sourceLocation,
                 referencedType,
-                contractAttribute,
-                migrations);
+                contractAttribute);
         }
     }
 
     private static void AnalyzeOperationBlocks(
         OperationBlockAnalysisContext context,
         INamedTypeSymbol? contractAttribute,
-        ImmutableHashSet<(string Source, string Target)> migrations,
         ConcurrentDictionary<DiagnosticKey, byte> reportedDiagnostics)
     {
         if (!TryGetSourceLocation(context.OwningSymbol, out var sourceLocation))
@@ -250,8 +244,7 @@ public sealed class SliceReferenceAnalyzer : DiagnosticAnalyzer
                         operation.Syntax.GetLocation(),
                         sourceLocation,
                         referencedType,
-                        contractAttribute,
-                        migrations);
+                        contractAttribute);
                 }
             }
         }
@@ -314,8 +307,7 @@ public sealed class SliceReferenceAnalyzer : DiagnosticAnalyzer
         Location location,
         SliceLocation source,
         INamedTypeSymbol referencedType,
-        INamedTypeSymbol? contractAttribute,
-        ImmutableHashSet<(string Source, string Target)> migrations)
+        INamedTypeSymbol? contractAttribute)
     {
         if (referencedType is null || referencedType.ContainingNamespace is null)
         {
@@ -338,11 +330,6 @@ public sealed class SliceReferenceAnalyzer : DiagnosticAnalyzer
         }
 
         if (source.Slice == target.Slice)
-        {
-            return;
-        }
-
-        if (migrations is not null && migrations.Contains((source.Slice, target.Slice)))
         {
             return;
         }
@@ -387,26 +374,6 @@ public sealed class SliceReferenceAnalyzer : DiagnosticAnalyzer
                     target.Slice,
                     source.Slice));
         }
-    }
-
-
-    private static ImmutableHashSet<(string Source, string Target)> GetMigrations(Compilation compilation)
-    {
-        var builder = ImmutableHashSet.CreateBuilder<(string Source, string Target)>();
-        foreach (var attribute in compilation.Assembly.GetAttributes())
-        {
-            if (attribute.AttributeClass?.ToDisplayString() != SliceModel.MigrationAttributeMetadataName ||
-                attribute.ConstructorArguments.Length < 2 ||
-                attribute.ConstructorArguments[0].Value is not string source ||
-                attribute.ConstructorArguments[1].Value is not string target)
-            {
-                continue;
-            }
-
-            builder.Add((source, target));
-        }
-
-        return builder.ToImmutable();
     }
 
     private static bool TryGetSourceLocation(ISymbol? symbol, out SliceLocation sourceLocation)

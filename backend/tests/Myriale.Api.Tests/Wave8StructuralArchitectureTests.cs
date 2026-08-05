@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Mono.Cecil;
-using Myriale.Api.Architecture;
 using Myriale.Api.Bootstrap;
 using Myriale.Api.Bootstrap.Seeding;
 using Myriale.Api.Infrastructure.Hosting;
@@ -91,18 +90,12 @@ public sealed class Wave8StructuralArchitectureTests
     }
 
     [Fact]
-    public void WavesFiveToSevenMigrationDeclarationsRemainScopedAndPresent()
+    public void CrossSliceMigrationBypassIsAbsent()
     {
-        var migrations = Api.GetCustomAttributes(typeof(CrossSliceMigrationAttribute), false)
-            .Cast<CrossSliceMigrationAttribute>()
-            .ToArray();
-
-        Assert.Equal(42, migrations.Length);
-        Assert.All(migrations, migration =>
-        {
-            Assert.Equal("vertical-slice-waves-5-7", migration.Issue);
-            Assert.Equal("Wave8", migration.RemoveByWave);
-        });
+        Assert.Null(Api.GetType("Myriale.Api.Architecture.CrossSliceMigrationAttribute"));
+        Assert.DoesNotContain(
+            Api.GetCustomAttributesData(),
+            attribute => attribute.AttributeType.FullName == "Myriale.Api.Architecture.CrossSliceMigrationAttribute");
     }
 
     private static bool IsEntityTypeConfiguration(Type type) =>

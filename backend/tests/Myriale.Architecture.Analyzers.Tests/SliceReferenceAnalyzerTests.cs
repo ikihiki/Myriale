@@ -372,34 +372,27 @@ public sealed class SliceReferenceAnalyzerTests
     }
 
     [Fact]
-    public async Task Allows_only_the_declared_cross_slice_migration_pair()
+    public async Task Migration_shaped_attributes_do_not_bypass_cross_slice_rules()
     {
         var diagnostics = await AnalyzeAsync("""
-            using Myriale.Api.Architecture;
-            [assembly: CrossSliceMigration("Consumer", "Provider", "wave-migration", "Wave8")]
+            [assembly: Myriale.Api.Architecture.CrossSliceMigration(
+                "Consumer", "Provider", "wave-migration", "Wave8")]
 
             namespace Myriale.Api.Features.Provider.Domain
             {
                 public sealed class ProviderEntity;
             }
 
-            namespace Myriale.Api.Features.Other.Domain
-            {
-                public sealed class OtherEntity;
-            }
-
             namespace Myriale.Api.Features.Consumer.Application
             {
-                internal sealed class Allowed(Myriale.Api.Features.Provider.Domain.ProviderEntity entity);
-                internal sealed class Rejected(Myriale.Api.Features.Other.Domain.OtherEntity entity);
+                internal sealed class Rejected(
+                    Myriale.Api.Features.Provider.Domain.ProviderEntity entity);
             }
             """);
 
-        Assert.DoesNotContain(diagnostics, diagnostic =>
-            diagnostic.GetMessage().Contains("ProviderEntity", StringComparison.Ordinal));
         Assert.Contains(diagnostics, diagnostic =>
             diagnostic.Id == SliceReferenceAnalyzer.ForbiddenReferenceId &&
-            diagnostic.GetMessage().Contains("OtherEntity", StringComparison.Ordinal));
+            diagnostic.GetMessage().Contains("ProviderEntity", StringComparison.Ordinal));
     }
 
     private static async Task<ImmutableArray<Diagnostic>> AnalyzeAsync(string source)

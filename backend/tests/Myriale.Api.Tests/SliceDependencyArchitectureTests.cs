@@ -35,7 +35,6 @@ public sealed class SliceDependencyArchitectureTests
     {
         using var assembly = AssemblyDefinition.ReadAssembly(typeof(Program).Assembly.Location);
         var violations = new List<string>();
-        var migrations = GetMigrations(assembly);
 
         foreach (var source in AllTypes(assembly.MainModule.Types).Where(type => TryGetSlice(type.Namespace, out _)))
         {
@@ -45,9 +44,6 @@ public sealed class SliceDependencyArchitectureTests
                 var target = Resolve(reference);
                 if (target is null || target.Module != assembly.MainModule || !TryGetSlice(target.Namespace, out var targetSlice) || sourceSlice == targetSlice)
                     continue;
-                if (migrations.Contains((sourceSlice, targetSlice)))
-                    continue;
-
                 if (!IsExported(target) || !IsExportableLayer(target, targetSlice))
                     violations.Add($"{source.FullName} ({sourceSlice}) -> {target.FullName} ({targetSlice})");
             }
@@ -100,17 +96,6 @@ public sealed class SliceDependencyArchitectureTests
             .ToArray();
 
         Assert.Empty(violations);
-    }
-
-    private static HashSet<(string Source, string Target)> GetMigrations(AssemblyDefinition assembly)
-    {
-        const string migrationAttribute = "Myriale.Api.Architecture.CrossSliceMigrationAttribute";
-        return assembly.CustomAttributes
-            .Where(attribute => attribute.AttributeType.FullName == migrationAttribute && attribute.ConstructorArguments.Count >= 2)
-            .Select(attribute => (
-                Source: (string)attribute.ConstructorArguments[0].Value,
-                Target: (string)attribute.ConstructorArguments[1].Value))
-            .ToHashSet();
     }
 
     private static bool IsAllowedIdentifierDependency(TypeDefinition target) =>
