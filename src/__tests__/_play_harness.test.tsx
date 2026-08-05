@@ -59,6 +59,13 @@ describe('play: Phase 1 completion stories', () => {
     if (Story.play) await Story.play({ canvasElement: container });
   });
 
+  it('preserves generic Entity AI-managed state across turns, remount, movement, and narrative retry', async () => {
+    const Story = composedSessionDialogue.GenericEntityAiManagedStateContinuity;
+    const { container } = render(<Story />);
+    await waitFor(() => expect(container.firstElementChild).not.toBeNull());
+    if (Story.play) await Story.play({ canvasElement: container });
+  });
+
   it('does not create two Turns from a submit-button double click', async () => {
     const Story = composedSessionDialogue.ComposerDoubleClickCreatesOneTurn;
     const { container } = render(<Story />);

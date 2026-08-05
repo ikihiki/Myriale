@@ -32,6 +32,25 @@ public sealed class DevelopmentScenarioSeedTests : IDisposable
         Assert.Equal("corridor", objects.Single(item => item.GetProperty("code").GetString() == "escape-door").GetProperty("locationCode").GetString());
         Assert.Equal("puzzle-room", objects.Single(item => item.GetProperty("code").GetString() == "puzzle-device").GetProperty("locationCode").GetString());
 
+        Assert.Equal(3, publishedJson.GetProperty("schemaVersion").GetInt32());
+        var guideType = publishedJson.GetProperty("objectTypes").EnumerateArray()
+            .Single(type => type.GetProperty("code").GetString() == "conversation-terminal");
+        var guideProfile = guideType.GetProperty("profileSchema");
+        Assert.Equal(new[] { "role", "speech-style", "values" }, guideProfile.GetProperty("properties").EnumerateObject()
+            .Select(property => property.Name).Order().ToArray());
+        Assert.Empty(guideType.GetProperty("profileDefaults").EnumerateObject());
+        var rapport = guideType.GetProperty("stateSchema").GetProperty("properties").GetProperty("rapport");
+        Assert.Equal("ai", rapport.GetProperty("updateAuthority").GetString());
+        Assert.Contains("未公開情報", rapport.GetProperty("aiGuidance").GetString());
+        Assert.False(guideType.GetProperty("defaultState").TryGetProperty("rapport", out _));
+        Assert.DoesNotContain("rapport", guideType.GetProperty("publicProjection").GetProperty("include").EnumerateArray()
+            .Select(field => field.GetString()));
+
+        var guideEntity = objects.Single(item => item.GetProperty("code").GetString() == "conversation-terminal");
+        Assert.Equal("閉鎖研究施設の案内と安全管理を担う対話窓口", guideEntity.GetProperty("profileValues").GetProperty("role").GetString());
+        Assert.Contains("## 演技指針", guideEntity.GetProperty("profileMarkdown").GetString());
+        Assert.Equal("start", guideEntity.GetProperty("locationCode").GetString());
+
         var puzzleType = publishedJson.GetProperty("objectTypes").EnumerateArray().Single(type => type.GetProperty("code").GetString() == "puzzle-device");
         var correctRule = puzzleType.GetProperty("actionRules").EnumerateArray().Single(rule => rule.GetProperty("code").GetString() == "solve-correct");
         var doorEffect = correctRule.GetProperty("effects").EnumerateArray().Single(effect =>
@@ -62,7 +81,8 @@ public sealed class DevelopmentScenarioSeedTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, basicSaved.StatusCode);
 
         using var ruleSaved = await owner.PutAsJsonAsync("/api/scenarios/SCN-AWAKENING-LAB/rule-data", draftJson);
-        Assert.Equal(HttpStatusCode.OK, ruleSaved.StatusCode);
+        var ruleSavedBody = await ruleSaved.Content.ReadAsStringAsync();
+        Assert.True(ruleSaved.StatusCode == HttpStatusCode.OK, ruleSavedBody);
 
         var other = await CreateRegisteredClientAsync(factory);
         using var otherRead = await other.GetAsync("/api/scenarios/SCN-AWAKENING-LAB/rule-data");

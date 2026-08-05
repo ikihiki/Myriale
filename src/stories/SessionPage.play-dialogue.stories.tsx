@@ -1,8 +1,13 @@
+import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from '@storybook/test';
 import { MyrialeApp } from '../app/MyrialeApp';
 import { createDemoDb } from '../app/demoData';
 import { MockSessionContainer } from './session-page/MockSessionContainer';
+import {
+  createAiManagedEntitySessionFixture,
+  privateStateSentinelForTest,
+} from './session-page/aiManagedEntitySessionFixtures';
 import '../styles.css';
 
 const createProgressedPlayDb = () => {
@@ -19,6 +24,31 @@ const createProgressedPlayDb = () => {
     },
   };
 };
+
+function AiManagedEntityContinuityStory() {
+  const [fixture] = useState(createAiManagedEntitySessionFixture);
+  const [mountKey, setMountKey] = useState(0);
+
+  return (
+    <div>
+      <button
+        type="button"
+        className="m-3 rounded-myr-control border border-myr-border bg-myr-paper px-4 py-2 font-semibold text-myr-ink"
+        onClick={() => setMountKey((current) => current + 1)}
+      >
+        Storyを再マウント
+      </button>
+      <MyrialeApp
+        key={mountKey}
+        initialUrl="/sessions/SES-PREP-1098"
+        initialDb={createDemoDb('activeSession')}
+        sessionContainer={({ sessionId }) => (
+          <MockSessionContainer sessionId={sessionId} aiManagedEntityFixture={fixture} />
+        )}
+      />
+    </div>
+  );
+}
 
 const meta = {
   title: 'ユーザーストーリー/Session play dialogue',
@@ -37,6 +67,55 @@ const sendAction = async (canvas: ReturnType<typeof within>, text: string) => {
   await userEvent.clear(input);
   await userEvent.type(input, text);
   await userEvent.click(canvas.getByRole('button', { name: '行動を送る' }));
+};
+
+export const GenericEntityAiManagedStateContinuity: Story = {
+  name: 'Generic Entity: AI管理状態・移動・retryをSession内で継続する',
+  render: () => <AiManagedEntityContinuityStory />,
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+
+    await step('初回interactionで未初期化のAI管理状態を生成し、構造化profileとMarkdownに沿って応答する', async () => {
+      await expect(canvas.getByTestId('turn-1-narrative')).toHaveTextContent('AI管理状態はまだ生成されていません');
+      await sendAction(canvas, '案内役に、あなたの役割と安全な進み方を尋ねる');
+      await expect(canvas.getByTestId('dialogue-log')).toHaveTextContent('構造化プロフィールの役割・価値観・話し方と補足Markdown');
+      await expect(canvas.getByTestId('dialogue-notice')).toHaveTextContent('revision 1としてcommit');
+    });
+
+    await step('2回目のinteractionは保存済み状態を入力に使い、次revisionをcommitする', async () => {
+      await sendAction(canvas, 'さきほどの説明を踏まえて、最も安全な順序を教えて');
+      await expect(canvas.getByTestId('dialogue-log')).toHaveTextContent('persisted revision 1を入力に使い、revision 2へ更新');
+    });
+
+    await step('Session画面をremountしても確定済みturnとAI管理状態を復元する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: 'Storyを再マウント' }));
+      await expect(canvas.getByTestId('dialogue-notice')).toHaveTextContent('committed revision=2');
+      await expect(canvas.getByTestId('dialogue-log')).toHaveTextContent('前の対話で築いた協力姿勢');
+    });
+
+    await step('move-session後はruntime locationで見えるEntityを切り替え、remote Entityを通常contextへ漏らさない', async () => {
+      await sendAction(canvas, '接続廊下へ移動する');
+      const latestTurn = canvas.getByRole('article', { name: 'Turn 04' });
+      await expect(latestTurn).toHaveTextContent('施設外への脱出扉と解析室への扉');
+      await expect(latestTurn).toHaveTextContent('案内AI端末と、解析室内の光学装置は通常のNarrative contextから外れました');
+      await expect(canvas.getByTestId('dialogue-notice')).toHaveTextContent('runtime location');
+    });
+
+    await step('privateなAI状態や内部評価はplayer-visibleな画面へ表示しない', async () => {
+      await expect(canvasElement).not.toHaveTextContent(privateStateSentinelForTest);
+      await expect(canvasElement).not.toHaveTextContent('cooperative');
+      await expect(canvasElement).not.toHaveTextContent('protective');
+    });
+
+    await step('Narrative失敗後のretryは確定済みcheckpointを再利用し、stateを二重更新しない', async () => {
+      await sendAction(canvas, 'Narrative失敗を再現してから再試行する');
+      await expect(canvas.getByTestId('dialogue-notice')).toHaveTextContent('revision 3で確定済み');
+      await userEvent.click(canvas.getByRole('button', { name: '同じ入力を再試行' }));
+      await expect(canvas.getByTestId('dialogue-log')).toHaveTextContent('確定済みrevision 3を再利用');
+      await expect(canvas.getByTestId('dialogue-notice')).toHaveTextContent('revision 3を再利用し、二重commitを防ぎました');
+      await expect(canvas.getByTestId('dialogue-log')).not.toHaveTextContent('revision 4');
+    });
+  },
 };
 
 export const USP01CurrentSituationNarrative: Story = {

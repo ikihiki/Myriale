@@ -21,11 +21,27 @@ internal static class ScenarioDefinitionSeedFactory
     {
         const string slug = "AWAKENING-LAB";
         var version = NewVersion(scenarioId, slug, timestamp, 2, "start");
+        version.SchemaVersion = 3;
         var start = NewLocation(version, slug, "START", "start", "覚醒室", "非常灯に照らされた開始地点。壁際の対話端末だけが起動している。");
         var corridor = NewLocation(version, slug, "CORRIDOR", "corridor", "接続廊下", "覚醒室と解析室をつなぐ細い廊下。中央に施設外へ通じる脱出扉がある。");
         var puzzleRoom = NewLocation(version, slug, "PUZZLE-ROOM", "puzzle-room", "解析室", "中央の光学解析装置に三色の入力盤が備わった謎解き部屋。");
 
-        var terminal = NewBooleanType(version, slug, "TERMINAL", "conversation-terminal", "対話端末", "施設案内AIと会話し、脱出経路の手掛かりを得られる端末。", "activated");
+        var terminal = NewBooleanType(version, slug, "TERMINAL", "conversation-terminal", "対話する案内役", "構造化プロフィールとセッション固有のAI管理状態を使って応答する汎用EntityType。", "activated");
+        terminal.ProfileSchemaJson = """
+            {"type":"object","additionalProperties":false,"properties":{
+              "role":{"type":"string","label":"役割","description":"このEntityが物語内で担う役割"},
+              "values":{"type":"string","label":"価値観","description":"判断と応答で優先する価値観"},
+              "speech-style":{"type":"string","label":"話し方","description":"応答の語調と文体"}},
+              "required":["role","values","speech-style"]}
+            """;
+        terminal.StateSchemaJson = """
+            {"type":"object","additionalProperties":false,"properties":{
+              "activated":{"type":"boolean"},
+              "rapport":{"type":"string","enum":["cautious","cooperative","protective"],"updateAuthority":"ai","aiGuidance":"対話内容から、このSessionでの相手への向き合い方を更新する。内部評価や未公開情報をNarrativeへ直接出さない。"}},
+              "required":["activated","rapport"]}
+            """;
+        terminal.DefaultStateJson = "{\"activated\":false}";
+        terminal.PublicProjectionJson = "{\"include\":[\"activated\"]}";
         var talk = NewAction(terminal, slug, "TALK", "talk", "端末と話す", "案内AIに現在の状況と脱出方法を尋ねる。");
         AddRules(terminal,
             Rule("talk-first", talk, "{\"op\":\"eq\",\"path\":\"state.activated\",\"value\":false}", "[{\"type\":\"set-state\",\"path\":\"state.activated\",\"value\":true},{\"type\":\"emit-fact\",\"text\":\"対話端末が起動し、解析室の光学装置を復旧すれば廊下の脱出扉が開くと告げた。\"},{\"type\":\"add-narrative-hint\",\"text\":\"端末の合成音声で、光の三原色を重ねる順序が鍵だと示唆する。\"}]", 200),
@@ -48,7 +64,7 @@ internal static class ScenarioDefinitionSeedFactory
             Rule("solve-correct", solve, "{\"and\":[{\"op\":\"eq\",\"path\":\"state.solved\",\"value\":false},{\"op\":\"eq\",\"path\":\"arguments.answer\",\"value\":\"白\"}]}", "[{\"type\":\"set-state\",\"path\":\"state.solved\",\"value\":true},{\"type\":\"set-state\",\"objectCode\":\"escape-door\",\"path\":\"state.open\",\"value\":true},{\"type\":\"emit-fact\",\"text\":\"光学解析装置が復旧し、接続廊下の脱出扉が開いた。\"},{\"type\":\"emit-event\",\"event\":\"escape-door-opened\",\"locationCode\":\"corridor\"},{\"type\":\"add-narrative-hint\",\"text\":\"遠くでロックが外れる重い音を響かせる。\"},{\"type\":\"forbid-narrative-fact\",\"text\":\"脱出扉は閉じたまま\"}]", 200),
             Rule("solve-incorrect", solve, "{\"and\":[{\"op\":\"eq\",\"path\":\"state.solved\",\"value\":false},{\"op\":\"ne\",\"path\":\"arguments.answer\",\"value\":\"白\"}]}", "[{\"type\":\"emit-fact\",\"text\":\"解析装置は入力を拒否した。脱出扉は閉じたままだ。\"},{\"type\":\"add-narrative-hint\",\"text\":\"赤・緑・青の光をすべて重ねた結果を考えるよう促す。\"}]", 100));
 
-        _ = NewObject(version, slug, "TERMINAL", "conversation-terminal", "案内AI端末", terminal, start, """
+        var terminalEntity = NewObject(version, slug, "TERMINAL", "conversation-terminal", "案内AI端末", terminal, start, """
             ## 外観
 
             壁際に据え付けられた旧式の案内端末。円形画面には青い走査線が流れている。
@@ -70,6 +86,9 @@ internal static class ScenarioDefinitionSeedFactory
 
             施設閉鎖の原因と主人公が被験者である事実は、公開済みfactsで明らかになるまで開示しない。
             """);
+        terminalEntity.ProfileValuesJson = """
+            {"role":"閉鎖研究施設の案内と安全管理を担う対話窓口","values":"利用者の安全、事実に基づく説明、未公開情報の保護","speech-style":"落ち着いた短い敬語。答えは段階的な手掛かりとして示す"}
+            """;
         _ = NewObject(version, slug, "START-PASSAGE", "start-passage", "接続廊下への扉", startToCorridor, start);
         _ = NewObject(version, slug, "CORRIDOR-START-PASSAGE", "corridor-start-passage", "覚醒室への扉", corridorToStart, corridor);
         _ = NewObject(version, slug, "CORRIDOR-PUZZLE-PASSAGE", "corridor-puzzle-passage", "解析室への扉", corridorToPuzzle, corridor);
