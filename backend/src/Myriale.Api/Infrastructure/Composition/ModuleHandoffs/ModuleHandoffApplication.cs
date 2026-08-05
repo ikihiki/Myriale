@@ -3,11 +3,11 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Features.ProgressionRuntime.Application.Ports;
+using Myriale.Api.Features.ProgressionRuntime.Application.Services;
 using Myriale.Api.Infrastructure.Composition.SessionArtifacts;
 using Myriale.ModuleSdk;
 
-using Myriale.Api.Features.ModuleHandoffs.Application.Ports;
+using Myriale.Api.Features.ModuleHandoffs.Application.Services;
 
 namespace Myriale.Api.Infrastructure.Composition.ModuleHandoffs;
 

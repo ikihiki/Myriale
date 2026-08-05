@@ -1,7 +1,7 @@
 using System.Text.Json;
-using Myriale.Api.Features.ModuleExecutions.Application.Ports;
+using Myriale.Api.Features.ModuleExecutions.Application.Services;
 
-using Myriale.Api.Features.ProgressionRuntime.Application.Ports;
+using Myriale.Api.Features.ProgressionRuntime.Application.Services;
 
 namespace Myriale.Api.Features.ProgressionRuntime.Application;
 

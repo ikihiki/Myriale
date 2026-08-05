@@ -1,5 +1,5 @@
 using Myriale.Api.Architecture;
-using Myriale.Api.Features.AiProviders.Application.Ports;
+using Myriale.Api.Features.AiProviders.Application.Services;
 
 namespace Myriale.Api.Features.NarrativeGeneration.Contracts;
 

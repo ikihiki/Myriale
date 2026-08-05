@@ -1,5 +1,5 @@
 using Myriale.Api.Architecture;
-namespace Myriale.Api.Features.ModulePackages.Application.Ports;
+namespace Myriale.Api.Features.ModulePackages.Application.Services;
 
 [CrossSliceContract]
 public static class ModuleRuntimeErrorCodes

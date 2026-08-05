@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-using Myriale.Api.Features.ScenarioTurns.Application.Ports;
+using Myriale.Api.Features.ScenarioTurns.Application.Services;
 
 namespace Myriale.Api.Features.ScenarioTurns.Application;
 

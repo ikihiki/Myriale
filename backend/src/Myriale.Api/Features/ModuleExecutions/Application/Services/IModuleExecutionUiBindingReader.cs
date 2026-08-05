@@ -1,6 +1,6 @@
 using Myriale.Api.Architecture;
 
-namespace Myriale.Api.Features.ModuleExecutions.Application.Ports;
+namespace Myriale.Api.Features.ModuleExecutions.Application.Services;
 
 [CrossSliceContract]
 public sealed record ModuleExecutionUiBinding(ModulePackageModuleId ModuleId, ModulePackageVersion ModuleVersion, ModulePackageDigest ModuleDigest, string ContractVersion);

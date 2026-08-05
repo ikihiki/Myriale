@@ -33,7 +33,7 @@ public sealed class SliceReferenceAnalyzer : DiagnosticAnalyzer
     private static readonly DiagnosticDescriptor InvalidExport = new(
         InvalidExportId,
         "Cross-slice export is invalid",
-        "Exported type '{0}' must be declared in Identifiers, Contracts, or Application.Ports of its owning slice",
+        "Exported type '{0}' must be declared in Identifiers, Contracts, or Application.Services of its owning slice",
         "Architecture",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);

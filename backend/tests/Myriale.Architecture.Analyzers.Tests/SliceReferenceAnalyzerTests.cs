@@ -49,7 +49,7 @@ public sealed class SliceReferenceAnalyzerTests
                 public sealed record ItemContract(ItemId Id);
             }
 
-            namespace Myriale.Api.Features.Catalog.Application.Ports
+            namespace Myriale.Api.Features.Catalog.Application.Services
             {
                 using Myriale.Api.Features.Catalog.Contracts;
                 using Myriale.Api.Features.Catalog.Identifiers;
@@ -65,7 +65,7 @@ public sealed class SliceReferenceAnalyzerTests
 
             namespace Myriale.Api.Features.Orders.Application
             {
-                using Myriale.Api.Features.Catalog.Application.Ports;
+                using Myriale.Api.Features.Catalog.Application.Services;
                 using Myriale.Api.Features.Catalog.Contracts;
                 using Myriale.Api.Features.Catalog.Identifiers;
 
@@ -329,12 +329,12 @@ public sealed class SliceReferenceAnalyzerTests
                     System.Collections.Generic.IReadOnlyList<HiddenPayload> Values);
             }
 
-            namespace Myriale.Api.Features.Provider.Application.Ports
+            namespace Myriale.Api.Features.Provider.Application.Services
             {
                 using Myriale.Api.Features.Provider.Contracts;
 
                 [CrossSliceContract]
-                public interface IProviderPort
+                public interface IProviderService
                 {
                     System.Threading.Tasks.Task<(HiddenPayload Value, int Count)> GetAsync();
                 }

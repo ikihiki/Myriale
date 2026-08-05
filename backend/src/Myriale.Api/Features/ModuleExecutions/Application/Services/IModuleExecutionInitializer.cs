@@ -1,7 +1,7 @@
 using Myriale.Api.Architecture;
 using Myriale.Api.Features.ModuleExecutions.Contracts;
 
-namespace Myriale.Api.Features.ModuleExecutions.Application.Ports;
+namespace Myriale.Api.Features.ModuleExecutions.Application.Services;
 
 [CrossSliceContract]
 public enum ModuleExecutionInitializationOutcome

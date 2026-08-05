@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
 
-namespace Myriale.Api.Features.NarrativeGeneration.Application.Ports;
+namespace Myriale.Api.Features.NarrativeGeneration.Application.Services;
 
 public interface INarrativeRecentTurnSelector
 {

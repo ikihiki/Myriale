@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Features.ModuleExecutions.Application.Ports;
+using Myriale.Api.Features.ModuleExecutions.Application.Services;
 
 namespace Myriale.Api.Features.ModuleExecutions.Infrastructure;
 

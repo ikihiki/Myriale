@@ -1,6 +1,6 @@
 using Myriale.Api.Architecture;
 
-namespace Myriale.Api.Features.ModuleHandoffs.Application.Ports;
+namespace Myriale.Api.Features.ModuleHandoffs.Application.Services;
 
 [CrossSliceContract]
 public enum ModuleHandoffEnqueueOutcome { Enqueued, Existing }

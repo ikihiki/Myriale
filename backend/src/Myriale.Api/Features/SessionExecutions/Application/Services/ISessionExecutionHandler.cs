@@ -1,6 +1,6 @@
 using Myriale.Api.Architecture;
 
-namespace Myriale.Api.Features.SessionExecutions.Application.Ports;
+namespace Myriale.Api.Features.SessionExecutions.Application.Services;
 
 [CrossSliceContract]
 public sealed record SessionExecutionContext(SessionExecutionId ExecutionId, string LeaseToken, long Revision, SessionExecutionAttemptId AttemptId, int AttemptNumber);

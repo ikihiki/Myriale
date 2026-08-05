@@ -1,5 +1,5 @@
 using Myriale.Api.Architecture;
-using Myriale.Api.Features.ModuleHandoffs.Application.Ports;
+using Myriale.Api.Features.ModuleHandoffs.Application.Services;
 
 namespace Myriale.Api.Features.ModuleHandoffs;
 

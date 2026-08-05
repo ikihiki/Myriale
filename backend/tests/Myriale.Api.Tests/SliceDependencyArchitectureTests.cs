@@ -109,7 +109,7 @@ public sealed class SliceDependencyArchitectureTests
         var relative = type.Namespace?[(FeaturesPrefix.Length + slice.Length)..].TrimStart('.') ?? string.Empty;
         return relative == "Identifiers" || relative.StartsWith("Identifiers.", StringComparison.Ordinal)
             || relative == "Contracts" || relative.StartsWith("Contracts.", StringComparison.Ordinal)
-            || relative == "Application.Ports" || relative.StartsWith("Application.Ports.", StringComparison.Ordinal);
+            || relative == "Application.Services" || relative.StartsWith("Application.Services.", StringComparison.Ordinal);
     }
 
     private static bool IsExported(TypeDefinition type) => type.CustomAttributes.Any(attribute => attribute.AttributeType.FullName == ExportAttribute);

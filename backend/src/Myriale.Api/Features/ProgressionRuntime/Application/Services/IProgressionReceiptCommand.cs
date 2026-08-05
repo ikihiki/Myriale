@@ -1,6 +1,6 @@
 using Myriale.Api.Architecture;
 
-namespace Myriale.Api.Features.ProgressionRuntime.Application.Ports;
+namespace Myriale.Api.Features.ProgressionRuntime.Application.Services;
 
 [CrossSliceContract]
 public interface IProgressionReceiptCommand

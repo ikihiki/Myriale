@@ -133,7 +133,7 @@ public sealed class SessionExecutionArchitectureTests
     }
 
     [Fact]
-    public void ScenarioTurnExecution_HasExplicitSplitPortsAndNoLegacyRuntimeTypes()
+    public void ScenarioTurnExecution_HasExplicitSplitServicesAndNoLegacyRuntimeTypes()
     {
         var assembly = typeof(ScenarioTurnExecutionHandler).Assembly;
         var required = new[]

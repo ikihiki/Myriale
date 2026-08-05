@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Myriale.Api.Features.ModulePackages.Application;
 using Myriale.Api.Features.ModuleExecutions.Application;
-using Myriale.Api.Features.ModuleHandoffs.Application.Ports;
+using Myriale.Api.Features.ModuleHandoffs.Application.Services;
 using Myriale.Api.Infrastructure.Persistence;
 using Myriale.Api.Features.ModulePackages.Infrastructure;
 using Myriale.ModuleSdk;

@@ -1,6 +1,6 @@
 using Myriale.Api.Architecture;
 
-namespace Myriale.Api.Features.NarrativeGeneration.Application.Ports;
+namespace Myriale.Api.Features.NarrativeGeneration.Application.Services;
 
 public interface IActionRecommendationGenerator
 {

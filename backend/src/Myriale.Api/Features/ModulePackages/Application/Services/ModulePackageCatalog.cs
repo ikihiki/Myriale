@@ -1,7 +1,7 @@
 using Myriale.Api.Architecture;
 using Myriale.ModuleSdk;
 
-namespace Myriale.Api.Features.ModulePackages.Application.Ports;
+namespace Myriale.Api.Features.ModulePackages.Application.Services;
 
 [CrossSliceContract]
 public sealed record ModulePackageSnapshot(

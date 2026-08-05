@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Myriale.Api.Architecture;
 
-namespace Myriale.Api.Features.ScenarioTurns.Application.Ports;
+namespace Myriale.Api.Features.ScenarioTurns.Application.Services;
 
 [CrossSliceContract]
 public interface IScenarioActionDecisionModelMapper

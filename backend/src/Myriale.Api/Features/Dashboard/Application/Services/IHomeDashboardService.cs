@@ -1,5 +1,5 @@
 
-namespace Myriale.Api.Features.Dashboard.Application.Ports;
+namespace Myriale.Api.Features.Dashboard.Application.Services;
 
 public interface IHomeDashboardService
 {

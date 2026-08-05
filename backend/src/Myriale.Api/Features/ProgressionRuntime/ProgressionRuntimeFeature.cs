@@ -1,5 +1,5 @@
 using Myriale.Api.Architecture;
-using Myriale.Api.Features.ProgressionRuntime.Application.Ports;
+using Myriale.Api.Features.ProgressionRuntime.Application.Services;
 
 namespace Myriale.Api.Features.ProgressionRuntime;
 

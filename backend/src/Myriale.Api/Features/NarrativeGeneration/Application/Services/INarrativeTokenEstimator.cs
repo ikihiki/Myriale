@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Myriale.Api.Features.NarrativeGeneration.Application.Ports;
+namespace Myriale.Api.Features.NarrativeGeneration.Application.Services;
 
 public interface INarrativeTokenEstimator
 {

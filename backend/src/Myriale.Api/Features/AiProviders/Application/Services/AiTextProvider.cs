@@ -1,7 +1,7 @@
 using Microsoft.Extensions.AI;
 using Myriale.Api.Architecture;
 
-namespace Myriale.Api.Features.AiProviders.Application.Ports;
+namespace Myriale.Api.Features.AiProviders.Application.Services;
 
 [CrossSliceContract]
 public static class AiProviderErrorCodes

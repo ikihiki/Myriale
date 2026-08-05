@@ -1,5 +1,5 @@
 
-namespace Myriale.Api.Features.AiProviders.Application.Ports;
+namespace Myriale.Api.Features.AiProviders.Application.Services;
 
 public sealed record ActiveAiProviderSelection(AiProviderProfileId Provider, long Revision);
 

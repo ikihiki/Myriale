@@ -7,7 +7,7 @@ internal enum SliceLayer
     Unknown,
     Identifiers,
     Contracts,
-    ApplicationPorts,
+    ApplicationServices,
     Domain,
     Infrastructure,
     Http,
@@ -27,7 +27,7 @@ internal readonly struct SliceLocation
     internal SliceLayer Layer { get; }
 
     internal bool IsExportLayer =>
-        Layer is SliceLayer.Identifiers or SliceLayer.Contracts or SliceLayer.ApplicationPorts;
+        Layer is SliceLayer.Identifiers or SliceLayer.Contracts or SliceLayer.ApplicationServices;
 
     internal bool IsForbiddenLayer =>
         Layer is SliceLayer.Domain or SliceLayer.Infrastructure or SliceLayer.Http;
@@ -73,8 +73,8 @@ internal static class SliceModel
             {
                 "Identifiers" => SliceLayer.Identifiers,
                 "Contracts" => SliceLayer.Contracts,
-                "Application" when segments.Length >= 3 && segments[2] == "Ports" =>
-                    SliceLayer.ApplicationPorts,
+                "Application" when segments.Length >= 3 && segments[2] == "Services" =>
+                    SliceLayer.ApplicationServices,
                 "Application" => SliceLayer.Other,
                 "Domain" => SliceLayer.Domain,
                 "Infrastructure" => SliceLayer.Infrastructure,
