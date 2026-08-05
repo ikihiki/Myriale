@@ -1,13 +1,13 @@
 using System.Reflection;
 using System.Security.Cryptography;
-using Myriale.Api.Application.ModulePackages;
+using Myriale.Api.Features.ModulePackages.Application;
 using Myriale.Api.Application.Sessions;
 using Myriale.Api.Data;
 using Myriale.Api.Endpoints;
-using Myriale.Api.Modules;
-using Myriale.Api.Modules.Execution;
-using Myriale.Api.Modules.Runtime;
-using Myriale.Api.Modules.UI;
+using Myriale.Api.Features.ModulePackages;
+using Myriale.Api.Features.ModuleExecutions.Infrastructure;
+using Myriale.Api.Features.ModulePackages.Infrastructure;
+using Myriale.Api.Features.ModuleUi.Infrastructure;
 using Myriale.ModuleSdk;
 
 namespace Myriale.Api.Tests;
@@ -93,10 +93,10 @@ public sealed class ModulePackageDomainSliceTests
     public void ArchitectureUsesOneCatalogAndLegacyServicesAreAbsent()
     {
         var assembly = typeof(ModulePackage).Assembly;
-        Assert.Null(assembly.GetType("Myriale.Api.Modules.IModulePackageService"));
-        Assert.Null(assembly.GetType("Myriale.Api.Modules.ModulePackageService"));
-        Assert.Null(assembly.GetType("Myriale.Api.Modules.Runtime.IModulePackageRuntimeCatalog"));
-        Assert.Null(assembly.GetType("Myriale.Api.Modules.Runtime.ModulePackageRuntimeCatalog"));
+        Assert.Null(assembly.GetType("Myriale.Api.Features.ModulePackages.IModulePackageService"));
+        Assert.Null(assembly.GetType("Myriale.Api.Features.ModulePackages.ModulePackageService"));
+        Assert.Null(assembly.GetType("Myriale.Api.Features.ModulePackages.Infrastructure.IModulePackageRuntimeCatalog"));
+        Assert.Null(assembly.GetType("Myriale.Api.Features.ModulePackages.Infrastructure.ModulePackageRuntimeCatalog"));
         Assert.Contains(typeof(DotNetModuleRuntime).GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).Single().GetParameters(), x => x.ParameterType == typeof(IModulePackageCatalog));
         Assert.Contains(typeof(ModuleUiResourceService).GetConstructors().Single().GetParameters(), x => x.ParameterType == typeof(IModulePackageCatalog));
         Assert.Contains(typeof(ModuleExecutionWorkflow).GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).Single().GetParameters(), x => x.ParameterType == typeof(IModulePackageCatalog));

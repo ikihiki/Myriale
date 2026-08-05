@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Options;
-using Myriale.Api.Application.ModulePackages;
+using Myriale.Api.Features.ModulePackages.Application;
 using Myriale.Api.Application.Sessions;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;

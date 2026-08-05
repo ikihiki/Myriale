@@ -7,12 +7,12 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Myriale.Api.Application.ModulePackages;
+using Myriale.Api.Features.ModulePackages.Application;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
-using Myriale.Api.Modules;
-using Myriale.Api.Modules.Execution;
-using Myriale.Api.Application.ModuleExecutions;
+using Myriale.Api.Features.ModulePackages;
+using Myriale.Api.Features.ModuleExecutions.Infrastructure;
+using Myriale.Api.Features.ModuleExecutions.Application;
 
 namespace Myriale.Api.Tests;
 
@@ -113,7 +113,7 @@ public sealed class ModuleUiEndpointTests : IDisposable
             installed = installed with { Package = (await enable.ExecuteAsync(installed.Package.Digest, installed.Package.Revision, default))! };
             var executions = scope.ServiceProvider.GetRequiredService<InitializeDetachedModuleExecutionCommand>();
             var created = await executions.ExecuteAsync(ownerId, new InitializeModuleExecutionRequest(
-                "headless-ui", installed.Package.ModuleId.Value, installed.Package.Version.Value, installed.Package.Digest.Value,
+                "headless-ui", installed.Package.ModuleId.AsPrimitive(), installed.Package.Version.AsPrimitive(), installed.Package.Digest.AsPrimitive(),
                 JsonSerializer.SerializeToElement(new { }), Binding(), 0), default);
             Assert.NotNull(created.Execution);
             using var response = await client.GetAsync($"/api/module-executions/{created.Execution.Id}/ui/runtime/");
@@ -135,10 +135,10 @@ public sealed class ModuleUiEndpointTests : IDisposable
         installed = installed with { Package = (await enable.ExecuteAsync(installed.Package.Digest, installed.Package.Revision, default))! };
         var executions = scope.ServiceProvider.GetRequiredService<InitializeDetachedModuleExecutionCommand>();
         var created = await executions.ExecuteAsync(ownerId, new InitializeModuleExecutionRequest(
-            $"init-{Guid.NewGuid():N}", installed.Package.ModuleId.Value, installed.Package.Version.Value, installed.Package.Digest.Value,
+            $"init-{Guid.NewGuid():N}", installed.Package.ModuleId.AsPrimitive(), installed.Package.Version.AsPrimitive(), installed.Package.Digest.AsPrimitive(),
             JsonSerializer.SerializeToElement(new { }), Binding(), 0), default);
         Assert.NotNull(created.Execution);
-        return (client, created.Execution.Id, installed.Package.Digest.Value);
+        return (client, created.Execution.Id, installed.Package.Digest.AsPrimitive());
     }
 
     private static async Task SetEnabledAsync(IServiceProvider services, string digest, bool enabled)

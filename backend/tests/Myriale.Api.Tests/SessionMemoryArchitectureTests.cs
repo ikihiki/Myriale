@@ -1,6 +1,6 @@
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Application.SessionMemory;
+using Myriale.Api.Features.SessionMemory.Application;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Endpoints;
@@ -16,7 +16,7 @@ public sealed class SessionMemoryArchitectureTests
         Assert.NotEmpty(memoryHandlers);
         Assert.DoesNotContain(memoryHandlers.SelectMany(method => method.GetParameters()), parameter => parameter.ParameterType == typeof(ApplicationDbContext));
 
-        var review = typeof(SessionArtifactEndpoints).GetMethod("ReviewAsync", BindingFlags.Static | BindingFlags.NonPublic);
+        var review = typeof(SessionMemoryEndpoints).GetMethod("ReviewAsync", BindingFlags.Static | BindingFlags.NonPublic);
         Assert.NotNull(review);
         Assert.DoesNotContain(review!.GetParameters(), parameter => parameter.ParameterType == typeof(ApplicationDbContext));
     }

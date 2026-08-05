@@ -13,11 +13,11 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Myriale.Api.Application.SessionExecutions;
-using Myriale.Api.Application.SessionArtifacts;
+using Myriale.Api.Features.SessionArtifacts.Application;
 using Myriale.Api.Endpoints;
 using Myriale.Api.Data;
 using Myriale.Api.Infrastructure.SessionExecutions;
-using Myriale.Api.Infrastructure.SessionArtifacts;
+using Myriale.Api.Features.SessionArtifacts.Infrastructure;
 using Myriale.Api.Services;
 
 namespace Myriale.Api.Tests;

@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Myriale.Api.Application.Scenarios;
+using Myriale.Api.Features.Scenarios.Application;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Services;
@@ -270,7 +270,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
             var moduleId = new ModulePackageModuleId("com.myriale.rules.turn-battle");
             var version = new ModulePackageVersion("1.0.0");
             digest = (await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
-                db.ModulePackages.Where(item => item.ModuleId == moduleId && item.Version == version))).Digest.Value;
+                db.ModulePackages.Where(item => item.ModuleId == moduleId && item.Version == version))).Digest.AsPrimitive();
         }
         var scenarioId = await CreatePublishedGuardianScenarioAsync(client, digest);
         using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-guardian" });

@@ -8,7 +8,7 @@ using Myriale.Api.Application.ProgressionRuntime;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Infrastructure.ModuleHandoffs;
-using Myriale.Api.Infrastructure.SessionArtifacts;
+using Myriale.Api.Features.SessionArtifacts.Infrastructure;
 using Myriale.Api.Services;
 using Myriale.ModuleSdk;
 
@@ -245,7 +245,7 @@ public sealed class ModuleHandoffDomainSliceTests
         Assert.Equal([typeof(ModuleHandoffExecutionOrchestrator)], constructor.GetParameters().Select(parameter => parameter.ParameterType));
         Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(ApplicationDbContext));
         var assembly = typeof(ModuleHandoffExecutionHandler).Assembly;
-        Assert.Null(assembly.GetType("Myriale.Api.Modules.Execution.ModuleHandoffPreparer"));
+        Assert.Null(assembly.GetType("Myriale.Api.Features.ModuleExecutions.Infrastructure.ModuleHandoffPreparer"));
         Assert.Null(assembly.GetType("Myriale.Api.Services.SessionScenarioProgressionService"));
         Assert.All(new[]
         {

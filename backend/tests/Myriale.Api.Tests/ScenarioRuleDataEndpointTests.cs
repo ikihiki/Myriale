@@ -36,7 +36,7 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
         var drafts = await db.ScenarioDefinitionVersions.AsNoTracking()
-            .Where(x => x.ScenarioId == scenarioId && x.Status == Myriale.Api.Data.DefinitionStatus.Draft).ToListAsync();
+            .Where(x => x.ScenarioId == scenarioId && x.Status == DefinitionStatus.Draft).ToListAsync();
         var draft = Assert.Single(drafts);
         Assert.Equal(1, draft.Version);
     }
@@ -562,11 +562,11 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
             .Include(version => version.ProgressionTransitions)
             .SingleAsync(version => version.Id == "SDV-STAR-LIBRARY-1");
 
-        var drafts = scope.ServiceProvider.GetRequiredService<Myriale.Api.Application.Scenarios.ScenarioDefinitionDraftService>();
+        var drafts = scope.ServiceProvider.GetRequiredService<Myriale.Api.Features.Scenarios.Application.ScenarioDefinitionDraftService>();
         var draft = await drafts.GetOrCreateDraftAsync(published.ScenarioId, CancellationToken.None);
 
         Assert.Equal(2, draft.Version);
-        Assert.Equal(Myriale.Api.Data.DefinitionStatus.Draft, draft.Status);
+        Assert.Equal(DefinitionStatus.Draft, draft.Status);
         Assert.Equal(published.ProgressionNodes.Count, draft.ProgressionNodes.Count);
         Assert.Equal(published.ProgressionTransitions.Count, draft.ProgressionTransitions.Count);
         Assert.All(draft.ProgressionNodes, node =>
@@ -623,7 +623,7 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Data.ApplicationDbContext>();
         Assert.Equal(1, await db.ScenarioDefinitionVersions.CountAsync(
-            version => version.ScenarioId == scenarioId && version.Status == Myriale.Api.Data.DefinitionStatus.Draft));
+            version => version.ScenarioId == scenarioId && version.Status == DefinitionStatus.Draft));
     }
 
     public void Dispose()

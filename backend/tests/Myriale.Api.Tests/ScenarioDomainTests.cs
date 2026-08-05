@@ -20,7 +20,7 @@ public sealed class ScenarioDomainTests
 
         definition.Publish(now);
 
-        var published = Assert.IsType<Myriale.Api.Domain.Scenarios.ScenarioDefinitionPublished>(Assert.Single(definition.DomainEvents));
+        var published = Assert.IsType<Myriale.Api.Features.Scenarios.Domain.ScenarioDefinitionPublished>(Assert.Single(definition.DomainEvents));
         Assert.Equal(("scenario", "definition", 3), (published.ScenarioId, published.DefinitionVersionId, published.Version));
         Assert.Single(definition.DequeueDomainEvents());
         Assert.Empty(definition.DomainEvents);
@@ -29,7 +29,7 @@ public sealed class ScenarioDomainTests
     [Fact]
     public void TypedRuleJsonCodec_RejectsWrongShapesAndRoundTripsConditions()
     {
-        var codec = new Myriale.Api.Domain.Scenarios.ScenarioRuleJsonCodec();
+        var codec = new Myriale.Api.Features.Scenarios.Domain.ScenarioRuleJsonCodec();
         var condition = codec.DecodeCondition("{\"op\":\"exists\",\"path\":\"state.open\"}");
 
         Assert.Contains("state.open", codec.Encode(condition));

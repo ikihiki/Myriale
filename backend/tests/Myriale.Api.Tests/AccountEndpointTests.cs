@@ -12,7 +12,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Endpoints;
-using Myriale.Api.Infrastructure.Accounts;
+using Myriale.Api.Features.Accounts.Infrastructure;
 
 namespace Myriale.Api.Tests;
 

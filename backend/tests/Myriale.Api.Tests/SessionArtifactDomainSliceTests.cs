@@ -3,7 +3,7 @@ using System.Reflection;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
-using Myriale.Api.Application.SessionArtifacts;
+using Myriale.Api.Features.SessionArtifacts.Application;
 using Myriale.Api.Data;
 using Myriale.Api.Endpoints;
 using Myriale.Api.Services;

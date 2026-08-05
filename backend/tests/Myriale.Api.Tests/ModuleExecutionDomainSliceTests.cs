@@ -1,6 +1,6 @@
 using System.Reflection;
 using System.Text.Json;
-using Myriale.Api.Application.ModuleExecutions;
+using Myriale.Api.Features.ModuleExecutions.Application;
 using Myriale.Api.Data;
 using Myriale.Api.Endpoints;
 using Myriale.ModuleSdk;
@@ -66,9 +66,9 @@ public sealed class ModuleExecutionDomainSliceTests
         Assert.DoesNotContain(endpointMethods.SelectMany(method => method.GetParameters()), parameter => parameter.ParameterType == typeof(ApplicationDbContext));
         foreach (var type in new[] { typeof(ModuleExecution), typeof(ModuleExecutionRequest), typeof(ModuleOutcomeApplication) })
             Assert.DoesNotContain(type.GetProperties(), property => property.SetMethod?.IsPublic == true);
-        Assert.Null(typeof(ModuleExecution).Assembly.GetType("Myriale.Api.Modules.Execution.IModuleExecutionService"));
-        Assert.Null(typeof(ModuleExecution).Assembly.GetType("Myriale.Api.Modules.Execution.ModuleExecutionService"));
-        Assert.Null(typeof(ModuleExecution).Assembly.GetType("Myriale.Api.Modules.Execution.ModuleExecutionServiceResult"));
+        Assert.Null(typeof(ModuleExecution).Assembly.GetType("Myriale.Api.Features.ModuleExecutions.Infrastructure.IModuleExecutionService"));
+        Assert.Null(typeof(ModuleExecution).Assembly.GetType("Myriale.Api.Features.ModuleExecutions.Infrastructure.ModuleExecutionService"));
+        Assert.Null(typeof(ModuleExecution).Assembly.GetType("Myriale.Api.Features.ModuleExecutions.Infrastructure.ModuleExecutionServiceResult"));
     }
 
     private static ModuleExecution NewExecution() => new()

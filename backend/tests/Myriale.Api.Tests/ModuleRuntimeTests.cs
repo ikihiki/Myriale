@@ -2,9 +2,9 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
-using Myriale.Api.Modules;
-using Myriale.Api.Application.ModulePackages;
-using Myriale.Api.Modules.Runtime;
+using Myriale.Api.Features.ModulePackages;
+using Myriale.Api.Features.ModulePackages.Application;
+using Myriale.Api.Features.ModulePackages.Infrastructure;
 using Myriale.ModuleSdk;
 
 namespace Myriale.Api.Tests;
@@ -158,7 +158,7 @@ public sealed class ModuleRuntimeTests : IDisposable
         await using var stream = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "Myriale.HeadlessTestModule.dll"));
         var result = await install.ExecuteAsync(stream, default);
         if (enable) result = result with { Package = (await enableCommand.ExecuteAsync(result.Package.Digest, result.Package.Revision, default))! };
-        return new ModulePackageIdentity(result.Package.ModuleId.Value, result.Package.Version.Value, result.Package.Digest.Value);
+        return new ModulePackageIdentity(result.Package.ModuleId.AsPrimitive(), result.Package.Version.AsPrimitive(), result.Package.Digest.AsPrimitive());
     }
 
     private async Task SetEnabledAsync(string digest, bool enabled)

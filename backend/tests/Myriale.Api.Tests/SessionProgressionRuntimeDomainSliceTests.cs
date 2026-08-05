@@ -5,7 +5,7 @@ using Myriale.Api.Application.ProgressionRuntime;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Infrastructure.ProgressionRuntime;
-using Myriale.Api.Application.ModuleExecutions;
+using Myriale.Api.Features.ModuleExecutions.Application;
 using Myriale.Api.Services;
 
 namespace Myriale.Api.Tests;
