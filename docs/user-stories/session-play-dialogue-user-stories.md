@@ -13,7 +13,11 @@
 - Execution: Narrative生成のqueued/running/retry/failed/cancelled状態
 - Artifact: 生成・検証された成果物
 - Turn: 成功したNarrativeまたはModule結果だけを公開した正式な進行単位
-- AI: 語り手・世界・NPCを兼ねる存在  
+- Entity: 人物、動物、物品、端末などを共通に表す世界内対象。NPC は人物 Entity の物語上の役割であり、専用 domain type ではない
+- Structured Profile: Entity Type が宣言し Entity が値を供給する静的プロフィール
+- ProfileMarkdown: Structured Profile を補足する Entity-local の自由記述
+- AI-managed state transition: `ai` authority field だけを更新する検証可能な構造化結果
+- AI: 語り手・世界・人物 Entity を含む登場対象を描写する存在
 
 ---
 
@@ -101,10 +105,10 @@ So that 世界がどう反応したか分かる
 
 ---
 
-## US-P04: NPCと自然に会話したい
+## US-P04: 人物として描写されるEntityと自然に会話したい
 
 As a プレイヤー  
-I want NPCと自然に会話したい  
+I want 人物として描写されるEntityと自然に会話したい
 So that 物語世界に没入できる  
 
 背景・意図  
@@ -115,11 +119,14 @@ So that 物語世界に没入できる
 - 会話内容を自由入力する  
 
 期待される結果  
-- AIがNPCの立場・性格・関係性に沿って返答する  
-- 会話内容がセッション文脈に記録される  
+- AIが Entity の resolved Structured Profile、補足 ProfileMarkdown、公開済み事実、保存済み runtime state に沿って返答する
+- 構造化 profile と Markdown が矛盾する場合は構造化値を優先する
+- profile に含まれる秘密を自動的に player-visible fact として扱わない
+- 会話に伴う AI-managed state は検証・commit 後にセッション文脈へ記録される
 
-補足  
-- 同一NPCは一貫した口調・態度を保つ  
+補足
+- 同一 Entity は保存済み profile/state に基づいて一貫した口調・態度を保つ
+- 人物以外の Entity も同じ profile/state 機構を利用でき、NPC 専用 aggregate や conversation mode は前提にしない
 
 ---
 
@@ -291,20 +298,59 @@ UI要件
 - 巻き戻し可能範囲は制限される  
 - 非同期処理（挿絵生成など）は無効化またはキャンセルされる  
 
+
+---
+
+## US-P12: EntityのAI-managed stateを次の対話と再読み込み後も引き継ぎたい
+
+As a プレイヤー
+I want 対話によって変化したEntityの認識や態度が継続してほしい
+So that 長いSessionや再訪でも関係性が一貫する
+
+背景・意図
+- `trust`、`mood`、`recognizedTopics` などは静的 profile ではなく Session ごとの runtime state である
+- retry や worker 再実行で同じ変化が二重適用されてはならない
+
+期待される結果
+- 対象 Entity の `ai` authority fields について、現在の保存 state と expected object revision を入力に構造化 transition を生成する
+- transition は schema、Entity identity、field authority、expected revision を検証し、commit 前に durable checkpoint として保存する
+- authored effects と AI state replacement は一つの authority commit で適用し、成功時だけ `SessionObjectState.Revision` を進める
+- 次ターンと Session 再読み込みは、prompt の再生成結果ではなく保存済み post-state を正本として利用する
+- Narrative 生成に失敗しても committed state は取り消さない。Narrative retry、同一 request retry、lease loss 後の再開では checkpoint と committed post-state を再利用し、transition の生成・commit を重複させない
+- stale revision、schema 違反、`rules` field・他 Entity・Location の変更要求は state を変更せず拒否し、必要なら最新 snapshot から処理をやり直す
+
+---
+
+## US-P13: Locationを移動した後は現在地に合うEntityだけを文脈に含めてほしい
+
+As a プレイヤー
+I want 複数のLocationを自由に移動し、現在地にいる対象と対話したい
+So that 遠隔地の秘密を漏らさず自然な世界移動を体験できる
+
+期待される結果
+- Scenario の複数 Location と `move-session` / `move-object` による移動を維持する
+- Entity の現在位置は初期 definition ではなく runtime の `SessionObjectState.LocationId` を正本とする
+- action selection と AI state transition には Session location と対象 Entity location を別々に渡す
+- Narrative prompt は post-effect の Session location にいる Entity、global Entity、移動直後の描写に必要な selected/affected Entity のみに profile context を限定する
+- unrelated Location の Structured Profile、ProfileMarkdown、private state は prompt や player response に含めない
+- 移動後の次ターンでは新しい Location の Entity が通常 context になり、以前の Location の Entity は remote data として除外される
+
 ---
 
 ## 総括
 
-- AI対話モードは  
-  「状況提示 → 自然言語入力 → 結果描写」  
-  を基本ループとする  
-- UI操作による  
-  - 修正  
-  - 巻き戻し  
-  - ログ参照  
-  により、安全で長期プレイ可能な体験を実現する  
-- 本設計は将来の  
-  - 選択肢UI  
-  - 戦闘UI  
-  - 分岐管理  
+- AI対話モードは
+  「状況提示 → 自然言語入力 → 結果描写」
+  を基本ループとする
+- UI操作による
+  - 修正
+  - 巻き戻し
+  - ログ参照
+  により、安全で長期プレイ可能な体験を実現する
+- Entity の静的 profile と runtime state を分離し、field ごとの `rules` / `ai` authority、revision、checkpoint により再実行可能な状態継続を実現する
+- runtime/post-effect Location に基づく安全な projection により、自由な移動と remote Entity 情報の非漏えいを両立する
+- 本設計は将来の
+  - 選択肢UI
+  - 戦闘UI
+  - 分岐管理
   の基盤となる
