@@ -113,4 +113,5 @@ public sealed record SessionPlayerInputResponse(
 
 public sealed record SessionInputAcceptedResponse(SessionPlayerInputResponse Input, SessionExecutionResponse Execution);
 
+[CrossSliceContract]
 public sealed record SessionErrorResponse(string Code, string Message, string? Details = null);

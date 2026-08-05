@@ -161,7 +161,7 @@ public sealed class PostgresSessionExecutionIntegrationTests
         execution.LeaseExpiresAt = now.AddMinutes(2);
         database.Db.SessionExecutions.Add(execution);
         await database.Db.SaveChangesAsync();
-        var repository = new Myriale.Api.Features.SessionExecutions.Infrastructure.EfSessionExecutionRepository(database.Db);
+        var repository = new Myriale.Api.Infrastructure.Composition.SessionExecutions.EfSessionExecutionRepository(database.Db);
 
         var result = await repository.MutateOwnedWithLockAsync(
             execution.Id,

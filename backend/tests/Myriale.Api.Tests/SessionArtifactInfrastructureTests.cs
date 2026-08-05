@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Myriale.Api.Features.SessionExecutions.Application;
-using Myriale.Api.Features.SessionArtifacts.Application;
+using Myriale.Api.Infrastructure.Composition.SessionArtifacts;
 using Myriale.Api.Infrastructure.Persistence;
 using Myriale.Api.Features.SessionExecutions.Infrastructure;
 using Myriale.Api.Features.SessionArtifacts.Infrastructure;

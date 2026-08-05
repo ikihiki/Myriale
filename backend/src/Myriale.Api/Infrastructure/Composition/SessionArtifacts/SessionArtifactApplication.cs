@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Infrastructure.Persistence;
 
-namespace Myriale.Api.Features.SessionArtifacts.Application;
+namespace Myriale.Api.Infrastructure.Composition.SessionArtifacts;
 
 public interface ISessionArtifactWriter
 {

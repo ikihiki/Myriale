@@ -2,7 +2,7 @@ using System.Text.Json;
 using Myriale.Api.Features.ModuleExecutions.Application;
 using Myriale.ModuleSdk;
 
-namespace Myriale.Api.Features.ScenarioTurns.Infrastructure;
+namespace Myriale.Api.Infrastructure.Composition.ScenarioTurns;
 
 public sealed class ScenarioModuleExtensionAdapter(InitializeDetachedModuleExecutionCommand executions) : IScenarioExtensionAdapter
 {

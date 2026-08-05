@@ -541,10 +541,12 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
         var session = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
-            db.Sessions.Include(item => item.ScenarioDefinitionVersion), item => item.Id == new SessionId(sessionId));
-        Assert.Equal("固定された世界設定", session.ScenarioDefinitionVersion!.ScenarioLore);
-        Assert.Equal("固定された指針", session.ScenarioDefinitionVersion.ScenarioAiFreedom);
-        Assert.Equal("固定された導入", session.ScenarioDefinitionVersion.ScenarioOpening);
+            db.Sessions, item => item.Id == new SessionId(sessionId));
+        var definition = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
+            db.ScenarioDefinitionVersions, item => item.Id == session.ScenarioDefinitionVersionId);
+        Assert.Equal("固定された世界設定", definition.ScenarioLore);
+        Assert.Equal("固定された指針", definition.ScenarioAiFreedom);
+        Assert.Equal("固定された導入", definition.ScenarioOpening);
         var opening = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
             db.SessionTurns, turn => turn.SessionId == new SessionId(sessionId) && turn.Position == 1);
         Assert.Equal("固定された題名", opening.Heading);

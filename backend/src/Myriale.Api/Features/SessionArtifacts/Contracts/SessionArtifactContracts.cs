@@ -30,6 +30,7 @@ public sealed record SessionNoteProposalResponse(
     string Status,
     DateTimeOffset CreatedAt);
 
+[CrossSliceContract]
 public sealed record ReviewSessionNoteProposalRequest(long ExpectedNoteRevision, string? Title = null, string? Body = null);
 
 public sealed class AttachSessionImageRequest

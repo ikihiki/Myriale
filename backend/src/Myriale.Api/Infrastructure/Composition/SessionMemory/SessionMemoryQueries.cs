@@ -2,7 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Infrastructure.Persistence;
 
-namespace Myriale.Api.Features.SessionMemory.Application;
+namespace Myriale.Api.Infrastructure.Composition.SessionMemory;
 
 public sealed class SessionMemoryQueryService(ApplicationDbContext db)
 {

@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.ModuleHandoffs.Application;
 using Myriale.Api.Features.ScenarioTurns.Application;
 using Myriale.Api.Infrastructure.Persistence;
-using Myriale.Api.Features.ModuleHandoffs.Infrastructure;
+using Myriale.Api.Infrastructure.Composition.ModuleHandoffs;
 using Myriale.Api.Features.ScenarioTurns.Infrastructure;
 
 namespace Myriale.Api.Tests;
@@ -49,8 +49,8 @@ public sealed class Phase10ArchitectureTests
             .Select(type => type.FullName).ToArray();
         Assert.Empty(violations);
 
-        Assert.Equal("Myriale.Api.Features.ScenarioTurns.Infrastructure", typeof(EfScenarioExecutionFence).Namespace);
-        Assert.Equal("Myriale.Api.Features.ModuleHandoffs.Infrastructure", typeof(EfModuleHandoffPublishUnitOfWork).Namespace);
+        Assert.Equal("Myriale.Api.Infrastructure.Composition.ScenarioTurns", typeof(EfScenarioExecutionFence).Namespace);
+        Assert.Equal("Myriale.Api.Infrastructure.Composition.ModuleHandoffs", typeof(EfModuleHandoffPublishUnitOfWork).Namespace);
     }
 
     [Fact]
@@ -60,7 +60,6 @@ public sealed class Phase10ArchitectureTests
         {
             "Myriale.Api.Features.Sessions.Domain",
             "Myriale.Api.Features.SessionExecutions.Domain",
-            "Myriale.Api.Features.ScenarioTurns.Domain",
             "Myriale.Api.Features.ProgressionRuntime.Domain",
         };
         var violations = Api.GetTypes()

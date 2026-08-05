@@ -9,7 +9,7 @@ using Myriale.Api.Features.ModuleExecutions.Application;
 using Myriale.Api.Features.ModulePackages.Infrastructure;
 using Myriale.ModuleSdk;
 
-namespace Myriale.Api.Features.ModuleExecutions.Infrastructure;
+namespace Myriale.Api.Infrastructure.Composition.ModuleExecutions;
 
 internal sealed partial class ModuleExecutionWorkflow
 {

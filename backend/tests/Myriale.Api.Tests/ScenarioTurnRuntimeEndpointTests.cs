@@ -214,18 +214,22 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
 
         await using var verificationScope = factory.Services.CreateAsyncScope();
         var verificationDb = verificationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var session = await verificationDb.Sessions
-            .Include(item => item.Progress).ThenInclude(progress => progress!.CurrentNode)
-            .Include(item => item.ProgressionModuleSnapshots).ThenInclude(snapshot => snapshot.Transition)
-            .SingleAsync(item => item.Id == new SessionId(sessionId));
+        var session = await verificationDb.Sessions.SingleAsync(item => item.Id == new SessionId(sessionId));
+        var progress = await verificationDb.SessionProgressStates.SingleAsync(item => item.SessionId == session.Id);
+        var currentNode = await verificationDb.ScenarioProgressionNodes.SingleAsync(item => item.Id == progress.CurrentNodeId);
+        var snapshots = await verificationDb.SessionProgressionModuleSnapshots
+            .Where(snapshot => snapshot.SessionId == session.Id)
+            .ToListAsync();
+        var transitionIds = snapshots.Select(snapshot => snapshot.TransitionId).ToArray();
+        var transitions = await verificationDb.ScenarioProgressionTransitions
+            .Where(transition => transitionIds.Contains(transition.Id))
+            .ToListAsync();
 
         Assert.Equal("SDV-STAR-LIBRARY-1", session.ScenarioDefinitionVersionId?.AsPrimitive());
-        Assert.NotNull(session.Progress);
-        Assert.Equal(session.ScenarioDefinitionVersionId, session.Progress!.CurrentNode.DefinitionVersionId);
-        Assert.NotEmpty(session.ProgressionModuleSnapshots);
-        Assert.All(session.ProgressionModuleSnapshots, snapshot =>
-            Assert.Equal(session.ScenarioDefinitionVersionId, snapshot.Transition.DefinitionVersionId));
-        Assert.DoesNotContain(session.ProgressionModuleSnapshots, snapshot => snapshot.Transition.DefinitionVersionId == draftId);
+        Assert.Equal(session.ScenarioDefinitionVersionId, currentNode.DefinitionVersionId);
+        Assert.NotEmpty(snapshots);
+        Assert.All(transitions, transition => Assert.Equal(session.ScenarioDefinitionVersionId, transition.DefinitionVersionId));
+        Assert.DoesNotContain(transitions, transition => transition.DefinitionVersionId == draftId);
     }
 
     [Fact]
@@ -241,12 +245,13 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
         var session = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
-            db.Sessions.Include(item => item.CurrentLocation).Include(item => item.ObjectStates),
-            item => item.Id == new SessionId(sessionId));
-        Assert.Equal("cellar", session.CurrentLocation!.Code);
+            db.Sessions, item => item.Id == new SessionId(sessionId));
+        var currentLocation = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
+            db.ScenarioLocations, item => item.Id == session.CurrentLocationId);
+        Assert.Equal("cellar", currentLocation.Code);
         var northDoorId = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
             db.ScenarioObjects.Where(item => item.DefinitionVersionId == session.ScenarioDefinitionVersionId && item.Code == "north-door").Select(item => item.Id));
-        var northDoorState = session.ObjectStates.Single(item => item.ScenarioObjectId == northDoorId);
+        var northDoorState = await db.SessionObjectStates.SingleAsync(item => item.SessionId == session.Id && item.ScenarioObjectId == northDoorId);
         using var state = JsonDocument.Parse(northDoorState.StateJson);
         Assert.True(state.RootElement.GetProperty("open").GetBoolean());
     }
@@ -338,7 +343,10 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         {
             var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
             var state = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
-                db.SessionObjectStates.Where(item => item.SessionId == new SessionId(sessionId) && item.ScenarioObject.Code == "north-door"));
+                from item in db.SessionObjectStates
+                join scenarioObject in db.ScenarioObjects on item.ScenarioObjectId equals scenarioObject.Id
+                where item.SessionId == new SessionId(sessionId) && scenarioObject.Code == "north-door"
+                select item);
             state.Revision++;
             await db.SaveChangesAsync();
         }

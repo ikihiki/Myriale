@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.ScenarioTurns.Application;
 using Myriale.Api.Infrastructure.Persistence;
 
-namespace Myriale.Api.Features.ScenarioTurns.Infrastructure;
+namespace Myriale.Api.Infrastructure.Composition.ScenarioTurns;
 
 public sealed class EfScenarioExecutionFence(ApplicationDbContext db) : IScenarioExecutionFence
 {

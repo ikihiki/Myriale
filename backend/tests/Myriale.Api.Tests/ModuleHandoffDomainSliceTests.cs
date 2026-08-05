@@ -8,7 +8,7 @@ using Myriale.Api.Features.ModuleHandoffs.Application.Ports;
 using Myriale.Api.Features.ProgressionRuntime.Application;
 using Myriale.Api.Features.ProgressionRuntime.Application.Ports;
 using Myriale.Api.Infrastructure.Persistence;
-using Myriale.Api.Features.ModuleHandoffs.Infrastructure;
+using Myriale.Api.Infrastructure.Composition.ModuleHandoffs;
 using Myriale.Api.Features.SessionArtifacts.Infrastructure;
 using Myriale.ModuleSdk;
 
@@ -296,9 +296,9 @@ public sealed class ModuleHandoffDomainSliceTests
         await db.SaveChangesAsync();
         var session = Session.Create(new SessionId("SES-1"), new AccountId("owner"), scenario.Id, definition.Id, null, null, null, "Hero", false,
             new SessionState { SessionId = new SessionId("SES-1"), FlagsJson = "{}", UpdatedAt = Now }, Now);
-        session.Progress = SessionProgressState.Start(session.Id, sourceNode.Id, Now);
-        session.Progress.CurrentNode = sourceNode;
+        var progress = SessionProgressState.Start(session.Id, sourceNode.Id, Now);
         db.Sessions.Add(session);
+        db.SessionProgressStates.Add(progress);
         db.SessionProgressionModuleSnapshots.Add(new SessionProgressionModuleSnapshot
         {
             Id = new SessionProgressionModuleSnapshotId("PMS-1"), SessionId = session.Id, TransitionId = transition.Id,

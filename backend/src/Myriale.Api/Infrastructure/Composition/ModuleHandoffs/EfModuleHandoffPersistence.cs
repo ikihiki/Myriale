@@ -10,7 +10,7 @@ using Myriale.Api.Infrastructure.Persistence;
 using Myriale.Api.Infrastructure.Hosting;
 using Myriale.ModuleSdk;
 
-namespace Myriale.Api.Features.ModuleHandoffs.Infrastructure;
+namespace Myriale.Api.Infrastructure.Composition.ModuleHandoffs;
 
 public sealed class EfModuleHandoffEnqueuePersistence(ApplicationDbContext db, TimeProvider timeProvider) : IModuleHandoffEnqueuePersistence
 {

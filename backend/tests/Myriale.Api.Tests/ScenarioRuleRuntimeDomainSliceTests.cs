@@ -131,7 +131,7 @@ public sealed class ScenarioRuleRuntimeDomainSliceTests
         var sessionState = SessionState.Create(new SessionId("SES"), new Dictionary<string, bool>(), Now);
         var session = Session.Create(new SessionId("SES"), new AccountId("OWNER"), new ScenarioId("SCN"), new ScenarioDefinitionVersionId("DEF"), new ScenarioLocationId("LOC"), null, null, "Hero", false, sessionState, Now);
         session.ApplyScenarioEffects(0, new ScenarioLocationId("LOC"), false, Now);
-        Assert.Throws<ScenarioRuntimeRevisionConflictException>(() => session.ApplyScenarioEffects(0, new ScenarioLocationId("LOC"), false, Now));
+        Assert.Throws<SessionRevisionConflictException>(() => session.ApplyScenarioEffects(0, new ScenarioLocationId("LOC"), false, Now));
     }
 
     [Fact]

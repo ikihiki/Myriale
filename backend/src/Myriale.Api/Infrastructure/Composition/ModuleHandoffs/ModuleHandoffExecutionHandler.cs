@@ -1,6 +1,6 @@
 using Myriale.Api.Features.ModuleHandoffs.Application;
 
-namespace Myriale.Api.Features.ModuleHandoffs.Infrastructure;
+namespace Myriale.Api.Infrastructure.Composition.ModuleHandoffs;
 
 public sealed class ModuleHandoffExecutionHandler(ModuleHandoffExecutionOrchestrator orchestrator) : ISessionExecutionHandler
 {

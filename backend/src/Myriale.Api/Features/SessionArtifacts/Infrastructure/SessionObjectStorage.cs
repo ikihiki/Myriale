@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Options;
-using Myriale.Api.Features.SessionArtifacts.Application;
+using Myriale.Api.Infrastructure.Composition.SessionArtifacts;
 
 namespace Myriale.Api.Features.SessionArtifacts.Infrastructure;
 

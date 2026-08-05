@@ -1,6 +1,6 @@
 using Myriale.Api.Features.ScenarioTurns.Application;
 
-namespace Myriale.Api.Features.ScenarioTurns.Infrastructure;
+namespace Myriale.Api.Infrastructure.Composition.ScenarioTurns;
 
 public sealed class ScenarioTurnExecutionHandler(ScenarioTurnExecutionOrchestrator orchestrator) : ISessionExecutionHandler
 {

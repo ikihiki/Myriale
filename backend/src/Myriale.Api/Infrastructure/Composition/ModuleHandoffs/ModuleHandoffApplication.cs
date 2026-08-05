@@ -4,12 +4,12 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.ProgressionRuntime.Application.Ports;
-using Myriale.Api.Features.SessionArtifacts.Application;
+using Myriale.Api.Infrastructure.Composition.SessionArtifacts;
 using Myriale.ModuleSdk;
 
 using Myriale.Api.Features.ModuleHandoffs.Application.Ports;
 
-namespace Myriale.Api.Features.ModuleHandoffs.Application;
+namespace Myriale.Api.Infrastructure.Composition.ModuleHandoffs;
 
 public interface IModuleHandoffEnqueuePersistence
 {

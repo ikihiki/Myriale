@@ -1,10 +1,10 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Features.SessionArtifacts.Application;
+using Myriale.Api.Infrastructure.Composition.SessionArtifacts;
 using Myriale.Api.Infrastructure.Persistence;
 using Npgsql;
 
-namespace Myriale.Api.Features.SessionArtifacts.Infrastructure;
+namespace Myriale.Api.Infrastructure.Composition.SessionArtifacts;
 
 public sealed class EfSessionArtifactWriter(ApplicationDbContext db) : ISessionArtifactWriter
 {

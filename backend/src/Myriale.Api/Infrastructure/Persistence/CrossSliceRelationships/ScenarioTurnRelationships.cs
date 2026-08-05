@@ -9,9 +9,9 @@ internal sealed class SessionObjectStateRelationships : IEntityTypeConfiguration
     {
         builder.HasOne<Session>().WithMany()
             .HasForeignKey(state => state.SessionId).OnDelete(DeleteBehavior.Cascade);
-        builder.HasOne(state => state.ScenarioObject).WithMany()
+        builder.HasOne<ScenarioObject>().WithMany()
             .HasForeignKey(state => state.ScenarioObjectId).OnDelete(DeleteBehavior.Restrict);
-        builder.HasOne(state => state.Location).WithMany()
+        builder.HasOne<ScenarioLocation>().WithMany()
             .HasForeignKey(state => state.LocationId).OnDelete(DeleteBehavior.Restrict);
     }
 }
@@ -22,9 +22,9 @@ internal sealed class SessionRuleActionStepRelationships : IEntityTypeConfigurat
     {
         builder.HasOne<Session>().WithMany()
             .HasForeignKey(step => step.SessionId).OnDelete(DeleteBehavior.Cascade);
-        builder.HasOne(step => step.Execution).WithOne()
+        builder.HasOne<SessionExecution>().WithOne()
             .HasForeignKey<SessionRuleActionStep>(step => step.ExecutionId).OnDelete(DeleteBehavior.Cascade);
-        builder.HasOne(step => step.PlayerInput).WithOne()
+        builder.HasOne<SessionPlayerInput>().WithOne()
             .HasForeignKey<SessionRuleActionStep>(step => step.PlayerInputId).OnDelete(DeleteBehavior.Restrict);
     }
 }

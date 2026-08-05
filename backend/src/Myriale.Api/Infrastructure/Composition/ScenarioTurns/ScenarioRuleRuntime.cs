@@ -3,7 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Myriale.Api.Features.Scenarios.Domain;
 
-namespace Myriale.Api.Features.ScenarioTurns.Infrastructure;
+namespace Myriale.Api.Infrastructure.Composition.ScenarioTurns;
 
 public sealed record ScenarioRuleLocationSnapshot(ScenarioLocationId Id, string Code, string Name, string Description);
 public sealed record ScenarioRuleObjectSnapshot(

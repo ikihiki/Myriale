@@ -2,7 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Infrastructure.Persistence;
 
-namespace Myriale.Api.Features.Scenarios.Application;
+namespace Myriale.Api.Infrastructure.Composition.Scenarios;
 
 public sealed class ScenarioRuleDebugService(
     ApplicationDbContext db,

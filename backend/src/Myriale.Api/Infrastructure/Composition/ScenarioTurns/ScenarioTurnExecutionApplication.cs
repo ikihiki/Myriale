@@ -1,9 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Features.SessionArtifacts.Application;
+using Myriale.Api.Infrastructure.Composition.SessionArtifacts;
 
-namespace Myriale.Api.Features.ScenarioTurns.Application;
+namespace Myriale.Api.Infrastructure.Composition.ScenarioTurns;
 
 public sealed record ScenarioExecutionCheckpoint(
     SessionExecutionId ExecutionId,

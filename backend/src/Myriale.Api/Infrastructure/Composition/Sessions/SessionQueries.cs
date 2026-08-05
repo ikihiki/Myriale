@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Features.SessionArtifacts.Application;
+using Myriale.Api.Infrastructure.Composition.SessionArtifacts;
 using Myriale.Api.Features.ModuleExecutions.Application;
 using Myriale.Api.Infrastructure.Persistence;
 using Myriale.Api.Features.ModuleExecutions.Infrastructure;
@@ -67,20 +67,24 @@ public sealed class GetSessionDetailQueryService(ApplicationDbContext db, IModul
         var artifactProjection = await artifactActivityQuery.ExecuteAsync(ownerId, sessionId, ct);
         var proposals = (await db.SessionNoteProposals.AsNoTracking().Where(x => x.SessionId == sessionId).ToListAsync(ct)).OrderBy(x => x.CreatedAt).ToList();
         var ruleSteps = (await db.SessionRuleActionSteps.AsNoTracking().Where(x => x.SessionId == sessionId).ToListAsync(ct)).OrderBy(x => x.CreatedAt).ToList();
-        var objectStates = await db.SessionObjectStates.AsNoTracking().Include(x => x.ScenarioObject).Where(x => x.SessionId == sessionId).OrderBy(x => x.ScenarioObject.Code).ToListAsync(ct);
+        var objectStates = await db.SessionObjectStates.AsNoTracking()
+            .Where(x => x.SessionId == sessionId)
+            .ToListAsync(ct);
         var definition = await db.ScenarioDefinitionVersions.AsNoTracking().Include(x => x.ObjectTypes).ThenInclude(x => x.Actions).Include(x => x.Objects)
             .SingleOrDefaultAsync(x => x.Id == session.ScenarioDefinitionVersionId, ct);
         var objectResponses = new List<SessionObjectStateResponse>();
         if (definition is not null)
         {
             var byId = definition.Objects.ToDictionary(x => x.Id);
-            objectResponses.AddRange(objectStates.Select(x =>
-            {
-                var item = byId[x.ScenarioObjectId];
-                var fields = ruleResolver.Resolve(definition, item).PublicFields;
-                return new SessionObjectStateResponse(x.ScenarioObjectId, x.ScenarioObject.Code, x.ScenarioObject.Name,
-                    x.LocationId, x.ScenarioObject.IsGlobal, x.Revision, ProjectPublicState(fields, x.StateJson));
-            }));
+            objectResponses.AddRange(objectStates
+                .OrderBy(x => byId[x.ScenarioObjectId].Code, StringComparer.Ordinal)
+                .Select(x =>
+                {
+                    var item = byId[x.ScenarioObjectId];
+                    var fields = ruleResolver.Resolve(definition, item).PublicFields;
+                    return new SessionObjectStateResponse(x.ScenarioObjectId, item.Code, item.Name,
+                        x.LocationId, item.IsGlobal, x.Revision, ProjectPublicState(fields, x.StateJson));
+                }));
         }
         var stepResponses = ruleSteps.Select(x => new SessionRuleActionStepResponse(x.Id, x.ExecutionId, x.Stage.ToWireValue(), ScenarioTurnSchemas.ActionStep,
             Parse<RuleActionSnapshot>(x.ActionSnapshotJson), Parse<RuleActionDecisionResult>(x.DecisionJson), Parse<RulePostState>(x.PublicPostStateJson),

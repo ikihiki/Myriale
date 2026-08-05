@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace Myriale.Api.Features.SessionExecutions.Application;
+namespace Myriale.Api.Infrastructure.Composition.SessionExecutions;
 
 public enum SessionExecutionUseCaseOutcome { Success, NotFound, InvalidState, Conflict }
 public sealed record SessionExecutionUseCaseResult(SessionExecutionUseCaseOutcome Outcome, SessionExecutionResponse? Execution = null);

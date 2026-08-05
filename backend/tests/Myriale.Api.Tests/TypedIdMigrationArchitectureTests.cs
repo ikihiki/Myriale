@@ -30,7 +30,7 @@ public sealed class TypedIdMigrationArchitectureTests
     {
         using var db = CreateContext();
         var actual = db.Model.GetEntityTypes()
-            .Where(entity => entity.ClrType.Namespace?.StartsWith("Myriale.Api.Features.", StringComparison.Ordinal) == true)
+            .Where(entity => entity.ClrType.Assembly == typeof(Program).Assembly)
             .SelectMany(entity => entity.GetProperties()
                 .Where(property => IsPrimitive(property.ClrType) && IsIdLike(property.Name))
                 .Select(property => $"{entity.ClrType.FullName}.{property.Name}"))

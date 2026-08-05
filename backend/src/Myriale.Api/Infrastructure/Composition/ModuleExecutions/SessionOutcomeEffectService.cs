@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Infrastructure.Persistence;
 using Myriale.ModuleSdk;
 
-namespace Myriale.Api.Features.ModuleExecutions.Infrastructure;
+namespace Myriale.Api.Infrastructure.Composition.ModuleExecutions;
 
 public sealed partial class SessionOutcomeEffectService(ApplicationDbContext db)
 {

@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Myriale.Api.Features.ScenarioTurns.Domain;
+namespace Myriale.Api.Infrastructure.Composition.ScenarioTurns;
 
 public enum ScenarioTurnStage
 {
@@ -52,10 +52,6 @@ public sealed class SessionObjectState
     [Required] public string StateJson { get; internal set; } = "{}";
     public long Revision { get; internal set; }
     public DateTimeOffset UpdatedAt { get; internal set; }
-    public Session Session { get; internal set; } = null!;
-    public ScenarioObject ScenarioObject { get; internal set; } = null!;
-    public ScenarioLocation Location { get; internal set; } = null!;
-
     public static SessionObjectState Create(
         SessionObjectStateId id, SessionId sessionId, ScenarioObjectId scenarioObjectId, ScenarioLocationId locationId,
         string stateJson, DateTimeOffset now)
@@ -116,10 +112,6 @@ public sealed class SessionRuleActionStep
     public DateTimeOffset? NarrativePublishedAt { get; internal set; }
     public DateTimeOffset CreatedAt { get; internal set; }
     public DateTimeOffset UpdatedAt { get; internal set; }
-    public Session Session { get; internal set; } = null!;
-    public SessionExecution Execution { get; internal set; } = null!;
-    public SessionPlayerInput PlayerInput { get; internal set; } = null!;
-
     public static SessionRuleActionStep CreateSnapshot(
         SessionRuleActionStepId id, SessionId sessionId, SessionExecutionId executionId, SessionPlayerInputId playerInputId,
         ScenarioDefinitionVersionId definitionVersionId, long preSessionRevision, string objectRevisionsJson,

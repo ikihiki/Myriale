@@ -128,7 +128,7 @@ public sealed class SessionExecutionArchitectureTests
     {
         var constructor = Assert.Single(typeof(ScenarioTurnExecutionHandler).GetConstructors());
         Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(ApplicationDbContext));
-        Assert.Equal([typeof(Myriale.Api.Features.ScenarioTurns.Application.ScenarioTurnExecutionOrchestrator)],
+        Assert.Equal([typeof(Myriale.Api.Infrastructure.Composition.ScenarioTurns.ScenarioTurnExecutionOrchestrator)],
             constructor.GetParameters().Select(parameter => parameter.ParameterType));
     }
 
@@ -138,15 +138,15 @@ public sealed class SessionExecutionArchitectureTests
         var assembly = typeof(ScenarioTurnExecutionHandler).Assembly;
         var required = new[]
         {
-            typeof(Myriale.Api.Features.ScenarioTurns.Application.IScenarioWorldSnapshotQuery),
-            typeof(Myriale.Api.Features.ScenarioTurns.Application.IScenarioActionSnapshotRepository),
-            typeof(Myriale.Api.Features.ScenarioTurns.Application.IScenarioAiDecisionService),
-            typeof(Myriale.Api.Features.ScenarioTurns.Application.IScenarioAiInteractionRecorder),
+            typeof(Myriale.Api.Infrastructure.Composition.ScenarioTurns.IScenarioWorldSnapshotQuery),
+            typeof(Myriale.Api.Infrastructure.Composition.ScenarioTurns.IScenarioActionSnapshotRepository),
+            typeof(Myriale.Api.Infrastructure.Composition.ScenarioTurns.IScenarioAiDecisionService),
+            typeof(Myriale.Api.Infrastructure.Composition.ScenarioTurns.IScenarioAiInteractionRecorder),
             typeof(IScenarioRuleResolutionService),
-            typeof(Myriale.Api.Features.ScenarioTurns.Application.IScenarioEffectCommitUnitOfWork),
-            typeof(Myriale.Api.Features.ScenarioTurns.Application.IScenarioTurnArtifactWriter),
-            typeof(Myriale.Api.Features.ScenarioTurns.Application.IScenarioNarrativePublisher),
-            typeof(Myriale.Api.Features.ScenarioTurns.Application.IScenarioSessionTurnAppender),
+            typeof(Myriale.Api.Infrastructure.Composition.ScenarioTurns.IScenarioEffectCommitUnitOfWork),
+            typeof(Myriale.Api.Infrastructure.Composition.ScenarioTurns.IScenarioTurnArtifactWriter),
+            typeof(Myriale.Api.Infrastructure.Composition.ScenarioTurns.IScenarioNarrativePublisher),
+            typeof(Myriale.Api.Infrastructure.Composition.ScenarioTurns.IScenarioSessionTurnAppender),
         };
         Assert.All(required, type => Assert.True(type.IsInterface, type.Name));
         Assert.Null(assembly.GetType("Myriale.Api.Services.ScenarioRuleWorld"));

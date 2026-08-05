@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.SessionMemory.Application;
 using Myriale.Api.Infrastructure.Persistence;
 
-namespace Myriale.Api.Features.SessionMemory.Infrastructure;
+namespace Myriale.Api.Infrastructure.Composition.SessionMemory;
 
 public sealed class EfSessionMemoryRepository(ApplicationDbContext db) : ISessionMemoryRepository
 {
