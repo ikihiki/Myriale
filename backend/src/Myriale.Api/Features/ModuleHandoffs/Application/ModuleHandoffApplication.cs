@@ -3,14 +3,13 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Application.ProgressionRuntime;
+using Myriale.Api.Features.ProgressionRuntime.Application;
 using Myriale.Api.Features.SessionArtifacts.Application;
-using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Services;
 using Myriale.ModuleSdk;
 
-namespace Myriale.Api.Application.ModuleHandoffs;
+namespace Myriale.Api.Features.ModuleHandoffs.Application;
 
 public enum EnqueueModuleHandoffOutcome { Enqueued, Existing }
 
@@ -272,7 +271,7 @@ public sealed class ModuleHandoffExecutionOrchestrator(
         var causalError = causality.Validate(source);
         if (causalError is not null)
             return new(false, false, causalError.Code, causalError.Message,
-                causalError.Superseded ? SessionExecutionStatus.Superseded : null);
+                causalError.Superseded ? nameof(SessionExecutionStatus.Superseded) : null);
         if (source.ExistingNarrativeTurnId is not null)
         {
             await progression.ExecuteForNarrativeTurnAsync(source.OwnerId, source.ExistingNarrativeTurnId, cancellationToken);
@@ -284,7 +283,7 @@ public sealed class ModuleHandoffExecutionOrchestrator(
         catch (ModuleHandoffValidationException exception)
         {
             return new(false, false, exception.Code, exception.Message,
-                exception.Code == "session_advanced" ? SessionExecutionStatus.Superseded : null);
+                exception.Code == "session_advanced" ? nameof(SessionExecutionStatus.Superseded) : null);
         }
 
         ModuleHandoffGenerationResult narrative;
@@ -298,7 +297,7 @@ public sealed class ModuleHandoffExecutionOrchestrator(
         var published = await publisher.PublishAsync(context, narrative, cancellationToken);
         if (published.Outcome == ModuleHandoffPublishOutcome.LeaseLost) return LeaseLost();
         if (published.Outcome == ModuleHandoffPublishOutcome.SessionAdvanced)
-            return new(false, false, "session_advanced", "Sessionが先へ進んだため、この結果は適用されませんでした。", SessionExecutionStatus.Superseded);
+            return new(false, false, "session_advanced", "Sessionが先へ進んだため、この結果は適用されませんでした。", nameof(SessionExecutionStatus.Superseded));
         if (published.Outcome == ModuleHandoffPublishOutcome.Conflict)
             return new(false, false, "publication_conflict", "Module handoffの公開競合が発生しました。");
         if (published.OwnerId is not null && published.NarrativeTurnId is not null)

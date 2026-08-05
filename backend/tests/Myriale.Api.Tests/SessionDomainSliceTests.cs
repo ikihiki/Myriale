@@ -1,9 +1,7 @@
 using Microsoft.Extensions.Options;
 using Myriale.Api.Features.ModulePackages.Application;
-using Myriale.Api.Application.Sessions;
-using Myriale.Api.Contracts;
+using Myriale.Api.Features.Sessions.Application;
 using Myriale.Api.Data;
-using Myriale.Api.Endpoints;
 using Myriale.Api.Services;
 
 namespace Myriale.Api.Tests;

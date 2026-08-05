@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 
 namespace Myriale.Api.Features.Scenarios.Application;

@@ -1,8 +1,7 @@
 using System.Security.Claims;
-using Myriale.Api.Application.SessionExecutions;
-using Myriale.Api.Contracts;
+using Myriale.Api.Features.SessionExecutions.Application;
 
-namespace Myriale.Api.Endpoints;
+namespace Myriale.Api.Features.SessionExecutions.Http;
 
 public static class SessionExecutionEndpoints
 {

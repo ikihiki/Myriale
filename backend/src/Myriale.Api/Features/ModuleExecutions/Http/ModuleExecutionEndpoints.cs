@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using Myriale.Api.Features.ModuleExecutions.Application;
-using Myriale.Api.Contracts;
 
 namespace Myriale.Api.Features.ModuleExecutions.Http;
 

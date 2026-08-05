@@ -2,11 +2,10 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.SessionArtifacts.Application;
-using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Services;
 
-namespace Myriale.Api.Application.ScenarioTurns;
+namespace Myriale.Api.Features.ScenarioTurns.Application;
 
 public sealed record ScenarioExecutionCheckpoint(
     string ExecutionId,
@@ -356,7 +355,7 @@ public sealed class ScenarioTurnExecutionOrchestrator(
             {
                 ScenarioNarrativePublishOutcome.Published or ScenarioNarrativePublishOutcome.Existing => new(true),
                 ScenarioNarrativePublishOutcome.LeaseLost => LeaseLost(),
-                ScenarioNarrativePublishOutcome.SessionAdvanced => new(false, false, "session_advanced", "Sessionが先へ進みました。", SessionExecutionStatus.Superseded),
+                ScenarioNarrativePublishOutcome.SessionAdvanced => new(false, false, "session_advanced", "Sessionが先へ進みました。", nameof(SessionExecutionStatus.Superseded)),
                 _ => new(false, true, "scenario_publish_conflict", "公開処理を再試行します。"),
             };
         }
@@ -393,8 +392,8 @@ public sealed class ScenarioTurnExecutionOrchestrator(
     }
 
     private static SessionExecutionHandlerResult LeaseLost() => new(false, false, "lease_lost", "生成処理の所有権が失われました。");
-    private static SessionExecutionHandlerResult StaleSession() => new(false, false, "stale_session_revision", "Sessionが更新されたため再入力してください。", SessionExecutionStatus.Superseded);
-    private static SessionExecutionHandlerResult StaleObjects() => new(false, false, "stale_object_revision", "Object stateが更新されたため再入力してください。", SessionExecutionStatus.Superseded);
+    private static SessionExecutionHandlerResult StaleSession() => new(false, false, "stale_session_revision", "Sessionが更新されたため再入力してください。", nameof(SessionExecutionStatus.Superseded));
+    private static SessionExecutionHandlerResult StaleObjects() => new(false, false, "stale_object_revision", "Object stateが更新されたため再入力してください。", nameof(SessionExecutionStatus.Superseded));
 }
 
 internal static class ScenarioJson

@@ -1,5 +1,4 @@
 using Myriale.Api.Features.AiProviders.Application;
-using Myriale.Api.Contracts;
 
 namespace Myriale.Api.Features.AiProviders.Http;
 

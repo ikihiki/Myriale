@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Myriale.Api.Features.Scenarios.Application;
-using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Features.Scenarios.Domain;
 using Myriale.Api.Features.Scenarios.Infrastructure;

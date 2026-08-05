@@ -1,12 +1,12 @@
 using System.Data.Common;
 using System.Data;
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Application.SessionExecutions;
+using Myriale.Api.Features.SessionExecutions.Application;
 using Myriale.Api.Data;
 
 using Myriale.Api.Services;
 
-namespace Myriale.Api.Infrastructure.SessionExecutions;
+namespace Myriale.Api.Features.SessionExecutions.Infrastructure;
 
 public sealed class EfSessionExecutionOperationsRepository(
     ApplicationDbContext db,

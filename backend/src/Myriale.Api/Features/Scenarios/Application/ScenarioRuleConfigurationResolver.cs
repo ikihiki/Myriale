@@ -2,7 +2,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 
 using Myriale.Api.Features.Scenarios.Domain;

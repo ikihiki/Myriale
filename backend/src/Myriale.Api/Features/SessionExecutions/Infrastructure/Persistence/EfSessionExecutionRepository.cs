@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Application.SessionExecutions;
+using Myriale.Api.Features.SessionExecutions.Application;
 using Myriale.Api.Data;
 
-namespace Myriale.Api.Infrastructure.SessionExecutions;
+namespace Myriale.Api.Features.SessionExecutions.Infrastructure;
 
 public sealed class EfSessionExecutionRepository(ApplicationDbContext db) : ISessionExecutionRepository
 {

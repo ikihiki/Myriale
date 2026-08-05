@@ -1,11 +1,10 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Application.ScenarioTurns;
-using Myriale.Api.Contracts;
+using Myriale.Api.Features.ScenarioTurns.Application;
 using Myriale.Api.Data;
 using Myriale.Api.Services;
 
-namespace Myriale.Api.Infrastructure.ScenarioTurns;
+namespace Myriale.Api.Features.ScenarioTurns.Infrastructure;
 
 public sealed class EfScenarioExecutionFence(ApplicationDbContext db) : IScenarioExecutionFence
 {

@@ -1,11 +1,11 @@
 using System.Reflection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Application.ModuleHandoffs;
-using Myriale.Api.Application.ScenarioTurns;
+using Myriale.Api.Features.ModuleHandoffs.Application;
+using Myriale.Api.Features.ScenarioTurns.Application;
 using Myriale.Api.Data;
-using Myriale.Api.Infrastructure.ModuleHandoffs;
-using Myriale.Api.Infrastructure.ScenarioTurns;
+using Myriale.Api.Features.ModuleHandoffs.Infrastructure;
+using Myriale.Api.Features.ScenarioTurns.Infrastructure;
 using Myriale.Api.Services;
 
 namespace Myriale.Api.Tests;
@@ -18,7 +18,7 @@ public sealed class Phase10ArchitectureTests
     public void EveryEndpointHandlerIsFreeOfDbContextAndIdentityManagers()
     {
         var endpoints = Api.GetTypes()
-            .Where(type => type.Namespace == "Myriale.Api.Endpoints" && type.Name.EndsWith("Endpoints", StringComparison.Ordinal))
+            .Where(type => type.Namespace?.EndsWith(".Http", StringComparison.Ordinal) == true && type.Name.EndsWith("Endpoints", StringComparison.Ordinal))
             .SelectMany(DeclaredMethodsIncludingNested)
             .ToArray();
 
@@ -43,22 +43,29 @@ public sealed class Phase10ArchitectureTests
     [Fact]
     public void ApplicationContainsNoInfrastructureOrEndpointImplementations()
     {
-        var violations = Api.GetTypes().Where(type => type.Namespace?.StartsWith("Myriale.Api.Application", StringComparison.Ordinal) == true)
+        var violations = Api.GetTypes().Where(type => type.Namespace?.Contains(".Application", StringComparison.Ordinal) == true)
             .Where(type => type.Name.Length > 2 && type.Name.StartsWith("Ef", StringComparison.Ordinal) && char.IsUpper(type.Name[2])
                 || type.Namespace!.Contains(".Infrastructure", StringComparison.Ordinal)
                 || type.Namespace!.Contains(".Endpoints", StringComparison.Ordinal))
             .Select(type => type.FullName).ToArray();
         Assert.Empty(violations);
 
-        Assert.Equal("Myriale.Api.Infrastructure.ScenarioTurns", typeof(EfScenarioExecutionFence).Namespace);
-        Assert.Equal("Myriale.Api.Infrastructure.ModuleHandoffs", typeof(EfModuleHandoffPublishUnitOfWork).Namespace);
+        Assert.Equal("Myriale.Api.Features.ScenarioTurns.Infrastructure", typeof(EfScenarioExecutionFence).Namespace);
+        Assert.Equal("Myriale.Api.Features.ModuleHandoffs.Infrastructure", typeof(EfModuleHandoffPublishUnitOfWork).Namespace);
     }
 
     [Fact]
     public void DomainTypesReferenceNeitherEntityFrameworkNorAspNetCore()
     {
+        var migratedDomainNamespaces = new[]
+        {
+            "Myriale.Api.Features.Sessions.Domain",
+            "Myriale.Api.Features.SessionExecutions.Domain",
+            "Myriale.Api.Features.ScenarioTurns.Domain",
+            "Myriale.Api.Features.ProgressionRuntime.Domain",
+        };
         var violations = Api.GetTypes()
-            .Where(type => type.Namespace?.StartsWith("Myriale.Api.Domain", StringComparison.Ordinal) == true)
+            .Where(type => migratedDomainNamespaces.Any(prefix => type.Namespace?.StartsWith(prefix, StringComparison.Ordinal) == true))
             .SelectMany(type => ReferencedTypes(type).Select(reference => (Type: type, Reference: reference)))
             .Where(item => item.Reference.Namespace?.StartsWith("Microsoft.EntityFrameworkCore", StringComparison.Ordinal) == true
                 || item.Reference.Namespace?.StartsWith("Microsoft.AspNetCore", StringComparison.Ordinal) == true)
@@ -72,7 +79,7 @@ public sealed class Phase10ArchitectureTests
     public void ApplicationTypesReferenceNeitherEndpointsNorInfrastructureImplementations()
     {
         var violations = Api.GetTypes()
-            .Where(type => type.Namespace?.StartsWith("Myriale.Api.Application", StringComparison.Ordinal) == true)
+            .Where(type => type.Namespace?.Contains(".Application", StringComparison.Ordinal) == true)
             .SelectMany(type => ReferencedTypes(type).Select(reference => (Type: type, Reference: reference)))
             .Where(item => item.Reference.Namespace?.StartsWith("Myriale.Api.Endpoints", StringComparison.Ordinal) == true
                 || item.Reference.Namespace?.StartsWith("Myriale.Api.Infrastructure", StringComparison.Ordinal) == true)
@@ -85,7 +92,7 @@ public sealed class Phase10ArchitectureTests
     [Fact]
     public void RepositoryContractsExposeNeitherDbSetNorIQueryable()
     {
-        var repositories = Api.GetTypes().Where(type => type.IsInterface && type.Namespace?.StartsWith("Myriale.Api.Application", StringComparison.Ordinal) == true
+        var repositories = Api.GetTypes().Where(type => type.IsInterface && type.Namespace?.Contains(".Application", StringComparison.Ordinal) == true
             && type.Name.EndsWith("Repository", StringComparison.Ordinal));
         Assert.All(repositories.SelectMany(type => type.GetMethods()), method =>
         {

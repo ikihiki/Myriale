@@ -1,4 +1,4 @@
-namespace Myriale.Api.Data;
+namespace Myriale.Api.Features.Sessions.Domain;
 
 public enum SessionStatus { Active, Completed, Debug }
 public enum SessionTurnKind { Narrative, Module }

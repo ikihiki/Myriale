@@ -2,12 +2,11 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.SessionArtifacts.Application;
 using Myriale.Api.Features.ModuleExecutions.Application;
-using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Features.ModuleExecutions.Infrastructure;
 using Myriale.Api.Services;
 
-namespace Myriale.Api.Application.Sessions;
+namespace Myriale.Api.Features.Sessions.Application;
 
 public sealed class ListSessionsQueryService(ApplicationDbContext db)
 {

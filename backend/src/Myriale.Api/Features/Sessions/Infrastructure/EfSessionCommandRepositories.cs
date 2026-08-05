@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Application.Sessions;
+using Myriale.Api.Features.Sessions.Application;
 using Myriale.Api.Data;
 
-namespace Myriale.Api.Infrastructure.Sessions;
+namespace Myriale.Api.Features.Sessions.Infrastructure;
 
 public sealed class EfSessionInputAcceptanceRepository(ApplicationDbContext db) : ISessionInputAcceptanceRepository
 {

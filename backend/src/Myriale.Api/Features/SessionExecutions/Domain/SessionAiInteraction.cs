@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Myriale.Api.Data;
+namespace Myriale.Api.Features.SessionExecutions.Domain;
 
 public enum SessionAiInteractionStage
 {

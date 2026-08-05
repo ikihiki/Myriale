@@ -1,5 +1,4 @@
 using Myriale.Api.Features.ModulePackages.Application;
-using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Features.ModulePackages;
 

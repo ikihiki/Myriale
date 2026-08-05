@@ -1,8 +1,7 @@
-using Myriale.Api.Contracts;
 
 namespace Myriale.Api.Features.Dashboard.Infrastructure;
 
-public sealed class DemoHomeDashboardService(Myriale.Api.Application.Sessions.ListSessionsQueryService sessions) : IHomeDashboardService
+public sealed class DemoHomeDashboardService(Myriale.Api.Features.Sessions.Application.ListSessionsQueryService sessions) : IHomeDashboardService
 {
     public async Task<HomeDashboardResponse> GetDashboardAsync(string ownerId, CancellationToken cancellationToken)
     {

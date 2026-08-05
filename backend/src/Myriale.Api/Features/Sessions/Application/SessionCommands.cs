@@ -3,12 +3,11 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
-using Myriale.Api.Contracts;
 using Myriale.Api.Features.ModulePackages.Application;
 using Myriale.Api.Data;
 using Myriale.Api.Services;
 
-namespace Myriale.Api.Application.Sessions;
+namespace Myriale.Api.Features.Sessions.Application;
 
 public enum SessionCommandOutcome { Created, Accepted, Replay, Invalid, Forbidden, NotFound, Conflict, RateLimited, RetryableConflict }
 public sealed record SessionCommandResult(SessionCommandOutcome Outcome, string? SessionId = null, SessionPlayerInput? Input = null,

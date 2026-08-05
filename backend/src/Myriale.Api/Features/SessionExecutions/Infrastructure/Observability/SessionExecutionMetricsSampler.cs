@@ -1,9 +1,9 @@
 using System.Diagnostics.Metrics;
 using Microsoft.Extensions.Options;
-using Myriale.Api.Application.SessionExecutions;
+using Myriale.Api.Features.SessionExecutions.Application;
 using Myriale.Api.Data;
 
-namespace Myriale.Api.Services;
+namespace Myriale.Api.Features.SessionExecutions.Infrastructure;
 
 public sealed class SessionExecutionMetricsOptions
 {

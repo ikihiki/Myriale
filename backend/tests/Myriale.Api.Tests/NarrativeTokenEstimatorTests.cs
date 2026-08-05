@@ -1,4 +1,3 @@
-using Myriale.Api.Contracts;
 using Myriale.Api.Services;
 
 namespace Myriale.Api.Tests;

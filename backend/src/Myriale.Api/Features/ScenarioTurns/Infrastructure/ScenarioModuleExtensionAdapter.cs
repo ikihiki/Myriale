@@ -1,10 +1,9 @@
 using System.Text.Json;
-using Myriale.Api.Contracts;
 using Myriale.Api.Features.ModuleExecutions.Application;
 using Myriale.Api.Data;
 using Myriale.ModuleSdk;
 
-namespace Myriale.Api.Services;
+namespace Myriale.Api.Features.ScenarioTurns.Infrastructure;
 
 public sealed class ScenarioModuleExtensionAdapter(InitializeDetachedModuleExecutionCommand executions) : IScenarioExtensionAdapter
 {

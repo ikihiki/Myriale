@@ -1,8 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Myriale.Api.Contracts;
 
-namespace Myriale.Api.Services;
+namespace Myriale.Api.Features.ScenarioTurns.Infrastructure;
 
 public sealed class ScenarioActionDecisionModelMapper
 {

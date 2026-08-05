@@ -1,4 +1,3 @@
-using Myriale.Api.Contracts;
 using Microsoft.EntityFrameworkCore;
 
 namespace Myriale.Api.Features.Scenarios.Infrastructure;

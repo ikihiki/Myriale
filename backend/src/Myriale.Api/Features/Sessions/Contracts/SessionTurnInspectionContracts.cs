@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Myriale.Api.Contracts;
+namespace Myriale.Api.Features.Sessions.Contracts;
 
 public sealed record SessionTurnInspectionResponse(
     SessionInspectionMetadata Session,

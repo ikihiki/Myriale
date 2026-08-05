@@ -1,7 +1,6 @@
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Data;
-using Myriale.Api.Endpoints;
 
 namespace Myriale.Api.Tests;
 

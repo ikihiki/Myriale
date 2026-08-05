@@ -1,6 +1,5 @@
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Myriale.Api.Contracts;
 
 namespace Myriale.Api.Features.Scenarios.Http;
 

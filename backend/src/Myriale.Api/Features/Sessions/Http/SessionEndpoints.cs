@@ -3,12 +3,11 @@ using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Myriale.Api.Features.ModuleExecutions.Application;
-using Myriale.Api.Application.Sessions;
-using Myriale.Api.Contracts;
+using Myriale.Api.Features.Sessions.Application;
 using Myriale.Api.Features.ModuleExecutions.Infrastructure;
 using Myriale.Api.Services;
 
-namespace Myriale.Api.Endpoints;
+namespace Myriale.Api.Features.Sessions.Http;
 
 public static class SessionEndpoints
 {

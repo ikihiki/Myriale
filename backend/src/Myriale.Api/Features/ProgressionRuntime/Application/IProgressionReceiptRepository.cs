@@ -1,6 +1,6 @@
 using Myriale.Api.Data;
 
-namespace Myriale.Api.Application.ProgressionRuntime;
+namespace Myriale.Api.Features.ProgressionRuntime.Application;
 
 public sealed record ClaimedProgressionReceipt(
     string Id,

@@ -3,14 +3,13 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Application.ModuleHandoffs;
-using Myriale.Api.Application.ProgressionRuntime;
-using Myriale.Api.Contracts;
+using Myriale.Api.Features.ModuleHandoffs.Application;
+using Myriale.Api.Features.ProgressionRuntime.Application;
 using Myriale.Api.Data;
 using Myriale.Api.Services;
 using Myriale.ModuleSdk;
 
-namespace Myriale.Api.Infrastructure.ModuleHandoffs;
+namespace Myriale.Api.Features.ModuleHandoffs.Infrastructure;
 
 public sealed class EfModuleHandoffEnqueuePort(ApplicationDbContext db, TimeProvider timeProvider) : IModuleHandoffEnqueuePort
 {

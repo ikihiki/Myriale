@@ -1,9 +1,8 @@
 using System.Reflection;
 using System.Security.Cryptography;
 using Myriale.Api.Features.ModulePackages.Application;
-using Myriale.Api.Application.Sessions;
+using Myriale.Api.Features.Sessions.Application;
 using Myriale.Api.Data;
-using Myriale.Api.Endpoints;
 using Myriale.Api.Features.ModulePackages;
 using Myriale.Api.Features.ModuleExecutions.Infrastructure;
 using Myriale.Api.Features.ModulePackages.Infrastructure;

@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Myriale.Api.Data;
+namespace Myriale.Api.Features.SessionExecutions.Domain;
 
 public enum SessionExecutionKind { ScenarioTurn, Narrative, ModuleHandoff, NoteProposal, Image }
 public enum SessionExecutionStatus { Queued, Running, RetryWait, CancelRequested, Succeeded, Failed, Cancelled, Superseded }

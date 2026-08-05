@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Application.SessionExecutions;
+using Myriale.Api.Features.SessionExecutions.Application;
 using Myriale.Api.Data;
-using Myriale.Api.Infrastructure.SessionExecutions;
+using Myriale.Api.Features.SessionExecutions.Infrastructure;
 using Myriale.Api.Services;
 using Npgsql;
 
@@ -118,13 +118,13 @@ public sealed class PostgresSessionExecutionIntegrationTests
         var secondSession = await secondDb.Sessions.SingleAsync(x => x.Id == "SES-INPUT-RACE");
         var firstInput = firstSession.AcceptInput("INP-RACE-1", "request-1", "first", SessionInputInteractionType.Dialogue, new string('a', 64), "USR-1", null, now);
         var secondInput = secondSession.AcceptInput("INP-RACE-2", "request-2", "second", SessionInputInteractionType.Dialogue, new string('b', 64), "USR-1", null, now);
-        var firstRepository = new Myriale.Api.Infrastructure.Sessions.EfSessionInputAcceptanceRepository(firstDb);
-        var secondRepository = new Myriale.Api.Infrastructure.Sessions.EfSessionInputAcceptanceRepository(secondDb);
+        var firstRepository = new Myriale.Api.Features.Sessions.Infrastructure.EfSessionInputAcceptanceRepository(firstDb);
+        var secondRepository = new Myriale.Api.Features.Sessions.Infrastructure.EfSessionInputAcceptanceRepository(secondDb);
         var outcomes = await Task.WhenAll(
             firstRepository.CommitInputAsync(firstSession, InputExecution(firstInput, now), CancellationToken.None),
             secondRepository.CommitInputAsync(secondSession, InputExecution(secondInput, now), CancellationToken.None));
-        Assert.Single(outcomes, x => x == Myriale.Api.Application.Sessions.SessionRepositoryCommitOutcome.Committed);
-        Assert.Single(outcomes, x => x != Myriale.Api.Application.Sessions.SessionRepositoryCommitOutcome.Committed);
+        Assert.Single(outcomes, x => x == Myriale.Api.Features.Sessions.Application.SessionRepositoryCommitOutcome.Committed);
+        Assert.Single(outcomes, x => x != Myriale.Api.Features.Sessions.Application.SessionRepositoryCommitOutcome.Committed);
         await using var verification = database.CreateContext();
         Assert.Single(await verification.SessionPlayerInputs.Where(x => x.SessionId == "SES-INPUT-RACE").ToListAsync());
         Assert.Single(await verification.SessionExecutions.Where(x => x.SessionId == "SES-INPUT-RACE").ToListAsync());
@@ -162,7 +162,7 @@ public sealed class PostgresSessionExecutionIntegrationTests
         execution.LeaseExpiresAt = now.AddMinutes(2);
         database.Db.SessionExecutions.Add(execution);
         await database.Db.SaveChangesAsync();
-        var repository = new Myriale.Api.Infrastructure.SessionExecutions.EfSessionExecutionRepository(database.Db);
+        var repository = new Myriale.Api.Features.SessionExecutions.Infrastructure.EfSessionExecutionRepository(database.Db);
 
         var result = await repository.MutateOwnedWithLockAsync(
             execution.Id,
@@ -170,7 +170,7 @@ public sealed class PostgresSessionExecutionIntegrationTests
             item => item.RequestCancellation(now),
             CancellationToken.None);
 
-        Assert.Equal(Myriale.Api.Application.SessionExecutions.SessionExecutionMutationResult.Success, result);
+        Assert.Equal(Myriale.Api.Features.SessionExecutions.Application.SessionExecutionMutationResult.Success, result);
         database.Db.ChangeTracker.Clear();
         execution = await database.Db.SessionExecutions.SingleAsync(item => item.Id == "EXE-CANCEL");
         Assert.Equal(SessionExecutionStatus.CancelRequested, execution.Status);

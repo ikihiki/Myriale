@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 
-namespace Myriale.Api.Data;
+namespace Myriale.Api.Features.Sessions.Domain;
 
 public sealed class SessionState
 {

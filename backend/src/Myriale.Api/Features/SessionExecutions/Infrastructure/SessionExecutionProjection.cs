@@ -1,8 +1,7 @@
 using System.Text.Json;
-using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 
-namespace Myriale.Api.Services;
+namespace Myriale.Api.Features.SessionExecutions.Infrastructure;
 
 public static class SessionExecutionProjection
 {

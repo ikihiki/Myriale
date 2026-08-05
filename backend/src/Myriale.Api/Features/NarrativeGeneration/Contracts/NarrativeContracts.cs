@@ -14,6 +14,7 @@ public static class NarrativeDocumentSchemas
 
 public sealed record NarrativeEntityInput(string Code, string Name, string ProfileMarkdown);
 
+[CrossSliceContract]
 public sealed record NarrativeScenarioInput(
     string Title,
     string Summary,

@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Application.ProgressionRuntime;
+using Myriale.Api.Features.ProgressionRuntime.Application;
 using Myriale.Api.Data;
 
-namespace Myriale.Api.Infrastructure.ProgressionRuntime;
+namespace Myriale.Api.Features.ProgressionRuntime.Infrastructure;
 
 public sealed class EfProgressionReceiptRepository(ApplicationDbContext db) : IProgressionReceiptRepository
 {

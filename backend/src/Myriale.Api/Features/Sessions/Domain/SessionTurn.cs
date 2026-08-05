@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Myriale.Api.Data;
+namespace Myriale.Api.Features.Sessions.Domain;
 
 public sealed record SessionTurnAiMetadata(string? Provider = null, string? Model = null, string? ResponseId = null,
     int? InputTokens = null, int? OutputTokens = null, long? LatencyMilliseconds = null, int? AttemptCount = null, string? FinishReason = null)

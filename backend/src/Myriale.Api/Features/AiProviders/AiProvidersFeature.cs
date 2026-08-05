@@ -8,6 +8,6 @@ public static class AiProvidersFeature
 #pragma warning disable EXTEXP0001
  s.AddHttpClient("OpenAiCompatible").RemoveAllResilienceHandlers();
 #pragma warning restore EXTEXP0001
- s.AddHttpClient("MockAi",x=>x.BaseAddress=new Uri(c["MockAi:BaseUrl"]??"https+http://myriale-mock-ai"));return s;}
+ s.AddHttpClient("MockAi",x=>x.BaseAddress=new Uri(c["MockAi:BaseUrl"]??"https+http://myriale-mock-ai"));s.AddScoped<IAiProfileCatalog,AiProfileCatalog>();return s;}
  public static IEndpointRouteBuilder MapAiProvidersFeature(this IEndpointRouteBuilder e){e.MapAiAdminEndpoints();e.MapAiProfileEndpoints();return e;}
 }

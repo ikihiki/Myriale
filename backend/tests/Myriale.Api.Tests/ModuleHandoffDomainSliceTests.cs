@@ -3,11 +3,10 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
-using Myriale.Api.Application.ModuleHandoffs;
-using Myriale.Api.Application.ProgressionRuntime;
-using Myriale.Api.Contracts;
+using Myriale.Api.Features.ModuleHandoffs.Application;
+using Myriale.Api.Features.ProgressionRuntime.Application;
 using Myriale.Api.Data;
-using Myriale.Api.Infrastructure.ModuleHandoffs;
+using Myriale.Api.Features.ModuleHandoffs.Infrastructure;
 using Myriale.Api.Features.SessionArtifacts.Infrastructure;
 using Myriale.Api.Services;
 using Myriale.ModuleSdk;
@@ -138,7 +137,7 @@ public sealed class ModuleHandoffDomainSliceTests
         var narrative = new FakeNarrativeService();
         var orchestrator = Orchestrator(new FakeSourceQuery(Source() with { SessionRevision = 2 }), narrative, new FakePublisher(), new FakeProgression());
         var result = await orchestrator.ExecuteAsync(Context(), default);
-        Assert.Equal(SessionExecutionStatus.Superseded, result.TerminalStatus);
+        Assert.Equal(nameof(SessionExecutionStatus.Superseded), result.TerminalStatus);
         Assert.Equal("session_advanced", result.ErrorCode);
         Assert.Equal(0, narrative.Calls);
     }

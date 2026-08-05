@@ -2,7 +2,6 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Unicode;
 using Microsoft.Extensions.Logging.Abstractions;
-using Myriale.Api.Contracts;
 using Myriale.Api.Services;
 
 namespace Myriale.Api.Tests;

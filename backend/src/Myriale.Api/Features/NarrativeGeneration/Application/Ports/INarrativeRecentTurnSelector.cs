@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Options;
-using Myriale.Api.Contracts;
 
 namespace Myriale.Api.Features.NarrativeGeneration.Application.Ports;
 

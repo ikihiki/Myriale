@@ -2,7 +2,6 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Myriale.Api.Features.SessionArtifacts.Application;
 using Myriale.Api.Features.SessionMemory.Application;
-using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 
 namespace Myriale.Api.Features.SessionArtifacts.Http;

@@ -5,7 +5,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Unicode;
 using Microsoft.Extensions.AI;
-using Myriale.Api.Contracts;
 using Myriale.Api.Services;
 
 namespace Myriale.Api.Features.NarrativeGeneration.Infrastructure;

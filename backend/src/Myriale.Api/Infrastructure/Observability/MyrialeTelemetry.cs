@@ -3,7 +3,7 @@ using System.Diagnostics.Metrics;
 
 using Myriale.Api.Data;
 
-namespace Myriale.Api.Services;
+namespace Myriale.Api.Infrastructure.Observability;
 
 public static class SessionExecutionTelemetry
 {

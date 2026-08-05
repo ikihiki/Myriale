@@ -1,8 +1,8 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Application.SessionExecutions;
+using Myriale.Api.Features.SessionExecutions.Application;
 using Myriale.Api.Data;
-using Myriale.Api.Infrastructure.SessionExecutions;
+using Myriale.Api.Features.SessionExecutions.Infrastructure;
 using Myriale.Api.Services;
 
 namespace Myriale.Api.Tests;

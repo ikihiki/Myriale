@@ -2,7 +2,6 @@ using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.AiProviders.Application;
 using Myriale.Api.Data;
-using Myriale.Api.Endpoints;
 using Myriale.Api.Features.AiProviders.Infrastructure;
 using Myriale.Api.Services;
 

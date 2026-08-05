@@ -1,6 +1,6 @@
 using Myriale.Api.Data;
 
-namespace Myriale.Api.Application.SessionExecutions;
+namespace Myriale.Api.Features.SessionExecutions.Application;
 
 public interface ISessionExecutionRepository
 {

@@ -7,7 +7,6 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
-using Myriale.Api.Contracts;
 using Myriale.Api.Features.AiProviders.Application;
 
 using Myriale.Api.Services;

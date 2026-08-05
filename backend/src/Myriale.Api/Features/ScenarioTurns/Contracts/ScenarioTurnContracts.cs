@@ -1,8 +1,10 @@
+using Myriale.Api.Architecture;
+
 using System.Text.Json;
 
 using Myriale.Api.Services;
 
-namespace Myriale.Api.Contracts;
+namespace Myriale.Api.Features.ScenarioTurns.Contracts;
 
 public static class ScenarioTurnSchemas
 {
@@ -18,24 +20,37 @@ public static class ScenarioTurnSchemas
     public const string NarrativePrompt = "post-state-prompt.v1";
 }
 
+[CrossSliceContract]
 public sealed record RulePublicLocation(string Id, string Code, string Name, string Description);
+[CrossSliceContract]
 public sealed record RulePublicObject(string Id, string Code, string Name, string LocationId, bool IsGlobal, long Revision, JsonElement State);
+[CrossSliceContract]
 public sealed record RulePublicAction(string ObjectId, string ActionId, string Code, string Label, string Description, JsonElement ArgumentSchema, bool Enabled);
 public sealed record RuleActionSnapshot(string SchemaVersion, string SnapshotId, RulePublicLocation CurrentLocation, IReadOnlyList<RulePublicObject> Objects, IReadOnlyList<RulePublicAction> Actions);
+[CrossSliceContract]
 public sealed record ModelActionDecisionLocation(string Code, string Name, string Description);
+[CrossSliceContract]
 public sealed record ModelActionDecisionVisibleObject(string Code, string Name, string Scope, JsonElement PublicState);
+[CrossSliceContract]
 public sealed record ModelActionDecisionScene(ModelActionDecisionLocation CurrentLocation, IReadOnlyList<ModelActionDecisionVisibleObject> VisibleObjects);
+[CrossSliceContract]
 public sealed record ModelActionDecisionCandidate(string SelectionCode, string ActionCode, string Label, string Description, JsonElement ArgumentSchema);
+[CrossSliceContract]
 public sealed record ModelObjectActions(string ObjectCode, string ObjectName, IReadOnlyList<ModelActionDecisionCandidate> Actions);
+[CrossSliceContract]
 public sealed record ModelActionDecisionRequest(string SchemaVersion, string PlayerInput, ModelActionDecisionScene Scene, IReadOnlyList<ModelObjectActions> ObjectActions, IReadOnlyList<ModelActionDecisionCandidate> SystemActions);
+[CrossSliceContract]
 public sealed record ModelActionDecisionResult(string SchemaVersion, string SelectionCode, JsonElement Arguments);
 public sealed record ModelActionDecisionPromptAudit(string PromptVersion, string SystemPrompt, ModelActionDecisionRequest ModelRequest, string ResponseSchemaVersion);
 
 public sealed record RuleActionDecisionRequest(string SchemaVersion, string PlayerInput, RuleActionSnapshot Snapshot);
 public sealed record RuleActionDecisionResult(string SchemaVersion, string ObjectId, string ActionId, JsonElement Arguments);
 public sealed record RuleAppliedEffect(string Type, string? TargetId, string? Path, JsonElement? Value);
+[CrossSliceContract]
 public sealed record RulePostState(string SchemaVersion, RulePublicLocation CurrentLocation, IReadOnlyList<RulePublicObject> Objects, IReadOnlyDictionary<string, bool> SessionFlags, long SessionStateRevision);
+[CrossSliceContract]
 public sealed record PostStateNarrativeRequest(string SchemaVersion, NarrativeScenarioInput Scenario, string PlayerInput, RulePublicObject SelectedObject, RulePublicAction SelectedAction, RulePostState PostState, IReadOnlyList<string> Facts, IReadOnlyList<JsonElement> Events, IReadOnlyList<string> NarrativeHints, IReadOnlyList<string> ForbiddenNarrativeFacts);
+[CrossSliceContract]
 public sealed record PostStateNarrativeResult(string SchemaVersion, string Heading, string Body);
 
 public sealed record SessionObjectStateResponse(string ObjectId, string Code, string Name, string LocationId, bool IsGlobal, long Revision, JsonElement State);

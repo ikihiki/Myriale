@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
-using Myriale.Api.Application.SessionExecutions;
+using Myriale.Api.Features.SessionExecutions.Application;
 using Myriale.Api.Data;
 using Myriale.Api.Services;
 
@@ -81,7 +81,7 @@ public sealed class SessionExecutionWorkerTests
         SessionExecutionKind kind,
         Func<CancellationToken, Task<SessionExecutionHandlerResult>> execute) : ISessionExecutionHandler
     {
-        public SessionExecutionKind Kind { get; } = kind;
+        public string Kind { get; } = kind.ToString();
         public int Calls { get; private set; }
 
         public Task<SessionExecutionHandlerResult> ExecuteAsync(SessionExecutionContext context, CancellationToken cancellationToken)

@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace Myriale.Api.Services;
+namespace Myriale.Api.Features.SessionExecutions.Infrastructure;
 
 public static class SessionExecutionDiagnostics
 {

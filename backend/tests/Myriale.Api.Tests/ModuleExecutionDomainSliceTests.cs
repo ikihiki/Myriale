@@ -2,7 +2,6 @@ using System.Reflection;
 using System.Text.Json;
 using Myriale.Api.Features.ModuleExecutions.Application;
 using Myriale.Api.Data;
-using Myriale.Api.Endpoints;
 using Myriale.ModuleSdk;
 
 namespace Myriale.Api.Tests;

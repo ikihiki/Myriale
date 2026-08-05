@@ -1,4 +1,3 @@
-using Myriale.Api.Contracts;
 
 namespace Myriale.Api.Features.ModuleUi.Infrastructure;
 

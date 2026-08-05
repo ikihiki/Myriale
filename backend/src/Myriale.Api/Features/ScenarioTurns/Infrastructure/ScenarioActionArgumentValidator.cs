@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace Myriale.Api.Services;
+namespace Myriale.Api.Features.ScenarioTurns.Infrastructure;
 
 public static class ScenarioActionArgumentValidator
 {

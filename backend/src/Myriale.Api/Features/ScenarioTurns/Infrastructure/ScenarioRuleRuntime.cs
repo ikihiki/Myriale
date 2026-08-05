@@ -1,11 +1,10 @@
 using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Features.Scenarios.Domain;
 
-namespace Myriale.Api.Services;
+namespace Myriale.Api.Features.ScenarioTurns.Infrastructure;
 
 public sealed record ScenarioRuleLocationSnapshot(string Id, string Code, string Name, string Description);
 public sealed record ScenarioRuleObjectSnapshot(

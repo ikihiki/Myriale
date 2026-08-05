@@ -1,17 +1,7 @@
 using System.Diagnostics;
-using Myriale.Api.Application.SessionExecutions;
-using Myriale.Api.Data;
+using Myriale.Api.Features.SessionExecutions.Application;
 
-namespace Myriale.Api.Services;
-
-public sealed record SessionExecutionContext(string ExecutionId, string LeaseToken, long Revision, string AttemptId, int AttemptNumber);
-public sealed record SessionExecutionHandlerResult(bool Succeeded, bool Retryable = false, string? ErrorCode = null, string? UserMessage = null, SessionExecutionStatus? TerminalStatus = null, string? ErrorCategory = null);
-
-public interface ISessionExecutionHandler
-{
-    SessionExecutionKind Kind { get; }
-    Task<SessionExecutionHandlerResult> ExecuteAsync(SessionExecutionContext context, CancellationToken cancellationToken);
-}
+namespace Myriale.Api.Features.SessionExecutions.Infrastructure;
 
 public sealed class SessionExecutionWorkerSettings
 {
@@ -74,7 +64,7 @@ public sealed class SessionExecutionWorker(
         SessionExecutionHandlerResult result;
         try
         {
-            var handler = scope.ServiceProvider.GetServices<ISessionExecutionHandler>().SingleOrDefault(item => item.Kind == context.Kind);
+            var handler = scope.ServiceProvider.GetServices<ISessionExecutionHandler>().SingleOrDefault(item => item.Kind == context.Kind.ToString());
             if (handler is null)
                 result = new(false, false, "handler_not_configured", "この生成処理はまだ構成されていません。");
             else
@@ -107,7 +97,8 @@ public sealed class SessionExecutionWorker(
 
         var finalized = await operations.FinalizeAsync(new(
             claim,
-            new(result.Succeeded, result.Retryable, result.ErrorCode, result.UserMessage, result.TerminalStatus, result.ErrorCategory),
+            new(result.Succeeded, result.Retryable, result.ErrorCode, result.UserMessage,
+                result.TerminalStatus is null ? null : Enum.Parse<SessionExecutionStatus>(result.TerminalStatus), result.ErrorCategory),
             Activity.Current?.TraceId.ToString(),
             activity?.TraceId.ToString(),
             activity?.SpanId.ToString()), stoppingToken);

@@ -1,11 +1,11 @@
-using Myriale.Api.Application.ScenarioTurns;
+using Myriale.Api.Features.ScenarioTurns.Application;
 using Myriale.Api.Data;
 
-namespace Myriale.Api.Services;
+namespace Myriale.Api.Features.ScenarioTurns.Infrastructure;
 
 public sealed class ScenarioTurnExecutionHandler(ScenarioTurnExecutionOrchestrator orchestrator) : ISessionExecutionHandler
 {
-    public SessionExecutionKind Kind => SessionExecutionKind.ScenarioTurn;
+    public string Kind => nameof(SessionExecutionKind.ScenarioTurn);
 
     public Task<SessionExecutionHandlerResult> ExecuteAsync(SessionExecutionContext context, CancellationToken cancellationToken) =>
         orchestrator.ExecuteAsync(context, cancellationToken);

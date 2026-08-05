@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using Myriale.Api.Features.ModulePackages.Application;
-using Myriale.Api.Contracts;
 using Myriale.ModuleSdk;
 
 namespace Myriale.Api.Features.ModuleUi.Infrastructure;

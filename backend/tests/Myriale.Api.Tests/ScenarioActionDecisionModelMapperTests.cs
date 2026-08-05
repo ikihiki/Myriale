@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Myriale.Api.Contracts;
 using Myriale.Api.Services;
 
 namespace Myriale.Api.Tests;

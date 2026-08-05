@@ -1,8 +1,7 @@
 using System.Text.Json;
-using Myriale.Api.Contracts;
 using Myriale.Api.Features.ModuleExecutions.Application;
 
-namespace Myriale.Api.Application.ProgressionRuntime;
+namespace Myriale.Api.Features.ProgressionRuntime.Application;
 
 public interface IProgressionReceiptCommand
 {

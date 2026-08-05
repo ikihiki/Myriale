@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Data;
 using Myriale.ModuleSdk;
 
-namespace Myriale.Api.Application.ProgressionRuntime;
+namespace Myriale.Api.Features.ProgressionRuntime.Application;
 
 public sealed class EnsureProgressionSignalCommand(ApplicationDbContext db)
 {

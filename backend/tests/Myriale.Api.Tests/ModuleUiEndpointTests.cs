@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Myriale.Api.Features.ModulePackages.Application;
-using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Features.ModulePackages;
 using Myriale.Api.Features.ModuleExecutions.Infrastructure;

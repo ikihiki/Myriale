@@ -1,6 +1,5 @@
 using System.Reflection;
 using System.Text.Json;
-using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Features.Scenarios.Domain;
 using Myriale.Api.Services;
