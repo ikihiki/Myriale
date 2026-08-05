@@ -17,18 +17,18 @@ namespace Myriale.Api.Infrastructure.Composition.ModuleExecutions;
 internal sealed partial class ModuleExecutionWorkflow : IModuleExecutionWorkflow
 {
     private readonly ApplicationDbContext db;
-    private readonly IModulePackageCatalog packageCatalog;
-    private readonly IModuleRuntime runtime;
+    private readonly IModulePackageCatalogService packageCatalog;
+    private readonly IModuleRuntimeService runtime;
     private readonly SessionOutcomeEffectService effects;
     private readonly ILogger<ModuleExecutionWorkflow> logger;
     private readonly IModuleExecutionProjection projection;
-    private readonly IModuleHandoffEnqueuer handoffs;
+    private readonly IModuleHandoffEnqueueService handoffs;
     private readonly ModuleExecutionOptions _options;
     private readonly JsonSerializerOptions _json = ModuleJsonSerializerOptions.Create();
 
-    public ModuleExecutionWorkflow(ApplicationDbContext db, IModulePackageCatalog packageCatalog, IModuleRuntime runtime, SessionOutcomeEffectService effects,
+    public ModuleExecutionWorkflow(ApplicationDbContext db, IModulePackageCatalogService packageCatalog, IModuleRuntimeService runtime, SessionOutcomeEffectService effects,
         IOptions<ModuleExecutionOptions> options, ILogger<ModuleExecutionWorkflow> logger, IModuleExecutionProjection projection,
-        IModuleHandoffEnqueuer handoffs)
+        IModuleHandoffEnqueueService handoffs)
     {
         this.db = db; this.packageCatalog = packageCatalog; this.runtime = runtime; this.effects = effects; this.logger = logger; this.projection = projection; this.handoffs = handoffs;
         _options = options.Value;

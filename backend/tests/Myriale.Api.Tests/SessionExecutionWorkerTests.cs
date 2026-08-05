@@ -63,12 +63,12 @@ public sealed class SessionExecutionWorkerTests
     private static ServiceProvider Provider(
         FakeOperationsRepository repository,
         SessionExecutionWorkerSettings settings,
-        params ISessionExecutionHandler[] handlers)
+        params ISessionExecutionService[] handlers)
     {
         var services = new ServiceCollection();
         services.AddSingleton<ISessionExecutionOperationsRepository>(repository);
         services.AddSingleton(settings);
-        foreach (var handler in handlers) services.AddSingleton(typeof(ISessionExecutionHandler), handler);
+        foreach (var handler in handlers) services.AddSingleton(typeof(ISessionExecutionService), handler);
         return services.BuildServiceProvider();
     }
 
@@ -77,7 +77,7 @@ public sealed class SessionExecutionWorkerTests
 
     private sealed class FakeHandler(
         SessionExecutionKind kind,
-        Func<CancellationToken, Task<SessionExecutionHandlerResult>> execute) : ISessionExecutionHandler
+        Func<CancellationToken, Task<SessionExecutionHandlerResult>> execute) : ISessionExecutionService
     {
         public string Kind { get; } = kind.ToString();
         public int Calls { get; private set; }

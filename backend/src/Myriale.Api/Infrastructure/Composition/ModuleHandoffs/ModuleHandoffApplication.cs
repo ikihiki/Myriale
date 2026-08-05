@@ -21,7 +21,7 @@ public interface IModuleHandoffEnqueuePersistence
 
 public sealed class EnqueueModuleHandoffCommand(
     IModuleHandoffEnqueuePersistence persistence,
-    IAiProfileCatalog profiles) : IModuleHandoffEnqueuer
+    IAiProfileCatalog profiles) : IModuleHandoffEnqueueService
 {
     private static readonly JsonSerializerOptions Json = ModuleJsonSerializerOptions.Create();
 
@@ -260,7 +260,7 @@ public sealed class ModuleHandoffExecutionOrchestrator(
     ModuleHandoffNarrativeRequestBuilder requests,
     IModuleHandoffNarrativeService narratives,
     IModuleHandoffPublishUnitOfWork publisher,
-    IProgressionReceiptCommand progression,
+    IProgressionReceiptService progression,
     ILogger<ModuleHandoffExecutionOrchestrator> logger)
 {
     public async Task<SessionExecutionHandlerResult> ExecuteAsync(SessionExecutionContext context, CancellationToken cancellationToken)

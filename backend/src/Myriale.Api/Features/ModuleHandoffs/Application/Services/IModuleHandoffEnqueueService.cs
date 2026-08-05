@@ -12,7 +12,7 @@ public sealed record ModuleHandoffEnqueueRequest(
     string OutcomeJson);
 
 [CrossSliceContract]
-public interface IModuleHandoffEnqueuer
+public interface IModuleHandoffEnqueueService
 {
     Task<ModuleHandoffEnqueueOutcome> EnqueueAsync(
         ModuleHandoffEnqueueRequest request,

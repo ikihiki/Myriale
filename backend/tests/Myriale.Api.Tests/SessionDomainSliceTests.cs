@@ -136,7 +136,7 @@ public sealed class SessionCommandTests
         public void ClearTracking() { }
     }
 
-    private sealed class EmptyModulePackageCatalog : IModulePackageCatalog
+    private sealed class EmptyModulePackageCatalog : IModulePackageCatalogService
     {
         public Task<IReadOnlyList<ModulePackageSnapshot>> ListAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<ModulePackageSnapshot>>([]);
         public Task<ModulePackageSnapshot?> GetAsync(ModulePackageDigest digest, CancellationToken ct) => Task.FromResult<ModulePackageSnapshot?>(null);

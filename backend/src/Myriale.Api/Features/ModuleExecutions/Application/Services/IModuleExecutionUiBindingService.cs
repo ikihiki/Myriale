@@ -6,7 +6,7 @@ namespace Myriale.Api.Features.ModuleExecutions.Application.Services;
 public sealed record ModuleExecutionUiBinding(ModulePackageModuleId ModuleId, ModulePackageVersion ModuleVersion, ModulePackageDigest ModuleDigest, string ContractVersion);
 
 [CrossSliceContract]
-public interface IModuleExecutionUiBindingReader
+public interface IModuleExecutionUiBindingService
 {
     Task<ModuleExecutionUiBinding?> FindAsync(AccountId ownerId, ModuleExecutionId executionId, CancellationToken cancellationToken);
 }

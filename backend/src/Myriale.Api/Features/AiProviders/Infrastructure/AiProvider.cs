@@ -42,7 +42,7 @@ public sealed class OpenAiCompatibleTextProvider(
     IOptions<AiProviderOptions> configuredOptions,
     IAiProfileCatalog catalog,
     ActiveAiProviderQueryService selection,
-    ILogger<OpenAiCompatibleTextProvider> logger) : IAiTextProvider
+    ILogger<OpenAiCompatibleTextProvider> logger) : IAiTextService
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {

@@ -6,12 +6,12 @@ using Myriale.ModuleSdk;
 namespace Myriale.Api.Features.ModulePackages.Infrastructure;
 
 internal sealed class DotNetModuleRuntime(
-    IModulePackageCatalog catalog,
+    IModulePackageCatalogService catalog,
     IModulePackageArtifactStore artifacts,
     ModuleAssemblyCache cache,
     ModuleRuntimeInvocationGate invocationGate,
     IOptions<ModuleRuntimeOptions> options,
-    ILogger<DotNetModuleRuntime> logger) : IModuleRuntime
+    ILogger<DotNetModuleRuntime> logger) : IModuleRuntimeService
 {
     private readonly ModuleRuntimeOptions _options = options.Value;
     private readonly JsonSerializerOptions _jsonOptions = ModuleJsonSerializerOptions.Create();

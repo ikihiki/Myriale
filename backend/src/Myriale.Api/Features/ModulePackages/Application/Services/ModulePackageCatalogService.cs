@@ -29,7 +29,7 @@ public enum ModulePackageAvailability { Available, NotFound, Disabled, Unavailab
 public sealed record ModulePackageResolution(ModulePackageAvailability Availability, ModulePackageSnapshot? Package = null);
 
 [CrossSliceContract]
-public interface IModulePackageCatalog
+public interface IModulePackageCatalogService
 {
     Task<IReadOnlyList<ModulePackageSnapshot>> ListAsync(CancellationToken cancellationToken);
     Task<ModulePackageSnapshot?> GetAsync(ModulePackageDigest digest, CancellationToken cancellationToken);

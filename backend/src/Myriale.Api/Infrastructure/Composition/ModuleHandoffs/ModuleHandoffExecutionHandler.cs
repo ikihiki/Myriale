@@ -2,7 +2,7 @@ using Myriale.Api.Features.ModuleHandoffs.Application;
 
 namespace Myriale.Api.Infrastructure.Composition.ModuleHandoffs;
 
-public sealed class ModuleHandoffExecutionHandler(ModuleHandoffExecutionOrchestrator orchestrator) : ISessionExecutionHandler
+public sealed class ModuleHandoffExecutionHandler(ModuleHandoffExecutionOrchestrator orchestrator) : ISessionExecutionService
 {
     public string Kind => nameof(SessionExecutionKind.ModuleHandoff);
 

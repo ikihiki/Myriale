@@ -95,10 +95,10 @@ public sealed class ModulePackageDomainSliceTests
         Assert.Null(assembly.GetType("Myriale.Api.Features.ModulePackages.ModulePackageService"));
         Assert.Null(assembly.GetType("Myriale.Api.Features.ModulePackages.Infrastructure.IModulePackageRuntimeCatalog"));
         Assert.Null(assembly.GetType("Myriale.Api.Features.ModulePackages.Infrastructure.ModulePackageRuntimeCatalog"));
-        Assert.Contains(typeof(DotNetModuleRuntime).GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).Single().GetParameters(), x => x.ParameterType == typeof(IModulePackageCatalog));
-        Assert.Contains(typeof(ModuleUiResourceService).GetConstructors().Single().GetParameters(), x => x.ParameterType == typeof(IModulePackageCatalog));
-        Assert.Contains(typeof(ModuleExecutionWorkflow).GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).Single().GetParameters(), x => x.ParameterType == typeof(IModulePackageCatalog));
-        Assert.Contains(typeof(CreateSessionUseCase).GetConstructors().Single().GetParameters(), x => x.ParameterType == typeof(IModulePackageCatalog));
+        Assert.Contains(typeof(DotNetModuleRuntime).GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).Single().GetParameters(), x => x.ParameterType == typeof(IModulePackageCatalogService));
+        Assert.Contains(typeof(ModuleUiResourceService).GetConstructors().Single().GetParameters(), x => x.ParameterType == typeof(IModulePackageCatalogService));
+        Assert.Contains(typeof(ModuleExecutionWorkflow).GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public).Single().GetParameters(), x => x.ParameterType == typeof(IModulePackageCatalogService));
+        Assert.Contains(typeof(CreateSessionUseCase).GetConstructors().Single().GetParameters(), x => x.ParameterType == typeof(IModulePackageCatalogService));
         Assert.All(typeof(ModuleAdminEndpoints).GetMethods(BindingFlags.Static | BindingFlags.NonPublic), method =>
             Assert.DoesNotContain(method.GetParameters(), x => x.ParameterType == typeof(ModulePackage)));
         Assert.DoesNotContain(typeof(ModulePackage).GetProperties(), property => property.SetMethod?.IsPublic == true);

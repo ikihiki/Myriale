@@ -7,9 +7,9 @@ namespace Myriale.Api.Features.ProgressionRuntime.Application;
 
 public sealed class EnsureProgressionReceiptCommand(
     IProgressionReceiptRepository repository,
-    IModuleExecutionInitializer executions,
+    IModuleExecutionInitializationService executions,
     TimeProvider timeProvider,
-    ILogger<EnsureProgressionReceiptCommand> logger) : IProgressionReceiptCommand
+    ILogger<EnsureProgressionReceiptCommand> logger) : IProgressionReceiptService
 {
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(2);
 

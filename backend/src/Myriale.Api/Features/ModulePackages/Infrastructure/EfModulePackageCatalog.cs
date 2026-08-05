@@ -37,7 +37,7 @@ internal sealed class EfModulePackageRepository(ApplicationDbContext db) : IModu
     }
 }
 
-internal sealed class EfModulePackageCatalog(ApplicationDbContext db, IModulePackageArtifactStore artifacts) : IModulePackageCatalog
+internal sealed class EfModulePackageCatalog(ApplicationDbContext db, IModulePackageArtifactStore artifacts) : IModulePackageCatalogService
 {
     public async Task<IReadOnlyList<ModulePackageSnapshot>> ListAsync(CancellationToken cancellationToken)
     {

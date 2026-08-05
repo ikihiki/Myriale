@@ -16,7 +16,7 @@ public sealed class AiEndpointTests : IDisposable
     public AiEndpointTests() => _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
     {
         builder.UseSetting("ConnectionStrings:MyrialeAccounts", $"Data Source={_dbPath}");
-        builder.ConfigureServices(services => { services.RemoveAll<IAiTextProvider>(); services.AddSingleton<IAiTextProvider, SuccessfulTextProvider>(); });
+        builder.ConfigureServices(services => { services.RemoveAll<IAiTextService>(); services.AddSingleton<IAiTextService, SuccessfulTextProvider>(); });
     });
 
     [Fact]
@@ -78,7 +78,7 @@ public sealed class AiEndpointTests : IDisposable
         return client;
     }
     private static void ApplyCookies(HttpClient client, HttpResponseMessage response) { if (!response.Headers.TryGetValues("Set-Cookie", out var values)) return; client.DefaultRequestHeaders.Remove("Cookie"); foreach (var value in values) { var cookie = value.Split(';', 2)[0]; if (!string.IsNullOrWhiteSpace(cookie)) client.DefaultRequestHeaders.Add("Cookie", cookie); } }
-    private sealed class SuccessfulTextProvider : IAiTextProvider
+    private sealed class SuccessfulTextProvider : IAiTextService
     {
         public Task<AiTextResponse> GenerateAsync(AiTextRequest request, CancellationToken ct) => GenerateForProviderAsync(new AiProviderProfileId("openai"), "test", request, ct);
         public Task<AiTextResponse> GenerateForProviderAsync(AiProviderProfileId provider, string credential, AiTextRequest request, CancellationToken ct) => Task.FromResult(new AiTextResponse("{\"response\":\"テスト応答です。\"}", new(provider, "test-model", "response-1", 12, 7, 42, 1, "stop")));

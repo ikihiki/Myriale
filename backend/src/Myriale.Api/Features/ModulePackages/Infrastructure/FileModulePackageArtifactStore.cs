@@ -6,7 +6,7 @@ using Myriale.Api.Features.ModulePackages;
 
 namespace Myriale.Api.Features.ModulePackages.Infrastructure;
 
-internal sealed class FileModulePackageArtifactStore : IModulePackageArtifactStore, IModulePackageResourceReader
+internal sealed class FileModulePackageArtifactStore : IModulePackageArtifactStore, IModulePackageResourceService
 {
     private readonly ModulePackageOptions _options;
     private readonly ILogger<FileModulePackageArtifactStore> _logger;

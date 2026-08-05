@@ -3,7 +3,7 @@ using Myriale.Api.Architecture;
 namespace Myriale.Api.Features.ProgressionRuntime.Application.Services;
 
 [CrossSliceContract]
-public interface IProgressionReceiptCommand
+public interface IProgressionReceiptService
 {
     Task ExecuteForNarrativeTurnAsync(
         AccountId ownerId,

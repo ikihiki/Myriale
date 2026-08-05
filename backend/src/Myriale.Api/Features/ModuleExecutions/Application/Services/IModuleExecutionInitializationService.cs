@@ -22,7 +22,7 @@ public sealed record ModuleExecutionInitializationResult(
     string? ErrorMessage = null);
 
 [CrossSliceContract]
-public interface IModuleExecutionInitializer
+public interface IModuleExecutionInitializationService
 {
     Task<ModuleExecutionInitializationResult> InitializeSessionTurnAsync(
         AccountId ownerId,

@@ -10,7 +10,7 @@ public interface IActionRecommendationGenerator
 }
 
 [CrossSliceContract]
-public interface IScenarioTurnAi
+public interface IScenarioTurnAiService
 {
     Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionAsync(ModelActionDecisionRequest request, CancellationToken cancellationToken);
     Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeAsync(PostStateNarrativeRequest request, CancellationToken cancellationToken);

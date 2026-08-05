@@ -4,7 +4,7 @@ using Myriale.Api.Architecture;
 namespace Myriale.Api.Features.ScenarioTurns.Application.Services;
 
 [CrossSliceContract]
-public interface IScenarioActionDecisionModelMapper
+public interface IScenarioActionDecisionService
 {
     string SystemPrompt { get; }
 

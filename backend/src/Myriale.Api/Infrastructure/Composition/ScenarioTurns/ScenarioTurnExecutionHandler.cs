@@ -2,7 +2,7 @@ using Myriale.Api.Features.ScenarioTurns.Application;
 
 namespace Myriale.Api.Infrastructure.Composition.ScenarioTurns;
 
-public sealed class ScenarioTurnExecutionHandler(ScenarioTurnExecutionOrchestrator orchestrator) : ISessionExecutionHandler
+public sealed class ScenarioTurnExecutionHandler(ScenarioTurnExecutionOrchestrator orchestrator) : ISessionExecutionService
 {
     public string Kind => nameof(SessionExecutionKind.ScenarioTurn);
 

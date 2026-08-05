@@ -251,7 +251,7 @@ public sealed class ModuleHandoffDomainSliceTests
             typeof(IModuleHandoffEnqueuePersistence), typeof(IModuleHandoffSourceSnapshotQuery),
             typeof(IModuleHandoffAiInteractionRecorder), typeof(IModuleHandoffNarrativeService),
             typeof(IModuleHandoffPublishUnitOfWork), typeof(IModuleHandoffArtifactWriter),
-            typeof(IModuleHandoffSessionTurnAppender), typeof(IProgressionReceiptCommand),
+            typeof(IModuleHandoffSessionTurnAppender), typeof(IProgressionReceiptService),
         }, type => Assert.True(type.IsInterface, type.Name));
     }
 
@@ -330,7 +330,7 @@ public sealed class ModuleHandoffDomainSliceTests
     }
 
     private static ModuleHandoffExecutionOrchestrator Orchestrator(IModuleHandoffSourceSnapshotQuery source,
-        IModuleHandoffNarrativeService narrative, IModuleHandoffPublishUnitOfWork publisher, IProgressionReceiptCommand progression) =>
+        IModuleHandoffNarrativeService narrative, IModuleHandoffPublishUnitOfWork publisher, IProgressionReceiptService progression) =>
         new(source, new ModuleHandoffCausalityValidator(), new ModuleHandoffNarrativeRequestBuilder(), narrative,
             publisher, progression, NullLogger<ModuleHandoffExecutionOrchestrator>.Instance);
 
@@ -404,7 +404,7 @@ public sealed class ModuleHandoffDomainSliceTests
         public override DateTimeOffset GetUtcNow() => now;
     }
 
-    private sealed class FakeProgression : IProgressionReceiptCommand
+    private sealed class FakeProgression : IProgressionReceiptService
     {
         public int ForTurnCalls { get; private set; }
         public SessionTurnId? LastTurnId { get; private set; }

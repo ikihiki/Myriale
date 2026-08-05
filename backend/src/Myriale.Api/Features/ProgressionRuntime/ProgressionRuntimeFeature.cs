@@ -10,7 +10,7 @@ public static class ProgressionRuntimeFeature
     {
         services.AddScoped<IProgressionReceiptRepository, EfProgressionReceiptRepository>();
         services.AddScoped<EnsureProgressionReceiptCommand>();
-        services.AddScoped<IProgressionReceiptCommand>(provider => provider.GetRequiredService<EnsureProgressionReceiptCommand>());
+        services.AddScoped<IProgressionReceiptService>(provider => provider.GetRequiredService<EnsureProgressionReceiptCommand>());
         services.AddScoped<EnsureProgressionSignalCommand>();
         return services;
     }

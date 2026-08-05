@@ -11,7 +11,7 @@ public static class ScenarioTurnsFeature
         services.AddScoped<ScenarioRuleWorldSnapshotFactory>();
         services.AddScoped<ScenarioPublicProjector>();
         services.AddSingleton<ScenarioActionDecisionModelMapper>();
-        services.AddSingleton<IScenarioActionDecisionModelMapper>(provider => provider.GetRequiredService<ScenarioActionDecisionModelMapper>());
+        services.AddSingleton<IScenarioActionDecisionService>(provider => provider.GetRequiredService<ScenarioActionDecisionModelMapper>());
         services.AddScoped<ScenarioActionEnumerator>();
         services.AddScoped<IScenarioRuleResolutionService, ScenarioRuleResolutionService>();
         services.AddScoped<IScenarioExecutionFence, EfScenarioExecutionFence>();
@@ -26,7 +26,7 @@ public static class ScenarioTurnsFeature
         services.AddScoped<IScenarioNarrativePublisher, EfScenarioNarrativePublisher>();
         services.AddScoped<ScenarioTurnExecutionOrchestrator>();
         services.AddScoped<IScenarioExtensionAdapter, ScenarioModuleExtensionAdapter>();
-        services.AddScoped<ISessionExecutionHandler, ScenarioTurnExecutionHandler>();
+        services.AddScoped<ISessionExecutionService, ScenarioTurnExecutionHandler>();
         return services;
     }
 }

@@ -5,9 +5,9 @@ using Myriale.ModuleSdk;
 namespace Myriale.Api.Features.ModuleUi.Infrastructure;
 
 public sealed class ModuleUiResourceService(
-    IModuleExecutionUiBindingReader executions,
-    IModulePackageCatalog catalog,
-    IModulePackageResourceReader artifacts,
+    IModuleExecutionUiBindingService executions,
+    IModulePackageCatalogService catalog,
+    IModulePackageResourceService artifacts,
     ILogger<ModuleUiResourceService> logger) : IModuleUiResourceService
 {
     public async Task<ModuleUiDescriptorResult> GetRuntimeDescriptorAsync(string ownerId, string executionId, CancellationToken cancellationToken)

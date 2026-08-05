@@ -45,7 +45,7 @@ public sealed record AiGenerationMetadata(AiProviderProfileId Provider, string M
 public sealed record AiTextResponse(string Text, AiGenerationMetadata Metadata);
 
 [CrossSliceContract]
-public interface IAiTextProvider
+public interface IAiTextService
 {
     Task<AiTextResponse> GenerateAsync(AiTextRequest request, CancellationToken cancellationToken);
     Task<AiTextResponse> GenerateForProfileAsync(AiProviderProfileId profileId, AiTextRequest request, CancellationToken cancellationToken) => GenerateAsync(request, cancellationToken);

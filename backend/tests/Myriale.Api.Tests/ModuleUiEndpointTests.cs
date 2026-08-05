@@ -142,7 +142,7 @@ public sealed class ModuleUiEndpointTests : IDisposable
 
     private static async Task SetEnabledAsync(IServiceProvider services, string digest, bool enabled)
     {
-        var catalog = services.GetRequiredService<IModulePackageCatalog>();
+        var catalog = services.GetRequiredService<IModulePackageCatalogService>();
         var package = await catalog.GetAsync(new(digest), default);
         Assert.NotNull(package);
         if (enabled) await services.GetRequiredService<EnableModulePackageCommand>().ExecuteAsync(package.Digest, package.Revision, default);

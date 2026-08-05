@@ -3,7 +3,7 @@ using Myriale.Api.Features.ModuleExecutions.Application.Services;
 namespace Myriale.Api.Features.ModuleExecutions.Application;
 
 public sealed class ModuleExecutionInitializer(InitializeSessionTurnModuleExecutionCommand command)
-    : IModuleExecutionInitializer
+    : IModuleExecutionInitializationService
 {
     public async Task<ModuleExecutionInitializationResult> InitializeSessionTurnAsync(
         AccountId ownerId,

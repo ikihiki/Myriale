@@ -17,10 +17,10 @@ public static class ModuleAdminEndpoints
         return group;
     }
 
-    private static async Task<IResult> ListAsync(IModulePackageCatalog catalog, CancellationToken cancellationToken) =>
+    private static async Task<IResult> ListAsync(IModulePackageCatalogService catalog, CancellationToken cancellationToken) =>
         Results.Ok((await catalog.ListAsync(cancellationToken)).Select(ToResponse).ToArray());
 
-    private static async Task<IResult> GetAsync(string digest, IModulePackageCatalog catalog, CancellationToken cancellationToken)
+    private static async Task<IResult> GetAsync(string digest, IModulePackageCatalogService catalog, CancellationToken cancellationToken)
     {
         if (!TryDigest(digest, out var value)) return Results.BadRequest(new ModulePackageErrorResponse("Digest must be a SHA-256 value."));
         var package = await catalog.GetAsync(value, cancellationToken);

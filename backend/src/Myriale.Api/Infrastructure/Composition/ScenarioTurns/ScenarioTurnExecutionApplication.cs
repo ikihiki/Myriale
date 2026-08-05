@@ -80,7 +80,7 @@ public interface IScenarioAiDecisionService
 
 public sealed class ScenarioAiDecisionService(
     ScenarioActionDecisionModelMapper mapper,
-    IScenarioTurnAi ai,
+    IScenarioTurnAiService ai,
     IScenarioAiInteractionRecorder recorder) : IScenarioAiDecisionService
 {
     private static readonly JsonSerializerOptions Json = ScenarioJson.Options;
@@ -160,7 +160,7 @@ public interface IScenarioNarrativeGenerationService
 }
 
 public sealed class ScenarioNarrativeGenerationService(
-    IScenarioTurnAi ai,
+    IScenarioTurnAiService ai,
     IScenarioAiInteractionRecorder recorder,
     IScenarioWorldSnapshotQuery worldQuery) : IScenarioNarrativeGenerationService
 {

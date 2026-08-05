@@ -3,7 +3,7 @@ using Myriale.Api.Features.ModuleExecutions.Application.Services;
 
 namespace Myriale.Api.Features.ModuleExecutions.Infrastructure;
 
-internal sealed class EfModuleExecutionUiBindingReader(ApplicationDbContext db) : IModuleExecutionUiBindingReader
+internal sealed class EfModuleExecutionUiBindingReader(ApplicationDbContext db) : IModuleExecutionUiBindingService
 {
     public Task<ModuleExecutionUiBinding?> FindAsync(AccountId ownerId, ModuleExecutionId executionId, CancellationToken cancellationToken) =>
         db.ModuleExecutions.AsNoTracking()

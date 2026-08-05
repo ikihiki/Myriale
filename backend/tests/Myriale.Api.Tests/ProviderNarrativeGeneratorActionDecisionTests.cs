@@ -98,7 +98,7 @@ public sealed class ProviderNarrativeGeneratorActionDecisionTests
             ]);
     }
 
-    private sealed class CapturingProvider(string responseText) : IAiTextProvider
+    private sealed class CapturingProvider(string responseText) : IAiTextService
     {
         public string ResponseText { get; } = responseText;
         public AiTextRequest? Request { get; private set; }

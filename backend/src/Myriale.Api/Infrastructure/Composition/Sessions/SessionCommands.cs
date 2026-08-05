@@ -114,7 +114,7 @@ public interface ISessionCreationRepository
     void ClearTracking();
 }
 
-public sealed class CreateSessionUseCase(ISessionCreationRepository repository, IModulePackageCatalog modulePackages, ScenarioRuleConfigurationResolver ruleResolver,
+public sealed class CreateSessionUseCase(ISessionCreationRepository repository, IModulePackageCatalogService modulePackages, ScenarioRuleConfigurationResolver ruleResolver,
     TimeProvider timeProvider, ApplicationDbContext? db = null)
 {
     public async Task<SessionCommandResult> ExecuteAsync(CreateSessionCommand command, CancellationToken cancellationToken)

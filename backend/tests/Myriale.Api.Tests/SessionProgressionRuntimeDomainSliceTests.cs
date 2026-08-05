@@ -69,7 +69,7 @@ public sealed class SessionProgressionRuntimeDomainSliceTests : IDisposable
     {
         var assembly = typeof(EnsureProgressionReceiptCommand).Assembly;
         Assert.Null(assembly.GetType("Myriale.Api.Services.SessionScenarioProgressionService"));
-        Assert.Contains(typeof(IProgressionReceiptCommand), typeof(EnsureProgressionReceiptCommand).GetInterfaces());
+        Assert.Contains(typeof(IProgressionReceiptService), typeof(EnsureProgressionReceiptCommand).GetInterfaces());
     }
 
     [Fact]

@@ -33,7 +33,7 @@ public sealed class Phase10ArchitectureTests
     [Fact]
     public void EveryExecutionHandlerIsFreeOfApplicationDbContext()
     {
-        var handlers = Api.GetTypes().Where(type => !type.IsAbstract && typeof(ISessionExecutionHandler).IsAssignableFrom(type)).ToArray();
+        var handlers = Api.GetTypes().Where(type => !type.IsAbstract && typeof(ISessionExecutionService).IsAssignableFrom(type)).ToArray();
         Assert.NotEmpty(handlers);
         Assert.All(handlers, handler => Assert.All(handler.GetConstructors(), constructor =>
             Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(ApplicationDbContext))));

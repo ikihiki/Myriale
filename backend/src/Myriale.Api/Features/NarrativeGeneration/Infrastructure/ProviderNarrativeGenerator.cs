@@ -9,9 +9,9 @@ using Microsoft.Extensions.AI;
 namespace Myriale.Api.Features.NarrativeGeneration.Infrastructure;
 
 public sealed class ProviderNarrativeGenerator(
-    IAiTextProvider provider,
-    IScenarioActionDecisionModelMapper actionDecisionMapper,
-    ILogger<ProviderNarrativeGenerator> logger) : INarrativeGenerator, IActionRecommendationGenerator, IScenarioTurnAi
+    IAiTextService provider,
+    IScenarioActionDecisionService actionDecisionMapper,
+    ILogger<ProviderNarrativeGenerator> logger) : INarrativeGenerator, IActionRecommendationGenerator, IScenarioTurnAiService
 {
     private static readonly JsonSerializerOptions Strict = new(JsonSerializerDefaults.Web)
     {

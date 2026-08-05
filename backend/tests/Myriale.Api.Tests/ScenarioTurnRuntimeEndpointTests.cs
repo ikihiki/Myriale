@@ -27,8 +27,8 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
             builder.UseSetting("DemoModules:EnableInTestHost", "true");
             builder.ConfigureServices(services =>
             {
-                services.RemoveAll<IScenarioTurnAi>();
-                services.AddSingleton<IScenarioTurnAi>(ai);
+                services.RemoveAll<IScenarioTurnAiService>();
+                services.AddSingleton<IScenarioTurnAiService>(ai);
             });
         });
     }
@@ -513,7 +513,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
 
     public void Dispose() { factory.Dispose(); if (File.Exists(dbPath)) File.Delete(dbPath); }
 
-    private sealed class TestScenarioTurnAi : IScenarioTurnAi
+    private sealed class TestScenarioTurnAi : IScenarioTurnAiService
     {
         public int DecisionCalls { get; private set; }
         public int NarrativeCalls { get; private set; }

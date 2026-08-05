@@ -64,7 +64,7 @@ public sealed class SessionExecutionWorker(
         SessionExecutionHandlerResult result;
         try
         {
-            var handler = scope.ServiceProvider.GetServices<ISessionExecutionHandler>().SingleOrDefault(item => item.Kind == context.Kind.ToString());
+            var handler = scope.ServiceProvider.GetServices<ISessionExecutionService>().SingleOrDefault(item => item.Kind == context.Kind.ToString());
             if (handler is null)
                 result = new(false, false, "handler_not_configured", "この生成処理はまだ構成されていません。");
             else

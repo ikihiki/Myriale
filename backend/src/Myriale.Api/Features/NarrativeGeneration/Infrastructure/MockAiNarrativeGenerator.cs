@@ -7,8 +7,8 @@ namespace Myriale.Api.Features.NarrativeGeneration.Infrastructure;
 
 public sealed class MockAiNarrativeGenerator(
     IHttpClientFactory httpClientFactory,
-    IScenarioActionDecisionModelMapper actionDecisionMapper)
-    : INarrativeGenerator, IActionRecommendationGenerator, IScenarioTurnAi
+    IScenarioActionDecisionService actionDecisionMapper)
+    : INarrativeGenerator, IActionRecommendationGenerator, IScenarioTurnAiService
 {
     private static readonly JsonSerializerOptions StrictDialogueResultJsonOptions = new(JsonSerializerDefaults.Web)
     {

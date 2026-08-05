@@ -11,8 +11,8 @@ public sealed class ScenarioRuleDebugService(
     ScenarioRuleWorldSnapshotFactory snapshotFactory,
     ScenarioActionEnumerator enumerator,
     IScenarioRuleResolutionService resolutionService,
-    IScenarioActionDecisionModelMapper actionDecisionMapper,
-    IScenarioTurnAi ai)
+    IScenarioActionDecisionService actionDecisionMapper,
+    IScenarioTurnAiService ai)
 {
     public async Task<ScenarioRuleDebugResponse?> ExecuteAsync(
         ScenarioId scenarioId,

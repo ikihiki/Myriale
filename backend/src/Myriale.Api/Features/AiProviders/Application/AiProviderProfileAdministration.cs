@@ -131,7 +131,7 @@ public sealed class AiCredentialUseCases(IAiCredentialRepository repository, IAi
 public sealed record AiConnectionTestResult(AiProviderProfileId ProfileId, long ProfileRevision, AiCredentialId CredentialId, long CredentialRevision, AiCredentialValidationStatus Status, DateTimeOffset TestedAt);
 public sealed record AiPromptProbeResult(AiProviderProfileId Provider, string Model, string Response, int? InputTokens, int? OutputTokens, long LatencyMilliseconds, string? FinishReason);
 
-public sealed class AiProviderTestUseCases(IAiProfileCatalog catalog, IAiRuntimeCredentialResolver credentials, IAiCredentialRepository credentialRepository, IAiTextProvider provider, TimeProvider time)
+public sealed class AiProviderTestUseCases(IAiProfileCatalog catalog, IAiRuntimeCredentialResolver credentials, IAiCredentialRepository credentialRepository, IAiTextService provider, TimeProvider time)
 {
     public async Task<AiAdministrationResult<AiConnectionTestResult>> TestConnectionAsync(TestAiProviderProfileCommand command, CancellationToken ct)
     {

@@ -9,7 +9,7 @@ public sealed record SessionExecutionContext(SessionExecutionId ExecutionId, str
 public sealed record SessionExecutionHandlerResult(bool Succeeded, bool Retryable = false, string? ErrorCode = null, string? UserMessage = null, string? TerminalStatus = null, string? ErrorCategory = null);
 
 [CrossSliceContract]
-public interface ISessionExecutionHandler
+public interface ISessionExecutionService
 {
     string Kind { get; }
     Task<SessionExecutionHandlerResult> ExecuteAsync(SessionExecutionContext context, CancellationToken cancellationToken);

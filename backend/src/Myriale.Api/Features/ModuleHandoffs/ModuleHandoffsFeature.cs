@@ -10,7 +10,7 @@ public static class ModuleHandoffsFeature
     {
         services.AddScoped<IModuleHandoffEnqueuePersistence, EfModuleHandoffEnqueuePersistence>();
         services.AddScoped<EnqueueModuleHandoffCommand>();
-        services.AddScoped<IModuleHandoffEnqueuer>(provider => provider.GetRequiredService<EnqueueModuleHandoffCommand>());
+        services.AddScoped<IModuleHandoffEnqueueService>(provider => provider.GetRequiredService<EnqueueModuleHandoffCommand>());
         services.AddScoped<IModuleHandoffSourceSnapshotQuery, EfModuleHandoffSourceSnapshotQuery>();
         services.AddSingleton<ModuleHandoffCausalityValidator>();
         services.AddSingleton<ModuleHandoffNarrativeRequestBuilder>();
@@ -20,7 +20,7 @@ public static class ModuleHandoffsFeature
         services.AddScoped<IModuleHandoffSessionTurnAppender, ModuleHandoffSessionTurnAppender>();
         services.AddScoped<IModuleHandoffPublishUnitOfWork, EfModuleHandoffPublishUnitOfWork>();
         services.AddScoped<ModuleHandoffExecutionOrchestrator>();
-        services.AddScoped<ISessionExecutionHandler, ModuleHandoffExecutionHandler>();
+        services.AddScoped<ISessionExecutionService, ModuleHandoffExecutionHandler>();
         return services;
     }
 }
