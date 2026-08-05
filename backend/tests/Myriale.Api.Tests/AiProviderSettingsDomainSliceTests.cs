@@ -13,14 +13,14 @@ public sealed class AiProviderSettingsDomainSliceTests
     [Fact]
     public void Aggregate_EncapsulatesActivationAndIncrementsRevision()
     {
-        var settings = AiProviderRuntimeSettings.Create("OPENAI", Now);
+        var settings = AiProviderRuntimeSettings.Create(new AiProviderProfileId("OPENAI"), Now);
 
-        Assert.Equal("openai", settings.ActiveProvider);
+        Assert.Equal(new AiProviderProfileId("openai"), settings.ActiveProvider);
         Assert.Equal(1, settings.Revision);
-        Assert.False(settings.Activate("openai", Now.AddMinutes(1)));
+        Assert.False(settings.Activate(new AiProviderProfileId("openai"), Now.AddMinutes(1)));
         Assert.Equal(1, settings.Revision);
-        Assert.True(settings.Activate("RunPod", Now.AddMinutes(2)));
-        Assert.Equal("runpod", settings.ActiveProvider);
+        Assert.True(settings.Activate(new AiProviderProfileId("RunPod"), Now.AddMinutes(2)));
+        Assert.Equal(new AiProviderProfileId("runpod"), settings.ActiveProvider);
         Assert.Equal(2, settings.Revision);
         Assert.Equal(Now.AddMinutes(2), settings.UpdatedAt);
     }
@@ -53,10 +53,10 @@ public sealed class AiProviderSettingsDomainSliceTests
     public async Task ActiveProviderQuery_UsesSelectionThenCatalogFallbackWithoutWriting()
     {
         var catalog = new FakeCatalog(Profiles(), "narrative-default");
-        var selected = await new ActiveAiProviderQueryService(new FakeReader(new ActiveAiProviderSelection("configured", 1)), catalog).GetActiveProviderAsync(default);
-        var fallback = await new ActiveAiProviderQueryService(new FakeReader(new ActiveAiProviderSelection("missing", 3)), catalog).GetActiveProviderAsync(default);
-        Assert.Equal("configured", selected);
-        Assert.Equal("narrative-default", fallback);
+        var selected = await new ActiveAiProviderQueryService(new FakeReader(new ActiveAiProviderSelection(new AiProviderProfileId("configured"), 1)), catalog).GetActiveProviderAsync(default);
+        var fallback = await new ActiveAiProviderQueryService(new FakeReader(new ActiveAiProviderSelection(new AiProviderProfileId("missing"), 3)), catalog).GetActiveProviderAsync(default);
+        Assert.Equal(new AiProviderProfileId("configured"), selected);
+        Assert.Equal(new AiProviderProfileId("narrative-default"), fallback);
     }
 
     [Theory]
@@ -67,11 +67,11 @@ public sealed class AiProviderSettingsDomainSliceTests
         bool credentialExists,
         ActivateAiProviderOutcome expected)
     {
-        var catalog = new FakeCatalog(profileExists ? Profiles() : new Dictionary<string, AiProfileDescriptor>(), "narrative-default");
+        var catalog = new FakeCatalog(profileExists ? Profiles() : new Dictionary<AiProviderProfileId, AiProfileDescriptor>(), "narrative-default");
         var useCase = new ActivateAiProviderUseCase(
             new FakeRepository(), catalog, new FakeCredentialResolver(credentialExists ? "secret" : null), new FixedTimeProvider(Now));
 
-        var result = await useCase.ExecuteAsync(new ActivateAiProviderCommand("configured"), default);
+        var result = await useCase.ExecuteAsync(new ActivateAiProviderCommand(new AiProviderProfileId("configured")), default);
 
         Assert.Equal(expected, result.Outcome);
     }
@@ -83,7 +83,7 @@ public sealed class AiProviderSettingsDomainSliceTests
         var useCase = new ActivateAiProviderUseCase(
             repository, new FakeCatalog(Profiles(), "narrative-default"), new FakeCredentialResolver("secret"), new FixedTimeProvider(Now));
 
-        var result = await useCase.ExecuteAsync(new ActivateAiProviderCommand("configured"), default);
+        var result = await useCase.ExecuteAsync(new ActivateAiProviderCommand(new AiProviderProfileId("configured")), default);
 
         Assert.Equal(ActivateAiProviderOutcome.Conflict, result.Outcome);
         Assert.NotNull(repository.Settings);
@@ -93,17 +93,17 @@ public sealed class AiProviderSettingsDomainSliceTests
     [Fact]
     public async Task ActivateCommand_ActivatesProfileAndRejectsStaleExpectedRevision()
     {
-        var repository = new FakeRepository { Settings = AiProviderRuntimeSettings.Create("narrative-default", Now) };
+        var repository = new FakeRepository { Settings = AiProviderRuntimeSettings.Create(new AiProviderProfileId("narrative-default"), Now) };
         var useCase = new ActivateAiProviderUseCase(
             repository, new FakeCatalog(Profiles(), "narrative-default"), new FakeCredentialResolver("secret"), new FixedTimeProvider(Now.AddMinutes(1)));
 
-        var success = await useCase.ExecuteAsync(new ActivateAiProviderCommand("configured", 1), default);
-        var stale = await useCase.ExecuteAsync(new ActivateAiProviderCommand("narrative-default", 1), default);
+        var success = await useCase.ExecuteAsync(new ActivateAiProviderCommand(new AiProviderProfileId("configured"), 1), default);
+        var stale = await useCase.ExecuteAsync(new ActivateAiProviderCommand(new AiProviderProfileId("narrative-default"), 1), default);
 
         Assert.Equal(ActivateAiProviderOutcome.Success, success.Outcome);
         Assert.Equal(2, success.Revision);
         Assert.Equal(ActivateAiProviderOutcome.Conflict, stale.Outcome);
-        Assert.Equal("configured", repository.Settings!.ActiveProvider);
+        Assert.Equal(new AiProviderProfileId("configured"), repository.Settings!.ActiveProvider);
     }
 
     [Fact]
@@ -116,7 +116,7 @@ public sealed class AiProviderSettingsDomainSliceTests
             await using (var setup = new ApplicationDbContext(options))
             {
                 await setup.Database.EnsureCreatedAsync();
-                setup.AiProviderRuntimeSettings.Add(AiProviderRuntimeSettings.Create("configured", Now));
+                setup.AiProviderRuntimeSettings.Add(AiProviderRuntimeSettings.Create(new AiProviderProfileId("configured"), Now));
                 await setup.SaveChangesAsync();
             }
 
@@ -124,8 +124,8 @@ public sealed class AiProviderSettingsDomainSliceTests
             await using var secondDb = new ApplicationDbContext(options);
             var first = new EfActiveAiProviderSettingsRepository(firstDb);
             var second = new EfActiveAiProviderSettingsRepository(secondDb);
-            (await first.LoadAsync(default))!.Activate("narrative-default", Now.AddMinutes(1));
-            (await second.LoadAsync(default))!.Activate("other", Now.AddMinutes(1));
+            (await first.LoadAsync(default))!.Activate(new AiProviderProfileId("narrative-default"), Now.AddMinutes(1));
+            (await second.LoadAsync(default))!.Activate(new AiProviderProfileId("other"), Now.AddMinutes(1));
 
             Assert.Equal(ActiveAiProviderSettingsSaveOutcome.Saved, await first.SaveAsync(default));
             Assert.Equal(ActiveAiProviderSettingsSaveOutcome.Conflict, await second.SaveAsync(default));
@@ -148,8 +148,8 @@ public sealed class AiProviderSettingsDomainSliceTests
             await using var secondDb = new ApplicationDbContext(options);
             var first = new EfActiveAiProviderSettingsRepository(firstDb);
             var second = new EfActiveAiProviderSettingsRepository(secondDb);
-            first.Add(AiProviderRuntimeSettings.Create("configured", Now));
-            second.Add(AiProviderRuntimeSettings.Create("narrative-default", Now));
+            first.Add(AiProviderRuntimeSettings.Create(new AiProviderProfileId("configured"), Now));
+            second.Add(AiProviderRuntimeSettings.Create(new AiProviderProfileId("narrative-default"), Now));
 
             Assert.Equal(ActiveAiProviderSettingsSaveOutcome.Saved, await first.SaveAsync(default));
             Assert.Equal(ActiveAiProviderSettingsSaveOutcome.Conflict, await second.SaveAsync(default));
@@ -160,10 +160,10 @@ public sealed class AiProviderSettingsDomainSliceTests
         }
     }
 
-    private static Dictionary<string, AiProfileDescriptor> Profiles() => new(StringComparer.OrdinalIgnoreCase)
+    private static Dictionary<AiProviderProfileId, AiProfileDescriptor> Profiles() => new()
     {
-        ["configured"] = new("configured", "Configured", "https://configured.test/v1", "model", "configured", true, AiProfileDefinitionSource.Deployment, 0),
-        ["narrative-default"] = new("narrative-default", "Default", "https://default.test/v1", "model", "default", true, AiProfileDefinitionSource.Deployment, 0),
+        [new AiProviderProfileId("configured")] = new(new AiProviderProfileId("configured"), "Configured", "https://configured.test/v1", "model", new AiCredentialId("configured"), true, AiProfileDefinitionSource.Deployment, 0),
+        [new AiProviderProfileId("narrative-default")] = new(new AiProviderProfileId("narrative-default"), "Default", "https://default.test/v1", "model", new AiCredentialId("default"), true, AiProfileDefinitionSource.Deployment, 0),
     };
 
     private sealed class FakeRepository : IActiveAiProviderSettingsRepository
@@ -182,21 +182,23 @@ public sealed class AiProviderSettingsDomainSliceTests
 
     private sealed class FakeCredentialResolver(string? credential) : IAiRuntimeCredentialResolver
     {
-        public Task<ResolvedAiCredential?> ResolveAsync(string credentialId, CancellationToken cancellationToken) => Task.FromResult(credential is null ? null : new ResolvedAiCredential(credential, AiCredentialSource.Database, 1, "masked"));
+        public Task<ResolvedAiCredential?> ResolveAsync(AiCredentialId credentialId, CancellationToken cancellationToken) => Task.FromResult(credential is null ? null : new ResolvedAiCredential(credential, AiCredentialSource.Database, 1, "masked"));
     }
 
-    private sealed class FakeCatalog(IReadOnlyDictionary<string, AiProfileDescriptor> profiles, string narrativeDefault) : IAiProfileCatalog
+    private sealed class FakeCatalog(IReadOnlyDictionary<AiProviderProfileId, AiProfileDescriptor> profiles, string narrativeDefaultValue) : IAiProfileCatalog
     {
+        private AiProviderProfileId NarrativeDefault { get; } = new(narrativeDefaultValue);
+
         public Task<AiProfileCatalogSnapshot> GetAsync(CancellationToken cancellationToken) =>
-            Task.FromResult(new AiProfileCatalogSnapshot(profiles, narrativeDefault, narrativeDefault));
-        public Task<AiProfileDescriptor> ResolveAsync(string profileId, CancellationToken cancellationToken) =>
+            Task.FromResult(new AiProfileCatalogSnapshot(profiles, NarrativeDefault, NarrativeDefault));
+        public Task<AiProfileDescriptor> ResolveAsync(AiProviderProfileId profileId, CancellationToken cancellationToken) =>
             profiles.TryGetValue(profileId, out var profile)
                 ? Task.FromResult(profile)
                 : Task.FromException<AiProfileDescriptor>(new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "missing", false));
-        public async Task<string> ResolveActionDecisionProfileIdAsync(string? requested, CancellationToken cancellationToken) =>
-            (await ResolveAsync(requested ?? narrativeDefault, cancellationToken)).Id;
-        public async Task<string> ResolveNarrativeProfileIdAsync(string? requested, CancellationToken cancellationToken) =>
-            (await ResolveAsync(requested ?? narrativeDefault, cancellationToken)).Id;
+        public async Task<AiProviderProfileId> ResolveActionDecisionProfileIdAsync(AiProviderProfileId? requested, CancellationToken cancellationToken) =>
+            (await ResolveAsync(requested ?? NarrativeDefault, cancellationToken)).Id;
+        public async Task<AiProviderProfileId> ResolveNarrativeProfileIdAsync(AiProviderProfileId? requested, CancellationToken cancellationToken) =>
+            (await ResolveAsync(requested ?? NarrativeDefault, cancellationToken)).Id;
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider

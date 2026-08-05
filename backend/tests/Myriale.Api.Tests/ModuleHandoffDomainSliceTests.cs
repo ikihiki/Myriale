@@ -23,7 +23,7 @@ public sealed class ModuleHandoffDomainSliceTests
         var port = new FakeEnqueuePort();
         var command = new EnqueueModuleHandoffCommand(port, new FakeProfiles());
         var execution = NewModuleExecution();
-        execution.AttachSessionTurn("TRN-MODULE");
+        execution.AttachSessionTurn(new SessionTurnId("TRN-MODULE"));
         var outcome = Outcome();
 
         var rejected = await Assert.ThrowsAsync<ModuleHandoffValidationException>(
@@ -33,7 +33,7 @@ public sealed class ModuleHandoffDomainSliceTests
         execution.CompleteInitialization(new(ModuleExecutionStatuses.Completed, Parse("{}"), Parse("{\"public\":true}"), [], Outcome: outcome), Json, Now);
         var result = await command.ExecuteAsync(execution, outcome, default);
         Assert.Equal(EnqueueModuleHandoffOutcome.Enqueued, result);
-        Assert.Equal("narrative-default", port.ProfileId);
+        Assert.Equal(new AiProviderProfileId("narrative-default"), port.ProfileId);
     }
 
     [Fact]
@@ -54,8 +54,8 @@ public sealed class ModuleHandoffDomainSliceTests
     {
         var validator = new ModuleHandoffCausalityValidator();
         Assert.Equal("invalid_trigger", validator.Validate(Source() with { TriggerType = SessionExecutionTriggerType.Manual })!.Code);
-        Assert.Equal("module_execution_missing", validator.Validate(Source() with { TriggerId = "TRN-OTHER" })!.Code);
-        var head = validator.Validate(Source() with { SessionHeadTurnId = "TRN-OTHER" });
+        Assert.Equal("module_execution_missing", validator.Validate(Source() with { TriggerId = new SessionExecutionTriggerId("TRN-OTHER") })!.Code);
+        var head = validator.Validate(Source() with { SessionHeadTurnId = new SessionTurnId("TRN-OTHER") });
         Assert.Equal("session_advanced", head!.Code);
         Assert.True(head.Superseded);
         Assert.Equal("session_advanced", validator.Validate(Source() with { SessionRevision = 5 })!.Code);
@@ -64,7 +64,7 @@ public sealed class ModuleHandoffDomainSliceTests
     [Fact]
     public void ExistingTurnReplayRemainsCausallyValidAfterSessionAdvances()
     {
-        var source = Source() with { ExistingNarrativeTurnId = "TRN-NARRATIVE", SessionHeadTurnId = "TRN-NARRATIVE", SessionRevision = 5 };
+        var source = Source() with { ExistingNarrativeTurnId = new SessionTurnId("TRN-NARRATIVE"), SessionHeadTurnId = new SessionTurnId("TRN-NARRATIVE"), SessionRevision = 5 };
         Assert.Null(new ModuleHandoffCausalityValidator().Validate(source));
     }
 
@@ -80,7 +80,7 @@ public sealed class ModuleHandoffDomainSliceTests
         Assert.NotNull(builder.Build(Source() with
         {
             OutcomeJson = withEffects,
-            OutcomeApplicationSessionId = "SES-1",
+            OutcomeApplicationSessionId = new SessionId("SES-1"),
             OutcomeAppliedSessionRevision = 3,
         }));
     }
@@ -146,13 +146,13 @@ public sealed class ModuleHandoffDomainSliceTests
     {
         var narrative = new FakeNarrativeService();
         var progression = new FakeProgression();
-        var source = Source() with { ExistingNarrativeTurnId = "TRN-NARRATIVE", SessionHeadTurnId = "TRN-NARRATIVE", SessionRevision = 2 };
+        var source = Source() with { ExistingNarrativeTurnId = new SessionTurnId("TRN-NARRATIVE"), SessionHeadTurnId = new SessionTurnId("TRN-NARRATIVE"), SessionRevision = 2 };
         var orchestrator = Orchestrator(new FakeSourceQuery(source), narrative, new FakePublisher(), progression);
         var result = await orchestrator.ExecuteAsync(Context(), default);
         Assert.True(result.Succeeded);
         Assert.Equal(0, narrative.Calls);
         Assert.Equal(1, progression.ForTurnCalls);
-        Assert.Equal("TRN-NARRATIVE", progression.LastTurnId);
+        Assert.Equal(new SessionTurnId("TRN-NARRATIVE"), progression.LastTurnId);
     }
 
     [Fact]
@@ -172,20 +172,20 @@ public sealed class ModuleHandoffDomainSliceTests
             }
             await using var firstDb = new ApplicationDbContext(options);
             await using var secondDb = new ApplicationDbContext(options);
-            var firstExecution = await firstDb.ModuleExecutions.SingleAsync(item => item.Id == "MEX-1");
-            var secondExecution = await secondDb.ModuleExecutions.SingleAsync(item => item.Id == "MEX-1");
+            var firstExecution = await firstDb.ModuleExecutions.SingleAsync(item => item.Id == new ModuleExecutionId("MEX-1"));
+            var secondExecution = await secondDb.ModuleExecutions.SingleAsync(item => item.Id == new ModuleExecutionId("MEX-1"));
             Assert.Equal(EnqueueModuleHandoffOutcome.Enqueued,
-                await new EfModuleHandoffEnqueuePort(firstDb, new FixedTimeProvider(Now)).EnqueueAsync(firstExecution, "narrative-default", default));
+                await new EfModuleHandoffEnqueuePort(firstDb, new FixedTimeProvider(Now)).EnqueueAsync(firstExecution, new AiProviderProfileId("narrative-default"), default));
             Assert.Equal(EnqueueModuleHandoffOutcome.Enqueued,
-                await new EfModuleHandoffEnqueuePort(secondDb, new FixedTimeProvider(Now)).EnqueueAsync(secondExecution, "narrative-default", default));
+                await new EfModuleHandoffEnqueuePort(secondDb, new FixedTimeProvider(Now)).EnqueueAsync(secondExecution, new AiProviderProfileId("narrative-default"), default));
 
             var saves = await Task.WhenAll(TrySaveAsync(firstDb), TrySaveAsync(secondDb));
             Assert.Single(saves, saved => saved);
             await using var verify = new ApplicationDbContext(options);
             var winner = Assert.Single(await verify.SessionExecutions.AsNoTracking().ToListAsync());
             Assert.Equal("module-handoff:MEX-1", winner.IdempotencyKey);
-            Assert.Equal("TRN-MODULE", winner.TriggerId);
-            Assert.Equal("TRN-MODULE", winner.AcceptedHeadTurnId);
+            Assert.Equal(new SessionExecutionTriggerId("TRN-MODULE"), winner.TriggerId);
+            Assert.Equal(new SessionTurnId("TRN-MODULE"), winner.AcceptedHeadTurnId);
             Assert.Equal(1, winner.AcceptedSessionRevision);
         }
         finally { if (File.Exists(path)) File.Delete(path); }
@@ -202,7 +202,7 @@ public sealed class ModuleHandoffDomainSliceTests
             await SeedPublishAsync(options);
             var request = new ModuleHandoffNarrativeRequestBuilder().Build(Source());
             var generation = new ModuleHandoffGenerationResult(request,
-                new NarrativeGeneration<string>("canonical body", new AiGenerationMetadata("mock", "model", "response", 1, 2, 3, 1, "stop")));
+                new NarrativeGeneration<string>("canonical body", new AiGenerationMetadata(new AiProviderProfileId("mock"), "model", "response", 1, 2, 3, 1, "stop")));
             var context = Context();
 
             await using var firstDb = new ApplicationDbContext(options);
@@ -217,20 +217,20 @@ public sealed class ModuleHandoffDomainSliceTests
             Assert.All(results, result => Assert.Contains(result.Outcome,
                 new[] { ModuleHandoffPublishOutcome.Published, ModuleHandoffPublishOutcome.Existing }));
             await using var verify = new ApplicationDbContext(options);
-            Assert.Single(await verify.SessionTurns.Where(turn => turn.SourceModuleTurnId == "TRN-MODULE").ToListAsync());
-            Assert.Single(await verify.SessionArtifacts.Where(artifact => artifact.ExecutionId == "EXE-1"
+            Assert.Single(await verify.SessionTurns.Where(turn => turn.SourceModuleTurnId == new SessionTurnId("TRN-MODULE")).ToListAsync());
+            Assert.Single(await verify.SessionArtifacts.Where(artifact => artifact.ExecutionId == new SessionExecutionId("EXE-1")
                 && artifact.Kind == SessionArtifactKind.NarrativeText).ToListAsync());
             Assert.Single(await verify.SessionNarrativeSignals.Where(signal => signal.Code == "ok").ToListAsync());
             Assert.Single(await verify.SessionProgressionTransitionReceipts.ToListAsync());
             var progress = await verify.SessionProgressStates.SingleAsync();
-            Assert.Equal("NODE-2", progress.CurrentNodeId);
+            Assert.Equal(new ScenarioProgressionNodeId("NODE-2"), progress.CurrentNodeId);
             Assert.Equal(1, progress.Revision);
 
             await using var replayDb = new ApplicationDbContext(options);
             var replay = await Publisher(replayDb).PublishAsync(context, generation, default);
             Assert.Equal(ModuleHandoffPublishOutcome.Existing, replay.Outcome);
-            Assert.Single(await replayDb.SessionTurns.Where(turn => turn.SourceModuleTurnId == "TRN-MODULE").ToListAsync());
-            Assert.Single(await replayDb.SessionArtifacts.Where(artifact => artifact.ExecutionId == "EXE-1"
+            Assert.Single(await replayDb.SessionTurns.Where(turn => turn.SourceModuleTurnId == new SessionTurnId("TRN-MODULE")).ToListAsync());
+            Assert.Single(await replayDb.SessionArtifacts.Where(artifact => artifact.ExecutionId == new SessionExecutionId("EXE-1")
                 && artifact.Kind == SessionArtifactKind.NarrativeText).ToListAsync());
         }
         finally { if (File.Exists(path)) File.Delete(path); }
@@ -274,34 +274,34 @@ public sealed class ModuleHandoffDomainSliceTests
         await db.Database.EnsureCreatedAsync();
         var scenario = new Scenario
         {
-            Id = "SCN-1", Title = "Handoff", AuthorId = "owner", CreatedAt = Now, UpdatedAt = Now,
+            Id = new ScenarioId("SCN-1"), Title = "Handoff", AuthorId = new AccountId("owner"), CreatedAt = Now, UpdatedAt = Now,
         };
-        var definition = ScenarioDefinitionVersion.CreateDraft("DEF-1", scenario.Id, 1, Now);
+        var definition = ScenarioDefinitionVersion.CreateDraft(new ScenarioDefinitionVersionId("DEF-1"), scenario.Id, 1, Now);
         var sourceNode = new ScenarioProgressionNode
         {
-            Id = "NODE-1", DefinitionVersionId = definition.Id, Code = "start", IsInitial = true,
+            Id = new ScenarioProgressionNodeId("NODE-1"), DefinitionVersionId = definition.Id, Code = "start", IsInitial = true,
             AllowedNarrativeSignalsJson = "[\"ok\"]",
         };
         var targetNode = new ScenarioProgressionNode
         {
-            Id = "NODE-2", DefinitionVersionId = definition.Id, Code = "next", AllowedNarrativeSignalsJson = "[]",
+            Id = new ScenarioProgressionNodeId("NODE-2"), DefinitionVersionId = definition.Id, Code = "next", AllowedNarrativeSignalsJson = "[]",
         };
         var transition = new ScenarioProgressionTransition
         {
-            Id = "TRA-1", DefinitionVersionId = definition.Id, SourceNodeId = sourceNode.Id,
+            Id = new ScenarioProgressionTransitionId("TRA-1"), DefinitionVersionId = definition.Id, SourceNodeId = sourceNode.Id,
             SignalCode = "ok", TriggerDescription = "Outcome ok", TargetNodeId = targetNode.Id,
         };
         db.AddRange(scenario, definition, sourceNode, targetNode, transition);
         await db.SaveChangesAsync();
-        var session = Session.Create("SES-1", "owner", scenario.Id, definition.Id, null, null, null, "Hero", false,
-            new SessionState { SessionId = "SES-1", FlagsJson = "{}", UpdatedAt = Now }, Now);
+        var session = Session.Create(new SessionId("SES-1"), new AccountId("owner"), scenario.Id, definition.Id, null, null, null, "Hero", false,
+            new SessionState { SessionId = new SessionId("SES-1"), FlagsJson = "{}", UpdatedAt = Now }, Now);
         session.Progress = SessionProgressState.Start(session.Id, sourceNode.Id, Now);
         session.Progress.CurrentNode = sourceNode;
         db.Sessions.Add(session);
         db.SessionProgressionModuleSnapshots.Add(new SessionProgressionModuleSnapshot
         {
-            Id = "PMS-1", SessionId = session.Id, TransitionId = transition.Id,
-            ModuleId = "next-module", ModuleVersion = "1", ModuleDigest = new string('c', 64),
+            Id = new SessionProgressionModuleSnapshotId("PMS-1"), SessionId = session.Id, TransitionId = transition.Id,
+            ModuleId = new ModulePackageModuleId("com.example.next-module"), ModuleVersion = new ModulePackageVersion("1.0.0"), ModuleDigest = new ModulePackageDigest(new string('c', 64)),
             ConfigurationJson = "{}", ContextJson = "{}", RandomValueCount = 0, CreatedAt = Now,
         });
         await db.SaveChangesAsync();
@@ -311,20 +311,20 @@ public sealed class ModuleHandoffDomainSliceTests
         db.ModuleExecutions.Add(module);
         await db.SaveChangesAsync();
 
-        var source = session.AppendModuleTurn("TRN-MODULE", module, Now.AddSeconds(1));
+        var source = session.AppendModuleTurn(new SessionTurnId("TRN-MODULE"), module, Now.AddSeconds(1));
         module.AttachSessionTurn(source.Id);
         await db.SaveChangesAsync();
         db.SessionExecutions.Add(new SessionExecution
         {
-            Id = "EXE-1", SessionId = session.Id, Kind = SessionExecutionKind.ModuleHandoff,
-            TriggerType = SessionExecutionTriggerType.ModuleOutcome, TriggerId = source.Id,
+            Id = new SessionExecutionId("EXE-1"), SessionId = session.Id, Kind = SessionExecutionKind.ModuleHandoff,
+            TriggerType = SessionExecutionTriggerType.ModuleOutcome, TriggerId = new SessionExecutionTriggerId("TRN-MODULE"),
             Status = SessionExecutionStatus.Running, Revision = 1, IdempotencyKey = "module-handoff:MEX-1",
-            PayloadHash = new string('b', 64), NarrativeAiProfileId = "narrative-default",
+            PayloadHash = new string('b', 64), NarrativeAiProfileId = new AiProviderProfileId("narrative-default"),
             AcceptedHeadTurnId = source.Id, AcceptedSessionRevision = session.Revision,
             LeaseToken = "lease", LeaseOwner = "worker", LeaseExpiresAt = Now.AddMinutes(5),
             CreatedAt = Now, QueuedAt = Now, StartedAt = Now,
         });
-        db.SessionExecutionAttempts.Add(SessionExecutionAttempt.Start("ATT-1", "EXE-1", 1, "worker", Now));
+        db.SessionExecutionAttempts.Add(SessionExecutionAttempt.Start(new SessionExecutionAttemptId("ATT-1"), new SessionExecutionId("EXE-1"), 1, "worker", Now));
         await db.SaveChangesAsync();
     }
 
@@ -333,21 +333,21 @@ public sealed class ModuleHandoffDomainSliceTests
         new(source, new ModuleHandoffCausalityValidator(), new ModuleHandoffNarrativeRequestBuilder(), narrative,
             publisher, progression, NullLogger<ModuleHandoffExecutionOrchestrator>.Instance);
 
-    private static SessionExecutionContext Context() => new("EXE-1", "lease", 1, "ATT-1", 1);
+    private static SessionExecutionContext Context() => new(new SessionExecutionId("EXE-1"), "lease", 1, new SessionExecutionAttemptId("ATT-1"), 1);
 
     private static ModuleHandoffSourceSnapshot Source() => new(
-        "EXE-1", "SES-1", "owner", SessionExecutionTriggerType.ModuleOutcome, "TRN-MODULE",
-        "module-handoff:MEX-1", "TRN-MODULE", 1, "narrative-default", "TRN-MODULE", "SES-1",
-        SessionTurnKind.Module, "MEX-1", ModuleExecutionStatus.Completed,
+        new SessionExecutionId("EXE-1"), new SessionId("SES-1"), new AccountId("owner"), SessionExecutionTriggerType.ModuleOutcome, new SessionExecutionTriggerId("TRN-MODULE"),
+        "module-handoff:MEX-1", new SessionTurnId("TRN-MODULE"), 1, new AiProviderProfileId("narrative-default"), new SessionTurnId("TRN-MODULE"), new SessionId("SES-1"),
+        SessionTurnKind.Module, new ModuleExecutionId("MEX-1"), ModuleExecutionStatus.Completed,
         JsonSerializer.Serialize(Outcome(), Json), "{\"public\":true}", null, null,
-        "TRN-MODULE", 1, 3, "{\"flag\":true}", "DEF-1", "Title", "Summary",
+        new SessionTurnId("TRN-MODULE"), 1, 3, "{\"flag\":true}", new ScenarioDefinitionVersionId("DEF-1"), "Title", "Summary",
         "Genre", "Tone", "Lore", "Freedom", "Hero", "Opening",
         [new NarrativeEntityInput("hero", "Hero", "Public appearance")], null);
 
     private static ModuleExecution NewModuleExecution() => new()
     {
-        Id = "MEX-1", OwnerId = "owner", ModuleId = "module", ModuleVersion = "1",
-        ModuleDigest = new string('a', 64), ContractVersion = "1", ConfigurationJson = "{}",
+        Id = new ModuleExecutionId("MEX-1"), OwnerId = new AccountId("owner"), ModuleId = new ModulePackageModuleId("com.example.module"), ModuleVersion = new ModulePackageVersion("1.0.0"),
+        ModuleDigest = new ModulePackageDigest(new string('a', 64)), ContractVersion = "1", ConfigurationJson = "{}",
         ContextJson = "{}", CreatedAt = Now, UpdatedAt = Now,
     };
 
@@ -360,17 +360,17 @@ public sealed class ModuleHandoffDomainSliceTests
 
     private sealed class FakeEnqueuePort : IModuleHandoffEnqueuePort
     {
-        public string? ProfileId { get; private set; }
-        public Task<EnqueueModuleHandoffOutcome> EnqueueAsync(ModuleExecution execution, string narrativeAiProfileId, CancellationToken cancellationToken)
+        public AiProviderProfileId? ProfileId { get; private set; }
+        public Task<EnqueueModuleHandoffOutcome> EnqueueAsync(ModuleExecution execution, AiProviderProfileId narrativeAiProfileId, CancellationToken cancellationToken)
         { ProfileId = narrativeAiProfileId; return Task.FromResult(EnqueueModuleHandoffOutcome.Enqueued); }
     }
 
     private sealed class FakeProfiles : IAiProfileCatalog
     {
-        public Task<string> ResolveNarrativeProfileIdAsync(string? requested, CancellationToken cancellationToken) => Task.FromResult("narrative-default");
-        public Task<string> ResolveActionDecisionProfileIdAsync(string? requested, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<AiProviderProfileId> ResolveNarrativeProfileIdAsync(AiProviderProfileId? requested, CancellationToken cancellationToken) => Task.FromResult(new AiProviderProfileId("narrative-default"));
+        public Task<AiProviderProfileId> ResolveActionDecisionProfileIdAsync(AiProviderProfileId? requested, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<AiProfileCatalogSnapshot> GetAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<AiProfileDescriptor> ResolveAsync(string profileId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<AiProfileDescriptor> ResolveAsync(AiProviderProfileId profileId, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class FakeSourceQuery(ModuleHandoffSourceSnapshot? source) : IModuleHandoffSourceSnapshotQuery
@@ -386,7 +386,7 @@ public sealed class ModuleHandoffDomainSliceTests
         {
             Calls++;
             return Task.FromResult(new ModuleHandoffGenerationResult(request,
-                new NarrativeGeneration<string>("body", new AiGenerationMetadata("mock", "model", "response", 1, 2, 3, 1, "stop"))));
+                new NarrativeGeneration<string>("body", new AiGenerationMetadata(new AiProviderProfileId("mock"), "model", "response", 1, 2, 3, 1, "stop"))));
         }
     }
 
@@ -395,7 +395,7 @@ public sealed class ModuleHandoffDomainSliceTests
         public int Calls { get; private set; }
         public Task<ModuleHandoffPublishResult> PublishAsync(SessionExecutionContext context, ModuleHandoffGenerationResult narrative,
             CancellationToken cancellationToken)
-        { Calls++; return Task.FromResult(result ?? new(ModuleHandoffPublishOutcome.Published, "owner", "TRN-NARRATIVE")); }
+        { Calls++; return Task.FromResult(result ?? new(ModuleHandoffPublishOutcome.Published, new AccountId("owner"), new SessionTurnId("TRN-NARRATIVE"))); }
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
@@ -406,9 +406,9 @@ public sealed class ModuleHandoffDomainSliceTests
     private sealed class FakeProgression : IProgressionReceiptCommand
     {
         public int ForTurnCalls { get; private set; }
-        public string? LastTurnId { get; private set; }
-        public Task ExecuteForNarrativeTurnAsync(string ownerId, string narrativeTurnId, CancellationToken cancellationToken)
+        public SessionTurnId? LastTurnId { get; private set; }
+        public Task ExecuteForNarrativeTurnAsync(AccountId ownerId, SessionTurnId narrativeTurnId, CancellationToken cancellationToken)
         { ForTurnCalls++; LastTurnId = narrativeTurnId; return Task.CompletedTask; }
-        public Task ExecuteAsync(string ownerId, string receiptId, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task ExecuteAsync(AccountId ownerId, SessionProgressionTransitionReceiptId receiptId, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

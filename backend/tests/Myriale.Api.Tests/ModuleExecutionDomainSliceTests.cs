@@ -1,5 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
+using Myriale.Api.Features.Accounts.Identifiers;
+using Myriale.Api.Features.ModuleExecutions.Identifiers;
 using Myriale.Api.Features.ModuleExecutions.Application;
 using Myriale.Api.Infrastructure.Persistence;
 using Myriale.ModuleSdk;
@@ -50,12 +52,20 @@ public sealed class ModuleExecutionDomainSliceTests
     [Fact]
     public void ReceiptCanOnlyCloseOnceAndDetectsDifferentPayload()
     {
-        var receipt = ModuleExecutionRequest.CreateDispatch("owner", "MEX-1", "REQ-1", "hash-a", 0, null, Json("{}"), [], ModuleJsonSerializerOptions.Create(), Now);
+        var receipt = ModuleExecutionRequest.CreateDispatch(new AccountId("owner"), new ModuleExecutionId("MEX-1"), "REQ-1", "hash-a", 0, null, Json("{}"), [], ModuleJsonSerializerOptions.Create(), Now);
         Assert.True(receipt.Matches("hash-a"));
         Assert.False(receipt.Matches("hash-b"));
         receipt.Complete("{}", 200, Now);
         Assert.Equal(ModuleExecutionRequestStatus.Succeeded, receipt.Status);
         Assert.Throws<InvalidOperationException>(() => receipt.Reject("{}", 409, Now));
+    }
+
+    [Fact]
+    public void TypedIdentifiersKeepPrimitiveJsonShapes()
+    {
+        Assert.Equal("\"MEX-1\"", JsonSerializer.Serialize(new ModuleExecutionId("MEX-1")));
+        Assert.Equal("42", JsonSerializer.Serialize(new ModuleExecutionRequestId(42)));
+        Assert.Equal("43", JsonSerializer.Serialize(new ModuleOutcomeApplicationId(43)));
     }
 
     [Fact]
@@ -72,7 +82,8 @@ public sealed class ModuleExecutionDomainSliceTests
 
     private static ModuleExecution NewExecution() => new()
     {
-        Id = "MEX-1", OwnerId = "owner", ModuleId = "module", ModuleVersion = "1", ModuleDigest = new string('a', 64),
+        Id = new ModuleExecutionId("MEX-1"), OwnerId = new AccountId("owner"), ModuleId = new ModulePackageModuleId("com.example.module"),
+        ModuleVersion = new ModulePackageVersion("1.0.0"), ModuleDigest = new ModulePackageDigest(new string('a', 64)),
         ContractVersion = "1", ConfigurationJson = "{}", ContextJson = "{}", CreatedAt = Now, UpdatedAt = Now,
     };
 

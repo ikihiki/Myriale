@@ -10,6 +10,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Myriale.Api.Infrastructure.Persistence;
+using Myriale.Api.Features.Accounts.Application;
+using Myriale.Api.Features.Accounts.Domain;
+using Myriale.Api.Features.Accounts.Identifiers;
 using Myriale.Api.Features.Accounts.Infrastructure;
 
 namespace Myriale.Api.Tests;
@@ -23,6 +26,18 @@ public sealed class AccountEndpointTests : IDisposable
     {
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:MyrialeAccounts", $"Data Source={_dbPath}"));
+    }
+
+    [Fact]
+    public void AccountSnapshotConvertsIdentityStringIdAtTheMyrialeBoundary()
+    {
+        var user = ApplicationUser.Create("旅人", "boundary@example.test");
+        user.Id = "identity-user-1";
+
+        var snapshot = AccountSnapshot.From(user);
+
+        Assert.Equal(new AccountId("identity-user-1"), snapshot.Id);
+        Assert.Equal("\"identity-user-1\"", JsonSerializer.Serialize(snapshot.Id));
     }
 
     [Fact]

@@ -27,8 +27,8 @@ public sealed class OpenAiCompatibleTextProviderTests
     {
         var handler = Success(); var resolver = new CredentialResolver("shared-secret");
         var provider = Create(handler, Catalog(Profile("acme", "https://acme.test/v1", "acme-model", "shared-main")), resolver);
-        await provider.GenerateForProfileAsync("acme", Request(), default);
-        Assert.Equal("shared-main", resolver.LastId);
+        await provider.GenerateForProfileAsync(new AiProviderProfileId("acme"), Request(), default);
+        Assert.Equal(new AiCredentialId("shared-main"), resolver.LastId);
         Assert.DoesNotContain("shared-secret", handler.LastBody, StringComparison.Ordinal);
     }
 
@@ -58,24 +58,24 @@ public sealed class OpenAiCompatibleTextProviderTests
     {
         catalog ??= Catalog(Profile("runpod", "https://example.test/openai/v1", "test-model", "runpod"));
         resolver ??= new CredentialResolver("secret");
-        var active = new ActiveAiProviderQueryService(new Reader("runpod"), catalog);
+        var active = new ActiveAiProviderQueryService(new Reader(new AiProviderProfileId("runpod")), catalog);
         return new(new Factory(new HttpClient(handler)), resolver, Options.Create(new AiProviderOptions { MaxAttempts = maxAttempts, InitialBackoffMilliseconds = 0 }), catalog, active, NullLogger<OpenAiCompatibleTextProvider>.Instance);
     }
-    private static AiProfileDescriptor Profile(string id, string baseUrl, string model, string credentialId) => new(id, id, baseUrl, model, credentialId, true, AiProfileDefinitionSource.Deployment, 0);
+    private static AiProfileDescriptor Profile(string id, string baseUrl, string model, string credentialId) => new(new AiProviderProfileId(id), id, baseUrl, model, new AiCredentialId(credentialId), true, AiProfileDefinitionSource.Deployment, 0);
     private static IAiProfileCatalog Catalog(params AiProfileDescriptor[] profiles) => new CatalogStub(profiles);
     private static QueueHandler Success() => new(SuccessResponse());
     private static HttpResponseMessage SuccessResponse() => new(HttpStatusCode.OK) { Content = new StringContent("{\"id\":\"resp-1\",\"choices\":[{\"message\":{\"content\":\"{\\\"ok\\\":true}\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":4}}", Encoding.UTF8, "application/json") };
     private static AiTextRequest Request() { using var schema = JsonDocument.Parse("{\"type\":\"object\"}"); return new([new ChatMessage(ChatRole.User, "test")], ChatResponseFormat.ForJsonSchema(schema.RootElement.Clone(), "test")); }
     private sealed class CatalogStub(IEnumerable<AiProfileDescriptor> values) : IAiProfileCatalog
     {
-        private readonly Dictionary<string, AiProfileDescriptor> _profiles = values.ToDictionary(x => x.Id, StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<AiProviderProfileId, AiProfileDescriptor> _profiles = values.ToDictionary(x => x.Id);
         public Task<AiProfileCatalogSnapshot> GetAsync(CancellationToken ct) { var first = _profiles.Keys.First(); return Task.FromResult(new AiProfileCatalogSnapshot(_profiles, first, first)); }
-        public Task<AiProfileDescriptor> ResolveAsync(string id, CancellationToken ct) => Task.FromResult(_profiles[id]);
-        public async Task<string> ResolveActionDecisionProfileIdAsync(string? requested, CancellationToken ct) => requested ?? (await GetAsync(ct)).DefaultActionDecisionProfileId;
-        public async Task<string> ResolveNarrativeProfileIdAsync(string? requested, CancellationToken ct) => requested ?? (await GetAsync(ct)).DefaultNarrativeProfileId;
+        public Task<AiProfileDescriptor> ResolveAsync(AiProviderProfileId id, CancellationToken ct) => Task.FromResult(_profiles[id]);
+        public async Task<AiProviderProfileId> ResolveActionDecisionProfileIdAsync(AiProviderProfileId? requested, CancellationToken ct) => requested ?? (await GetAsync(ct)).DefaultActionDecisionProfileId;
+        public async Task<AiProviderProfileId> ResolveNarrativeProfileIdAsync(AiProviderProfileId? requested, CancellationToken ct) => requested ?? (await GetAsync(ct)).DefaultNarrativeProfileId;
     }
-    private sealed class CredentialResolver(string secret) : IAiRuntimeCredentialResolver { public string? LastId { get; private set; } public Task<ResolvedAiCredential?> ResolveAsync(string id, CancellationToken ct) { LastId = id; return Task.FromResult<ResolvedAiCredential?>(new(secret, AiCredentialSource.Database, 1, "masked")); } }
-    private sealed class Reader(string provider) : IActiveAiProviderSettingsReader { public Task<ActiveAiProviderSelection?> GetAsync(CancellationToken ct) => Task.FromResult<ActiveAiProviderSelection?>(new(provider, 1)); }
+    private sealed class CredentialResolver(string secret) : IAiRuntimeCredentialResolver { public AiCredentialId? LastId { get; private set; } public Task<ResolvedAiCredential?> ResolveAsync(AiCredentialId id, CancellationToken ct) { LastId = id; return Task.FromResult<ResolvedAiCredential?>(new(secret, AiCredentialSource.Database, 1, "masked")); } }
+    private sealed class Reader(AiProviderProfileId provider) : IActiveAiProviderSettingsReader { public Task<ActiveAiProviderSelection?> GetAsync(CancellationToken ct) => Task.FromResult<ActiveAiProviderSelection?>(new(provider, 1)); }
     private sealed class Factory(HttpClient client) : IHttpClientFactory { public HttpClient CreateClient(string name) => client; }
     private sealed class QueueHandler(params HttpResponseMessage[] responses) : HttpMessageHandler
     {

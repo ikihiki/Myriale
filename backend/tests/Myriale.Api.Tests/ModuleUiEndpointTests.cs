@@ -111,11 +111,11 @@ public sealed class ModuleUiEndpointTests : IDisposable
             var installed = await packages.ExecuteAsync(stream, default);
             installed = installed with { Package = (await enable.ExecuteAsync(installed.Package.Digest, installed.Package.Revision, default))! };
             var executions = scope.ServiceProvider.GetRequiredService<InitializeDetachedModuleExecutionCommand>();
-            var created = await executions.ExecuteAsync(ownerId, new InitializeModuleExecutionRequest(
-                "headless-ui", installed.Package.ModuleId.AsPrimitive(), installed.Package.Version.AsPrimitive(), installed.Package.Digest.AsPrimitive(),
+            var created = await executions.ExecuteAsync(new AccountId(ownerId), new InitializeModuleExecutionRequest(
+                "headless-ui", installed.Package.ModuleId, installed.Package.Version, installed.Package.Digest,
                 JsonSerializer.SerializeToElement(new { }), Binding(), 0), default);
             Assert.NotNull(created.Execution);
-            using var response = await client.GetAsync($"/api/module-executions/{created.Execution.Id}/ui/runtime/");
+            using var response = await client.GetAsync($"/api/module-executions/{created.Execution.Id.AsPrimitive()}/ui/runtime/");
             Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
             Assert.Equal("runtime_ui_not_declared", (await response.Content.ReadFromJsonAsync<ModuleUiErrorResponse>())?.Code);
         }
@@ -133,11 +133,11 @@ public sealed class ModuleUiEndpointTests : IDisposable
         var installed = await packages.ExecuteAsync(stream, default);
         installed = installed with { Package = (await enable.ExecuteAsync(installed.Package.Digest, installed.Package.Revision, default))! };
         var executions = scope.ServiceProvider.GetRequiredService<InitializeDetachedModuleExecutionCommand>();
-        var created = await executions.ExecuteAsync(ownerId, new InitializeModuleExecutionRequest(
-            $"init-{Guid.NewGuid():N}", installed.Package.ModuleId.AsPrimitive(), installed.Package.Version.AsPrimitive(), installed.Package.Digest.AsPrimitive(),
+        var created = await executions.ExecuteAsync(new AccountId(ownerId), new InitializeModuleExecutionRequest(
+            $"init-{Guid.NewGuid():N}", installed.Package.ModuleId, installed.Package.Version, installed.Package.Digest,
             JsonSerializer.SerializeToElement(new { }), Binding(), 0), default);
         Assert.NotNull(created.Execution);
-        return (client, created.Execution.Id, installed.Package.Digest.AsPrimitive());
+        return (client, created.Execution.Id.AsPrimitive(), installed.Package.Digest.AsPrimitive());
     }
 
     private static async Task SetEnabledAsync(IServiceProvider services, string digest, bool enabled)

@@ -106,9 +106,9 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         Assert.All(ai.NarrativeRequests, request => Assert.Contains(request.Scenario.Entities, entity => entity.Code == "north-door" && entity.ProfileMarkdown.Contains("stone door", StringComparison.Ordinal)));
         await using var verificationScope = factory.Services.CreateAsyncScope();
         var verificationDb = verificationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        Assert.Equal(1, await verificationDb.SessionArtifacts.CountAsync(item => item.SessionId == sessionId && item.Kind == SessionArtifactKind.RuleActionStep));
-        Assert.Equal(1, await verificationDb.SessionArtifacts.CountAsync(item => item.SessionId == sessionId && item.Kind == SessionArtifactKind.PostStateNarrative));
-        Assert.Equal(1, await verificationDb.SessionRuleActionSteps.CountAsync(item => item.SessionId == sessionId && item.AppliedAt != null));
+        Assert.Equal(1, await verificationDb.SessionArtifacts.CountAsync(item => item.SessionId == new SessionId(sessionId) && item.Kind == SessionArtifactKind.RuleActionStep));
+        Assert.Equal(1, await verificationDb.SessionArtifacts.CountAsync(item => item.SessionId == new SessionId(sessionId) && item.Kind == SessionArtifactKind.PostStateNarrative));
+        Assert.Equal(1, await verificationDb.SessionRuleActionSteps.CountAsync(item => item.SessionId == new SessionId(sessionId) && item.AppliedAt != null));
         Assert.Equal(2, session.GetProperty("turns").GetArrayLength());
     }
 
@@ -149,7 +149,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
 
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
-        var interactions = await db.SessionAiInteractions.Where(item => item.SessionId == sessionId).ToListAsync();
+        var interactions = await db.SessionAiInteractions.Where(item => item.SessionId == new SessionId(sessionId)).ToListAsync();
         Assert.Equal(3, interactions.Count);
         Assert.Equal(interactions.Count, interactions.Select(item => (item.AttemptId, item.Stage)).Distinct().Count());
     }
@@ -197,11 +197,11 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
     public async Task SessionCreation_UsesOnlyPinnedDefinitionProgressionGraphAndSnapshots()
     {
         var client = await SignedInClientAsync();
-        string draftId;
+        ScenarioDefinitionVersionId draftId;
         await using (var scope = factory.Services.CreateAsyncScope())
         {
             var drafts = scope.ServiceProvider.GetRequiredService<ScenarioDefinitionDraftService>();
-            draftId = (await drafts.GetOrCreateDraftAsync("SCN-STAR-LIBRARY", CancellationToken.None)).Id;
+            draftId = (await drafts.GetOrCreateDraftAsync(new ScenarioId("SCN-STAR-LIBRARY"), CancellationToken.None)).Id;
         }
 
         using var created = await client.PostAsJsonAsync("/api/sessions/", new
@@ -217,9 +217,9 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         var session = await verificationDb.Sessions
             .Include(item => item.Progress).ThenInclude(progress => progress!.CurrentNode)
             .Include(item => item.ProgressionModuleSnapshots).ThenInclude(snapshot => snapshot.Transition)
-            .SingleAsync(item => item.Id == sessionId);
+            .SingleAsync(item => item.Id == new SessionId(sessionId));
 
-        Assert.Equal("SDV-STAR-LIBRARY-1", session.ScenarioDefinitionVersionId);
+        Assert.Equal("SDV-STAR-LIBRARY-1", session.ScenarioDefinitionVersionId?.AsPrimitive());
         Assert.NotNull(session.Progress);
         Assert.Equal(session.ScenarioDefinitionVersionId, session.Progress!.CurrentNode.DefinitionVersionId);
         Assert.NotEmpty(session.ProgressionModuleSnapshots);
@@ -242,7 +242,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
         var session = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
             db.Sessions.Include(item => item.CurrentLocation).Include(item => item.ObjectStates),
-            item => item.Id == sessionId);
+            item => item.Id == new SessionId(sessionId));
         Assert.Equal("cellar", session.CurrentLocation!.Code);
         var northDoorId = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
             db.ScenarioObjects.Where(item => item.DefinitionVersionId == session.ScenarioDefinitionVersionId && item.Code == "north-door").Select(item => item.Id));
@@ -289,10 +289,10 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         await using var verificationScope = factory.Services.CreateAsyncScope();
         var verificationDb = verificationScope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
         var moduleExecution = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
-            verificationDb.ModuleExecutions.Where(item => item.Id == moduleExecutionId));
-        Assert.Equal("com.myriale.rules.turn-battle", moduleExecution.ModuleId);
-        Assert.Equal("1.0.0", moduleExecution.ModuleVersion);
-        Assert.Equal(digest, moduleExecution.ModuleDigest);
+            verificationDb.ModuleExecutions.Where(item => item.Id == new ModuleExecutionId(moduleExecutionId!)));
+        Assert.Equal("com.myriale.rules.turn-battle", moduleExecution.ModuleId.AsPrimitive());
+        Assert.Equal("1.0.0", moduleExecution.ModuleVersion.AsPrimitive());
+        Assert.Equal(digest, moduleExecution.ModuleDigest.AsPrimitive());
         using var binding = JsonDocument.Parse(moduleExecution.ContextJson);
         Assert.Equal(step.GetProperty("decision").GetProperty("objectId").GetString(), binding.RootElement.GetProperty("objectId").GetString());
         Assert.Equal(step.GetProperty("decision").GetProperty("actionId").GetString(), binding.RootElement.GetProperty("actionId").GetString());
@@ -318,7 +318,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         Assert.Equal("unknown_model_action_selection", session.GetProperty("executions")[0].GetProperty("errorCode").GetString());
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var interaction = await db.SessionAiInteractions.SingleAsync(item => item.SessionId == sessionId && item.Stage == SessionAiInteractionStage.ActionDecision);
+        var interaction = await db.SessionAiInteractions.SingleAsync(item => item.SessionId == new SessionId(sessionId) && item.Stage == SessionAiInteractionStage.ActionDecision);
         Assert.Equal(SessionAiInteractionStatus.ValidationFailed, interaction.Status);
         Assert.Equal("action prompt", interaction.SentPrompt);
         Assert.Equal("action result", interaction.ReceivedResult);
@@ -338,7 +338,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         {
             var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
             var state = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
-                db.SessionObjectStates.Where(item => item.SessionId == sessionId && item.ScenarioObject.Code == "north-door"));
+                db.SessionObjectStates.Where(item => item.SessionId == new SessionId(sessionId) && item.ScenarioObject.Code == "north-door"));
             state.Revision++;
             await db.SaveChangesAsync();
         }
@@ -517,15 +517,15 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         public List<string> DecisionProfileIds { get; } = [];
         public List<string> NarrativeProfileIds { get; } = [];
         public List<PostStateNarrativeRequest> NarrativeRequests { get; } = [];
-        public Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionForProfileAsync(string profileId, ModelActionDecisionRequest request, CancellationToken cancellationToken)
+        public Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionForProfileAsync(AiProviderProfileId profileId, ModelActionDecisionRequest request, CancellationToken cancellationToken)
         {
-            DecisionProfileIds.Add(profileId);
+            DecisionProfileIds.Add(profileId.AsPrimitive());
             return DecideActionAsync(request, cancellationToken);
         }
 
-        public Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeForProfileAsync(string profileId, PostStateNarrativeRequest request, CancellationToken cancellationToken)
+        public Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeForProfileAsync(AiProviderProfileId profileId, PostStateNarrativeRequest request, CancellationToken cancellationToken)
         {
-            NarrativeProfileIds.Add(profileId);
+            NarrativeProfileIds.Add(profileId.AsPrimitive());
             return GeneratePostStateNarrativeAsync(request, cancellationToken);
         }
 
@@ -551,6 +551,6 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
             if (NarrativeFailuresRemaining-- > 0) throw new AiProviderException(AiProviderErrorCodes.Timeout, "retry", true, sentPrompt: "narrative prompt", receivedResult: "partial result");
             return Task.FromResult(new NarrativeGeneration<PostStateNarrativeResult>(new(ScenarioTurnSchemas.PostStateNarrative, "Door opened", "The north door now stands open."), Metadata(), "narrative prompt", "narrative result"));
         }
-        private static AiGenerationMetadata Metadata() => new("test", "deterministic", null, null, null, 1, 1, "stop");
+        private static AiGenerationMetadata Metadata() => new(new AiProviderProfileId("test"), "deterministic", null, null, null, 1, 1, "stop");
     }
 }

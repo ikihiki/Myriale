@@ -202,17 +202,17 @@ public sealed class DevelopmentScenarioSeedTests : IDisposable
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var seedUser = await db.Users.SingleAsync(user => user.Email == AccountSeedData.DefaultEmail);
-        var scenario = await db.Scenarios.SingleAsync(item => item.Id == "SCN-AWAKENING-LAB");
-        scenario.AuthorId = "SYSTEM-SEED";
+        var scenario = await db.Scenarios.SingleAsync(item => item.Id == new ScenarioId("SCN-AWAKENING-LAB"));
+        scenario.AuthorId = new AccountId("SYSTEM-SEED");
         await db.SaveChangesAsync();
 
         await ScenarioSeedData.SeedAsync(db, seedUser.Id);
-        Assert.Equal(seedUser.Id, scenario.AuthorId);
+        Assert.Equal(seedUser.Id, scenario.AuthorId.AsPrimitive());
 
-        scenario.AuthorId = "EXPLICIT-OWNER";
+        scenario.AuthorId = new AccountId("EXPLICIT-OWNER");
         await db.SaveChangesAsync();
         await ScenarioSeedData.SeedAsync(db, seedUser.Id);
-        Assert.Equal("EXPLICIT-OWNER", scenario.AuthorId);
+        Assert.Equal("EXPLICIT-OWNER", scenario.AuthorId.AsPrimitive());
     }
 
     public void Dispose()

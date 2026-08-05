@@ -68,9 +68,9 @@ public sealed class ProviderNarrativeGeneratorActionDecisionTests
     {
         var state = JsonSerializer.Deserialize<JsonElement>("{\"stance\":\"confessed\",\"evidenceAcknowledged\":true}");
         var argumentSchema = JsonSerializer.Deserialize<JsonElement>("{\"type\":\"object\",\"additionalProperties\":false}");
-        var location = new RulePublicLocation("room", "interview-room", "取調室", "窓のない小部屋。");
-        var item = new RulePublicObject("ren", "keeper-ren", "灯台守レン", location.Id, false, 1, state);
-        var action = new RulePublicAction(item.Id, "present-evidence", "present-evidence", "保守記録を突きつける", "証拠を提示する。", argumentSchema, true);
+        var location = new RulePublicLocation(new ScenarioLocationId("room"), "interview-room", "取調室", "窓のない小部屋。");
+        var item = new RulePublicObject(new ScenarioObjectId("ren"), "keeper-ren", "灯台守レン", location.Id, false, 1, state);
+        var action = new RulePublicAction(item.Id, new ScenarioObjectTypeActionId("present-evidence"), "present-evidence", "保守記録を突きつける", "証拠を提示する。", argumentSchema, true);
         return new(
             ScenarioTurnSchemas.PostStateNarrative,
             new("灯台守の告白", "会話劇", "ミステリー", "緊張", "", "低", "調査官", [], "レンと向き合う。"),
@@ -106,12 +106,12 @@ public sealed class ProviderNarrativeGeneratorActionDecisionTests
         public Task<AiTextResponse> GenerateAsync(AiTextRequest request, CancellationToken cancellationToken)
         {
             Request = request;
-            return Task.FromResult(new AiTextResponse(ResponseText, new("test", "model", "response", 1, 1, 2, 1, "stop")));
+            return Task.FromResult(new AiTextResponse(ResponseText, new(new AiProviderProfileId("test"), "model", "response", 1, 1, 2, 1, "stop")));
         }
 
-        public Task<AiTextResponse> GenerateForProviderAsync(string provider, string credential, AiTextRequest request, CancellationToken cancellationToken) =>
+        public Task<AiTextResponse> GenerateForProviderAsync(AiProviderProfileId provider, string credential, AiTextRequest request, CancellationToken cancellationToken) =>
             GenerateAsync(request, cancellationToken);
 
-        public Task TestConnectionAsync(string provider, string credential, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task TestConnectionAsync(AiProviderProfileId provider, string credential, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

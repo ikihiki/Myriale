@@ -17,7 +17,7 @@ public sealed class ScenarioArchitectureHardeningTests
     public async Task DefinitionCommandUseCases_RejectNonOwnerWhenCalledDirectly()
     {
         await using var db = await CreateDbAsync();
-        db.Scenarios.Add(Scenario.Create("scenario", "owner", new ScenarioTitle("Title"), DateTimeOffset.UtcNow));
+        db.Scenarios.Add(Scenario.Create(new ScenarioId("scenario"), new AccountId("owner"), new ScenarioTitle("Title"), DateTimeOffset.UtcNow));
         await db.SaveChangesAsync();
         var codec = new ScenarioRuleJsonCodec();
         var repository = new EfScenarioDefinitionRepository(db);
@@ -28,11 +28,11 @@ public sealed class ScenarioArchitectureHardeningTests
         var request = new ScenarioRuleDataRequest(2, [], [], [], string.Empty);
 
         var create = await new CreateScenarioDefinitionDraftUseCase(db, repository, drafts, mapper)
-            .ExecuteAsync(new("scenario", "intruder"), default);
+            .ExecuteAsync(new(new ScenarioId("scenario"), new AccountId("intruder")), default);
         var save = await new SaveScenarioDefinitionUseCase(db, repository, drafts, validator, writer, mapper)
-            .ExecuteAsync(new("scenario", "intruder", request), default);
+            .ExecuteAsync(new(new ScenarioId("scenario"), new AccountId("intruder"), request), default);
         var publish = await new PublishScenarioDefinitionUseCase(db, repository, new ScenarioDefinitionReadinessPolicy(validator, mapper), mapper, new NoopDispatcher())
-            .ExecuteAsync(new("scenario", "intruder"), default);
+            .ExecuteAsync(new(new ScenarioId("scenario"), new AccountId("intruder")), default);
 
         Assert.Equal(ScenarioDefinitionCommandOutcome.NotFound, create.Outcome);
         Assert.Equal(ScenarioDefinitionCommandOutcome.NotFound, save.Outcome);
@@ -86,7 +86,7 @@ public sealed class ScenarioArchitectureHardeningTests
         Assert.IsType<PredicateCondition>(roundTrip.Condition);
         Assert.IsType<StateEffect>(Assert.Single(roundTrip.Effects.Effects));
         Assert.Equal(("door.module", "1.2.3", "sha256:test"),
-            (roundTrip.ModuleBinding!.ModuleId, roundTrip.ModuleBinding.Version, roundTrip.ModuleBinding.Digest));
+            (roundTrip.ModuleBinding!.ModuleId.AsPrimitive(), roundTrip.ModuleBinding.Version, roundTrip.ModuleBinding.Digest));
         Assert.Equal(2, roundTrip.ModuleBinding.Configuration.GetProperty("difficulty").GetInt32());
     }
 
@@ -145,7 +145,7 @@ public sealed class ScenarioArchitectureHardeningTests
         services.AddSingleton<IDomainEventHandler<ScenarioDefinitionPublished>, ScenarioDefinitionPublishedLoggingHandler>();
         services.AddSingleton<IDomainEventHandler<ScenarioDefinitionPublished>, RecordingPublicationHandler>();
         await using var provider = services.BuildServiceProvider();
-        var published = new ScenarioDefinitionPublished("scenario", "definition", 4, DateTimeOffset.UtcNow);
+        var published = new ScenarioDefinitionPublished(new ScenarioId("scenario"), new ScenarioDefinitionVersionId("definition"), 4, DateTimeOffset.UtcNow);
 
         await new DomainEventDispatcher(provider).DispatchAsync([published], default);
 

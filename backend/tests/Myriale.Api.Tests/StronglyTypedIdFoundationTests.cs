@@ -59,6 +59,36 @@ public sealed class StronglyTypedIdFoundationTests
     }
 
     [Fact]
+    public void MigratedIdentifiersKeepPrimitiveJsonAndExcludeUnsafeOperators()
+    {
+        var sessionId = new SessionId("SES-42");
+        var requestId = new ModuleExecutionRequestId(42);
+        var validationValue = Guid.Parse("741cc186-3df6-4ee3-b60e-ea6ec54e2731");
+        var validationId = new AiProviderProfileValidationId(validationValue);
+
+        Assert.Equal("\"SES-42\"", JsonSerializer.Serialize(sessionId));
+        Assert.Equal("42", JsonSerializer.Serialize(requestId));
+        Assert.Equal($"\"{validationValue}\"", JsonSerializer.Serialize(validationId));
+        Assert.Equal(sessionId, JsonSerializer.Deserialize<SessionId>("\"SES-42\""));
+        Assert.Equal(requestId, ModuleExecutionRequestId.Parse("42"));
+        Assert.Equal(validationId, AiProviderProfileValidationId.Parse(validationValue.ToString()));
+
+        var identifierTypes = typeof(Program).Assembly.GetTypes()
+            .Where(type => type.IsValueType && type.Namespace?.EndsWith(".Identifiers", StringComparison.Ordinal) == true)
+            .ToArray();
+        Assert.NotEmpty(identifierTypes);
+        Assert.All(identifierTypes, type =>
+        {
+            var operators = type.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+                .Select(method => method.Name)
+                .ToArray();
+            Assert.DoesNotContain("op_Implicit", operators);
+            Assert.DoesNotContain(operators, name => name is "op_Addition" or "op_Subtraction" or "op_Multiply" or "op_Division"
+                or "op_LessThan" or "op_LessThanOrEqual" or "op_GreaterThan" or "op_GreaterThanOrEqual");
+        });
+    }
+
+    [Fact]
     public async Task RepresentativeIdBindsFromRouteAndHasPrimitiveOpenApiSchema()
     {
         var builder = WebApplication.CreateBuilder();
@@ -97,8 +127,8 @@ public sealed class StronglyTypedIdFoundationTests
         Assert.Equal(typeof(string), credentialProperty.GetTypeMapping().Converter!.ProviderClrType);
 
         var now = new DateTimeOffset(2026, 8, 5, 0, 0, 0, TimeSpan.Zero);
-        db.AiCredentials.Add(AiCredential.Create(" SHARED ", "Shared", "protected", "1234", now));
-        db.AiProviderProfiles.Add(AiProviderProfile.Create(" ACME ", "Acme", "https://acme.test", "model", " SHARED ", true, now));
+        db.AiCredentials.Add(AiCredential.Create(new AiCredentialId(" SHARED "), "Shared", "protected", "1234", now));
+        db.AiProviderProfiles.Add(AiProviderProfile.Create(new AiProviderProfileId(" ACME "), "Acme", "https://acme.test", "model", new AiCredentialId(" SHARED "), true, now));
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
 

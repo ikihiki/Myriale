@@ -41,7 +41,7 @@ public sealed class SessionExecutionArchitectureTests
     public void DevelopmentProjectionContainsTraceButProductionOmitsDiagnostics()
     {
         var execution = Execution(SessionExecutionStatus.Failed);
-        var attempt = SessionExecutionAttempt.Start("ATT-1", execution.Id, 1, "worker", DateTimeOffset.UtcNow);
+        var attempt = SessionExecutionAttempt.Start(new SessionExecutionAttemptId("ATT-1"), execution.Id, 1, "worker", DateTimeOffset.UtcNow);
         attempt.RecordTrace(null, "trace-id", "span-id");
         attempt.RecordFailureDiagnostics("TimeoutException", "Authorization=[REDACTED]");
         attempt.Fail(DateTimeOffset.UtcNow, "timeout", "provider", true);
@@ -156,11 +156,11 @@ public sealed class SessionExecutionArchitectureTests
 
     private static SessionExecution Execution(SessionExecutionStatus status) => new()
     {
-        Id = "EXE-1",
-        SessionId = "SES-1",
+        Id = new SessionExecutionId("EXE-1"),
+        SessionId = new SessionId("SES-1"),
         Kind = SessionExecutionKind.Narrative,
         TriggerType = SessionExecutionTriggerType.PlayerInput,
-        TriggerId = "INP-1",
+        TriggerId = new SessionExecutionTriggerId("INP-1"),
         Status = status,
         IdempotencyKey = "request-1",
         PayloadHash = new string('a', 64),

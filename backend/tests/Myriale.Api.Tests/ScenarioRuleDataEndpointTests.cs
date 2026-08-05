@@ -36,7 +36,7 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
         var drafts = await db.ScenarioDefinitionVersions.AsNoTracking()
-            .Where(x => x.ScenarioId == scenarioId && x.Status == DefinitionStatus.Draft).ToListAsync();
+            .Where(x => x.ScenarioId == new ScenarioId(scenarioId) && x.Status == DefinitionStatus.Draft).ToListAsync();
         var draft = Assert.Single(drafts);
         Assert.Equal(1, draft.Version);
     }
@@ -541,12 +541,12 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
         var session = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
-            db.Sessions.Include(item => item.ScenarioDefinitionVersion), item => item.Id == sessionId);
+            db.Sessions.Include(item => item.ScenarioDefinitionVersion), item => item.Id == new SessionId(sessionId));
         Assert.Equal("固定された世界設定", session.ScenarioDefinitionVersion!.ScenarioLore);
         Assert.Equal("固定された指針", session.ScenarioDefinitionVersion.ScenarioAiFreedom);
         Assert.Equal("固定された導入", session.ScenarioDefinitionVersion.ScenarioOpening);
         var opening = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(
-            db.SessionTurns, turn => turn.SessionId == sessionId && turn.Position == 1);
+            db.SessionTurns, turn => turn.SessionId == new SessionId(sessionId) && turn.Position == 1);
         Assert.Equal("固定された題名", opening.Heading);
         Assert.Equal("固定された導入", opening.NarrativeBody);
     }
@@ -560,7 +560,7 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
         var published = await db.ScenarioDefinitionVersions.AsNoTracking()
             .Include(version => version.ProgressionNodes)
             .Include(version => version.ProgressionTransitions)
-            .SingleAsync(version => version.Id == "SDV-STAR-LIBRARY-1");
+            .SingleAsync(version => version.Id == new ScenarioDefinitionVersionId("SDV-STAR-LIBRARY-1"));
 
         var drafts = scope.ServiceProvider.GetRequiredService<Myriale.Api.Features.Scenarios.Application.ScenarioDefinitionDraftService>();
         var draft = await drafts.GetOrCreateDraftAsync(published.ScenarioId, CancellationToken.None);
@@ -623,7 +623,7 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<Myriale.Api.Infrastructure.Persistence.ApplicationDbContext>();
         Assert.Equal(1, await db.ScenarioDefinitionVersions.CountAsync(
-            version => version.ScenarioId == scenarioId && version.Status == DefinitionStatus.Draft));
+            version => version.ScenarioId == new ScenarioId(scenarioId) && version.Status == DefinitionStatus.Draft));
     }
 
     public void Dispose()

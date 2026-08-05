@@ -51,18 +51,18 @@ public sealed class ScenarioRuleRuntimeDomainSliceTests
         var result = Service().Resolve(world, Decision(), "INV-1");
 
         Assert.Equal(2, result.Plan.Objects.Count);
-        Assert.Equal("LOC-VAULT", result.Plan.Session.CurrentLocationId);
+        Assert.Equal("LOC-VAULT", result.Plan.Session.CurrentLocationId.AsPrimitive());
         Assert.True(result.Plan.CompletionIntent);
         Assert.True(result.Plan.SessionState!.Flags["opened"]);
-        Assert.Contains(result.Plan.Placements, item => item is { TargetId: "OBJ-OTHER", LocationId: "LOC-VAULT", IsSession: false });
-        Assert.Contains(result.Plan.Placements, item => item is { TargetId: "SES-1", LocationId: "LOC-VAULT", IsSession: true });
+        Assert.Contains(result.Plan.Placements, item => item.TargetId == "OBJ-OTHER" && item.LocationId == new ScenarioLocationId("LOC-VAULT") && !item.IsSession);
+        Assert.Contains(result.Plan.Placements, item => item.TargetId == "SES-1" && item.LocationId == new ScenarioLocationId("LOC-VAULT") && item.IsSession);
         Assert.Single(result.Plan.Facts);
         Assert.Single(result.Plan.Events);
         Assert.Single(result.Plan.NarrativeHints);
         Assert.Single(result.Plan.ForbiddenNarrativeFacts);
         Assert.All(world.Objects, item => Assert.Equal(before[item.Id], item.State.GetRawText()));
 
-        var sourcePatch = result.Plan.Objects.Single(item => item.ObjectId == "OBJ-DOOR");
+        var sourcePatch = result.Plan.Objects.Single(item => item.ObjectId == new ScenarioObjectId("OBJ-DOOR"));
         Assert.True(sourcePatch.State.GetProperty("open").GetBoolean());
         Assert.Equal(3, sourcePatch.State.GetProperty("count").GetInt32());
         Assert.Equal(["new"], sourcePatch.State.GetProperty("tags").EnumerateArray().Select(item => item.GetString()));
@@ -84,7 +84,7 @@ public sealed class ScenarioRuleRuntimeDomainSliceTests
         var exception = Assert.Throws<ScenarioTurnValidationException>(() => Service().Resolve(world, Decision(), "INV-1"));
         Assert.Equal(code, exception.Code);
         Assert.Equal(before, world.Objects.Select(item => item.State.GetRawText()));
-        Assert.Equal("LOC-HALL", world.CurrentLocationId);
+        Assert.Equal("LOC-HALL", world.CurrentLocationId.AsPrimitive());
         Assert.False(world.SessionFlags.ContainsKey("opened"));
     }
 
@@ -95,14 +95,14 @@ public sealed class ScenarioRuleRuntimeDomainSliceTests
         var result = Service().Resolve(world, Decision(), "INV-1");
         var request = Assert.IsType<ScenarioExtensionRequest>(result.Plan.ExtensionRequest);
         Assert.Equal("INV-1", request.InvocationId);
-        Assert.Equal("example.module", request.ModuleId);
-        Assert.Equal("OBJ-DOOR", request.ObjectId);
+        Assert.Equal("example.module", request.ModuleId.AsPrimitive());
+        Assert.Equal("OBJ-DOOR", request.ObjectId.AsPrimitive());
     }
 
     [Fact]
     public void ActionStep_EnforcesTransitionMatrixAndApplyPublishOnce()
     {
-        var step = SessionRuleActionStep.CreateSnapshot("STEP", "SES", "EXE", "INP", "DEF", 3, "{}", "{}", Now);
+        var step = SessionRuleActionStep.CreateSnapshot(new SessionRuleActionStepId("STEP"), new SessionId("SES"), new SessionExecutionId("EXE"), new SessionPlayerInputId("INP"), new ScenarioDefinitionVersionId("DEF"), 3, "{}", "{}", Now);
         Assert.Equal(ScenarioTurnStage.Decision, step.Stage);
         Assert.Throws<InvalidOperationException>(() => step.RecordResolution(null, "{}", false, Now));
         Assert.True(step.RecordDecision("{}", Now));
@@ -124,34 +124,34 @@ public sealed class ScenarioRuleRuntimeDomainSliceTests
     [Fact]
     public void RuntimeEntities_RejectStaleExpectedRevisions()
     {
-        var state = SessionObjectState.Create("STATE", "SES", "OBJ", "LOC", "{\"open\":false}", Now);
-        state.Apply("{\"open\":true}", "LOC", 0, Now);
-        Assert.Throws<ScenarioRuntimeRevisionConflictException>(() => state.Apply("{\"open\":false}", "LOC", 0, Now));
+        var state = SessionObjectState.Create(new SessionObjectStateId("STATE"), new SessionId("SES"), new ScenarioObjectId("OBJ"), new ScenarioLocationId("LOC"), "{\"open\":false}", Now);
+        state.Apply("{\"open\":true}", new ScenarioLocationId("LOC"), 0, Now);
+        Assert.Throws<ScenarioRuntimeRevisionConflictException>(() => state.Apply("{\"open\":false}", new ScenarioLocationId("LOC"), 0, Now));
 
-        var sessionState = SessionState.Create("SES", new Dictionary<string, bool>(), Now);
-        var session = Session.Create("SES", "OWNER", "SCN", "DEF", "LOC", null, null, "Hero", false, sessionState, Now);
-        session.ApplyScenarioEffects(0, "LOC", false, Now);
-        Assert.Throws<ScenarioRuntimeRevisionConflictException>(() => session.ApplyScenarioEffects(0, "LOC", false, Now));
+        var sessionState = SessionState.Create(new SessionId("SES"), new Dictionary<string, bool>(), Now);
+        var session = Session.Create(new SessionId("SES"), new AccountId("OWNER"), new ScenarioId("SCN"), new ScenarioDefinitionVersionId("DEF"), new ScenarioLocationId("LOC"), null, null, "Hero", false, sessionState, Now);
+        session.ApplyScenarioEffects(0, new ScenarioLocationId("LOC"), false, Now);
+        Assert.Throws<ScenarioRuntimeRevisionConflictException>(() => session.ApplyScenarioEffects(0, new ScenarioLocationId("LOC"), false, Now));
     }
 
     [Fact]
     public void CompletionIntent_AllowsOnlyItsFinalNarrativeToPublish()
     {
-        var state = SessionState.Create("SES", new Dictionary<string, bool>(), Now);
-        var session = Session.Create("SES", "OWNER", "SCN", "DEF", "LOC", null, null, "Hero", false, state, Now);
-        session.AppendOpeningTurn("OPEN", "opening.v1", "Opening", "Body", Now);
-        var input = session.AcceptInput("INP", "REQ", "finish", SessionInputInteractionType.Dialogue, new string('a', 64), "OWNER", null, Now);
-        session.ApplyScenarioEffects(session.Revision, "LOC", true, Now);
+        var state = SessionState.Create(new SessionId("SES"), new Dictionary<string, bool>(), Now);
+        var session = Session.Create(new SessionId("SES"), new AccountId("OWNER"), new ScenarioId("SCN"), new ScenarioDefinitionVersionId("DEF"), new ScenarioLocationId("LOC"), null, null, "Hero", false, state, Now);
+        session.AppendOpeningTurn(new SessionTurnId("OPEN"), "opening.v1", "Opening", "Body", Now);
+        var input = session.AcceptInput(new SessionPlayerInputId("INP"), "REQ", "finish", SessionInputInteractionType.Dialogue, new string('a', 64), new AccountId("OWNER"), null, Now);
+        session.ApplyScenarioEffects(session.Revision, new ScenarioLocationId("LOC"), true, Now);
         var metadata = new SessionTurnAiMetadata("mock", "model", "response", 1, 1, 1, 1, "stop");
 
         Assert.Throws<InvalidOperationException>(() => session.AppendScenarioNarrative(
-            "TURN-BAD", input.Id, ScenarioTurnSchemas.PostStateNarrative, null, null, "Done", "Done", null,
+            new SessionTurnId("TURN-BAD"), input.Id, ScenarioTurnSchemas.PostStateNarrative, null, null, "Done", "Done", null,
             session.Revision, metadata, Now));
         var turn = session.AppendScenarioCompletionNarrative(
-            "TURN", input.Id, ScenarioTurnSchemas.PostStateNarrative, null, null, "Done", "Done", null,
+            new SessionTurnId("TURN"), input.Id, ScenarioTurnSchemas.PostStateNarrative, null, null, "Done", "Done", null,
             session.Revision, metadata, Now);
 
-        Assert.Equal("TURN", turn.Id);
+        Assert.Equal("TURN", turn.Id.AsPrimitive());
         Assert.Equal(SessionStatus.Completed, session.Status);
     }
 
@@ -175,31 +175,31 @@ public sealed class ScenarioRuleRuntimeDomainSliceTests
         var action = Action();
         var rule = new ResolvedScenarioRule(
             "RULE-1", "open-rule", "open", ConditionExpression.Empty, 10, 0, "door", null, effects,
-            module ? "example.module" : null, module ? "1.0.0" : null, module ? new string('a', 64) : null,
+            module ? new ModulePackageModuleId("example.module") : null, module ? "1.0.0" : null, module ? new string('a', 64) : null,
             module ? Element("{}") : null);
         var source = new ScenarioRuleObjectSnapshot(
-            "OBJ-DOOR", "door", "Door", "A door", false, "LOC-HALL", 4,
+            new ScenarioObjectId("OBJ-DOOR"), "door", "Door", "A door", false, new ScenarioLocationId("LOC-HALL"), 4,
             Element("{\"open\":false,\"count\":1,\"tags\":[\"old\"]}"),
             new HashSet<string>(["open", "count", "tags"]), [action], [rule]);
-        var otherAction = action with { Id = "ACT-OTHER", ObjectTypeId = "TYPE-OTHER" };
+        var otherAction = action with { Id = new ScenarioObjectTypeActionId("ACT-OTHER"), ObjectTypeId = new ScenarioObjectTypeId("TYPE-OTHER") };
         var other = new ScenarioRuleObjectSnapshot(
-            "OBJ-OTHER", "other", "Other", "Other object", false, "LOC-HALL", 7,
+            new ScenarioObjectId("OBJ-OTHER"), "other", "Other", "Other object", false, new ScenarioLocationId("LOC-HALL"), 7,
             Element("{\"open\":false,\"count\":0,\"tags\":[]}"),
             new HashSet<string>(["open"]), [otherAction], []);
         return new ScenarioRuleWorldSnapshot(
-            "SES-1", "OWNER-1", "DEF-1", "LOC-HALL", 12, SessionStatus.Active, 5,
+            new SessionId("SES-1"), new AccountId("OWNER-1"), new ScenarioDefinitionVersionId("DEF-1"), new ScenarioLocationId("LOC-HALL"), 12, SessionStatus.Active, 5,
             new Dictionary<string, bool>(),
-            [new("LOC-HALL", "hall", "Hall", "Hall"), new("LOC-VAULT", "vault", "Vault", "Vault")],
+            [new(new ScenarioLocationId("LOC-HALL"), "hall", "Hall", "Hall"), new(new ScenarioLocationId("LOC-VAULT"), "vault", "Vault", "Vault")],
             [source, other],
             new("Title", "Summary", "Genre", "Tone", "Lore", "Freedom", "Hero", "Opening", []));
     }
 
     private static ResolvedScenarioAction Action() => new(
-        "ACT-OPEN", "open", "Open", "Open it", Element("{\"type\":\"object\"}"),
-        ConditionExpression.Empty, ActionVisibility.AiChoice, ActionExecutionMode.Rule, 0, "door", "TYPE-DOOR");
+        new ScenarioObjectTypeActionId("ACT-OPEN"), "open", "Open", "Open it", Element("{\"type\":\"object\"}"),
+        ConditionExpression.Empty, ActionVisibility.AiChoice, ActionExecutionMode.Rule, 0, "door", new ScenarioObjectTypeId("TYPE-DOOR"));
 
     private static RuleActionDecisionResult Decision() =>
-        new(ScenarioTurnSchemas.ActionDecision, "OBJ-DOOR", "ACT-OPEN", Element("{}"));
+        new(ScenarioTurnSchemas.ActionDecision, new ScenarioObjectId("OBJ-DOOR"), new ScenarioObjectTypeActionId("ACT-OPEN"), Element("{}"));
 
     private static JsonElement Element(string json)
     {

@@ -12,7 +12,7 @@ public sealed class ScenarioRuleConfigurationResolverTests
         var second = Type("exit", "{\"destination\":\"outside\"}", "{\"include\":[\"destination\"]}", Action("leave", "出る"));
         var item = new ScenarioObject
         {
-            Id = "object-1",
+            Id = new ScenarioObjectId("object-1"),
             MixinTypeCodesJson = "[\"openable\",\"exit\"]",
             LocalStateSchemaJson = "{\"type\":\"object\",\"properties\":{\"direction\":{\"type\":\"string\"}}}",
             LocalDefaultStateJson = "{\"direction\":\"west\"}", LocalPublicProjectionJson = "{\"include\":[\"direction\"]}",
@@ -40,7 +40,7 @@ public sealed class ScenarioRuleConfigurationResolverTests
         var second = Type("two", "{\"value\":\"no\"}", "{}", Action("use", "別の使い方"));
         first.StateSchemaJson = "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"boolean\"}}}";
         second.StateSchemaJson = "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}}}";
-        var item = new ScenarioObject { Id = "object-1", MixinTypeCodesJson = "[\"one\",\"two\"]" };
+        var item = new ScenarioObject { Id = new ScenarioObjectId("object-1"), MixinTypeCodesJson = "[\"one\",\"two\"]" };
         var resolved = new ScenarioRuleConfigurationResolver().Resolve(new ScenarioDefinitionVersion { ObjectTypes = [first, second], Objects = [item] }, item);
         Assert.Contains(resolved.Conflicts, conflict => conflict.Contains("state 'value'"));
         Assert.Contains(resolved.Conflicts, conflict => conflict.Contains("action 'use'"));
@@ -51,8 +51,8 @@ public sealed class ScenarioRuleConfigurationResolverTests
     {
         var type = Type("door", "{\"open\":false}", "{}", Action("open", "Open"));
         type.GenericActionRulesJson = "[{\"code\":\"open-default\",\"actionCode\":\"open\",\"condition\":{},\"priority\":10,\"authoringNote\":\"generic\",\"effects\":[{\"type\":\"emit-fact\",\"text\":\"generic\"}],\"moduleBinding\":null}]";
-        var first = new ScenarioObject { Id = "first", MixinTypeCodesJson = "[\"door\"]" };
-        var second = new ScenarioObject { Id = "second", MixinTypeCodesJson = "[\"door\"]" };
+        var first = new ScenarioObject { Id = new ScenarioObjectId("first"), MixinTypeCodesJson = "[\"door\"]" };
+        var second = new ScenarioObject { Id = new ScenarioObjectId("second"), MixinTypeCodesJson = "[\"door\"]" };
         var definition = new ScenarioDefinitionVersion { ObjectTypes = [type], Objects = [first, second] };
         var resolver = new ScenarioRuleConfigurationResolver();
 
@@ -77,7 +77,7 @@ public sealed class ScenarioRuleConfigurationResolverTests
             """;
         var customized = new ScenarioObject
         {
-            Id = "customized", MixinTypeCodesJson = "[\"door\"]",
+            Id = new ScenarioObjectId("customized"), MixinTypeCodesJson = "[\"door\"]",
             ActionRuleMutationsJson = """
               [
                 {"operation":"override","targetTypeCode":"door","targetRuleCode":"override-me","actionCode":"open","condition":{},"priority":110,"authoringNote":"object override","effects":[{"type":"emit-fact","text":"object override"}],"moduleBinding":null},
@@ -87,7 +87,7 @@ public sealed class ScenarioRuleConfigurationResolverTests
               ]
               """
         };
-        var untouched = new ScenarioObject { Id = "untouched", MixinTypeCodesJson = "[\"door\"]" };
+        var untouched = new ScenarioObject { Id = new ScenarioObjectId("untouched"), MixinTypeCodesJson = "[\"door\"]" };
         var definition = new ScenarioDefinitionVersion { ObjectTypes = [type], Objects = [customized, untouched] };
         var resolver = new ScenarioRuleConfigurationResolver();
 
@@ -113,13 +113,13 @@ public sealed class ScenarioRuleConfigurationResolverTests
 
     private static ScenarioObjectType Type(string code, string defaults, string projection, ScenarioObjectTypeAction action) => new()
     {
-        Id = $"type-{code}", Code = code,
+        Id = new ScenarioObjectTypeId($"type-{code}"), Code = code,
         StateSchemaJson = defaults.Contains("false") ? "{\"type\":\"object\",\"properties\":{\"open\":{\"type\":\"boolean\"}}}" :
             defaults.Contains("destination") ? "{\"type\":\"object\",\"properties\":{\"destination\":{\"type\":\"string\"}}}" :
             "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"boolean\"}}}",
         DefaultStateJson = defaults, PublicProjectionJson = projection, Actions = [action]
     };
-    private static ScenarioObjectTypeAction Action(string code, string label) => new() { Id = $"action-{code}-{label}", Code = code, Label = label, ArgumentSchemaJson = "{}", AvailabilityConditionJson = "{}" };
+    private static ScenarioObjectTypeAction Action(string code, string label) => new() { Id = new ScenarioObjectTypeActionId($"action-{code}-{label}"), Code = code, Label = label, ArgumentSchemaJson = "{}", AvailabilityConditionJson = "{}" };
     private static ScenarioObjectTypeActionInput InputAction(string code, string label) => new(code, label, "", Element("{}"), ConditionExpression.Empty, "ai-choice", "rule");
     private static JsonElement Element(string json) => JsonDocument.Parse(json).RootElement.Clone();
 }

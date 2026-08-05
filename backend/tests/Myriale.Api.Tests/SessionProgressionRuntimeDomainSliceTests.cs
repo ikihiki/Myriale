@@ -30,13 +30,13 @@ public sealed class SessionProgressionRuntimeDomainSliceTests : IDisposable
         var receipt = CreateReceipt();
 
         Assert.True(receipt.Claim("lease-a", Now.AddMinutes(2), Now));
-        Assert.False(receipt.Complete("lease-stale", "TRN-1", Now.AddSeconds(1)));
+        Assert.False(receipt.Complete("lease-stale", new SessionTurnId("TRN-1"), Now.AddSeconds(1)));
         Assert.True(receipt.Fail("lease-a", "temporary", "retry", true, Now.AddSeconds(1)));
         Assert.True(receipt.IsRetryable);
         Assert.True(receipt.Claim("lease-b", Now.AddMinutes(3), Now.AddSeconds(2)));
         Assert.True(receipt.Release("lease-b", Now.AddSeconds(3)));
         Assert.True(receipt.Claim("lease-c", Now.AddMinutes(4), Now.AddSeconds(4)));
-        Assert.True(receipt.Complete("lease-c", "TRN-1", Now.AddSeconds(5)));
+        Assert.True(receipt.Complete("lease-c", new SessionTurnId("TRN-1"), Now.AddSeconds(5)));
         Assert.Equal(ProgressionReceiptStatus.Completed, receipt.Status);
         Assert.False(receipt.IsRetryable);
         Assert.Equal(6, receipt.Revision);
@@ -46,7 +46,7 @@ public sealed class SessionProgressionRuntimeDomainSliceTests : IDisposable
     public void MissingSnapshotIsTerminal()
     {
         var receipt = SessionProgressionTransitionReceipt.Create(
-            "PTR-1", "SES-1", "NSG-1", "TRA-1", "NODE-1", "NODE-2", null, Now);
+            new SessionProgressionTransitionReceiptId("PTR-1"), new SessionId("SES-1"), new SessionNarrativeSignalId("NSG-1"), new ScenarioProgressionTransitionId("TRA-1"), new ScenarioProgressionNodeId("NODE-1"), new ScenarioProgressionNodeId("NODE-2"), null, Now);
 
         Assert.Equal(ProgressionReceiptStatus.WaitingConfiguration, receipt.Status);
         Assert.False(receipt.IsRetryable);
@@ -80,8 +80,8 @@ public sealed class SessionProgressionRuntimeDomainSliceTests : IDisposable
         var second = new EfProgressionReceiptRepository(secondDb);
 
         var claims = await Task.WhenAll(
-            first.TryClaimOwnedAsync("owner", "PTR-1", "lease-a", Now, Now.AddMinutes(2), default),
-            second.TryClaimOwnedAsync("owner", "PTR-1", "lease-b", Now, Now.AddMinutes(2), default));
+            first.TryClaimOwnedAsync(new AccountId("owner"), new SessionProgressionTransitionReceiptId("PTR-1"), "lease-a", Now, Now.AddMinutes(2), default),
+            second.TryClaimOwnedAsync(new AccountId("owner"), new SessionProgressionTransitionReceiptId("PTR-1"), "lease-b", Now, Now.AddMinutes(2), default));
 
         var winner = Assert.Single(claims, claim => claim is not null)!;
         await using var verification = CreateDb();
@@ -101,30 +101,30 @@ public sealed class SessionProgressionRuntimeDomainSliceTests : IDisposable
         await SeedAsync(CreateReceipt());
         await using var db = CreateDb();
         var repository = new EfProgressionReceiptRepository(db);
-        var first = Assert.IsType<ClaimedProgressionReceipt>(await repository.TryClaimOwnedAsync("owner", "PTR-1", "lease-a", Now, Now.AddMinutes(2), default));
+        var first = Assert.IsType<ClaimedProgressionReceipt>(await repository.TryClaimOwnedAsync(new AccountId("owner"), new SessionProgressionTransitionReceiptId("PTR-1"), "lease-a", Now, Now.AddMinutes(2), default));
         Assert.True(await repository.ReleaseAsync(first.Id, first.LeaseId, first.Revision, Now.AddSeconds(1), default));
-        var second = Assert.IsType<ClaimedProgressionReceipt>(await repository.TryClaimOwnedAsync("owner", "PTR-1", "lease-b", Now.AddSeconds(2), Now.AddMinutes(2), default));
+        var second = Assert.IsType<ClaimedProgressionReceipt>(await repository.TryClaimOwnedAsync(new AccountId("owner"), new SessionProgressionTransitionReceiptId("PTR-1"), "lease-b", Now.AddSeconds(2), Now.AddMinutes(2), default));
 
-        Assert.False(await repository.CompleteAsync(first.Id, first.LeaseId, first.Revision, "TRN-STALE", Now.AddSeconds(3), default));
-        Assert.True(await repository.CompleteAsync(second.Id, second.LeaseId, second.Revision, "TRN-WINNER", Now.AddSeconds(4), default));
+        Assert.False(await repository.CompleteAsync(first.Id, first.LeaseId, first.Revision, new SessionTurnId("TRN-STALE"), Now.AddSeconds(3), default));
+        Assert.True(await repository.CompleteAsync(second.Id, second.LeaseId, second.Revision, new SessionTurnId("TRN-WINNER"), Now.AddSeconds(4), default));
         db.ChangeTracker.Clear();
         var stored = await db.SessionProgressionTransitionReceipts.SingleAsync();
-        Assert.Equal("TRN-WINNER", stored.ModuleTurnId);
+        Assert.Equal(new SessionTurnId("TRN-WINNER"), stored.ModuleTurnId);
         Assert.Equal(ProgressionReceiptStatus.Completed, stored.Status);
     }
 
     [Fact]
     public async Task RepositoryMarksIncompleteLegacySnapshotTerminal()
     {
-        var incomplete = new ProgressionModuleSnapshot("module", "1.0.0", "short", "{}", "{}", 0);
+        var incomplete = new ProgressionModuleSnapshot(default, default, default, "{}", "{}", 0);
         await SeedAsync(SessionProgressionTransitionReceipt.Create(
-            "PTR-1", "SES-1", "NSG-1", "TRA-1", "NODE-1", "NODE-2", incomplete, Now));
+            new SessionProgressionTransitionReceiptId("PTR-1"), new SessionId("SES-1"), new SessionNarrativeSignalId("NSG-1"), new ScenarioProgressionTransitionId("TRA-1"), new ScenarioProgressionNodeId("NODE-1"), new ScenarioProgressionNodeId("NODE-2"), incomplete, Now));
         await using (var legacyDb = CreateDb())
             await legacyDb.Database.ExecuteSqlRawAsync("UPDATE SessionProgressionTransitionReceipts SET Status = 'pending', IsRetryable = 1, ErrorCode = NULL, ErrorMessage = NULL, Revision = 0");
         await using var db = CreateDb();
         var repository = new EfProgressionReceiptRepository(db);
 
-        Assert.Null(await repository.TryClaimOwnedAsync("owner", "PTR-1", "lease", Now, Now.AddMinutes(2), default));
+        Assert.Null(await repository.TryClaimOwnedAsync(new AccountId("owner"), new SessionProgressionTransitionReceiptId("PTR-1"), "lease", Now, Now.AddMinutes(2), default));
         var stored = await db.SessionProgressionTransitionReceipts.AsNoTracking().SingleAsync();
         Assert.Equal(ProgressionReceiptStatus.WaitingConfiguration, stored.Status);
         Assert.False(stored.IsRetryable);
@@ -136,11 +136,11 @@ public sealed class SessionProgressionRuntimeDomainSliceTests : IDisposable
     {
         var repository = new RecordingRepository
         {
-            Snapshot = new("module", "1.0.0", new string('a', 64), "not-json", "{}", 0),
+            Snapshot = new(new ModulePackageModuleId("test.module"), new ModulePackageVersion("1.0.0"), new ModulePackageDigest(new string('a', 64)), "not-json", "{}", 0),
         };
         var command = Command(repository, new StubExecutions((_, _, _, _) => throw new InvalidOperationException("Module execution must not be called.")));
 
-        await command.ExecuteAsync("owner", "PTR-1", default);
+        await command.ExecuteAsync(new AccountId("owner"), new SessionProgressionTransitionReceiptId("PTR-1"), default);
 
         Assert.Equal(1, repository.FailCalls);
         Assert.False(repository.LastRetryable);
@@ -155,7 +155,7 @@ public sealed class SessionProgressionRuntimeDomainSliceTests : IDisposable
         cancellation.Cancel();
         var command = Command(repository, new StubExecutions((_, _, _, token) => Task.FromCanceled<ModuleExecutionResult>(token)));
 
-        await Assert.ThrowsAsync<TaskCanceledException>(() => command.ExecuteAsync("owner", "PTR-1", cancellation.Token));
+        await Assert.ThrowsAsync<TaskCanceledException>(() => command.ExecuteAsync(new AccountId("owner"), new SessionProgressionTransitionReceiptId("PTR-1"), cancellation.Token));
         Assert.Equal(1, repository.ReleaseCalls);
         Assert.Equal(0, repository.FailCalls);
     }
@@ -169,7 +169,7 @@ public sealed class SessionProgressionRuntimeDomainSliceTests : IDisposable
         var result = new ModuleExecutionResult(outcome, Error: new ModuleExecutionErrorResponse(code, "error"));
         var command = Command(repository, new StubExecutions((_, _, _, _) => Task.FromResult(result)));
 
-        await command.ExecuteAsync("owner", "PTR-1", default);
+        await command.ExecuteAsync(new AccountId("owner"), new SessionProgressionTransitionReceiptId("PTR-1"), default);
 
         Assert.Equal(1, repository.FailCalls);
         Assert.Equal(retryable, repository.LastRetryable);
@@ -188,7 +188,7 @@ public sealed class SessionProgressionRuntimeDomainSliceTests : IDisposable
         await db.Database.ExecuteSqlRawAsync("PRAGMA foreign_keys = OFF;");
         db.Sessions.Add(new Session
         {
-            Id = "SES-1", OwnerId = "owner", ScenarioId = "SCN-1", SelectedHero = "hero",
+            Id = new SessionId("SES-1"), OwnerId = new AccountId("owner"), ScenarioId = new ScenarioId("SCN-1"), SelectedHero = "hero",
             Status = SessionStatus.Active, CreatedAt = Now, UpdatedAt = Now,
         });
         db.SessionProgressionTransitionReceipts.Add(receipt);
@@ -199,8 +199,8 @@ public sealed class SessionProgressionRuntimeDomainSliceTests : IDisposable
         .UseSqlite($"Data Source={dbPath};Default Timeout=10").Options);
 
     private static SessionProgressionTransitionReceipt CreateReceipt() => SessionProgressionTransitionReceipt.Create(
-        "PTR-1", "SES-1", "NSG-1", "TRA-1", "NODE-1", "NODE-2",
-        new ProgressionModuleSnapshot("module", "1.0.0", new string('a', 64), "{}", "{}", 0), Now);
+        new SessionProgressionTransitionReceiptId("PTR-1"), new SessionId("SES-1"), new SessionNarrativeSignalId("NSG-1"), new ScenarioProgressionTransitionId("TRA-1"), new ScenarioProgressionNodeId("NODE-1"), new ScenarioProgressionNodeId("NODE-2"),
+        new ProgressionModuleSnapshot(new ModulePackageModuleId("test.module"), new ModulePackageVersion("1.0.0"), new ModulePackageDigest(new string('a', 64)), "{}", "{}", 0), Now);
 
     public void Dispose()
     {
@@ -219,17 +219,17 @@ public sealed class SessionProgressionRuntimeDomainSliceTests : IDisposable
         public bool LastRetryable { get; private set; }
         public string? LastErrorCode { get; private set; }
         public ProgressionModuleSnapshot Snapshot { get; init; } =
-            new("module", "1.0.0", new string('a', 64), "{}", "{}", 0);
+            new(new ModulePackageModuleId("test.module"), new ModulePackageVersion("1.0.0"), new ModulePackageDigest(new string('a', 64)), "{}", "{}", 0);
 
-        public Task<IReadOnlyList<string>> ListOwnedIdsForNarrativeTurnAsync(string ownerId, string narrativeTurnId, CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<string>>(["PTR-1"]);
+        public Task<IReadOnlyList<SessionProgressionTransitionReceiptId>> ListOwnedIdsForNarrativeTurnAsync(AccountId ownerId, SessionTurnId narrativeTurnId, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<SessionProgressionTransitionReceiptId>>([new SessionProgressionTransitionReceiptId("PTR-1")]);
 
-        public Task<ClaimedProgressionReceipt?> TryClaimOwnedAsync(string ownerId, string receiptId, string leaseId, DateTimeOffset now, DateTimeOffset leaseExpiresAt, CancellationToken cancellationToken) =>
-            Task.FromResult<ClaimedProgressionReceipt?>(new(receiptId, "SES-1", leaseId, 1, Snapshot));
+        public Task<ClaimedProgressionReceipt?> TryClaimOwnedAsync(AccountId ownerId, SessionProgressionTransitionReceiptId receiptId, string leaseId, DateTimeOffset now, DateTimeOffset leaseExpiresAt, CancellationToken cancellationToken) =>
+            Task.FromResult<ClaimedProgressionReceipt?>(new(receiptId, new SessionId("SES-1"), leaseId, 1, Snapshot));
 
-        public Task<bool> CompleteAsync(string receiptId, string leaseId, long revision, string moduleTurnId, DateTimeOffset now, CancellationToken cancellationToken) => Task.FromResult(true);
+        public Task<bool> CompleteAsync(SessionProgressionTransitionReceiptId receiptId, string leaseId, long revision, SessionTurnId moduleTurnId, DateTimeOffset now, CancellationToken cancellationToken) => Task.FromResult(true);
 
-        public Task<bool> FailAsync(string receiptId, string leaseId, long revision, string code, string message, bool retryable, DateTimeOffset now, CancellationToken cancellationToken)
+        public Task<bool> FailAsync(SessionProgressionTransitionReceiptId receiptId, string leaseId, long revision, string code, string message, bool retryable, DateTimeOffset now, CancellationToken cancellationToken)
         {
             FailCalls++;
             LastRetryable = retryable;
@@ -237,7 +237,7 @@ public sealed class SessionProgressionRuntimeDomainSliceTests : IDisposable
             return Task.FromResult(true);
         }
 
-        public Task<bool> ReleaseAsync(string receiptId, string leaseId, long revision, DateTimeOffset now, CancellationToken cancellationToken)
+        public Task<bool> ReleaseAsync(SessionProgressionTransitionReceiptId receiptId, string leaseId, long revision, DateTimeOffset now, CancellationToken cancellationToken)
         {
             ReleaseCalls++;
             return Task.FromResult(true);
@@ -245,10 +245,10 @@ public sealed class SessionProgressionRuntimeDomainSliceTests : IDisposable
     }
 
     private sealed class StubExecutions(
-        Func<string, string, InitializeModuleExecutionRequest, CancellationToken, Task<ModuleExecutionResult>> initialize) : IModuleExecutionWorkflow
+        Func<AccountId, SessionId, InitializeModuleExecutionRequest, CancellationToken, Task<ModuleExecutionResult>> initialize) : IModuleExecutionWorkflow
     {
-        public Task<ModuleExecutionResult> InitializeSessionTurnAsync(string ownerId, string sessionId, InitializeModuleExecutionRequest request, SessionTurnInitializationPolicy policy, CancellationToken cancellationToken) => initialize(ownerId, sessionId, request, cancellationToken);
-        public Task<ModuleExecutionResult> InitializeDetachedAsync(string ownerId, InitializeModuleExecutionRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<ModuleExecutionResult> DispatchAsync(string ownerId, string executionId, DispatchModuleExecutionRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<ModuleExecutionResult> InitializeSessionTurnAsync(AccountId ownerId, SessionId sessionId, InitializeModuleExecutionRequest request, SessionTurnInitializationPolicy policy, CancellationToken cancellationToken) => initialize(ownerId, sessionId, request, cancellationToken);
+        public Task<ModuleExecutionResult> InitializeDetachedAsync(AccountId ownerId, InitializeModuleExecutionRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<ModuleExecutionResult> DispatchAsync(AccountId ownerId, ModuleExecutionId executionId, DispatchModuleExecutionRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 }

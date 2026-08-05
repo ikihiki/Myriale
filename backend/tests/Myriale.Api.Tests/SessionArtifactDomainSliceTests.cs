@@ -26,7 +26,7 @@ public sealed class SessionArtifactDomainSliceTests
         foreach (var payload in payloads)
         {
             var artifact = SessionArtifact.CreateCommittedJson(
-                $"ART-{payload.Kind}", "SES-1", "EXE-1", "ATT-1", payload, "{\"source\":\"test\"}", Now);
+                new SessionArtifactId($"ART-{payload.Kind}"), new SessionId("SES-1"), new SessionExecutionId("EXE-1"), new SessionExecutionAttemptId("ATT-1"), payload, "{\"source\":\"test\"}", Now);
 
             Assert.Equal(payload.Kind, artifact.Kind);
             Assert.Equal(payload.Schema, artifact.Schema);
@@ -44,7 +44,7 @@ public sealed class SessionArtifactDomainSliceTests
     public void DraftArtifactMustValidateBeforeCommit()
     {
         var draft = SessionArtifact.CreateDraftJson(
-            "ART-DRAFT", "SES-1", "EXE-1", "ATT-1", new NarrativeTextArtifactPayload("本文"), null, Now);
+            new SessionArtifactId("ART-DRAFT"), new SessionId("SES-1"), new SessionExecutionId("EXE-1"), new SessionExecutionAttemptId("ATT-1"), new NarrativeTextArtifactPayload("本文"), null, Now);
 
         Assert.Equal(SessionArtifactStatus.Draft, draft.Status);
         Assert.Throws<InvalidOperationException>(() => draft.Commit(Now));
@@ -62,9 +62,9 @@ public sealed class SessionArtifactDomainSliceTests
     {
         var checksum = new string('a', 64);
         var artifact = SessionArtifact.CreateCommittedImage(
-            "ART-IMG", "SES-1", "EXE-1", "ATT-1", "sessions/SES-1/images/ART-IMG.png",
+            new SessionArtifactId("ART-IMG"), new SessionId("SES-1"), new SessionExecutionId("EXE-1"), new SessionExecutionAttemptId("ATT-1"), "sessions/SES-1/images/ART-IMG.png",
             "image/png", checksum, "{\"decision\":\"approved\"}", Now);
-        var image = SessionImage.Create("IMG-1", artifact, "TRN-1", "INP-1", 42, 2, 3, Now.AddDays(1));
+        var image = SessionImage.Create(new SessionImageId("IMG-1"), artifact, new SessionTurnId("TRN-1"), new SessionPlayerInputId("INP-1"), 42, 2, 3, Now.AddDays(1));
 
         Assert.Equal(SessionArtifactKind.Image, artifact.Kind);
         Assert.Equal(SessionArtifactSchema.ImageV1, artifact.Schema);
@@ -73,7 +73,7 @@ public sealed class SessionArtifactDomainSliceTests
         Assert.Equal(artifact.Checksum, image.Checksum);
         Assert.Equal(artifact.MetadataJson, image.ModerationMetadataJson);
         Assert.Throws<ArgumentException>(() => SessionArtifact.CreateCommittedJson(
-            "ART-BAD", "SES-1", "EXE-1", "ATT-1",
+            new SessionArtifactId("ART-BAD"), new SessionId("SES-1"), new SessionExecutionId("EXE-1"), new SessionExecutionAttemptId("ATT-1"),
             new PostStateNarrativeArtifactPayload("post-state-narrative.v2", "見出し", "本文"), null, Now));
     }
 
@@ -149,12 +149,12 @@ public sealed class SessionArtifactDomainSliceTests
         var repository = new MediaRepository();
         var query = new GetSessionImageMediaQuery(repository, storage);
 
-        Assert.Null(await query.ExecuteAsync("OTHER", "IMG-1", default));
-        Assert.Null(await query.ExecuteAsync("OWNER", "IMG-1", default));
+        Assert.Null(await query.ExecuteAsync(new AccountId("OTHER"), new SessionImageId("IMG-1"), default));
+        Assert.Null(await query.ExecuteAsync(new AccountId("OWNER"), new SessionImageId("IMG-1"), default));
     }
 
     private static AttachSessionImageCommand Command(string checksum) => new(
-        "OWNER", "SES-1", "EXE-1", "ATT-1", FormFile(), checksum, "approved", null, null, null, null);
+        new AccountId("OWNER"), new SessionId("SES-1"), new SessionExecutionId("EXE-1"), new SessionExecutionAttemptId("ATT-1"), FormFile(), checksum, "approved", null, null, null, null);
 
     private static FormFile FormFile()
     {
@@ -199,10 +199,10 @@ public sealed class SessionArtifactDomainSliceTests
 
     private abstract class RepositoryBase : ISessionArtifactRepository
     {
-        public virtual Task<SessionImageAttachmentTarget?> FindImageAttachmentTargetAsync(string ownerId, string sessionId, string executionId, string attemptId, CancellationToken cancellationToken) =>
+        public virtual Task<SessionImageAttachmentTarget?> FindImageAttachmentTargetAsync(AccountId ownerId, SessionId sessionId, SessionExecutionId executionId, SessionExecutionAttemptId attemptId, CancellationToken cancellationToken) =>
             Task.FromResult<SessionImageAttachmentTarget?>(new(sessionId, executionId, attemptId, SessionExecutionKind.Image, true, false));
         public abstract Task<SessionImagePersistenceOutcome> TryAddImageAsync(SessionArtifact artifact, SessionImage image, CancellationToken cancellationToken);
-        public virtual Task<SessionImageMediaDescriptor?> FindImageMediaAsync(string ownerId, string imageId, CancellationToken cancellationToken) =>
+        public virtual Task<SessionImageMediaDescriptor?> FindImageMediaAsync(AccountId ownerId, SessionImageId imageId, CancellationToken cancellationToken) =>
             Task.FromResult<SessionImageMediaDescriptor?>(null);
     }
 
@@ -223,7 +223,7 @@ public sealed class SessionArtifactDomainSliceTests
     {
         public override Task<SessionImagePersistenceOutcome> TryAddImageAsync(SessionArtifact artifact, SessionImage image, CancellationToken cancellationToken) =>
             Task.FromResult(SessionImagePersistenceOutcome.Created);
-        public override Task<SessionImageMediaDescriptor?> FindImageMediaAsync(string ownerId, string imageId, CancellationToken cancellationToken) =>
-            Task.FromResult<SessionImageMediaDescriptor?>(ownerId == "OWNER" ? new("deleted.png", "image/png") : null);
+        public override Task<SessionImageMediaDescriptor?> FindImageMediaAsync(AccountId ownerId, SessionImageId imageId, CancellationToken cancellationToken) =>
+            Task.FromResult<SessionImageMediaDescriptor?>(ownerId == new AccountId("OWNER") ? new("deleted.png", "image/png") : null);
     }
 }

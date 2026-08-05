@@ -56,8 +56,8 @@ public sealed class ScenarioActionDecisionModelMapperTests
             Element("{}")));
 
         Assert.Equal(ScenarioTurnSchemas.ActionDecision, result.SchemaVersion);
-        Assert.Equal(objectId, result.ObjectId);
-        Assert.Equal(actionId, result.ActionId);
+        Assert.Equal(objectId, result.ObjectId.AsPrimitive());
+        Assert.Equal(actionId, result.ActionId.AsPrimitive());
     }
 
     [Theory]
@@ -101,19 +101,19 @@ public sealed class ScenarioActionDecisionModelMapperTests
     private static RuleActionSnapshot Snapshot() => new(
         ScenarioTurnSchemas.ActionSnapshot,
         "SNAPSHOT-INTERNAL",
-        new("LOC-ROOM", "room", "研究室", "静かな部屋"),
+        new(new ScenarioLocationId("LOC-ROOM"), "room", "研究室", "静かな部屋"),
         [
-            new("OBJ-PASSAGE", "passage", "接続廊下", "LOC-ROOM", false, 7, Element("{\"open\":true}")),
-            new("OBJ-TERMINAL", "terminal", "端末", "LOC-ROOM", false, 8, Element("{}")),
-            new("OBJ-AUTHORED-SYSTEM", "system", "作者定義system", "LOC-ROOM", false, 9, Element("{}")),
+            new(new ScenarioObjectId("OBJ-PASSAGE"), "passage", "接続廊下", new ScenarioLocationId("LOC-ROOM"), false, 7, Element("{\"open\":true}")),
+            new(new ScenarioObjectId("OBJ-TERMINAL"), "terminal", "端末", new ScenarioLocationId("LOC-ROOM"), false, 8, Element("{}")),
+            new(new ScenarioObjectId("OBJ-AUTHORED-SYSTEM"), "system", "作者定義system", new ScenarioLocationId("LOC-ROOM"), false, 9, Element("{}")),
         ],
         [
-            new("OBJ-PASSAGE", "ACT-PASSAGE-USE", "use", "使う", "廊下を使う", Element("{\"type\":\"object\",\"additionalProperties\":false}"), true),
-            new("OBJ-TERMINAL", "ACT-TERMINAL-USE", "use", "使う", "端末を使う", Element("{\"type\":\"object\"}"), true),
-            new("OBJ-AUTHORED-SYSTEM", "ACT-INSPECT", "inspect", "調べる", "対象を調べる", Element("{\"type\":\"object\"}"), true),
-            new("OBJ-PASSAGE", "ACT-DISABLED", "disabled-action", "無効", "無効", Element("{\"type\":\"object\"}"), false),
-            new("system", "SYS-CLARIFY", "clarify", "確認", "確認する", Element("{\"type\":\"object\"}"), true),
-            new("system", "SYS-NOOP", "no-op", "待機", "何もしない", Element("{\"type\":\"object\"}"), true),
+            new(new ScenarioObjectId("OBJ-PASSAGE"), new ScenarioObjectTypeActionId("ACT-PASSAGE-USE"), "use", "使う", "廊下を使う", Element("{\"type\":\"object\",\"additionalProperties\":false}"), true),
+            new(new ScenarioObjectId("OBJ-TERMINAL"), new ScenarioObjectTypeActionId("ACT-TERMINAL-USE"), "use", "使う", "端末を使う", Element("{\"type\":\"object\"}"), true),
+            new(new ScenarioObjectId("OBJ-AUTHORED-SYSTEM"), new ScenarioObjectTypeActionId("ACT-INSPECT"), "inspect", "調べる", "対象を調べる", Element("{\"type\":\"object\"}"), true),
+            new(new ScenarioObjectId("OBJ-PASSAGE"), new ScenarioObjectTypeActionId("ACT-DISABLED"), "disabled-action", "無効", "無効", Element("{\"type\":\"object\"}"), false),
+            new(new ScenarioObjectId("system"), new ScenarioObjectTypeActionId("SYS-CLARIFY"), "clarify", "確認", "確認する", Element("{\"type\":\"object\"}"), true),
+            new(new ScenarioObjectId("system"), new ScenarioObjectTypeActionId("SYS-NOOP"), "no-op", "待機", "何もしない", Element("{\"type\":\"object\"}"), true),
         ]);
 
     private static JsonElement Element(string json) => JsonSerializer.Deserialize<JsonElement>(json);

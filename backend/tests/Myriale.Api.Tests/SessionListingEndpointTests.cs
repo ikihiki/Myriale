@@ -101,11 +101,11 @@ public sealed class SessionListingEndpointTests : IDisposable
         var scenario = await db.Scenarios.OrderBy(item => item.Id).FirstAsync();
         var baseTime = new DateTimeOffset(2026, 7, 23, 10, 0, 0, TimeSpan.Zero);
 
-        await AddSessionAsync(db, "SES-NEW", ownerId, scenario.Id, "新しい主人公", "active", baseTime.AddMinutes(3), 2, true);
-        await AddSessionAsync(db, "SES-TIE-A", ownerId, scenario.Id, "主人公A", "active", baseTime.AddMinutes(2), 1, false);
-        await AddSessionAsync(db, "SES-TIE-B", ownerId, scenario.Id, "主人公B", "active", baseTime.AddMinutes(2), 1, false);
-        await AddSessionAsync(db, "SES-COMPLETED", ownerId, scenario.Id, "完了済み", "completed", baseTime.AddMinutes(4), 1, false);
-        await AddSessionAsync(db, "SES-OTHER", otherOwnerId, scenario.Id, "別ユーザー", "completed", baseTime.AddMinutes(5), 1, false);
+        await AddSessionAsync(db, new SessionId("SES-NEW"), new AccountId(ownerId), scenario.Id, "新しい主人公", "active", baseTime.AddMinutes(3), 2, true);
+        await AddSessionAsync(db, new SessionId("SES-TIE-A"), new AccountId(ownerId), scenario.Id, "主人公A", "active", baseTime.AddMinutes(2), 1, false);
+        await AddSessionAsync(db, new SessionId("SES-TIE-B"), new AccountId(ownerId), scenario.Id, "主人公B", "active", baseTime.AddMinutes(2), 1, false);
+        await AddSessionAsync(db, new SessionId("SES-COMPLETED"), new AccountId(ownerId), scenario.Id, "完了済み", "completed", baseTime.AddMinutes(4), 1, false);
+        await AddSessionAsync(db, new SessionId("SES-OTHER"), new AccountId(otherOwnerId), scenario.Id, "別ユーザー", "completed", baseTime.AddMinutes(5), 1, false);
     }
 
     private static string[] SessionIds(JsonElement sessions) =>
@@ -133,9 +133,9 @@ public sealed class SessionListingEndpointTests : IDisposable
 
     internal static async Task AddSessionAsync(
         ApplicationDbContext db,
-        string id,
-        string ownerId,
-        string scenarioId,
+        SessionId id,
+        AccountId ownerId,
+        ScenarioId scenarioId,
         string selectedHero,
         string status,
         DateTimeOffset updatedAt,
@@ -160,7 +160,7 @@ public sealed class SessionListingEndpointTests : IDisposable
         {
             var turn = new SessionTurn
             {
-                Id = $"{id}-TRN-{position}",
+                Id = new SessionTurnId($"{id.AsPrimitive()}-TRN-{position}"),
                 SessionId = id,
                 Position = position,
                 PreviousTurnId = previous?.Id,
@@ -179,10 +179,10 @@ public sealed class SessionListingEndpointTests : IDisposable
             db.SessionSummaries.AddRange(
                 new SessionSummary
                 {
-                    Id = $"{id}-SUM-1",
+                    Id = new SessionSummaryId($"{id.AsPrimitive()}-SUM-1"),
                     SessionId = id,
-                    FromTurnId = $"{id}-TRN-1",
-                    ToTurnId = $"{id}-TRN-1",
+                    FromTurnId = new SessionTurnId($"{id.AsPrimitive()}-TRN-1"),
+                    ToTurnId = new SessionTurnId($"{id.AsPrimitive()}-TRN-1"),
                     FromPosition = 1,
                     ToPosition = 1,
                     Version = 1,
@@ -191,10 +191,10 @@ public sealed class SessionListingEndpointTests : IDisposable
                 },
                 new SessionSummary
                 {
-                    Id = $"{id}-SUM-2",
+                    Id = new SessionSummaryId($"{id.AsPrimitive()}-SUM-2"),
                     SessionId = id,
-                    FromTurnId = $"{id}-TRN-1",
-                    ToTurnId = $"{id}-TRN-2",
+                    FromTurnId = new SessionTurnId($"{id.AsPrimitive()}-TRN-1"),
+                    ToTurnId = new SessionTurnId($"{id.AsPrimitive()}-TRN-2"),
                     FromPosition = 1,
                     ToPosition = 2,
                     Version = 2,

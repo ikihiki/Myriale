@@ -47,7 +47,7 @@ public sealed class SessionExecutionDomainSliceTests
     [InlineData(SessionExecutionAttemptStatus.Superseded)]
     public void AttemptTransitionMatrixAllowsOnlyRunningToOneTerminalState(SessionExecutionAttemptStatus terminal)
     {
-        var attempt = SessionExecutionAttempt.Start("ATT-1", "EXE-1", 1, "worker", Now);
+        var attempt = SessionExecutionAttempt.Start(new SessionExecutionAttemptId("ATT-1"), new SessionExecutionId("EXE-1"), 1, "worker", Now);
         attempt.RecordProviderDiagnostics("provider", "model", "request");
         attempt.RecordTrace("correlation", "trace", "span");
         attempt.RecordFailureDiagnostics("TimeoutException", "redacted");
@@ -115,7 +115,7 @@ public sealed class SessionExecutionDomainSliceTests
         var identity = new System.Security.Claims.ClaimsIdentity(
             [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, "USR-1")],
             "test");
-        Func<string, Task<SessionExecutionUseCaseResult>> command = _ => Task.FromResult(
+        Func<AccountId, Task<SessionExecutionUseCaseResult>> command = _ => Task.FromResult(
             new SessionExecutionUseCaseResult(SessionExecutionUseCaseOutcome.Conflict));
         var task = (Task<IResult>)executeMethod.Invoke(null, [new System.Security.Claims.ClaimsPrincipal(identity), command])!;
         var result = await task;
@@ -133,8 +133,8 @@ public sealed class SessionExecutionDomainSliceTests
         await SeedOwnerGraphAsync(db);
         db.SessionExecutions.Add(new SessionExecution
         {
-            Id = "EXE-WIRE", SessionId = "SES-1", Kind = SessionExecutionKind.ScenarioTurn,
-            TriggerType = SessionExecutionTriggerType.PlayerInput, TriggerId = "INP-1",
+            Id = new SessionExecutionId("EXE-WIRE"), SessionId = new SessionId("SES-1"), Kind = SessionExecutionKind.ScenarioTurn,
+            TriggerType = SessionExecutionTriggerType.PlayerInput, TriggerId = new SessionExecutionTriggerId("INP-1"),
             Status = SessionExecutionStatus.RetryWait, IdempotencyKey = "wire", PayloadHash = new string('a', 64),
             PublishPolicy = SessionExecutionPublishPolicy.Optional, CreatedAt = Now, QueuedAt = Now,
         });
@@ -158,32 +158,37 @@ public sealed class SessionExecutionDomainSliceTests
         await using var db = CreateDb(connection);
         await db.Database.EnsureCreatedAsync();
         await SeedOwnerGraphAsync(db);
-        var running = Execution(SessionExecutionStatus.Running, "EXE-RUN");
+        var running = Execution(SessionExecutionStatus.Running, new SessionExecutionId("EXE-RUN"));
         running.LeaseOwner = "worker"; running.LeaseToken = "LET-RUN"; running.LeaseExpiresAt = Now.AddMinutes(2); running.Revision = 3;
-        var queued = Execution(SessionExecutionStatus.Queued, "EXE-QUEUED");
+        var queued = Execution(SessionExecutionStatus.Queued, new SessionExecutionId("EXE-QUEUED"));
         queued.LeaseOwner = "stale"; queued.LeaseToken = "LET-QUEUED"; queued.LeaseExpiresAt = Now.AddMinutes(2);
         db.SessionExecutions.AddRange(running, queued);
         await db.SaveChangesAsync();
         var repository = new EfSessionExecutionRepository(db);
         var command = new CancelSessionExecutionCommand(repository, new TestEnvironment(), new FixedTimeProvider(Now));
 
-        Assert.Equal(SessionExecutionUseCaseOutcome.Success, (await command.ExecuteAsync(running.Id, "USR-1", CancellationToken.None)).Outcome);
-        Assert.Equal(SessionExecutionUseCaseOutcome.Success, (await command.ExecuteAsync(queued.Id, "USR-1", CancellationToken.None)).Outcome);
+        Assert.Equal(SessionExecutionUseCaseOutcome.Success, (await command.ExecuteAsync(running.Id, new AccountId("USR-1"), CancellationToken.None)).Outcome);
+        Assert.Equal(SessionExecutionUseCaseOutcome.Success, (await command.ExecuteAsync(queued.Id, new AccountId("USR-1"), CancellationToken.None)).Outcome);
         db.ChangeTracker.Clear();
-        running = await db.SessionExecutions.SingleAsync(item => item.Id == "EXE-RUN");
-        queued = await db.SessionExecutions.SingleAsync(item => item.Id == "EXE-QUEUED");
+        running = await db.SessionExecutions.SingleAsync(item => item.Id == new SessionExecutionId("EXE-RUN"));
+        queued = await db.SessionExecutions.SingleAsync(item => item.Id == new SessionExecutionId("EXE-QUEUED"));
         Assert.Equal(SessionExecutionStatus.CancelRequested, running.Status);
         Assert.Equal("LET-RUN", running.LeaseToken);
         Assert.Equal(SessionExecutionStatus.Cancelled, queued.Status);
         Assert.Null(queued.LeaseToken);
     }
 
-    private static SessionExecution Execution(SessionExecutionStatus status, string id = "EXE-1") => new()
+    private static SessionExecution Execution(SessionExecutionStatus status, SessionExecutionId? id = null)
     {
-        Id = id, SessionId = "SES-1", Kind = SessionExecutionKind.Narrative,
-        TriggerType = SessionExecutionTriggerType.PlayerInput, TriggerId = $"INP-{id}", Status = status,
-        IdempotencyKey = id, PayloadHash = new string('a', 64), CreatedAt = Now, QueuedAt = Now,
-    };
+        var executionId = id ?? new SessionExecutionId("EXE-1");
+        return new()
+        {
+            Id = executionId, SessionId = new SessionId("SES-1"), Kind = SessionExecutionKind.Narrative,
+            TriggerType = SessionExecutionTriggerType.PlayerInput,
+            TriggerId = new SessionExecutionTriggerId($"INP-{executionId.AsPrimitive()}"), Status = status,
+            IdempotencyKey = executionId.AsPrimitive(), PayloadHash = new string('a', 64), CreatedAt = Now, QueuedAt = Now,
+        };
+    }
 
     private static ApplicationDbContext CreateDb(SqliteConnection connection) =>
         new(new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(connection).Options);
@@ -193,8 +198,8 @@ public sealed class SessionExecutionDomainSliceTests
         var user = ApplicationUser.Create("user", "user@test");
         user.Id = "USR-1";
         db.Users.Add(user);
-        db.Scenarios.Add(new Scenario { Id = "SCN-1", Title = "Execution slice", AuthorId = "USR-1", CreatedAt = Now, UpdatedAt = Now });
-        db.Sessions.Add(new Session { Id = "SES-1", OwnerId = "USR-1", ScenarioId = "SCN-1", SelectedHero = "Hero", Status = SessionStatus.Active, CreatedAt = Now, UpdatedAt = Now });
+        db.Scenarios.Add(new Scenario { Id = new ScenarioId("SCN-1"), Title = "Execution slice", AuthorId = new AccountId("USR-1"), CreatedAt = Now, UpdatedAt = Now });
+        db.Sessions.Add(new Session { Id = new SessionId("SES-1"), OwnerId = new AccountId("USR-1"), ScenarioId = new ScenarioId("SCN-1"), SelectedHero = "Hero", Status = SessionStatus.Active, CreatedAt = Now, UpdatedAt = Now });
         await db.SaveChangesAsync();
     }
 

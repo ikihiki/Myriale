@@ -15,12 +15,12 @@ public sealed class ScenarioDomainTests
     public void PublishingDefinition_RecordsTypedDomainEvent()
     {
         var now = DateTimeOffset.UtcNow;
-        var definition = ScenarioDefinitionVersion.CreateDraft("definition", "scenario", 3, now);
+        var definition = ScenarioDefinitionVersion.CreateDraft(new ScenarioDefinitionVersionId("definition"), new ScenarioId("scenario"), 3, now);
 
         definition.Publish(now);
 
         var published = Assert.IsType<Myriale.Api.Features.Scenarios.Domain.ScenarioDefinitionPublished>(Assert.Single(definition.DomainEvents));
-        Assert.Equal(("scenario", "definition", 3), (published.ScenarioId, published.DefinitionVersionId, published.Version));
+        Assert.Equal(("scenario", "definition", 3), (published.ScenarioId.AsPrimitive(), published.DefinitionVersionId.AsPrimitive(), published.Version));
         Assert.Single(definition.DequeueDomainEvents());
         Assert.Empty(definition.DomainEvents);
     }
@@ -40,8 +40,8 @@ public sealed class ScenarioDomainTests
     {
         var definition = new ScenarioDefinitionVersion
         {
-            Id = "definition",
-            ScenarioId = "scenario",
+            Id = new ScenarioDefinitionVersionId("definition"),
+            ScenarioId = new ScenarioId("scenario"),
             Version = 1,
             Status = DefinitionStatus.Draft,
             ScenarioTitle = new ScenarioTitle("Title"),
@@ -51,20 +51,20 @@ public sealed class ScenarioDomainTests
         definition.Publish(DateTimeOffset.UtcNow);
 
         Assert.Throws<InvalidOperationException>(() => definition.SnapshotScenario(Scenario.Create(
-            "scenario", "author", new ScenarioTitle("Changed"), DateTimeOffset.UtcNow)));
+            new ScenarioId("scenario"), new AccountId("author"), new ScenarioTitle("Changed"), DateTimeOffset.UtcNow)));
     }
 
     [Fact]
     public void DefinitionSnapshot_PinsNarrativeGuidance()
     {
         var now = DateTimeOffset.UtcNow;
-        var scenario = Scenario.Create("scenario", "author", new ScenarioTitle("Original"), now);
+        var scenario = Scenario.Create(new ScenarioId("scenario"), new AccountId("author"), new ScenarioTitle("Original"), now);
         scenario.Edit(new ScenarioTitle("Original"), "summary", "genre", "tone", "original lore", "original guidance",
             HeroMode.Free, false, "hero", "original opening", new IllustrationPrompt("style"), new IllustrationPrompt("mood"),
             new IllustrationPrompt("negative"), "scene", now);
         var definition = new ScenarioDefinitionVersion
         {
-            Id = "definition",
+            Id = new ScenarioDefinitionVersionId("definition"),
             ScenarioId = scenario.Id,
             Version = 1,
             Status = DefinitionStatus.Draft,

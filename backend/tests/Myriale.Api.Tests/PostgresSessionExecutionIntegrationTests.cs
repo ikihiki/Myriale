@@ -46,10 +46,10 @@ public sealed class PostgresSessionExecutionIntegrationTests
     {
         await using var database = await PostgresFixture.CreateAsync();
         var now = new DateTimeOffset(2026, 7, 21, 12, 0, 0, TimeSpan.Zero);
-        await SeedSessionAsync(database.Db, "SES-QUEUE", now);
+        await SeedSessionAsync(database.Db, new SessionId("SES-QUEUE"), now);
         database.Db.SessionExecutions.AddRange(
-            Execution("EXE-HIGH", "SES-QUEUE", 10, now.AddMinutes(-2)),
-            Execution("EXE-NEXT", "SES-QUEUE", 5, now.AddMinutes(-1)));
+            Execution(new SessionExecutionId("EXE-HIGH"), new SessionId("SES-QUEUE"), 10, now.AddMinutes(-2)),
+            Execution(new SessionExecutionId("EXE-NEXT"), new SessionId("SES-QUEUE"), 5, now.AddMinutes(-1)));
         await database.Db.SaveChangesAsync();
 
         await using var lockConnection = new NpgsqlConnection(database.ConnectionString);
@@ -61,13 +61,13 @@ public sealed class PostgresSessionExecutionIntegrationTests
         await using var competingDb = database.CreateContext();
         var queue = Operations(competingDb, new MutableTimeProvider(now));
         var claim = Assert.Single((await queue.ClaimBatchAsync("worker-next", 1, TimeSpan.FromMinutes(2), CancellationToken.None)).Claims);
-        Assert.Equal("EXE-NEXT", claim.ExecutionId);
+        Assert.Equal(new SessionExecutionId("EXE-NEXT"), claim.ExecutionId);
 
         await lockTransaction.RollbackAsync();
         await using var finalDb = database.CreateContext();
         var finalQueue = Operations(finalDb, new MutableTimeProvider(now));
         var nextClaim = Assert.Single((await finalQueue.ClaimBatchAsync("worker-high", 1, TimeSpan.FromMinutes(2), CancellationToken.None)).Claims);
-        Assert.Equal("EXE-HIGH", nextClaim.ExecutionId);
+        Assert.Equal(new SessionExecutionId("EXE-HIGH"), nextClaim.ExecutionId);
     }
 
     [PostgresFact]
@@ -75,8 +75,8 @@ public sealed class PostgresSessionExecutionIntegrationTests
     {
         await using var database = await PostgresFixture.CreateAsync();
         var now = new DateTimeOffset(2026, 7, 21, 12, 0, 0, TimeSpan.Zero);
-        await SeedSessionAsync(database.Db, "SES-LEASE", now);
-        database.Db.SessionExecutions.Add(Execution("EXE-LEASE", "SES-LEASE", 0, now));
+        await SeedSessionAsync(database.Db, new SessionId("SES-LEASE"), now);
+        database.Db.SessionExecutions.Add(Execution(new SessionExecutionId("EXE-LEASE"), new SessionId("SES-LEASE"), 0, now));
         await database.Db.SaveChangesAsync();
 
         var time = new MutableTimeProvider(now);
@@ -110,13 +110,13 @@ public sealed class PostgresSessionExecutionIntegrationTests
     {
         await using var database = await PostgresFixture.CreateAsync();
         var now = new DateTimeOffset(2026, 8, 4, 12, 0, 0, TimeSpan.Zero);
-        await SeedSessionAsync(database.Db, "SES-INPUT-RACE", now);
+        await SeedSessionAsync(database.Db, new SessionId("SES-INPUT-RACE"), now);
         await using var firstDb = database.CreateContext();
         await using var secondDb = database.CreateContext();
-        var firstSession = await firstDb.Sessions.SingleAsync(x => x.Id == "SES-INPUT-RACE");
-        var secondSession = await secondDb.Sessions.SingleAsync(x => x.Id == "SES-INPUT-RACE");
-        var firstInput = firstSession.AcceptInput("INP-RACE-1", "request-1", "first", SessionInputInteractionType.Dialogue, new string('a', 64), "USR-1", null, now);
-        var secondInput = secondSession.AcceptInput("INP-RACE-2", "request-2", "second", SessionInputInteractionType.Dialogue, new string('b', 64), "USR-1", null, now);
+        var firstSession = await firstDb.Sessions.SingleAsync(x => x.Id == new SessionId("SES-INPUT-RACE"));
+        var secondSession = await secondDb.Sessions.SingleAsync(x => x.Id == new SessionId("SES-INPUT-RACE"));
+        var firstInput = firstSession.AcceptInput(new SessionPlayerInputId("INP-RACE-1"), "request-1", "first", SessionInputInteractionType.Dialogue, new string('a', 64), new AccountId("USR-1"), null, now);
+        var secondInput = secondSession.AcceptInput(new SessionPlayerInputId("INP-RACE-2"), "request-2", "second", SessionInputInteractionType.Dialogue, new string('b', 64), new AccountId("USR-1"), null, now);
         var firstRepository = new Myriale.Api.Features.Sessions.Infrastructure.EfSessionInputAcceptanceRepository(firstDb);
         var secondRepository = new Myriale.Api.Features.Sessions.Infrastructure.EfSessionInputAcceptanceRepository(secondDb);
         var outcomes = await Task.WhenAll(
@@ -125,8 +125,8 @@ public sealed class PostgresSessionExecutionIntegrationTests
         Assert.Single(outcomes, x => x == Myriale.Api.Features.Sessions.Application.SessionRepositoryCommitOutcome.Committed);
         Assert.Single(outcomes, x => x != Myriale.Api.Features.Sessions.Application.SessionRepositoryCommitOutcome.Committed);
         await using var verification = database.CreateContext();
-        Assert.Single(await verification.SessionPlayerInputs.Where(x => x.SessionId == "SES-INPUT-RACE").ToListAsync());
-        Assert.Single(await verification.SessionExecutions.Where(x => x.SessionId == "SES-INPUT-RACE").ToListAsync());
+        Assert.Single(await verification.SessionPlayerInputs.Where(x => x.SessionId == new SessionId("SES-INPUT-RACE")).ToListAsync());
+        Assert.Single(await verification.SessionExecutions.Where(x => x.SessionId == new SessionId("SES-INPUT-RACE")).ToListAsync());
     }
 
     [PostgresFact]
@@ -134,17 +134,17 @@ public sealed class PostgresSessionExecutionIntegrationTests
     {
         await using var database = await PostgresFixture.CreateAsync();
         var now = new DateTimeOffset(2026, 8, 4, 12, 0, 0, TimeSpan.Zero);
-        await SeedSessionAsync(database.Db, "SES-TURN-RACE", now);
+        await SeedSessionAsync(database.Db, new SessionId("SES-TURN-RACE"), now);
         await using var firstDb = database.CreateContext();
         await using var secondDb = database.CreateContext();
-        var first = await firstDb.Sessions.SingleAsync(x => x.Id == "SES-TURN-RACE");
-        var second = await secondDb.Sessions.SingleAsync(x => x.Id == "SES-TURN-RACE");
-        first.AppendOpeningTurn("TRN-RACE-1", "opening.v1", "First", "First", now);
-        second.AppendOpeningTurn("TRN-RACE-2", "opening.v1", "Second", "Second", now);
+        var first = await firstDb.Sessions.SingleAsync(x => x.Id == new SessionId("SES-TURN-RACE"));
+        var second = await secondDb.Sessions.SingleAsync(x => x.Id == new SessionId("SES-TURN-RACE"));
+        first.AppendOpeningTurn(new SessionTurnId("TRN-RACE-1"), "opening.v1", "First", "First", now);
+        second.AppendOpeningTurn(new SessionTurnId("TRN-RACE-2"), "opening.v1", "Second", "Second", now);
         var outcomes = await Task.WhenAll(SaveOutcomeAsync(firstDb), SaveOutcomeAsync(secondDb));
         Assert.Single(outcomes, x => x);
         await using var verification = database.CreateContext();
-        Assert.Single(await verification.SessionTurns.Where(x => x.SessionId == "SES-TURN-RACE").ToListAsync());
+        Assert.Single(await verification.SessionTurns.Where(x => x.SessionId == new SessionId("SES-TURN-RACE")).ToListAsync());
     }
 
     [PostgresFact]
@@ -152,8 +152,8 @@ public sealed class PostgresSessionExecutionIntegrationTests
     {
         await using var database = await PostgresFixture.CreateAsync();
         var now = new DateTimeOffset(2026, 8, 3, 12, 0, 0, TimeSpan.Zero);
-        await SeedSessionAsync(database.Db, "SES-CANCEL", now);
-        var execution = Execution("EXE-CANCEL", "SES-CANCEL", 0, now);
+        await SeedSessionAsync(database.Db, new SessionId("SES-CANCEL"), now);
+        var execution = Execution(new SessionExecutionId("EXE-CANCEL"), new SessionId("SES-CANCEL"), 0, now);
         execution.Status = SessionExecutionStatus.Running;
         execution.Revision = 4;
         execution.LeaseOwner = "worker-a";
@@ -165,13 +165,13 @@ public sealed class PostgresSessionExecutionIntegrationTests
 
         var result = await repository.MutateOwnedWithLockAsync(
             execution.Id,
-            "USR-1",
+            new AccountId("USR-1"),
             item => item.RequestCancellation(now),
             CancellationToken.None);
 
         Assert.Equal(Myriale.Api.Features.SessionExecutions.Application.SessionExecutionMutationResult.Success, result);
         database.Db.ChangeTracker.Clear();
-        execution = await database.Db.SessionExecutions.SingleAsync(item => item.Id == "EXE-CANCEL");
+        execution = await database.Db.SessionExecutions.SingleAsync(item => item.Id == new SessionExecutionId("EXE-CANCEL"));
         Assert.Equal(SessionExecutionStatus.CancelRequested, execution.Status);
         Assert.Equal(5, execution.Revision);
         Assert.Equal("worker-a", execution.LeaseOwner);
@@ -186,8 +186,8 @@ public sealed class PostgresSessionExecutionIntegrationTests
 
     private static SessionExecution InputExecution(SessionPlayerInput input, DateTimeOffset now) => new()
     {
-        Id = $"EXE-{input.Id}", SessionId = input.SessionId, Kind = SessionExecutionKind.ScenarioTurn,
-        TriggerType = SessionExecutionTriggerType.PlayerInput, TriggerId = input.Id, Status = SessionExecutionStatus.Queued,
+        Id = new SessionExecutionId($"EXE-{input.Id.AsPrimitive()}"), SessionId = input.SessionId, Kind = SessionExecutionKind.ScenarioTurn,
+        TriggerType = SessionExecutionTriggerType.PlayerInput, TriggerId = new SessionExecutionTriggerId(input.Id.AsPrimitive()), Status = SessionExecutionStatus.Queued,
         IdempotencyKey = input.RequestId, PayloadHash = input.PayloadHash, AcceptedHeadTurnId = input.AcceptedAfterTurnId,
         AcceptedSessionRevision = input.AcceptedSessionRevision, CreatedAt = now, QueuedAt = now,
     };
@@ -198,15 +198,15 @@ public sealed class PostgresSessionExecutionIntegrationTests
         catch (DbUpdateException) { return false; }
     }
 
-    private static async Task SeedSessionAsync(ApplicationDbContext db, string sessionId, DateTimeOffset now)
+    private static async Task SeedSessionAsync(ApplicationDbContext db, SessionId sessionId, DateTimeOffset now)
     {
-        if (!await db.Scenarios.AnyAsync(item => item.Id == "SCN-PG"))
+        if (!await db.Scenarios.AnyAsync(item => item.Id == new ScenarioId("SCN-PG")))
         {
             db.Scenarios.Add(new Scenario
             {
-                Id = "SCN-PG",
+                Id = new ScenarioId("SCN-PG"),
                 Title = "PostgreSQL integration",
-                AuthorId = "USR-1",
+                AuthorId = new AccountId("USR-1"),
                 CreatedAt = now,
                 UpdatedAt = now,
             });
@@ -214,8 +214,8 @@ public sealed class PostgresSessionExecutionIntegrationTests
         db.Sessions.Add(new Session
         {
             Id = sessionId,
-            OwnerId = "USR-1",
-            ScenarioId = "SCN-PG",
+            OwnerId = new AccountId("USR-1"),
+            ScenarioId = new ScenarioId("SCN-PG"),
             SelectedHero = "Hero",
             Status = SessionStatus.Active,
             CreatedAt = now,
@@ -224,15 +224,15 @@ public sealed class PostgresSessionExecutionIntegrationTests
         await db.SaveChangesAsync();
     }
 
-    private static SessionExecution Execution(string id, string sessionId, int priority, DateTimeOffset queuedAt) => new()
+    private static SessionExecution Execution(SessionExecutionId id, SessionId sessionId, int priority, DateTimeOffset queuedAt) => new()
     {
         Id = id,
         SessionId = sessionId,
         Kind = SessionExecutionKind.Narrative,
         TriggerType = SessionExecutionTriggerType.PlayerInput,
-        TriggerId = $"INP-{id}",
+        TriggerId = new SessionExecutionTriggerId($"INP-{id.AsPrimitive()}"),
         Status = SessionExecutionStatus.Queued,
-        IdempotencyKey = id,
+        IdempotencyKey = id.AsPrimitive(),
         PayloadHash = new string('a', 64),
         Priority = priority,
         MaxAttempts = 3,

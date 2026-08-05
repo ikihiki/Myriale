@@ -71,20 +71,20 @@ public sealed class SessionArtifactInfrastructureTests
         await db.Database.EnsureCreatedAsync();
         var now = new DateTimeOffset(2026, 8, 4, 12, 0, 0, TimeSpan.Zero);
         SeedExecutionGraph(db, "EXE-UNIQUE", SessionExecutionKind.Image, SessionExecutionStatus.Succeeded, now, suffix: "UNIQUE");
-        var uniqueAttempt = SessionExecutionAttempt.Start("ATT-UNIQUE", "EXE-UNIQUE", 1, "fixture", now);
+        var uniqueAttempt = SessionExecutionAttempt.Start(new SessionExecutionAttemptId("ATT-UNIQUE"), new SessionExecutionId("EXE-UNIQUE"), 1, "fixture", now);
         uniqueAttempt.Succeed(now);
         db.SessionExecutionAttempts.Add(uniqueAttempt);
         await db.SaveChangesAsync();
         var repository = new EfSessionArtifactRepository(db);
 
         var firstArtifact = SessionArtifact.CreateCommittedImage(
-            "ART-UNIQUE-1", "SES-UNIQUE", "EXE-UNIQUE", "ATT-UNIQUE", "first.png", "image/png",
+            new SessionArtifactId("ART-UNIQUE-1"), new SessionId("SES-UNIQUE"), new SessionExecutionId("EXE-UNIQUE"), new SessionExecutionAttemptId("ATT-UNIQUE"), "first.png", "image/png",
             new string('a', 64), "{\"decision\":\"approved\"}", now);
-        var firstImage = SessionImage.Create("IMG-UNIQUE-1", firstArtifact, null, null, 1, 1, 1, null);
+        var firstImage = SessionImage.Create(new SessionImageId("IMG-UNIQUE-1"), firstArtifact, null, null, 1, 1, 1, null);
         var secondArtifact = SessionArtifact.CreateCommittedImage(
-            "ART-UNIQUE-2", "SES-UNIQUE", "EXE-UNIQUE", "ATT-UNIQUE", "second.png", "image/png",
+            new SessionArtifactId("ART-UNIQUE-2"), new SessionId("SES-UNIQUE"), new SessionExecutionId("EXE-UNIQUE"), new SessionExecutionAttemptId("ATT-UNIQUE"), "second.png", "image/png",
             new string('b', 64), "{\"decision\":\"approved\"}", now);
-        var secondImage = SessionImage.Create("IMG-UNIQUE-2", secondArtifact, null, null, 1, 1, 1, null);
+        var secondImage = SessionImage.Create(new SessionImageId("IMG-UNIQUE-2"), secondArtifact, null, null, 1, 1, 1, null);
 
         Assert.Equal(SessionImagePersistenceOutcome.Created, await repository.TryAddImageAsync(firstArtifact, firstImage, default));
         Assert.Equal(SessionImagePersistenceOutcome.Conflict, await repository.TryAddImageAsync(secondArtifact, secondImage, default));
@@ -137,28 +137,31 @@ public sealed class SessionArtifactInfrastructureTests
     {
         var now = new DateTimeOffset(2026, 7, 21, 10, 0, 0, TimeSpan.Zero);
         SeedExecutionGraph(db, "EXE-IMG" + suffix, SessionExecutionKind.Image, SessionExecutionStatus.Succeeded, now, suffix: suffix);
-        var attempt = SessionExecutionAttempt.Start("ATT-IMG" + suffix, "EXE-IMG" + suffix, 1, "fixture", now);
+        var attempt = SessionExecutionAttempt.Start(new SessionExecutionAttemptId("ATT-IMG" + suffix), new SessionExecutionId("EXE-IMG" + suffix), 1, "fixture", now);
         attempt.Succeed(now);
         db.SessionExecutionAttempts.Add(attempt);
         var artifact = SessionArtifact.CreateCommittedImage(
-            "ART-IMG" + suffix, "SES-" + suffix, "EXE-IMG" + suffix, "ATT-IMG" + suffix,
+            new SessionArtifactId("ART-IMG" + suffix), new SessionId("SES-" + suffix), new SessionExecutionId("EXE-IMG" + suffix), new SessionExecutionAttemptId("ATT-IMG" + suffix),
             key, "image/png", new string('a', 64), "{\"decision\":\"approved\"}", now);
         db.SessionArtifacts.Add(artifact);
-        db.SessionImages.Add(SessionImage.Create(imageId, artifact, null, null, 1, 1, 1, retainUntil));
+        db.SessionImages.Add(SessionImage.Create(new SessionImageId(imageId), artifact, null, null, 1, 1, 1, retainUntil));
     }
 
     private static void SeedExecutionGraph(ApplicationDbContext db, string executionId, SessionExecutionKind kind, SessionExecutionStatus status, DateTimeOffset queuedAt, DateTimeOffset? leaseExpiresAt = null, string suffix = "")
     {
-        var ownerId = "USR-" + suffix; var scenarioId = "SCN-" + suffix; var sessionId = "SES-" + suffix;
+        var ownerId = "USR-" + suffix;
+        var accountId = new AccountId(ownerId);
+        var scenarioId = new ScenarioId("SCN-" + suffix);
+        var sessionId = new SessionId("SES-" + suffix);
         if (!db.Users.Local.Any(item => item.Id == ownerId))
         {
             var user = ApplicationUser.Create(ownerId, ownerId + "@test");
             user.Id = ownerId;
             db.Users.Add(user);
         }
-        if (!db.Scenarios.Local.Any(item => item.Id == scenarioId)) db.Scenarios.Add(new Scenario { Id = scenarioId, Title = "Fixture", Summary = "Fixture", Genre = "Fixture", Tone = "Fixture", Lore = "Fixture", AiFreedom = "Fixture", HeroMode = HeroMode.Fixed, Hero = "Fixture", Opening = "Fixture", IllustrationStyle = "Fixture", IllustrationMood = "Fixture", IllustrationNegative = "", SampleScene = "Fixture", Status = ScenarioPublicationStatus.Published, AuthorId = ownerId, CreatedAt = queuedAt, UpdatedAt = queuedAt });
-        if (!db.Sessions.Local.Any(item => item.Id == sessionId)) db.Sessions.Add(new Session { Id = sessionId, OwnerId = ownerId, ScenarioId = scenarioId, SelectedHero = "Fixture", Status = SessionStatus.Active, CreatedAt = queuedAt, UpdatedAt = queuedAt });
-        db.SessionExecutions.Add(new SessionExecution { Id = executionId, SessionId = sessionId, Kind = kind, TriggerType = SessionExecutionTriggerType.Manual, TriggerId = executionId, Status = status, IdempotencyKey = executionId, PayloadHash = new string('a', 64), CreatedAt = queuedAt, QueuedAt = queuedAt, StartedAt = status == SessionExecutionStatus.Running ? queuedAt : null, LeaseExpiresAt = leaseExpiresAt });
+        if (!db.Scenarios.Local.Any(item => item.Id == scenarioId)) db.Scenarios.Add(new Scenario { Id = scenarioId, Title = "Fixture", Summary = "Fixture", Genre = "Fixture", Tone = "Fixture", Lore = "Fixture", AiFreedom = "Fixture", HeroMode = HeroMode.Fixed, Hero = "Fixture", Opening = "Fixture", IllustrationStyle = "Fixture", IllustrationMood = "Fixture", IllustrationNegative = "", SampleScene = "Fixture", Status = ScenarioPublicationStatus.Published, AuthorId = accountId, CreatedAt = queuedAt, UpdatedAt = queuedAt });
+        if (!db.Sessions.Local.Any(item => item.Id == sessionId)) db.Sessions.Add(new Session { Id = sessionId, OwnerId = accountId, ScenarioId = scenarioId, SelectedHero = "Fixture", Status = SessionStatus.Active, CreatedAt = queuedAt, UpdatedAt = queuedAt });
+        db.SessionExecutions.Add(new SessionExecution { Id = new SessionExecutionId(executionId), SessionId = sessionId, Kind = kind, TriggerType = SessionExecutionTriggerType.Manual, TriggerId = new SessionExecutionTriggerId(executionId), Status = status, IdempotencyKey = executionId, PayloadHash = new string('a', 64), CreatedAt = queuedAt, QueuedAt = queuedAt, StartedAt = status == SessionExecutionStatus.Running ? queuedAt : null, LeaseExpiresAt = leaseExpiresAt });
     }
 
     private sealed class FixedJitter : ISessionExecutionJitter { public double NextUnit() => 0; }
@@ -205,9 +208,9 @@ public sealed class SessionImageAttachEndpointTests : IDisposable
         await using (var scope = factory.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            db.SessionExecutions.Add(new SessionExecution { Id = "EXE-IMAGE-ATTACH", SessionId = sessionId, Kind = SessionExecutionKind.Image, TriggerType = SessionExecutionTriggerType.Manual, TriggerId = "fixture", Status = SessionExecutionStatus.Succeeded, IdempotencyKey = "image-attach", PayloadHash = new string('a', 64), CreatedAt = DateTimeOffset.UtcNow, QueuedAt = DateTimeOffset.UtcNow });
+            db.SessionExecutions.Add(new SessionExecution { Id = new SessionExecutionId("EXE-IMAGE-ATTACH"), SessionId = new SessionId(sessionId), Kind = SessionExecutionKind.Image, TriggerType = SessionExecutionTriggerType.Manual, TriggerId = new SessionExecutionTriggerId("fixture"), Status = SessionExecutionStatus.Succeeded, IdempotencyKey = "image-attach", PayloadHash = new string('a', 64), CreatedAt = DateTimeOffset.UtcNow, QueuedAt = DateTimeOffset.UtcNow });
             var attachNow = DateTimeOffset.UtcNow;
-            var attachAttempt = SessionExecutionAttempt.Start("ATT-IMAGE-ATTACH", "EXE-IMAGE-ATTACH", 1, "fixture", attachNow);
+            var attachAttempt = SessionExecutionAttempt.Start(new SessionExecutionAttemptId("ATT-IMAGE-ATTACH"), new SessionExecutionId("EXE-IMAGE-ATTACH"), 1, "fixture", attachNow);
             attachAttempt.Succeed(attachNow);
             db.SessionExecutionAttempts.Add(attachAttempt);
             await db.SaveChangesAsync();
@@ -220,7 +223,7 @@ public sealed class SessionImageAttachEndpointTests : IDisposable
 
         using var response = await client.PostAsync("/api/session-artifacts/images/attach", form);
 
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.True(response.StatusCode == HttpStatusCode.Created, $"{response.StatusCode}: {await response.Content.ReadAsStringAsync()}");
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(1, json.GetProperty("width").GetInt32());
         var imageId = json.GetProperty("imageId").GetString()!;

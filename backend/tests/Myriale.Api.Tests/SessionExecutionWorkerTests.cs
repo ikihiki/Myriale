@@ -91,7 +91,7 @@ public sealed class SessionExecutionWorkerTests
 
     private sealed class FakeOperationsRepository : ISessionExecutionOperationsRepository
     {
-        public SessionExecutionClaim Claim { get; } = new("EXE-1", "LET-1", 1, "ATT-1", 1);
+        public SessionExecutionClaim Claim { get; } = new(new SessionExecutionId("EXE-1"), "LET-1", 1, new SessionExecutionAttemptId("ATT-1"), 1);
         public SessionExecutionOperationOutcome HeartbeatOutcome { get; init; } = SessionExecutionOperationOutcome.Success;
         public int HeartbeatCalls { get; private set; }
         public SessionExecutionFinalizeRequest? FinalizeRequest { get; private set; }
@@ -102,7 +102,7 @@ public sealed class SessionExecutionWorkerTests
         public Task<SessionExecutionClaimContextResult> LoadClaimContextAsync(SessionExecutionClaim claim, CancellationToken cancellationToken) =>
             Task.FromResult(new SessionExecutionClaimContextResult(
                 SessionExecutionOperationOutcome.Success,
-                new(claim, "SES-1", SessionExecutionKind.Narrative, null)));
+                new(claim, new SessionId("SES-1"), SessionExecutionKind.Narrative, null)));
 
         public Task<SessionExecutionOperationOutcome> HeartbeatAsync(SessionExecutionClaim claim, TimeSpan leaseDuration, CancellationToken cancellationToken)
         {

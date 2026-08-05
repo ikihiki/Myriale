@@ -55,7 +55,7 @@ public sealed class SessionMemoryArchitectureTests
 
         Assert.True(proposal.Review(SessionNoteProposalStatus.Rejected, null, reviewedAt));
         var revision = proposal.Revision;
-        Assert.False(proposal.Review(SessionNoteProposalStatus.Applied, "NOT-IGNORED", reviewedAt.AddMinutes(1)));
+        Assert.False(proposal.Review(SessionNoteProposalStatus.Applied, new SessionNoteId("NOT-IGNORED"), reviewedAt.AddMinutes(1)));
 
         Assert.Equal(SessionNoteProposalStatus.Rejected, proposal.Status);
         Assert.Null(proposal.NoteId);
@@ -84,7 +84,7 @@ public sealed class SessionMemoryArchitectureTests
         var useCase = new ReviewSessionNoteProposalUseCase(repository);
 
         var result = await useCase.ExecuteAsync(new ReviewSessionNoteProposalCommand(
-            repository.Proposal.ArtifactId, "owner", SessionNoteProposalStatus.Rejected, new ReviewSessionNoteProposalRequest(0)), default);
+            repository.Proposal.ArtifactId, new AccountId("owner"), SessionNoteProposalStatus.Rejected, new ReviewSessionNoteProposalRequest(0)), default);
 
         Assert.Equal(SessionMemoryCommandOutcome.Conflict, result.Outcome);
         Assert.Equal("proposal_review_conflict", result.ErrorCode);
@@ -94,11 +94,11 @@ public sealed class SessionMemoryArchitectureTests
     public void NoteBehavior_IncrementsRevisionAndCapturesHistory()
     {
         var createdAt = DateTimeOffset.Parse("2026-08-03T00:00:00Z");
-        var note = SessionNote.Create("LOR-1", "SES-1", SessionNoteKind.Person, "Alice", "[]", "Before",
+        var note = SessionNote.Create(new SessionNoteId("LOR-1"), new SessionId("SES-1"), SessionNoteKind.Person, "Alice", "[]", "Before",
             SessionNoteCanonStatus.Unconfirmed, null, null, createdAt);
 
-        note.Edit(SessionNoteKind.Person, "Alice", "[]", "After", SessionNoteCanonStatus.Canon, null, "TURN-1", createdAt.AddMinutes(1));
-        var revision = note.CaptureRevision("NRV-2", note.UpdatedAt);
+        note.Edit(SessionNoteKind.Person, "Alice", "[]", "After", SessionNoteCanonStatus.Canon, null, new SessionTurnId("TURN-1"), createdAt.AddMinutes(1));
+        var revision = note.CaptureRevision(new SessionNoteRevisionId("NRV-2"), note.UpdatedAt);
 
         Assert.Equal(2, note.Revision);
         Assert.Equal(SessionNoteUpdateSource.User, note.UpdateSource);
@@ -107,17 +107,17 @@ public sealed class SessionMemoryArchitectureTests
     }
 
     private static SessionNoteProposal Proposal() => SessionNoteProposal.Create(
-        "ART-1", "SES-1", "TURN-1", null, 0, "Title", "", "Body", "Reason", DateTimeOffset.Parse("2026-08-03T00:00:00Z"));
+        new SessionArtifactId("ART-1"), new SessionId("SES-1"), new SessionTurnId("TURN-1"), null, 0, "Title", "", "Body", "Reason", DateTimeOffset.Parse("2026-08-03T00:00:00Z"));
 
     private sealed class FakeRepository : ISessionMemoryRepository
     {
         public SessionNoteProposal? Proposal { get; init; }
         public bool ThrowConcurrencyOnSave { get; init; }
-        public Task<bool> SessionExistsAsync(string sessionId, string ownerId, CancellationToken cancellationToken) => Task.FromResult(true);
-        public Task<bool> TurnsBelongToSessionAsync(string sessionId, IReadOnlyCollection<string> turnIds, CancellationToken cancellationToken) => Task.FromResult(true);
-        public Task<SessionNote?> GetNoteAsync(string sessionId, string noteId, string ownerId, CancellationToken cancellationToken) => Task.FromResult<SessionNote?>(null);
-        public Task<SessionNote?> GetNoteAsync(string noteId, CancellationToken cancellationToken) => Task.FromResult<SessionNote?>(null);
-        public Task<SessionNoteProposal?> GetProposalAsync(string artifactId, string ownerId, CancellationToken cancellationToken) => Task.FromResult(Proposal);
+        public Task<bool> SessionExistsAsync(SessionId sessionId, AccountId ownerId, CancellationToken cancellationToken) => Task.FromResult(true);
+        public Task<bool> TurnsBelongToSessionAsync(SessionId sessionId, IReadOnlyCollection<SessionTurnId> turnIds, CancellationToken cancellationToken) => Task.FromResult(true);
+        public Task<SessionNote?> GetNoteAsync(SessionId sessionId, SessionNoteId noteId, AccountId ownerId, CancellationToken cancellationToken) => Task.FromResult<SessionNote?>(null);
+        public Task<SessionNote?> GetNoteAsync(SessionNoteId noteId, CancellationToken cancellationToken) => Task.FromResult<SessionNote?>(null);
+        public Task<SessionNoteProposal?> GetProposalAsync(SessionArtifactId artifactId, AccountId ownerId, CancellationToken cancellationToken) => Task.FromResult(Proposal);
         public void AddNote(SessionNote note) { }
         public void AddRevision(SessionNoteRevision revision) { }
         public Task SaveChangesAsync(CancellationToken cancellationToken) => ThrowConcurrencyOnSave
