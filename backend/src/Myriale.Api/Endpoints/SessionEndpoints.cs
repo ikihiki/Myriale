@@ -2,10 +2,10 @@ using System.Diagnostics;
 using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
-using Myriale.Api.Application.ModuleExecutions;
+using Myriale.Api.Features.ModuleExecutions.Application;
 using Myriale.Api.Application.Sessions;
 using Myriale.Api.Contracts;
-using Myriale.Api.Modules.Execution;
+using Myriale.Api.Features.ModuleExecutions.Infrastructure;
 using Myriale.Api.Services;
 
 namespace Myriale.Api.Endpoints;

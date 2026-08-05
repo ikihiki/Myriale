@@ -119,11 +119,11 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
         builder.Entity<ScenarioObject>()
             .HasOne(item => item.Location).WithMany().HasForeignKey(item => item.LocationId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<ModulePackage>().Property(package => package.Digest)
-            .HasConversion(value => value.Value, value => new ModulePackageDigest(value));
+            .HasConversion(value => value.AsPrimitive(), value => new ModulePackageDigest(value));
         builder.Entity<ModulePackage>().Property(package => package.ModuleId)
-            .HasConversion(value => value.Value, value => new ModulePackageModuleId(value));
+            .HasConversion(value => value.AsPrimitive(), value => new ModulePackageModuleId(value));
         builder.Entity<ModulePackage>().Property(package => package.Version)
-            .HasConversion(value => value.Value, value => new ModulePackageVersion(value));
+            .HasConversion(value => value.AsPrimitive(), value => new ModulePackageVersion(value));
         builder.Entity<ModulePackage>().Property(package => package.ManifestJson).IsRequired();
         builder.Entity<ModulePackage>().Property(package => package.Format).HasConversion<string>();
         builder.Entity<ModulePackage>().Property(package => package.Status).HasConversion<string>();
@@ -474,7 +474,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             .HasConversion(value => value.ToWireValue(), value => SessionMemoryEnumValues.ParseProposalStatus(value));
         builder.Entity<SessionNoteProposal>().Property(proposal => proposal.Revision).IsConcurrencyToken();
         builder.Entity<SessionNoteProposal>()
-            .HasOne(proposal => proposal.Artifact)
+            .HasOne<SessionArtifact>()
             .WithOne()
             .HasForeignKey<SessionNoteProposal>(proposal => proposal.ArtifactId)
             .OnDelete(DeleteBehavior.Cascade);

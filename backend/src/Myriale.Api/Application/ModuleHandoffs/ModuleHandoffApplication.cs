@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Application.ProgressionRuntime;
-using Myriale.Api.Application.SessionArtifacts;
+using Myriale.Api.Features.SessionArtifacts.Application;
 using Myriale.Api.Contracts;
 using Myriale.Api.Data;
 using Myriale.Api.Services;
