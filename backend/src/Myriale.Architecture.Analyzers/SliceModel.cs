@@ -38,6 +38,8 @@ internal static class SliceModel
     internal const string FeaturePrefix = "Myriale.Api.Features";
     internal const string ContractAttributeMetadataName =
         "Myriale.Api.Architecture.CrossSliceContractAttribute";
+    internal const string MigrationAttributeMetadataName =
+        "Myriale.Api.Architecture.CrossSliceMigrationAttribute";
 
     internal static bool IsInFeatureScope(INamespaceSymbol namespaceSymbol) =>
         IsInFeatureScope(namespaceSymbol.ToDisplayString());

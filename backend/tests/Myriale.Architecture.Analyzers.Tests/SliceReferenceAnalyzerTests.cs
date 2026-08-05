@@ -19,6 +19,13 @@ public sealed class SliceReferenceAnalyzerTests
                 System.AttributeTargets.Delegate,
                 Inherited = false)]
             public sealed class CrossSliceContractAttribute : System.Attribute;
+
+            [System.AttributeUsage(System.AttributeTargets.Assembly, AllowMultiple = true)]
+            public sealed class CrossSliceMigrationAttribute(
+                string sourceSlice,
+                string targetSlice,
+                string issue,
+                string removeByWave) : System.Attribute;
         }
         """;
 
@@ -362,6 +369,37 @@ public sealed class SliceReferenceAnalyzerTests
         Assert.Contains(diagnostics, diagnostic =>
             diagnostic.Id == SliceReferenceAnalyzer.UnexportedReferenceId &&
             diagnostic.GetMessage().Contains("ConcreteContract", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Allows_only_the_declared_cross_slice_migration_pair()
+    {
+        var diagnostics = await AnalyzeAsync("""
+            using Myriale.Api.Architecture;
+            [assembly: CrossSliceMigration("Consumer", "Provider", "wave-migration", "Wave8")]
+
+            namespace Myriale.Api.Features.Provider.Domain
+            {
+                public sealed class ProviderEntity;
+            }
+
+            namespace Myriale.Api.Features.Other.Domain
+            {
+                public sealed class OtherEntity;
+            }
+
+            namespace Myriale.Api.Features.Consumer.Application
+            {
+                internal sealed class Allowed(Myriale.Api.Features.Provider.Domain.ProviderEntity entity);
+                internal sealed class Rejected(Myriale.Api.Features.Other.Domain.OtherEntity entity);
+            }
+            """);
+
+        Assert.DoesNotContain(diagnostics, diagnostic =>
+            diagnostic.GetMessage().Contains("ProviderEntity", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, diagnostic =>
+            diagnostic.Id == SliceReferenceAnalyzer.ForbiddenReferenceId &&
+            diagnostic.GetMessage().Contains("OtherEntity", StringComparison.Ordinal));
     }
 
     private static async Task<ImmutableArray<Diagnostic>> AnalyzeAsync(string source)
