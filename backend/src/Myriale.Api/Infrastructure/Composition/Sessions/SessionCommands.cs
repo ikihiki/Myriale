@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using Myriale.Api.Infrastructure.Persistence;
 using Myriale.Api.Features.ModulePackages.Application;
 
 namespace Myriale.Api.Infrastructure.Composition.Sessions;
@@ -113,7 +114,8 @@ public interface ISessionCreationRepository
     void ClearTracking();
 }
 
-public sealed class CreateSessionUseCase(ISessionCreationRepository repository, IModulePackageCatalog modulePackages, ScenarioRuleConfigurationResolver ruleResolver, TimeProvider timeProvider)
+public sealed class CreateSessionUseCase(ISessionCreationRepository repository, IModulePackageCatalog modulePackages, ScenarioRuleConfigurationResolver ruleResolver,
+    TimeProvider timeProvider, ApplicationDbContext? db = null)
 {
     public async Task<SessionCommandResult> ExecuteAsync(CreateSessionCommand command, CancellationToken cancellationToken)
     {
@@ -153,24 +155,31 @@ public sealed class CreateSessionUseCase(ISessionCreationRepository repository, 
         var state = new SessionState { SessionId = sessionId, Revision = 0, FlagsJson = "{}", UpdatedAt = now };
         var session = Session.Create(sessionId, command.OwnerId, scenarioId, definition.Id, source.InitialLocation.Id,
             requestId, payloadHash, selectedHero, command.InterpretationEnabled, state, now);
+        var objectStates = new List<SessionObjectState>();
         foreach (var item in definition.Objects)
         {
             var configuration = ruleResolver.Resolve(definition, item);
             if (configuration.Conflicts.Count > 0) return Conflict("invalid_rule_configuration", string.Join("; ", configuration.Conflicts));
-            session.ObjectStates.Add(SessionObjectState.Create(
+            objectStates.Add(SessionObjectState.Create(
                 new SessionObjectStateId($"SOS-{Guid.NewGuid():N}".ToUpperInvariant()), sessionId, item.Id, item.LocationId,
                 ruleResolver.InitialState(definition, item).ToJsonString(), now));
         }
-        if (source.InitialNode is not null)
-            session.Progress = SessionProgressState.Start(sessionId, source.InitialNode.Id, now);
+        var progress = source.InitialNode is null ? null : SessionProgressState.Start(sessionId, source.InitialNode.Id, now);
+        var moduleSnapshots = new List<SessionProgressionModuleSnapshot>();
         foreach (var transition in source.ModuleTransitions)
         {
             if (string.IsNullOrWhiteSpace(transition.ModuleVersion) || transition.ModuleDigest?.Length != 64
                 || string.IsNullOrWhiteSpace(transition.ModuleConfigurationJson) || string.IsNullOrWhiteSpace(transition.ModuleContextJson)
                 || transition.ModuleRandomValueCount < 0) return Conflict("scenario_module_snapshot_invalid", "ScenarioのModule設定が不完全です。");
-            session.ProgressionModuleSnapshots.Add(new SessionProgressionModuleSnapshot { Id = new SessionProgressionModuleSnapshotId($"PMS-{Guid.NewGuid():N}".ToUpperInvariant()), SessionId = sessionId,
+            moduleSnapshots.Add(new SessionProgressionModuleSnapshot { Id = new SessionProgressionModuleSnapshotId($"PMS-{Guid.NewGuid():N}".ToUpperInvariant()), SessionId = sessionId,
                 TransitionId = transition.Id, ModuleId = transition.ModuleId!.Value, ModuleVersion = new(transition.ModuleVersion!), ModuleDigest = new(transition.ModuleDigest!),
                 ConfigurationJson = transition.ModuleConfigurationJson!, ContextJson = transition.ModuleContextJson!, RandomValueCount = transition.ModuleRandomValueCount, CreatedAt = now });
+        }
+        if (db is not null)
+        {
+            db.SessionObjectStates.AddRange(objectStates);
+            if (progress is not null) db.SessionProgressStates.Add(progress);
+            db.SessionProgressionModuleSnapshots.AddRange(moduleSnapshots);
         }
         session.AppendOpeningTurn(new SessionTurnId($"TRN-{Guid.NewGuid():N}".ToUpperInvariant()), NarrativeDocumentSchemas.ScenarioOpening,
             definition.ScenarioTitle.Value, definition.ScenarioOpening, now);
