@@ -22,9 +22,10 @@ public sealed class EfModuleHandoffEnqueuePersistence(ApplicationDbContext db, T
         var source = await db.SessionTurns.Include(turn => turn.Session)
             .SingleOrDefaultAsync(turn => turn.Id == request.SessionTurnId, cancellationToken)
             ?? throw new ModuleHandoffValidationException("module_execution_missing", "Module Turnを確認できませんでした。");
-        var linkedExecutionId = await db.SessionTurns.Where(turn => turn.Id == source.Id)
-            .Select(turn => turn.ModuleExecution == null ? (ModuleExecutionId?)null : turn.ModuleExecution.Id)
-            .SingleAsync(cancellationToken);
+        var linkedExecutionId = await db.ModuleExecutions.AsNoTracking()
+            .Where(execution => execution.SessionTurnId == source.Id)
+            .Select(execution => (ModuleExecutionId?)execution.Id)
+            .SingleOrDefaultAsync(cancellationToken);
         if (source.Kind != SessionTurnKind.Module || linkedExecutionId != request.ExecutionId
             || source.SessionId != source.Session.Id)
             throw new ModuleHandoffValidationException("module_execution_missing", "Module実行とSession Turnの因果関係を確認できませんでした。");
@@ -70,9 +71,10 @@ public sealed class EfModuleHandoffSourceSnapshotQuery(ApplicationDbContext db) 
         var triggerTurnId = new SessionTurnId(execution.TriggerId.AsPrimitive());
         var source = await db.SessionTurns.AsNoTracking()
             .Include(turn => turn.Session).ThenInclude(session => session.State)
-            .Include(turn => turn.Session).ThenInclude(session => session.ScenarioDefinitionVersion)
-            .Include(turn => turn.ModuleExecution).ThenInclude(module => module!.OutcomeApplication)
             .SingleOrDefaultAsync(turn => turn.Id == triggerTurnId, cancellationToken);
+        var moduleExecution = source is null ? null : await db.ModuleExecutions.AsNoTracking()
+            .Include(module => module.OutcomeApplication)
+            .SingleOrDefaultAsync(module => module.SessionTurnId == source.Id, cancellationToken);
         SessionTurnId? existing = source is null ? null : await db.SessionTurns.AsNoTracking()
             .Where(turn => turn.SourceModuleTurnId == source.Id).Select(turn => turn.Id)
             .SingleOrDefaultAsync(cancellationToken);
@@ -80,13 +82,14 @@ public sealed class EfModuleHandoffSourceSnapshotQuery(ApplicationDbContext db) 
         var entities = definitionId is null ? [] : await db.ScenarioObjects.AsNoTracking()
             .Where(item => item.DefinitionVersionId == definitionId).OrderBy(item => item.Code)
             .Select(item => new NarrativeEntityInput(item.Code, item.Name, item.ProfileMarkdown)).ToListAsync(cancellationToken);
-        var definition = source?.Session.ScenarioDefinitionVersion;
+        var definition = definitionId is null ? null : await db.ScenarioDefinitionVersions.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.Id == definitionId, cancellationToken);
         return new(
             execution.Id, execution.SessionId, source?.Session.OwnerId ?? default, execution.TriggerType,
             execution.TriggerId, execution.IdempotencyKey, execution.AcceptedHeadTurnId, execution.AcceptedSessionRevision,
-            execution.NarrativeAiProfileId ?? default, source?.Id, source?.SessionId, source?.Kind, source?.ModuleExecution?.Id,
-            source?.ModuleExecution?.Status, source?.ModuleExecution?.OutcomeJson, source?.ModuleExecution?.ViewStateJson,
-            source?.ModuleExecution?.OutcomeApplication?.SessionId, source?.ModuleExecution?.OutcomeApplication?.AppliedSessionRevision,
+            execution.NarrativeAiProfileId ?? default, source?.Id, source?.SessionId, source?.Kind, moduleExecution?.Id,
+            moduleExecution?.Status, moduleExecution?.OutcomeJson, moduleExecution?.ViewStateJson,
+            moduleExecution?.OutcomeApplication?.SessionId, moduleExecution?.OutcomeApplication?.AppliedSessionRevision,
             source?.Session.HeadTurnId, source?.Session.Revision ?? 0, source?.Session.State.Revision ?? 0,
             source?.Session.State.FlagsJson ?? "{}", definitionId,
             definition?.ScenarioTitle.Value ?? string.Empty, definition?.ScenarioSummary ?? string.Empty,
@@ -209,27 +212,28 @@ public sealed class EfModuleHandoffPublishUnitOfWork(
         var source = await db.SessionTurns
             .Include(turn => turn.Session).ThenInclude(session => session.HeadTurn)
             .Include(turn => turn.Session).ThenInclude(session => session.State)
-            .Include(turn => turn.Session).ThenInclude(session => session.Progress).ThenInclude(progress => progress!.CurrentNode)
-            .Include(turn => turn.ModuleExecution).ThenInclude(module => module!.OutcomeApplication)
             .SingleOrDefaultAsync(turn => turn.Id == triggerTurnId, cancellationToken);
-        if (source?.ModuleExecution is null || source.Kind != SessionTurnKind.Module || source.SessionId != execution.SessionId
+        var moduleExecution = await db.ModuleExecutions
+            .Include(module => module.OutcomeApplication)
+            .SingleOrDefaultAsync(module => module.SessionTurnId == triggerTurnId, cancellationToken);
+        if (source is null || moduleExecution is null || source.Kind != SessionTurnKind.Module || source.SessionId != execution.SessionId
             || execution.TriggerType != SessionExecutionTriggerType.ModuleOutcome || execution.AcceptedHeadTurnId != source.Id
-            || execution.IdempotencyKey != $"module-handoff:{source.ModuleExecution.Id}")
+            || execution.IdempotencyKey != $"module-handoff:{moduleExecution.Id}")
             return new(ModuleHandoffPublishOutcome.Conflict);
         var existing = await db.SessionTurns.AsNoTracking().SingleOrDefaultAsync(turn => turn.SourceModuleTurnId == source.Id, cancellationToken);
         if (existing is not null) return new(ModuleHandoffPublishOutcome.Existing, source.Session.OwnerId, existing.Id);
         if (source.Session.HeadTurnId != source.Id || source.Session.Revision != execution.AcceptedSessionRevision)
             return new(ModuleHandoffPublishOutcome.SessionAdvanced);
-        if (source.ModuleExecution.Status != ModuleExecutionStatus.Completed || source.ModuleExecution.OutcomeJson is null)
+        if (moduleExecution.Status != ModuleExecutionStatus.Completed || moduleExecution.OutcomeJson is null)
             return new(ModuleHandoffPublishOutcome.Conflict);
-        var outcome = JsonSerializer.Deserialize<ModuleOutcome>(source.ModuleExecution.OutcomeJson, Json);
-        if (outcome is null || ModuleHandoffNarrativeRequestBuilder.HasEffects(source.ModuleExecution.OutcomeJson) && (source.ModuleExecution.OutcomeApplication is null
-            || source.ModuleExecution.OutcomeApplication.SessionId != source.SessionId
-            || source.ModuleExecution.OutcomeApplication.AppliedSessionRevision != source.Session.State.Revision))
+        var outcome = JsonSerializer.Deserialize<ModuleOutcome>(moduleExecution.OutcomeJson, Json);
+        if (outcome is null || ModuleHandoffNarrativeRequestBuilder.HasEffects(moduleExecution.OutcomeJson) && (moduleExecution.OutcomeApplication is null
+            || moduleExecution.OutcomeApplication.SessionId != source.SessionId
+            || moduleExecution.OutcomeApplication.AppliedSessionRevision != source.Session.State.Revision))
             return new(ModuleHandoffPublishOutcome.Conflict);
 
         var now = timeProvider.GetUtcNow();
-        var sourceRevision = source.ModuleExecution.OutcomeApplication?.AppliedSessionRevision ?? source.Session.State.Revision;
+        var sourceRevision = moduleExecution.OutcomeApplication?.AppliedSessionRevision ?? source.Session.State.Revision;
         var turn = appender.Append(source.Session, source.Id, sourceRevision, narrative.Generation, now);
         artifactWriter.Add(execution.SessionId, execution.Id, context.AttemptId, narrative.Generation, now);
         await progressionSignals.PrepareAsync(source.Session, turn, outcome.Code, now, cancellationToken);
