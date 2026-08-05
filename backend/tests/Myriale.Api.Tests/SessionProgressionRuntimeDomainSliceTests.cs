@@ -2,9 +2,11 @@ using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Myriale.Api.Features.ProgressionRuntime.Application;
+using Myriale.Api.Features.ProgressionRuntime.Application.Ports;
 using Myriale.Api.Infrastructure.Persistence;
 using Myriale.Api.Features.ProgressionRuntime.Infrastructure;
 using Myriale.Api.Features.ModuleExecutions.Application;
+using Myriale.Api.Features.ModuleExecutions.Application.Ports;
 
 namespace Myriale.Api.Tests;
 
@@ -177,7 +179,7 @@ public sealed class SessionProgressionRuntimeDomainSliceTests : IDisposable
     }
 
     private static EnsureProgressionReceiptCommand Command(RecordingRepository repository, IModuleExecutionWorkflow executions) =>
-        new(repository, new InitializeSessionTurnModuleExecutionCommand(executions), new FixedTimeProvider(Now), NullLogger<EnsureProgressionReceiptCommand>.Instance);
+        new(repository, new ModuleExecutionInitializer(new InitializeSessionTurnModuleExecutionCommand(executions)), new FixedTimeProvider(Now), NullLogger<EnsureProgressionReceiptCommand>.Instance);
 
     private async Task SeedAsync(SessionProgressionTransitionReceipt receipt)
     {

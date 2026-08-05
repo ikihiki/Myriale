@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Myriale.Api.Features.ModulePackages.Application;
 using Myriale.Api.Features.ModuleExecutions.Application;
-using Myriale.Api.Features.ModuleHandoffs.Application;
+using Myriale.Api.Features.ModuleHandoffs.Application.Ports;
 using Myriale.Api.Infrastructure.Persistence;
 using Myriale.Api.Features.ModulePackages.Infrastructure;
 using Myriale.ModuleSdk;
@@ -22,13 +22,13 @@ internal sealed partial class ModuleExecutionWorkflow : IModuleExecutionWorkflow
     private readonly SessionOutcomeEffectService effects;
     private readonly ILogger<ModuleExecutionWorkflow> logger;
     private readonly IModuleExecutionProjection projection;
-    private readonly EnqueueModuleHandoffCommand handoffs;
+    private readonly IModuleHandoffEnqueuer handoffs;
     private readonly ModuleExecutionOptions _options;
     private readonly JsonSerializerOptions _json = ModuleJsonSerializerOptions.Create();
 
     public ModuleExecutionWorkflow(ApplicationDbContext db, IModulePackageCatalog packageCatalog, IModuleRuntime runtime, SessionOutcomeEffectService effects,
         IOptions<ModuleExecutionOptions> options, ILogger<ModuleExecutionWorkflow> logger, IModuleExecutionProjection projection,
-        EnqueueModuleHandoffCommand handoffs)
+        IModuleHandoffEnqueuer handoffs)
     {
         this.db = db; this.packageCatalog = packageCatalog; this.runtime = runtime; this.effects = effects; this.logger = logger; this.projection = projection; this.handoffs = handoffs;
         _options = options.Value;
@@ -97,6 +97,15 @@ internal sealed partial class ModuleExecutionWorkflow : IModuleExecutionWorkflow
         return turnId is null
             ? Conflict("session_turn_mismatch", "RequestIdに対応するModule Turnを確認できません。")
             : result with { SessionTurnId = turnId };
+    }
+
+    private Task EnqueueHandoffAsync(ModuleExecution execution, CancellationToken cancellationToken)
+    {
+        if (execution.SessionTurnId is null || execution.OutcomeJson is null)
+            throw new InvalidOperationException("A completed session Module execution requires a turn and outcome.");
+        return handoffs.EnqueueAsync(
+            new ModuleHandoffEnqueueRequest(execution.Id, execution.SessionTurnId.Value, execution.OutcomeJson),
+            cancellationToken);
     }
 
     private void ApplyInitialization(ModuleExecution execution, ModuleInitializationResult result) =>

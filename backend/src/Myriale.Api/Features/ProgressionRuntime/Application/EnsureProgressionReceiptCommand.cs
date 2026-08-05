@@ -1,17 +1,13 @@
 using System.Text.Json;
-using Myriale.Api.Features.ModuleExecutions.Application;
+using Myriale.Api.Features.ModuleExecutions.Application.Ports;
+
+using Myriale.Api.Features.ProgressionRuntime.Application.Ports;
 
 namespace Myriale.Api.Features.ProgressionRuntime.Application;
 
-public interface IProgressionReceiptCommand
-{
-    Task ExecuteForNarrativeTurnAsync(AccountId ownerId, SessionTurnId narrativeTurnId, CancellationToken cancellationToken);
-    Task ExecuteAsync(AccountId ownerId, SessionProgressionTransitionReceiptId receiptId, CancellationToken cancellationToken);
-}
-
 public sealed class EnsureProgressionReceiptCommand(
     IProgressionReceiptRepository repository,
-    InitializeSessionTurnModuleExecutionCommand executions,
+    IModuleExecutionInitializer executions,
     TimeProvider timeProvider,
     ILogger<EnsureProgressionReceiptCommand> logger) : IProgressionReceiptCommand
 {
@@ -50,10 +46,10 @@ public sealed class EnsureProgressionReceiptCommand(
             return;
         }
 
-        ModuleExecutionResult result;
+        ModuleExecutionInitializationResult result;
         try
         {
-            result = await executions.ExecuteAsync(ownerId, claim.SessionId, request, SessionTurnInitializationPolicy.ScenarioProgression, cancellationToken);
+            result = await executions.InitializeSessionTurnAsync(ownerId, claim.SessionId, request, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -67,11 +63,11 @@ public sealed class EnsureProgressionReceiptCommand(
             return;
         }
 
-        if (result.Execution is null || result.SessionTurnId is null)
+        if (result.ExecutionId is null || result.SessionTurnId is null)
         {
-            var code = result.Error?.Code ?? "module_initialization_failed";
-            var message = result.Error?.Message ?? "進行用Module Turnの開始に失敗しました。";
-            var retryable = result.Outcome == ModuleExecutionOutcome.Unavailable || code is "request_in_progress" or "package_unavailable";
+            var code = result.ErrorCode ?? "module_initialization_failed";
+            var message = result.ErrorMessage ?? "進行用Module Turnの開始に失敗しました。";
+            var retryable = result.Outcome == ModuleExecutionInitializationOutcome.Unavailable || code is "request_in_progress" or "package_unavailable";
             await repository.FailAsync(receiptId, leaseId, claim.Revision, code, message, retryable, timeProvider.GetUtcNow(), cancellationToken);
             return;
         }

@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.ModuleHandoffs.Application;
+using Myriale.Api.Features.ModuleHandoffs.Application.Ports;
 using Myriale.Api.Features.ProgressionRuntime.Application;
 using Myriale.Api.Infrastructure.Persistence;
 using Myriale.Api.Infrastructure.Hosting;
@@ -11,29 +12,29 @@ using Myriale.ModuleSdk;
 
 namespace Myriale.Api.Features.ModuleHandoffs.Infrastructure;
 
-public sealed class EfModuleHandoffEnqueuePort(ApplicationDbContext db, TimeProvider timeProvider) : IModuleHandoffEnqueuePort
+public sealed class EfModuleHandoffEnqueuePersistence(ApplicationDbContext db, TimeProvider timeProvider) : IModuleHandoffEnqueuePersistence
 {
-    public async Task<EnqueueModuleHandoffOutcome> EnqueueAsync(
-        ModuleExecution execution,
+    public async Task<ModuleHandoffEnqueueOutcome> EnqueueAsync(
+        ModuleHandoffEnqueueRequest request,
         AiProviderProfileId narrativeAiProfileId,
         CancellationToken cancellationToken)
     {
         var source = await db.SessionTurns.Include(turn => turn.Session)
-            .SingleOrDefaultAsync(turn => turn.Id == execution.SessionTurnId, cancellationToken)
+            .SingleOrDefaultAsync(turn => turn.Id == request.SessionTurnId, cancellationToken)
             ?? throw new ModuleHandoffValidationException("module_execution_missing", "Module Turnを確認できませんでした。");
         var linkedExecutionId = await db.SessionTurns.Where(turn => turn.Id == source.Id)
             .Select(turn => turn.ModuleExecution == null ? (ModuleExecutionId?)null : turn.ModuleExecution.Id)
             .SingleAsync(cancellationToken);
-        if (source.Kind != SessionTurnKind.Module || linkedExecutionId != execution.Id
+        if (source.Kind != SessionTurnKind.Module || linkedExecutionId != request.ExecutionId
             || source.SessionId != source.Session.Id)
             throw new ModuleHandoffValidationException("module_execution_missing", "Module実行とSession Turnの因果関係を確認できませんでした。");
         if (source.Session.HeadTurnId != source.Id)
             throw new ModuleHandoffValidationException("session_advanced", "Sessionが先へ進んだためhandoffを開始できません。");
 
-        var idempotencyKey = $"module-handoff:{execution.Id}";
+        var idempotencyKey = $"module-handoff:{request.ExecutionId}";
         if (db.SessionExecutions.Local.Any(item => item.SessionId == source.SessionId && item.IdempotencyKey == idempotencyKey)
             || await db.SessionExecutions.AnyAsync(item => item.SessionId == source.SessionId && item.IdempotencyKey == idempotencyKey, cancellationToken))
-            return EnqueueModuleHandoffOutcome.Existing;
+            return ModuleHandoffEnqueueOutcome.Existing;
 
         var now = timeProvider.GetUtcNow();
         db.SessionExecutions.Add(new SessionExecution
@@ -46,14 +47,14 @@ public sealed class EfModuleHandoffEnqueuePort(ApplicationDbContext db, TimeProv
             Status = SessionExecutionStatus.Queued,
             Revision = 0,
             IdempotencyKey = idempotencyKey,
-            PayloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(execution.Id.AsPrimitive()))).ToLowerInvariant(),
+            PayloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(request.ExecutionId.AsPrimitive()))).ToLowerInvariant(),
             NarrativeAiProfileId = narrativeAiProfileId,
             AcceptedHeadTurnId = source.Id,
             AcceptedSessionRevision = source.Session.Revision,
             CreatedAt = now,
             QueuedAt = now,
         });
-        return EnqueueModuleHandoffOutcome.Enqueued;
+        return ModuleHandoffEnqueueOutcome.Enqueued;
     }
 }
 

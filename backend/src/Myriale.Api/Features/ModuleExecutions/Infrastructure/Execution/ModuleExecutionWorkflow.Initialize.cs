@@ -213,7 +213,7 @@ execution.FailInitialization(validationError, _json, DateTimeOffset.UtcNow);
             }
             ApplyInitialization(execution, result);
             if (result.Status == ModuleExecutionStatuses.Completed)
-                await handoffs.ExecuteAsync(execution, result.Outcome, cancellationToken);
+                await EnqueueHandoffAsync(execution, cancellationToken);
             var response = ToResponse(execution, result.Error, []);
             var serviceResult = new ModuleExecutionResult(ModuleExecutionOutcome.Created, response);
             CompleteReceipt(receipt, serviceResult, true);

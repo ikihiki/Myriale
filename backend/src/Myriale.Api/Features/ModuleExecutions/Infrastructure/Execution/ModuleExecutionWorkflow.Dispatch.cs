@@ -172,7 +172,7 @@ internal sealed partial class ModuleExecutionWorkflow
             {
                 ApplyTransition(execution, transition);
                 if (transition.Status == ModuleExecutionStatuses.Completed)
-                    await handoffs.ExecuteAsync(execution, transition.Outcome, cancellationToken);
+                    await EnqueueHandoffAsync(execution, cancellationToken);
                 response = ToResponse(execution, null, transition.UiEvents);
             }
             var accepted = new ModuleExecutionResult(ModuleExecutionOutcome.Success, response);

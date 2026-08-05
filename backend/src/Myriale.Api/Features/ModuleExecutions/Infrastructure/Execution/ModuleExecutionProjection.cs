@@ -11,7 +11,7 @@ public sealed class ModuleExecutionProjection : IModuleExecutionProjection
         execution.Id,
         new ModuleExecutionPackageResponse(execution.ModuleId, execution.ModuleVersion, execution.ModuleDigest, execution.ContractVersion,
             execution.ConfigurationSchemaVersion, execution.StateSchemaVersion),
-        execution.Status,
+        execution.Status.ToWireValue(),
         execution.Revision,
         Parse(execution.ViewStateJson),
         JsonSerializer.Deserialize<IReadOnlyList<ModuleAvailableAction>>(execution.AvailableActionsJson, _json) ?? [],

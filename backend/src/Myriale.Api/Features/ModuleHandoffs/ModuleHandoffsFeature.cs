@@ -1,4 +1,5 @@
 using Myriale.Api.Architecture;
+using Myriale.Api.Features.ModuleHandoffs.Application.Ports;
 
 namespace Myriale.Api.Features.ModuleHandoffs;
 
@@ -7,8 +8,9 @@ public static class ModuleHandoffsFeature
 {
     public static IServiceCollection AddModuleHandoffsFeature(this IServiceCollection services)
     {
-        services.AddScoped<IModuleHandoffEnqueuePort, EfModuleHandoffEnqueuePort>();
+        services.AddScoped<IModuleHandoffEnqueuePersistence, EfModuleHandoffEnqueuePersistence>();
         services.AddScoped<EnqueueModuleHandoffCommand>();
+        services.AddScoped<IModuleHandoffEnqueuer>(provider => provider.GetRequiredService<EnqueueModuleHandoffCommand>());
         services.AddScoped<IModuleHandoffSourceSnapshotQuery, EfModuleHandoffSourceSnapshotQuery>();
         services.AddSingleton<ModuleHandoffCausalityValidator>();
         services.AddSingleton<ModuleHandoffNarrativeRequestBuilder>();

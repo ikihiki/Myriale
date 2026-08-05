@@ -3,35 +3,35 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Myriale.Api.Features.ProgressionRuntime.Application;
+using Myriale.Api.Features.ProgressionRuntime.Application.Ports;
 using Myriale.Api.Features.SessionArtifacts.Application;
 using Myriale.ModuleSdk;
 
+using Myriale.Api.Features.ModuleHandoffs.Application.Ports;
+
 namespace Myriale.Api.Features.ModuleHandoffs.Application;
 
-public enum EnqueueModuleHandoffOutcome { Enqueued, Existing }
-
-public interface IModuleHandoffEnqueuePort
+public interface IModuleHandoffEnqueuePersistence
 {
-    Task<EnqueueModuleHandoffOutcome> EnqueueAsync(ModuleExecution execution, AiProviderProfileId narrativeAiProfileId, CancellationToken cancellationToken);
+    Task<ModuleHandoffEnqueueOutcome> EnqueueAsync(
+        ModuleHandoffEnqueueRequest request,
+        AiProviderProfileId narrativeAiProfileId,
+        CancellationToken cancellationToken);
 }
 
 public sealed class EnqueueModuleHandoffCommand(
-    IModuleHandoffEnqueuePort port,
-    IAiProfileCatalog profiles)
+    IModuleHandoffEnqueuePersistence persistence,
+    IAiProfileCatalog profiles) : IModuleHandoffEnqueuer
 {
     private static readonly JsonSerializerOptions Json = ModuleJsonSerializerOptions.Create();
 
-    public async Task<EnqueueModuleHandoffOutcome> ExecuteAsync(
-        ModuleExecution execution,
-        ModuleOutcome? outcome,
+    public async Task<ModuleHandoffEnqueueOutcome> EnqueueAsync(
+        ModuleHandoffEnqueueRequest request,
         CancellationToken cancellationToken)
     {
-        if (execution.Status != ModuleExecutionStatus.Completed || execution.SessionTurnId is null || outcome is null || execution.OutcomeJson is null)
-            throw new ModuleHandoffValidationException("module_turn_not_completed", "完了したModule TurnだけがNarrative handoffを開始できます。");
         try
         {
-            _ = JsonSerializer.Deserialize<ModuleOutcome>(execution.OutcomeJson, Json)
+            _ = JsonSerializer.Deserialize<ModuleOutcome>(request.OutcomeJson, Json)
                 ?? throw new JsonException("Outcome is empty.");
         }
         catch (JsonException exception)
@@ -39,7 +39,7 @@ public sealed class EnqueueModuleHandoffCommand(
             throw new ModuleHandoffValidationException("narrative_source_invalid", "Module outcomeを読み込めません。", exception);
         }
         var profileId = await profiles.ResolveNarrativeProfileIdAsync(null, cancellationToken);
-        return await port.EnqueueAsync(execution, profileId, cancellationToken);
+        return await persistence.EnqueueAsync(request, profileId, cancellationToken);
     }
 }
 

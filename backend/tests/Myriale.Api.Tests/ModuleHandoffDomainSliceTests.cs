@@ -4,7 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 using Myriale.Api.Features.ModuleHandoffs.Application;
+using Myriale.Api.Features.ModuleHandoffs.Application.Ports;
 using Myriale.Api.Features.ProgressionRuntime.Application;
+using Myriale.Api.Features.ProgressionRuntime.Application.Ports;
 using Myriale.Api.Infrastructure.Persistence;
 using Myriale.Api.Features.ModuleHandoffs.Infrastructure;
 using Myriale.Api.Features.SessionArtifacts.Infrastructure;
@@ -18,22 +20,19 @@ public sealed class ModuleHandoffDomainSliceTests
     private static readonly JsonSerializerOptions Json = ModuleJsonSerializerOptions.Create();
 
     [Fact]
-    public async Task EnqueueRejectsNonCompletedExecutionAndUsesResolvedNarrativeProfile()
+    public async Task EnqueueValidatesOutcomeAndUsesResolvedNarrativeProfile()
     {
-        var port = new FakeEnqueuePort();
-        var command = new EnqueueModuleHandoffCommand(port, new FakeProfiles());
-        var execution = NewModuleExecution();
-        execution.AttachSessionTurn(new SessionTurnId("TRN-MODULE"));
-        var outcome = Outcome();
+        var persistence = new FakeEnqueuePersistence();
+        var command = new EnqueueModuleHandoffCommand(persistence, new FakeProfiles());
+        var request = new ModuleHandoffEnqueueRequest(
+            new ModuleExecutionId("MEX-1"),
+            new SessionTurnId("TRN-MODULE"),
+            JsonSerializer.Serialize(Outcome(), Json));
 
-        var rejected = await Assert.ThrowsAsync<ModuleHandoffValidationException>(
-            () => command.ExecuteAsync(execution, outcome, default));
-        Assert.Equal("module_turn_not_completed", rejected.Code);
+        var result = await command.EnqueueAsync(request, default);
 
-        execution.CompleteInitialization(new(ModuleExecutionStatuses.Completed, Parse("{}"), Parse("{\"public\":true}"), [], Outcome: outcome), Json, Now);
-        var result = await command.ExecuteAsync(execution, outcome, default);
-        Assert.Equal(EnqueueModuleHandoffOutcome.Enqueued, result);
-        Assert.Equal(new AiProviderProfileId("narrative-default"), port.ProfileId);
+        Assert.Equal(ModuleHandoffEnqueueOutcome.Enqueued, result);
+        Assert.Equal(new AiProviderProfileId("narrative-default"), persistence.ProfileId);
     }
 
     [Fact]
@@ -172,12 +171,14 @@ public sealed class ModuleHandoffDomainSliceTests
             }
             await using var firstDb = new ApplicationDbContext(options);
             await using var secondDb = new ApplicationDbContext(options);
-            var firstExecution = await firstDb.ModuleExecutions.SingleAsync(item => item.Id == new ModuleExecutionId("MEX-1"));
-            var secondExecution = await secondDb.ModuleExecutions.SingleAsync(item => item.Id == new ModuleExecutionId("MEX-1"));
-            Assert.Equal(EnqueueModuleHandoffOutcome.Enqueued,
-                await new EfModuleHandoffEnqueuePort(firstDb, new FixedTimeProvider(Now)).EnqueueAsync(firstExecution, new AiProviderProfileId("narrative-default"), default));
-            Assert.Equal(EnqueueModuleHandoffOutcome.Enqueued,
-                await new EfModuleHandoffEnqueuePort(secondDb, new FixedTimeProvider(Now)).EnqueueAsync(secondExecution, new AiProviderProfileId("narrative-default"), default));
+            var request = new ModuleHandoffEnqueueRequest(
+                new ModuleExecutionId("MEX-1"),
+                new SessionTurnId("TRN-MODULE"),
+                JsonSerializer.Serialize(Outcome(), Json));
+            Assert.Equal(ModuleHandoffEnqueueOutcome.Enqueued,
+                await new EfModuleHandoffEnqueuePersistence(firstDb, new FixedTimeProvider(Now)).EnqueueAsync(request, new AiProviderProfileId("narrative-default"), default));
+            Assert.Equal(ModuleHandoffEnqueueOutcome.Enqueued,
+                await new EfModuleHandoffEnqueuePersistence(secondDb, new FixedTimeProvider(Now)).EnqueueAsync(request, new AiProviderProfileId("narrative-default"), default));
 
             var saves = await Task.WhenAll(TrySaveAsync(firstDb), TrySaveAsync(secondDb));
             Assert.Single(saves, saved => saved);
@@ -247,7 +248,7 @@ public sealed class ModuleHandoffDomainSliceTests
         Assert.Null(assembly.GetType("Myriale.Api.Services.SessionScenarioProgressionService"));
         Assert.All(new[]
         {
-            typeof(IModuleHandoffEnqueuePort), typeof(IModuleHandoffSourceSnapshotQuery),
+            typeof(IModuleHandoffEnqueuePersistence), typeof(IModuleHandoffSourceSnapshotQuery),
             typeof(IModuleHandoffAiInteractionRecorder), typeof(IModuleHandoffNarrativeService),
             typeof(IModuleHandoffPublishUnitOfWork), typeof(IModuleHandoffArtifactWriter),
             typeof(IModuleHandoffSessionTurnAppender), typeof(IProgressionReceiptCommand),
@@ -358,11 +359,11 @@ public sealed class ModuleHandoffDomainSliceTests
     private static void AssertUnique(Microsoft.EntityFrameworkCore.Metadata.IEntityType type, params string[] properties) =>
         Assert.Contains(type.GetIndexes(), index => index.IsUnique && index.Properties.Select(property => property.Name).SequenceEqual(properties));
 
-    private sealed class FakeEnqueuePort : IModuleHandoffEnqueuePort
+    private sealed class FakeEnqueuePersistence : IModuleHandoffEnqueuePersistence
     {
         public AiProviderProfileId? ProfileId { get; private set; }
-        public Task<EnqueueModuleHandoffOutcome> EnqueueAsync(ModuleExecution execution, AiProviderProfileId narrativeAiProfileId, CancellationToken cancellationToken)
-        { ProfileId = narrativeAiProfileId; return Task.FromResult(EnqueueModuleHandoffOutcome.Enqueued); }
+        public Task<ModuleHandoffEnqueueOutcome> EnqueueAsync(ModuleHandoffEnqueueRequest request, AiProviderProfileId narrativeAiProfileId, CancellationToken cancellationToken)
+        { ProfileId = narrativeAiProfileId; return Task.FromResult(ModuleHandoffEnqueueOutcome.Enqueued); }
     }
 
     private sealed class FakeProfiles : IAiProfileCatalog

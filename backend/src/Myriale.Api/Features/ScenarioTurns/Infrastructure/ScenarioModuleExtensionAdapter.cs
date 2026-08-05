@@ -34,7 +34,7 @@ public sealed class ScenarioModuleExtensionAdapter(InitializeDetachedModuleExecu
         var outcome = execution.Outcome;
         return new ScenarioExtensionResult(
             new SessionExecutionId(execution.Id.AsPrimitive()),
-            execution.Status.ToWireValue(),
+            execution.Status,
             execution.Revision,
             execution.AvailableActions,
             [],
