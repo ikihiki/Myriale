@@ -14,7 +14,10 @@ public sealed class EfSessionMemoryRepository(ApplicationDbContext db) : ISessio
 
     public Task<SessionNote?> GetNoteAsync(SessionId sessionId, SessionNoteId noteId, AccountId ownerId, CancellationToken cancellationToken) =>
         db.SessionNotes.Include(note => note.TurnReferences)
-            .SingleOrDefaultAsync(note => note.Id == noteId && note.SessionId == sessionId && note.Session.OwnerId == ownerId, cancellationToken);
+            .SingleOrDefaultAsync(
+                note => note.Id == noteId && note.SessionId == sessionId
+                    && db.Sessions.Any(session => session.Id == note.SessionId && session.OwnerId == ownerId),
+                cancellationToken);
 
     public Task<SessionNote?> GetNoteAsync(SessionNoteId noteId, CancellationToken cancellationToken) =>
         db.SessionNotes.SingleOrDefaultAsync(note => note.Id == noteId, cancellationToken);

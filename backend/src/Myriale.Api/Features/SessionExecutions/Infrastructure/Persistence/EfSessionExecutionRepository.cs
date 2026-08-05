@@ -10,7 +10,10 @@ public sealed class EfSessionExecutionRepository(ApplicationDbContext db) : ISes
     {
         IQueryable<SessionExecution> query = db.SessionExecutions.Include(item => item.Attempts);
         if (!tracking) query = query.AsNoTracking();
-        return query.SingleOrDefaultAsync(item => item.Id == executionId && item.Session.OwnerId == ownerId, cancellationToken);
+        return query.SingleOrDefaultAsync(
+            item => item.Id == executionId
+                && db.Sessions.Any(session => session.Id == item.SessionId && session.OwnerId == ownerId),
+            cancellationToken);
     }
 
     public async Task<SessionExecutionMutationResult> MutateOwnedWithLockAsync(SessionExecutionId executionId, AccountId ownerId, Action<SessionExecution> mutation, CancellationToken cancellationToken)
@@ -26,9 +29,11 @@ public sealed class EfSessionExecutionRepository(ApplicationDbContext db) : ISes
             await transaction.RollbackAsync(CancellationToken.None);
             return SessionExecutionMutationResult.NotFound;
         }
-        await db.Entry(execution).Reference(item => item.Session).LoadAsync(cancellationToken);
+        var isOwned = await db.Sessions.AnyAsync(
+            session => session.Id == execution.SessionId && session.OwnerId == ownerId,
+            cancellationToken);
         await db.Entry(execution).Collection(item => item.Attempts).LoadAsync(cancellationToken);
-        if (execution.Session.OwnerId != ownerId)
+        if (!isOwned)
         {
             await transaction.RollbackAsync(CancellationToken.None);
             return SessionExecutionMutationResult.NotFound;

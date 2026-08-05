@@ -17,17 +17,18 @@ public sealed class EfSessionArtifactRepository(ApplicationDbContext db)
     public async Task<SessionImageAttachmentTarget?> FindImageAttachmentTargetAsync(
         AccountId ownerId, SessionId sessionId, SessionExecutionId executionId, SessionExecutionAttemptId attemptId, CancellationToken cancellationToken)
     {
-        var target = await db.SessionExecutions.AsNoTracking()
-            .Where(execution => execution.Id == executionId && execution.SessionId == sessionId && execution.Session.OwnerId == ownerId)
-            .Select(execution => new
+        var target = await (
+            from execution in db.SessionExecutions.AsNoTracking()
+            join session in db.Sessions.AsNoTracking() on execution.SessionId equals session.Id
+            where execution.Id == executionId && execution.SessionId == sessionId && session.OwnerId == ownerId
+            select new
             {
                 execution.SessionId,
                 execution.Id,
                 execution.Kind,
-                AttemptExists = execution.Attempts.Any(attempt => attempt.Id == attemptId),
-                AlreadyAttached = execution.Artifacts.Any(artifact => artifact.Kind == SessionArtifactKind.Image),
-            })
-            .SingleOrDefaultAsync(cancellationToken);
+                AttemptExists = db.SessionExecutionAttempts.Any(attempt => attempt.ExecutionId == execution.Id && attempt.Id == attemptId),
+                AlreadyAttached = db.SessionArtifacts.Any(artifact => artifact.ExecutionId == execution.Id && artifact.Kind == SessionArtifactKind.Image),
+            }).SingleOrDefaultAsync(cancellationToken);
         if (target is null) return null;
         return new(target.SessionId, target.Id, attemptId, target.Kind, target.AttemptExists, target.AlreadyAttached);
     }
@@ -51,11 +52,13 @@ public sealed class EfSessionArtifactRepository(ApplicationDbContext db)
 
     public Task<SessionImageMediaDescriptor?> FindImageMediaAsync(
         AccountId ownerId, SessionImageId imageId, CancellationToken cancellationToken) =>
-        db.SessionImages.AsNoTracking()
-            .Where(image => image.Id == imageId && image.Artifact.Status == SessionArtifactStatus.Committed
-                && image.Artifact.Execution.Session.OwnerId == ownerId)
-            .Select(image => new SessionImageMediaDescriptor(image.StorageKey, image.ContentType))
-            .SingleOrDefaultAsync(cancellationToken);
+        (from image in db.SessionImages.AsNoTracking()
+         join artifact in db.SessionArtifacts.AsNoTracking() on image.ArtifactId equals artifact.Id
+         join execution in db.SessionExecutions.AsNoTracking() on artifact.ExecutionId equals execution.Id
+         join session in db.Sessions.AsNoTracking() on execution.SessionId equals session.Id
+         where image.Id == imageId && artifact.Status == SessionArtifactStatus.Committed && session.OwnerId == ownerId
+         select new SessionImageMediaDescriptor(image.StorageKey, image.ContentType))
+        .SingleOrDefaultAsync(cancellationToken);
 
     public async Task<IReadOnlyList<SessionImageRetentionItem>> ListImagesAsync(CancellationToken cancellationToken) =>
         await db.SessionImages.AsNoTracking()

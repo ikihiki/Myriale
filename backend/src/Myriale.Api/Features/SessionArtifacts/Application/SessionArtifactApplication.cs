@@ -160,8 +160,10 @@ public sealed class GetSessionArtifactActivityQuery(ApplicationDbContext db)
     {
         var rows = await (
             from artifact in db.SessionArtifacts.AsNoTracking()
+            join execution in db.SessionExecutions.AsNoTracking() on artifact.ExecutionId equals execution.Id
+            join session in db.Sessions.AsNoTracking() on execution.SessionId equals session.Id
             where artifact.SessionId == sessionId && artifact.Status == SessionArtifactStatus.Committed
-                && artifact.Execution.Session.OwnerId == ownerId
+                && session.OwnerId == ownerId
             join image in db.SessionImages.AsNoTracking() on artifact.Id equals image.ArtifactId into imageRows
             from image in imageRows.DefaultIfEmpty()
             select new
