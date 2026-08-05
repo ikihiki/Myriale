@@ -15,7 +15,10 @@ public sealed record ScenarioRuleObjectSnapshot(
     ScenarioLocationId LocationId,
     long Revision,
     JsonElement State,
+    JsonElement StateSchema,
+    JsonElement StructuredProfile,
     IReadOnlySet<string> PublicFields,
+    IReadOnlySet<string> AiManagedFields,
     IReadOnlyList<ResolvedScenarioAction> Actions,
     IReadOnlyList<ResolvedScenarioRule> Rules);
 public sealed record ScenarioRuleNarrativeSnapshot(
@@ -41,7 +44,9 @@ public sealed record ScenarioRuleWorldSnapshot(
     IReadOnlyList<ScenarioRuleObjectSnapshot> Objects,
     ScenarioRuleNarrativeSnapshot Narrative);
 
-public sealed class ScenarioRuleWorldSnapshotFactory(ScenarioRuleConfigurationResolver resolver)
+public sealed class ScenarioRuleWorldSnapshotFactory(
+    ScenarioRuleConfigurationResolver resolver,
+    ScenarioProfileConfigurationResolver profileResolver)
 {
     public ScenarioRuleWorldSnapshot Create(Session session, ScenarioDefinitionVersion definition, IReadOnlyList<SessionObjectState> states)
     {
@@ -51,11 +56,14 @@ public sealed class ScenarioRuleWorldSnapshotFactory(ScenarioRuleConfigurationRe
         {
             var state = byState[item.Id];
             var configuration = resolver.Resolve(definition, item);
+            var profile = profileResolver.Resolve(definition, item);
             if (configuration.Conflicts.Count > 0) throw new ScenarioTurnValidationException("invalid_rule_configuration");
+            if (profile.Conflicts.Count > 0) throw new ScenarioTurnValidationException("invalid_profile_configuration");
             return new ScenarioRuleObjectSnapshot(
                 item.Id, item.Code, item.Name, item.ProfileMarkdown, item.IsGlobal,
-                state.LocationId, state.Revision, Parse(state.StateJson),
+                state.LocationId, state.Revision, Parse(state.StateJson), Parse(configuration.StateSchema.ToJsonString()), Parse(profile.EffectiveValues.ToJsonString()),
                 new HashSet<string>(configuration.PublicFields, StringComparer.Ordinal),
+                new HashSet<string>(configuration.AiManagedFields, StringComparer.Ordinal),
                 configuration.Actions.ToArray(), configuration.Rules.ToArray());
         }).ToArray();
         var locations = definition.Locations.OrderBy(item => item.Code, StringComparer.Ordinal)
@@ -428,6 +436,9 @@ public sealed class ScenarioRuleResolutionService(ScenarioRuleEvaluator evaluato
 
     private static void ApplyState(MutableObject target, string type, string path, JsonElement value)
     {
+        var rootField = path.Split('.')[0];
+        if (target.Source.AiManagedFields.Contains(rootField))
+            throw new ScenarioTurnValidationException("ai_managed_state_rule_mutation");
         var segments = path.Split('.');
         JsonObject parent = target.State;
         for (var index = 0; index < segments.Length - 1; index++)

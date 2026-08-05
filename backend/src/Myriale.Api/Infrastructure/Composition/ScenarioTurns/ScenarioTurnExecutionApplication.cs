@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Infrastructure.Composition.SessionArtifacts;
@@ -38,6 +39,7 @@ public sealed record ScenarioActionStepSnapshot(
     string? DecisionJson,
     string? SelectedRuleId,
     string? ResolutionPlanJson,
+    string? EntityStateTransitionJson,
     string? AppliedEffectsJson,
     string? PublicPostStateJson,
     string? FactsJson,
@@ -56,11 +58,13 @@ public interface IScenarioActionSnapshotRepository
     Task<ScenarioCheckpointWriteOutcome> CreateAsync(SessionExecutionContext context, ScenarioExecutionCheckpoint execution, ScenarioRuleWorldSnapshot world, RuleActionSnapshot snapshot, DateTimeOffset now, CancellationToken cancellationToken);
     Task<ScenarioCheckpointWriteOutcome> RecordDecisionAsync(SessionExecutionContext context, RuleActionDecisionResult decision, DateTimeOffset now, CancellationToken cancellationToken);
     Task<ScenarioCheckpointWriteOutcome> RecordResolutionAsync(SessionExecutionContext context, ScenarioRuleResolution resolution, DateTimeOffset now, CancellationToken cancellationToken);
+    Task<ScenarioCheckpointWriteOutcome> RecordStateTransitionAsync(SessionExecutionContext context, EntityStateTransitionResult? transition, ScenarioEffectPlan plan, DateTimeOffset now, CancellationToken cancellationToken);
     Task<ScenarioCheckpointWriteOutcome> RecordExtensionAsync(SessionExecutionContext context, ScenarioExtensionResult result, DateTimeOffset now, CancellationToken cancellationToken);
 }
 
 public interface IScenarioAiInteractionRecorder
 {
+    Task<EntityStateTransitionResult?> FindRecordedStateTransitionAsync(SessionExecutionId executionId, CancellationToken cancellationToken);
     Task<RuleActionDecisionResult?> FindRecordedDecisionAsync(SessionExecutionId executionId, CancellationToken cancellationToken);
     Task RecordSuccessAsync<T>(ScenarioExecutionCheckpoint execution, SessionExecutionContext context, int sequence,
         SessionAiInteractionStage stage, AiProviderProfileId profileId, DateTimeOffset startedAt, NarrativeGeneration<T> generation,
@@ -122,6 +126,167 @@ public sealed class ScenarioAiDecisionService(
         if (!action.Enabled) throw new ScenarioTurnValidationException("disabled_action");
         ScenarioActionArgumentValidator.Validate(action.ArgumentSchema, decision.Arguments);
         return decision;
+    }
+}
+
+public interface IScenarioEntityStateTransitionService
+{
+    Task<(EntityStateTransitionResult? Transition, ScenarioEffectPlan Plan)> GenerateAsync(
+        ScenarioExecutionCheckpoint execution, SessionExecutionContext context, ScenarioRuleWorldSnapshot world,
+        RuleActionDecisionResult decision, ScenarioEffectPlan plan, CancellationToken cancellationToken);
+}
+
+public sealed class ScenarioEntityStateTransitionService(
+    IScenarioTurnAiService ai,
+    IScenarioAiInteractionRecorder recorder,
+    ScenarioPublicProjector projector) : IScenarioEntityStateTransitionService
+{
+    private static readonly JsonSerializerOptions Json = ScenarioJson.Options;
+
+    public async Task<(EntityStateTransitionResult? Transition, ScenarioEffectPlan Plan)> GenerateAsync(
+        ScenarioExecutionCheckpoint execution, SessionExecutionContext context, ScenarioRuleWorldSnapshot world,
+        RuleActionDecisionResult decision, ScenarioEffectPlan plan, CancellationToken cancellationToken)
+    {
+        if (decision.ObjectId == new ScenarioObjectId("system")) return (null, plan);
+        var entity = world.Objects.SingleOrDefault(item => item.Id == decision.ObjectId)
+            ?? throw new ScenarioTurnValidationException("wrong_entity_state_transition");
+        if (entity.AiManagedFields.Count == 0) return (null, plan);
+
+        var recorded = await recorder.FindRecordedStateTransitionAsync(execution.ExecutionId, cancellationToken);
+        if (recorded is not null)
+        {
+            var validated = Validate(entity, recorded);
+            return (validated, Merge(entity, validated, plan));
+        }
+
+        var aiSchema = BuildAiSchema(entity);
+        var currentAiState = SelectFields(entity.State, entity.AiManagedFields);
+        var sessionLocation = world.Locations.Single(item => item.Id == world.CurrentLocationId);
+        var entityLocation = world.Locations.Single(item => item.Id == entity.LocationId);
+        var request = new EntityStateTransitionRequest(
+            ScenarioTurnSchemas.EntityStateTransition, entity.Code, entity.Revision, entity.StructuredProfile,
+            entity.ProfileMarkdown, aiSchema, currentAiState, projector.Project(entity, entity.State), execution.PlayerInput,
+            sessionLocation.Code, entityLocation.Code, plan.Facts, plan.ForbiddenNarrativeFacts);
+        var startedAt = DateTimeOffset.UtcNow;
+        NarrativeGeneration<EntityStateTransitionResult> generated;
+        try
+        {
+            generated = await ai.GenerateEntityStateTransitionForProfileAsync(execution.NarrativeAiProfileId, request, cancellationToken);
+        }
+        catch (AiProviderException exception) when (exception.SentPrompt is not null || exception.ReceivedResult is not null)
+        {
+            await recorder.TryRecordProviderFailureAsync(execution, context, 2, SessionAiInteractionStage.EntityStateTransition,
+                execution.NarrativeAiProfileId, startedAt, exception, cancellationToken);
+            throw;
+        }
+
+        EntityStateTransitionResult transition;
+        try
+        {
+            transition = Validate(entity, generated.Value);
+        }
+        catch (ScenarioTurnValidationException exception)
+        {
+            await recorder.RecordValidationFailureAsync(execution, context, 2, SessionAiInteractionStage.EntityStateTransition,
+                execution.NarrativeAiProfileId, startedAt, generated, exception, cancellationToken);
+            throw;
+        }
+        await recorder.RecordSuccessAsync(execution, context, 2, SessionAiInteractionStage.EntityStateTransition,
+            execution.NarrativeAiProfileId, startedAt, generated, JsonSerializer.Serialize(transition, Json), cancellationToken);
+        return (transition, Merge(entity, transition, plan));
+    }
+
+    public static EntityStateTransitionResult Validate(ScenarioRuleObjectSnapshot entity, EntityStateTransitionResult result)
+    {
+        if (result.SchemaVersion != ScenarioTurnSchemas.EntityStateTransition)
+            throw new ScenarioTurnValidationException("invalid_entity_state_transition");
+        if (!string.Equals(result.EntityCode, entity.Code, StringComparison.Ordinal))
+            throw new ScenarioTurnValidationException("wrong_entity_state_transition");
+        if (result.ExpectedRevision != entity.Revision)
+            throw new ScenarioTurnValidationException("stale_object_revision");
+        if (result.NextAiState.ValueKind != JsonValueKind.Object)
+            throw new ScenarioTurnValidationException("invalid_ai_state_schema");
+        var properties = entity.StateSchema.GetProperty("properties");
+        var supplied = result.NextAiState.EnumerateObject().Select(item => item.Name).ToHashSet(StringComparer.Ordinal);
+        if (!supplied.SetEquals(entity.AiManagedFields))
+            throw new ScenarioTurnValidationException("invalid_ai_state_fields");
+        foreach (var field in entity.AiManagedFields)
+            ValidateValue(properties.GetProperty(field), result.NextAiState.GetProperty(field));
+        return result;
+    }
+
+    private static ScenarioEffectPlan Merge(ScenarioRuleObjectSnapshot entity, EntityStateTransitionResult transition, ScenarioEffectPlan plan)
+    {
+        var existingPatch = plan.Objects.SingleOrDefault(item => item.ObjectId == entity.Id);
+        var fullState = JsonNode.Parse((existingPatch?.State ?? entity.State).GetRawText()) as JsonObject
+            ?? throw new ScenarioTurnValidationException("invalid_object_state");
+        foreach (var field in transition.NextAiState.EnumerateObject())
+            fullState[field.Name] = JsonNode.Parse(field.Value.GetRawText());
+        var mergedPatch = new ScenarioObjectPatch(entity.Id, entity.Revision,
+            existingPatch?.LocationId ?? entity.LocationId, JsonSerializer.SerializeToElement(fullState));
+        var patches = plan.Objects.Where(item => item.ObjectId != entity.Id).Append(mergedPatch).ToArray();
+        return plan with
+        {
+            Objects = patches,
+            Facts = plan.Facts.Concat(transition.RevealedFacts).ToArray(),
+            NarrativeHints = plan.NarrativeHints.Concat(transition.NarrativeHints).ToArray(),
+            ForbiddenNarrativeFacts = plan.ForbiddenNarrativeFacts.Concat(transition.ForbiddenFacts).ToArray(),
+        };
+    }
+
+    private static JsonElement BuildAiSchema(ScenarioRuleObjectSnapshot entity)
+    {
+        var source = entity.StateSchema.GetProperty("properties");
+        var properties = new JsonObject();
+        foreach (var field in entity.AiManagedFields)
+        {
+            var schema = JsonNode.Parse(source.GetProperty(field).GetRawText()) as JsonObject ?? [];
+            schema.Remove("updateAuthority");
+            schema.Remove("aiGuidance");
+            properties[field] = schema;
+        }
+        return JsonSerializer.SerializeToElement(new JsonObject
+        {
+            ["type"] = "object", ["additionalProperties"] = false, ["properties"] = properties,
+            ["required"] = new JsonArray(entity.AiManagedFields.Select(field => (JsonNode?)JsonValue.Create(field)).ToArray()),
+        });
+    }
+
+    private static JsonElement SelectFields(JsonElement state, IReadOnlySet<string> fields)
+    {
+        var selected = new JsonObject();
+        foreach (var field in fields)
+            if (state.TryGetProperty(field, out var value)) selected[field] = JsonNode.Parse(value.GetRawText());
+        return JsonSerializer.SerializeToElement(selected);
+    }
+
+    private static void ValidateValue(JsonElement schema, JsonElement value)
+    {
+        var type = schema.TryGetProperty("type", out var configuredType) ? configuredType.GetString() : null;
+        var valid = type switch
+        {
+            "boolean" => value.ValueKind is JsonValueKind.True or JsonValueKind.False,
+            "string" => value.ValueKind == JsonValueKind.String,
+            "integer" => value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out _),
+            "number" => value.ValueKind == JsonValueKind.Number,
+            "array" => value.ValueKind == JsonValueKind.Array,
+            "object" => value.ValueKind == JsonValueKind.Object,
+            "null" => value.ValueKind == JsonValueKind.Null,
+            _ => false,
+        };
+        if (!valid) throw new ScenarioTurnValidationException("invalid_ai_state_schema");
+        if (schema.TryGetProperty("enum", out var allowed) && allowed.ValueKind == JsonValueKind.Array
+            && !allowed.EnumerateArray().Any(item => item.GetRawText() == value.GetRawText()))
+            throw new ScenarioTurnValidationException("invalid_ai_state_schema");
+        if (value.ValueKind == JsonValueKind.String && schema.TryGetProperty("maxLength", out var maxLength)
+            && value.GetString()!.Length > maxLength.GetInt32())
+            throw new ScenarioTurnValidationException("invalid_ai_state_schema");
+        if (value.ValueKind == JsonValueKind.Number && schema.TryGetProperty("minimum", out var minimum)
+            && value.GetDecimal() < minimum.GetDecimal())
+            throw new ScenarioTurnValidationException("invalid_ai_state_schema");
+        if (value.ValueKind == JsonValueKind.Number && schema.TryGetProperty("maximum", out var maximum)
+            && value.GetDecimal() > maximum.GetDecimal())
+            throw new ScenarioTurnValidationException("invalid_ai_state_schema");
     }
 }
 
@@ -191,18 +356,18 @@ public sealed class ScenarioNarrativeGenerationService(
         try { generated = await ai.GeneratePostStateNarrativeForProfileAsync(execution.NarrativeAiProfileId, request, cancellationToken); }
         catch (AiProviderException exception) when (exception.SentPrompt is not null || exception.ReceivedResult is not null)
         {
-            await recorder.TryRecordProviderFailureAsync(execution, context, 2, SessionAiInteractionStage.Narrative,
+            await recorder.TryRecordProviderFailureAsync(execution, context, 3, SessionAiInteractionStage.Narrative,
                 execution.NarrativeAiProfileId, startedAt, exception, cancellationToken);
             throw;
         }
         try { Validate(generated.Value, request.ForbiddenNarrativeFacts); }
         catch (ScenarioTurnValidationException exception)
         {
-            await recorder.RecordValidationFailureAsync(execution, context, 2, SessionAiInteractionStage.Narrative,
+            await recorder.RecordValidationFailureAsync(execution, context, 3, SessionAiInteractionStage.Narrative,
                 execution.NarrativeAiProfileId, startedAt, generated, exception, cancellationToken);
             throw;
         }
-        await recorder.RecordSuccessAsync(execution, context, 2, SessionAiInteractionStage.Narrative,
+        await recorder.RecordSuccessAsync(execution, context, 3, SessionAiInteractionStage.Narrative,
             execution.NarrativeAiProfileId, startedAt, generated,
             JsonSerializer.Serialize(new { status = "valid" }, Json), cancellationToken);
         return generated;
@@ -261,6 +426,7 @@ public sealed class ScenarioTurnExecutionOrchestrator(
     IScenarioActionSnapshotRepository steps,
     IScenarioAiDecisionService decisions,
     IScenarioRuleResolutionService resolutionService,
+    IScenarioEntityStateTransitionService stateTransitions,
     IScenarioExtensionAdapter extensions,
     IScenarioEffectCommitUnitOfWork effectCommit,
     IScenarioNarrativeGenerationService narratives,
@@ -313,6 +479,21 @@ public sealed class ScenarioTurnExecutionOrchestrator(
                 ScenarioAiDecisionService.Validate(snapshot, decision);
                 var resolution = resolutionService.Resolve(world, decision, step.Id.AsPrimitive());
                 var write = await steps.RecordResolutionAsync(context, resolution, timeProvider.GetUtcNow(), cancellationToken);
+                if (write == ScenarioCheckpointWriteOutcome.LeaseLost) return LeaseLost();
+                step = await steps.FindAsync(context.ExecutionId, cancellationToken);
+            }
+
+            if (step!.EntityStateTransitionJson is null)
+            {
+                execution = await fence.CheckAsync(context, ScenarioTurnStage.StateTransition, cancellationToken);
+                if (execution is null) return LeaseLost();
+                var world = await worldQuery.LoadAsync(execution.SessionId, cancellationToken);
+                EnsureRevisions(step, world);
+                var decision = JsonSerializer.Deserialize<RuleActionDecisionResult>(step.DecisionJson!, Json)!;
+                var plan = JsonSerializer.Deserialize<ScenarioEffectPlan>(step.ResolutionPlanJson!, Json)
+                    ?? throw new ScenarioTurnValidationException("invalid_effect_plan");
+                var generated = await stateTransitions.GenerateAsync(execution, context, world, decision, plan, cancellationToken);
+                var write = await steps.RecordStateTransitionAsync(context, generated.Transition, generated.Plan, timeProvider.GetUtcNow(), cancellationToken);
                 if (write == ScenarioCheckpointWriteOutcome.LeaseLost) return LeaseLost();
                 step = await steps.FindAsync(context.ExecutionId, cancellationToken);
             }

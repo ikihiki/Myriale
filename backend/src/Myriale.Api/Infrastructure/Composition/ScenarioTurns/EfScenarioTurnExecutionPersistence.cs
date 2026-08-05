@@ -110,6 +110,21 @@ public sealed class EfScenarioActionSnapshotRepository(ApplicationDbContext db) 
         return await SaveAsync(cancellationToken);
     }
 
+    public async Task<ScenarioCheckpointWriteOutcome> RecordStateTransitionAsync(
+        SessionExecutionContext context, EntityStateTransitionResult? transition, ScenarioEffectPlan plan,
+        DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        db.ChangeTracker.Clear();
+        var execution = await LoadFencedExecutionAsync(context, cancellationToken);
+        if (execution is null) return ScenarioCheckpointWriteOutcome.LeaseLost;
+        var step = await db.SessionRuleActionSteps.SingleAsync(item => item.ExecutionId == context.ExecutionId, cancellationToken);
+        var transitionJson = transition is null ? "{}" : JsonSerializer.Serialize(transition, Json);
+        if (!step.RecordStateTransition(transitionJson, JsonSerializer.Serialize(plan, Json), plan.ExtensionRequest is not null, now))
+            return ScenarioCheckpointWriteOutcome.Existing;
+        execution.Stage = step.Stage.ToWireValue();
+        return await SaveAsync(cancellationToken);
+    }
+
     public async Task<ScenarioCheckpointWriteOutcome> RecordExtensionAsync(
         SessionExecutionContext context, ScenarioExtensionResult result, DateTimeOffset now, CancellationToken cancellationToken)
     {
@@ -138,7 +153,7 @@ public sealed class EfScenarioActionSnapshotRepository(ApplicationDbContext db) 
         item.Id, item.SessionId, item.ExecutionId, item.PlayerInputId, item.Stage,
         item.PreSessionRevision, item.PostSessionRevision, item.ObjectRevisionsJson,
         item.ActionSnapshotJson, item.DecisionJson, item.SelectedRuleId, item.ResolutionPlanJson,
-        item.AppliedEffectsJson, item.PublicPostStateJson, item.FactsJson, item.EventsJson,
+        item.EntityStateTransitionJson, item.AppliedEffectsJson, item.PublicPostStateJson, item.FactsJson, item.EventsJson,
         item.NarrativeHintsJson, item.ForbiddenNarrativeFactsJson, item.ExtensionReceiptJson,
         item.AppliedAt, item.NarrativePublishedAt);
 }
@@ -147,6 +162,19 @@ public sealed class EfScenarioAiInteractionRecorder(ApplicationDbContext db, ILo
     : IScenarioAiInteractionRecorder
 {
     private static readonly JsonSerializerOptions Json = ScenarioJson.Options;
+
+    public async Task<EntityStateTransitionResult?> FindRecordedStateTransitionAsync(SessionExecutionId executionId, CancellationToken cancellationToken)
+    {
+        var recorded = await db.SessionAiInteractions.AsNoTracking()
+            .Where(item => item.ExecutionId == executionId && item.Stage == SessionAiInteractionStage.EntityStateTransition
+                && item.Status == SessionAiInteractionStatus.Succeeded)
+            .Select(item => new { item.CompletedAt, item.ValidationResult })
+            .ToListAsync(cancellationToken);
+        var json = recorded.OrderBy(item => item.CompletedAt).Select(item => item.ValidationResult).FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try { return JsonSerializer.Deserialize<EntityStateTransitionResult>(json, Json); }
+        catch (JsonException) { return null; }
+    }
 
     public async Task<RuleActionDecisionResult?> FindRecordedDecisionAsync(SessionExecutionId executionId, CancellationToken cancellationToken)
     {

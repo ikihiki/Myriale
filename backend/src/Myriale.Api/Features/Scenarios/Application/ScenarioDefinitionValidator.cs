@@ -145,6 +145,15 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
                 foreach (var field in resolvedProfile.Fields.Where(field => field.Required && !resolvedProfile.EffectiveValues.ContainsKey(field.Code)))
                     Add($"objects[{i}].profileValues.{field.Code}", "A required profile field needs an Entity value or inherited/local default.");
             RequireObject(item.InitialStateOverride, $"objects[{i}].initialStateOverride", Add);
+            var localStateProperties = GetSchemaProperties(item.StateSchema);
+            foreach (var property in localStateProperties)
+            {
+                var authority = property.Value.TryGetProperty("updateAuthority", out var configuredAuthority)
+                    ? configuredAuthority.GetString() : "rules";
+                if (authority is not ("rules" or "ai"))
+                    Add($"objects[{i}].stateSchema.properties.{property.Key}.updateAuthority", "Update authority must be rules or ai.");
+            }
+            ValidateStateObject(item.DefaultState, localStateProperties, $"objects[{i}].defaultState", true, Add);
             var stateProperties = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
             foreach (var resolvedType in resolvedTypes)
                 foreach (var property in GetSchemaProperties(resolvedType.StateSchema))
@@ -154,6 +163,11 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
                 if (stateProperties.TryGetValue(property.Key, out var existing) && existing.GetRawText() != property.Value.GetRawText()) Add($"objects[{i}].stateSchema", $"State '{property.Key}' has an incompatible contract.");
                 else stateProperties[property.Key] = property.Value;
             ValidateStateObject(item.InitialStateOverride, stateProperties, $"objects[{i}].initialStateOverride", false, Add);
+            foreach (var property in item.InitialStateOverride.EnumerateObject())
+                if (stateProperties.TryGetValue(property.Name, out var propertySchema)
+                    && propertySchema.TryGetProperty("updateAuthority", out var authority)
+                    && authority.GetString() == "ai")
+                    Add($"objects[{i}].initialStateOverride.{property.Name}", "AI-managed state must not have an initial override.");
             ValidateCodes(localActions.Select(action => action.Code), $"objects[{i}].actions", Add);
             for (var j = 0; j < localActions.Count; j++)
             {
@@ -758,6 +772,13 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
             add($"{path}.stateSchema.additionalProperties", "State schema must reject additional properties.");
         var properties = GetSchemaProperties(type.StateSchema);
         if (properties.Count == 0) add($"{path}.stateSchema.properties", "State schema must declare properties.");
+        foreach (var property in properties)
+        {
+            var authority = property.Value.TryGetProperty("updateAuthority", out var configuredAuthority)
+                ? configuredAuthority.GetString() : "rules";
+            if (authority is not ("rules" or "ai"))
+                add($"{path}.stateSchema.properties.{property.Key}.updateAuthority", "Update authority must be rules or ai.");
+        }
         ValidateStateObject(type.DefaultState, properties, $"{path}.defaultState", true, add);
         if (type.PublicProjection.ValueKind == JsonValueKind.Object
             && type.PublicProjection.TryGetProperty("include", out var include))
@@ -810,8 +831,15 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
         if (requireRequired && properties.Count > 0)
         {
             // Strict baseline definitions initialize every declared property deterministically.
-            foreach (var property in properties.Keys)
-                if (!state.TryGetProperty(property, out _)) add($"{path}.{property}", "Default state must initialize this property.");
+            foreach (var property in properties)
+            {
+                var authority = property.Value.TryGetProperty("updateAuthority", out var configuredAuthority)
+                    ? configuredAuthority.GetString() : "rules";
+                if (authority != "ai" && !state.TryGetProperty(property.Key, out _))
+                    add($"{path}.{property.Key}", "Default state must initialize this rules-managed property.");
+                if (authority == "ai" && state.TryGetProperty(property.Key, out _))
+                    add($"{path}.{property.Key}", "AI-managed state must not have a concrete default.");
+            }
         }
     }
 

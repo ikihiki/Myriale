@@ -47,6 +47,28 @@ public sealed class ScenarioRuleConfigurationResolverTests
     }
 
     [Fact]
+    public void InitialState_OmitsAiManagedFieldsAndDefaultsMissingAuthorityToRules()
+    {
+        var type = Type("entity", "{\"locked\":false}", "{}", Action("use", "Use"));
+        type.StateSchemaJson = "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"locked\":{\"type\":\"boolean\"},\"mood\":{\"type\":\"string\",\"updateAuthority\":\"ai\"}}}";
+        type.DefaultStateJson = "{\"locked\":false}";
+        var item = new ScenarioObject
+        {
+            Id = new("object-1"), MixinTypeCodesJson = "[\"entity\"]",
+            InitialStateOverrideJson = "{\"locked\":true,\"mood\":\"ignored\"}"
+        };
+        var resolver = new ScenarioRuleConfigurationResolver();
+        var definition = new ScenarioDefinitionVersion { ObjectTypes = [type], Objects = [item] };
+
+        var resolved = resolver.Resolve(definition, item);
+        var initial = resolver.InitialState(definition, item);
+
+        Assert.Equal(["mood"], resolved.AiManagedFields);
+        Assert.True(initial["locked"]!.GetValue<bool>());
+        Assert.False(initial.ContainsKey("mood"));
+    }
+
+    [Fact]
     public void Resolve_AppliesOneGenericRuleToEveryObjectOfTheType()
     {
         var type = Type("door", "{\"open\":false}", "{}", Action("open", "Open"));

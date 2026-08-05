@@ -207,6 +207,7 @@ public sealed class SessionTurnInspectionEndpointTests : IDisposable
             "{\"OBJ-DOOR\":0}", JsonSerializer.Serialize(snapshot, Json), createdAt.AddMilliseconds(100), createdAt);
         step.RecordDecision(JsonSerializer.Serialize(decision, Json), createdAt.AddMilliseconds(250));
         step.RecordResolution("RULE-OPEN", "{}", false, createdAt.AddMilliseconds(300));
+        step.RecordStateTransition("{}", "{}", false, createdAt.AddMilliseconds(350));
         step.CommitEffects(7, 8, JsonSerializer.Serialize(effects, Json), JsonSerializer.Serialize(postState, Json),
             "[\"The door is open.\"]", "[{\"type\":\"door-opened\"}]", "[\"Describe the opened door.\"]", "[]",
             createdAt.AddMilliseconds(500));
