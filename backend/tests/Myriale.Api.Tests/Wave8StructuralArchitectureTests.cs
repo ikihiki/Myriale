@@ -98,6 +98,30 @@ public sealed class Wave8StructuralArchitectureTests
             attribute => attribute.AttributeType.FullName == "Myriale.Api.Architecture.CrossSliceMigrationAttribute");
     }
 
+    [Fact]
+    public void LegacyHorizontalNamespacesAreAbsent()
+    {
+        var legacyPrefixes = new[]
+        {
+            "Myriale.Api.Data",
+            "Myriale.Api.Application",
+            "Myriale.Api.Services",
+            "Myriale.Api.Modules",
+            "Myriale.Api.Endpoints",
+            "Myriale.Api.Contracts",
+        };
+
+        var violations = Api.GetTypes()
+            .Where(type => legacyPrefixes.Any(prefix =>
+                type.Namespace == prefix
+                || type.Namespace?.StartsWith(prefix + ".", StringComparison.Ordinal) == true))
+            .Select(type => type.FullName)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Empty(violations);
+    }
+
     private static bool IsEntityTypeConfiguration(Type type) =>
         type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEntityTypeConfiguration<>);
 }

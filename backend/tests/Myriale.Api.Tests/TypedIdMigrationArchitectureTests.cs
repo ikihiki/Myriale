@@ -74,6 +74,27 @@ public sealed class TypedIdMigrationArchitectureTests
     }
 
     [Fact]
+    public void CrossSliceForeignKeysUseScalarIdsWithoutNavigations()
+    {
+        using var db = CreateContext();
+        var crossSliceForeignKeys = db.Model.GetEntityTypes()
+            .SelectMany(entity => entity.GetForeignKeys())
+            .Where(foreignKey => TryGetSlice(foreignKey.DeclaringEntityType.ClrType, out var dependentSlice)
+                && TryGetSlice(foreignKey.PrincipalEntityType.ClrType, out var principalSlice)
+                && !string.Equals(dependentSlice, principalSlice, StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.NotEmpty(crossSliceForeignKeys);
+        Assert.All(crossSliceForeignKeys, foreignKey =>
+        {
+            Assert.Null(foreignKey.DependentToPrincipal);
+            Assert.Null(foreignKey.PrincipalToDependent);
+            Assert.All(foreignKey.Properties, property =>
+                Assert.True(property.PropertyInfo is not null, $"{foreignKey.DeclaringEntityType.ClrType.Name}.{property.Name}"));
+        });
+    }
+
+    [Fact]
     public void TypedIdColumnFacetsAndGeneratedLongKeysRemainStable()
     {
         using var db = CreateContext();
@@ -101,6 +122,22 @@ public sealed class TypedIdMigrationArchitectureTests
 
     private static ApplicationDbContext CreateContext() => new(
         new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite("Data Source=:memory:").Options);
+
+    private static bool TryGetSlice(Type type, out string slice)
+    {
+        const string prefix = "Myriale.Api.Features.";
+        slice = string.Empty;
+        var @namespace = type.Namespace;
+        if (@namespace is null || !@namespace.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var remainder = @namespace[prefix.Length..];
+        var separator = remainder.IndexOf('.');
+        slice = separator < 0 ? remainder : remainder[..separator];
+        return slice.Length > 0;
+    }
 
     private static Type NonNullable(Type type) => Nullable.GetUnderlyingType(type) ?? type;
     private static bool IsPrimitive(Type type) => NonNullable(type) == typeof(string)
