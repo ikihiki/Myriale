@@ -10,7 +10,7 @@ public sealed class AiProviderAdministrationQueryService(IAiDeploymentProfileSou
     {
         var all = new Dictionary<string, AiProfileDescriptor>(deployment.GetProfiles(), StringComparer.OrdinalIgnoreCase);
         var dbProfiles = await profiles.ListAsync(ct);
-        foreach (var p in dbProfiles) all[p.Id.Value] = new(p.Id.Value, p.DisplayName, p.BaseUrl, p.Model, p.CredentialId.Value, p.Enabled, AiProfileDefinitionSource.Database, p.Revision);
+        foreach (var p in dbProfiles) all[p.Id.AsPrimitive()] = new(p.Id.AsPrimitive(), p.DisplayName, p.BaseUrl, p.Model, p.CredentialId.AsPrimitive(), p.Enabled, AiProfileDefinitionSource.Database, p.Revision);
         var selected = (await active.GetAsync(ct))?.Provider;
         var result = new List<AiAdminProfileResponse>();
         foreach (var profile in all.Values.OrderBy(x => x.Id, StringComparer.Ordinal))
@@ -27,8 +27,8 @@ public sealed class AiProviderAdministrationQueryService(IAiDeploymentProfileSou
     {
         var result = new List<AiAdminCredentialResponse>(); var dbProfiles = await profiles.ListAsync(ct); var deploymentProfiles = deployment.GetProfiles().Values;
         foreach (var credential in await credentials.ListAsync(ct))
-            result.Add(new(credential.Id.Value, credential.DisplayName, $"••••••••{credential.SecretHint}", Wire(AiCredentialSource.Database), credential.Revision, credential.UpdatedAt,
-                dbProfiles.Count(p => p.CredentialId == credential.Id) + deploymentProfiles.Count(p => string.Equals(p.CredentialId, credential.Id.Value, StringComparison.OrdinalIgnoreCase))));
+            result.Add(new(credential.Id.AsPrimitive(), credential.DisplayName, $"••••••••{credential.SecretHint}", Wire(AiCredentialSource.Database), credential.Revision, credential.UpdatedAt,
+                dbProfiles.Count(p => p.CredentialId == credential.Id) + deploymentProfiles.Count(p => string.Equals(p.CredentialId, credential.Id.AsPrimitive(), StringComparison.OrdinalIgnoreCase))));
         return result;
     }
 

@@ -16,7 +16,7 @@ public sealed class AiProviderProfileDomainSliceTests
     public void AggregatesValidateEncapsulateAndIncrementRevision()
     {
         var profile = AiProviderProfile.Create("Acme.Main", "Acme", "https://acme.test/v1/", "model", "Shared", true, Now);
-        Assert.Equal("acme.main", profile.Id.Value); Assert.Equal("https://acme.test/v1", profile.BaseUrl); Assert.Equal(1, profile.Revision);
+        Assert.Equal("acme.main", profile.Id.AsPrimitive()); Assert.Equal("https://acme.test/v1", profile.BaseUrl); Assert.Equal(1, profile.Revision);
         profile.Update("Acme 2", "https://acme.test/v2", "model-2", "shared", 1, Now.AddMinutes(1)); Assert.Equal(2, profile.Revision);
         Assert.Throws<AiRevisionConflictException>(() => profile.Disable(1, Now));
         var credential = AiCredential.Create("shared", "Shared", "protected", "1234", Now); credential.Replace("Shared 2", "protected-2", "5678", 1, Now.AddMinutes(1)); Assert.Equal(2, credential.Revision);

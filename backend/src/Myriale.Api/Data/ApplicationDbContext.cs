@@ -42,18 +42,19 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<ModuleExecutionRequest> ModuleExecutionRequests => Set<ModuleExecutionRequest>();
     public DbSet<ModuleOutcomeApplication> ModuleOutcomeApplications => Set<ModuleOutcomeApplication>();
 
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        base.ConfigureConventions(configurationBuilder);
+        StronglyTypedIdConventions.Configure(configurationBuilder);
+    }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
         builder.Entity<ApplicationUser>().Ignore(user => user.State);
-        builder.Entity<AiProviderProfile>().Property(profile => profile.Id).HasConversion(id => id.Value, value => new AiProviderProfileId(value));
-        builder.Entity<AiProviderProfile>().Property(profile => profile.CredentialId).HasConversion(id => id.Value, value => new AiCredentialId(value));
         builder.Entity<AiProviderProfile>().Property(profile => profile.Adapter).HasConversion<string>();
         builder.Entity<AiProviderProfile>().Property(profile => profile.Revision).IsConcurrencyToken();
-        builder.Entity<AiCredential>().Property(credential => credential.Id).HasConversion(id => id.Value, value => new AiCredentialId(value));
         builder.Entity<AiCredential>().Property(credential => credential.Revision).IsConcurrencyToken();
-        builder.Entity<AiProviderProfileValidation>().Property(validation => validation.ProfileId).HasConversion(id => id.Value, value => new AiProviderProfileId(value));
-        builder.Entity<AiProviderProfileValidation>().Property(validation => validation.CredentialId).HasConversion(id => id.Value, value => new AiCredentialId(value));
         builder.Entity<AiProviderProfileValidation>().Property(validation => validation.Status).HasConversion<string>();
         builder.Entity<AiProviderProfileValidation>().HasIndex(validation => new { validation.ProfileId, validation.TestedAt });
         builder.Entity<AiProviderRuntimeSettings>().Property(settings => settings.Revision).IsConcurrencyToken();

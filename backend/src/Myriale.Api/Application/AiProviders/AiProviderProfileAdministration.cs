@@ -68,7 +68,7 @@ public sealed class AiProviderProfileUseCases(IAiProviderProfileRepository repos
         try
         {
             var profile = await repository.LoadAsync(new(command.Id), ct); if (profile is null) return NotFound<AiProviderProfile>();
-            if (!enabled && string.Equals((await active.GetAsync(ct))?.Provider, profile.Id.Value, StringComparison.OrdinalIgnoreCase)) return new(AiAdministrationOutcome.ActiveProfile, Error: "The active profile cannot be disabled.");
+            if (!enabled && string.Equals((await active.GetAsync(ct))?.Provider, profile.Id.AsPrimitive(), StringComparison.OrdinalIgnoreCase)) return new(AiAdministrationOutcome.ActiveProfile, Error: "The active profile cannot be disabled.");
             if (enabled) profile.Enable(command.ExpectedRevision, time.GetUtcNow()); else profile.Disable(command.ExpectedRevision, time.GetUtcNow());
             return await repository.SaveAsync(ct) ? new(AiAdministrationOutcome.Success, profile) : Conflict<AiProviderProfile>();
         }
@@ -80,7 +80,7 @@ public sealed class AiProviderProfileUseCases(IAiProviderProfileRepository repos
         {
             var profile = await repository.LoadAsync(new(command.Id), ct); if (profile is null) return NotFound<bool>();
             profile.RequireRevision(command.ExpectedRevision);
-            if (string.Equals((await active.GetAsync(ct))?.Provider, profile.Id.Value, StringComparison.OrdinalIgnoreCase)) return new(AiAdministrationOutcome.ActiveProfile, Error: "The active profile cannot be deleted.");
+            if (string.Equals((await active.GetAsync(ct))?.Provider, profile.Id.AsPrimitive(), StringComparison.OrdinalIgnoreCase)) return new(AiAdministrationOutcome.ActiveProfile, Error: "The active profile cannot be deleted.");
             repository.Remove(profile); return await repository.SaveAsync(ct) ? new(AiAdministrationOutcome.Success, true) : Conflict<bool>();
         }
         catch (AiRevisionConflictException) { return Conflict<bool>(); }
@@ -96,7 +96,7 @@ public sealed class AiCredentialUseCases(IAiCredentialRepository repository, IAi
         try
         {
             var id = new AiCredentialId(command.Id); if (await repository.LoadAsync(id, ct) is not null) return Conflict<AiCredential>();
-            var secret = RequiredSecret(command.Secret); var credential = AiCredential.Create(id.Value, command.DisplayName, protector.Protect(secret), AiRuntimeCredentialResolver.Hint(secret), time.GetUtcNow());
+            var secret = RequiredSecret(command.Secret); var credential = AiCredential.Create(id.AsPrimitive(), command.DisplayName, protector.Protect(secret), AiRuntimeCredentialResolver.Hint(secret), time.GetUtcNow());
             repository.Add(credential); return await repository.SaveAsync(ct) ? new(AiAdministrationOutcome.Success, credential) : Conflict<AiCredential>();
         }
         catch (ArgumentException exception) { return new(AiAdministrationOutcome.ValidationFailed, Error: exception.Message); }
@@ -119,7 +119,7 @@ public sealed class AiCredentialUseCases(IAiCredentialRepository repository, IAi
             var credential = await repository.LoadAsync(new(command.Id), ct); if (credential is null) return NotFound<bool>();
             credential.RequireRevision(command.ExpectedRevision);
             if (await profiles.IsCredentialReferencedAsync(credential.Id, ct)
-                || deploymentProfiles.GetProfiles().Values.Any(profile => string.Equals(profile.CredentialId, credential.Id.Value, StringComparison.OrdinalIgnoreCase)))
+                || deploymentProfiles.GetProfiles().Values.Any(profile => string.Equals(profile.CredentialId, credential.Id.AsPrimitive(), StringComparison.OrdinalIgnoreCase)))
                 return new(AiAdministrationOutcome.CredentialReferenced, Error: "The credential is referenced by a profile.");
             repository.Remove(credential); return await repository.SaveAsync(ct) ? new(AiAdministrationOutcome.Success, true) : Conflict<bool>();
         }

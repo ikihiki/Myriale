@@ -67,7 +67,7 @@ public static class AiAdminEndpoints
     private static async Task<IResult> MapProfileAsync(AiAdministrationResult<Myriale.Api.Data.AiProviderProfile> result, AiProviderAdministrationQueryService query, CancellationToken ct, bool created = false)
     {
         if (result.Outcome != AiAdministrationOutcome.Success) return Map(result);
-        var response = (await query.ListProfilesAsync(ct)).Single(profile => profile.Id == result.Value!.Id.Value);
+        var response = (await query.ListProfilesAsync(ct)).Single(profile => profile.Id == result.Value!.Id.AsPrimitive());
         return created ? Results.Json(response, statusCode: StatusCodes.Status201Created) : Results.Ok(response);
     }
 
@@ -75,7 +75,7 @@ public static class AiAdminEndpoints
     {
         if (result.Outcome != AiAdministrationOutcome.Success) return Map(result);
         var credential = result.Value!;
-        var response = new AiAdminCredentialResponse(credential.Id.Value, credential.DisplayName, $"••••••••{credential.SecretHint}", "database", credential.Revision, credential.UpdatedAt, 0);
+        var response = new AiAdminCredentialResponse(credential.Id.AsPrimitive(), credential.DisplayName, $"••••••••{credential.SecretHint}", "database", credential.Revision, credential.UpdatedAt, 0);
         return created ? Results.Json(response, statusCode: StatusCodes.Status201Created) : Results.Ok(response);
     }
 

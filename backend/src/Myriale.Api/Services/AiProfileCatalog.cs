@@ -53,7 +53,7 @@ public sealed class OptionsAiDeploymentProfileSource(IOptions<AiProviderDeployme
         {
             var profile = AiProviderProfile.Create(pair.Key, pair.Value.DisplayName, pair.Value.BaseUrl, pair.Value.Model,
                 string.IsNullOrWhiteSpace(pair.Value.CredentialId) ? pair.Key : pair.Value.CredentialId, pair.Value.Enabled, DateTimeOffset.UnixEpoch);
-            result[profile.Id.Value] = new(profile.Id.Value, profile.DisplayName, profile.BaseUrl, profile.Model, profile.CredentialId.Value, profile.Enabled, AiProfileDefinitionSource.Deployment, 0);
+            result[profile.Id.AsPrimitive()] = new(profile.Id.AsPrimitive(), profile.DisplayName, profile.BaseUrl, profile.Model, profile.CredentialId.AsPrimitive(), profile.Enabled, AiProfileDefinitionSource.Deployment, 0);
         }
         return result;
     }
@@ -68,7 +68,7 @@ public sealed class AiProfileCatalog(
     {
         var combined = new Dictionary<string, AiProfileDescriptor>(deployment.GetProfiles(), StringComparer.OrdinalIgnoreCase);
         foreach (var profile in await profiles.ListAsync(cancellationToken))
-            combined[profile.Id.Value] = new(profile.Id.Value, profile.DisplayName, profile.BaseUrl, profile.Model, profile.CredentialId.Value, profile.Enabled, AiProfileDefinitionSource.Database, profile.Revision);
+            combined[profile.Id.AsPrimitive()] = new(profile.Id.AsPrimitive(), profile.DisplayName, profile.BaseUrl, profile.Model, profile.CredentialId.AsPrimitive(), profile.Enabled, AiProfileDefinitionSource.Database, profile.Revision);
         var enabled = combined.Values.Where(x => x.Enabled).OrderBy(x => x.Id, StringComparer.Ordinal).ToDictionary(x => x.Id, StringComparer.OrdinalIgnoreCase);
         if (enabled.Count == 0) throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "Selectable AI profiles are not configured.", false);
         var fallback = enabled.Keys.First();
@@ -76,12 +76,12 @@ public sealed class AiProfileCatalog(
     }
     public async Task<AiProfileDescriptor> ResolveAsync(string profileId, CancellationToken cancellationToken)
     {
-        var id = new AiProviderProfileId(profileId).Value;
+        var id = new AiProviderProfileId(profileId).AsPrimitive();
         var snapshot = await GetAsync(cancellationToken);
         return snapshot.Profiles.TryGetValue(id, out var profile) ? profile : throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, $"AI profile '{id}' is not configured.", false);
     }
     public async Task<string> ResolveActionDecisionProfileIdAsync(string? requested, CancellationToken ct) => await ResolveRequestedAsync(requested, (await GetAsync(ct)).DefaultActionDecisionProfileId, ct);
     public async Task<string> ResolveNarrativeProfileIdAsync(string? requested, CancellationToken ct) => await ResolveRequestedAsync(requested, (await GetAsync(ct)).DefaultNarrativeProfileId, ct);
     private async Task<string> ResolveRequestedAsync(string? requested, string fallback, CancellationToken ct) { var id = string.IsNullOrWhiteSpace(requested) ? fallback : requested; return (await ResolveAsync(id, ct)).Id; }
-    private static string ResolveDefault(string? candidate, IReadOnlyDictionary<string, AiProfileDescriptor> enabled, string fallback) => !string.IsNullOrWhiteSpace(candidate) && enabled.ContainsKey(candidate) ? new AiProviderProfileId(candidate).Value : fallback;
+    private static string ResolveDefault(string? candidate, IReadOnlyDictionary<string, AiProfileDescriptor> enabled, string fallback) => !string.IsNullOrWhiteSpace(candidate) && enabled.ContainsKey(candidate) ? new AiProviderProfileId(candidate).AsPrimitive() : fallback;
 }

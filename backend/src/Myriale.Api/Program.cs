@@ -28,6 +28,7 @@ using Myriale.Api.Infrastructure.Scenarios;
 using Myriale.Api.Infrastructure.SessionMemory;
 using Myriale.Api.Infrastructure.ModuleHandoffs;
 using Myriale.Api.Infrastructure.ScenarioTurns;
+using Myriale.Api.Features.AiProviders;
 using Myriale.Api.Modules;
 using Myriale.Api.Modules.Execution;
 using Myriale.Api.Modules.Runtime;
@@ -39,6 +40,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 builder.Services.AddOpenApi();
+builder.Services.AddAiProvidersFeature(builder.Configuration);
 builder.Services.AddDataProtection();
 builder.Services.AddOptions<AiProviderOptions>()
     .Bind(builder.Configuration.GetSection(AiProviderOptions.SectionName))
@@ -382,6 +384,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapDefaultEndpoints();
+app.MapAiProvidersFeature();
 app.MapAccountEndpoints();
 
 app.MapScenarioEndpoints();

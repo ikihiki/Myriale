@@ -2,15 +2,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Myriale.Api.Data;
 
-public readonly record struct AiCredentialId
-{
-    public string Value { get; }
-    public AiCredentialId(string value) => Value = AiProviderProfileId.Normalize(value, nameof(value));
-    public override string ToString() => Value;
-    public static implicit operator string(AiCredentialId value) => value.Value;
-    public static explicit operator AiCredentialId(string value) => new(value);
-}
-
 public enum AiCredentialValidationStatus { Untested, Valid, InvalidCredential, ModelNotFound, RateLimited, ProviderUnavailable, SchemaFailure }
 public enum AiCredentialSource { None, Deployment, Database }
 

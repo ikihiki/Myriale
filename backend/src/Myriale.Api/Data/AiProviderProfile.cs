@@ -2,22 +2,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Myriale.Api.Data;
 
-public readonly record struct AiProviderProfileId
-{
-    public string Value { get; }
-    public AiProviderProfileId(string value) => Value = Normalize(value, nameof(value));
-    public override string ToString() => Value;
-    public static implicit operator string(AiProviderProfileId value) => value.Value;
-    public static explicit operator AiProviderProfileId(string value) => new(value);
-    internal static string Normalize(string value, string name)
-    {
-        var normalized = value?.Trim().ToLowerInvariant() ?? string.Empty;
-        if (normalized.Length is 0 or > 80 || normalized.Any(c => !(char.IsLetterOrDigit(c) || c is '-' or '_' or '.')))
-            throw new ArgumentException("ID must be 1-80 letters, numbers, '.', '_' or '-'.", name);
-        return normalized;
-    }
-}
-
 public enum AiAdapter { OpenAiCompatible }
 public enum AiProfileDefinitionSource { Deployment, Database }
 

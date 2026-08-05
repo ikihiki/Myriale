@@ -19,7 +19,7 @@ public sealed class AiRuntimeCredentialResolver(IOptions<AiProviderDeploymentOpt
     public async Task<ResolvedAiCredential?> ResolveAsync(string credentialId, CancellationToken cancellationToken)
     {
         var id = new AiCredentialId(credentialId);
-        if (deployment.Value.Credentials.TryGetValue(id.Value, out var configured) && !string.IsNullOrWhiteSpace(configured.Secret))
+        if (deployment.Value.Credentials.TryGetValue(id.AsPrimitive(), out var configured) && !string.IsNullOrWhiteSpace(configured.Secret))
             return new(configured.Secret, AiCredentialSource.Deployment, 0, Mask(configured.Secret));
         var credential = await repository.LoadAsync(id, cancellationToken);
         return credential is null ? null : new(protector.Unprotect(credential.ProtectedSecret), AiCredentialSource.Database, credential.Revision, MaskHint(credential.SecretHint));
