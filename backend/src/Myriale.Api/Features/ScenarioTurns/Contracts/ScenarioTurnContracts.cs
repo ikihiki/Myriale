@@ -42,8 +42,10 @@ public sealed record ModelObjectActions(string ObjectCode, string ObjectName, IR
 public sealed record ModelActionDecisionRequest(string SchemaVersion, string PlayerInput, ModelActionDecisionScene Scene, IReadOnlyList<ModelObjectActions> ObjectActions, IReadOnlyList<ModelActionDecisionCandidate> SystemActions);
 [CrossSliceContract]
 public sealed record ModelActionDecisionResult(string SchemaVersion, string SelectionCode, JsonElement Arguments);
+[CrossSliceContract]
 public sealed record ModelActionDecisionPromptAudit(string PromptVersion, string SystemPrompt, ModelActionDecisionRequest ModelRequest, string ResponseSchemaVersion);
 
+[CrossSliceContract]
 public sealed record RuleActionDecisionRequest(string SchemaVersion, string PlayerInput, RuleActionSnapshot Snapshot);
 [CrossSliceContract]
 public sealed record RuleActionDecisionResult(string SchemaVersion, ScenarioObjectId ObjectId, ScenarioObjectTypeActionId ActionId, JsonElement Arguments);

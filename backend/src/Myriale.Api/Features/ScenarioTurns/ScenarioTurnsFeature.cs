@@ -7,7 +7,13 @@ public static class ScenarioTurnsFeature
 {
     public static IServiceCollection AddScenarioTurnsFeature(this IServiceCollection services)
     {
-        services.AddSingleton<ScenarioRuleJsonCodec>();
+        services.AddScoped<ScenarioRuleEvaluator>();
+        services.AddScoped<ScenarioRuleWorldSnapshotFactory>();
+        services.AddScoped<ScenarioPublicProjector>();
+        services.AddSingleton<ScenarioActionDecisionModelMapper>();
+        services.AddSingleton<IScenarioActionDecisionModelMapper>(provider => provider.GetRequiredService<ScenarioActionDecisionModelMapper>());
+        services.AddScoped<ScenarioActionEnumerator>();
+        services.AddScoped<IScenarioRuleResolutionService, ScenarioRuleResolutionService>();
         services.AddScoped<IScenarioExecutionFence, EfScenarioExecutionFence>();
         services.AddScoped<IScenarioWorldSnapshotQuery, EfScenarioWorldSnapshotQuery>();
         services.AddScoped<IScenarioActionSnapshotRepository, EfScenarioActionSnapshotRepository>();

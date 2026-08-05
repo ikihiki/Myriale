@@ -10,7 +10,7 @@ namespace Myriale.Api.Features.NarrativeGeneration.Infrastructure;
 
 public sealed class ProviderNarrativeGenerator(
     IAiTextProvider provider,
-    ScenarioActionDecisionModelMapper actionDecisionMapper,
+    IScenarioActionDecisionModelMapper actionDecisionMapper,
     ILogger<ProviderNarrativeGenerator> logger) : INarrativeGenerator, IActionRecommendationGenerator, IScenarioTurnAi
 {
     private static readonly JsonSerializerOptions Strict = new(JsonSerializerDefaults.Web)
@@ -102,7 +102,7 @@ public sealed class ProviderNarrativeGenerator(
         var userPrompt = JsonSerializer.Serialize(request, Strict);
         var sentPrompt = JsonSerializer.Serialize(new ModelActionDecisionPromptAudit(
             ScenarioTurnSchemas.ModelActionDecisionPrompt,
-            ScenarioActionDecisionModelMapper.SystemPrompt,
+            actionDecisionMapper.SystemPrompt,
             request,
             ScenarioTurnSchemas.ModelActionDecisionResult), Strict);
         AiTextResponse response;
@@ -111,7 +111,7 @@ public sealed class ProviderNarrativeGenerator(
             response = await generate(CreateRequest(
                 "model_action_decision_result_v3",
                 schema.GetRawText(),
-                ScenarioActionDecisionModelMapper.SystemPrompt,
+                actionDecisionMapper.SystemPrompt,
                 userPrompt), cancellationToken);
         }
         catch (AiProviderException exception)

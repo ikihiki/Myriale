@@ -5,7 +5,9 @@ using System.Text.Json.Serialization;
 
 namespace Myriale.Api.Features.NarrativeGeneration.Infrastructure;
 
-public sealed class MockAiNarrativeGenerator(IHttpClientFactory httpClientFactory)
+public sealed class MockAiNarrativeGenerator(
+    IHttpClientFactory httpClientFactory,
+    IScenarioActionDecisionModelMapper actionDecisionMapper)
     : INarrativeGenerator, IActionRecommendationGenerator, IScenarioTurnAi
 {
     private static readonly JsonSerializerOptions StrictDialogueResultJsonOptions = new(JsonSerializerDefaults.Web)
@@ -22,7 +24,7 @@ public sealed class MockAiNarrativeGenerator(IHttpClientFactory httpClientFactor
             ?? throw new NarrativeGenerationException("Action decision provider returned an invalid response.");
         var audit = new ModelActionDecisionPromptAudit(
             ScenarioTurnSchemas.ModelActionDecisionPrompt,
-            ScenarioActionDecisionModelMapper.SystemPrompt,
+            actionDecisionMapper.SystemPrompt,
             request,
             ScenarioTurnSchemas.ModelActionDecisionResult);
         return new(result, MockMetadata(), JsonSerializer.Serialize(audit), JsonSerializer.Serialize(result));

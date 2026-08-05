@@ -67,6 +67,7 @@ global using Myriale.Api.Features.SessionExecutions.Domain;
 global using Myriale.Api.Features.SessionExecutions.Http;
 global using Myriale.Api.Features.SessionExecutions.Infrastructure;
 global using Myriale.Api.Features.ScenarioTurns.Application;
+global using Myriale.Api.Features.ScenarioTurns.Application.Ports;
 global using Myriale.Api.Features.ScenarioTurns.Contracts;
 global using Myriale.Api.Features.ScenarioTurns.Domain;
 global using Myriale.Api.Features.ScenarioTurns.Infrastructure;
