@@ -357,6 +357,10 @@ public sealed class ScenarioTurnExecutionOrchestrator(
                 _ => new(false, true, "scenario_publish_conflict", "公開処理を再試行します。"),
             };
         }
+        catch (SessionRevisionConflictException)
+        {
+            return StaleObjects();
+        }
         catch (ScenarioRuntimeRevisionConflictException)
         {
             return StaleObjects();

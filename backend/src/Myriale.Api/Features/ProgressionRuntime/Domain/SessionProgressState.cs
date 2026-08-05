@@ -13,9 +13,6 @@ public sealed class SessionProgressState
     public long Revision { get; internal set; }
     public DateTimeOffset UpdatedAt { get; internal set; }
 
-    public Session Session { get; internal set; } = null!;
-    public ScenarioProgressionNode CurrentNode { get; internal set; } = null!;
-
     public static SessionProgressState Start(SessionId sessionId, ScenarioProgressionNodeId initialNodeId, DateTimeOffset now)
     {
         return new SessionProgressState { SessionId = sessionId, CurrentNodeId = initialNodeId, UpdatedAt = now };

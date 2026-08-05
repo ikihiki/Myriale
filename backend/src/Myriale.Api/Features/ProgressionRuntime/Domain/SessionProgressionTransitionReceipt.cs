@@ -71,10 +71,7 @@ public sealed class SessionProgressionTransitionReceipt
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset? CompletedAt { get; private set; }
 
-    public Session Session { get; private set; } = null!;
     public SessionNarrativeSignal SourceSignal { get; private set; } = null!;
-    public ScenarioProgressionTransition Transition { get; private set; } = null!;
-    public SessionTurn? ModuleTurn { get; private set; }
 
     public static SessionProgressionTransitionReceipt Create(
         SessionProgressionTransitionReceiptId id,

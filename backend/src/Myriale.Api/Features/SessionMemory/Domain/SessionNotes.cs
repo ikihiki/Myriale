@@ -19,7 +19,6 @@ public sealed class SessionNote
     public long Revision { get; internal set; }
     public DateTimeOffset CreatedAt { get; internal set; }
     public DateTimeOffset UpdatedAt { get; internal set; }
-    public Session Session { get; internal set; } = null!;
     public ICollection<SessionNoteRevision> Revisions { get; internal set; } = [];
     public ICollection<SessionTurnLorebookReference> TurnReferences { get; internal set; } = [];
 
@@ -172,7 +171,6 @@ public sealed class SessionSummary
     [Required] public string ModuleResultsJson { get; set; } = "[]";
     [Required] public string Body { get; set; } = string.Empty;
     public DateTimeOffset GeneratedAt { get; set; }
-    public Session Session { get; set; } = null!;
 }
 
 public sealed class SessionTurnLorebookReference
@@ -180,7 +178,6 @@ public sealed class SessionTurnLorebookReference
     [Required, MaxLength(40)] public SessionTurnId TurnId { get; set; }
     [Required, MaxLength(40)] public SessionNoteId NoteId { get; set; }
     [Required, MaxLength(32)] public string Reason { get; set; } = "relevant";
-    public SessionTurn Turn { get; set; } = null!;
     public SessionNote Note { get; set; } = null!;
 }
 

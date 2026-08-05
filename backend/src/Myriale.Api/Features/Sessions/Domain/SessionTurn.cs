@@ -41,12 +41,9 @@ public sealed class SessionTurn
     public Session Session { get; internal set; } = null!;
     public SessionTurn? PreviousTurn { get; internal set; }
     public SessionTurn? NextTurn { get; internal set; }
-    public ModuleExecution? ModuleExecution { get; internal set; }
     public SessionTurn? SourceModuleTurn { get; internal set; }
     public SessionTurn? NarrativeTurn { get; internal set; }
     public SessionPlayerInput? PlayerInput { get; internal set; }
-    public ICollection<SessionTurnLorebookReference> LorebookReferences { get; internal set; } = [];
-    public ICollection<SessionNarrativeSignal> NarrativeSignals { get; internal set; } = [];
 
     public static SessionTurn CreateOpening(SessionTurnId id, SessionId sessionId, string schemaVersion, string heading, string body, long sourceRevision, DateTimeOffset now) =>
         Narrative(id, sessionId, 1, null, SessionTurnType.Opening, schemaVersion, heading, body, null, null, null, sourceRevision, SessionTurnAiMetadata.None, now);
@@ -61,12 +58,11 @@ public sealed class SessionTurn
         turn.ContextSchemaVersion = contextSchemaVersion; turn.PromptVersion = promptVersion; return turn;
     }
 
-    public static SessionTurn CreateModule(SessionTurnId id, SessionId sessionId, int position, SessionTurnId? previousTurnId, ModuleExecution execution, DateTimeOffset now)
+    public static SessionTurn CreateModule(SessionTurnId id, SessionId sessionId, int position, SessionTurnId? previousTurnId, DateTimeOffset now)
     {
-        if (execution is null) throw new ArgumentNullException(nameof(execution));
         if (position > 1 && previousTurnId is null) throw new InvalidOperationException("Non-root module turn requires predecessor.");
         return new SessionTurn { Id = id, SessionId = sessionId, Position = position, PreviousTurnId = previousTurnId,
-            Kind = SessionTurnKind.Module, ModuleExecution = execution, CreatedAt = now };
+            Kind = SessionTurnKind.Module, CreatedAt = now };
     }
 
     public static SessionTurn CreateModuleHandoff(SessionTurnId id, SessionId sessionId, int position, SessionTurnId? previousTurnId, SessionTurnId sourceModuleTurnId,

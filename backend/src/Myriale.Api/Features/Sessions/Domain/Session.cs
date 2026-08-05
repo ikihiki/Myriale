@@ -19,24 +19,10 @@ public sealed class Session
     public DateTimeOffset CreatedAt { get; internal set; }
     public DateTimeOffset UpdatedAt { get; internal set; }
 
-    public Scenario Scenario { get; internal set; } = null!;
-    public ScenarioDefinitionVersion? ScenarioDefinitionVersion { get; internal set; }
-    public ScenarioLocation? CurrentLocation { get; internal set; }
     public SessionTurn? HeadTurn { get; internal set; }
     public SessionState State { get; internal set; } = null!;
-    public SessionProgressState? Progress { get; internal set; }
     public ICollection<SessionTurn> Turns { get; internal set; } = [];
-    public ICollection<ModuleOutcomeApplication> OutcomeApplications { get; internal set; } = [];
     public ICollection<SessionPlayerInput> PlayerInputs { get; internal set; } = [];
-    public ICollection<SessionExecution> Executions { get; internal set; } = [];
-    public ICollection<SessionAiInteraction> AiInteractions { get; internal set; } = [];
-    public ICollection<SessionObjectState> ObjectStates { get; internal set; } = [];
-    public ICollection<SessionRuleActionStep> RuleActionSteps { get; internal set; } = [];
-    public ICollection<SessionNote> Notes { get; internal set; } = [];
-    public ICollection<SessionSummary> Summaries { get; internal set; } = [];
-    public ICollection<SessionNarrativeSignal> NarrativeSignals { get; internal set; } = [];
-    public ICollection<SessionProgressionTransitionReceipt> ProgressionTransitionReceipts { get; internal set; } = [];
-    public ICollection<SessionProgressionModuleSnapshot> ProgressionModuleSnapshots { get; internal set; } = [];
 
     public static Session Create(SessionId id, AccountId ownerId, ScenarioId scenarioId, ScenarioDefinitionVersionId? definitionVersionId,
         ScenarioLocationId? currentLocationId, string? creationRequestId, string? creationPayloadHash, string selectedHero, bool interpretationEnabled,
@@ -84,10 +70,10 @@ public sealed class Session
         return turn;
     }
 
-    public SessionTurn AppendModuleTurn(SessionTurnId id, ModuleExecution execution, DateTimeOffset now)
+    public SessionTurn AppendModuleTurn(SessionTurnId id, DateTimeOffset now)
     {
         EnsureActive();
-        var turn = SessionTurn.CreateModule(id, Id, NextPosition(), HeadTurnId, execution, now); Append(turn, now); return turn;
+        var turn = SessionTurn.CreateModule(id, Id, NextPosition(), HeadTurnId, now); Append(turn, now); return turn;
     }
 
     public SessionTurn AppendModuleHandoffNarrative(SessionTurnId id, SessionTurnId sourceModuleTurnId, string schemaVersion,
@@ -104,7 +90,7 @@ public sealed class Session
     public void ApplyScenarioEffects(long expectedRevision, ScenarioLocationId locationId, bool complete, DateTimeOffset now)
     {
         EnsureActive();
-        if (Revision != expectedRevision) throw new ScenarioRuntimeRevisionConflictException(Id.AsPrimitive(), expectedRevision, Revision);
+        if (Revision != expectedRevision) throw new SessionRevisionConflictException(Id, expectedRevision, Revision);
         CurrentLocationId = locationId;
         if (complete) Status = SessionStatus.Completed;
         Advance(now);

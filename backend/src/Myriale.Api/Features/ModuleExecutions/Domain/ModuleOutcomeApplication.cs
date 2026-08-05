@@ -13,7 +13,6 @@ public sealed class ModuleOutcomeApplication
     public int EffectCount { get; internal set; }
     public DateTimeOffset AppliedAt { get; internal set; }
     public ModuleExecution Execution { get; internal set; } = null!;
-    public Session Session { get; internal set; } = null!;
     public ModuleExecutionRequest Request { get; internal set; } = null!;
 
     public static ModuleOutcomeApplication Create(ModuleExecutionId executionId, SessionId sessionId, ModuleExecutionRequestId requestId,

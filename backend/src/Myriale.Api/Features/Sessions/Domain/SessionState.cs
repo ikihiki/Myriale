@@ -18,7 +18,7 @@ public sealed class SessionState
 
     public void ApplyFlags(IReadOnlyDictionary<string, bool> flags, long expectedRevision, DateTimeOffset now)
     {
-        if (Revision != expectedRevision) throw new ScenarioRuntimeRevisionConflictException(SessionId.AsPrimitive(), expectedRevision, Revision);
+        if (Revision != expectedRevision) throw new SessionRevisionConflictException(SessionId, expectedRevision, Revision);
         FlagsJson = JsonSerializer.Serialize(flags);
         Revision++;
         UpdatedAt = now;

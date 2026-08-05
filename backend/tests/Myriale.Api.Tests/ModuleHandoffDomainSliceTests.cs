@@ -311,7 +311,7 @@ public sealed class ModuleHandoffDomainSliceTests
         db.ModuleExecutions.Add(module);
         await db.SaveChangesAsync();
 
-        var source = session.AppendModuleTurn(new SessionTurnId("TRN-MODULE"), module, Now.AddSeconds(1));
+        var source = session.AppendModuleTurn(new SessionTurnId("TRN-MODULE"), Now.AddSeconds(1));
         module.AttachSessionTurn(source.Id);
         await db.SaveChangesAsync();
         db.SessionExecutions.Add(new SessionExecution

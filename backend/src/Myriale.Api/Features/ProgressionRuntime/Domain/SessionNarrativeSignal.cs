@@ -21,7 +21,5 @@ public sealed class SessionNarrativeSignal
 
     public DateTimeOffset CreatedAt { get; set; }
 
-    public Session Session { get; set; } = null!;
-    public SessionTurn NarrativeTurn { get; set; } = null!;
     public SessionProgressionTransitionReceipt? TransitionReceipt { get; set; }
 }

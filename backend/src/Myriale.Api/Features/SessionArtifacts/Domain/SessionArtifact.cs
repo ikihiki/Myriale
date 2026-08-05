@@ -79,9 +79,6 @@ public sealed class SessionArtifact
     public DateTimeOffset? ValidatedAt { get; internal set; }
     public DateTimeOffset? CommittedAt { get; internal set; }
 
-    public SessionExecution Execution { get; internal set; } = null!;
-    public SessionExecutionAttempt Attempt { get; internal set; } = null!;
-
     public static SessionArtifact CreateCommittedJson(
         SessionArtifactId id,
         SessionId sessionId,

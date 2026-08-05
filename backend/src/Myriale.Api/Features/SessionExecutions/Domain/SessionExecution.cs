@@ -150,10 +150,8 @@ public sealed class SessionExecution
     public DateTimeOffset? CancelRequestedAt { get; private set; }
     public DateTimeOffset? DismissedAt { get; private set; }
 
-    public Session Session { get; internal set; } = null!;
     public ICollection<SessionExecutionAttempt> Attempts { get; internal set; } = [];
     public ICollection<SessionAiInteraction> AiInteractions { get; internal set; } = [];
-    public ICollection<SessionArtifact> Artifacts { get; internal set; } = [];
 
     public static bool CanTransition(SessionExecutionStatus from, SessionExecutionStatus to) => from == to || AllowedTransitions.TryGetValue(from, out var next) && next.Contains(to);
 

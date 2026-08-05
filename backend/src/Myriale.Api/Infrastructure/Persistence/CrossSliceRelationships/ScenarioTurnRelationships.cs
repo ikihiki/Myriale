@@ -7,7 +7,7 @@ internal sealed class SessionObjectStateRelationships : IEntityTypeConfiguration
 {
     public void Configure(EntityTypeBuilder<SessionObjectState> builder)
     {
-        builder.HasOne(state => state.Session).WithMany(session => session.ObjectStates)
+        builder.HasOne<Session>().WithMany()
             .HasForeignKey(state => state.SessionId).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne(state => state.ScenarioObject).WithMany()
             .HasForeignKey(state => state.ScenarioObjectId).OnDelete(DeleteBehavior.Restrict);
@@ -20,7 +20,7 @@ internal sealed class SessionRuleActionStepRelationships : IEntityTypeConfigurat
 {
     public void Configure(EntityTypeBuilder<SessionRuleActionStep> builder)
     {
-        builder.HasOne(step => step.Session).WithMany(session => session.RuleActionSteps)
+        builder.HasOne<Session>().WithMany()
             .HasForeignKey(step => step.SessionId).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne(step => step.Execution).WithOne()
             .HasForeignKey<SessionRuleActionStep>(step => step.ExecutionId).OnDelete(DeleteBehavior.Cascade);

@@ -7,9 +7,9 @@ internal sealed class SessionArtifactRelationships : IEntityTypeConfiguration<Se
 {
     public void Configure(EntityTypeBuilder<SessionArtifact> builder)
     {
-        builder.HasOne(artifact => artifact.Execution).WithMany(execution => execution.Artifacts)
+        builder.HasOne<SessionExecution>().WithMany()
             .HasForeignKey(artifact => artifact.ExecutionId).OnDelete(DeleteBehavior.Cascade);
-        builder.HasOne(artifact => artifact.Attempt).WithMany()
+        builder.HasOne<SessionExecutionAttempt>().WithMany()
             .HasForeignKey(artifact => artifact.AttemptId).OnDelete(DeleteBehavior.Restrict);
     }
 }

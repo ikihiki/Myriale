@@ -7,9 +7,9 @@ internal sealed class SessionProgressionModuleSnapshotRelationships : IEntityTyp
 {
     public void Configure(EntityTypeBuilder<SessionProgressionModuleSnapshot> builder)
     {
-        builder.HasOne(snapshot => snapshot.Session).WithMany(session => session.ProgressionModuleSnapshots)
+        builder.HasOne<Session>().WithMany()
             .HasForeignKey(snapshot => snapshot.SessionId).OnDelete(DeleteBehavior.Cascade);
-        builder.HasOne(snapshot => snapshot.Transition).WithMany()
+        builder.HasOne<ScenarioProgressionTransition>().WithMany()
             .HasForeignKey(snapshot => snapshot.TransitionId).OnDelete(DeleteBehavior.Restrict);
     }
 }
@@ -18,9 +18,9 @@ internal sealed class SessionProgressStateRelationships : IEntityTypeConfigurati
 {
     public void Configure(EntityTypeBuilder<SessionProgressState> builder)
     {
-        builder.HasOne(progress => progress.Session).WithOne(session => session.Progress)
+        builder.HasOne<Session>().WithOne()
             .HasForeignKey<SessionProgressState>(progress => progress.SessionId).OnDelete(DeleteBehavior.Cascade);
-        builder.HasOne(progress => progress.CurrentNode).WithMany()
+        builder.HasOne<ScenarioProgressionNode>().WithMany()
             .HasForeignKey(progress => progress.CurrentNodeId).OnDelete(DeleteBehavior.Restrict);
     }
 }
@@ -29,9 +29,9 @@ internal sealed class SessionNarrativeSignalRelationships : IEntityTypeConfigura
 {
     public void Configure(EntityTypeBuilder<SessionNarrativeSignal> builder)
     {
-        builder.HasOne(signal => signal.Session).WithMany(session => session.NarrativeSignals)
+        builder.HasOne<Session>().WithMany()
             .HasForeignKey(signal => signal.SessionId).OnDelete(DeleteBehavior.Cascade);
-        builder.HasOne(signal => signal.NarrativeTurn).WithMany(turn => turn.NarrativeSignals)
+        builder.HasOne<SessionTurn>().WithMany()
             .HasForeignKey(signal => signal.NarrativeTurnId).OnDelete(DeleteBehavior.Cascade);
     }
 }
@@ -40,12 +40,12 @@ internal sealed class SessionProgressionTransitionReceiptRelationships : IEntity
 {
     public void Configure(EntityTypeBuilder<SessionProgressionTransitionReceipt> builder)
     {
-        builder.HasOne(receipt => receipt.ModuleTurn).WithOne()
+        builder.HasOne<SessionTurn>().WithOne()
             .HasForeignKey<SessionProgressionTransitionReceipt>(receipt => receipt.ModuleTurnId)
             .OnDelete(DeleteBehavior.Restrict);
-        builder.HasOne(receipt => receipt.Session).WithMany(session => session.ProgressionTransitionReceipts)
+        builder.HasOne<Session>().WithMany()
             .HasForeignKey(receipt => receipt.SessionId).OnDelete(DeleteBehavior.Cascade);
-        builder.HasOne(receipt => receipt.Transition).WithMany()
+        builder.HasOne<ScenarioProgressionTransition>().WithMany()
             .HasForeignKey(receipt => receipt.TransitionId).OnDelete(DeleteBehavior.Restrict);
     }
 }

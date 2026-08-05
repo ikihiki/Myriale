@@ -27,6 +27,4 @@ public sealed class SessionProgressionModuleSnapshot
     public int RandomValueCount { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 
-    public Session Session { get; set; } = null!;
-    public ScenarioProgressionTransition Transition { get; set; } = null!;
 }

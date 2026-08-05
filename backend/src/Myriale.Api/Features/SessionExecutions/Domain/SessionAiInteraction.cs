@@ -76,7 +76,6 @@ public sealed class SessionAiInteraction
     public string? ReceivedResult { get; internal set; }
     public string? ValidationResult { get; internal set; }
 
-    public Session Session { get; internal set; } = null!;
     public SessionExecution Execution { get; internal set; } = null!;
     public SessionExecutionAttempt Attempt { get; internal set; } = null!;
 }

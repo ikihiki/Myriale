@@ -66,7 +66,6 @@ public sealed class ModuleExecution
     [MaxLength(40)] public SessionTurnId? SessionTurnId { get; internal set; }
     public ModuleOutcomeApplication? OutcomeApplication { get; internal set; }
     public ICollection<ModuleExecutionRequest> Requests { get; internal set; } = [];
-    public SessionTurn? SessionTurn { get; internal set; }
 
     public static ModuleExecution Create(
         ModuleExecutionId id, AccountId ownerId, ModuleExecutionPackageSnapshot package,

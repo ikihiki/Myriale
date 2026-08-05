@@ -1,4 +1,15 @@
+using Myriale.Api.Architecture;
+
 namespace Myriale.Api.Features.Sessions.Contracts;
+
+[CrossSliceContract]
+public sealed class SessionRevisionConflictException(SessionId targetId, long expected, long actual)
+    : Exception($"Session revision conflict for '{targetId.AsPrimitive()}'. Expected {expected}, actual {actual}.")
+{
+    public SessionId TargetId { get; } = targetId;
+    public long ExpectedRevision { get; } = expected;
+    public long ActualRevision { get; } = actual;
+}
 
 public sealed record CreateSessionRequest(
     ScenarioId ScenarioId,

@@ -6,7 +6,7 @@ namespace Myriale.Api.Infrastructure.Persistence.CrossSliceRelationships;
 internal sealed class SessionNoteRelationships : IEntityTypeConfiguration<SessionNote>
 {
     public void Configure(EntityTypeBuilder<SessionNote> builder) =>
-        builder.HasOne(note => note.Session).WithMany(session => session.Notes)
+        builder.HasOne<Session>().WithMany()
             .HasForeignKey(note => note.SessionId).OnDelete(DeleteBehavior.Cascade);
 }
 
@@ -20,13 +20,13 @@ internal sealed class SessionNoteProposalRelationships : IEntityTypeConfiguratio
 internal sealed class SessionSummaryRelationships : IEntityTypeConfiguration<SessionSummary>
 {
     public void Configure(EntityTypeBuilder<SessionSummary> builder) =>
-        builder.HasOne(summary => summary.Session).WithMany(session => session.Summaries)
+        builder.HasOne<Session>().WithMany()
             .HasForeignKey(summary => summary.SessionId).OnDelete(DeleteBehavior.Cascade);
 }
 
 internal sealed class SessionTurnLorebookReferenceRelationships : IEntityTypeConfiguration<SessionTurnLorebookReference>
 {
     public void Configure(EntityTypeBuilder<SessionTurnLorebookReference> builder) =>
-        builder.HasOne(reference => reference.Turn).WithMany(turn => turn.LorebookReferences)
+        builder.HasOne<SessionTurn>().WithMany()
             .HasForeignKey(reference => reference.TurnId).OnDelete(DeleteBehavior.Cascade);
 }

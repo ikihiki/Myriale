@@ -118,7 +118,7 @@ internal sealed partial class ModuleExecutionWorkflow
             SessionTurn? turn = null;
             if (session is not null)
             {
-                turn = session.AppendModuleTurn(NewSessionTurnId(), execution, now);
+                turn = session.AppendModuleTurn(NewSessionTurnId(), now);
                 execution.AttachSessionTurn(turn.Id);
             }
             db.ModuleExecutions.Add(execution);

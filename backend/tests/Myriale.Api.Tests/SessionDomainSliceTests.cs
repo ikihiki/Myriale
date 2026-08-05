@@ -26,8 +26,7 @@ public sealed class SessionAggregateTests
         Assert.Equal((2, opening.Id, 3L), (narrative.Position, narrative.PreviousTurnId, session.Revision));
         Assert.Equal(SessionTurnType.ActionResult, narrative.DialogueTurnType);
 
-        var moduleExecution = new ModuleExecution { Id = new ModuleExecutionId("MOD-1") };
-        var module = session.AppendModuleTurn(new SessionTurnId("TRN-3"), moduleExecution, Now.AddSeconds(3));
+        var module = session.AppendModuleTurn(new SessionTurnId("TRN-3"), Now.AddSeconds(3));
         Assert.Equal((3, narrative.Id, 4L), (module.Position, module.PreviousTurnId, session.Revision));
         Assert.Equal(SessionTurnKind.Module, module.Kind);
 
@@ -48,7 +47,7 @@ public sealed class SessionAggregateTests
         session.AppendOpeningTurn(new SessionTurnId("TRN-1"), "opening.v1", "Opening", "Start", Now);
         session.Complete(Now.AddSeconds(1));
         Assert.Throws<InvalidOperationException>(() => session.AcceptInput(new SessionPlayerInputId("INP"), "req", "text", SessionInputInteractionType.Dialogue, new string('a', 64), new AccountId("USR-1"), null, Now));
-        Assert.Throws<InvalidOperationException>(() => session.AppendModuleTurn(new SessionTurnId("TRN-2"), new ModuleExecution { Id = new ModuleExecutionId("MOD") }, Now));
+        Assert.Throws<InvalidOperationException>(() => session.AppendModuleTurn(new SessionTurnId("TRN-2"), Now));
     }
 
     private static Session Create() => Session.Create(new SessionId("SES-1"), new AccountId("USR-1"), new ScenarioId("SCN-1"), new ScenarioDefinitionVersionId("DEF-1"), new ScenarioLocationId("LOC-1"), "create-1", new string('b', 64),
