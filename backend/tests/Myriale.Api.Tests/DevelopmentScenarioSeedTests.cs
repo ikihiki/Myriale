@@ -216,6 +216,66 @@ public sealed class DevelopmentScenarioSeedTests : IDisposable
     }
 
     [Fact]
+    public async Task MaidConversationSeed_UsesPersonalityProfileAndUninitializedAiStateAcrossMovableLocations()
+    {
+        using var factory = CreateFactory(recreateOnStartup: true);
+        var owner = await CreateSeedAccountClientAsync(factory);
+
+        using var scenarioResponse = await owner.GetAsync("/api/scenarios/SCN-MAID-TEA-TIME");
+        Assert.Equal(HttpStatusCode.OK, scenarioResponse.StatusCode);
+        var scenario = await scenarioResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("メイドと午後のティータイム", scenario.GetProperty("title").GetString());
+        Assert.Equal("fixed", scenario.GetProperty("heroMode").GetString());
+        Assert.Contains("メイド、クララ", scenario.GetProperty("opening").GetString());
+
+        using var ruleDataResponse = await owner.GetAsync("/api/scenarios/SCN-MAID-TEA-TIME/rule-data");
+        Assert.Equal(HttpStatusCode.OK, ruleDataResponse.StatusCode);
+        var ruleData = await ruleDataResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(3, ruleData.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal("sunroom", ruleData.GetProperty("startLocationCode").GetString());
+        Assert.Equal(new[] { "rose-garden", "sunroom" }, ruleData.GetProperty("locations").EnumerateArray()
+            .Select(location => location.GetProperty("code").GetString()).Order().ToArray());
+
+        var attendant = ruleData.GetProperty("objectTypes").EnumerateArray()
+            .Single(type => type.GetProperty("code").GetString() == "household-attendant");
+        Assert.Equal(new[] { "favorite-topic", "role", "service-boundary", "speech-style", "values" },
+            attendant.GetProperty("profileSchema").GetProperty("properties").EnumerateObject()
+                .Select(property => property.Name).Order().ToArray());
+        Assert.Empty(attendant.GetProperty("profileDefaults").EnumerateObject());
+        Assert.Equal("talk", Assert.Single(attendant.GetProperty("actions").EnumerateArray().ToArray()).GetProperty("code").GetString());
+
+        var stateProperties = attendant.GetProperty("stateSchema").GetProperty("properties");
+        Assert.Equal(new[] { "lastTopic", "rapport", "rememberedPreference", "visibleMood" },
+            stateProperties.EnumerateObject().Select(property => property.Name).Order().ToArray());
+        Assert.All(stateProperties.EnumerateObject(), property =>
+            Assert.Equal("ai", property.Value.GetProperty("updateAuthority").GetString()));
+        Assert.Empty(attendant.GetProperty("defaultState").EnumerateObject());
+        Assert.Equal(new[] { "visibleMood" }, attendant.GetProperty("publicProjection").GetProperty("include")
+            .EnumerateArray().Select(item => item.GetString()).ToArray());
+
+        var objects = ruleData.GetProperty("objects").EnumerateArray().ToArray();
+        var maid = objects.Single(item => item.GetProperty("code").GetString() == "maid-clara");
+        Assert.Equal("sunroom", maid.GetProperty("locationCode").GetString());
+        Assert.Equal("白薔薇館で客人の応対と給仕を担当するメイド", maid.GetProperty("profileValues").GetProperty("role").GetString());
+        Assert.Contains("## 演技指針", maid.GetProperty("profileMarkdown").GetString());
+        Assert.Contains(objects, item => item.GetProperty("code").GetString() == "sunroom-garden-door");
+        Assert.Contains(objects, item => item.GetProperty("code").GetString() == "garden-sunroom-door");
+
+        using var created = await owner.PostAsJsonAsync("/api/sessions", new
+        {
+            scenarioId = "SCN-MAID-TEA-TIME",
+            requestId = $"maid-seed-{Guid.NewGuid():N}",
+        });
+        var createdBody = await created.Content.ReadAsStringAsync();
+        Assert.True(created.StatusCode == HttpStatusCode.Created, createdBody);
+        var session = JsonSerializer.Deserialize<JsonElement>(createdBody);
+        var maidState = session.GetProperty("objectStates").EnumerateArray()
+            .Single(item => item.GetProperty("code").GetString() == "maid-clara");
+        Assert.Equal("SLOC-MAID-TEA-TIME-SUNROOM", maidState.GetProperty("locationId").GetString());
+        Assert.Empty(maidState.GetProperty("state").EnumerateObject());
+    }
+
+    [Fact]
     public async Task Seed_RepairsLegacySystemOwnershipWithoutReplacingAnExplicitOwner()
     {
         using var factory = CreateFactory(recreateOnStartup: true);
