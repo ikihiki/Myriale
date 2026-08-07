@@ -55,6 +55,48 @@ public sealed class AiEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task CatalogJsonDeploymentProfileCanBeListedConnectionTestedAndPromptTested()
+    {
+        const string catalogSecret = "future-secret-not-for-responses";
+        using var factory = _factory.WithWebHostBuilder(builder => builder.UseSetting("AiProvider:CatalogJson", $$"""
+            {
+              "profiles": [{
+                "id": "future-provider",
+                "displayName": "Future Provider",
+                "adapter": "openai-compatible",
+                "baseUrl": "https://future-provider.test/v1",
+                "model": "future/model",
+                "credentialId": "future-credential"
+              }],
+              "credentials": {
+                "future-credential": { "secret": "{{catalogSecret}}" }
+              }
+            }
+            """));
+        var client = await CreateSignedInClientAsync(true, factory);
+
+        using var listed = await client.GetAsync("/api/admin/ai-profiles/");
+        Assert.True(listed.IsSuccessStatusCode, await listed.Content.ReadAsStringAsync());
+        var body = await listed.Content.ReadAsStringAsync();
+        var row = JsonDocument.Parse(body).RootElement.EnumerateArray()
+            .Single(item => item.GetProperty("id").GetString() == "future-provider");
+        Assert.True(row.GetProperty("credentialConfigured").GetBoolean());
+        Assert.Equal("deployment", row.GetProperty("credentialSource").GetString());
+        Assert.Equal(0, row.GetProperty("credentialRevision").GetInt64());
+        Assert.DoesNotContain(catalogSecret, body);
+
+        using var tested = await client.PostAsJsonAsync(
+            "/api/admin/ai-profiles/future-provider/connection-tests",
+            new { expectedProfileRevision = 0, expectedCredentialRevision = 0 });
+        Assert.Equal(HttpStatusCode.OK, tested.StatusCode);
+        using var prompt = await client.PostAsJsonAsync(
+            "/api/admin/ai-profiles/future-provider/prompt-tests",
+            new { prompt = "hello", expectedProfileRevision = 0, expectedCredentialRevision = 0 });
+        Assert.Equal(HttpStatusCode.OK, prompt.StatusCode);
+        Assert.DoesNotContain(catalogSecret, await prompt.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
     public async Task StaleProfileUpdateSharedCredentialDeleteAndActiveDisableConflict()
     {
         var client = await CreateSignedInClientAsync(true);
@@ -70,11 +112,12 @@ public sealed class AiEndpointTests : IDisposable
     }
 
     public void Dispose() { _factory.Dispose(); if (File.Exists(_dbPath)) File.Delete(_dbPath); }
-    private async Task<HttpClient> CreateSignedInClientAsync(bool grantAdmin)
+    private async Task<HttpClient> CreateSignedInClientAsync(bool grantAdmin, WebApplicationFactory<Program>? factory = null)
     {
-        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false }); var email = $"admin-{Guid.NewGuid():N}@example.test";
+        var application = factory ?? _factory;
+        var client = application.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false }); var email = $"admin-{Guid.NewGuid():N}@example.test";
         using var register = await client.PostAsJsonAsync("/api/account/register", new { displayName = "管理者", email, password = "letters1" }); ApplyCookies(client, register); Assert.Equal(HttpStatusCode.OK, register.StatusCode);
-        if (grantAdmin) { await using var scope = _factory.Services.CreateAsyncScope(); var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>(); var user = await users.FindByEmailAsync(email) ?? throw new InvalidOperationException(); await users.AddClaimAsync(user, new("myriale:ai-admin", "true")); using var login = await client.PostAsJsonAsync("/api/account/login", new { email, password = "letters1" }); ApplyCookies(client, login); }
+        if (grantAdmin) { await using var scope = application.Services.CreateAsyncScope(); var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>(); var user = await users.FindByEmailAsync(email) ?? throw new InvalidOperationException(); await users.AddClaimAsync(user, new("myriale:ai-admin", "true")); using var login = await client.PostAsJsonAsync("/api/account/login", new { email, password = "letters1" }); ApplyCookies(client, login); }
         return client;
     }
     private static void ApplyCookies(HttpClient client, HttpResponseMessage response) { if (!response.Headers.TryGetValues("Set-Cookie", out var values)) return; client.DefaultRequestHeaders.Remove("Cookie"); foreach (var value in values) { var cookie = value.Split(';', 2)[0]; if (!string.IsNullOrWhiteSpace(cookie)) client.DefaultRequestHeaders.Add("Cookie", cookie); } }

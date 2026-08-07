@@ -69,11 +69,62 @@ public sealed class AiProviderProfileDomainSliceTests
             Profiles = new() { ["same"] = new() { DisplayName = "Deployment", BaseUrl = "https://deployment.test/v1", Model = "deployment-model", CredentialId = "shared" } },
             Credentials = new() { ["shared"] = new() { Secret = "deployment-secret" } }
         });
-        var source = new OptionsAiDeploymentProfileSource(deploymentOptions);
+        var source = new ConfigurationAiDeploymentCatalogSource(
+            deploymentOptions,
+            Microsoft.Extensions.Options.Options.Create(new AiProviderCatalogOptions()));
         var catalog = new AiProfileCatalog(source, profileRepo, Microsoft.Extensions.Options.Options.Create(new AiProviderOptions()));
         var resolved = await catalog.ResolveAsync(new AiProviderProfileId("same"), default); Assert.Equal("Database", resolved.DisplayName); Assert.Equal(AiProfileDefinitionSource.Database, resolved.Source);
-        var credential = await new AiRuntimeCredentialResolver(deploymentOptions, credentialRepo, new Protector()).ResolveAsync(new AiCredentialId("shared"), default);
+        var credential = await new AiRuntimeCredentialResolver(source, credentialRepo, new Protector()).ResolveAsync(new AiCredentialId("shared"), default);
         Assert.Equal("deployment-secret", credential!.Secret); Assert.Equal(AiCredentialSource.Deployment, credential.Source);
+    }
+
+    [Fact]
+    public async Task CatalogJsonAddsArbitraryProfilesCredentialsAndDefaultSelections()
+    {
+        await using var db = await OpenDatabaseAsync();
+        var source = new ConfigurationAiDeploymentCatalogSource(
+            Microsoft.Extensions.Options.Options.Create(new AiProviderDeploymentOptions
+            {
+                Credentials = new() { ["shared"] = new() { Secret = "structured-secret" } }
+            }),
+            Microsoft.Extensions.Options.Options.Create(new AiProviderCatalogOptions
+            {
+                CatalogJson = """
+                    {
+                      "defaultActionDecisionProfileId": "future-fast",
+                      "defaultNarrativeProfileId": "future-story",
+                      "profiles": {
+                        "future-fast": {
+                          "displayName": "Future Fast",
+                          "adapter": "openai-compatible",
+                          "baseUrl": "https://future.example/v1",
+                          "model": "future/fast",
+                          "credentialId": "shared",
+                          "apiKey": "catalog-secret"
+                        },
+                        "future-story": {
+                          "displayName": "Future Story",
+                          "adapter": "openai-compatible",
+                          "baseUrl": "https://story.example/v1",
+                          "model": "future/story",
+                          "credentialId": "shared"
+                        }
+                      }
+                    }
+                    """
+            }));
+        var snapshot = source.GetSnapshot();
+        var catalog = new AiProfileCatalog(
+            source,
+            new EfAiProviderProfileRepository(db),
+            Microsoft.Extensions.Options.Options.Create(new AiProviderOptions()));
+        var resolved = await catalog.GetAsync(default);
+
+        Assert.Equal(2, snapshot.Profiles.Count);
+        Assert.Equal("catalog-secret", snapshot.Credentials[new AiCredentialId("shared")]);
+        Assert.Equal(new AiProviderProfileId("future-fast"), resolved.DefaultActionDecisionProfileId);
+        Assert.Equal(new AiProviderProfileId("future-story"), resolved.DefaultNarrativeProfileId);
+        Assert.All(resolved.Profiles.Values, profile => Assert.Equal(AiProfileDefinitionSource.Deployment, profile.Source));
     }
 
     [Fact]
