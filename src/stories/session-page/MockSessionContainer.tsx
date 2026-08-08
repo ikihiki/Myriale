@@ -12,6 +12,10 @@ import type {
   SessionNotice,
 } from '../../features/session-play/sessionModel';
 import { clampInitialTurnCount, headingLinks, initialTurns, resultForInput, sessionErrorNotices } from './sessionFixtures';
+import {
+  submitAiManagedEntityFixtureTurn,
+  type AiManagedEntitySessionFixture,
+} from './aiManagedEntitySessionFixtures';
 
 const demoPlayerAccount: AppChromeAccount = {
   name: '霧野しおり',
@@ -24,17 +28,27 @@ const programTurnDisplay: TurnDisplayFlags = { allowRewind: false, showInterpret
 
 export type SessionErrorScenario = 'success' | 'load-401' | 'load-404' | 'submit-409' | 'submit-429' | 'load-503' | 'submit-timeout';
 
-export function MockSessionContainer({
-  sessionId,
-  scenario = 'success',
-  submissionDelayMs = 0,
-  initiallySubmitting = false,
-}: {
+type MockSessionContainerProps = {
   sessionId: string;
   scenario?: SessionErrorScenario;
   submissionDelayMs?: number;
   initiallySubmitting?: boolean;
-}) {
+  aiManagedEntityFixture?: AiManagedEntitySessionFixture;
+};
+
+export function MockSessionContainer(props: MockSessionContainerProps) {
+  if (props.aiManagedEntityFixture) {
+    return <AiManagedEntityMockSessionContainer sessionId={props.sessionId} fixture={props.aiManagedEntityFixture} />;
+  }
+  return <DefaultMockSessionContainer {...props} />;
+}
+
+function DefaultMockSessionContainer({
+  sessionId,
+  scenario = 'success',
+  submissionDelayMs = 0,
+  initiallySubmitting = false,
+}: MockSessionContainerProps) {
   const appStore = useOptionalAppStore();
   const dbSession = appStore?.db.playSessions[sessionId];
   const initialTurnCount = clampInitialTurnCount(dbSession?.turn);
@@ -196,5 +210,39 @@ export function MockSessionContainer({
       setTurns((current) => current.filter((turn) => turn.id <= turnId).map((turn) => turn.id === turnId ? { ...turn, turnTitle: `${turn.turnTitle}（巻き戻し地点）` } : turn));
       return { ok: true, notice: 'ここまで戻る: 指定ターン以降のログを無効化し、AIコンテキストを再構築しました。巻き戻し地点から再入力できます。' };
     }}
+  />;
+}
+
+function AiManagedEntityMockSessionContainer({
+  sessionId,
+  fixture,
+}: {
+  sessionId: string;
+  fixture: AiManagedEntitySessionFixture;
+}) {
+  const [turns, setTurns] = useState<DialogueTurn[]>(() => [...fixture.turns]);
+
+  return <SessionPresentation
+    sessionId={sessionId}
+    account={demoPlayerAccount}
+    turns={turns}
+    headingLinks={[]}
+    sessionStateLabel="Active"
+    aiProfiles={[{ id: 'fixture-deterministic', displayName: '決定論的Story fixture' }]}
+    defaultActionDecisionAiProfileId="fixture-deterministic"
+    defaultNarrativeAiProfileId="fixture-deterministic"
+    initialNotice={`runtime snapshotを読み込みました。現在地=${fixture.location} / committed revision=${fixture.revision}。`}
+    onReload={() => undefined}
+    onSessionList={() => undefined}
+    onSubmit={async (input) => {
+      const result = submitAiManagedEntityFixtureTurn(fixture, input);
+      setTurns([...fixture.turns]);
+      return result;
+    }}
+    onRecommend={async () => ({
+      ok: true,
+      value: fixture.location === 'start' ? '案内役に安全な脱出経路を尋ねる' : '施設外への脱出扉を調べる',
+      notice: '現在のruntime locationにいるEntityから行動案を作りました。',
+    })}
   />;
 }

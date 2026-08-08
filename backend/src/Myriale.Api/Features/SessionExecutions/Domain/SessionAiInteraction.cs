@@ -5,6 +5,7 @@ namespace Myriale.Api.Features.SessionExecutions.Domain;
 public enum SessionAiInteractionStage
 {
     ActionDecision,
+    EntityStateTransition,
     Narrative,
     ModuleHandoff,
 }
@@ -21,6 +22,7 @@ public static class SessionAiInteractionValues
     public static string ToWireValue(this SessionAiInteractionStage value) => value switch
     {
         SessionAiInteractionStage.ActionDecision => "action-decision",
+        SessionAiInteractionStage.EntityStateTransition => "entity-state-transition",
         SessionAiInteractionStage.Narrative => "narrative",
         SessionAiInteractionStage.ModuleHandoff => "module-handoff",
         _ => throw new ArgumentOutOfRangeException(nameof(value), value, null),
@@ -37,6 +39,7 @@ public static class SessionAiInteractionValues
     public static SessionAiInteractionStage ParseStage(string value) => value switch
     {
         "action-decision" => SessionAiInteractionStage.ActionDecision,
+        "entity-state-transition" => SessionAiInteractionStage.EntityStateTransition,
         "narrative" => SessionAiInteractionStage.Narrative,
         "module-handoff" => SessionAiInteractionStage.ModuleHandoff,
         _ => throw new InvalidOperationException($"Unknown AI interaction stage '{value}'."),

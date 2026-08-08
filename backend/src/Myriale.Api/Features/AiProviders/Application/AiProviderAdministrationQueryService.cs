@@ -1,11 +1,11 @@
 
 namespace Myriale.Api.Features.AiProviders.Application;
 
-public sealed class AiProviderAdministrationQueryService(IAiDeploymentProfileSource deployment, IAiProviderProfileRepository profiles, IAiCredentialRepository credentials, IAiRuntimeCredentialResolver resolver, IActiveAiProviderSettingsReader active)
+public sealed class AiProviderAdministrationQueryService(IAiDeploymentCatalogSource deployment, IAiProviderProfileRepository profiles, IAiCredentialRepository credentials, IAiRuntimeCredentialResolver resolver, IActiveAiProviderSettingsReader active)
 {
     public async Task<IReadOnlyList<AiAdminProfileResponse>> ListProfilesAsync(CancellationToken ct)
     {
-        var all = deployment.GetProfiles().ToDictionary(pair => pair.Key, pair => pair.Value);
+        var all = deployment.GetSnapshot().Profiles.ToDictionary(pair => pair.Key, pair => pair.Value);
         var dbProfiles = await profiles.ListAsync(ct);
         foreach (var p in dbProfiles) all[p.Id] = new(p.Id, p.DisplayName, p.BaseUrl, p.Model, p.CredentialId, p.Enabled, AiProfileDefinitionSource.Database, p.Revision);
         var selected = (await active.GetAsync(ct))?.Provider;
@@ -22,7 +22,7 @@ public sealed class AiProviderAdministrationQueryService(IAiDeploymentProfileSou
     }
     public async Task<IReadOnlyList<AiAdminCredentialResponse>> ListCredentialsAsync(CancellationToken ct)
     {
-        var result = new List<AiAdminCredentialResponse>(); var dbProfiles = await profiles.ListAsync(ct); var deploymentProfiles = deployment.GetProfiles().Values;
+        var result = new List<AiAdminCredentialResponse>(); var dbProfiles = await profiles.ListAsync(ct); var deploymentProfiles = deployment.GetSnapshot().Profiles.Values;
         foreach (var credential in await credentials.ListAsync(ct))
             result.Add(new(credential.Id, credential.DisplayName, $"••••••••{credential.SecretHint}", Wire(AiCredentialSource.Database), credential.Revision, credential.UpdatedAt,
                 dbProfiles.Count(p => p.CredentialId == credential.Id) + deploymentProfiles.Count(p => p.CredentialId == credential.Id)));

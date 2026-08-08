@@ -113,6 +113,44 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task NarrativeProfiles_UseRuntimeCurrentLocationAndIncludeGlobals()
+    {
+        var client = await SignedInClientAsync();
+        var scenarioId = await CreatePublishedDoorScenarioAsync(client, "start");
+        using var created = await client.PostAsJsonAsync("/api/sessions/", new { scenarioId, requestId = "create-runtime-profiles" });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var session = await db.Sessions.SingleAsync(item => item.Id == new SessionId(sessionId));
+            var cellarLocationId = await db.ScenarioLocations
+                .Where(item => item.DefinitionVersionId == session.ScenarioDefinitionVersionId && item.Code == "cellar")
+                .Select(item => item.Id)
+                .SingleAsync();
+            var states = await (
+                from state in db.SessionObjectStates
+                join scenarioObject in db.ScenarioObjects on state.ScenarioObjectId equals scenarioObject.Id
+                where state.SessionId == session.Id && (scenarioObject.Code == "cellar-door" || scenarioObject.Code == "hall-mirror")
+                select new { scenarioObject.Code, State = state }).ToListAsync();
+            states.Single(item => item.Code == "cellar-door").State.LocationId = session.CurrentLocationId!.Value;
+            states.Single(item => item.Code == "hall-mirror").State.LocationId = cellarLocationId;
+            await db.SaveChangesAsync();
+        }
+
+        using var accepted = await client.PostAsJsonAsync($"/api/sessions/{sessionId}/inputs", new { requestId = "runtime-profiles", text = "北の扉を開ける" });
+        Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
+        await WaitForExecutionAsync(client, sessionId, "succeeded");
+
+        var request = Assert.Single(ai.NarrativeRequests);
+        Assert.Equal(["cellar-door", "north-door", "world-clock"], request.Scenario.Entities.Select(entity => entity.Code).ToArray());
+        Assert.Contains(request.Scenario.Entities, entity => entity.Code == "cellar-door" && entity.ProfileMarkdown.Contains("cellar door", StringComparison.Ordinal));
+        Assert.Contains(request.Scenario.Entities, entity => entity.Code == "world-clock" && entity.ProfileMarkdown.Contains("brass clock", StringComparison.Ordinal));
+        Assert.DoesNotContain(request.Scenario.Entities, entity => entity.Code == "hall-mirror");
+    }
+
+    [Fact]
     public async Task ScenarioTurn_PersistsSuccessfulAndFailedAiInteractionsWithoutDuplicates()
     {
         ai.NarrativeFailuresRemaining = 1;
@@ -190,6 +228,11 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         {
             Assert.Equal("west-door", request.SelectedObject.Code);
             Assert.Equal("outside", request.PostState.CurrentLocation.Code);
+            var profileCodes = request.Scenario.Entities.Select(entity => entity.Code).ToArray();
+            Assert.Equal(["outside-antenna"], profileCodes);
+            Assert.Contains(request.Scenario.Entities, entity => entity.Code == "outside-antenna" && entity.ProfileMarkdown.Contains("巨大なアンテナ", StringComparison.Ordinal));
+            Assert.DoesNotContain("east-door", profileCodes);
+            Assert.DoesNotContain("west-door", profileCodes);
         });
     }
 
@@ -386,6 +429,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
           "objects":[
             {"code":"north-door","name":"North door","profileMarkdown":"## Appearance\n\nA heavy stone door.","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"start","initialStateOverride":{},"isGlobal":false,"actionRules":[]},
             {"code":"cellar-door","name":"Cellar door","profileMarkdown":"## Appearance\n\nA cellar door.","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"cellar","initialStateOverride":{},"isGlobal":false,"actionRules":[]},
+            {"code":"hall-mirror","name":"Hall mirror","profileMarkdown":"## Appearance\n\nA silver mirror.","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"start","initialStateOverride":{},"isGlobal":false,"actionRules":[]},
             {"code":"world-clock","name":"World clock","profileMarkdown":"## Appearance\n\nA brass clock.","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"cellar","initialStateOverride":{},"isGlobal":true,"actionRules":[]}
           ]
         }
@@ -414,9 +458,9 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
             {"code":"landmark","name":"Landmark","description":"","schemaVersion":1,"stateSchema":{"type":"object","additionalProperties":false,"properties":{"examined":{"type":"boolean"}},"required":["examined"]},"defaultState":{"examined":false},"publicProjection":{"include":["examined"]},"actions":[{"code":"examine","label":"調べる","description":"","argumentSchema":{"type":"object","additionalProperties":false},"availabilityCondition":{},"visibility":"ai-choice","executionMode":"rule"}],"actionRules":[{"code":"examine-default","actionCode":"examine","condition":{},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.examined","value":true}],"moduleBinding":null}]}
           ],
           "objects":[
-            {"code":"east-door","name":"東の扉","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"inside","initialStateOverride":{},"isGlobal":false,"actionRules":[]},
-            {"code":"west-door","name":"西の扉","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"inside","initialStateOverride":{},"isGlobal":false,"actionRules":[{"operation":"override","targetTypeCode":"door","targetRuleCode":"open-and-exit-default","actionCode":"open-and-exit","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true},{"type":"move-session","locationCode":"outside"},{"type":"emit-fact","text":"西の扉が開いた。"},{"type":"emit-fact","text":"プレイヤーは研究施設の外へ出た。"}],"moduleBinding":null}]},
-            {"code":"outside-antenna","name":"観測アンテナ","mixinTypeCodes":["landmark"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"outside","initialStateOverride":{},"isGlobal":false,"actionRules":[]}
+            {"code":"east-door","name":"東の扉","profileMarkdown":"東側の閉ざされた扉。","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"inside","initialStateOverride":{},"isGlobal":false,"actionRules":[]},
+            {"code":"west-door","name":"西の扉","profileMarkdown":"研究施設の出口となる扉。","mixinTypeCodes":["door"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"inside","initialStateOverride":{},"isGlobal":false,"actionRules":[{"operation":"override","targetTypeCode":"door","targetRuleCode":"open-and-exit-default","actionCode":"open-and-exit","condition":{"op":"eq","path":"state.open","value":false},"priority":100,"authoringNote":"","effects":[{"type":"set-state","path":"state.open","value":true},{"type":"move-session","locationCode":"outside"},{"type":"emit-fact","text":"西の扉が開いた。"},{"type":"emit-fact","text":"プレイヤーは研究施設の外へ出た。"}],"moduleBinding":null}]},
+            {"code":"outside-antenna","name":"観測アンテナ","profileMarkdown":"星空へ向いた巨大なアンテナ。","mixinTypeCodes":["landmark"],"stateSchema":{},"defaultState":{},"publicProjection":{},"actions":[],"locationCode":"outside","initialStateOverride":{},"isGlobal":false,"actionRules":[]}
           ]
         }
         """);

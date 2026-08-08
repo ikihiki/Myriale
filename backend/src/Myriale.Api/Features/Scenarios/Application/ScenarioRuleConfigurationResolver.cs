@@ -18,7 +18,8 @@ public sealed record ResolvedScenarioRule(
 
 public sealed record ResolvedRuleConfiguration(
     IReadOnlyList<ScenarioObjectType> Mixins, JsonObject StateSchema, JsonObject DefaultState,
-    IReadOnlySet<string> PublicFields, IReadOnlyList<ResolvedScenarioAction> Actions,
+    IReadOnlySet<string> PublicFields, IReadOnlySet<string> AiManagedFields,
+    IReadOnlyList<ResolvedScenarioAction> Actions,
     IReadOnlyList<ResolvedScenarioRule> Rules, IReadOnlyList<string> Conflicts);
 
 public sealed class ScenarioRuleConfigurationResolver
@@ -101,17 +102,28 @@ public sealed class ScenarioRuleConfigurationResolver
         foreach (var addition in mutations.Where(rule => rule.Operation == ScenarioRuleMutationOperation.Add))
             rules.Add(FromAddition(addition, localRank, item.Id));
 
+        var aiManagedFields = properties
+            .Where(pair => Authority(pair.Value) == "ai")
+            .Select(pair => pair.Key)
+            .ToHashSet(StringComparer.Ordinal);
         return new(mixins, schema, defaults, visibility.Where(pair => pair.Value).Select(pair => pair.Key).ToHashSet(StringComparer.Ordinal),
-            actions.Values.OrderBy(action => action.Code).ToList(), rules, conflicts);
+            aiManagedFields, actions.Values.OrderBy(action => action.Code).ToList(), rules, conflicts);
     }
 
     public JsonObject InitialState(ScenarioDefinitionVersion definition, ScenarioObject item)
     {
         var resolved = Resolve(definition, item);
-        var state = (JsonObject)resolved.DefaultState.DeepClone();
-        foreach (var pair in ParseObject(item.InitialStateOverrideJson)) state[pair.Key] = pair.Value?.DeepClone();
+        var state = new JsonObject();
+        foreach (var pair in resolved.DefaultState)
+            if (!resolved.AiManagedFields.Contains(pair.Key)) state[pair.Key] = pair.Value?.DeepClone();
+        foreach (var pair in ParseObject(item.InitialStateOverrideJson))
+            if (!resolved.AiManagedFields.Contains(pair.Key)) state[pair.Key] = pair.Value?.DeepClone();
         return state;
     }
+
+    private static string Authority(JsonNode? schema) =>
+        schema is JsonObject property && property["updateAuthority"] is JsonValue value
+            && value.TryGetValue<string>(out var authority) ? authority : "rules";
 
     private static ResolvedScenarioRule FromGeneric(ScenarioActionRule rule, int rank, string typeCode) =>
         new(OpaqueId(typeCode, rule.Code), rule.Code, rule.ActionCode, rule.Condition, rule.Priority, rank, typeCode,

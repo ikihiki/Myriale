@@ -56,7 +56,7 @@ describe('scenario rule-data API', () => {
 
     await createFetchScenarioApi('/api/scenarios').createScenario({
       title: '扉のテスト',
-      ruleData: { schemaVersion: 2, startLocationCode: '', locations: [], objectTypes: [], objects: [] },
+      ruleData: { schemaVersion: 3, startLocationCode: '', locations: [], objectTypes: [], objects: [] },
     });
 
     const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body as string);
@@ -64,9 +64,9 @@ describe('scenario rule-data API', () => {
   });
 
   it('creates or reuses an editable rule-data draft through the draft endpoint', async () => {
-    const payload = { schemaVersion: 2 as const, startLocationCode: '', locations: [], objectTypes: [], objects: [] };
+    const payload = { schemaVersion: 3 as const, startLocationCode: '', locations: [], objectTypes: [], objects: [] };
     const canonicalResponse = {
-      scenarioId: 'SCN-1', definitionVersionId: 'SDV-2', version: 2, status: 'draft', schemaVersion: 2,
+      scenarioId: 'SCN-1', definitionVersionId: 'SDV-2', version: 2, status: 'draft', schemaVersion: 3,
       updatedAt: '2026-07-25T00:00:00Z', publishedAt: null, startLocationCode: '', locations: [], objectTypes: [], objects: [],
     };
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(canonicalResponse), {
@@ -84,9 +84,9 @@ describe('scenario rule-data API', () => {
   });
 
   it('converts editor rule-data to the canonical aggregate endpoint contract', async () => {
-    const payload = { schemaVersion: 2 as const, startLocationCode: '', locations: [], objectTypes: [], objects: [] };
+    const payload = { schemaVersion: 3 as const, startLocationCode: '', locations: [], objectTypes: [], objects: [] };
     const canonicalResponse = {
-      scenarioId: 'SCN-1', definitionVersionId: 'SDV-1', version: 1, status: 'draft', schemaVersion: 2,
+      scenarioId: 'SCN-1', definitionVersionId: 'SDV-1', version: 1, status: 'draft', schemaVersion: 3,
       updatedAt: '2026-07-24T00:00:00Z', publishedAt: null, startLocationCode: '', locations: [], objectTypes: [], objects: [],
     };
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(canonicalResponse), {
@@ -104,7 +104,7 @@ describe('scenario rule-data API', () => {
 
   it('loads canonical rule-data and uses the GET readiness endpoint', async () => {
     const canonicalResponse = {
-      scenarioId: 'SCN-1', definitionVersionId: 'SDV-1', version: 1, status: 'draft', schemaVersion: 2,
+      scenarioId: 'SCN-1', definitionVersionId: 'SDV-1', version: 1, status: 'draft', schemaVersion: 3,
       updatedAt: '2026-07-24T00:00:00Z', publishedAt: null, startLocationCode: '', locations: [], objectTypes: [], objects: [],
     };
     const fetchMock = vi.fn()
@@ -113,7 +113,7 @@ describe('scenario rule-data API', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const api = createFetchScenarioApi('/api/scenarios');
-    await expect(api.getScenarioRuleData('SCN-1')).resolves.toEqual({ schemaVersion: 2, startLocationCode: '', locations: [], objectTypes: [], objects: [] });
+    await expect(api.getScenarioRuleData('SCN-1')).resolves.toEqual({ schemaVersion: 3, startLocationCode: '', locations: [], objectTypes: [], objects: [] });
     await expect(api.getScenarioRuleDataReadiness('SCN-1')).resolves.toMatchObject({ ready: true });
     expect(fetchMock.mock.calls[1][0]).toBe('/api/scenarios/SCN-1/rule-data/readiness');
     expect(fetchMock.mock.calls[1][1]).not.toHaveProperty('method');
@@ -121,7 +121,7 @@ describe('scenario rule-data API', () => {
 
   it('publishes rule-data through the publish endpoint', async () => {
     const canonicalResponse = {
-      scenarioId: 'SCN-1', definitionVersionId: 'SDV-1', version: 1, status: 'published', schemaVersion: 2,
+      scenarioId: 'SCN-1', definitionVersionId: 'SDV-1', version: 1, status: 'published', schemaVersion: 3,
       updatedAt: '2026-07-24T00:00:00Z', publishedAt: '2026-07-24T01:00:00Z', startLocationCode: '', locations: [], objectTypes: [], objects: [],
     };
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(canonicalResponse), {
@@ -131,7 +131,7 @@ describe('scenario rule-data API', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(createFetchScenarioApi('/api/scenarios').publishScenarioRuleData('SCN-1')).resolves.toEqual({
-      schemaVersion: 2, startLocationCode: '', locations: [], objectTypes: [], objects: [],
+      schemaVersion: 3, startLocationCode: '', locations: [], objectTypes: [], objects: [],
     });
     expect(fetchMock).toHaveBeenCalledWith('/api/scenarios/SCN-1/rule-data/publish', expect.objectContaining({
       method: 'POST',
@@ -140,7 +140,7 @@ describe('scenario rule-data API', () => {
   });
 
   it('round-trips rule-data in standalone draft creation', async () => {
-    const ruleData = { schemaVersion: 2 as const, startLocationCode: '', locations: [], objectTypes: [], objects: [] };
+    const ruleData = { schemaVersion: 3 as const, startLocationCode: '', locations: [], objectTypes: [], objects: [] };
     const draft = await createDemoScenarioApi().createScenario({ title: 'title only plus empty rules', ruleData });
 
     expect(draft.ruleData).toEqual(ruleData);

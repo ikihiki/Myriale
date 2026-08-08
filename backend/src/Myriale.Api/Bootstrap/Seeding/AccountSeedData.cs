@@ -30,8 +30,8 @@ public static class AccountSeedData
         var existing = await userManager.FindByEmailAsync(email);
         if (existing is not null)
         {
-            var resetToken = await userManager.GeneratePasswordResetTokenAsync(existing);
-            await EnsureSucceededAsync(userManager.ResetPasswordAsync(existing, resetToken, password), "update the seeded account password");
+            SetSeedPassword(userManager, existing, password);
+            await EnsureSucceededAsync(userManager.UpdateAsync(existing), "update the seeded account password");
             await EnsureAdminClaimsAsync(userManager, existing);
             return existing;
         }
@@ -42,9 +42,19 @@ public static class AccountSeedData
             emailConfirmed: true,
             bio: "星図を読む巡礼者。夜の図書館で物語を探しています。",
             canDebugDialogue: true);
-        await EnsureSucceededAsync(userManager.CreateAsync(user, password), "create the seeded account");
+        SetSeedPassword(userManager, user, password);
+        await EnsureSucceededAsync(userManager.CreateAsync(user), "create the seeded account");
         await EnsureAdminClaimsAsync(userManager, user);
         return user;
+    }
+
+    private static void SetSeedPassword(UserManager<ApplicationUser> userManager, ApplicationUser user, string password)
+    {
+        // Seed accounts are deployment fixtures. Hash their configured password directly so this
+        // isolated path may use a deliberately simple password without weakening user registration,
+        // password reset, or any other Identity password-policy enforcement.
+        user.PasswordHash = userManager.PasswordHasher.HashPassword(user, password);
+        user.SecurityStamp = Guid.NewGuid().ToString();
     }
 
     private static async Task EnsureSucceededAsync(Task<IdentityResult> operation, string action)

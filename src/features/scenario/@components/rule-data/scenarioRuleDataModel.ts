@@ -15,7 +15,7 @@ export type ScenarioObjectRuleOperation = ScenarioObjectRuleOperationPayload;
 export type ScenarioRuleEffect = ScenarioActionRule['effects'][number];
 
 export const emptyScenarioRuleData: ScenarioRuleData = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   startLocationCode: '',
   locations: [],
   objectTypes: [],
@@ -30,11 +30,18 @@ export function nextAuthoringCode(prefix: string) {
 
 export function createObjectType(): ScenarioObjectType {
   const code = nextAuthoringCode('type');
-  return { code, name: '新しい種類', description: '', schemaVersion: 1, stateFields: [], actions: [], actionRules: [] };
+  return { code, name: '新しい種類', description: '', schemaVersion: 1, profileFields: [], profileDefaults: [], stateFields: [], actions: [], actionRules: [] };
+}
+
+export type ScenarioProfileField = ScenarioObjectType['profileFields'][number];
+export type ScenarioProfileValue = ScenarioObjectType['profileDefaults'][number];
+
+export function createProfileField(): ScenarioProfileField {
+  return { code: nextAuthoringCode('profile'), label: '新しいプロフィール項目', description: '', valueType: 'string', required: false };
 }
 
 export function createStateField(): ScenarioStateField {
-  return { code: nextAuthoringCode('state'), label: '新しい状態', valueType: 'boolean', defaultValue: 'false', visibility: 'public' };
+  return { code: nextAuthoringCode('state'), label: '新しい状態', valueType: 'boolean', defaultValue: 'false', visibility: 'public', updateAuthority: 'rules', aiGuidance: '' };
 }
 
 export function createTypeAction(): ScenarioTypeAction {
@@ -59,6 +66,9 @@ export function createObject(ruleData: ScenarioRuleData): ScenarioObject {
     name: '新しいエンティティ',
     profileMarkdown: '## 外観・概要\n\nこのエンティティの外観、人物像、材質、振る舞いなどを記述します。\n\n## 描写指針\n\n現在状態と公開済みfactsに沿って描写します。',
     mixinTypeCodes: ruleData.objectTypes[0] ? [ruleData.objectTypes[0].code] : [],
+    localProfileFields: [],
+    localProfileDefaults: [],
+    profileValues: [],
     initialLocationCode: ruleData.locations[0]?.code ?? '',
     global: false,
     stateFields: [],
@@ -188,7 +198,19 @@ export function validateScenarioRuleData(ruleData: ScenarioRuleData): RuleDataIs
   duplicateCodes(ruleData.objects, 'ruleData.objects');
 
   ruleData.objectTypes.forEach((type, typeIndex) => {
+    duplicateCodes(type.profileFields, `ruleData.objectTypes[${typeIndex}].profileFields`);
+    const typeProfileDefaultCodes = new Set<string>();
+    type.profileDefaults.forEach((item, defaultIndex) => {
+      if (typeProfileDefaultCodes.has(item.profileCode)) issues.push({ path: `ruleData.objectTypes[${typeIndex}].profileDefaults[${defaultIndex}]`, message: `プロフィールdefault「${item.profileCode}」が重複しています。`, severity: 'error' });
+      typeProfileDefaultCodes.add(item.profileCode);
+      const field = type.profileFields.find((candidate) => candidate.code === item.profileCode);
+      if (!field) issues.push({ path: `ruleData.objectTypes[${typeIndex}].profileDefaults[${defaultIndex}]`, message: 'プロフィールdefaultの項目が見つかりません。', severity: 'error' });
+      else if (parseProfileScalar(item.value, field.valueType) === null) issues.push({ path: `ruleData.objectTypes[${typeIndex}].profileDefaults[${defaultIndex}].value`, message: `${field.valueType}型の値を入力してください。`, severity: 'error' });
+    });
     duplicateCodes(type.stateFields, `ruleData.objectTypes[${typeIndex}].stateFields`);
+    type.stateFields.forEach((field, fieldIndex) => {
+      if (field.updateAuthority === 'ai' && field.defaultValue.trim()) issues.push({ path: `ruleData.objectTypes[${typeIndex}].stateFields[${fieldIndex}].defaultValue`, message: 'AI更新の状態には事前defaultを設定できません。', severity: 'error' });
+    });
     duplicateCodes(type.actions, `ruleData.objectTypes[${typeIndex}].actions`);
     duplicateCodes(type.actionRules, `ruleData.objectTypes[${typeIndex}].actionRules`);
     type.actionRules.forEach((rule, ruleIndex) => validateRule(rule, `ruleData.objectTypes[${typeIndex}].actionRules[${ruleIndex}]`, type.actions));
@@ -199,6 +221,35 @@ export function validateScenarioRuleData(ruleData: ScenarioRuleData): RuleDataIs
     object.mixinTypeCodes.forEach((code) => { if (!ruleData.objectTypes.some((type) => type.code === code)) issues.push({ path: `ruleData.objects[${objectIndex}].mixinTypeCodes`, message: `参照する種類「${code}」が見つかりません。`, severity: 'error' }); });
     const resolved = resolvedObjectConfiguration(ruleData, object);
     resolved.conflicts.forEach((conflict) => issues.push({ path: `ruleData.objects[${objectIndex}].${conflict.kind === 'state' ? 'stateFields' : 'actions'}`, message: `定義が競合しています: ${conflict.message}`, severity: 'error' }));
+    duplicateCodes(object.localProfileFields, `ruleData.objects[${objectIndex}].localProfileFields`);
+    const localProfileCodes = new Set<string>();
+    object.localProfileDefaults.forEach((item, defaultIndex) => {
+      if (localProfileCodes.has(item.profileCode)) issues.push({ path: `ruleData.objects[${objectIndex}].localProfileDefaults[${defaultIndex}]`, message: `プロフィールdefault「${item.profileCode}」が重複しています。`, severity: 'error' });
+      localProfileCodes.add(item.profileCode);
+      const field = object.localProfileFields.find((candidate) => candidate.code === item.profileCode);
+      if (!field) issues.push({ path: `ruleData.objects[${objectIndex}].localProfileDefaults[${defaultIndex}]`, message: 'Entity固有プロフィールdefaultの項目が見つかりません。', severity: 'error' });
+      else if (parseProfileScalar(item.value, field.valueType) === null) issues.push({ path: `ruleData.objects[${objectIndex}].localProfileDefaults[${defaultIndex}].value`, message: `${field.valueType}型の値を入力してください。`, severity: 'error' });
+    });
+    const resolvedProfile = resolvedObjectProfile(ruleData, object);
+    resolvedProfile.conflicts.forEach((conflict) => issues.push({ path: `ruleData.objects[${objectIndex}].localProfileFields`, message: `定義が競合しています: ${conflict.message}`, severity: 'error' }));
+    const profileValueCodes = new Set<string>();
+    object.profileValues.forEach((item, valueIndex) => {
+      if (profileValueCodes.has(item.profileCode)) issues.push({ path: `ruleData.objects[${objectIndex}].profileValues[${valueIndex}]`, message: `プロフィール値「${item.profileCode}」が重複しています。`, severity: 'error' });
+      profileValueCodes.add(item.profileCode);
+      const field = resolvedProfile.fields.find((candidate) => candidate.code === item.profileCode);
+      if (!field) issues.push({ path: `ruleData.objects[${objectIndex}].profileValues[${valueIndex}]`, message: 'プロフィール値の項目が見つかりません。', severity: 'error' });
+      else if (parseProfileScalar(item.value, field.valueType) === null) issues.push({ path: `ruleData.objects[${objectIndex}].profileValues[${valueIndex}].value`, message: `${field.valueType}型の値を入力してください。`, severity: 'error' });
+    });
+    resolvedProfile.fields.forEach((field) => {
+      if (field.required && (field.effectiveValue === null || field.effectiveValue === '')) issues.push({ path: `ruleData.objects[${objectIndex}].profileValues`, message: `必須プロフィール「${field.label}」を入力してください。`, severity: 'error' });
+    });
+    object.stateFields.forEach((field, fieldIndex) => {
+      if (field.updateAuthority === 'ai' && field.defaultValue.trim()) issues.push({ path: `ruleData.objects[${objectIndex}].stateFields[${fieldIndex}].defaultValue`, message: 'AI更新の状態には事前defaultを設定できません。', severity: 'error' });
+    });
+    object.initialStateOverrides.forEach((override, overrideIndex) => {
+      const field = resolved.stateFields.find((candidate) => candidate.code === override.stateCode);
+      if (field?.updateAuthority === 'ai') issues.push({ path: `ruleData.objects[${objectIndex}].initialStateOverrides[${overrideIndex}]`, message: 'AI更新の状態には初期値を設定できません。', severity: 'error' });
+    });
     if (!object.global && !ruleData.locations.some((location) => location.code === object.initialLocationCode)) issues.push({ path: `ruleData.objects[${objectIndex}].initialLocationCode`, message: '初期配置する場所を選択してください。', severity: 'error' });
     resolved.actions.forEach((action) => {
       if (!effectiveObjectRules(ruleData, object).some((entry) => entry.state !== 'deleted' && entry.rule.actionCode === action.code)) issues.push({ path: `ruleData.objects[${objectIndex}].actionRules`, message: `「${action.label}」の実行ルールが未設定です。`, severity: 'warning' });
@@ -284,7 +335,7 @@ export type ResolvedConfigurationSource = {
 };
 
 export type ResolvedConfigurationConflict = {
-  kind: 'state' | 'action';
+  kind: 'profile' | 'state' | 'action';
   code: string;
   sources: ResolvedConfigurationSource[];
   message: string;
@@ -312,7 +363,10 @@ export type ResolvedAction = ScenarioTypeAction & {
 };
 
 function sameStateContract(left: ScenarioStateField, right: ScenarioStateField) {
-  return left.code === right.code && left.label === right.label && left.valueType === right.valueType;
+  return left.code === right.code
+    && left.label === right.label
+    && left.valueType === right.valueType
+    && (left.updateAuthority ?? 'rules') === (right.updateAuthority ?? 'rules');
 }
 
 function sameActionContract(left: ScenarioTypeAction, right: ScenarioTypeAction) {
@@ -322,6 +376,80 @@ function sameActionContract(left: ScenarioTypeAction, right: ScenarioTypeAction)
     && left.visibility === right.visibility
     && JSON.stringify(left.availabilityCondition) === JSON.stringify(right.availabilityCondition)
     && JSON.stringify(left.argumentFields) === JSON.stringify(right.argumentFields);
+}
+
+export type ResolvedProfileField = ScenarioProfileField & {
+  source: string;
+  sources: ResolvedConfigurationSource[];
+  defaultValue: string | null;
+  value: string | null;
+  effectiveValue: string | null;
+  inherited: boolean;
+  localIndex: number | null;
+  conflict: ResolvedConfigurationConflict | null;
+};
+
+function parseProfileScalar(value: string, valueType: ScenarioProfileField['valueType']): string | number | boolean | null {
+  if (valueType === 'string') return value;
+  if (valueType === 'number') {
+    if (!value.trim()) return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  if (value.trim().toLowerCase() === 'true') return true;
+  if (value.trim().toLowerCase() === 'false') return false;
+  return null;
+}
+
+export function resolvedObjectProfile(ruleData: ScenarioRuleData, object: ScenarioObject) {
+  type Accumulator = { value: ScenarioProfileField; sources: ResolvedConfigurationSource[]; localIndex: number | null; conflict: ResolvedConfigurationConflict | null; defaultValue: string | null };
+  const fields = new Map<string, Accumulator>();
+  const conflicts: ResolvedConfigurationConflict[] = [];
+  const sources = [
+    ...object.mixinTypeCodes.map((code) => ruleData.objectTypes.find((type) => type.code === code)).filter((value): value is ScenarioObjectType => Boolean(value)).map((type, rank) => ({
+      fields: type.profileFields,
+      defaults: type.profileDefaults,
+      source: { kind: 'mixin' as const, code: type.code, name: type.name, rank },
+    })),
+    { fields: object.localProfileFields, defaults: object.localProfileDefaults, source: { kind: 'local' as const, code: object.code, name: object.name, rank: object.mixinTypeCodes.length } },
+  ];
+  sources.forEach(({ fields: sourceFields, defaults, source }) => sourceFields.forEach((field, localIndex) => {
+    const previous = fields.get(field.code);
+    const sourceDefault = defaults.find((item) => item.profileCode === field.code)?.value ?? null;
+    if (!previous) {
+      fields.set(field.code, { value: structuredClone(field), sources: [source], localIndex: source.kind === 'local' ? localIndex : null, conflict: null, defaultValue: sourceDefault });
+      return;
+    }
+    const contributors = [...previous.sources, source];
+    if (previous.value.valueType !== field.valueType) {
+      const conflict = { kind: 'profile' as const, code: field.code, sources: contributors, message: `profile ${field.code}: ${contributors.map((item) => item.name).join(' / ')}` };
+      conflicts.push(conflict);
+      fields.set(field.code, { ...previous, sources: contributors, localIndex: source.kind === 'local' ? localIndex : previous.localIndex, conflict });
+      return;
+    }
+    fields.set(field.code, {
+      value: { ...structuredClone(field), required: previous.value.required || field.required },
+      sources: contributors,
+      localIndex: source.kind === 'local' ? localIndex : previous.localIndex,
+      conflict: previous.conflict,
+      defaultValue: sourceDefault ?? previous.defaultValue,
+    });
+  }));
+  const resolvedFields: ResolvedProfileField[] = [...fields.values()].map(({ value: field, sources: contributors, localIndex, conflict, defaultValue }) => {
+    const value = object.profileValues.find((item) => item.profileCode === field.code)?.value ?? null;
+    return {
+      ...field,
+      source: contributors[contributors.length - 1].name,
+      sources: contributors,
+      defaultValue,
+      value,
+      effectiveValue: value ?? defaultValue,
+      inherited: contributors.some((item) => item.kind === 'mixin'),
+      localIndex,
+      conflict,
+    };
+  });
+  return { fields: resolvedFields, conflicts };
 }
 
 export function resolvedObjectConfiguration(ruleData: ScenarioRuleData, object: ScenarioObject) {

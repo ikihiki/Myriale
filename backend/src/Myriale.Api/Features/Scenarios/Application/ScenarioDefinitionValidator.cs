@@ -23,10 +23,13 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
             messages.Add(message);
         }
 
-        if (request.SchemaVersion != 2) Add("schemaVersion", "Schema version must be 2.");
+        if (request.SchemaVersion is not (2 or 3)) Add("schemaVersion", "Schema version must be 2 or 3.");
         var locations = request.Locations ?? [];
         var objectTypes = request.ObjectTypes ?? [];
         var objects = request.Objects ?? [];
+        if (request.SchemaVersion == 2 && (objectTypes.Any(type => HasObjectMembers(type.ProfileSchema) || HasObjectMembers(type.ProfileDefaults))
+            || objects.Any(item => HasObjectMembers(item.LocalProfileSchema) || HasObjectMembers(item.LocalProfileDefaults) || HasObjectMembers(item.ProfileValues))))
+            Add("schemaVersion", "Structured profile configuration requires schema version 3.");
         ValidateCodes(locations.Select(item => item.Code), "locations", Add);
         ValidateCodes(objectTypes.Select(item => item.Code), "objectTypes", Add);
         ValidateCodes(objects.Select(item => item.Code), "objects", Add);
@@ -70,6 +73,7 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
             RequireObject(type.StateSchema, $"objectTypes[{i}].stateSchema", Add);
             RequireObject(type.DefaultState, $"objectTypes[{i}].defaultState", Add);
             RequireObject(type.PublicProjection, $"objectTypes[{i}].publicProjection", Add);
+            ValidateProfileDefinition(type.ProfileSchema, type.ProfileDefaults, $"objectTypes[{i}]", Add);
             if (forPublish) ValidateStateDefinition(type, i, Add);
             var typeActions = type.Actions ?? [];
             ValidateCodes(typeActions.Select(action => action.Code), $"objectTypes[{i}].actions", Add);
@@ -114,7 +118,42 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
             if (mixinCodes.Count != mixinCodes.Distinct(StringComparer.Ordinal).Count()) Add($"objects[{i}].mixinTypeCodes", "Duplicate mixins are not allowed.");
             foreach (var code in mixinCodes.Where(code => !typesByCode.ContainsKey(code))) Add($"objects[{i}].mixinTypeCodes", $"Referenced object type '{code}' does not exist.");
             var resolvedTypes = mixinCodes.Where(typesByCode.ContainsKey).Select(code => typesByCode[code].item).ToList();
+            ValidateProfileDefinition(item.LocalProfileSchema, item.LocalProfileDefaults, $"objects[{i}]", Add, "localProfileSchema", "localProfileDefaults");
+            var profileDefinition = new ScenarioDefinitionVersion
+            {
+                ObjectTypes = objectTypes.Select(type => new ScenarioObjectType
+                {
+                    Id = new ScenarioObjectTypeId($"profile-{type.Code}"),
+                    Code = type.Code,
+                    ProfileSchemaJson = Json(type.ProfileSchema, "{}"),
+                    ProfileDefaultsJson = Json(type.ProfileDefaults, "{}"),
+                }).ToList(),
+            };
+            var profileItem = new ScenarioObject
+            {
+                Id = new ScenarioObjectId($"profile-{item.Code}"),
+                MixinTypeCodesJson = JsonSerializer.Serialize(mixinCodes),
+                LocalProfileSchemaJson = Json(item.LocalProfileSchema, "{}"),
+                LocalProfileDefaultsJson = Json(item.LocalProfileDefaults, "{}"),
+                ProfileValuesJson = Json(item.ProfileValues, "{}"),
+            };
+            var resolvedProfile = new ScenarioProfileConfigurationResolver().Resolve(profileDefinition, profileItem);
+            foreach (var conflict in resolvedProfile.Conflicts) Add($"objects[{i}].localProfileSchema", conflict);
+            var profileFields = resolvedProfile.Fields.ToDictionary(field => field.Code, field => JsonDocument.Parse(field.Schema.ToJsonString()).RootElement.Clone(), StringComparer.Ordinal);
+            ValidateProfileValues(item.ProfileValues, profileFields, $"objects[{i}].profileValues", Add);
+            if (forPublish)
+                foreach (var field in resolvedProfile.Fields.Where(field => field.Required && !resolvedProfile.EffectiveValues.ContainsKey(field.Code)))
+                    Add($"objects[{i}].profileValues.{field.Code}", "A required profile field needs an Entity value or inherited/local default.");
             RequireObject(item.InitialStateOverride, $"objects[{i}].initialStateOverride", Add);
+            var localStateProperties = GetSchemaProperties(item.StateSchema);
+            foreach (var property in localStateProperties)
+            {
+                var authority = property.Value.TryGetProperty("updateAuthority", out var configuredAuthority)
+                    ? configuredAuthority.GetString() : "rules";
+                if (authority is not ("rules" or "ai"))
+                    Add($"objects[{i}].stateSchema.properties.{property.Key}.updateAuthority", "Update authority must be rules or ai.");
+            }
+            ValidateStateObject(item.DefaultState, localStateProperties, $"objects[{i}].defaultState", true, Add);
             var stateProperties = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
             foreach (var resolvedType in resolvedTypes)
                 foreach (var property in GetSchemaProperties(resolvedType.StateSchema))
@@ -124,6 +163,11 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
                 if (stateProperties.TryGetValue(property.Key, out var existing) && existing.GetRawText() != property.Value.GetRawText()) Add($"objects[{i}].stateSchema", $"State '{property.Key}' has an incompatible contract.");
                 else stateProperties[property.Key] = property.Value;
             ValidateStateObject(item.InitialStateOverride, stateProperties, $"objects[{i}].initialStateOverride", false, Add);
+            foreach (var property in item.InitialStateOverride.EnumerateObject())
+                if (stateProperties.TryGetValue(property.Name, out var propertySchema)
+                    && propertySchema.TryGetProperty("updateAuthority", out var authority)
+                    && authority.GetString() == "ai")
+                    Add($"objects[{i}].initialStateOverride.{property.Name}", "AI-managed state must not have an initial override.");
             ValidateCodes(localActions.Select(action => action.Code), $"objects[{i}].actions", Add);
             for (var j = 0; j < localActions.Count; j++)
             {
@@ -355,6 +399,176 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
     });
 
 
+    private static void ValidateProfileDefinition(
+        JsonElement schemaValue, JsonElement defaultsValue, string path, Action<string, string> add,
+        string schemaProperty = "profileSchema", string defaultsProperty = "profileDefaults")
+    {
+        var schemaPath = $"{path}.{schemaProperty}";
+        var defaultsPath = $"{path}.{defaultsProperty}";
+        var schema = ObjectOrEmpty(schemaValue);
+        var defaults = ObjectOrEmpty(defaultsValue);
+        if (schemaValue.ValueKind is not (JsonValueKind.Undefined or JsonValueKind.Null or JsonValueKind.Object))
+            add(schemaPath, "A JSON object is required.");
+        if (defaultsValue.ValueKind is not (JsonValueKind.Undefined or JsonValueKind.Null or JsonValueKind.Object))
+            add(defaultsPath, "A JSON object is required.");
+        if (schema.GetRawText() == "{}")
+        {
+            if (defaults.EnumerateObject().Any()) add(defaultsPath, "Profile defaults require declared profile fields.");
+            return;
+        }
+
+        var allowedRoot = new HashSet<string>(["type", "additionalProperties", "properties", "required"], StringComparer.Ordinal);
+        foreach (var property in schema.EnumerateObject().Where(property => !allowedRoot.Contains(property.Name)))
+            add($"{schemaPath}.{property.Name}", "Profile schema keyword is not supported.");
+        if (!schema.TryGetProperty("type", out var rootType) || rootType.ValueKind != JsonValueKind.String || rootType.GetString() != "object")
+            add($"{schemaPath}.type", "Profile schema type must be object.");
+        if (!schema.TryGetProperty("additionalProperties", out var additional) || additional.ValueKind != JsonValueKind.False)
+            add($"{schemaPath}.additionalProperties", "Profile schemas must set additionalProperties to false.");
+        if (!schema.TryGetProperty("properties", out var properties) || properties.ValueKind != JsonValueKind.Object)
+        {
+            add($"{schemaPath}.properties", "Profile schema properties must be an object.");
+            return;
+        }
+
+        var fields = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        foreach (var property in properties.EnumerateObject())
+        {
+            var fieldPath = $"{schemaPath}.properties.{property.Name}";
+            if (!StableCodeRegex().IsMatch(property.Name)) add(fieldPath, "Field code must use lowercase letters, numbers, and hyphens.");
+            if (property.Value.ValueKind != JsonValueKind.Object)
+            {
+                add(fieldPath, "Profile field schema must be an object.");
+                continue;
+            }
+            fields[property.Name] = property.Value;
+            ValidateProfileFieldSchema(property.Value, fieldPath, add);
+        }
+
+        if (schema.TryGetProperty("required", out var required))
+        {
+            if (required.ValueKind != JsonValueKind.Array) add($"{schemaPath}.required", "Required must be an array of field codes.");
+            else
+            {
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                var index = 0;
+                foreach (var value in required.EnumerateArray())
+                {
+                    if (value.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(value.GetString()))
+                        add($"{schemaPath}.required[{index}]", "Required field code must be a string.");
+                    else if (!fields.ContainsKey(value.GetString()!)) add($"{schemaPath}.required[{index}]", "Required field is not declared.");
+                    else if (!seen.Add(value.GetString()!)) add($"{schemaPath}.required[{index}]", "Required field code must be unique.");
+                    index++;
+                }
+            }
+        }
+
+        ValidateProfileValues(defaults, fields, defaultsPath, add);
+    }
+
+    private static void ValidateProfileFieldSchema(JsonElement schema, string path, Action<string, string> add)
+    {
+        var allowed = new HashSet<string>(["type", "title", "label", "description", "enum", "minLength", "maxLength", "minimum", "maximum"], StringComparer.Ordinal);
+        foreach (var property in schema.EnumerateObject().Where(property => !allowed.Contains(property.Name)))
+            add($"{path}.{property.Name}", "Profile field schema keyword is not supported.");
+        if (!schema.TryGetProperty("type", out var typeElement) || typeElement.ValueKind != JsonValueKind.String || typeElement.GetString() is not ("string" or "number" or "boolean"))
+        {
+            add($"{path}.type", "Profile field type must be string, number, or boolean.");
+            return;
+        }
+        var type = typeElement.GetString()!;
+        foreach (var name in new[] { "title", "label", "description" })
+            if (schema.TryGetProperty(name, out var text) && text.ValueKind != JsonValueKind.String) add($"{path}.{name}", "Profile field text must be a string.");
+
+        if (schema.TryGetProperty("enum", out var enumValues))
+        {
+            if (enumValues.ValueKind != JsonValueKind.Array || enumValues.GetArrayLength() == 0) add($"{path}.enum", "Enum must be a non-empty array.");
+            else
+                for (var index = 0; index < enumValues.GetArrayLength(); index++)
+                    if (!MatchesProfileType(enumValues[index], type)) add($"{path}.enum[{index}]", $"Enum value must be a {type}.");
+        }
+
+        ValidateIntegerConstraint(schema, "minLength", type == "string", path, add);
+        ValidateIntegerConstraint(schema, "maxLength", type == "string", path, add);
+        ValidateNumberConstraint(schema, "minimum", type == "number", path, add);
+        ValidateNumberConstraint(schema, "maximum", type == "number", path, add);
+        if (schema.TryGetProperty("minLength", out var minLength) && schema.TryGetProperty("maxLength", out var maxLength)
+            && minLength.TryGetInt32(out var min) && maxLength.TryGetInt32(out var max) && min > max)
+            add(path, "minLength cannot exceed maxLength.");
+        if (schema.TryGetProperty("minimum", out var minimum) && schema.TryGetProperty("maximum", out var maximum)
+            && minimum.ValueKind == JsonValueKind.Number && maximum.ValueKind == JsonValueKind.Number && minimum.GetDouble() > maximum.GetDouble())
+            add(path, "minimum cannot exceed maximum.");
+    }
+
+    private static void ValidateProfileValues(JsonElement valuesValue, IReadOnlyDictionary<string, JsonElement> fields, string path, Action<string, string> add)
+    {
+        if (valuesValue.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null) return;
+        if (valuesValue.ValueKind != JsonValueKind.Object) { add(path, "A JSON object is required."); return; }
+        foreach (var property in valuesValue.EnumerateObject())
+        {
+            if (!fields.TryGetValue(property.Name, out var schema))
+            {
+                add($"{path}.{property.Name}", "Profile value does not have a declared field.");
+                continue;
+            }
+            ValidateProfileValue(property.Value, schema, $"{path}.{property.Name}", add);
+        }
+    }
+
+    private static void ValidateProfileValue(JsonElement value, JsonElement schema, string path, Action<string, string> add)
+    {
+        if (!schema.TryGetProperty("type", out var typeElement) || typeElement.ValueKind != JsonValueKind.String
+            || typeElement.GetString() is not ("string" or "number" or "boolean")) return;
+        var type = typeElement.GetString()!;
+        if (!MatchesProfileType(value, type))
+        {
+            add(path, $"Profile value must be a {type}.");
+            return;
+        }
+        if (schema.TryGetProperty("enum", out var enumValues) && enumValues.ValueKind == JsonValueKind.Array
+            && !enumValues.EnumerateArray().Any(candidate => candidate.GetRawText() == value.GetRawText()))
+            add(path, "Profile value is not one of the allowed enum values.");
+        if (type == "string")
+        {
+            var length = value.GetString()!.Length;
+            if (schema.TryGetProperty("minLength", out var min) && min.TryGetInt32(out var minimum) && length < minimum) add(path, $"Profile value must be at least {minimum} characters.");
+            if (schema.TryGetProperty("maxLength", out var max) && max.TryGetInt32(out var maximum) && length > maximum) add(path, $"Profile value must be at most {maximum} characters.");
+        }
+        if (type == "number")
+        {
+            var number = value.GetDouble();
+            if (schema.TryGetProperty("minimum", out var min) && min.ValueKind == JsonValueKind.Number && number < min.GetDouble()) add(path, $"Profile value must be at least {min.GetDouble()}.");
+            if (schema.TryGetProperty("maximum", out var max) && max.ValueKind == JsonValueKind.Number && number > max.GetDouble()) add(path, $"Profile value must be at most {max.GetDouble()}.");
+        }
+    }
+
+    private static void ValidateIntegerConstraint(JsonElement schema, string name, bool allowed, string path, Action<string, string> add)
+    {
+        if (!schema.TryGetProperty(name, out var value)) return;
+        if (!allowed) add($"{path}.{name}", $"{name} is only supported for string fields.");
+        else if (!value.TryGetInt32(out var number) || number < 0) add($"{path}.{name}", $"{name} must be a non-negative integer.");
+    }
+
+    private static void ValidateNumberConstraint(JsonElement schema, string name, bool allowed, string path, Action<string, string> add)
+    {
+        if (!schema.TryGetProperty(name, out var value)) return;
+        if (!allowed) add($"{path}.{name}", $"{name} is only supported for number fields.");
+        else if (value.ValueKind != JsonValueKind.Number) add($"{path}.{name}", $"{name} must be a number.");
+    }
+
+    private static bool MatchesProfileType(JsonElement value, string type) => type switch
+    {
+        "string" => value.ValueKind == JsonValueKind.String,
+        "number" => value.ValueKind == JsonValueKind.Number,
+        "boolean" => value.ValueKind is JsonValueKind.True or JsonValueKind.False,
+        _ => false,
+    };
+
+    private static bool HasObjectMembers(JsonElement value) =>
+        value.ValueKind == JsonValueKind.Object && value.EnumerateObject().Any();
+
+    private static JsonElement ObjectOrEmpty(JsonElement value) =>
+        value.ValueKind == JsonValueKind.Object ? value : JsonDocument.Parse("{}").RootElement.Clone();
+
     private static void ValidateCodes(IEnumerable<string> codes, string path, Action<string, string> add)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -558,6 +772,13 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
             add($"{path}.stateSchema.additionalProperties", "State schema must reject additional properties.");
         var properties = GetSchemaProperties(type.StateSchema);
         if (properties.Count == 0) add($"{path}.stateSchema.properties", "State schema must declare properties.");
+        foreach (var property in properties)
+        {
+            var authority = property.Value.TryGetProperty("updateAuthority", out var configuredAuthority)
+                ? configuredAuthority.GetString() : "rules";
+            if (authority is not ("rules" or "ai"))
+                add($"{path}.stateSchema.properties.{property.Key}.updateAuthority", "Update authority must be rules or ai.");
+        }
         ValidateStateObject(type.DefaultState, properties, $"{path}.defaultState", true, add);
         if (type.PublicProjection.ValueKind == JsonValueKind.Object
             && type.PublicProjection.TryGetProperty("include", out var include))
@@ -610,8 +831,15 @@ public sealed partial class ScenarioDefinitionValidator(ScenarioDefinitionMapper
         if (requireRequired && properties.Count > 0)
         {
             // Strict baseline definitions initialize every declared property deterministically.
-            foreach (var property in properties.Keys)
-                if (!state.TryGetProperty(property, out _)) add($"{path}.{property}", "Default state must initialize this property.");
+            foreach (var property in properties)
+            {
+                var authority = property.Value.TryGetProperty("updateAuthority", out var configuredAuthority)
+                    ? configuredAuthority.GetString() : "rules";
+                if (authority != "ai" && !state.TryGetProperty(property.Key, out _))
+                    add($"{path}.{property.Key}", "Default state must initialize this rules-managed property.");
+                if (authority == "ai" && state.TryGetProperty(property.Key, out _))
+                    add($"{path}.{property.Key}", "AI-managed state must not have a concrete default.");
+            }
         }
     }
 

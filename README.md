@@ -146,7 +146,7 @@ export AiProvider__CatalogJson='{"defaultActionDecisionProfileId":"acme-story","
 aspire run --project backend/src/Myriale.AppHost/Myriale.AppHost.csproj
 ```
 
-Forgeでは既定のVault path `forge/apps/myriale/ai` に、property名 **`catalogJson`** で次の文字列を登録します。`apiKey`は任意です。JSON内へ含めた場合もAPIレスポンスやログには公開されません。
+Forgeでは既定のVault path `forge/apps/myriale/ai` に、property名 **`catalogJson`** で次の文字列を登録します。Profile定義とCredentialを同じ文書へ追加でき、JSON内のsecretはAPIレスポンスやログには公開されません。
 
 ```yaml
 catalogJson: |-
@@ -161,24 +161,30 @@ catalogJson: |-
         "baseUrl": "https://ai.acme.example/v1",
         "model": "acme/story-1",
         "credentialId": "acme-main",
-        "enabled": true,
-        "apiKey": "replace-with-secret"
+        "enabled": true
       }
-    ]
+    ],
+    "credentials": {
+      "acme-main": {
+        "secret": "replace-with-secret"
+      }
+    }
   }
 ```
 
-`profiles`は上記の配列形式に加え、profile IDをkeyにしたobject形式も受け付けます。ForgeのVault pathを変更する場合は`forge.aiVaultKey`を指定します。ESOが参照するのはこの`catalogJson` propertyだけなので、Providerを増やしてもAppHostやKubernetes manifestの変更は不要です。
+`profiles`は上記の配列形式に加え、profile IDをkeyにしたobject形式も受け付けます。`credentials`の値は`{"secret":"..."}`またはsecret文字列を使用できます。互換入力としてprofile内の`apiKey`も受け付けます。
 
-複数profileで同じ`credentialId`を指定した場合、同じcredentialを共有できます。`apiKey`は共有profileのいずれか1件にだけ記述すれば、同じ`credentialId`を持つ全profileへ適用されます。
+ForgeのVault pathを変更する場合は`forge.aiVaultKey`を指定します。ESOが参照するのはこの`catalogJson` propertyだけなので、Provider endpoint、model、Credential ID、secretを増やしてもAppHost、ExternalSecret、Kubernetesの環境変数定義を変更する必要はありません。ESOによるSecret更新後、環境変数を再読込するためAPI Podを再起動してください。
+
+複数profileで同じ`credentialId`を指定した場合、同じcredentialを共有できます。Credentialは`credentials`へ一度だけ定義するのが推奨です。
 
 Definitionのマージ優先順位は、同じprofile IDに対して次の順です（下ほど優先）。
 
-1. 既存のstructured appsettings (`AiProvider:Profiles` / `AiProvider:Providers`)
+1. structured appsettings (`AiDeployment:Profiles`)
 2. `AiProvider:CatalogJson`（Forge Vaultの`catalogJson`を含む）
 3. 管理API / 管理画面で保存したDB profile定義
 
-Credentialはdefinitionとは別に、configuration / Vault（CatalogJson内の`apiKey`または既存appsettings互換設定）を先に解決し、見つからない場合だけ暗号化DB credentialへフォールバックします。管理APIはsecret本体を返しません。
+Credentialはdefinitionとは別に、typed deployment設定 (`AiDeployment:Credentials`) よりCatalogJsonを優先し、見つからない場合だけ暗号化DB credentialへフォールバックします。管理APIはsecret本体を返しません。
 
 AI管理権限を持つアカウントは`/account/admin/ai-providers`からprofile定義とcredentialを分離して作成・更新・削除し、接続テストや使用profileの切り替えを行えます。DB profileには`displayName`、`adapter`、`baseUrl`、`model`、`credentialId`、`enabled`を保存し、secretはcredential操作で別管理します。現在は破壊的schema baselineのみをサポートするため、永続的な設定にはVaultを使用してください。
 

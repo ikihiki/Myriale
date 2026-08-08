@@ -12,10 +12,25 @@ public sealed class ScenarioDomainTests
     }
 
     [Fact]
+    public void EntityProfilePersistenceFields_DefaultToEmptyJson()
+    {
+        var type = new ScenarioObjectType();
+        var entity = new ScenarioObject();
+
+        Assert.Equal("{}", type.ProfileSchemaJson);
+        Assert.Equal("{}", type.ProfileDefaultsJson);
+        Assert.Equal("{}", entity.LocalProfileSchemaJson);
+        Assert.Equal("{}", entity.LocalProfileDefaultsJson);
+        Assert.Equal("{}", entity.ProfileValuesJson);
+        Assert.Equal(string.Empty, entity.ProfileMarkdown);
+    }
+
+    [Fact]
     public void PublishingDefinition_RecordsTypedDomainEvent()
     {
         var now = DateTimeOffset.UtcNow;
         var definition = ScenarioDefinitionVersion.CreateDraft(new ScenarioDefinitionVersionId("definition"), new ScenarioId("scenario"), 3, now);
+        Assert.Equal(3, definition.SchemaVersion);
 
         definition.Publish(now);
 

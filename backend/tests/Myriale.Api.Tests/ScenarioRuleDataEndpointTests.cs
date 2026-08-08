@@ -774,6 +774,103 @@ public sealed class ScenarioRuleDataEndpointTests : IDisposable
         return payload;
     }
 
+    [Fact]
+    public async Task V3ProfileConfiguration_RoundTripsAndPublishesWithEntityValue()
+    {
+        var client = await CreateSignedInClientAsync();
+        var scenarioId = await CreateScenarioAsync(client);
+        var payload = ValidRuleData();
+        payload["schemaVersion"] = 3;
+        payload["objectTypes"]![0]!["profileSchema"] = JsonNode.Parse("""
+            {"type":"object","additionalProperties":false,"properties":{
+              "role":{"type":"string","label":"Role","minLength":2},
+              "level":{"type":"number","minimum":0,"maximum":10},
+              "active":{"type":"boolean"}},"required":["role"]}
+            """);
+        payload["objectTypes"]![0]!["profileDefaults"] = JsonNode.Parse("{\"level\":2,\"active\":true}");
+        payload["objects"]![0]!["localProfileSchema"] = JsonNode.Parse("""
+            {"type":"object","additionalProperties":false,"properties":{"motto":{"type":"string","maxLength":40}},"required":[]}
+            """);
+        payload["objects"]![0]!["localProfileDefaults"] = JsonNode.Parse("{\"motto\":\"Keep watch\"}");
+        payload["objects"]![0]!["profileValues"] = JsonNode.Parse("{\"role\":\"guardian\",\"level\":4}");
+
+        using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        using var published = await client.PostAsync($"/api/scenarios/{scenarioId}/rule-data/publish", null);
+        Assert.Equal(HttpStatusCode.OK, published.StatusCode);
+        var json = await published.Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(3, json.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal("string", json.GetProperty("objectTypes")[0].GetProperty("profileSchema").GetProperty("properties").GetProperty("role").GetProperty("type").GetString());
+        Assert.Equal(2, json.GetProperty("objectTypes")[0].GetProperty("profileDefaults").GetProperty("level").GetInt32());
+        Assert.Equal("guardian", json.GetProperty("objects")[0].GetProperty("profileValues").GetProperty("role").GetString());
+        Assert.Equal("Keep watch", json.GetProperty("objects")[0].GetProperty("localProfileDefaults").GetProperty("motto").GetString());
+        Assert.Contains("重い石扉", json.GetProperty("objects")[0].GetProperty("profileMarkdown").GetString());
+    }
+
+    [Fact]
+    public async Task Publish_RejectsMissingRequiredProfileValueButDraftRemainsValid()
+    {
+        var client = await CreateSignedInClientAsync();
+        var scenarioId = await CreateScenarioAsync(client);
+        var payload = ValidRuleData();
+        payload["schemaVersion"] = 3;
+        payload["objectTypes"]![0]!["profileSchema"] = JsonNode.Parse("""
+            {"type":"object","additionalProperties":false,"properties":{"role":{"type":"string"}},"required":["role"]}
+            """);
+        payload["objectTypes"]![0]!["profileDefaults"] = new JsonObject();
+        payload["objects"]![0]!["localProfileSchema"] = new JsonObject();
+        payload["objects"]![0]!["localProfileDefaults"] = new JsonObject();
+        payload["objects"]![0]!["profileValues"] = new JsonObject();
+
+        using var saved = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        using var published = await client.PostAsync($"/api/scenarios/{scenarioId}/rule-data/publish", null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, published.StatusCode);
+        var json = await published.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(json.GetProperty("errors").TryGetProperty("objects[0].profileValues.role", out _));
+    }
+
+    [Fact]
+    public async Task DraftSave_RejectsUnknownAndConstraintViolatingProfileValues()
+    {
+        var client = await CreateSignedInClientAsync();
+        var scenarioId = await CreateScenarioAsync(client);
+        var payload = ValidRuleData();
+        payload["schemaVersion"] = 3;
+        payload["objectTypes"]![0]!["profileSchema"] = JsonNode.Parse("""
+            {"type":"object","additionalProperties":false,"properties":{"level":{"type":"number","minimum":0,"maximum":5}},"required":[]}
+            """);
+        payload["objectTypes"]![0]!["profileDefaults"] = new JsonObject();
+        payload["objects"]![0]!["localProfileSchema"] = new JsonObject();
+        payload["objects"]![0]!["localProfileDefaults"] = new JsonObject();
+        payload["objects"]![0]!["profileValues"] = JsonNode.Parse("{\"level\":9,\"unknown\":true}");
+
+        using var response = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", payload);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var errors = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors");
+        Assert.True(errors.TryGetProperty("objects[0].profileValues.level", out _));
+        Assert.True(errors.TryGetProperty("objects[0].profileValues.unknown", out _));
+    }
+
+    [Fact]
+    public async Task V2Input_RoundTripsWithEmptyProfileConfiguration()
+    {
+        var client = await CreateSignedInClientAsync();
+        var scenarioId = await CreateScenarioAsync(client);
+
+        using var response = await client.PutAsJsonAsync($"/api/scenarios/{scenarioId}/rule-data", ValidRuleData());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(2, json.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal(JsonValueKind.Object, json.GetProperty("objectTypes")[0].GetProperty("profileSchema").ValueKind);
+        Assert.Empty(json.GetProperty("objectTypes")[0].GetProperty("profileSchema").EnumerateObject());
+        Assert.Empty(json.GetProperty("objects")[0].GetProperty("profileValues").EnumerateObject());
+    }
+
     private static JsonNode ValidRuleData() => JsonNode.Parse("""
         {
           "schemaVersion": 2,

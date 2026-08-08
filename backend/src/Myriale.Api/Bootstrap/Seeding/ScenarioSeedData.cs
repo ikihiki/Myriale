@@ -7,6 +7,8 @@ public static class ScenarioSeedData
     private static readonly ScenarioId AwakeningLaboratoryId = new("SCN-AWAKENING-LAB");
     private static readonly ScenarioId LighthouseConfessionId = new("SCN-LIGHTHOUSE-CONFESSION");
 
+    private static readonly ScenarioId MaidTeaTimeId = new("SCN-MAID-TEA-TIME");
+
     private const string BasicInformation = """
         # あなたの役割
         あなたはTRPGのゲームマスターです。
@@ -56,6 +58,34 @@ public static class ScenarioSeedData
         - 閉鎖的で緊張した取調室の雰囲気を維持する
         """;
 
+    private const string MaidTeaTimeBasicInformation = """
+        # あなたの役割
+        あなたは、古い屋敷で働くメイドとの自由な会話を描くゲームマスターです。
+        プレイヤーの言葉と、前のターンから保存されたEntity状態を踏まえて、自然な対話を続けてください。
+
+        # シナリオ
+        プレイヤーは雨宿りのため白薔薇館を訪れた客人です。
+        サンルームではメイドのクララが紅茶を用意しており、屋敷のこと、好み、今日の出来事などを自由に話せます。
+        会話に達成目標や正解はありません。庭へ移動して戻ることもできます。
+
+        # Entity状態の扱い
+        - `maid-clara` のAI管理状態は会話の結果として更新し、次のターンへ引き継ぐ
+        - `visibleMood` は表情や仕草として描写してよい
+        - `rapport`、`rememberedPreference`、`lastTopic` は内部状態であり、その名称や値を直接説明しない
+        - 保存済みの好みや話題は、押しつけず自然な気遣いとして会話へ反映する
+        - ナラティブだけで状態を先取りしたり、過去の記憶を捏造したりしない
+
+        # 描写
+        - クララの台詞、表情、給仕の所作を中心に120～250文字程度で回答する
+        - 上品だが堅すぎない敬語を使う
+        - プレイヤーの発言内容に直接応答し、次の会話を強制しない
+
+        # 禁止事項
+        - 内部状態のfield名やenum値をプレイヤーへ見せない
+        - プレイヤーが話していない好みや過去を既知の事実として扱わない
+        - 屋敷に事件や陰謀があると勝手に決めない
+        """;
+
     public static async Task SeedAsync(
         ApplicationDbContext db,
         string? developmentAuthorId = null,
@@ -63,10 +93,12 @@ public static class ScenarioSeedData
     {
         var awakeningTimestamp = new DateTimeOffset(2026, 7, 26, 0, 0, 0, TimeSpan.Zero);
         var lighthouseTimestamp = new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero);
+        var maidTeaTimeTimestamp = new DateTimeOffset(2026, 8, 6, 0, 0, 0, TimeSpan.Zero);
         var authorId = new AccountId(string.IsNullOrWhiteSpace(developmentAuthorId) ? "SYSTEM-SEED" : developmentAuthorId);
 
         await SeedScenarioAsync(db, CreateAwakeningLaboratory(authorId, awakeningTimestamp), developmentAuthorId, cancellationToken);
         await SeedScenarioAsync(db, CreateLighthouseConfession(authorId, lighthouseTimestamp), developmentAuthorId, cancellationToken);
+        await SeedScenarioAsync(db, CreateMaidTeaTime(authorId, maidTeaTimeTimestamp), developmentAuthorId, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
     }
 
@@ -99,6 +131,24 @@ public static class ScenarioSeedData
         HeroMode = HeroMode.Free,
         HeroFreeGenerationAllowed = false,
         Opening = "あなたは非常灯だけが灯る覚醒室で目を覚ます。壁際では案内AI端末が呼びかけ、廊下の先にある解析装置の復旧を求めている。",
+        Status = ScenarioPublicationStatus.Published,
+        AuthorId = authorId,
+        CreatedAt = timestamp,
+        UpdatedAt = timestamp,
+    };
+
+    private static Scenario CreateMaidTeaTime(AccountId authorId, DateTimeOffset timestamp) => new()
+    {
+        Id = MaidTeaTimeId,
+        Title = "メイドと午後のティータイム",
+        Summary = MaidTeaTimeBasicInformation,
+        Genre = "日常会話・交流",
+        Tone = "雨音の聞こえる穏やかな午後。上品で親しみやすい会話",
+        AiFreedom = "中: 人格と保存状態を守りながら自由に会話する",
+        HeroMode = HeroMode.Fixed,
+        HeroFreeGenerationAllowed = false,
+        Hero = "白薔薇館を訪れた客人 / 雨宿りの間、メイドのクララと自由に言葉を交わす。",
+        Opening = "雨粒がサンルームの硝子を静かに叩いている。白いエプロンドレス姿のメイド、クララが湯気の立つティーポットを卓上へ置き、柔らかく一礼した。『お待たせいたしました。今日は、どのようなお話をいたしましょうか』",
         Status = ScenarioPublicationStatus.Published,
         AuthorId = authorId,
         CreatedAt = timestamp,

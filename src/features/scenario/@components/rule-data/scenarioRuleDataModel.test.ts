@@ -11,6 +11,7 @@ import {
   renameTypeActionCode,
   renameTypeRuleCode,
   resolvedObjectConfiguration,
+  resolvedObjectProfile,
   validateScenarioRuleData,
 } from './scenarioRuleDataModel';
 
@@ -89,6 +90,51 @@ describe('scenario rule-data authoring model', () => {
       expect.objectContaining({ message: expect.stringContaining('state open'), severity: 'error' }),
       expect.objectContaining({ message: expect.stringContaining('action open'), severity: 'error' }),
     ]));
+  });
+
+  it('resolves ordered profile mixins, required fields, defaults, local declarations, and Entity values', () => {
+    const fixture = structuredClone(westDoorAuthoringFixture);
+    fixture.objectTypes[0].profileFields = [{ code: 'role', label: '役割', description: '', valueType: 'string', required: true }];
+    fixture.objectTypes[0].profileDefaults = [{ profileCode: 'role', value: 'barrier' }];
+    fixture.objectTypes[1].profileFields = [
+      { code: 'role', label: '物語上の役割', description: '後のmixinの表示文言', valueType: 'string', required: false },
+      { code: 'rank', label: '階級', description: '', valueType: 'number', required: true },
+    ];
+    fixture.objectTypes[1].profileDefaults = [{ profileCode: 'role', value: 'exit' }];
+    fixture.objects[0].localProfileFields = [{ code: 'material', label: '材質', description: '', valueType: 'string', required: false }];
+    fixture.objects[0].localProfileDefaults = [{ profileCode: 'material', value: 'steel' }];
+    fixture.objects[0].profileValues = [{ profileCode: 'role', value: 'west-exit' }, { profileCode: 'rank', value: '2' }];
+
+    const resolved = resolvedObjectProfile(fixture, fixture.objects[0]);
+    expect(resolved.conflicts).toEqual([]);
+    expect(resolved.fields.find((field) => field.code === 'role')).toMatchObject({ required: true, defaultValue: 'exit', value: 'west-exit', effectiveValue: 'west-exit', source: '出口の扉' });
+    expect(resolved.fields.find((field) => field.code === 'rank')).toMatchObject({ value: '2', effectiveValue: '2' });
+    expect(resolved.fields.find((field) => field.code === 'material')).toMatchObject({ defaultValue: 'steel', effectiveValue: 'steel', inherited: false });
+    expect(validateScenarioRuleData(fixture).filter((issue) => issue.severity === 'error')).toEqual([]);
+  });
+
+  it('validates missing, unknown, and incorrectly typed profile values plus authority constraints', () => {
+    const fixture = structuredClone(completeDoorRuleDataFixture);
+    fixture.objectTypes[0].profileFields = [{ code: 'rank', label: '階級', description: '', valueType: 'number', required: true }];
+    fixture.objects[0].profileValues = [{ profileCode: 'rank', value: 'not-a-number' }, { profileCode: 'unknown', value: 'x' }];
+    fixture.objectTypes[0].stateFields.push({ code: 'mood', label: '気分', valueType: 'string', defaultValue: 'calm', visibility: 'private', updateAuthority: 'ai', aiGuidance: '対話に応じて更新する' });
+    fixture.objects[0].initialStateOverrides.push({ stateCode: 'mood', value: 'happy' });
+    const messages = validateScenarioRuleData(fixture).map((issue) => issue.message);
+    expect(messages).toEqual(expect.arrayContaining([
+      expect.stringContaining('number型'),
+      expect.stringContaining('項目が見つかりません'),
+      expect.stringContaining('事前default'),
+      expect.stringContaining('初期値を設定できません'),
+    ]));
+  });
+
+  it('detects incompatible profile types and state authority collisions', () => {
+    const fixture = structuredClone(westDoorAuthoringFixture);
+    fixture.objectTypes[0].profileFields = [{ code: 'role', label: '役割', description: '', valueType: 'string', required: false }];
+    fixture.objectTypes[1].profileFields = [{ code: 'role', label: '役割', description: '', valueType: 'boolean', required: false }];
+    fixture.objectTypes[1].stateFields = [{ ...fixture.objectTypes[0].stateFields[0], updateAuthority: 'ai', defaultValue: '' }];
+    expect(resolvedObjectProfile(fixture, fixture.objects[0]).conflicts).toEqual([expect.objectContaining({ kind: 'profile', code: 'role' })]);
+    expect(resolvedObjectConfiguration(fixture, fixture.objects[0]).conflicts).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'state', code: 'open' })]));
   });
 
   it('cascades Type action and rule code renames into dependent operations', () => {

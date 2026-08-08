@@ -29,7 +29,9 @@ public sealed class ScenarioDefinitionWriter(ApplicationDbContext db, ScenarioRu
                 Id = new ScenarioObjectTypeId($"SOT-{Guid.NewGuid():N}"), DefinitionVersionId = version.Id, Code = input.Code.Trim(), Name = input.Name.Trim(),
                 Description = input.Description?.Trim() ?? string.Empty, SchemaVersion = input.SchemaVersion,
                 StateSchemaJson = codec.Encode(new StateSchema(input.StateSchema)), DefaultStateJson = codec.Encode(new StateValue(input.DefaultState)),
-                PublicProjectionJson = codec.Encode(new PublicProjection(input.PublicProjection)), GenericActionRulesJson = JsonSerializer.Serialize(input.ActionRules ?? [], Options),
+                PublicProjectionJson = codec.Encode(new PublicProjection(input.PublicProjection)),
+                ProfileSchemaJson = Element(input.ProfileSchema, "{}"), ProfileDefaultsJson = Element(input.ProfileDefaults, "{}"),
+                GenericActionRulesJson = JsonSerializer.Serialize(input.ActionRules ?? [], Options),
             };
             foreach (var actionInput in input.Actions ?? []) type.Actions.Add(new ScenarioObjectTypeAction
             {
@@ -48,7 +50,9 @@ public sealed class ScenarioDefinitionWriter(ApplicationDbContext db, ScenarioRu
             InitialStateOverrideJson = codec.Encode(new StateValue(input.InitialStateOverride)),
             MixinTypeCodesJson = JsonSerializer.Serialize(input.MixinTypeCodes.Select(x => x.Trim()).Where(x => x.Length > 0)),
             LocalStateSchemaJson = codec.Encode(new StateSchema(input.StateSchema)), LocalDefaultStateJson = codec.Encode(new StateValue(input.DefaultState)),
-            LocalPublicProjectionJson = codec.Encode(new PublicProjection(input.PublicProjection)), LocalActionsJson = JsonSerializer.Serialize(input.Actions ?? [], Options),
+            LocalPublicProjectionJson = codec.Encode(new PublicProjection(input.PublicProjection)),
+            LocalProfileSchemaJson = Element(input.LocalProfileSchema, "{}"), LocalProfileDefaultsJson = Element(input.LocalProfileDefaults, "{}"),
+            ProfileValuesJson = Element(input.ProfileValues, "{}"), LocalActionsJson = JsonSerializer.Serialize(input.Actions ?? [], Options),
             ActionRuleMutationsJson = JsonSerializer.Serialize(input.ActionRules ?? [], Options), IsGlobal = input.IsGlobal,
         });
     }

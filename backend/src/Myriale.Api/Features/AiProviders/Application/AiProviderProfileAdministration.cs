@@ -87,7 +87,7 @@ public sealed class AiProviderProfileUseCases(IAiProviderProfileRepository repos
     private static AiAdministrationResult<T> NotFound<T>() => new(AiAdministrationOutcome.NotFound, Error: "The resource was not found.");
 }
 
-public sealed class AiCredentialUseCases(IAiCredentialRepository repository, IAiProviderProfileRepository profiles, IAiDeploymentProfileSource deploymentProfiles, IAiSecretProtector protector, TimeProvider time)
+public sealed class AiCredentialUseCases(IAiCredentialRepository repository, IAiProviderProfileRepository profiles, IAiDeploymentCatalogSource deploymentCatalog, IAiSecretProtector protector, TimeProvider time)
 {
     public async Task<AiAdministrationResult<AiCredential>> SetAsync(SetAiCredentialCommand command, CancellationToken ct)
     {
@@ -117,7 +117,7 @@ public sealed class AiCredentialUseCases(IAiCredentialRepository repository, IAi
             var credential = await repository.LoadAsync(command.Id, ct); if (credential is null) return NotFound<bool>();
             credential.RequireRevision(command.ExpectedRevision);
             if (await profiles.IsCredentialReferencedAsync(credential.Id, ct)
-                || deploymentProfiles.GetProfiles().Values.Any(profile => profile.CredentialId == credential.Id))
+                || deploymentCatalog.GetSnapshot().Profiles.Values.Any(profile => profile.CredentialId == credential.Id))
                 return new(AiAdministrationOutcome.CredentialReferenced, Error: "The credential is referenced by a profile.");
             repository.Remove(credential); return await repository.SaveAsync(ct) ? new(AiAdministrationOutcome.Success, true) : Conflict<bool>();
         }

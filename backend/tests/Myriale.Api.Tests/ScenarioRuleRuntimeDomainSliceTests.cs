@@ -89,6 +89,22 @@ public sealed class ScenarioRuleRuntimeDomainSliceTests
     }
 
     [Fact]
+    public void RulesCannotMutateAiManagedFields()
+    {
+        var world = World(new EffectSet([new StateEffect("set-state", "state.mood", Element("\"curious\""), null, null)]));
+        var source = world.Objects[0] with
+        {
+            State = Element("{\"open\":false,\"count\":1,\"tags\":[\"old\"],\"mood\":\"calm\"}"),
+            AiManagedFields = new HashSet<string>(["mood"]),
+        };
+        world = world with { Objects = [source, world.Objects[1]] };
+
+        var error = Assert.Throws<ScenarioTurnValidationException>(() => Service().Resolve(world, Decision(), "INV"));
+
+        Assert.Equal("ai_managed_state_rule_mutation", error.Code);
+    }
+
+    [Fact]
     public void ExtensionBinding_IsReturnedAsRequestInsteadOfExecutedDuringResolution()
     {
         var world = World(new EffectSet([new TextEffect("emit-fact", "ready")]), module: true);
@@ -109,6 +125,9 @@ public sealed class ScenarioRuleRuntimeDomainSliceTests
         Assert.False(step.RecordDecision("{}", Now));
         Assert.Equal(ScenarioTurnStage.Resolution, step.Stage);
         Assert.True(step.RecordResolution("RULE", "{}", true, Now));
+        Assert.Equal(ScenarioTurnStage.StateTransition, step.Stage);
+        Assert.True(step.RecordStateTransition("{}", "{}", true, Now));
+        Assert.False(step.RecordStateTransition("{}", "{}", true, Now));
         Assert.Equal(ScenarioTurnStage.Extension, step.Stage);
         Assert.True(step.CompleteExtension("{}", Now));
         Assert.False(step.CompleteExtension("{}", Now));
@@ -179,13 +198,13 @@ public sealed class ScenarioRuleRuntimeDomainSliceTests
             module ? Element("{}") : null);
         var source = new ScenarioRuleObjectSnapshot(
             new ScenarioObjectId("OBJ-DOOR"), "door", "Door", "A door", false, new ScenarioLocationId("LOC-HALL"), 4,
-            Element("{\"open\":false,\"count\":1,\"tags\":[\"old\"]}"),
-            new HashSet<string>(["open", "count", "tags"]), [action], [rule]);
+            Element("{\"open\":false,\"count\":1,\"tags\":[\"old\"]}"), Element("{}"), Element("{}"),
+            new HashSet<string>(["open", "count", "tags"]), new HashSet<string>(), [action], [rule]);
         var otherAction = action with { Id = new ScenarioObjectTypeActionId("ACT-OTHER"), ObjectTypeId = new ScenarioObjectTypeId("TYPE-OTHER") };
         var other = new ScenarioRuleObjectSnapshot(
             new ScenarioObjectId("OBJ-OTHER"), "other", "Other", "Other object", false, new ScenarioLocationId("LOC-HALL"), 7,
-            Element("{\"open\":false,\"count\":0,\"tags\":[]}"),
-            new HashSet<string>(["open"]), [otherAction], []);
+            Element("{\"open\":false,\"count\":0,\"tags\":[]}"), Element("{}"), Element("{}"),
+            new HashSet<string>(["open"]), new HashSet<string>(), [otherAction], []);
         return new ScenarioRuleWorldSnapshot(
             new SessionId("SES-1"), new AccountId("OWNER-1"), new ScenarioDefinitionVersionId("DEF-1"), new ScenarioLocationId("LOC-HALL"), 12, SessionStatus.Active, 5,
             new Dictionary<string, bool>(),

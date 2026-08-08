@@ -20,8 +20,11 @@ The central distinction is:
 | Draft | An editable Scenario or Scenario Definition that is not yet an immutable execution input. |
 | Published definition | A validated and immutable definition that can be pinned by a Session. |
 | Location | A named place in the executable world. Its `Code` is the stable reference inside one definition. |
-| Object Type | A reusable state schema and action set applied to Objects. |
-| Object | A concrete actor or thing placed in the world, with type mixins and local overrides. |
+| Entity Type | A reusable profile-field declaration, runtime-state schema, field authority map, and action set. It is persisted by the current `ScenarioObjectType` model. |
+| Entity | A concrete actor or thing placed in the world, with ordered type mixins, structured profile values, supplemental Markdown, runtime state, actions, and local overrides. It is persisted by the current `ScenarioObject` model; NPC is not a separate domain type. |
+| Structured profile | Static fields declared by Entity Types or locally by an Entity, then populated by Entity values/defaults. |
+| Profile Markdown | Entity-local supplemental prose for details that do not fit stable fields. It is not parsed into implicit fields. |
+| State update authority | The single writer class for one runtime state field: `rules` or `ai`. |
 | Progression graph | Nodes and signal-driven transitions that describe the scenario-level narrative progression. |
 | Session | A playthrough that pins a published Scenario Definition so later edits do not change its rules. |
 
@@ -46,9 +49,13 @@ ScenarioDefinition [Aggregate Root]
 ├─ IllustrationPrompt
 ├─ StartLocationCode
 ├─ Locations
-├─ ObjectTypes
+├─ EntityTypes (persisted as ObjectTypes)
+│  ├─ ProfileFields / ProfileDefaults
+│  ├─ StateFields / UpdateAuthorities
 │  └─ Actions
-├─ Objects
+├─ Entities (persisted as Objects)
+│  ├─ ProfileValues / ProfileMarkdown
+│  └─ Local Profile / State / Actions
 └─ ProgressionGraph
 
 Session [separate Aggregate]
@@ -251,7 +258,7 @@ Reasons for separating it from `Scenario`:
 | `ScenarioId` | Reference to the owning Scenario | Must refer to the same Scenario for the entire lifetime. |
 | `Version` | Monotonically increasing version number within a Scenario | `(ScenarioId, Version)` is unique in the current EF mapping. Allocation must be concurrency-safe. |
 | `Status` | `DefinitionStatus` | Must be `Draft` or `Published`; published definitions are immutable. |
-| `SchemaVersion` | Version of the definition data contract | Current authoring logic expects schema version 2. |
+| `SchemaVersion` | Version of the definition data contract | Current persisted baseline is version 2. The accepted Entity profile/authority contract advances new definitions to version 3; version 2 reads as empty structured profile plus `rules` authority. |
 | `CreatedAt` | Definition creation timestamp | Immutable. |
 | `UpdatedAt` | Latest draft update timestamp | Must not precede `CreatedAt`. |
 | `PublishedAt` | Publication timestamp | Must be null for Draft and non-null for Published. |
@@ -285,13 +292,15 @@ Current authoring saves rebuild child records, so technical IDs may change. Doma
 | `Name` | User-facing type name. |
 | `Description` | Meaning and intended use of the type. |
 | `SchemaVersion` | Version of the Object Type schema representation. |
-| `StateSchemaJson` | Allowed shape and constraints of runtime state. |
-| `DefaultStateJson` | Default runtime state for Objects of the type. |
+| `ProfileSchemaJson` | Accepted target field: structured static profile fields required or offered to composed Entities. |
+| `ProfileDefaultsJson` | Accepted target field: reusable defaults for declared profile fields; required fields may intentionally omit defaults so each Entity must supply a value. |
+| `StateSchemaJson` | Allowed shape and constraints of runtime state, including accepted target metadata `updateAuthority: rules | ai` and optional `aiGuidance`. |
+| `DefaultStateJson` | Default runtime state for Entities of the type. A `rules` field requires a complete default; an `ai` field may remain uninitialized until interaction. |
 | `PublicProjectionJson` | Rules defining which state may be exposed to players or AI. |
 | `GenericActionRulesJson` | Reusable rules supplied by the type. |
 | `Actions` | Actions supplied by this type. |
 
-JSON strings are persistence representations. The domain layer should operate on typed values such as `StateSchema`, `DefaultState`, `PublicProjection`, and `ActionRuleSet`.
+JSON strings are persistence representations. The domain layer should operate on typed values such as `ProfileSchema`, `ResolvedProfileConfiguration`, `StateSchema`, `StateUpdateAuthority`, `DefaultState`, `PublicProjection`, and `ActionRuleSet`. Profile and state are different lifecycles: profile is immutable definition data, while state is copied into each Session, revised, and updated at runtime.
 
 ### `ScenarioObjectTypeAction`
 
@@ -317,18 +326,56 @@ JSON strings are persistence representations. The domain layer should operate on
 | `DefinitionVersionId` | Owning Definition. |
 | `Code` | Stable Object reference inside the Definition. |
 | `Name` | User-facing Object name. |
-| `ProfileMarkdown` | Narrative profile, appearance, personality, and role. |
-| `LocationId` / `Location` | Initial placement. The referenced Location must belong to the same Definition. |
-| `InitialStateOverrideJson` | Override applied to type defaults. |
-| `MixinTypeCodesJson` | Object Types applied to the Object. |
-| `LocalStateSchemaJson` | Object-specific additions to the state schema. |
-| `LocalDefaultStateJson` | Object-specific default state. |
-| `LocalPublicProjectionJson` | Object-specific state exposure rules. |
-| `LocalActionsJson` | Actions defined only for this Object. |
+| `ProfileMarkdown` | Entity-local supplemental narrative detail, examples, exceptions, relationships, and performance guidance. Structured values are authoritative on conflict; Markdown headings are not implicit fields. |
+| `LocalProfileSchemaJson` | Accepted target field: Entity-specific structured profile declarations that do not justify a reusable Entity Type. |
+| `LocalProfileDefaultsJson` | Accepted target field: Entity-local defaults composed after Type defaults. |
+| `ProfileValuesJson` | Accepted target field: values for fields in the resolved inherited/local profile schema. Unknown fields and schema-invalid values are rejected. |
+| `LocationId` / `Location` | Initial placement only. The referenced Location must belong to the same Definition; runtime placement is held by `SessionObjectState.LocationId`. |
+| `InitialStateOverrideJson` | Override applied to `rules`-authority type defaults. It does not normally materialize `ai` fields. |
+| `MixinTypeCodesJson` | Ordered Entity Types applied to the Entity. |
+| `LocalStateSchemaJson` | Entity-specific additions to the state schema, including one update authority per field. |
+| `LocalDefaultStateJson` | Entity-specific default state. |
+| `LocalPublicProjectionJson` | Entity-specific state exposure rules. |
+| `LocalActionsJson` | Actions defined only for this Entity. |
 | `ActionRuleMutationsJson` | Additions, replacements, removals, or adjustments to inherited rules. |
 | `IsGlobal` | Indicates that the Object is not limited to one ordinary Location context. |
 
-All Location, Object Type, Action, and rule references must resolve within the same Definition aggregate.
+All Location, Entity Type, Entity, Action, and rule references must resolve within the same Definition aggregate.
+
+### Profile composition invariants
+
+The accepted profile model extends the existing ordered mixin composition rather than introducing class inheritance. There is no NPC-specific domain type or specialized NPC hierarchy.
+
+```text
+earlier Entity Type
+< later Entity Type
+< Entity-local declaration/default
+< Entity profile value
+```
+
+- A stable field code may be composed only when its schemas are structurally compatible. Labels and help text are presentation metadata and do not define schema compatibility.
+- `required` is monotonic across composition: a later source cannot weaken a requirement declared earlier.
+- A required field must resolve from an inherited/local default or an Entity value before publication.
+- Entity values may address only fields in the resolved schema and must satisfy supported type, enum, length, and range constraints.
+- `ProfileMarkdown` remains verbatim Entity-local supplemental data. Type Markdown is not implicitly concatenated, and Markdown headings are never interpreted as schema declarations.
+- Structured profile values are authoritative if supplemental Markdown contradicts them.
+
+### Runtime state authority and persistence
+
+Each resolved state field has exactly one update authority:
+
+- `rules` — only configured action rules/effects may update it. This is the compatibility default when authority is absent.
+- `ai` — only a schema-validated AI state transition may replace it. The initial contract has no `hybrid` authority.
+
+A Session initializes `rules` fields from resolved defaults/overrides. `ai` fields may be absent until the first applicable interaction. A transition result is limited to the target Entity's `ai` fields and carries the expected `SessionObjectState.Revision`; it cannot mutate `rules` fields, another Entity, Session completion, or either Session/Entity location.
+
+The validated transition is persisted as a durable checkpoint before the authority commit. The commit applies authored effects and the AI field replacement atomically against expected revisions. A successful Entity state or placement change advances `SessionObjectState.Revision` once; stale or invalid transitions change nothing. Narrative retry, request retry, and worker recovery reuse the checkpoint and committed post-state rather than regenerating or recommitting the transition.
+
+### Location and prompt-projection invariants
+
+Location count and movement remain unrestricted by the profile/state model. `StartLocationCode`, non-global initial placement, `move-session`, and `move-object` continue to use ordinary rule/effect contracts. Runtime Entity placement is authoritative in `SessionObjectState.LocationId`, not in the definition's initial `LocationId`.
+
+Narrative and AI-state prompts derive visibility from runtime/post-effect location. Their ordinary Entity context is limited to Entities at the Session's current Location plus global Entities. A selected or affected Entity may be included narrowly when required to describe a movement just committed. Unrelated remote Entities' structured profiles, Markdown, and private state are excluded, and profile secrets do not become player-visible facts without an explicit public-state or committed-fact authority path.
 
 ## Progression graph boundary
 
@@ -370,7 +417,8 @@ Readiness includes at least:
 - the Definition is Draft;
 - at least one Location and Object exist;
 - `StartLocationCode` resolves;
-- schemas, rules, effects, and Module bindings are internally consistent;
+- profile composition, state schemas/authorities, rules, effects, and Module bindings are internally consistent;
+- required profile fields resolve and no schema/authority collision remains;
 - all references remain inside the Definition.
 
 ### Repository interfaces
@@ -404,7 +452,11 @@ Remaining limitations are operational rather than compatibility facades: the cur
 - A Published Definition cannot be modified.
 - A Scenario cannot have multiple active Draft Definitions.
 - Concurrent version allocation cannot produce duplicate version numbers.
-- Start Location and Object references must resolve inside the same Definition.
+- Start Location and Entity references must resolve inside the same Definition.
+- Profile composition rejects unknown values, missing required fields, and incompatible schemas.
+- Every state field resolves to one `rules` or `ai` authority.
+- AI transition checkpoints are revision-fenced, replay-safe, and cannot update rule-owned state or location.
+- Runtime prompt projection excludes unrelated remote Entity profile/private state.
 - A Definition that fails readiness cannot be published.
 - Publication cannot update only Scenario or only Definition.
 - A Session remains bound to the Definition it pinned and is unaffected by later versions.

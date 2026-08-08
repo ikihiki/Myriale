@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Button, Input, MarkdownEditor, Textarea } from '../../../../components/ui';
 import { EditPane } from '../../../../shared/EditPane';
 import { MyrialeSelect } from '../../../../ui/MyrialeRadix';
+import { ProfileFieldsEditorPresentation } from './ProfileFieldsEditorPresentation';
 import { ObjectResolvedTablesPresentation } from './ObjectResolvedTablesPresentation';
 import {
   createLocation,
@@ -10,6 +11,7 @@ import {
   effectiveObjectRules,
   filterObjectTypesForMixin,
   resolvedObjectConfiguration,
+  resolvedObjectProfile,
   type ScenarioActionRule,
   type ScenarioRuleData,
 } from './scenarioRuleDataModel';
@@ -38,6 +40,7 @@ export function LocationsObjectsEditorPresentation({ value, onChange, onNotice, 
   const location = value.locations[locationIndex];
   const object = value.objects[objectIndex];
   const resolved = object ? resolvedObjectConfiguration(value, object) : null;
+  const resolvedProfile = object ? resolvedObjectProfile(value, object) : null;
   const effectiveRules = object ? effectiveObjectRules(value, object) : [];
   const mixinCandidates = filterObjectTypesForMixin(value.objectTypes, mixinSearchQuery);
   const replaceLocation = (next: typeof location) => {
@@ -66,6 +69,14 @@ export function LocationsObjectsEditorPresentation({ value, onChange, onNotice, 
     <EditPane open={Boolean(object)} onOpenChange={(open) => { if (!open) { setEditing(null); setMixinSearchOpen(false); setMixinSearchQuery(''); } }} eyebrow="エンティティ" title={object?.name ?? 'エンティティを編集'} description="NPC、物品、扉、装置を共通のEntityとして編集します。Markdownは外観・人物像・材質・描写指針を自由に記述できます。" footer={<Button onClick={() => { setEditing(null); setMixinSearchOpen(false); setMixinSearchQuery(''); }}>編集を完了</Button>}>{object && <div className={editorClass}>
       <label>stable code<Input aria-label="エンティティのstable code" value={object.code} onChange={(event) => { replaceObject({ ...object, code: event.target.value }); setEditing({ kind: 'object', code: event.target.value }); }} /></label><label>表示名<Input aria-label="エンティティの表示名" value={object.name} onChange={(event) => replaceObject({ ...object, name: event.target.value })} /></label>
       <MarkdownEditor label="エンティティプロフィール" value={object.profileMarkdown} onChange={(profileMarkdown) => replaceObject({ ...object, profileMarkdown })} placeholder={'## 外観・概要\n\n外観、人物像、材質などを記述します。\n\n## 描写指針\n\n現在状態やfactsに応じた描写方針を記述します。'} help="人物・物品を問わずAIへ渡される非公開の描写資料です。現在状態、公開済みfacts、禁止factsが正史として優先されます。" />
+      <section className="grid gap-4 rounded-xl border border-[#17151f]/12 p-3" aria-label="構造化プロフィール">
+        <ProfileFieldsEditorPresentation title="Entity固有プロフィール項目" description="再利用Typeを作らない、このEntityだけの静的プロフィール項目を宣言します。" fields={object.localProfileFields} defaults={object.localProfileDefaults} onChange={({ fields, defaults }) => replaceObject({ ...object, localProfileFields: fields, localProfileDefaults: defaults })} />
+        <div className="grid gap-2"><h3>解決済みプロフィール</h3><p className="text-sm text-myr-ink-subtle">ordered mixin、Entity固有default、Entity値の順で解決したプレビューです。</p>
+          {(resolvedProfile?.conflicts.length ?? 0) > 0 && <div role="alert" className="rounded-lg border border-[#a8324a]/35 bg-[#a8324a]/8 p-3 text-sm text-[#7b2337]">プロフィール定義が競合しています。</div>}
+          {resolvedProfile?.fields.map((field) => <label key={field.code}>{field.label}{field.required ? '（必須）' : ''}<span className="text-xs text-myr-ink-subtle">{field.code} / {field.valueType} / {field.source}{field.defaultValue !== null ? ` / default: ${field.defaultValue}` : ''}</span><Input aria-label={`${field.code}のプロフィール値`} disabled={Boolean(field.conflict)} value={field.value ?? ''} placeholder={field.defaultValue ?? ''} onChange={(event) => { const without = object.profileValues.filter((item) => item.profileCode !== field.code); replaceObject({ ...object, profileValues: event.target.value === '' ? without : [...without, { profileCode: field.code, value: event.target.value }] }); }} /><span className="text-xs">解決値: {field.effectiveValue ?? '未入力'}</span></label>)}
+          {resolvedProfile?.fields.length === 0 && <p className="text-sm text-myr-ink-subtle">構造化プロフィール項目はありません。</p>}
+        </div>
+      </section>
       <section aria-label="ordered Type mixins" className="grid gap-3 rounded-xl border border-[#17151f]/12 p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <strong>ordered Type mixins</strong>

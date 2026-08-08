@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button, Input, Textarea } from '../../../../components/ui';
 import { EditPane } from '../../../../shared/EditPane';
 import { ObjectActionRuleEditorPresentation } from './ObjectActionRuleEditorPresentation';
+import { ProfileFieldsEditorPresentation } from './ProfileFieldsEditorPresentation';
 import { RuleConfigurationEditorPresentation } from './RuleConfigurationEditorPresentation';
 import {
   createActionRule,
@@ -80,6 +81,9 @@ export function ObjectTypesEditorPresentation({ mode, value, onChange, onNotice 
           <h3 id="type-basic-information-heading">基本情報</h3>
           <div className="grid grid-cols-2 gap-3 max-md:grid-cols-1"><label>stable code<Input aria-label="種類のstable code" value={selected.code} onChange={(event) => replaceSelected({ ...selected, code: event.target.value })} /></label><label>表示名<Input aria-label="種類の表示名" value={selected.name} onChange={(event) => replaceSelected({ ...selected, name: event.target.value })} /></label></div>
           <label>説明<Textarea aria-label="種類の説明" value={selected.description} onChange={(event) => replaceSelected({ ...selected, description: event.target.value })} /></label>
+        </section>
+        <section className={cardClass}>
+          <ProfileFieldsEditorPresentation title="構造化プロフィール" description="この種類をmixinするEntityが利用する静的プロフィール項目を宣言します。MarkdownはEntity側の補足として残ります。" fields={selected.profileFields} defaults={selected.profileDefaults} onChange={({ fields, defaults }) => replaceSelected({ ...selected, profileFields: fields, profileDefaults: defaults })} />
         </section>
         <RuleConfigurationEditorPresentation
           stateFields={selected.stateFields}

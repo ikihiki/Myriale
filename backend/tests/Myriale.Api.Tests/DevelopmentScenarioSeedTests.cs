@@ -32,6 +32,25 @@ public sealed class DevelopmentScenarioSeedTests : IDisposable
         Assert.Equal("corridor", objects.Single(item => item.GetProperty("code").GetString() == "escape-door").GetProperty("locationCode").GetString());
         Assert.Equal("puzzle-room", objects.Single(item => item.GetProperty("code").GetString() == "puzzle-device").GetProperty("locationCode").GetString());
 
+        Assert.Equal(3, publishedJson.GetProperty("schemaVersion").GetInt32());
+        var guideType = publishedJson.GetProperty("objectTypes").EnumerateArray()
+            .Single(type => type.GetProperty("code").GetString() == "conversation-terminal");
+        var guideProfile = guideType.GetProperty("profileSchema");
+        Assert.Equal(new[] { "role", "speech-style", "values" }, guideProfile.GetProperty("properties").EnumerateObject()
+            .Select(property => property.Name).Order().ToArray());
+        Assert.Empty(guideType.GetProperty("profileDefaults").EnumerateObject());
+        var rapport = guideType.GetProperty("stateSchema").GetProperty("properties").GetProperty("rapport");
+        Assert.Equal("ai", rapport.GetProperty("updateAuthority").GetString());
+        Assert.Contains("未公開情報", rapport.GetProperty("aiGuidance").GetString());
+        Assert.False(guideType.GetProperty("defaultState").TryGetProperty("rapport", out _));
+        Assert.DoesNotContain("rapport", guideType.GetProperty("publicProjection").GetProperty("include").EnumerateArray()
+            .Select(field => field.GetString()));
+
+        var guideEntity = objects.Single(item => item.GetProperty("code").GetString() == "conversation-terminal");
+        Assert.Equal("閉鎖研究施設の案内と安全管理を担う対話窓口", guideEntity.GetProperty("profileValues").GetProperty("role").GetString());
+        Assert.Contains("## 演技指針", guideEntity.GetProperty("profileMarkdown").GetString());
+        Assert.Equal("start", guideEntity.GetProperty("locationCode").GetString());
+
         var puzzleType = publishedJson.GetProperty("objectTypes").EnumerateArray().Single(type => type.GetProperty("code").GetString() == "puzzle-device");
         var correctRule = puzzleType.GetProperty("actionRules").EnumerateArray().Single(rule => rule.GetProperty("code").GetString() == "solve-correct");
         var doorEffect = correctRule.GetProperty("effects").EnumerateArray().Single(effect =>
@@ -62,7 +81,8 @@ public sealed class DevelopmentScenarioSeedTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, basicSaved.StatusCode);
 
         using var ruleSaved = await owner.PutAsJsonAsync("/api/scenarios/SCN-AWAKENING-LAB/rule-data", draftJson);
-        Assert.Equal(HttpStatusCode.OK, ruleSaved.StatusCode);
+        var ruleSavedBody = await ruleSaved.Content.ReadAsStringAsync();
+        Assert.True(ruleSaved.StatusCode == HttpStatusCode.OK, ruleSavedBody);
 
         var other = await CreateRegisteredClientAsync(factory);
         using var otherRead = await other.GetAsync("/api/scenarios/SCN-AWAKENING-LAB/rule-data");
@@ -193,6 +213,66 @@ public sealed class DevelopmentScenarioSeedTests : IDisposable
         Assert.Equal("confessed", effects.Single(effect => effect.GetProperty("path").GetString() == "state.stance").GetProperty("value").GetString());
         Assert.True(effects.Single(effect => effect.GetProperty("path").GetString() == "state.evidenceAcknowledged").GetProperty("value").GetBoolean());
         Assert.Contains(evidence.GetProperty("facts").EnumerateArray().Select(fact => fact.GetString()), fact => fact!.Contains("難民船", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task MaidConversationSeed_UsesPersonalityProfileAndUninitializedAiStateAcrossMovableLocations()
+    {
+        using var factory = CreateFactory(recreateOnStartup: true);
+        var owner = await CreateSeedAccountClientAsync(factory);
+
+        using var scenarioResponse = await owner.GetAsync("/api/scenarios/SCN-MAID-TEA-TIME");
+        Assert.Equal(HttpStatusCode.OK, scenarioResponse.StatusCode);
+        var scenario = await scenarioResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("メイドと午後のティータイム", scenario.GetProperty("title").GetString());
+        Assert.Equal("fixed", scenario.GetProperty("heroMode").GetString());
+        Assert.Contains("メイド、クララ", scenario.GetProperty("opening").GetString());
+
+        using var ruleDataResponse = await owner.GetAsync("/api/scenarios/SCN-MAID-TEA-TIME/rule-data");
+        Assert.Equal(HttpStatusCode.OK, ruleDataResponse.StatusCode);
+        var ruleData = await ruleDataResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(3, ruleData.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal("sunroom", ruleData.GetProperty("startLocationCode").GetString());
+        Assert.Equal(new[] { "rose-garden", "sunroom" }, ruleData.GetProperty("locations").EnumerateArray()
+            .Select(location => location.GetProperty("code").GetString()).Order().ToArray());
+
+        var attendant = ruleData.GetProperty("objectTypes").EnumerateArray()
+            .Single(type => type.GetProperty("code").GetString() == "household-attendant");
+        Assert.Equal(new[] { "favorite-topic", "role", "service-boundary", "speech-style", "values" },
+            attendant.GetProperty("profileSchema").GetProperty("properties").EnumerateObject()
+                .Select(property => property.Name).Order().ToArray());
+        Assert.Empty(attendant.GetProperty("profileDefaults").EnumerateObject());
+        Assert.Equal("talk", Assert.Single(attendant.GetProperty("actions").EnumerateArray().ToArray()).GetProperty("code").GetString());
+
+        var stateProperties = attendant.GetProperty("stateSchema").GetProperty("properties");
+        Assert.Equal(new[] { "lastTopic", "rapport", "rememberedPreference", "visibleMood" },
+            stateProperties.EnumerateObject().Select(property => property.Name).Order().ToArray());
+        Assert.All(stateProperties.EnumerateObject(), property =>
+            Assert.Equal("ai", property.Value.GetProperty("updateAuthority").GetString()));
+        Assert.Empty(attendant.GetProperty("defaultState").EnumerateObject());
+        Assert.Equal(new[] { "visibleMood" }, attendant.GetProperty("publicProjection").GetProperty("include")
+            .EnumerateArray().Select(item => item.GetString()).ToArray());
+
+        var objects = ruleData.GetProperty("objects").EnumerateArray().ToArray();
+        var maid = objects.Single(item => item.GetProperty("code").GetString() == "maid-clara");
+        Assert.Equal("sunroom", maid.GetProperty("locationCode").GetString());
+        Assert.Equal("白薔薇館で客人の応対と給仕を担当するメイド", maid.GetProperty("profileValues").GetProperty("role").GetString());
+        Assert.Contains("## 演技指針", maid.GetProperty("profileMarkdown").GetString());
+        Assert.Contains(objects, item => item.GetProperty("code").GetString() == "sunroom-garden-door");
+        Assert.Contains(objects, item => item.GetProperty("code").GetString() == "garden-sunroom-door");
+
+        using var created = await owner.PostAsJsonAsync("/api/sessions", new
+        {
+            scenarioId = "SCN-MAID-TEA-TIME",
+            requestId = $"maid-seed-{Guid.NewGuid():N}",
+        });
+        var createdBody = await created.Content.ReadAsStringAsync();
+        Assert.True(created.StatusCode == HttpStatusCode.Created, createdBody);
+        var session = JsonSerializer.Deserialize<JsonElement>(createdBody);
+        var maidState = session.GetProperty("objectStates").EnumerateArray()
+            .Single(item => item.GetProperty("code").GetString() == "maid-clara");
+        Assert.Equal("SLOC-MAID-TEA-TIME-SUNROOM", maidState.GetProperty("locationId").GetString());
+        Assert.Empty(maidState.GetProperty("state").EnumerateObject());
     }
 
     [Fact]

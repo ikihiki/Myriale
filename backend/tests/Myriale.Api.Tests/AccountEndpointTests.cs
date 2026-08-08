@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Myriale.Api.Infrastructure.Persistence;
@@ -83,6 +84,46 @@ public sealed class AccountEndpointTests : IDisposable
         Assert.Equal(AccountSeedData.DefaultEmail, current.GetProperty("email").GetString());
         Assert.True(current.GetProperty("emailConfirmed").GetBoolean());
         Assert.True(current.GetProperty("canDebugDialogue").GetBoolean());
+    }
+
+    [Fact]
+    public async Task SeedAccount_BypassesPasswordPolicyWithoutWeakeningRegistration()
+    {
+        const string email = "short-seed@example.test";
+        const string password = "a";
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["SeedAccount:Enabled"] = "true",
+                ["SeedAccount:DisplayName"] = "短い合言葉の旅人",
+                ["SeedAccount:Email"] = email,
+                ["SeedAccount:Password"] = password,
+            }).Build();
+
+            var seeded = await AccountSeedData.SeedAsync(users, configuration);
+
+            Assert.NotNull(seeded);
+            Assert.True(await users.CheckPasswordAsync(seeded!, password));
+
+            configuration["SeedAccount:Password"] = "b";
+            var updated = await AccountSeedData.SeedAsync(users, configuration);
+            Assert.NotNull(updated);
+            Assert.True(await users.CheckPasswordAsync(updated!, "b"));
+        }
+
+        var client = CreateClient();
+        using var login = await client.PostAsJsonAsync("/api/account/login", new { email, password = "b" });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+
+        using var registration = await client.PostAsJsonAsync("/api/account/register", new
+        {
+            displayName = "通常登録",
+            email = "short-registration@example.test",
+            password,
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, registration.StatusCode);
     }
 
     [Fact]

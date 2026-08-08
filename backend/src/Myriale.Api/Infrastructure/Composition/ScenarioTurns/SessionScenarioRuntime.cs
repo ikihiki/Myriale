@@ -7,6 +7,7 @@ public enum ScenarioTurnStage
     Snapshot,
     Decision,
     Resolution,
+    StateTransition,
     Extension,
     EffectCommit,
     NarrativePublish,
@@ -21,6 +22,7 @@ public static class ScenarioTurnStageValues
         ScenarioTurnStage.Snapshot => "snapshot",
         ScenarioTurnStage.Decision => "decision",
         ScenarioTurnStage.Resolution => "resolution",
+        ScenarioTurnStage.StateTransition => "state-transition",
         ScenarioTurnStage.Extension => "extension",
         ScenarioTurnStage.EffectCommit => "effect-commit",
         ScenarioTurnStage.NarrativePublish => "narrative-publish",
@@ -34,6 +36,7 @@ public static class ScenarioTurnStageValues
         "snapshot" => ScenarioTurnStage.Snapshot,
         "decision" => ScenarioTurnStage.Decision,
         "resolution" => ScenarioTurnStage.Resolution,
+        "state-transition" => ScenarioTurnStage.StateTransition,
         "extension" => ScenarioTurnStage.Extension,
         "effect-commit" => ScenarioTurnStage.EffectCommit,
         "narrative-publish" => ScenarioTurnStage.NarrativePublish,
@@ -97,6 +100,7 @@ public sealed class SessionRuleActionStep
     public string? DecisionJson { get; internal set; }
     public string? SelectedRuleId { get; internal set; }
     public string? ResolutionPlanJson { get; internal set; }
+    public string? EntityStateTransitionJson { get; internal set; }
     public string? AppliedEffectsJson { get; internal set; }
     public string? PublicPostStateJson { get; internal set; }
     public string? FactsJson { get; internal set; }
@@ -154,6 +158,17 @@ public sealed class SessionRuleActionStep
         SelectedRuleId = selectedRuleId;
         ResolutionPlanJson = Required(resolutionPlanJson, nameof(resolutionPlanJson));
         ResolvedAt = now;
+        Stage = ScenarioTurnStage.StateTransition;
+        UpdatedAt = now;
+        return true;
+    }
+
+    public bool RecordStateTransition(string transitionJson, string resolutionPlanJson, bool requiresExtension, DateTimeOffset now)
+    {
+        if (EntityStateTransitionJson is not null) return false;
+        EnsureStage(ScenarioTurnStage.StateTransition);
+        EntityStateTransitionJson = Required(transitionJson, nameof(transitionJson));
+        ResolutionPlanJson = Required(resolutionPlanJson, nameof(resolutionPlanJson));
         Stage = requiresExtension ? ScenarioTurnStage.Extension : ScenarioTurnStage.EffectCommit;
         UpdatedAt = now;
         return true;

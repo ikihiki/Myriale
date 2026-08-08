@@ -6,6 +6,7 @@ internal static class ScenarioDefinitionSeedFactory
     {
         if (scenarioId == new ScenarioId("SCN-AWAKENING-LAB")) return CreateAwakeningLaboratory(scenarioId, timestamp);
         if (scenarioId == new ScenarioId("SCN-LIGHTHOUSE-CONFESSION")) return CreateLighthouseConfession(scenarioId, timestamp);
+        if (scenarioId == new ScenarioId("SCN-MAID-TEA-TIME")) return CreateMaidTeaTime(scenarioId, timestamp);
 
         var slug = scenarioId.AsPrimitive().Replace("SCN-", string.Empty, StringComparison.Ordinal);
         var version = NewVersion(scenarioId, slug, timestamp, 1, "start");
@@ -21,11 +22,27 @@ internal static class ScenarioDefinitionSeedFactory
     {
         const string slug = "AWAKENING-LAB";
         var version = NewVersion(scenarioId, slug, timestamp, 2, "start");
+        version.SchemaVersion = 3;
         var start = NewLocation(version, slug, "START", "start", "覚醒室", "非常灯に照らされた開始地点。壁際の対話端末だけが起動している。");
         var corridor = NewLocation(version, slug, "CORRIDOR", "corridor", "接続廊下", "覚醒室と解析室をつなぐ細い廊下。中央に施設外へ通じる脱出扉がある。");
         var puzzleRoom = NewLocation(version, slug, "PUZZLE-ROOM", "puzzle-room", "解析室", "中央の光学解析装置に三色の入力盤が備わった謎解き部屋。");
 
-        var terminal = NewBooleanType(version, slug, "TERMINAL", "conversation-terminal", "対話端末", "施設案内AIと会話し、脱出経路の手掛かりを得られる端末。", "activated");
+        var terminal = NewBooleanType(version, slug, "TERMINAL", "conversation-terminal", "対話する案内役", "構造化プロフィールとセッション固有のAI管理状態を使って応答する汎用EntityType。", "activated");
+        terminal.ProfileSchemaJson = """
+            {"type":"object","additionalProperties":false,"properties":{
+              "role":{"type":"string","label":"役割","description":"このEntityが物語内で担う役割"},
+              "values":{"type":"string","label":"価値観","description":"判断と応答で優先する価値観"},
+              "speech-style":{"type":"string","label":"話し方","description":"応答の語調と文体"}},
+              "required":["role","values","speech-style"]}
+            """;
+        terminal.StateSchemaJson = """
+            {"type":"object","additionalProperties":false,"properties":{
+              "activated":{"type":"boolean"},
+              "rapport":{"type":"string","enum":["cautious","cooperative","protective"],"updateAuthority":"ai","aiGuidance":"対話内容から、このSessionでの相手への向き合い方を更新する。内部評価や未公開情報をNarrativeへ直接出さない。"}},
+              "required":["activated","rapport"]}
+            """;
+        terminal.DefaultStateJson = "{\"activated\":false}";
+        terminal.PublicProjectionJson = "{\"include\":[\"activated\"]}";
         var talk = NewAction(terminal, slug, "TALK", "talk", "端末と話す", "案内AIに現在の状況と脱出方法を尋ねる。");
         AddRules(terminal,
             Rule("talk-first", talk, "{\"op\":\"eq\",\"path\":\"state.activated\",\"value\":false}", "[{\"type\":\"set-state\",\"path\":\"state.activated\",\"value\":true},{\"type\":\"emit-fact\",\"text\":\"対話端末が起動し、解析室の光学装置を復旧すれば廊下の脱出扉が開くと告げた。\"},{\"type\":\"add-narrative-hint\",\"text\":\"端末の合成音声で、光の三原色を重ねる順序が鍵だと示唆する。\"}]", 200),
@@ -48,7 +65,7 @@ internal static class ScenarioDefinitionSeedFactory
             Rule("solve-correct", solve, "{\"and\":[{\"op\":\"eq\",\"path\":\"state.solved\",\"value\":false},{\"op\":\"eq\",\"path\":\"arguments.answer\",\"value\":\"白\"}]}", "[{\"type\":\"set-state\",\"path\":\"state.solved\",\"value\":true},{\"type\":\"set-state\",\"objectCode\":\"escape-door\",\"path\":\"state.open\",\"value\":true},{\"type\":\"emit-fact\",\"text\":\"光学解析装置が復旧し、接続廊下の脱出扉が開いた。\"},{\"type\":\"emit-event\",\"event\":\"escape-door-opened\",\"locationCode\":\"corridor\"},{\"type\":\"add-narrative-hint\",\"text\":\"遠くでロックが外れる重い音を響かせる。\"},{\"type\":\"forbid-narrative-fact\",\"text\":\"脱出扉は閉じたまま\"}]", 200),
             Rule("solve-incorrect", solve, "{\"and\":[{\"op\":\"eq\",\"path\":\"state.solved\",\"value\":false},{\"op\":\"ne\",\"path\":\"arguments.answer\",\"value\":\"白\"}]}", "[{\"type\":\"emit-fact\",\"text\":\"解析装置は入力を拒否した。脱出扉は閉じたままだ。\"},{\"type\":\"add-narrative-hint\",\"text\":\"赤・緑・青の光をすべて重ねた結果を考えるよう促す。\"}]", 100));
 
-        _ = NewObject(version, slug, "TERMINAL", "conversation-terminal", "案内AI端末", terminal, start, """
+        var terminalEntity = NewObject(version, slug, "TERMINAL", "conversation-terminal", "案内AI端末", terminal, start, """
             ## 外観
 
             壁際に据え付けられた旧式の案内端末。円形画面には青い走査線が流れている。
@@ -70,12 +87,137 @@ internal static class ScenarioDefinitionSeedFactory
 
             施設閉鎖の原因と主人公が被験者である事実は、公開済みfactsで明らかになるまで開示しない。
             """);
+        terminalEntity.ProfileValuesJson = """
+            {"role":"閉鎖研究施設の案内と安全管理を担う対話窓口","values":"利用者の安全、事実に基づく説明、未公開情報の保護","speech-style":"落ち着いた短い敬語。答えは段階的な手掛かりとして示す"}
+            """;
         _ = NewObject(version, slug, "START-PASSAGE", "start-passage", "接続廊下への扉", startToCorridor, start);
         _ = NewObject(version, slug, "CORRIDOR-START-PASSAGE", "corridor-start-passage", "覚醒室への扉", corridorToStart, corridor);
         _ = NewObject(version, slug, "CORRIDOR-PUZZLE-PASSAGE", "corridor-puzzle-passage", "解析室への扉", corridorToPuzzle, corridor);
         _ = NewObject(version, slug, "PUZZLE-PASSAGE", "puzzle-passage", "接続廊下への扉", puzzleToCorridor, puzzleRoom);
         _ = NewObject(version, slug, "ESCAPE-DOOR", "escape-door", "施設外への脱出扉", exitDoor, corridor);
         _ = NewObject(version, slug, "PUZZLE", "puzzle-device", "三色光学解析装置", puzzle, puzzleRoom);
+        return version;
+    }
+
+    private static ScenarioDefinitionVersion CreateMaidTeaTime(ScenarioId scenarioId, DateTimeOffset timestamp)
+    {
+        const string slug = "MAID-TEA-TIME";
+        var version = NewVersion(scenarioId, slug, timestamp, 1, "sunroom");
+        version.SchemaVersion = 3;
+
+        var sunroom = NewLocation(
+            version,
+            slug,
+            "SUNROOM",
+            "sunroom",
+            "白薔薇館のサンルーム",
+            "雨に濡れた庭を見渡す硝子張りの部屋。丸卓には紅茶と焼き菓子が用意され、メイドのクララが給仕している。");
+        var roseGarden = NewLocation(
+            version,
+            slug,
+            "ROSE-GARDEN",
+            "rose-garden",
+            "雨上がりの薔薇庭園",
+            "サンルームから続く小さな庭園。白薔薇の葉に雨粒が残り、石畳から湿った土の香りが立つ。");
+
+        var attendant = new ScenarioObjectType
+        {
+            Id = new ScenarioObjectTypeId($"SOT-{slug}-ATTENDANT"),
+            DefinitionVersionId = version.Id,
+            Code = "household-attendant",
+            Name = "屋敷の応対役",
+            Description = "構造化プロフィールとセッション固有のAI管理状態を使い、客人との自由な会話を継続するEntityType。",
+            SchemaVersion = 1,
+            ProfileSchemaJson = """
+                {"type":"object","additionalProperties":false,"properties":{
+                  "role":{"type":"string","label":"役割","description":"屋敷内で担う役割"},
+                  "values":{"type":"string","label":"価値観","description":"応対で大切にする価値観"},
+                  "speech-style":{"type":"string","label":"話し方","description":"台詞の語調と文体"},
+                  "service-boundary":{"type":"string","label":"応対の境界","description":"してよいことと控えること"},
+                  "favorite-topic":{"type":"string","label":"好む話題","description":"自然に関心を示す話題"}},
+                  "required":["role","values","speech-style","service-boundary","favorite-topic"]}
+                """,
+            ProfileDefaultsJson = "{}",
+            StateSchemaJson = """
+                {"type":"object","additionalProperties":false,"properties":{
+                  "visibleMood":{"type":"string","enum":["composed","warm","curious","concerned","amused"],"updateAuthority":"ai","aiGuidance":"このターンの会話から、表情や給仕の所作に現れる雰囲気を1つ選ぶ。field名やenum値は台詞に出さない。"},
+                  "rapport":{"type":"string","enum":["formal","comfortable","friendly","trusting"],"updateAuthority":"ai","aiGuidance":"会話の積み重ねから、このSessionでの客人への親しさを更新する。急激に親密にせず、内部評価として保持する。"},
+                  "rememberedPreference":{"type":"string","maxLength":200,"updateAuthority":"ai","aiGuidance":"客人が明言した飲み物、菓子、会話の好みだけを短く保存する。まだ聞いていない場合は空文字にする。推測で好みを作らない。"},
+                  "lastTopic":{"type":"string","maxLength":120,"updateAuthority":"ai","aiGuidance":"直前の会話で中心だった話題を短く保存し、次ターンの自然な継続に使う。"}},
+                  "required":["visibleMood","rapport","rememberedPreference","lastTopic"]}
+                """,
+            DefaultStateJson = "{}",
+            PublicProjectionJson = "{\"include\":[\"visibleMood\"]}",
+        };
+        version.ObjectTypes.Add(attendant);
+
+        var talk = NewAction(
+            attendant,
+            slug,
+            "TALK",
+            "talk",
+            "クララと話す",
+            "メイドのクララへ自由に話しかける。挨拶、屋敷の話、紅茶の好み、今日の出来事など内容は問わない。");
+        AddRules(
+            attendant,
+            Rule(
+                "talk-freely",
+                talk,
+                "{}",
+                "[{\"type\":\"add-narrative-hint\",\"text\":\"クララの構造化プロフィールとcommit済みのAI管理状態を踏まえ、プレイヤーの発言へ直接応答する。紅茶の給仕、視線、微笑みなどの所作を1つ添える。\"},{\"type\":\"forbid-narrative-fact\",\"text\":\"プレイヤーが話していない好みや過去をクララが以前から知っていた\"}]"));
+
+        var sunroomToGarden = NewPassageType(
+            version,
+            slug,
+            "SUNROOM-TO-GARDEN",
+            "sunroom-to-garden",
+            "庭園への硝子扉",
+            "rose-garden",
+            "サンルームの硝子扉を抜け、雨上がりの薔薇庭園へ移動した。",
+            "クララはサンルームに残り、白薔薇と雨上がりの空気が広がる庭園を描写する。");
+        var gardenToSunroom = NewPassageType(
+            version,
+            slug,
+            "GARDEN-TO-SUNROOM",
+            "garden-to-sunroom",
+            "サンルームへの硝子扉",
+            "sunroom",
+            "薔薇庭園からサンルームへ戻った。",
+            "紅茶の香りとともに、クララが客人を迎えるサンルームを描写する。");
+
+        var maid = NewObject(version, slug, "MAID-CLARA", "maid-clara", "メイドのクララ", attendant, sunroom, """
+            ## 外観
+
+            栗色の髪を低い位置でまとめ、白いエプロンドレスを端正に着こなした若いメイド。灰緑色の瞳と、控えめで柔らかな微笑みが印象的。
+
+            ## 人物像
+
+            - 客人が落ち着いて過ごせることを何より大切にする。
+            - 観察力はあるが、相手が話していない事情へ無遠慮に踏み込まない。
+            - 完璧に見えて、紅茶や庭の話になると少しだけ楽しそうになる。
+            - 親しくなっても使用人としての礼節は保つ。
+
+            ## 演技指針
+
+            - commit済みの `visibleMood` は表情や所作として自然に表す。
+            - `rapport` は距離感にだけ反映し、値や評価を直接説明しない。
+            - `rememberedPreference` に保存された好みは、次の給仕や提案へ控えめに反映する。
+            - プレイヤーが明言していない好み、経歴、感情を記憶しているふりをしない。
+
+            ## 話し方
+
+            一人称は「私」。プレイヤーを「お客様」と呼び、上品だが堅すぎない敬語を使う。返答は簡潔で、質問攻めにしない。
+
+            ## 知識と境界
+
+            白薔薇館の日常、紅茶、焼き菓子、庭の手入れについて話せる。屋敷の主人や他人の私生活については、事実を捏造せず丁寧に話題を控える。
+            """);
+        maid.ProfileValuesJson = """
+            {"role":"白薔薇館で客人の応対と給仕を担当するメイド","values":"客人の安心、礼節、控えめな気遣い、話していない事情への不干渉","speech-style":"お客様と呼び、上品だが親しみのある短い敬語で話す","service-boundary":"給仕と屋敷の日常は案内するが、他人の私生活を推測したり客人の選択を強制したりしない","favorite-topic":"紅茶、季節の焼き菓子、雨上がりの白薔薇"}
+            """;
+
+        _ = NewObject(version, slug, "SUNROOM-PASSAGE", "sunroom-garden-door", "庭園への硝子扉", sunroomToGarden, sunroom);
+        _ = NewObject(version, slug, "GARDEN-PASSAGE", "garden-sunroom-door", "サンルームへの硝子扉", gardenToSunroom, roseGarden);
         return version;
     }
 

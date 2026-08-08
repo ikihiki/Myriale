@@ -19,6 +19,7 @@ public static class ScenarioTurnsFeature
         services.AddScoped<IScenarioActionSnapshotRepository, EfScenarioActionSnapshotRepository>();
         services.AddScoped<IScenarioAiInteractionRecorder, EfScenarioAiInteractionRecorder>();
         services.AddScoped<IScenarioAiDecisionService, ScenarioAiDecisionService>();
+        services.AddScoped<IScenarioEntityStateTransitionService, ScenarioEntityStateTransitionService>();
         services.AddScoped<IScenarioTurnArtifactWriter, ScenarioTurnArtifactWriter>();
         services.AddScoped<IScenarioEffectCommitUnitOfWork, EfScenarioEffectCommitUnitOfWork>();
         services.AddScoped<IScenarioNarrativeGenerationService, ScenarioNarrativeGenerationService>();

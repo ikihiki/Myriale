@@ -22,7 +22,9 @@ public sealed record ScenarioObjectTypeInput(
     JsonElement DefaultState,
     JsonElement PublicProjection,
     IReadOnlyList<ScenarioObjectTypeActionInput> Actions,
-    IReadOnlyList<ScenarioActionRule>? ActionRules = null);
+    IReadOnlyList<ScenarioActionRule>? ActionRules = null,
+    JsonElement ProfileSchema = default,
+    JsonElement ProfileDefaults = default);
 
 public sealed record ScenarioObjectTypeActionInput(
     string Code,
@@ -45,7 +47,10 @@ public sealed record ScenarioObjectInput(
     JsonElement StateSchema,
     JsonElement DefaultState,
     JsonElement PublicProjection,
-    IReadOnlyList<ScenarioObjectTypeActionInput> Actions);
+    IReadOnlyList<ScenarioObjectTypeActionInput> Actions,
+    JsonElement LocalProfileSchema = default,
+    JsonElement LocalProfileDefaults = default,
+    JsonElement ProfileValues = default);
 
 public enum ScenarioRuleMutationOperation { Add, Override, Delete, Adjust }
 

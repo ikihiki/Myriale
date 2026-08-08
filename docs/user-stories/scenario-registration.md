@@ -10,9 +10,9 @@
 
 - **Scenario definition version**: draft/published/retired。published は immutable。
 - **Location**: stable code、表示名、説明、authoring metadata。
-- **Object Type**: stable code、strict state schema、default state、public projection、actions。
-- **Object Type action**: stable action code、label、説明、argument schema、availability、visibility (`ai-choice` / `manual-ui` / `system-only`)。
-- **Object**: stable code、type、初期 Location、initial state override、global visibility。
+- **Entity Type（永続化上の Object Type）**: stable code、構造化 profile field 宣言/default、strict state schema、field ごとの update authority (`rules` / `ai`)、public projection、actions。
+- **Entity Type action**: stable action code、label、説明、argument schema、availability、visibility (`ai-choice` / `manual-ui` / `system-only`)。
+- **Entity（永続化上の Object）**: stable code、ordered type mixins、構造化 profile values、補足 `ProfileMarkdown`、初期 Location、initial state override、global visibility。人物、動物、物品、端末などを同じ仕組みで扱い、NPC 専用 domain type は設けない。
 - **Object action result**: from-state/condition、priority、ordered effects、任意の exact extension binding。
 
 Draft save は入力済み要素の構造と参照を検証する。Publish readiness は、すべての enabled `(Object, state, action)` に決定的な result があること、同 priority ambiguity がないこと、projection/effect/binding が有効であることまで検証する。
@@ -84,26 +84,29 @@ Storybook `play` steps
 
 ---
 
-## US-SR04: Object Type の state を定義したい
+## US-SR04: Entity Type の state を定義したい
 
 As a シナリオ作者
-I want Object Type の状態 schema、default、public projection を定義したい
-So that private state を保護しながら一貫した Object を作れる
+I want Entity Type の状態 schema、default、更新権限、public projection を定義したい
+So that private state を保護しながら rule-managed / AI-managed state を一貫して扱える
 
 期待される結果
 
-- stable type code と typed state-property rows を編集できる。
-- property ごとに type、required/default、public/private を指定できる。
-- default state と Object override が生成 schema に適合するか検証する。
-- public projection は whitelist とし、private property を AI/player preview に含めない。
+- stable type code と typed state-property rows を編集する要件を持つ。
+- property ごとに type、required/default、public/private と update authority (`rules` / `ai`) を定義する。
+- `rules` field は action rule/effect だけが更新し、従来互換の既定 authority とする。`ai` field は構造化 AI state transition だけが更新し、field ごとの `aiGuidance` を持てる。
+- 同一 field を両 authority が更新する `hybrid` は初期契約に含めず、合成後の authority 競合は publish error にする。
+- `rules` field の default と Entity override は schema に適合させる。`ai` field は concrete default/initial override を要求せず、Session 開始時に未設定でよい。最初の interaction で生成された transition は schema/authority/expected revision を検証して durable checkpoint 化し、retry/reload では保存済み checkpoint と committed state を再利用する。
+- public projection は whitelist とし、private property を player-facing preview や Narrative prompt に含めない。
 
 Storybook `play` steps
 
-1. `step('Object Type を追加する', ...)`。
-2. `step('state property と default を設定する', ...)`。
-3. `step('property を private にする', ...)`。
-4. `step('public preview から private 値が除外されることを確認する', ...)`。
-5. `step('draft を保存する', ...)`。
+1. `step('Entity Type を追加する', ...)`。
+2. `step('rule-managed field の default と authority を設定する', ...)`。
+3. `step('AI-managed field を未初期値と guidance 付きで設定する', ...)`。
+4. `step('property を private にする', ...)`。
+5. `step('public preview から private 値が除外されることを確認する', ...)`。
+6. `step('draft を保存する', ...)`。
 
 ---
 
@@ -130,26 +133,28 @@ Storybook `play` steps
 
 ---
 
-## US-SR06: Object を Location に配置したい
+## US-SR06: Entity を Location に配置したい
 
 As a シナリオ作者
-I want Object Type から Object を作り初期 Location に配置したい
+I want Entity Type から Entity を作り初期 Location に配置したい
 So that Session 開始時の世界を構成できる
 
 期待される結果
 
-- stable Object code、表示名、type、初期 Location を指定できる。
-- Object は baseline では一つの初期 Location だけを持つ。
-- schema-valid な initial state override と global visibility を設定できる。
-- missing type/location reference は該当 selector に error を表示する。
+- stable Entity code、表示名、ordered type mixins、初期 Location を指定する要件を持つ。
+- non-global Entity は一つの初期 Location を持つが、Scenario には複数 Location を自由に登録でき、Session 中の配置は移動可能とする。
+- Entity Type から解決した構造化 profile fields に values を供給し、Entity 固有 field、defaults、補足 `ProfileMarkdown` と併用できる。構造化値を正本とし、Markdown と矛盾する場合は構造化値を優先する。Markdown 見出しを暗黙に field 化しない。
+- schema-valid な rule-managed initial state override と global visibility を設定できる。AI-managed field の concrete initial override は原則許可しない。
+- missing type/location reference、unknown profile field、required profile value 未入力、schema/authority conflict は対応する authoring path の error にする。
 
 Storybook `play` steps
 
-1. `step('Object を追加する', ...)`。
-2. `step('Object Type と Location を選択する', ...)`。
-3. `step('initial state override を入力する', ...)`。
-4. `step('配置 preview を確認する', ...)`。
-5. `step('Object を保存する', ...)`。
+1. `step('Entity を追加する', ...)`。
+2. `step('ordered Entity Type と初期 Location を選択する', ...)`。
+3. `step('required profile values と補足 Markdown を入力する', ...)`。
+4. `step('rule-managed initial state override を入力する', ...)`。
+5. `step('resolved profile と配置 preview を確認する', ...)`。
+6. `step('Entity を保存する', ...)`。
 
 ---
 
@@ -272,8 +277,9 @@ So that action 漏れと秘密情報漏えいを防げる
 
 期待される結果
 
-- current Location、現在 Location/global Objects、public state、enabled/disabled actions を表示する。
-- 別 Location Object、private state、hidden conditions/outcomes、extension config、random values を表示しない。
+- runtime current Location、そこにいる Entity と global Entity、public state、enabled/disabled actions を表示する。
+- 別 Location の Entity、private state、非公開 profile、hidden conditions/outcomes、extension config、random values を表示しない。
+- profile を扱う preview は構造化 effective values と `ProfileMarkdown` を区別し、秘密を player-visible fact として自動公開しない。
 - state/arguments を変えて result/effects/post-state を preview できる。
 - preview は draft と本番 Session を変更しない。
 
@@ -330,26 +336,28 @@ Storybook `play` steps
 4. `step('値を修正して再検証する', ...)`。
 5. `step('publish 可能になることを確認する', ...)`。
 
-## US-SR15: 人物と物品を共通EntityとしてMarkdownで設定したい
+## US-SR15: 汎用Entityの構造化プロフィールと補足Markdownを設定したい
 
 As a シナリオ作者
-I want NPC、物品、扉、装置の外観・人物像・材質・描写指針をMarkdownで柔軟に登録したい
-So that 世界に存在する対象を固定分類や重複データに制約されずAIへ渡せる
+I want 人物、動物、物品、端末などに共通の仕組みでプロフィールを設定したい
+So that 必須項目の検証と自由な描写を両立し、NPC専用モデルを増やさずAIへ安定した文脈を渡せる
 
 期待される結果
 
-- NPCとObjectを別々に登録せず、すべてをstable code、名前、初期Locationを持つ共通Entityとして管理できる。
-- 各Entityは単一のMarkdownプロフィールを持ち、人物なら外観・人物像・演技・話し方・知識・秘密を、物品なら外観・材質・用途・注目箇所・描写指針を自由に記述できる。
-- Markdownの見出し構成はテンプレートとして提示するが、保存形式の必須スキーマにはしない。
-- 初期Locationは世界データのLocation codeを参照し、publish時に存在を検証する。
-- MarkdownプロフィールはAI向けの非公開資料とし、現在状態と情報開示可否はEntityのstate、facts、forbidden factsを正史として判定する。
-- Entityのプロフィール、状態、Action、Ruleは同じEntity定義へ保存し、別のNPC設定とのコード同期を必要としない。
+- Entity Type は継承・合成先 Entity が入力する profile field の stable code、label/description、type、required/optional、default、検証可能な制約を宣言できる。
+- Entity は ordered type mixins から解決された field と Entity-local field に値を供給する。互換 field は合成し、非互換 schema は publish error とし、required は mixin 合成で弱めない。
+- 解決優先順位は「先の Entity Type < 後の Entity Type < Entity-local default < Entity value」とする。required field が value または default で埋まらなければ publish できない。
+- `ProfileMarkdown` は型に閉じ込めにくい描写、口調例、例外、関係性、演技指示の補足として Entity-local に保持する。複数 Type の Markdown を暗黙連結せず、見出しも schema として解析しない。
+- 構造化 profile を正本とし、Markdown と矛盾する場合は構造化値を優先する。profile の秘密は committed facts/public state により公開されるまで player-facing 情報にしない。
+- 人物を NPC として描写することはできるが、NPC 専用 aggregate、type、mode、flag は要求しない。
 
 Storybook `play` steps
 
-1. `step('人物も物品も同じエンティティとして追加する', ...)`。
-2. `step('外観、演技指針、知識、秘密を共通Markdownへ記述する', ...)`。
-3. `step('エンティティ一覧へ保存内容が反映されることを確認する', ...)`。
+1. `step('Entity Type に required profile field を宣言する', ...)`。
+2. `step('人物と端末を同じ Entity 機構で追加する', ...)`。
+3. `step('resolved profile values と補足 Markdown を入力する', ...)`。
+4. `step('required、default、declaration source を確認する', ...)`。
+5. `step('非互換 field と未入力 required field が publish error になることを確認する', ...)`。
 
 ## US-SR16: 作成手順を制作順に把握したい
 
@@ -362,7 +370,7 @@ So that 世界設定から開始条件まで迷わず組み立てられる
 - 作成・編集ウィザードは「基本情報、場所、主人公、エンティティ、開始状態、挿絵、動作確認」の7ステップで表示する。
 - 基本情報にはタイトル、ジャンル、物語の前提、AI裁量をまとめる。
 - 主人公ステップではプレイヤーキャラクターの選択方式と設定を管理する。
-- 場所とエンティティを別ステップにし、エンティティにはNPC・物品・扉・装置のプロフィール、状態、Action、Ruleをまとめる。開始状態では開始Location、Entity初期値、最初のNarrativeを設定する。
+- 場所とエンティティを別ステップにし、エンティティには人物・動物・物品・扉・端末などのプロフィール、状態、Action、Ruleをまとめる。開始状態では開始Location、Entity初期値、最初のNarrativeを設定する。
 - 作成画面と編集画面で同じステップ名と順序を使う。
 
 Storybook `play` steps
@@ -371,6 +379,29 @@ Storybook `play` steps
 2. `step('主人公の選択方式を編集できることを確認する', ...)`。
 3. `step('場所とエンティティを別々に編集できることを確認する', ...)`。
 4. `step('開始状態で開始条件を編集できることを確認する', ...)`。
+
+---
+
+## US-SR17: 複数Locationと自由な移動を保ったままEntityを公開したい
+
+As a シナリオ作者
+I want 複数の Location と Entity の移動 rule を定義したい
+So that AI-managed state を導入しても世界の移動を固定化せず、runtime の現在位置に応じた安全な文脈を作れる
+
+期待される結果
+
+- Scenario は複数 Location、任意の `StartLocationCode`、non-global Entity の初期配置を持てる。
+- `move-session` と `move-object` action/effect を通常の rule-managed movement として引き続き利用できる。AI state transition payload は Session/Entity の Location を直接変更できない。
+- publish/readiness は location references と movement targets を検証するが、Location 数や移動可能回数を NPC 会話向けに制限しない。
+- runtime では definition-time の初期配置ではなく `SessionObjectState.LocationId` を Entity 現在位置の正本とする。
+- Narrative prompt projection は post-effect の Session location にいる Entity、global Entity、移動直後の描写に必要な selected/affected Entity だけを含む。無関係な remote Entity の profile、Markdown、private state を含めない。
+
+Storybook `play` steps
+
+1. `step('複数 Location と開始 Location を設定する', ...)`。
+2. `step('Session と Entity の移動 effect を設定する', ...)`。
+3. `step('移動後の runtime Location preview を確認する', ...)`。
+4. `step('remote Entity の profile と private state が projection に含まれないことを確認する', ...)`。
 
 ---
 

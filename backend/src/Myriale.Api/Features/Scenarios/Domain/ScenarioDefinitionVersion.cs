@@ -13,7 +13,7 @@ public sealed class ScenarioDefinitionVersion : IHasDomainEvents
     public Scenario Scenario { get; internal set; } = null!;
     public int Version { get; internal set; }
     [MaxLength(20)] public DefinitionStatus Status { get; internal set; } = DefinitionStatus.Draft;
-    public int SchemaVersion { get; internal set; } = 2;
+    public int SchemaVersion { get; internal set; } = 3;
     public DateTimeOffset CreatedAt { get; internal set; }
     public DateTimeOffset UpdatedAt { get; internal set; }
     public DateTimeOffset? PublishedAt { get; internal set; }
@@ -47,7 +47,7 @@ public sealed class ScenarioDefinitionVersion : IHasDomainEvents
         ScenarioId = scenarioId,
         Version = version,
         Status = DefinitionStatus.Draft,
-        SchemaVersion = 2,
+        SchemaVersion = 3,
         CreatedAt = now,
         UpdatedAt = now,
     };
@@ -116,6 +116,8 @@ public sealed class ScenarioObjectType
     public string StateSchemaJson { get; set; } = "{}";
     public string DefaultStateJson { get; set; } = "{}";
     public string PublicProjectionJson { get; set; } = "{}";
+    public string ProfileSchemaJson { get; set; } = "{}";
+    public string ProfileDefaultsJson { get; set; } = "{}";
     public string GenericActionRulesJson { get; set; } = "[]";
     public ICollection<ScenarioObjectTypeAction> Actions { get; set; } = [];
 }
@@ -149,6 +151,9 @@ public sealed class ScenarioObject
     public string LocalStateSchemaJson { get; set; } = "{}";
     public string LocalDefaultStateJson { get; set; } = "{}";
     public string LocalPublicProjectionJson { get; set; } = "{}";
+    public string LocalProfileSchemaJson { get; set; } = "{}";
+    public string LocalProfileDefaultsJson { get; set; } = "{}";
+    public string ProfileValuesJson { get; set; } = "{}";
     public string LocalActionsJson { get; set; } = "[]";
     public string ActionRuleMutationsJson { get; set; } = "[]";
     public bool IsGlobal { get; set; }

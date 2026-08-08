@@ -1,6 +1,6 @@
 # AI provider administration architecture
 
-AI provider administration is split into three independent boundaries: the completed active-provider selection aggregate, provider profile definitions, and credentials. The split is intentionally destructive; the former AI keys route, mixed profile/key DTO, legacy catalog parser, and selection compatibility store do not exist.
+AI provider administration is split into three independent boundaries: the completed active-provider selection aggregate, provider profile definitions, and credentials. The former AI keys route, mixed profile/key DTO, and selection compatibility store do not exist. Deployment configuration may arrive either through typed settings or through one catalog JSON secret, but it is normalized into the same split profile/credential runtime model before use.
 
 ## Domain and persistence
 
@@ -12,9 +12,11 @@ Connection validation is stored as `AiProviderProfileValidation`. Each record is
 
 ## Runtime resolution
 
-`IAiDeploymentProfileSource` reads typed `AiDeployment:Profiles` configuration. Database definitions override deployment definitions with the same profile ID. `IAiProfileCatalog` is the runtime profile registry and exposes descriptors without secrets.
+`IAiDeploymentCatalogSource` normalizes two deployment inputs: typed `AiDeployment:Profiles` / `AiDeployment:Credentials` settings and `AiProvider:CatalogJson`. Catalog JSON overrides typed deployment entries with the same ID, and database profile definitions then override deployment profile definitions with the same profile ID. `IAiProfileCatalog` is the runtime profile registry and exposes descriptors without secrets.
 
-`IAiRuntimeCredentialResolver` resolves typed `AiDeployment:Credentials` first and encrypted database credentials second. Deployment-owned secrets therefore retain precedence without being copied into descriptors, queries, HTTP responses, logs, or frontend state. Runtime tuning remains under `AiProvider`; runtime adapter selection is under `AiRuntime`.
+The Forge deployment exposes exactly one ESO property, `catalogJson`, as `AiProvider__CatalogJson`. The document can add arbitrary OpenAI-compatible endpoint/model profiles and credential IDs without changing AppHost, the ExternalSecret resource, or Kubernetes environment-variable declarations. It supports a top-level `credentials` object and the compatibility `profiles[].apiKey` form; both are normalized into deployment credentials before any admin or provider operation.
+
+`IAiRuntimeCredentialResolver` resolves normalized deployment credentials first and encrypted database credentials second. Deployment-owned secrets therefore retain precedence without being copied into descriptors, queries, HTTP responses, logs, or frontend state. Runtime tuning remains under `AiProvider`; runtime adapter selection is under `AiRuntime`. An ESO refresh updates the Kubernetes Secret, but because the API consumes it through an environment variable, a Pod restart is required before a changed catalog value is observed.
 
 ## Application and HTTP
 
