@@ -1,5 +1,4 @@
 using System.Data.Common;
-using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Myriale.Api.Features.SessionExecutions.Application;
 using Myriale.Api.Infrastructure.Persistence;
@@ -283,53 +282,34 @@ public sealed class EfSessionExecutionOperationsRepository(
         DateTimeOffset stuckBefore,
         CancellationToken cancellationToken)
     {
-        var connection = db.Database.GetDbConnection();
-        var shouldClose = connection.State != ConnectionState.Open;
-        if (shouldClose) await connection.OpenAsync(cancellationToken);
-        try
-        {
-            await using var command = connection.CreateCommand();
-            command.CommandText = """
-                SELECT "Kind",
-                       SUM(CASE WHEN "Status" = 'queued' THEN 1 ELSE 0 END),
-                       SUM(CASE WHEN "Status" IN ('running', 'cancel-requested') THEN 1 ELSE 0 END),
-                       SUM(CASE WHEN "Status" = 'retry-wait' THEN 1 ELSE 0 END),
-                       MIN(CASE WHEN "Status" = 'queued' THEN "QueuedAt" END),
-                       SUM(CASE WHEN "Status" IN ('running', 'cancel-requested')
-                            AND (("LeaseExpiresAt" IS NOT NULL AND "LeaseExpiresAt" < @now)
-                              OR ("StartedAt" IS NOT NULL AND "StartedAt" < @stuckBefore))
-                           THEN 1 ELSE 0 END)
-                FROM "SessionExecutions"
-                WHERE "Status" IN ('queued', 'running', 'retry-wait', 'cancel-requested')
-                GROUP BY "Kind"
-                """;
-            var nowParameter = command.CreateParameter();
-            nowParameter.ParameterName = "@now";
-            nowParameter.Value = now;
-            command.Parameters.Add(nowParameter);
-            var stuckParameter = command.CreateParameter();
-            stuckParameter.ParameterName = "@stuckBefore";
-            stuckParameter.Value = stuckBefore;
-            command.Parameters.Add(stuckParameter);
-
-            var results = new List<SessionExecutionOperationsMetric>();
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            while (await reader.ReadAsync(cancellationToken))
+        var executions = await db.SessionExecutions.AsNoTracking()
+            .Where(execution => execution.Status == SessionExecutionStatus.Queued
+                || execution.Status == SessionExecutionStatus.Running
+                || execution.Status == SessionExecutionStatus.RetryWait
+                || execution.Status == SessionExecutionStatus.CancelRequested)
+            .Select(execution => new
             {
-                results.Add(new(
-                    SessionExecutionStorageValues.Kind(reader.GetString(0)),
-                    reader.GetInt64(1),
-                    reader.GetInt64(2),
-                    reader.GetInt64(3),
-                    reader.IsDBNull(4) ? null : reader.GetFieldValue<DateTimeOffset>(4),
-                    reader.GetInt64(5)));
-            }
-            return results;
-        }
-        finally
-        {
-            if (shouldClose) await connection.CloseAsync();
-        }
+                execution.Kind,
+                execution.Status,
+                execution.QueuedAt,
+                execution.LeaseExpiresAt,
+                execution.StartedAt,
+            })
+            .ToListAsync(cancellationToken);
+
+        return executions
+            .GroupBy(execution => execution.Kind)
+            .Select(group => new SessionExecutionOperationsMetric(
+                group.Key,
+                group.LongCount(execution => execution.Status == SessionExecutionStatus.Queued),
+                group.LongCount(execution => execution.Status is SessionExecutionStatus.Running or SessionExecutionStatus.CancelRequested),
+                group.LongCount(execution => execution.Status == SessionExecutionStatus.RetryWait),
+                group.Where(execution => execution.Status == SessionExecutionStatus.Queued)
+                    .Select(execution => (DateTimeOffset?)execution.QueuedAt)
+                    .Min(),
+                group.LongCount(execution => (execution.Status is SessionExecutionStatus.Running or SessionExecutionStatus.CancelRequested)
+                    && (execution.LeaseExpiresAt < now || execution.StartedAt < stuckBefore))))
+            .ToList();
     }
 
     private async Task<SessionExecutionOperationOutcome> ClassifyFenceAsync(
@@ -352,33 +332,30 @@ public sealed class EfSessionExecutionOperationsRepository(
         int maxBatchSize,
         CancellationToken cancellationToken)
     {
-        if (db.Database.IsNpgsql())
-        {
-            return await db.SessionExecutions.FromSqlInterpolated($$"""
-                SELECT *
-                FROM "SessionExecutions"
-                WHERE "DismissedAt" IS NULL
-                  AND (
-                    "Status" = {{SessionExecutionStatus.Queued}}
-                    OR ("Status" = {{SessionExecutionStatus.RetryWait}} AND "NextAttemptAt" <= {{now}})
-                    OR ("Status" = {{SessionExecutionStatus.Running}} AND "LeaseExpiresAt" <= {{now}})
-                  )
-                ORDER BY "Priority" DESC, "QueuedAt", "Id"
-                LIMIT {{maxBatchSize}}
-                FOR UPDATE SKIP LOCKED
-                """).ToListAsync(cancellationToken);
-        }
-
-        var scanSize = Math.Min(MaximumBatchSize * 4, Math.Max(maxBatchSize * 4, 32));
-        var candidates = await db.SessionExecutions
+        var candidates = db.SessionExecutions
             .Where(execution => execution.DismissedAt == null
                 && (execution.Status == SessionExecutionStatus.Queued
                     || execution.Status == SessionExecutionStatus.RetryWait
-                    || execution.Status == SessionExecutionStatus.Running))
-            .OrderByDescending(execution => execution.Priority)
-            .Take(scanSize)
-            .ToListAsync(cancellationToken);
-        return candidates
+                    || execution.Status == SessionExecutionStatus.Running));
+
+        if (!db.Database.IsSqlite())
+        {
+            return await candidates
+                .Where(execution => execution.Status == SessionExecutionStatus.Queued
+                    || execution.Status == SessionExecutionStatus.RetryWait && execution.NextAttemptAt <= now
+                    || execution.Status == SessionExecutionStatus.Running && execution.LeaseExpiresAt <= now)
+                .OrderByDescending(execution => execution.Priority)
+                .ThenBy(execution => execution.QueuedAt)
+                .ThenBy(execution => execution.Id)
+                .Take(maxBatchSize)
+                .ToListAsync(cancellationToken);
+        }
+
+        var scanSize = Math.Min(MaximumBatchSize * 4, Math.Max(maxBatchSize * 4, 32));
+        return (await candidates
+                .OrderByDescending(execution => execution.Priority)
+                .Take(scanSize)
+                .ToListAsync(cancellationToken))
             .Where(execution => execution.Status == SessionExecutionStatus.Queued
                 || execution.Status == SessionExecutionStatus.RetryWait && execution.NextAttemptAt <= now
                 || execution.Status == SessionExecutionStatus.Running && execution.LeaseExpiresAt <= now)

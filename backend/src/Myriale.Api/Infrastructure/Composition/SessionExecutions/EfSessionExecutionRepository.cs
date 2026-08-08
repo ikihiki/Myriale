@@ -16,14 +16,11 @@ public sealed class EfSessionExecutionRepository(ApplicationDbContext db) : ISes
             cancellationToken);
     }
 
-    public async Task<SessionExecutionMutationResult> MutateOwnedWithLockAsync(SessionExecutionId executionId, AccountId ownerId, Action<SessionExecution> mutation, CancellationToken cancellationToken)
+    public async Task<SessionExecutionMutationResult> MutateOwnedAsync(SessionExecutionId executionId, AccountId ownerId, Action<SessionExecution> mutation, CancellationToken cancellationToken)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        var execution = db.Database.IsNpgsql()
-            ? await db.SessionExecutions.FromSqlInterpolated($$"""
-                SELECT * FROM "SessionExecutions" WHERE "Id" = {{executionId}} FOR UPDATE
-                """).SingleOrDefaultAsync(cancellationToken)
-            : await db.SessionExecutions.SingleOrDefaultAsync(item => item.Id == executionId, cancellationToken);
+        var execution = await db.SessionExecutions
+            .SingleOrDefaultAsync(item => item.Id == executionId, cancellationToken);
         if (execution is null)
         {
             await transaction.RollbackAsync(CancellationToken.None);

@@ -36,7 +36,7 @@ public sealed class CancelSessionExecutionCommand(ISessionExecutionRepository re
     public async Task<SessionExecutionUseCaseResult> ExecuteAsync(SessionExecutionId executionId, AccountId ownerId, CancellationToken cancellationToken)
     {
         SessionExecution? execution = null;
-        var result = await repository.MutateOwnedWithLockAsync(executionId, ownerId, item =>
+        var result = await repository.MutateOwnedAsync(executionId, ownerId, item =>
         {
             execution = item;
             item.RequestCancellation(timeProvider.GetUtcNow());
