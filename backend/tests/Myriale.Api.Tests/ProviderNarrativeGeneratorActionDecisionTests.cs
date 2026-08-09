@@ -58,7 +58,9 @@ public sealed class ProviderNarrativeGeneratorActionDecisionTests
 
         await generator.GeneratePostStateNarrativeAsync(PostStateRequest(), default);
 
-        Assert.Contains("RecentTurnsの末尾から", textProvider.Request!.Messages[0].Text, StringComparison.Ordinal);
+        Assert.Contains("RecentTurnsは直前までの継続性を判断するための参照情報", textProvider.Request!.Messages[0].Text, StringComparison.Ordinal);
+        Assert.Contains("その本文を再掲・複製・言い換えしてはならない", textProvider.Request.Messages[0].Text, StringComparison.Ordinal);
+        Assert.Contains("RecentTurns内のNarrativeと同一になることは禁止", textProvider.Request.Messages[0].Text, StringComparison.Ordinal);
         Assert.Contains("3〜6段落", textProvider.Request.Messages[0].Text, StringComparison.Ordinal);
         Assert.Contains("調査官は机の上へ古い記録を置いた。", textProvider.Request.Messages[1].Text, StringComparison.Ordinal);
         Assert.Contains("この記録を見ろ。", textProvider.Request.Messages[1].Text, StringComparison.Ordinal);
