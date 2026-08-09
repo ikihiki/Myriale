@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { NarrativeBody } from './NarrativeBody';
 import { Label, TurnCard } from '../components/ui';
 
 /**
@@ -107,8 +108,16 @@ export function SessionTurn({
   testId,
   articleRef,
 }: SessionTurnProps) {
-  const narrativeBlock = (
-    <Label as="p" textRole="body" className="m-0 max-w-none !leading-[1.65] !text-[#303644]" data-testid={narrativeTestId}>
+  const narrativeBlock = typeof narrative === 'string' ? (
+    <div className="grid gap-3" data-testid={narrativeTestId}>
+      {narrativeTag && <div className="flex items-center gap-2" aria-hidden="true">
+        <span className="inline-block rounded-full bg-myr-gold px-2 py-px text-myr-micro font-black tracking-[.1em] text-[#17151f]">{narrativeTag}</span>
+        <span className="text-myr-micro font-black tracking-[.14em] text-myr-ink-soft">NARRATIVE</span>
+      </div>}
+      <NarrativeBody body={narrative} />
+    </div>
+  ) : (
+    <Label as="div" textRole="body" className="m-0 max-w-none !leading-[1.65] !text-[#303644]" data-testid={narrativeTestId}>
       {narrativeTag && <span className="mr-2 inline-block rounded-full bg-myr-gold px-2 py-px align-middle text-myr-micro font-black tracking-[.1em] text-[#17151f]" aria-hidden="true">{narrativeTag}</span>}
       {narrative}
     </Label>

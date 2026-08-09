@@ -262,6 +262,9 @@ export const USP04TalkWithNpcNaturally: Story = {
     await step('NPCの立場・関係性に沿った返答がNarrativeに入り、会話内容が文脈に残る', async () => {
       await expect(canvas.getByTestId('dialogue-log')).toHaveTextContent('書架の奥の人物');
       await expect(canvas.getByTestId('dialogue-log')).toHaveTextContent('会話内容はセッション文脈に記録');
+      const npcSpeech = canvas.getAllByLabelText('登場人物の発言').at(-1);
+      await expect(npcSpeech).toBeVisible();
+      await expect(npcSpeech).toHaveTextContent('それは閉じた星座を開くものだ');
     });
   },
 };
