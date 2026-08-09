@@ -47,15 +47,15 @@ export type CanonicalScenarioObjectRuleOperationDto =
   | ({ operation: 'override'; targetTypeCode: string; targetRuleCode: string } & Omit<CanonicalScenarioActionRuleDto, 'code'>)
   | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
   | {
-      operation: 'adjust';
-      targetTypeCode: string;
-      targetRuleCode: string;
-      condition?: ScenarioJsonObject;
-      priority?: number;
-      authoringNote?: string | null;
-      effects?: ScenarioJsonValue[];
-      moduleBinding?: CanonicalScenarioModuleBindingDto | null;
-    };
+    operation: 'adjust';
+    targetTypeCode: string;
+    targetRuleCode: string;
+    condition?: ScenarioJsonObject;
+    priority?: number;
+    authoringNote?: string | null;
+    effects?: ScenarioJsonValue[];
+    moduleBinding?: CanonicalScenarioModuleBindingDto | null;
+  };
 
 export type CanonicalScenarioObjectTypeDto = {
   code: string;
@@ -204,17 +204,17 @@ export type ScenarioObjectRuleOperationPayload =
   | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
   | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
   | {
-      operation: 'adjust';
-      targetTypeCode: string;
-      targetRuleCode: string;
-      adjustments: {
-        condition?: ScenarioCondition;
-        priority?: number;
-        note?: string | null;
-        effects?: ScenarioRuleEffectPayload[];
-        moduleBinding?: ScenarioModuleBindingPayload | null;
-      };
+    operation: 'adjust';
+    targetTypeCode: string;
+    targetRuleCode: string;
+    adjustments: {
+      condition?: ScenarioCondition;
+      priority?: number;
+      note?: string | null;
+      effects?: ScenarioRuleEffectPayload[];
+      moduleBinding?: ScenarioModuleBindingPayload | null;
     };
+  };
 
 export type ScenarioObjectPayload = {
   code: string;
@@ -712,15 +712,15 @@ export function createDemoScenarioApi(): ScenarioApi {
       if (!scenario) throw demoError('シナリオが見つかりません。', 404);
       return scenarioId === 'SCN-MOONLIT-GARDEN'
         ? {
-            name: 'ルネ',
-            profile: '失われた庭園の色を探し、十三回目の鐘の意味を読み解く記憶の採集者。',
-            message: 'AIがシナリオ設定から主人公案を推薦しました。内容を確認・修正してから確定してください。',
-          }
+          name: 'ルネ',
+          profile: '失われた庭園の色を探し、十三回目の鐘の意味を読み解く記憶の採集者。',
+          message: 'AIがシナリオ設定から主人公案を推薦しました。内容を確認・修正してから確定してください。',
+        }
         : {
-            name: 'ノクト',
-            profile: `${scenario.title}の導入と世界観を手掛かりに、物語の謎を追う旅人。`,
-            message: 'AIがシナリオ設定から主人公案を推薦しました。内容を確認・修正してから確定してください。',
-          };
+          name: 'ノクト',
+          profile: `${scenario.title}の導入と世界観を手掛かりに、物語の謎を追う旅人。`,
+          message: 'AIがシナリオ設定から主人公案を推薦しました。内容を確認・修正してから確定してください。',
+        };
     },
     async createScenario(payload) {
       if (!payload.title.trim()) throw demoError('タイトルを入力すると下書き保存できます。', 400, { title: ['シナリオタイトルを入力してください。'] });

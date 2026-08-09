@@ -201,5 +201,4 @@ describe('sessionPlayApi', () => {
     expect(aborted.kind).toBe('unknown');
   });
 
-
 });

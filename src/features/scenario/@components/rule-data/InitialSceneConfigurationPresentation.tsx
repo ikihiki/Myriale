@@ -33,11 +33,11 @@ export function InitialSceneConfigurationPresentation({ value, onChange }: Props
       {value.locations.length === 0
         ? <p className="text-sm text-[#9b3030]">先に「場所」ステップで場所を追加してください。</p>
         : <MyrialeSelect
-            label="セッション開始場所"
-            value={value.startLocationCode}
-            onValueChange={(startLocationCode) => onChange({ ...value, startLocationCode })}
-            options={value.locations.map((location) => ({ value: location.code, label: `${location.name} / ${location.code}` }))}
-          />}
+          label="セッション開始場所"
+          value={value.startLocationCode}
+          onValueChange={(startLocationCode) => onChange({ ...value, startLocationCode })}
+          options={value.locations.map((location) => ({ value: location.code, label: `${location.name} / ${location.code}` }))}
+        />}
     </section>
 
     <section className="grid gap-4" aria-labelledby="initial-states-heading">

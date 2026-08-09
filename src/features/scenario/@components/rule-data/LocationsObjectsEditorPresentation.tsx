@@ -159,6 +159,5 @@ export function LocationsObjectsEditorPresentation({ value, onChange, onNotice, 
       </div>}
     </EditPane>
 
-
   </section>;
 }

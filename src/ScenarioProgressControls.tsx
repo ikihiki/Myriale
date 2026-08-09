@@ -154,7 +154,6 @@ export function ScenarioProgressControls({ initialPanel = 'cast' }: ScenarioProg
     setNotice('作者向けデバッグ情報を更新しました。プレイヤー向けUIでは表示されません。');
   };
 
-
   const panelClassName = 'grid gap-3';
   const noticeNode = notice !== initialAdvancedNotice ? (
     <Notice className="my-4.5" data-testid="advanced-notice">{notice}</Notice>

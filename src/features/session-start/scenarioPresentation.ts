@@ -20,7 +20,7 @@ function toPlainText(markdown: string | undefined) {
   return (markdown ?? '')
     .replace(/^#{1,6}\s+/gm, '')
     .replace(/^[-*+]\s+/gm, '')
-    .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/[*_`>]/g, '')
     .replace(/\s+/g, ' ')
     .trim();

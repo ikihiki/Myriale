@@ -45,7 +45,6 @@ type HomeDashboardViewModel = {
 const fallbackDb = createDemoDb('activeSession');
 const crumbs: Crumb[] = [{ label: 'Myriale' }, { label: 'ホーム' }];
 
-
 const homeSectionHeadClassName = 'flex flex-wrap items-center justify-between gap-3.5';
 const homeCardMetaClassName = 'leading-[1.45] text-myr-ink-subtle';
 const homeCardActionsClassName = 'mt-2 flex flex-wrap items-center gap-2.5 self-end max-myr-home-compact:[&>button]:w-full';

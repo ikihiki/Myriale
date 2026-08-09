@@ -302,17 +302,17 @@ export function ScenarioForm({
               <p><strong>{currentStep.help}。</strong>NPCや物品などの描写設定は「エンティティ」ステップで共通に管理します。</p>
               <section className="grid gap-4" aria-labelledby="hero-settings-heading">
                 <h2 id="hero-settings-heading">主人公</h2>
-              <MyrialeSelect label="主人公の扱い" value={values.heroMode} onValueChange={(value) => update('heroMode', value as ScenarioFormValues['heroMode'])} options={[
-                { value: 'fixed', label: '固定キャラクター' },
-                { value: 'select', label: '候補キャラクターから選択' },
-                { value: 'free', label: '自由生成のみ' },
-              ]} />
-              {values.heroMode === 'select' && (
-                <label className="my-3 grid grid-cols-[1fr_auto] items-center gap-2 text-xs font-black text-myr-slate-muted [&_input]:size-4">
-                  <span>候補選択に加えて自由生成を許可</span>
-                  <input type="checkbox" aria-label="自由生成を許可" checked={values.heroFreeGenerationAllowed} onChange={(event) => update('heroFreeGenerationAllowed', event.target.checked)} />
-                </label>
-              )}
+                <MyrialeSelect label="主人公の扱い" value={values.heroMode} onValueChange={(value) => update('heroMode', value as ScenarioFormValues['heroMode'])} options={[
+                  { value: 'fixed', label: '固定キャラクター' },
+                  { value: 'select', label: '候補キャラクターから選択' },
+                  { value: 'free', label: '自由生成のみ' },
+                ]} />
+                {values.heroMode === 'select' && (
+                  <label className="my-3 grid grid-cols-[1fr_auto] items-center gap-2 text-xs font-black text-myr-slate-muted [&_input]:size-4">
+                    <span>候補選択に加えて自由生成を許可</span>
+                    <input type="checkbox" aria-label="自由生成を許可" checked={values.heroFreeGenerationAllowed} onChange={(event) => update('heroFreeGenerationAllowed', event.target.checked)} />
+                  </label>
+                )}
                 <label>{values.heroMode === 'fixed' ? '固定する主人公' : values.heroMode === 'select' ? '候補キャラクター（1行に1人）' : '自由生成時の前提・制約'}<Textarea aria-label="主人公の設定" value={values.hero} onChange={(event) => update('hero', event.target.value)} /></label>
               </section>
             </section>
