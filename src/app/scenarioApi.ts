@@ -313,6 +313,24 @@ export type ScenarioRuleDebugResponse = {
   forbiddenFacts: string[];
 };
 
+export type ScenarioNarrativeRecentTurn = { playerInput?: string | null; narrative?: string | null };
+export type ScenarioNarrativeEntity = { code: string; name: string; profileMarkdown: string };
+export type ScenarioNarrativeTestCase = {
+  recentTurns: ScenarioNarrativeRecentTurn[];
+  playerInput: string;
+  selectedObject: { id: string; code: string; name: string; locationId: string; isGlobal: boolean; revision: number; state: ScenarioJsonObject };
+  selectedAction: { objectId: string; actionId: string; code: string; label: string; description: string; argumentSchema: ScenarioJsonObject; enabled: boolean };
+  postState: { schemaVersion: string; currentLocation: { id: string; code: string; name: string; description: string }; objects: Array<{ id: string; code: string; name: string; locationId: string; isGlobal: boolean; revision: number; state: ScenarioJsonObject }>; sessionFlags: Record<string, boolean>; sessionStateRevision: number };
+  facts: string[];
+  events: ScenarioJsonValue[];
+  narrativeHints: string[];
+  forbiddenNarrativeFacts: string[];
+  entities: ScenarioNarrativeEntity[];
+};
+export type ImportScenarioNarrativeTestResponse = { sessionId: string; turnId: string; testCase: ScenarioNarrativeTestCase };
+export type ScenarioNarrativeTestResult = { heading: string; body: string; model: string; latencyMilliseconds: number };
+export type CompareScenarioDraftNarrativeResponse = { publishedDefinitionVersionId: string; aiProfileId: string; published: ScenarioNarrativeTestResult; draft: ScenarioNarrativeTestResult };
+
 export type ScenarioApiError = Error & {
   status?: number;
   errors?: Record<string, string[]>;
@@ -355,6 +373,8 @@ export type ScenarioApi = {
   getScenarioRuleDataReadiness: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioRuleDataReadinessDto>;
   publishScenarioRuleData: (scenarioId: string) => Promise<ScenarioRuleDataPayload>;
   debugScenarioRuleData: (scenarioId: string, payload: ScenarioRuleDebugRequest) => Promise<ScenarioRuleDebugResponse>;
+  importScenarioNarrativeTest: (scenarioId: string, sessionId: string, turnId: string) => Promise<ImportScenarioNarrativeTestResponse>;
+  compareScenarioDraftNarrative: (scenarioId: string, draft: CreateScenarioPayload, testCase: ScenarioNarrativeTestCase) => Promise<CompareScenarioDraftNarrativeResponse>;
   recommendHero: (scenarioId: string, payload: RecommendScenarioHeroPayload) => Promise<ScenarioHeroRecommendation>;
   createScenario: (payload: CreateScenarioPayload) => Promise<ScenarioDraftDto>;
   updateScenario: (scenarioId: string, payload: CreateScenarioPayload) => Promise<ScenarioDraftDto>;
@@ -447,6 +467,24 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
       });
       if (!response.ok) throw await toApiError(response);
       return response.json() as Promise<ScenarioRuleDebugResponse>;
+    },
+    async importScenarioNarrativeTest(scenarioId, sessionId, turnId) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/narrative-tests/import`, {
+        method: 'POST', credentials: 'include',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, turnId }),
+      });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<ImportScenarioNarrativeTestResponse>;
+    },
+    async compareScenarioDraftNarrative(scenarioId, draft, testCase) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/narrative-tests/compare`, {
+        method: 'POST', credentials: 'include',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft: toScenarioTransport(draft), testCase }),
+      });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<CompareScenarioDraftNarrativeResponse>;
     },
     async recommendHero(scenarioId, payload) {
       const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/hero-recommendation`, {
@@ -706,6 +744,29 @@ export function createDemoScenarioApi(): ScenarioApi {
       const publicObject = object ? { id: object.code, code: object.code, name: object.name, locationId: payload.objects.find((state) => state.objectCode === object.code)?.locationCode ?? object.initialLocationCode, isGlobal: object.global, revision: 0, state: payload.objects.find((state) => state.objectCode === object.code)?.state ?? {} } : null;
       const snapshot = { schemaVersion: 'rule-action-snapshot.v1', snapshotId: 'DEMO-DEBUG', currentLocation: { id: location?.code ?? '', code: location?.code ?? '', name: location?.name ?? '', description: location?.description ?? '' }, objects: publicObject ? [publicObject] : [], actions: action && object ? [{ objectId: object.code, actionId: action.code, code: action.code, label: action.label, description: action.description, argumentSchema: {}, enabled: true }] : [] };
       return { snapshot, decision: action && object && payload.trigger !== 'enumerate' ? { schemaVersion: 'rule-action-decision.v1', objectId: object.code, actionId: action.code, arguments: payload.arguments } : null, selectedRuleCode: action ? `${action.code}-preview` : null, appliedEffects: [], postState: payload.trigger === 'enumerate' ? null : { schemaVersion: 'rule-post-state.v1', currentLocation: snapshot.currentLocation, objects: snapshot.objects, sessionFlags: payload.flags, sessionStateRevision: 1 }, facts: payload.trigger === 'enumerate' ? [] : ['デバッグ実行は本番Sessionへ保存されません。'], events: [], hints: payload.playerInput ? [`入力「${payload.playerInput}」からアクション候補を選択しました。`] : [], forbiddenFacts: [] };
+    },
+    async importScenarioNarrativeTest(scenarioId, sessionId, turnId) {
+      const scenario = demoScenarios[scenarioId];
+      if (!scenario) throw demoError('シナリオが見つかりません。', 404);
+      const location = scenario.ruleData?.locations[0] ?? { code: 'start', name: '開始地点', description: '' };
+      const testCase: ScenarioNarrativeTestCase = {
+        recentTurns: [{ playerInput: '館について教えて', narrative: 'メイドは窓辺に立ち、古い館の来歴を静かに語った。' }],
+        playerInput: 'まだ知らないことを教えて',
+        selectedObject: { id: 'maid', code: 'maid', name: 'メイド', locationId: location.code, isGlobal: false, revision: 1, state: {} },
+        selectedAction: { objectId: 'maid', actionId: 'talk', code: 'talk', label: '会話する', description: '', argumentSchema: {}, enabled: true },
+        postState: { schemaVersion: 'rule-post-state.v1', currentLocation: { id: location.code, code: location.code, name: location.name, description: location.description }, objects: [], sessionFlags: {}, sessionStateRevision: 1 },
+        facts: [], events: [], narrativeHints: ['直前までに明かしていない情報を一つ示す。'], forbiddenNarrativeFacts: [],
+        entities: [{ code: 'maid', name: 'メイド', profileMarkdown: '館に仕える人物。' }],
+      };
+      return { sessionId, turnId, testCase };
+    },
+    async compareScenarioDraftNarrative(scenarioId, draft) {
+      if (!demoScenarios[scenarioId]) throw demoError('シナリオが見つかりません。', 404);
+      return {
+        publishedDefinitionVersionId: `published-${scenarioId}`, aiProfileId: 'demo-narrative',
+        published: { heading: '公開版', body: 'メイドは再び紅茶を注ぎ、庭のバラについて語った。', model: 'demo', latencyMilliseconds: 420 },
+        draft: { heading: '未保存ドラフト', body: `${draft.tone || '落ち着いた調子'}で、メイドは館の閉鎖された東棟に残る帳簿の存在を初めて明かした。`, model: 'demo', latencyMilliseconds: 430 },
+      };
     },
     async recommendHero(scenarioId) {
       const scenario = demoScenarios[scenarioId];

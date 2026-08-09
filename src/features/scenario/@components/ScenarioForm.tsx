@@ -17,6 +17,7 @@ import {
   wizardSummaryClass,
 } from '../../../shared/scenarioWizardStyles';
 import { MyrialeSelect } from '../../../ui/MyrialeRadix';
+import { ScenarioNarrativeTestPresentation } from './narrative-test/ScenarioNarrativeTestPresentation';
 import { ScenarioRuleDebugPresentation } from './rule-debug/ScenarioRuleDebugPresentation';
 import { InitialSceneConfigurationPresentation } from './rule-data/InitialSceneConfigurationPresentation';
 import { LocationsObjectsEditorPresentation } from './rule-data/LocationsObjectsEditorPresentation';
@@ -39,7 +40,7 @@ const wizardSteps: Array<{ id: WizardStep; label: string; help: string }> = [
   { id: 'objects', label: 'エンティティ', help: 'NPC・物品・装置のプロフィール、状態、アクション、実行ルール' },
   { id: 'initial-state', label: '開始状態', help: '開始場所・初期ステート・最初のNarrative' },
   { id: 'illustration', label: '挿絵', help: '画風、NG、プレビュー' },
-  { id: 'debug', label: '動作確認', help: '任意状態からルールエンジンを非永続で実行' },
+  { id: 'debug', label: 'テスト', help: '任意状態と過去TurnからルールとNarrativeを非永続で検証' },
 ];
 
 type Props = {
@@ -289,6 +290,8 @@ export function ScenarioForm({
                 placeholder={'## シナリオの目的\n\nこの物語で体験することを書きます。\n\n- 主な目的\n- 重要な前提'}
               />
               <div className={wizardButtonRowClass}><Button variant="secondary" size="sm" onClick={() => void consultAi('基本情報')} disabled={aiWorking}>AIに基本情報案を出してもらう</Button><Button variant="secondary" size="sm" onClick={adoptSummary}>採用して編集</Button></div>
+              <label>トーン<Input aria-label="シナリオのトーン" value={values.tone} onChange={(event) => update('tone', event.target.value)} placeholder="静謐、ゴシック、会話中心" /></label>
+              <MarkdownEditor label="世界観・設定" value={values.lore} onChange={(value) => update('lore', value)} help="Narrativeが参照する舞台の背景、既知の事実、人物関係を記述します。" placeholder={'## 館の背景\n\n公開してよい設定と人物関係を記述します。'} />
               <MyrialeSelect label="AI裁量" value={values.aiFreedom} onValueChange={(value) => update('aiFreedom', value)} options={[
                 { value: '低: 厳密に守る', label: '低: 厳密に守る' },
                 { value: '中: 設定を守りつつ提案する', label: '中: 設定を守りつつ提案する' },
@@ -383,7 +386,8 @@ export function ScenarioForm({
           )}
 
           {activeStep === 'debug' && (
-            <div className={wizardPanelClass}>
+            <div className={`${wizardPanelClass} grid gap-10`}>
+              {isEditing && actions.importNarrativeTest && actions.compareNarrativeDraft && <ScenarioNarrativeTestPresentation values={values} actions={actions} />}
               <ScenarioRuleDebugPresentation scenarioId={scenarioId} values={values} execute={actions.debug} />
             </div>
           )}

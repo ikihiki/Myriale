@@ -99,6 +99,27 @@ export function EditScenarioContainer({ scenarioId, api }: { scenarioId: string;
     }
   };
 
+  const importNarrativeTest: NonNullable<ScenarioFormActions['importNarrativeTest']> = async (sessionId, turnId) => {
+    try {
+      const response = await scenarioApi.importScenarioNarrativeTest(scenarioId, sessionId, turnId);
+      return { ok: true, message: `${sessionId} / ${turnId} の状態と過去Turnを取り込みました。`, value: response };
+    } catch (caught) {
+      const error = caught as ScenarioApiError;
+      return { ok: false, message: error.message ?? 'Session / Turnをインポートできませんでした。' };
+    }
+  };
+
+  const compareNarrativeDraft: NonNullable<ScenarioFormActions['compareNarrativeDraft']> = async (values, testCase) => {
+    setAiWorking(true);
+    try {
+      const response = await scenarioApi.compareScenarioDraftNarrative(scenarioId, values, testCase);
+      return { ok: true, message: '同じ状態・過去Turn・AIで、公開版と未保存ドラフトを生成しました。', value: response };
+    } catch (caught) {
+      const error = caught as ScenarioApiError;
+      return { ok: false, message: error.errors?.test?.[0] ?? error.message ?? 'Narrative比較を実行できませんでした。' };
+    } finally { setAiWorking(false); }
+  };
+
   const checkReadiness: NonNullable<ScenarioFormActions['checkReadiness']> = async () => {
     try {
       const readiness = await scenarioApi.getScenarioRuleDataReadiness(scenarioId);
@@ -148,7 +169,7 @@ export function EditScenarioContainer({ scenarioId, api }: { scenarioId: string;
     loadError={scenarioQuery.error instanceof Error ? scenarioQuery.error.message : undefined}
     saving={saving}
     aiWorking={aiWorking}
-    actions={{ save, assist, debug, checkReadiness, publish }}
+    actions={{ save, assist, debug, importNarrativeTest, compareNarrativeDraft, checkReadiness, publish }}
     onRetry={() => void scenarioQuery.refetch()}
     onLogout={logout}
   />;

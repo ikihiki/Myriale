@@ -34,7 +34,7 @@ export const USE01EditExistingScenario: Story = {
       await expect(canvas.getByRole('complementary', { name: '契約の改稿' })).toBeVisible();
       await expect(canvas.getByLabelText('シナリオタイトル')).toHaveValue('目覚めの研究室');
       await expect(canvas.getByRole('group', { name: '登録済みジャンルタグ' })).toHaveTextContent('SF');
-      for (const stepName of ['基本情報', '場所', '主人公', 'エンティティ', '開始状態', '挿絵', '動作確認']) {
+      for (const stepName of ['基本情報', '場所', '主人公', 'エンティティ', '開始状態', '挿絵', 'テスト']) {
         await expect(canvas.getByRole('button', { name: `${stepName}へ` })).toBeVisible();
       }
     });
@@ -110,6 +110,40 @@ export const USE05CheckReadinessAndPublish: Story = {
       await userEvent.click(canvas.getByRole('button', { name: 'シナリオを公開' }));
       await expect(canvas.getByTestId('publish-success')).toHaveTextContent('公開が完了しました。');
       await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('シナリオを公開しました。');
+    });
+  },
+};
+
+export const USE06CompareUnsavedDraftNarrative: Story = {
+  name: 'US-E06: Sessionの状態を取り込み、公開版よりドラフトが改善したか反復確認したい',
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await step('基本情報のトーンと世界観を未保存のまま改稿する', async () => {
+      const tone = canvas.getByLabelText('シナリオのトーン');
+      await userEvent.clear(tone);
+      await userEvent.type(tone, '静謐で、同じ所作を繰り返さず、新しい事実を一つずつ明かす');
+      const lore = canvas.getByLabelText('世界観・設定');
+      await userEvent.clear(lore);
+      await userEvent.type(lore, '館の東棟には前主人の帳簿があり、メイドは信頼が高まった時だけ存在を明かす。');
+    });
+    await goToStep(canvas, 'テスト');
+    await step('SessionとTurnを指定して実際のテスト条件をインポートする', async () => {
+      await userEvent.type(canvas.getByLabelText('インポートするSession ID'), 'SES-MAID-001');
+      await userEvent.type(canvas.getByLabelText('インポートするTurn ID'), 'TRN-MAID-004');
+      await userEvent.click(canvas.getByRole('button', { name: 'インポート' }));
+      await expect(canvas.getByTestId('narrative-test-notice')).toHaveTextContent('取り込みました');
+      await expect(canvas.getByLabelText('Turn 1 Narrative')).toHaveValue('メイドは紅茶を注ぎ、庭のバラについて語った。');
+    });
+    await step('過去Turnと状態を編集し、公開版と未保存ドラフトを同じ条件で比較する', async () => {
+      const previousNarrative = canvas.getByLabelText('Turn 1 Narrative');
+      await userEvent.clear(previousNarrative);
+      await userEvent.type(previousNarrative, 'メイドは庭の由来を説明した。');
+      await userEvent.click(canvas.getByRole('button', { name: '公開版と未保存ドラフトを比較' }));
+      const comparison = await canvas.findByTestId('narrative-comparison');
+      await expect(comparison).toHaveTextContent('公開版');
+      await expect(comparison).toHaveTextContent('未保存ドラフト');
+      await expect(comparison).toHaveTextContent('東棟の帳簿');
+      await expect(canvas.getByTestId('scenario-notice')).not.toHaveTextContent('変更を保存しました');
     });
   },
 };
