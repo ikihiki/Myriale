@@ -114,6 +114,28 @@ describe('TanStack app routing', () => {
     expect(router.state.matches[router.state.matches.length - 1]?.routeId).toBe('/admin');
   });
 
+  it('redirects an anonymous home request to login', async () => {
+    const accountApi = createDemoAccountApi();
+    await accountApi.logout();
+    const router = createAppRouter({ initialUrl: '/', accountApi });
+
+    await router.load();
+
+    expect(router.state.location.pathname).toBe('/account/login');
+    expect(router.state.location.search).toEqual({ redirect: '/' });
+  });
+
+  it('redirects anonymous AI Provider administration to login', async () => {
+    const accountApi = createDemoAccountApi();
+    await accountApi.logout();
+    const router = createAppRouter({ initialUrl: '/admin', accountApi });
+
+    await router.load();
+
+    expect(router.state.location.pathname).toBe('/account/login');
+    expect(router.state.location.search).toEqual({ redirect: '/admin' });
+  });
+
   it('matches the home route and renders the root not-found fallback for unknown URLs', async () => {
     const homeRouter = createAppRouter({ initialUrl: '/' });
     await homeRouter.load();

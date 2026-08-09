@@ -12,6 +12,19 @@ describe('AdminAiApi split profile and credential contracts', () => {
     await expect(api.updateProfile(profile.id, { displayName: 'Stale', baseUrl: profile.baseUrl, model: profile.model, systemPrompt: '古い変更', credentialId: profile.credentialId, expectedRevision: profile.revision })).rejects.toMatchObject({ status: 409 });
   });
 
+  it('creates a database override for a deployment profile with the same id', async () => {
+    const api = createDemoAdminAiApi();
+    const deployment = (await api.listProfiles()).find((item) => item.id === 'openai')!;
+
+    await api.createProfile({ id: deployment.id, displayName: deployment.displayName, baseUrl: deployment.baseUrl, model: deployment.model, systemPrompt: '簡潔な文体にする。', credentialId: deployment.credentialId, enabled: deployment.enabled });
+
+    const overridden = (await api.listProfiles()).find((item) => item.id === 'openai')!;
+    expect(overridden.source).toBe('database');
+    expect(overridden.revision).toBe(1);
+    expect(overridden.active).toBe(true);
+    expect(overridden.systemPrompt).toBe('簡潔な文体にする。');
+  });
+
   it('rejects active profile disable/delete and referenced credential delete', async () => {
     const api = createDemoAdminAiApi();
     const openai = (await api.listProfiles()).find((item) => item.id === 'openai')!;

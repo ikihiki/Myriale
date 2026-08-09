@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { toAppChromeAccount } from '../../account/accountPresentation';
+import { useAccountSession } from '../../account/hooks/useAccountSession';
 import { Button, DarkPanel, HomeCard, HomePanel, Label } from '../../components/ui';
 import { AppChrome, type Crumb } from '../../shared/AppChrome';
 import { useAppNavigation, type AppNavigateOptions, type StoryKey } from '../../shared/nav';
@@ -51,6 +53,7 @@ const homeCardActionsClassName = 'mt-2 flex flex-wrap items-center gap-2.5 self-
 export function HomePage() {
   const store = useOptionalAppStore();
   const navigate = useAppNavigation();
+  const accountSession = useAccountSession();
   const storeVm = useMemo(() => buildHomeDashboardViewModel(store?.db ?? fallbackDb), [store?.db]);
   const [apiDashboard, setApiDashboard] = useState<HomeDashboardDto | null>(null);
   const [loadState, setLoadState] = useState<HomeDashboardLoadState>({ status: 'idle', source: 'store' });
@@ -103,13 +106,19 @@ export function HomePage() {
     [apiDashboard, storeVm],
   );
 
+  const logout = async () => {
+    await accountSession.api.logout();
+    accountSession.clearUser();
+    navigate?.('login');
+  };
+
   const go = (to: StoryKey, options?: AppNavigateOptions) => navigate?.(to, options);
   const startRecommendedScenario = (scenario: HomeScenario) => navigate?.('startSession', {
     query: { scenarioId: scenario.id },
   });
 
   return (
-    <AppChrome section="home" breadcrumbs={crumbs} account={vm.account}>
+    <AppChrome section="home" breadcrumbs={crumbs} account={toAppChromeAccount(accountSession.user)} onLogout={logout}>
       <main className="grid gap-4.5 p-4.5 text-[#241b2f] max-myr-home-compact:p-2.5" aria-label="Myrialeトップページ">
         <section
           className="home-hero relative grid min-h-85 grid-cols-[minmax(0,1fr)_minmax(220px,320px)] items-stretch gap-myr-home-hero-gap overflow-hidden rounded-[32px] border border-[rgba(220,231,242,.54)] bg-[linear-gradient(90deg,rgba(25,20,33,.80)_1px,transparent_1px)_0_0/46px_46px,linear-gradient(0deg,rgba(25,20,33,.08)_1px,transparent_1px)_0_0/46px_46px,radial-gradient(circle_at_78%_20%,rgba(124,92,255,.30),transparent_28%),radial-gradient(circle_at_15%_12%,rgba(217,164,65,.20),transparent_30%),linear-gradient(135deg,#fffaf0_0%,#efe3c6_48%,#dce7f2_100%)] p-myr-home-hero-inset shadow-[0_24px_80px_rgba(18,16,25,.18)] max-myr-home-stack:grid-cols-1 max-myr-home-compact:rounded-[20px] max-myr-home-compact:p-4.5"
