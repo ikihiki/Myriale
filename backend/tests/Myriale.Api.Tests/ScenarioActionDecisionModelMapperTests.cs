@@ -60,6 +60,32 @@ public sealed class ScenarioActionDecisionModelMapperTests
         Assert.Equal(actionId, result.ActionId.AsPrimitive());
     }
 
+    [Fact]
+    public void MapResult_DiscardsHallucinatedArgumentsForArgumentlessAction()
+    {
+        var result = mapper.MapResult(Snapshot(), new(
+            ScenarioTurnSchemas.ModelActionDecisionResult,
+            "object:passage/use",
+            Element("{\"target\":\"passage\",\"reason\":\"move\"}")));
+
+        Assert.Equal(JsonValueKind.Object, result.Arguments.ValueKind);
+        Assert.Empty(result.Arguments.EnumerateObject());
+        ScenarioAiDecisionService.Validate(Snapshot(), result);
+    }
+
+    [Fact]
+    public void MapResult_PreservesArgumentsWhenActionDeclaresProperties()
+    {
+        var snapshot = SnapshotWithArguments();
+        var result = mapper.MapResult(snapshot, new(
+            ScenarioTurnSchemas.ModelActionDecisionResult,
+            "object:terminal/use",
+            Element("{\"topic\":\"館の秘密\"}")));
+
+        Assert.Equal("館の秘密", result.Arguments.GetProperty("topic").GetString());
+        ScenarioAiDecisionService.Validate(snapshot, result);
+    }
+
     [Theory]
     [InlineData(ScenarioTurnSchemas.ModelActionDecisionResult, "object:missing/use")]
     [InlineData(ScenarioTurnSchemas.ModelActionDecisionResult, "object:passage")]
@@ -115,6 +141,15 @@ public sealed class ScenarioActionDecisionModelMapperTests
             new(new ScenarioObjectId("system"), new ScenarioObjectTypeActionId("SYS-CLARIFY"), "clarify", "確認", "確認する", Element("{\"type\":\"object\"}"), true),
             new(new ScenarioObjectId("system"), new ScenarioObjectTypeActionId("SYS-NOOP"), "no-op", "待機", "何もしない", Element("{\"type\":\"object\"}"), true),
         ]);
+
+    private static RuleActionSnapshot SnapshotWithArguments()
+    {
+        var snapshot = Snapshot();
+        var actions = snapshot.Actions.Select(action => action.ActionId.AsPrimitive() == "ACT-TERMINAL-USE"
+            ? action with { ArgumentSchema = Element("{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"topic\":{\"type\":\"string\"}},\"required\":[\"topic\"]}") }
+            : action).ToArray();
+        return snapshot with { Actions = actions };
+    }
 
     private static JsonElement Element(string json) => JsonSerializer.Deserialize<JsonElement>(json);
 }

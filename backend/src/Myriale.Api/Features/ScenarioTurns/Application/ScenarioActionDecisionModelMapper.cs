@@ -60,7 +60,8 @@ public sealed class ScenarioActionDecisionModelMapper : IScenarioActionDecisionS
             .ToList();
         if (matches.Count != 1) throw new ScenarioTurnValidationException("unknown_model_action_selection");
         var selected = matches[0].Action;
-        return new(ScenarioTurnSchemas.ActionDecision, selected.ObjectId, selected.ActionId, result.Arguments.Clone());
+        return new(ScenarioTurnSchemas.ActionDecision, selected.ObjectId, selected.ActionId,
+            NormalizeArgumentlessAction(selected.ArgumentSchema, result.Arguments));
     }
 
     public JsonElement CreateResponseSchema(ModelActionDecisionRequest request)
@@ -89,6 +90,18 @@ public sealed class ScenarioActionDecisionModelMapper : IScenarioActionDecisionS
             ["required"] = new JsonArray("schemaVersion", "selectionCode", "arguments"),
         };
         return JsonSerializer.SerializeToElement(schema);
+    }
+
+    private static JsonElement NormalizeArgumentlessAction(JsonElement schema, JsonElement arguments)
+    {
+        if (schema.ValueKind != JsonValueKind.Object) return arguments.Clone();
+        var hasRequiredArguments = schema.TryGetProperty("required", out var required)
+            && required.ValueKind == JsonValueKind.Array && required.GetArrayLength() > 0;
+        var hasDeclaredArguments = schema.TryGetProperty("properties", out var properties)
+            && properties.ValueKind == JsonValueKind.Object && properties.EnumerateObject().Any();
+        return hasRequiredArguments || hasDeclaredArguments
+            ? arguments.Clone()
+            : JsonSerializer.SerializeToElement(new { });
     }
 
     private static ModelActionDecisionCandidate Candidate(string selectionCode, RulePublicAction action) =>
