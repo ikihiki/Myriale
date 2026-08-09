@@ -18,8 +18,38 @@ public sealed class OpenAiCompatibleTextProviderTests
         var result = await provider.GenerateAsync(Request(), default);
         Assert.Equal("https://example.test/openai/v1/chat/completions", handler.LastUri?.ToString());
         Assert.Contains("\"strict\":true", handler.LastBody, StringComparison.Ordinal);
-        Assert.Contains("chat_template_kwargs", handler.LastBody, StringComparison.Ordinal);
+        using var payload = JsonDocument.Parse(handler.LastBody);
+        Assert.Equal(0.4, payload.RootElement.GetProperty("temperature").GetDouble());
+        Assert.Equal(1200, payload.RootElement.GetProperty("max_tokens").GetInt32());
+        Assert.False(payload.RootElement.GetProperty("chat_template_kwargs").GetProperty("enable_thinking").GetBoolean());
         Assert.Equal("stop", result.Metadata.FinishReason);
+    }
+
+    [Fact]
+    public async Task Generate_AppliesAndRecordsPerRequestGenerationOverrides()
+    {
+        var handler = Success();
+        var provider = Create(handler, Catalog(Profile("runpod", "https://example.test/v1", "Qwen/Qwen3-8B", "shared")), new CredentialResolver("secret"));
+        var overrides = new AiGenerationOverrides(
+            Temperature: 0.8,
+            TopP: 0.95,
+            RepetitionPenalty: 1.05,
+            Seed: 42,
+            MaxOutputTokens: 4096,
+            ThinkingEnabled: true,
+            RetryAttempts: 0);
+
+        var result = await provider.GenerateAsync(Request(overrides), default);
+
+        using var payload = JsonDocument.Parse(handler.LastBody);
+        var root = payload.RootElement;
+        Assert.Equal(0.8, root.GetProperty("temperature").GetDouble());
+        Assert.Equal(0.95, root.GetProperty("top_p").GetDouble());
+        Assert.Equal(1.05, root.GetProperty("repetition_penalty").GetDouble());
+        Assert.Equal(42, root.GetProperty("seed").GetInt64());
+        Assert.Equal(4096, root.GetProperty("max_tokens").GetInt32());
+        Assert.True(root.GetProperty("chat_template_kwargs").GetProperty("enable_thinking").GetBoolean());
+        Assert.Same(overrides, result.Metadata.GenerationOverrides);
     }
 
     [Fact]
@@ -69,6 +99,30 @@ public sealed class OpenAiCompatibleTextProviderTests
         Assert.Equal(2, handler.RequestCount); Assert.Equal(2, result.Metadata.AttemptCount);
     }
 
+    [Fact]
+    public async Task Generate_RequestCanDisableRetries()
+    {
+        var handler = new QueueHandler(new HttpResponseMessage(HttpStatusCode.InternalServerError) { Content = new StringContent("unavailable") });
+
+        await Assert.ThrowsAsync<AiProviderException>(() =>
+            Create(handler, maxAttempts: 3).GenerateAsync(Request(new AiGenerationOverrides(RetryAttempts: 0)), default));
+
+        Assert.Equal(1, handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task Generate_RequestCanOverrideConfiguredRetryAttempts()
+    {
+        var unavailable = new HttpResponseMessage(HttpStatusCode.InternalServerError) { Content = new StringContent("unavailable") };
+        var handler = new QueueHandler(unavailable, SuccessResponse());
+
+        var result = await Create(handler, maxAttempts: 1)
+            .GenerateAsync(Request(new AiGenerationOverrides(RetryAttempts: 1)), default);
+
+        Assert.Equal(2, handler.RequestCount);
+        Assert.Equal(2, result.Metadata.AttemptCount);
+    }
+
     private static OpenAiCompatibleTextProvider Create(QueueHandler handler, IAiProfileCatalog? catalog = null, IAiRuntimeCredentialResolver? resolver = null, int maxAttempts = 2)
     {
         catalog ??= Catalog(Profile("runpod", "https://example.test/openai/v1", "test-model", "runpod"));
@@ -80,7 +134,7 @@ public sealed class OpenAiCompatibleTextProviderTests
     private static IAiProfileCatalog Catalog(params AiProfileDescriptor[] profiles) => new CatalogStub(profiles);
     private static QueueHandler Success() => new(SuccessResponse());
     private static HttpResponseMessage SuccessResponse() => new(HttpStatusCode.OK) { Content = new StringContent("{\"id\":\"resp-1\",\"choices\":[{\"message\":{\"content\":\"{\\\"ok\\\":true}\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":4}}", Encoding.UTF8, "application/json") };
-    private static AiTextRequest Request() { using var schema = JsonDocument.Parse("{\"type\":\"object\"}"); return new([new ChatMessage(ChatRole.System, "built-in instruction"), new ChatMessage(ChatRole.User, "test")], ChatResponseFormat.ForJsonSchema(schema.RootElement.Clone(), "test")); }
+    private static AiTextRequest Request(AiGenerationOverrides? overrides = null) { using var schema = JsonDocument.Parse("{\"type\":\"object\"}"); return new([new ChatMessage(ChatRole.System, "built-in instruction"), new ChatMessage(ChatRole.User, "test")], ChatResponseFormat.ForJsonSchema(schema.RootElement.Clone(), "test"), overrides); }
     private sealed class CatalogStub(IEnumerable<AiProfileDescriptor> values) : IAiProfileCatalog
     {
         private readonly Dictionary<AiProviderProfileId, AiProfileDescriptor> _profiles = values.ToDictionary(x => x.Id);

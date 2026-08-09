@@ -35,11 +35,34 @@ public sealed class AiProviderException(
     public string? ProviderResponseExcerpt { get; } = providerResponseExcerpt;
 }
 
+/// <summary>Optional per-request generation controls. <see cref="RetryAttempts"/> counts retries after the initial wire attempt, so zero disables retries.</summary>
 [CrossSliceContract]
-public sealed record AiTextRequest(IReadOnlyList<ChatMessage> Messages, ChatResponseFormatJson ResponseFormat);
+public sealed record AiGenerationOverrides(
+    double? Temperature = null,
+    double? TopP = null,
+    double? RepetitionPenalty = null,
+    long? Seed = null,
+    int? MaxOutputTokens = null,
+    bool? ThinkingEnabled = null,
+    int? RetryAttempts = null);
 
 [CrossSliceContract]
-public sealed record AiGenerationMetadata(AiProviderProfileId Provider, string Model, string? ResponseId, int? InputTokens, int? OutputTokens, long LatencyMilliseconds, int AttemptCount, string? FinishReason);
+public sealed record AiTextRequest(
+    IReadOnlyList<ChatMessage> Messages,
+    ChatResponseFormatJson ResponseFormat,
+    AiGenerationOverrides? GenerationOverrides = null);
+
+[CrossSliceContract]
+public sealed record AiGenerationMetadata(
+    AiProviderProfileId Provider,
+    string Model,
+    string? ResponseId,
+    int? InputTokens,
+    int? OutputTokens,
+    long LatencyMilliseconds,
+    int AttemptCount,
+    string? FinishReason,
+    AiGenerationOverrides? GenerationOverrides = null);
 
 [CrossSliceContract]
 public sealed record AiTextResponse(string Text, AiGenerationMetadata Metadata);

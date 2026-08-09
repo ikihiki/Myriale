@@ -34,7 +34,18 @@ public sealed class AiRuntimeOptions
     public string Mode { get; set; } = "provider";
 }
 
-internal sealed record AiProviderRequestOptions(string BaseUrl, string Model, int TimeoutSeconds, int MaxOutputTokens, double Temperature, int MaxAttempts, int InitialBackoffMilliseconds);
+internal sealed record AiProviderRequestOptions(
+    string BaseUrl,
+    string Model,
+    int TimeoutSeconds,
+    int MaxOutputTokens,
+    double Temperature,
+    double? TopP,
+    double? RepetitionPenalty,
+    long? Seed,
+    bool? ThinkingEnabled,
+    int MaxAttempts,
+    int InitialBackoffMilliseconds);
 
 public sealed class OpenAiCompatibleTextProvider(
     IHttpClientFactory clients,
@@ -61,7 +72,7 @@ public sealed class OpenAiCompatibleTextProvider(
         var credential = await credentials.ResolveAsync(profile.CredentialId, cancellationToken);
         if (credential is null)
             throw new AiProviderException(AiProviderErrorCodes.InvalidCredential, "AI Provider credentialが設定されていません。", false);
-        return await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile), credential.Secret, ApplyProfileSystemPrompt(request, profile.SystemPrompt), cancellationToken);
+        return await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile, request.GenerationOverrides), credential.Secret, ApplyProfileSystemPrompt(request, profile.SystemPrompt), cancellationToken);
     }
 
     public async Task<AiTextResponse> GenerateForProviderAsync(AiProviderProfileId provider, string credential, AiTextRequest request, CancellationToken cancellationToken)
@@ -69,7 +80,7 @@ public sealed class OpenAiCompatibleTextProvider(
         var profile = await catalog.ResolveAsync(provider, cancellationToken);
         if (string.IsNullOrWhiteSpace(credential))
             throw new AiProviderException(AiProviderErrorCodes.InvalidCredential, "AI Provider credentialが設定されていません。", false);
-        return await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile), credential, ApplyProfileSystemPrompt(request, profile.SystemPrompt), cancellationToken);
+        return await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile, request.GenerationOverrides), credential, ApplyProfileSystemPrompt(request, profile.SystemPrompt), cancellationToken);
     }
 
     public async Task TestConnectionAsync(AiProviderProfileId provider, string credential, CancellationToken cancellationToken)
@@ -82,7 +93,7 @@ public sealed class OpenAiCompatibleTextProvider(
                 new ChatMessage(ChatRole.User, "Return {\"ok\":true}.")
             ],
             ChatResponseFormat.ForJsonSchema(schema.RootElement, "myriale_connection_test"));
-        await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile), credential, probe, cancellationToken);
+        await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile, probe.GenerationOverrides), credential, probe, cancellationToken);
     }
 
     private static AiTextRequest ApplyProfileSystemPrompt(AiTextRequest request, string systemPrompt)
@@ -95,7 +106,7 @@ public sealed class OpenAiCompatibleTextProvider(
             messages[firstSystem] = new ChatMessage(ChatRole.System, messages[firstSystem].Text + additional);
         else
             messages.Insert(0, new ChatMessage(ChatRole.System, systemPrompt.Trim()));
-        return new AiTextRequest(messages, request.ResponseFormat);
+        return new AiTextRequest(messages, request.ResponseFormat, request.GenerationOverrides);
     }
 
     private async Task<AiTextResponse> SendWithRetryAsync(AiProviderProfileId provider, AiProviderRequestOptions options, string credential, AiTextRequest request, CancellationToken cancellationToken)
@@ -151,10 +162,13 @@ public sealed class OpenAiCompatibleTextProvider(
                 }
             }
         };
+        if (options.TopP is { } topP) payload["top_p"] = topP;
+        if (options.RepetitionPenalty is { } repetitionPenalty) payload["repetition_penalty"] = repetitionPenalty;
+        if (options.Seed is { } seed) payload["seed"] = seed;
         // Qwen3 spends its completion budget on hidden reasoning unless thinking is explicitly disabled.
         // OpenAI-compatible vLLM endpoints accept this model-specific chat-template option.
         if (options.Model.Contains("qwen3", StringComparison.OrdinalIgnoreCase))
-            payload["chat_template_kwargs"] = new { enable_thinking = false };
+            payload["chat_template_kwargs"] = new { enable_thinking = options.ThinkingEnabled ?? false };
         request.Content = new StringContent(JsonSerializer.Serialize(payload, Json), Encoding.UTF8, "application/json");
         var stopwatch = Stopwatch.StartNew();
         try
@@ -195,7 +209,7 @@ public sealed class OpenAiCompatibleTextProvider(
                 if (usage.TryGetProperty("completion_tokens", out var completionTokens)) outputTokens = completionTokens.GetInt32();
             }
             SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider.AsPrimitive(), options.Model, "succeeded"));
-            return new AiTextResponse(text, new(provider, options.Model, root.TryGetProperty("id", out var id) ? id.GetString() : null, inputTokens, outputTokens, stopwatch.ElapsedMilliseconds, attempt, finishReason));
+            return new AiTextResponse(text, new(provider, options.Model, root.TryGetProperty("id", out var id) ? id.GetString() : null, inputTokens, outputTokens, stopwatch.ElapsedMilliseconds, attempt, finishReason, input.GenerationOverrides));
         }
         catch (AiProviderException exception)
         {
@@ -273,14 +287,26 @@ public sealed class OpenAiCompatibleTextProvider(
         return compact.Length <= maxLength ? compact : compact[..maxLength] + "…";
     }
 
-    private static AiProviderRequestOptions ResolveProfileOptions(AiProviderOptions configured, AiProfileDescriptor profile) => new(
+    private static AiProviderRequestOptions ResolveProfileOptions(AiProviderOptions configured, AiProfileDescriptor profile, AiGenerationOverrides? overrides) => new(
         profile.BaseUrl,
         profile.Model,
         configured.TimeoutSeconds,
-        configured.MaxOutputTokens,
-        configured.Temperature,
-        configured.MaxAttempts,
+        overrides?.MaxOutputTokens ?? configured.MaxOutputTokens,
+        overrides?.Temperature ?? configured.Temperature,
+        overrides?.TopP,
+        overrides?.RepetitionPenalty,
+        overrides?.Seed,
+        overrides?.ThinkingEnabled,
+        ResolveMaxAttempts(configured.MaxAttempts, overrides?.RetryAttempts),
         configured.InitialBackoffMilliseconds);
+
+    private static int ResolveMaxAttempts(int configuredMaxAttempts, int? retryAttempts)
+    {
+        if (retryAttempts is null) return configuredMaxAttempts;
+        if (retryAttempts < 0) throw new ArgumentOutOfRangeException(nameof(retryAttempts), "Retry attempts cannot be negative.");
+        if (retryAttempts == int.MaxValue) throw new ArgumentOutOfRangeException(nameof(retryAttempts), "Retry attempts are too large.");
+        return retryAttempts.Value + 1;
+    }
 
     private static string ResolveBaseUrl(string? configured) =>
         (configured ?? throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "AI Provider BaseUrl is required.", false)).TrimEnd('/') + "/";
