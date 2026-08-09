@@ -226,6 +226,9 @@ public sealed class DevelopmentScenarioSeedTests : IDisposable
         var scenario = await scenarioResponse.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("メイドと午後のティータイム", scenario.GetProperty("title").GetString());
         Assert.Equal("fixed", scenario.GetProperty("heroMode").GetString());
+        Assert.Contains("質問へ直接答え", scenario.GetProperty("tone").GetString());
+        Assert.Contains("未設定であり創作しない", scenario.GetProperty("lore").GetString());
+        Assert.Contains("質問を質問で返さない", scenario.GetProperty("summary").GetString());
         Assert.Contains("メイド、クララ", scenario.GetProperty("opening").GetString());
 
         using var ruleDataResponse = await owner.GetAsync("/api/scenarios/SCN-MAID-TEA-TIME/rule-data");
@@ -242,6 +245,8 @@ public sealed class DevelopmentScenarioSeedTests : IDisposable
             attendant.GetProperty("profileSchema").GetProperty("properties").EnumerateObject()
                 .Select(property => property.Name).Order().ToArray());
         Assert.Empty(attendant.GetProperty("profileDefaults").EnumerateObject());
+        var talkRule = Assert.Single(attendant.GetProperty("actionRules").EnumerateArray().ToArray());
+        Assert.Contains("質問を質問で返さない", talkRule.GetProperty("effects").EnumerateArray().First().GetProperty("text").GetString());
         Assert.Equal("talk", Assert.Single(attendant.GetProperty("actions").EnumerateArray().ToArray()).GetProperty("code").GetString());
 
         var stateProperties = attendant.GetProperty("stateSchema").GetProperty("properties");
