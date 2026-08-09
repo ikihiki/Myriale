@@ -3,8 +3,47 @@
   "version": "1.0.0",
   "description": "Versioned manifest for the Action, Narrative, and Entity State evaluation corpus. Frozen case payloads are supplied by the API client and persisted with each run.",
   "stages": [
-    { "stage": "action", "plannedCaseCount": 48, "plannedRepetitions": 3 },
-    { "stage": "narrative", "plannedCaseCount": 36, "plannedRepetitions": 3 },
-    { "stage": "entityState", "plannedCaseCount": 12, "plannedRepetitions": 3 }
+    {
+      "stage": "action",
+      "plannedCaseCount": 48,
+      "plannedRepetitions": 3,
+      "generationOverrides": {
+        "temperature": 0.0,
+        "topP": 1.0,
+        "repetitionPenalty": 1.0,
+        "seed": null,
+        "maxOutputTokens": 512,
+        "thinkingEnabled": false,
+        "retryAttempts": 0
+      }
+    },
+    {
+      "stage": "narrative",
+      "plannedCaseCount": 36,
+      "plannedRepetitions": 3,
+      "generationOverrides": {
+        "temperature": 0.8,
+        "topP": 0.95,
+        "repetitionPenalty": 1.05,
+        "seed": null,
+        "maxOutputTokens": 1200,
+        "thinkingEnabled": false,
+        "retryAttempts": 0
+      }
+    },
+    {
+      "stage": "entityState",
+      "plannedCaseCount": 12,
+      "plannedRepetitions": 3,
+      "generationOverrides": {
+        "temperature": 0.0,
+        "topP": 1.0,
+        "repetitionPenalty": 1.0,
+        "seed": null,
+        "maxOutputTokens": 512,
+        "thinkingEnabled": false,
+        "retryAttempts": 0
+      }
+    }
   ]
 }

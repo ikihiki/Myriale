@@ -46,6 +46,10 @@ public sealed class ScenarioAiEvaluationEndpointTests : IDisposable
         var other = await CreateSignedInClientAsync("other");
         using var forbidden = await other.GetAsync($"/api/scenarios/{scenarioId}/ai-evaluations/runs/{runId}");
         Assert.Equal(HttpStatusCode.NotFound, forbidden.StatusCode);
+
+        var admin = await CreateAdminClientAsync();
+        using var allowed = await admin.GetAsync($"/api/scenarios/{scenarioId}/ai-evaluations/runs/{runId}");
+        Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
     }
 
     [Fact]
@@ -64,6 +68,14 @@ public sealed class ScenarioAiEvaluationEndpointTests : IDisposable
         Assert.Equal(3, summary.GetProperty("caseCount").GetInt32());
         Assert.Equal(12, summary.GetProperty("attemptCount").GetInt32());
         Assert.Equal(12, summary.GetProperty("passedAttemptCount").GetInt32());
+        var savedOverrides = json.GetProperty("config").GetProperty("generationOverrides");
+        Assert.Equal(0, savedOverrides.GetProperty("temperature").GetDouble());
+        Assert.Equal(1, savedOverrides.GetProperty("topP").GetDouble());
+        Assert.Equal(1, savedOverrides.GetProperty("repetitionPenalty").GetDouble());
+        Assert.Equal(42, savedOverrides.GetProperty("seed").GetInt64());
+        Assert.Equal(512, savedOverrides.GetProperty("maxOutputTokens").GetInt32());
+        Assert.False(savedOverrides.GetProperty("thinkingEnabled").GetBoolean());
+        Assert.Equal(0, savedOverrides.GetProperty("retryAttempts").GetInt32());
         var cases = json.GetProperty("cases").EnumerateArray().ToList();
         Assert.Contains(cases, item => item.GetProperty("stage").GetString() == "action"
             && item.GetProperty("attempts")[0].GetProperty("labels").EnumerateArray().Any(label => label.GetString() == "selection_exact"));
@@ -101,6 +113,10 @@ public sealed class ScenarioAiEvaluationEndpointTests : IDisposable
         Assert.Equal("myriale-low-cost-model-comparison", json.GetProperty("corpusId").GetString());
         Assert.Equal("1.0.0", json.GetProperty("version").GetString());
         Assert.Equal(3, json.GetProperty("stages").GetArrayLength());
+        var narrative = json.GetProperty("stages").EnumerateArray().Single(item => item.GetProperty("stage").GetString() == "narrative");
+        Assert.Equal(0.95, narrative.GetProperty("generationOverrides").GetProperty("topP").GetDouble());
+        Assert.Equal(1200, narrative.GetProperty("generationOverrides").GetProperty("maxOutputTokens").GetInt32());
+        Assert.Equal(0, narrative.GetProperty("generationOverrides").GetProperty("retryAttempts").GetInt32());
     }
 
     public void Dispose()
@@ -111,7 +127,7 @@ public sealed class ScenarioAiEvaluationEndpointTests : IDisposable
 
     private static CreateScenarioAiEvaluationRunRequest CreateRequest(IReadOnlyList<ScenarioAiEvaluationCaseInput> cases,
         IReadOnlyList<AiProviderProfileId> profiles, int repetitions) => new(profiles, repetitions, "fixture", "1.0.0",
-        Element("{\"temperature\":0}"), cases);
+        new(0, 1, 1, 42, 512, false, 0), Element("{\"cohort\":\"test\"}"), cases);
 
     private static ScenarioAiEvaluationCaseInput ActionCase()
     {
@@ -146,6 +162,27 @@ public sealed class ScenarioAiEvaluationEndpointTests : IDisposable
         using var response = await client.PostAsJsonAsync("/api/scenarios/", new { title = "Evaluation scenario" });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
+    }
+
+    private async Task<HttpClient> CreateAdminClientAsync()
+    {
+        const string email = "evaluation-admin@example.test";
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var register = await client.PostAsJsonAsync("/api/account/register", new
+        {
+            displayName = "admin", email, password = "letters1"
+        });
+        Assert.Equal(HttpStatusCode.OK, register.StatusCode);
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>>();
+            var user = await users.FindByEmailAsync(email) ?? throw new InvalidOperationException("Admin user was not created.");
+            await users.AddClaimAsync(user, new("myriale:admin", "true"));
+        }
+        using var login = await client.PostAsJsonAsync("/api/account/login", new { email, password = "letters1" });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        ApplyCookies(client, login);
+        return client;
     }
 
     private async Task<HttpClient> CreateSignedInClientAsync(string name)

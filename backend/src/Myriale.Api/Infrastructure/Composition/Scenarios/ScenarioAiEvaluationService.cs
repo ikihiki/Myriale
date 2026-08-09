@@ -22,7 +22,11 @@ public sealed class ScenarioAiEvaluationService(ApplicationDbContext db, IAiProf
 
         var now = DateTimeOffset.UtcNow;
         var runId = new ScenarioAiEvaluationRunId($"AER-{Guid.NewGuid():N}");
-        var configJson = Normalize(input.Config, "{}");
+        var configJson = JsonSerializer.Serialize(new
+        {
+            generationOverrides = input.GenerationOverrides,
+            manifest = Element(Normalize(input.Config, "{}")),
+        }, Json);
         var run = ScenarioAiEvaluationRun.Create(runId, scenarioId, userId,
             Clean(input.CorpusId, "api-frozen-cases"), Clean(input.CorpusVersion, "1"),
             JsonSerializer.Serialize(resolvedProfiles.Select(item => item.Id), Json), input.Repetitions, configJson, now);

@@ -7,6 +7,7 @@ public sealed record CreateScenarioAiEvaluationRunRequest(
     int Repetitions,
     string? CorpusId,
     string? CorpusVersion,
+    AiGenerationOverrides? GenerationOverrides,
     JsonElement Config,
     IReadOnlyList<ScenarioAiEvaluationCaseInput> Cases);
 
@@ -69,4 +70,8 @@ public sealed record ScenarioAiEvaluationCorpusManifestResponse(
     string Description,
     IReadOnlyList<ScenarioAiEvaluationCorpusStageResponse> Stages);
 
-public sealed record ScenarioAiEvaluationCorpusStageResponse(string Stage, int PlannedCaseCount, int PlannedRepetitions);
+public sealed record ScenarioAiEvaluationCorpusStageResponse(
+    string Stage,
+    int PlannedCaseCount,
+    int PlannedRepetitions,
+    AiGenerationOverrides GenerationOverrides);
