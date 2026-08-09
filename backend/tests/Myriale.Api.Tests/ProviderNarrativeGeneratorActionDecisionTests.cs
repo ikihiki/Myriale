@@ -58,6 +58,10 @@ public sealed class ProviderNarrativeGeneratorActionDecisionTests
 
         await generator.GeneratePostStateNarrativeAsync(PostStateRequest(), default);
 
+        Assert.Contains("RecentTurnsの末尾から", textProvider.Request!.Messages[0].Text, StringComparison.Ordinal);
+        Assert.Contains("3〜6段落", textProvider.Request.Messages[0].Text, StringComparison.Ordinal);
+        Assert.Contains("調査官は机の上へ古い記録を置いた。", textProvider.Request.Messages[1].Text, StringComparison.Ordinal);
+        Assert.Contains("この記録を見ろ。", textProvider.Request.Messages[1].Text, StringComparison.Ordinal);
         var schemaVersion = textProvider.Request!.ResponseFormat.Schema!.Value
             .GetProperty("properties").GetProperty("schemaVersion");
         Assert.Equal("string", schemaVersion.GetProperty("type").GetString());
@@ -74,6 +78,7 @@ public sealed class ProviderNarrativeGeneratorActionDecisionTests
         return new(
             ScenarioTurnSchemas.PostStateNarrative,
             new("灯台守の告白", "会話劇", "ミステリー", "緊張", "", "低", "調査官", [], "レンと向き合う。"),
+            [new NarrativeRecentTurnInput("記録を取り出す。", "調査官は机の上へ古い記録を置いた。")],
             "この記録を見ろ。",
             item,
             action,

@@ -7,7 +7,7 @@ import { AppChrome, type Crumb } from '../../shared/AppChrome';
 
 const crumbs: Crumb[] = [{ label: 'Myriale', to: 'home' }, { label: '運用', to: 'adminUsers' }, { label: 'AI Provider管理' }];
 const fallbackAdmin = { name: '霧野しおり', email: 'admin@myriale.example', initials: '霧野', role: '管理者' };
-const blankProfile = { id: 'custom-profile', displayName: 'Custom AI', baseUrl: '', model: '', credentialId: 'custom-credential', enabled: true, revision: undefined as number | undefined };
+const blankProfile = { id: 'custom-profile', displayName: 'Custom AI', baseUrl: '', model: '', systemPrompt: '', credentialId: 'custom-credential', enabled: true, revision: undefined as number | undefined, lockedId: false };
 const blankCredential = { id: 'custom-credential', displayName: 'Custom credential', secret: '', revision: undefined as number | undefined };
 
 export function AdminAiProvidersPage() {
@@ -29,8 +29,8 @@ export function AdminAiProvidersPage() {
   const run = async (action: () => Promise<void>, success: string) => { setBusy(true); setError(null); try { await action(); await reload(); setNotice(success); } catch (caught) { setError(caught as AdminAiApiError); } finally { setBusy(false); } };
 
   const saveProfile = () => run(async () => {
-    if (profileForm.revision === undefined) await api.createProfile(profileForm);
-    else await api.updateProfile(profileForm.id, { displayName: profileForm.displayName, baseUrl: profileForm.baseUrl, model: profileForm.model, credentialId: profileForm.credentialId, expectedRevision: profileForm.revision });
+    if (profileForm.revision === undefined) await api.createProfile({ id: profileForm.id, displayName: profileForm.displayName, baseUrl: profileForm.baseUrl, model: profileForm.model, systemPrompt: profileForm.systemPrompt, credentialId: profileForm.credentialId, enabled: profileForm.enabled });
+    else await api.updateProfile(profileForm.id, { displayName: profileForm.displayName, baseUrl: profileForm.baseUrl, model: profileForm.model, systemPrompt: profileForm.systemPrompt, credentialId: profileForm.credentialId, expectedRevision: profileForm.revision });
     setProfileForm(blankProfile);
   }, 'Profileを保存しました。');
   const saveCredential = () => run(async () => {
@@ -53,11 +53,12 @@ export function AdminAiProvidersPage() {
         <Panel as="section" aria-labelledby="profile-heading">
           <Label as="p" textRole="eyebrowData">Profile definition</Label><Label as="h2" textRole="section" id="profile-heading">Profileを作成・編集</Label>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <label className="grid gap-2 text-xs font-black">Profile ID<Input aria-label="Profile ID" disabled={profileForm.revision !== undefined} value={profileForm.id} onChange={(e) => setProfileForm({ ...profileForm, id: e.target.value })}/></label>
+            <label className="grid gap-2 text-xs font-black">Profile ID<Input aria-label="Profile ID" disabled={profileForm.lockedId} value={profileForm.id} onChange={(e) => setProfileForm({ ...profileForm, id: e.target.value })}/></label>
             <label className="grid gap-2 text-xs font-black">表示名<Input aria-label="Profile表示名" value={profileForm.displayName} onChange={(e) => setProfileForm({ ...profileForm, displayName: e.target.value })}/></label>
             <label className="grid gap-2 text-xs font-black md:col-span-2">Base URL<Input aria-label="Profile Base URL" value={profileForm.baseUrl} onChange={(e) => setProfileForm({ ...profileForm, baseUrl: e.target.value })}/></label>
             <label className="grid gap-2 text-xs font-black">Model<Input aria-label="Profile Model" value={profileForm.model} onChange={(e) => setProfileForm({ ...profileForm, model: e.target.value })}/></label>
             <label className="grid gap-2 text-xs font-black">Credential ID<Input aria-label="Profile Credential ID" value={profileForm.credentialId} onChange={(e) => setProfileForm({ ...profileForm, credentialId: e.target.value })}/></label>
+            <label className="grid gap-2 text-xs font-black md:col-span-2">追加システムプロンプト<Textarea className="!min-h-40" aria-label="Profile追加システムプロンプト" value={profileForm.systemPrompt} onChange={(e) => setProfileForm({ ...profileForm, systemPrompt: e.target.value })} maxLength={20000}/><span className="font-normal leading-5 text-myr-slate">アプリの正史・JSON契約を維持したまま、このAI固有の文体や描写方針を追加します。空欄なら追加しません。</span></label>
           </div><Button className="mt-4" variant="secondary" disabled={busy || !profileForm.id || !profileForm.baseUrl || !profileForm.model} onClick={() => void saveProfile()}>Profileを保存</Button>
         </Panel>
         <Panel as="section" aria-labelledby="credential-heading">
@@ -75,7 +76,7 @@ export function AdminAiProvidersPage() {
           <td className="py-4"><strong>{profile.displayName}</strong><span className="block font-myr-mono text-xs">{profile.id} · r{profile.revision}</span><span className="block text-xs text-myr-slate">{profile.model} · {profile.source}</span></td>
           <td><span className="font-myr-mono text-xs">{profile.credentialId} · r{profile.credentialRevision}</span><Badge tone={profile.credentialConfigured ? 'success' : 'neutral'}>{profile.credentialSource}</Badge></td>
           <td><div className="flex gap-1">{profile.active && <Badge>使用中</Badge>}<Badge tone={profile.enabled ? 'success' : 'neutral'}>{profile.enabled ? '有効' : '無効'}</Badge><Badge>{profile.validationStatus}</Badge></div></td>
-          <td><div className="flex flex-wrap gap-2"><Button size="sm" variant="ghost" disabled={busy || profile.source !== 'database'} onClick={() => setProfileForm({ id: profile.id, displayName: profile.displayName, baseUrl: profile.baseUrl, model: profile.model, credentialId: profile.credentialId, enabled: profile.enabled, revision: profile.revision })}>編集</Button><Button size="sm" variant="ghost" disabled={busy || !profile.credentialConfigured} onClick={() => void run(() => api.testConnection(profile), '接続テストを完了しました。')}>接続テスト</Button><Button size="sm" variant="ghost" disabled={busy || !profile.credentialConfigured} onClick={() => { setPromptProfile(profile); setPromptResult(null); }}>プロンプト</Button><Button size="sm" variant="secondary" disabled={busy || profile.active || !profile.enabled || !profile.credentialConfigured} onClick={() => void run(() => api.activateProfile(profile.id), '使用するProfileを変更しました。')}>使用</Button>{profile.source === 'database' && <><Button size="sm" variant="ghost" disabled={busy || profile.active} onClick={() => void run(() => api.setProfileEnabled(profile.id, !profile.enabled, profile.revision), 'Profile状態を変更しました。')}>{profile.enabled ? '無効化' : '有効化'}</Button><Button size="sm" variant="danger" disabled={busy || profile.active} onClick={() => void run(() => api.deleteProfile(profile.id, profile.revision), 'Profileを削除しました。')}>削除</Button></>}</div></td>
+          <td><div className="flex flex-wrap gap-2"><Button size="sm" variant="ghost" disabled={busy} onClick={() => setProfileForm({ id: profile.id, displayName: profile.displayName, baseUrl: profile.baseUrl, model: profile.model, systemPrompt: profile.systemPrompt, credentialId: profile.credentialId, enabled: profile.enabled, revision: profile.source === 'database' ? profile.revision : undefined, lockedId: true })}>{profile.source === 'database' ? '編集' : 'DBで上書き'}</Button><Button size="sm" variant="ghost" disabled={busy || !profile.credentialConfigured} onClick={() => void run(() => api.testConnection(profile), '接続テストを完了しました。')}>接続テスト</Button><Button size="sm" variant="ghost" disabled={busy || !profile.credentialConfigured} onClick={() => { setPromptProfile(profile); setPromptResult(null); }}>プロンプト</Button><Button size="sm" variant="secondary" disabled={busy || profile.active || !profile.enabled || !profile.credentialConfigured} onClick={() => void run(() => api.activateProfile(profile.id), '使用するProfileを変更しました。')}>使用</Button>{profile.source === 'database' && <><Button size="sm" variant="ghost" disabled={busy || profile.active} onClick={() => void run(() => api.setProfileEnabled(profile.id, !profile.enabled, profile.revision), 'Profile状態を変更しました。')}>{profile.enabled ? '無効化' : '有効化'}</Button><Button size="sm" variant="danger" disabled={busy || profile.active} onClick={() => void run(() => api.deleteProfile(profile.id, profile.revision), 'Profileを削除しました。')}>削除</Button></>}</div></td>
         </tr>)}</tbody></table></div>
       </Panel>
 

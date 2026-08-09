@@ -14,11 +14,12 @@ public sealed class AiProviderProfileDomainSliceTests
     [Fact]
     public void AggregatesValidateEncapsulateAndIncrementRevision()
     {
-        var profile = AiProviderProfile.Create(new AiProviderProfileId("Acme.Main"), "Acme", "https://acme.test/v1/", "model", new AiCredentialId("Shared"), true, Now);
-        Assert.Equal("acme.main", profile.Id.AsPrimitive()); Assert.Equal("https://acme.test/v1", profile.BaseUrl); Assert.Equal(1, profile.Revision);
-        profile.Update("Acme 2", "https://acme.test/v2", "model-2", new AiCredentialId("shared"), 1, Now.AddMinutes(1)); Assert.Equal(2, profile.Revision);
+        var profile = AiProviderProfile.Create(new AiProviderProfileId("Acme.Main"), "Acme", "https://acme.test/v1/", "model", new AiCredentialId("Shared"), true, Now, "  文学的に描写する。  ");
+        Assert.Equal("acme.main", profile.Id.AsPrimitive()); Assert.Equal("https://acme.test/v1", profile.BaseUrl); Assert.Equal("文学的に描写する。", profile.SystemPrompt); Assert.Equal(1, profile.Revision);
+        profile.Update("Acme 2", "https://acme.test/v2", "model-2", new AiCredentialId("shared"), 1, Now.AddMinutes(1), "会話の間を描く。"); Assert.Equal("会話の間を描く。", profile.SystemPrompt); Assert.Equal(2, profile.Revision);
         Assert.Throws<AiRevisionConflictException>(() => profile.Disable(1, Now));
         var credential = AiCredential.Create(new AiCredentialId("shared"), "Shared", "protected", "1234", Now); credential.Replace("Shared 2", "protected-2", "5678", 1, Now.AddMinutes(1)); Assert.Equal(2, credential.Revision);
+        Assert.Throws<ArgumentException>(() => AiProviderProfile.Create(new AiProviderProfileId("too-long"), "Bad", "https://bad.test", "model", new AiCredentialId("cred"), true, Now, new string('x', 20_001)));
         Assert.Throws<ArgumentException>(() => AiProviderProfile.Create(new AiProviderProfileId("bad id"), "Bad", "https://bad.test", "model", new AiCredentialId("cred"), true, Now));
         foreach (var type in new[] { typeof(AiProviderProfile), typeof(AiCredential), typeof(AiProviderProfileValidation) })
             Assert.DoesNotContain(type.GetProperties(), property => property.SetMethod?.IsPublic == true);
@@ -107,6 +108,7 @@ public sealed class AiProviderProfileDomainSliceTests
                           "adapter": "openai-compatible",
                           "baseUrl": "https://story.example/v1",
                           "model": "future/story",
+                          "systemPrompt": "文学的な日本語で描写する。",
                           "credentialId": "shared"
                         }
                       }
@@ -122,6 +124,7 @@ public sealed class AiProviderProfileDomainSliceTests
 
         Assert.Equal(2, snapshot.Profiles.Count);
         Assert.Equal("catalog-secret", snapshot.Credentials[new AiCredentialId("shared")]);
+        Assert.Equal("文学的な日本語で描写する。", snapshot.Profiles[new AiProviderProfileId("future-story")].SystemPrompt);
         Assert.Equal(new AiProviderProfileId("future-fast"), resolved.DefaultActionDecisionProfileId);
         Assert.Equal(new AiProviderProfileId("future-story"), resolved.DefaultNarrativeProfileId);
         Assert.All(resolved.Profiles.Values, profile => Assert.Equal(AiProfileDefinitionSource.Deployment, profile.Source));

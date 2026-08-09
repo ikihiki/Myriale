@@ -23,6 +23,21 @@ public sealed class OpenAiCompatibleTextProviderTests
     }
 
     [Fact]
+    public async Task GenerateForProfile_AppendsProfileSystemPromptWithoutReplacingApplicationPrompt()
+    {
+        var handler = Success();
+        var provider = Create(handler, Catalog(Profile("styled", "https://example.test/v1", "model", "shared", "余韻のある日本語で描く。")), new CredentialResolver("secret"));
+
+        await provider.GenerateForProfileAsync(new AiProviderProfileId("styled"), Request(), default);
+
+        using var payload = JsonDocument.Parse(handler.LastBody);
+        var systemMessage = payload.RootElement.GetProperty("messages")[0].GetProperty("content").GetString();
+        Assert.Contains("application contract", systemMessage, StringComparison.Ordinal);
+        Assert.Contains("余韻のある日本語で描く。", systemMessage, StringComparison.Ordinal);
+        Assert.Contains("built-in instruction", systemMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task GenerateForProfile_ResolvesSharedCredentialWithoutProfileSecret()
     {
         var handler = Success(); var resolver = new CredentialResolver("shared-secret");
@@ -61,11 +76,11 @@ public sealed class OpenAiCompatibleTextProviderTests
         var active = new ActiveAiProviderQueryService(new Reader(new AiProviderProfileId("runpod")), catalog);
         return new(new Factory(new HttpClient(handler)), resolver, Options.Create(new AiProviderOptions { MaxAttempts = maxAttempts, InitialBackoffMilliseconds = 0 }), catalog, active, NullLogger<OpenAiCompatibleTextProvider>.Instance);
     }
-    private static AiProfileDescriptor Profile(string id, string baseUrl, string model, string credentialId) => new(new AiProviderProfileId(id), id, baseUrl, model, new AiCredentialId(credentialId), true, AiProfileDefinitionSource.Deployment, 0);
+    private static AiProfileDescriptor Profile(string id, string baseUrl, string model, string credentialId, string systemPrompt = "") => new(new AiProviderProfileId(id), id, baseUrl, model, new AiCredentialId(credentialId), true, AiProfileDefinitionSource.Deployment, 0, SystemPrompt: systemPrompt);
     private static IAiProfileCatalog Catalog(params AiProfileDescriptor[] profiles) => new CatalogStub(profiles);
     private static QueueHandler Success() => new(SuccessResponse());
     private static HttpResponseMessage SuccessResponse() => new(HttpStatusCode.OK) { Content = new StringContent("{\"id\":\"resp-1\",\"choices\":[{\"message\":{\"content\":\"{\\\"ok\\\":true}\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":4}}", Encoding.UTF8, "application/json") };
-    private static AiTextRequest Request() { using var schema = JsonDocument.Parse("{\"type\":\"object\"}"); return new([new ChatMessage(ChatRole.User, "test")], ChatResponseFormat.ForJsonSchema(schema.RootElement.Clone(), "test")); }
+    private static AiTextRequest Request() { using var schema = JsonDocument.Parse("{\"type\":\"object\"}"); return new([new ChatMessage(ChatRole.System, "built-in instruction"), new ChatMessage(ChatRole.User, "test")], ChatResponseFormat.ForJsonSchema(schema.RootElement.Clone(), "test")); }
     private sealed class CatalogStub(IEnumerable<AiProfileDescriptor> values) : IAiProfileCatalog
     {
         private readonly Dictionary<AiProviderProfileId, AiProfileDescriptor> _profiles = values.ToDictionary(x => x.Id);

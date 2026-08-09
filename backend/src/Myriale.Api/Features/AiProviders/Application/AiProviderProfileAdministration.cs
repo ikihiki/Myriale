@@ -26,8 +26,8 @@ public interface IAiCredentialRepository
     Task<bool> SaveAsync(CancellationToken cancellationToken);
 }
 
-public sealed record CreateAiProviderProfileCommand(AiProviderProfileId Id, string DisplayName, string BaseUrl, string Model, AiCredentialId CredentialId, bool Enabled);
-public sealed record UpdateAiProviderProfileCommand(AiProviderProfileId Id, string DisplayName, string BaseUrl, string Model, AiCredentialId CredentialId, long ExpectedRevision);
+public sealed record CreateAiProviderProfileCommand(AiProviderProfileId Id, string DisplayName, string BaseUrl, string Model, string SystemPrompt, AiCredentialId CredentialId, bool Enabled);
+public sealed record UpdateAiProviderProfileCommand(AiProviderProfileId Id, string DisplayName, string BaseUrl, string Model, string SystemPrompt, AiCredentialId CredentialId, long ExpectedRevision);
 public sealed record ChangeAiProviderProfileStateCommand(AiProviderProfileId Id, long ExpectedRevision);
 public sealed record DeleteAiProviderProfileCommand(AiProviderProfileId Id, long ExpectedRevision);
 public sealed record SetAiCredentialCommand(AiCredentialId Id, string DisplayName, string Secret);
@@ -42,7 +42,7 @@ public sealed class AiProviderProfileUseCases(IAiProviderProfileRepository repos
     {
         try
         {
-            var profile = AiProviderProfile.Create(command.Id, command.DisplayName, command.BaseUrl, command.Model, command.CredentialId, command.Enabled, time.GetUtcNow());
+            var profile = AiProviderProfile.Create(command.Id, command.DisplayName, command.BaseUrl, command.Model, command.CredentialId, command.Enabled, time.GetUtcNow(), command.SystemPrompt);
             if (await repository.LoadAsync(profile.Id, ct) is not null) return Conflict<AiProviderProfile>();
             repository.Add(profile); return await repository.SaveAsync(ct) ? new(AiAdministrationOutcome.Success, profile) : Conflict<AiProviderProfile>();
         }
@@ -53,7 +53,7 @@ public sealed class AiProviderProfileUseCases(IAiProviderProfileRepository repos
         try
         {
             var profile = await repository.LoadAsync(command.Id, ct); if (profile is null) return NotFound<AiProviderProfile>();
-            profile.Update(command.DisplayName, command.BaseUrl, command.Model, command.CredentialId, command.ExpectedRevision, time.GetUtcNow());
+            profile.Update(command.DisplayName, command.BaseUrl, command.Model, command.CredentialId, command.ExpectedRevision, time.GetUtcNow(), command.SystemPrompt);
             return await repository.SaveAsync(ct) ? new(AiAdministrationOutcome.Success, profile) : Conflict<AiProviderProfile>();
         }
         catch (AiRevisionConflictException) { return Conflict<AiProviderProfile>(); }

@@ -327,7 +327,9 @@ public interface IScenarioNarrativeGenerationService
 public sealed class ScenarioNarrativeGenerationService(
     IScenarioTurnAiService ai,
     IScenarioAiInteractionRecorder recorder,
-    IScenarioWorldSnapshotQuery worldQuery) : IScenarioNarrativeGenerationService
+    IScenarioWorldSnapshotQuery worldQuery,
+    ApplicationDbContext db,
+    INarrativeRecentTurnSelector recentTurnSelector) : IScenarioNarrativeGenerationService
 {
     private static readonly JsonSerializerOptions Json = ScenarioJson.Options;
 
@@ -343,12 +345,27 @@ public sealed class ScenarioNarrativeGenerationService(
             ? new RulePublicObject(new("system"), "system", "システム", postState.CurrentLocation.Id, true, 0, Parse("{}"))
             : snapshot.Objects.Single(item => item.Id == decision.ObjectId);
         var world = await worldQuery.LoadAsync(execution.SessionId, cancellationToken);
+        var turnsQuery = db.SessionTurns.AsNoTracking()
+            .Where(turn => turn.SessionId == execution.SessionId && turn.Kind == SessionTurnKind.Narrative);
+        if (execution.AcceptedHeadTurnId is { } acceptedHeadTurnId)
+        {
+            var acceptedPosition = await db.SessionTurns.AsNoTracking()
+                .Where(turn => turn.Id == acceptedHeadTurnId)
+                .Select(turn => (int?)turn.Position)
+                .SingleOrDefaultAsync(cancellationToken);
+            if (acceptedPosition is not null) turnsQuery = turnsQuery.Where(turn => turn.Position <= acceptedPosition.Value);
+        }
+        else turnsQuery = turnsQuery.Where(_ => false);
+        var newestTurns = await turnsQuery.Include(turn => turn.PlayerInput).OrderByDescending(turn => turn.Position)
+            .Select(turn => new NarrativeRecentTurnInput(turn.PlayerInput == null ? null : turn.PlayerInput.Text, turn.NarrativeBody))
+            .ToListAsync(cancellationToken);
+        var recentTurns = recentTurnSelector.Select(newestTurns);
         var request = new PostStateNarrativeRequest(
             ScenarioTurnSchemas.PostStateNarrative,
             new NarrativeScenarioInput(world.Narrative.Title, world.Narrative.Summary, world.Narrative.Genre,
                 world.Narrative.Tone, world.Narrative.Lore, world.Narrative.AiFreedom,
                 world.Narrative.SelectedHero, world.Narrative.Entities, world.Narrative.Opening),
-            execution.PlayerInput, selectedObject, action, postState,
+            recentTurns, execution.PlayerInput, selectedObject, action, postState,
             DeserializeList<string>(step.FactsJson), DeserializeList<JsonElement>(step.EventsJson),
             DeserializeList<string>(step.NarrativeHintsJson), DeserializeList<string>(step.ForbiddenNarrativeFactsJson));
         var startedAt = DateTimeOffset.UtcNow;

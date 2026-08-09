@@ -19,6 +19,15 @@ export const SplitProfileAndCredentialManagement: Story = {
       await expect(await canvas.findByTestId('ai-credential-row-runpod')).toBeVisible();
       await expect(canvas.getByTestId('ai-profile-row-runpod')).toHaveTextContent('r1');
     });
+    await step('AIごとの追加システムプロンプトを編集して保存する', async () => {
+      const profile = within(canvas.getByTestId('ai-profile-row-runpod'));
+      await userEvent.click(profile.getByRole('button', { name: '編集' }));
+      const systemPrompt = canvas.getByLabelText('Profile追加システムプロンプト');
+      await userEvent.clear(systemPrompt);
+      await userEvent.type(systemPrompt, '直前の行動から自然につなぎ、情景と仕草を小説風に描く。');
+      await userEvent.click(canvas.getByRole('button', { name: 'Profileを保存' }));
+      await expect(await canvas.findByTestId('ai-profile-row-runpod')).toHaveTextContent('r2');
+    });
     await step('Credentialを置換するとrevisionを保持して更新する', async () => {
       const credential = within(canvas.getByTestId('ai-credential-row-runpod'));
       await userEvent.click(credential.getByRole('button', { name: '置換' }));

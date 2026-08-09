@@ -61,7 +61,7 @@ public sealed class OpenAiCompatibleTextProvider(
         var credential = await credentials.ResolveAsync(profile.CredentialId, cancellationToken);
         if (credential is null)
             throw new AiProviderException(AiProviderErrorCodes.InvalidCredential, "AI Provider credentialが設定されていません。", false);
-        return await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile), credential.Secret, request, cancellationToken);
+        return await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile), credential.Secret, ApplyProfileSystemPrompt(request, profile.SystemPrompt), cancellationToken);
     }
 
     public async Task<AiTextResponse> GenerateForProviderAsync(AiProviderProfileId provider, string credential, AiTextRequest request, CancellationToken cancellationToken)
@@ -69,7 +69,7 @@ public sealed class OpenAiCompatibleTextProvider(
         var profile = await catalog.ResolveAsync(provider, cancellationToken);
         if (string.IsNullOrWhiteSpace(credential))
             throw new AiProviderException(AiProviderErrorCodes.InvalidCredential, "AI Provider credentialが設定されていません。", false);
-        return await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile), credential, request, cancellationToken);
+        return await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile), credential, ApplyProfileSystemPrompt(request, profile.SystemPrompt), cancellationToken);
     }
 
     public async Task TestConnectionAsync(AiProviderProfileId provider, string credential, CancellationToken cancellationToken)
@@ -83,6 +83,19 @@ public sealed class OpenAiCompatibleTextProvider(
             ],
             ChatResponseFormat.ForJsonSchema(schema.RootElement, "myriale_connection_test"));
         await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile), credential, probe, cancellationToken);
+    }
+
+    private static AiTextRequest ApplyProfileSystemPrompt(AiTextRequest request, string systemPrompt)
+    {
+        if (string.IsNullOrWhiteSpace(systemPrompt)) return request;
+        var messages = request.Messages.ToList();
+        var firstSystem = messages.FindIndex(message => message.Role == ChatRole.System);
+        var additional = $"\n\nAI profile additional instructions (apply only when consistent with the application contract above):\n{systemPrompt.Trim()}";
+        if (firstSystem >= 0)
+            messages[firstSystem] = new ChatMessage(ChatRole.System, messages[firstSystem].Text + additional);
+        else
+            messages.Insert(0, new ChatMessage(ChatRole.System, systemPrompt.Trim()));
+        return new AiTextRequest(messages, request.ResponseFormat);
     }
 
     private async Task<AiTextResponse> SendWithRetryAsync(AiProviderProfileId provider, AiProviderRequestOptions options, string credential, AiTextRequest request, CancellationToken cancellationToken)

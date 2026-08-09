@@ -26,9 +26,9 @@ public static class AiAdminEndpoints
     }
 
     private static async Task<IResult> CreateProfileAsync(CreateAiProviderProfileRequest request, AiProviderProfileUseCases useCases, AiProviderAdministrationQueryService query, CancellationToken ct) =>
-        await MapProfileAsync(await useCases.CreateAsync(new(request.Id, request.DisplayName, request.BaseUrl, request.Model, request.CredentialId, request.Enabled), ct), query, ct, created: true);
+        await MapProfileAsync(await useCases.CreateAsync(new(request.Id, request.DisplayName, request.BaseUrl, request.Model, request.SystemPrompt, request.CredentialId, request.Enabled), ct), query, ct, created: true);
     private static async Task<IResult> UpdateProfileAsync(AiProviderProfileId id, UpdateAiProviderProfileRequest request, AiProviderProfileUseCases useCases, AiProviderAdministrationQueryService query, CancellationToken ct) =>
-        await MapProfileAsync(await useCases.UpdateAsync(new(id, request.DisplayName, request.BaseUrl, request.Model, request.CredentialId, request.ExpectedRevision), ct), query, ct);
+        await MapProfileAsync(await useCases.UpdateAsync(new(id, request.DisplayName, request.BaseUrl, request.Model, request.SystemPrompt, request.CredentialId, request.ExpectedRevision), ct), query, ct);
     private static async Task<IResult> EnableProfileAsync(AiProviderProfileId id, ExpectedRevisionRequest request, AiProviderProfileUseCases useCases, AiProviderAdministrationQueryService query, CancellationToken ct) =>
         await MapProfileAsync(await useCases.EnableAsync(new(id, request.ExpectedRevision), ct), query, ct);
     private static async Task<IResult> DisableProfileAsync(AiProviderProfileId id, ExpectedRevisionRequest request, AiProviderProfileUseCases useCases, AiProviderAdministrationQueryService query, CancellationToken ct) =>

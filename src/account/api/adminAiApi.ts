@@ -3,14 +3,14 @@ export type AiCredentialSource = 'none' | 'deployment' | 'database';
 export type AiValidationStatus = 'untested' | 'valid' | 'invalidCredential' | 'modelNotFound' | 'rateLimited' | 'providerUnavailable' | 'schemaFailure';
 
 export type AdminAiProfile = {
-  id: string; displayName: string; adapter: 'openai-compatible'; baseUrl: string; model: string; credentialId: string;
+  id: string; displayName: string; adapter: 'openai-compatible'; baseUrl: string; model: string; systemPrompt: string; credentialId: string;
   enabled: boolean; source: AiProfileDefinitionSource; revision: number; active: boolean; credentialSource: AiCredentialSource;
   credentialConfigured: boolean; credentialRevision: number; validationStatus: AiValidationStatus; lastValidatedAt?: string | null;
 };
 export type AdminAiCredential = { id: string; displayName: string; maskedSecret: string; source: AiCredentialSource; revision: number; updatedAt: string; referencedProfileCount: number };
 export type AiPromptTestResult = { provider: string; model: string; response: string; inputTokens?: number | null; outputTokens?: number | null; latencyMilliseconds: number; finishReason?: string | null };
 export type AdminAiApiError = Error & { status?: number; errors?: Record<string, string[]> };
-export type ProfileInput = { id: string; displayName: string; baseUrl: string; model: string; credentialId: string; enabled: boolean };
+export type ProfileInput = { id: string; displayName: string; baseUrl: string; model: string; systemPrompt: string; credentialId: string; enabled: boolean };
 
 export type AdminAiApi = {
   listProfiles: () => Promise<AdminAiProfile[]>;
@@ -59,8 +59,8 @@ export function createFetchAdminAiApi(baseUrl = getAdminAiApiBaseUrl()): AdminAi
 
 export function createDemoAdminAiApi(): AdminAiApi {
   let profiles: AdminAiProfile[] = [
-    { id: 'openai', displayName: 'OpenAI', adapter: 'openai-compatible', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4.1-mini', credentialId: 'openai', enabled: true, source: 'deployment', revision: 0, active: true, credentialSource: 'deployment', credentialConfigured: true, credentialRevision: 0, validationStatus: 'valid', lastValidatedAt: new Date().toISOString() },
-    { id: 'runpod', displayName: 'Runpod Serverless', adapter: 'openai-compatible', baseUrl: 'https://api.runpod.ai/v2/demo/openai/v1', model: 'Qwen/Qwen3-8B', credentialId: 'runpod', enabled: true, source: 'database', revision: 1, active: false, credentialSource: 'database', credentialConfigured: true, credentialRevision: 1, validationStatus: 'untested', lastValidatedAt: null },
+    { id: 'openai', displayName: 'OpenAI', adapter: 'openai-compatible', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4.1-mini', systemPrompt: '', credentialId: 'openai', enabled: true, source: 'deployment', revision: 0, active: true, credentialSource: 'deployment', credentialConfigured: true, credentialRevision: 0, validationStatus: 'valid', lastValidatedAt: new Date().toISOString() },
+    { id: 'runpod', displayName: 'Runpod Serverless', adapter: 'openai-compatible', baseUrl: 'https://api.runpod.ai/v2/demo/openai/v1', model: 'Qwen/Qwen3-8B', systemPrompt: '日本語の情景描写を重視する。', credentialId: 'runpod', enabled: true, source: 'database', revision: 1, active: false, credentialSource: 'database', credentialConfigured: true, credentialRevision: 1, validationStatus: 'untested', lastValidatedAt: null },
   ];
   let credentials: AdminAiCredential[] = [{ id: 'runpod', displayName: 'Runpod', maskedSecret: '••••••••demo', source: 'database', revision: 1, updatedAt: new Date().toISOString(), referencedProfileCount: 1 }];
   const find = (id: string) => { const profile = profiles.find((item) => item.id === id); if (!profile) throw demoError('Profileが見つかりません。', 404); return profile; };

@@ -40,6 +40,7 @@ public sealed record NarrativeSessionStateInput(
     long Revision,
     IReadOnlyDictionary<string, bool> Flags);
 
+[CrossSliceContract]
 public sealed record NarrativeRecentTurnInput(string? PlayerInput, string? Narrative);
 
 public sealed record NarrativeActionRecommendationRequest(

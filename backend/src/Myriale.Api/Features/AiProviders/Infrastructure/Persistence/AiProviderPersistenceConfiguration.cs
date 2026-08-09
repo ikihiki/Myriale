@@ -8,6 +8,7 @@ internal sealed class AiProviderProfileConfiguration : IEntityTypeConfiguration<
     public void Configure(EntityTypeBuilder<AiProviderProfile> builder)
     {
         builder.Property(profile => profile.Adapter).HasConversion<string>();
+        builder.Property(profile => profile.SystemPrompt).HasMaxLength(20_000);
         builder.Property(profile => profile.Revision).IsConcurrencyToken();
     }
 }
