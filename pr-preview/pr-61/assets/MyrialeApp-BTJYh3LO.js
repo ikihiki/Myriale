@@ -199,17 +199,17 @@ ${n}。`,mixinTypeCodes:[a],localProfileFields:[],localProfileDefaults:[],profil
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -437,17 +437,17 @@ ${n}。`,mixinTypeCodes:[a],localProfileFields:[],localProfileDefaults:[],profil
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -673,17 +673,17 @@ ${n}。`,mixinTypeCodes:[a],localProfileFields:[],localProfileDefaults:[],profil
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -909,17 +909,17 @@ ${n}。`,mixinTypeCodes:[a],localProfileFields:[],localProfileDefaults:[],profil
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -1197,17 +1197,17 @@ ${n}。`,mixinTypeCodes:[a],localProfileFields:[],localProfileDefaults:[],profil
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -1536,17 +1536,17 @@ ${n}。`,mixinTypeCodes:[a],localProfileFields:[],localProfileDefaults:[],profil
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -1772,17 +1772,17 @@ ${n}。`,mixinTypeCodes:[a],localProfileFields:[],localProfileDefaults:[],profil
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -2008,17 +2008,17 @@ ${n}。`,mixinTypeCodes:[a],localProfileFields:[],localProfileDefaults:[],profil
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -2244,17 +2244,17 @@ ${n}。`,mixinTypeCodes:[a],localProfileFields:[],localProfileDefaults:[],profil
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -2506,17 +2506,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -2782,17 +2782,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -3043,17 +3043,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -3304,17 +3304,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -3588,17 +3588,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -3848,17 +3848,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -4110,17 +4110,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -4371,17 +4371,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -4632,17 +4632,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -4933,17 +4933,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -5175,17 +5175,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -5433,17 +5433,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -5675,17 +5675,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -5911,17 +5911,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -6147,17 +6147,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -6383,17 +6383,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -6619,17 +6619,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -6859,17 +6859,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -7171,17 +7171,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -7429,17 +7429,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -7671,17 +7671,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -7923,17 +7923,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -8181,17 +8181,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -8423,17 +8423,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -8678,17 +8678,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -8794,7 +8794,7 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
   heroFreeGenerationAllowed: boolean;
   hero: string;
   opening: string;
-}`,signature:{properties:[{key:"id",value:{name:"string",required:!0}},{key:"title",value:{name:"string",required:!0}},{key:"status",value:{name:"union",raw:"'公開中' | '自分用'",elements:[{name:"literal",value:"'公開中'"},{name:"literal",value:"'自分用'"}],required:!0}},{key:"genreTags",value:{name:"Array",elements:[{name:"string"}],raw:"string[]",required:!0}},{key:"basicInformation",value:{name:"string",required:!0}},{key:"heroMode",value:{name:"union",raw:"'fixed' | 'select' | 'free'",elements:[{name:"literal",value:"'fixed'"},{name:"literal",value:"'select'"},{name:"literal",value:"'free'"}],required:!0}},{key:"heroFreeGenerationAllowed",value:{name:"boolean",required:!0}},{key:"hero",value:{name:"string",required:!0}},{key:"opening",value:{name:"string",required:!0}}]}}],raw:"ScenarioSummary[]"},description:""},status:{required:!0,tsType:{name:"union",raw:"'loading' | 'error' | 'ready'",elements:[{name:"literal",value:"'loading'"},{name:"literal",value:"'error'"},{name:"literal",value:"'ready'"}]},description:""},loadError:{required:!1,tsType:{name:"string"},description:""},onRetry:{required:!0,tsType:{name:"signature",type:"function",raw:"() => void",signature:{arguments:[],return:{name:"void"}}},description:""},onRegistration:{required:!0,tsType:{name:"signature",type:"function",raw:"() => void",signature:{arguments:[],return:{name:"void"}}},description:""},onEdit:{required:!0,tsType:{name:"signature",type:"function",raw:"(scenarioId: string) => void",signature:{arguments:[{type:{name:"string"},name:"scenarioId"}],return:{name:"void"}}},description:""},onStart:{required:!0,tsType:{name:"signature",type:"function",raw:"(scenarioId: string) => void",signature:{arguments:[{type:{name:"string"},name:"scenarioId"}],return:{name:"void"}}},description:""},onLogout:{required:!0,tsType:{name:"signature",type:"function",raw:"() => void | Promise<void>",signature:{arguments:[],return:{name:"union",raw:"void | Promise<void>",elements:[{name:"void"},{name:"Promise",elements:[{name:"void"}],raw:"Promise<void>"}]}}},description:""}}};function Mg(e){return(e??"").replace(/^#{1,6}\s+/gm,"").replace(/^[-*+]\s+/gm,"").replace(/\[([^\]]+)\]\([^\)]+\)/g,"$1").replace(/[*_`>]/g,"").replace(/\s+/g," ").trim()}function gs(e){return{id:e.id,title:e.title,status:e.status==="published"?"公開中":"自分用",genreTags:st(e.genre),basicInformation:Mg(e.summary)||"基本情報はまだ登録されていません。",heroMode:e.heroMode==="fixed"||e.heroMode==="select"?e.heroMode:"free",heroFreeGenerationAllowed:e.heroMode==="select"&&(e.heroFreeGenerationAllowed??!1),hero:e.hero||"このシナリオの世界観に合う主人公を自由に作成できます。",opening:e.opening||e.summary||`${e.title}の物語が始まる。`}}function ys({api:e}={}){const n=vt(),a=n==null?void 0:n.dispatch,r=pa(),i=gn(),o=J.useMemo(()=>e??wt(),[e]),u=mu({queryKey:["scenarios","list"],queryFn:({signal:d})=>o.getScenarios(d),staleTime:3e4});J.useEffect(()=>{!u.data||!a||a({type:"SCENARIOS_LOADED",scenarios:u.data.map(d=>({...d,status:d.status==="published"||d.status==="private"?d.status:"draft"}))})},[a,u.data]);const l=J.useMemo(()=>(u.data??[]).map(gs),[u.data]),s=(d,m)=>{if(r){d==="startSession"?r(d,{query:{scenarioId:m??""}}):d==="scenarioEdit"?r(d,{scenarioId:m??""}):r(d);return}Ho(Ko[d])},c=async()=>{await i.api.logout(),i.clearUser(),s("login")};return t.jsx(cs,{account:En(i.user),scenarios:l,status:u.isPending?"loading":u.isError?"error":"ready",loadError:u.error instanceof Error?u.error.message:void 0,onRetry:()=>void u.refetch(),onRegistration:()=>s("scenarioRegister"),onEdit:d=>s("scenarioEdit",d),onStart:d=>s("startSession",d),onLogout:c})}ys.__docgenInfo={description:"",methods:[],displayName:"ScenarioListContainer"};async function Kt(e,n){const a=await fetch(e,{credentials:"include",headers:{Accept:"application/json",...n==null?void 0:n.headers},...n});if(!a.ok){const r=await a.json().catch(()=>({})),i=new Error(r.message??`Request failed (${a.status})`);throw i.status=a.status,i.code=r.code,i.execution=r.execution,i}return a.json()}const ur={getExecution:(e,n)=>Kt(`/api/module-executions/${encodeURIComponent(e)}`,{signal:n}),getRuntimeUi:(e,n)=>Kt(`/api/module-executions/${encodeURIComponent(e)}/ui/runtime/`,{signal:n}),async getResource(e,n){var u;const a=await fetch(e.url,{credentials:"include",cache:"no-store",signal:n});if(!a.ok)throw new Error(`Resource request failed (${a.status})`);if(((u=a.headers.get("content-type"))==null?void 0:u.split(";",1)[0])!==e.contentType)throw new Error("Resource content type did not match its descriptor.");const i=new Uint8Array(await a.arrayBuffer());if(i.byteLength!==e.byteLength)throw new Error("Resource length did not match its descriptor.");if(Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",i)),l=>l.toString(16).padStart(2,"0")).join("")!==e.sha256)throw new Error("Resource digest did not match its descriptor.");return new TextDecoder("utf-8",{fatal:!0}).decode(i)},dispatch:(e,n,a)=>Kt(`/api/module-executions/${encodeURIComponent(e)}/dispatch`,{method:"POST",signal:a,headers:{"Content-Type":"application/json"},body:JSON.stringify(n)})};function vs({action:e,onExecution:n}){const{execution:a}=e,[r,i]=J.useState(),[o,u]=J.useState("");return J.useEffect(()=>{const l=new AbortController;return i(void 0),u(""),ur.getRuntimeUi(a.id,l.signal).then(i).catch(s=>{l.signal.aborted||u(s instanceof Error?s.message:"判定画面を読み込めません。")}),()=>l.abort()},[a.id]),t.jsxs("section",{className:"mx-auto mb-4 w-full max-w-myr-reading px-3 max-sm:px-0","aria-label":"現在のモジュール判定","data-testid":"active-module-turn",children:[t.jsxs("div",{className:"mb-3 rounded-2xl border border-myr-ink/15 bg-myr-paper/85 px-4 py-3",children:[t.jsx("strong",{children:e.actionLabel}),t.jsx("p",{className:"m-0 mt-1 text-myr-ui-sm text-myr-ink-soft",children:"この操作画面は、列挙済みの手動アクションに対してのみ表示されます。Object、Action、実行先は変更できません。"})]}),o&&t.jsx("div",{role:"alert",className:"rounded-2xl border border-myr-ruby/30 bg-myr-paper p-4 text-myr-ruby",children:o}),!o&&!r&&t.jsx("div",{role:"status",className:"rounded-2xl border border-myr-ink/15 bg-myr-paper p-4",children:"保存された判定状態を復元しています…"}),r&&t.jsx(Zo,{execution:a,descriptor:r,api:ur,onExecution:n})]})}vs.__docgenInfo={description:"",methods:[],displayName:"ActiveModuleTurnPanel",props:{action:{required:!0,tsType:{name:"NonNullable",elements:[{name:"union",raw:"ScenarioTurnProjection['manualUi']"}],raw:"NonNullable<ScenarioTurnProjection['manualUi']>"},description:""}}};function ps({sessionId:e}){var D;const n=pa(),a=St(),r=gn(),i=En(r.user),o=J.useRef(0),[u,l]=J.useState(null),[s,c]=J.useState(null),[d,m]=J.useState(null),[g,y]=J.useState(null),[v,p]=J.useState(!1),b=J.useRef(!1),[S,k]=J.useState(!1),f=J.useRef(null),q=()=>n==null?void 0:n("login"),h=()=>n==null?void 0:n("sessionList"),T=()=>window.location.reload(),x=async()=>{await r.api.logout(),r.clearUser(),q()};if(J.useEffect(()=>{const U=new AbortController;return l(null),c(null),m(null),y(null),Promise.all([Jt(e,void 0,U.signal),Ls(void 0,U.signal)]).then(([Z,ae])=>{l(Z),c(ae)}).catch(Z=>{if(Z.name==="AbortError")return;const ae=Ln(Z,"Sessionを読み込めませんでした。");ae.kind==="unauthorized"&&r.clearUser(),m($n(ae,"load"))}),()=>U.abort()},[r.clearUser,e]),J.useEffect(()=>{if(!u||!$s(u))return;const U=new AbortController,Z=window.setInterval(()=>{const ae=++o.current;Jt(e,void 0,U.signal).then(re=>{ae===o.current&&l(ne=>!ne||re.revision>=ne.revision?re:ne)}).catch(re=>{re.name!=="AbortError"&&y($n(Ln(re,"Sessionを更新できませんでした。"),"poll"))})},750);return()=>{window.clearInterval(Z),U.abort()}},[u,e]),!u||!s)return t.jsx(Gs,{account:i,notice:d,onLogout:x,onLogin:q,onReload:T,onSessionList:h});const V=async(U,Z,ae,re)=>{var G,xe;if(b.current)return{ok:!1,notice:wu("Scenario Turnを処理中です。")};b.current=!0;const ne=((G=f.current)==null?void 0:G.input)===U&&f.current.interactionType===Z&&f.current.actionDecisionAiProfileId===ae&&f.current.narrativeAiProfileId===re?f.current:null,Se=(ne==null?void 0:ne.requestId)??`scenario-turn-${((xe=crypto.randomUUID)==null?void 0:xe.call(crypto))??`${Date.now()}-${Math.random()}`}`;f.current={input:U,requestId:Se,interactionType:Z,actionDecisionAiProfileId:ae,narrativeAiProfileId:re},p(!0);try{const ue=await Ys(e,U,Se,void 0,Z,void 0,ae,re),ke=Math.max(0,...(u.activity??[]).map(nn=>nn.order))+1;return l({...u,inputs:[...u.inputs??[],ue.input],executions:[...u.executions??[],ue.execution],activity:[...u.activity??[],{type:"input",id:ue.input.id,order:ke},{type:"execution",id:ue.execution.id,order:ke+1,causalId:ue.input.id}]}),f.current=null,{ok:!0,notice:"Player Inputを保存し、Scenario Turnを開始しました。ブラウザを閉じても処理は継続します。"}}catch(ue){const ke=Ln(ue,"Scenario Turnを開始できませんでした。");return ke.kind==="unauthorized"&&r.clearUser(),{ok:!1,notice:$n(ke,"submit")}}finally{b.current=!1,p(!1)}},P=async()=>{if(S||v)return{ok:!1,notice:wu("別のAI処理が進行中です。")};k(!0);try{return{ok:!0,value:await Qs(e),notice:"AIの提案を入力欄へ設定しました。内容を編集してから送信できます。"}}catch(U){const Z=Ln(U,"次の行動案を生成できませんでした。");return Z.kind==="unauthorized"&&r.clearUser(),{ok:!1,notice:$n(Z,"recommend")}}finally{k(!1)}},w=async(U,Z)=>{var ae,re,ne,Se;try{const G=(ae=u.executions)==null?void 0:ae.find(ue=>ue.id===U),xe=await Ks(U,Z);return Z==="dismiss"&&(G==null?void 0:G.triggerType)==="player-input"?l({...u,inputs:(re=u.inputs)==null?void 0:re.filter(ue=>ue.id!==G.triggerId),executions:(ne=u.executions)==null?void 0:ne.filter(ue=>ue.id!==U),activity:(Se=u.activity)==null?void 0:Se.filter(ue=>ue.id!==U&&ue.id!==G.triggerId)}):l({...u,executions:(u.executions??[]).map(ue=>ue.id===U?xe:ue)}),{ok:!0,notice:Z==="retry"?"同じ入力で再試行を開始しました。":Z==="cancel"?"キャンセルを要求しました。":"入力を取り消しました。"}}catch(G){return{ok:!1,notice:$n(Ln(G,"Executionを更新できませんでした。"),"execution")}}},A=async(U,Z,ae)=>{try{const re=await Hs(U,Z,ae);return l({...u,noteProposals:(u.noteProposals??[]).map(ne=>ne.artifactId===U?re:ne)}),{ok:!0,notice:Z==="apply"||Z==="edit-apply"?"ノート変更案を適用し、Revisionを作成しました。":Z==="reject"?"ノート変更案を却下しました。":"ノート変更案を後で確認できるよう保留しました。"}}catch(re){return{ok:!1,notice:$n(Ln(re,"ノート変更案を更新できませんでした。"),"note-review")}}},R=(D=u.executions)==null?void 0:D.filter(U=>U.kind==="scenario-turn").at(-1),j=Us(R),O=zs(R),_=()=>{Jt(e).then(l).catch(U=>{y($n(Ln(U,"手動アクション後のSessionを更新できませんでした。"),"poll"))})},M=u.pendingInputs.at(-1),I=u.status.toLowerCase()==="completed";return t.jsx(Ws,{sessionId:e,account:i,turns:u.turns.map(qu),headingLinks:u.turns.map(qu).map(U=>({title:U.turnTitle,startTurnId:U.id,summary:"Serverに保存された確定済みTurn"})),sessionStateLabel:I?"Completed":"Active",readOnly:I,activitySession:u,activeManualActionPanel:!I&&j?t.jsx(vs,{action:j,onExecution:_}):void 0,committedStateNarrativePending:!I&&O,initialInput:I||M==null?void 0:M.input,initialInteractionType:M==null?void 0:M.interactionType,aiProfiles:s.profiles,defaultActionDecisionAiProfileId:(R==null?void 0:R.actionDecisionAiProfileId)??s.defaultActionDecisionProfileId,defaultNarrativeAiProfileId:(R==null?void 0:R.narrativeAiProfileId)??s.defaultNarrativeProfileId,initialNotice:I?"完了済みの物語を読み取り専用で表示しています。":(M==null?void 0:M.errorMessage)??(M?"未完了のPlayer Inputを復元しました。同じRequest IDで再試行できます。":"Serverに保存された確定済みTurnを表示しています。"),liveNotice:g,isSubmitting:v,isRecommending:S,onLogout:x,onLogin:q,onReload:T,onSessionList:h,onSubmit:V,onRecommend:P,onExecutionAction:w,onNoteReview:A,onInspectTurn:U=>void a({to:"/sessions/$sessionId/turns/$turnId/inspection",params:{sessionId:e,turnId:U}})})}ps.__docgenInfo={description:"",methods:[],displayName:"SessionContainer",props:{sessionId:{required:!0,tsType:{name:"string"},description:""}}};async function Ig(e,n,a,r=Wo()){if(!r)throw new Error("Session APIが設定されていません。");const i=await fetch(`${r}/${encodeURIComponent(e)}/turns/${encodeURIComponent(n)}/inspection`,{credentials:"include",headers:{Accept:"application/json"},signal:a});if(!i.ok)throw i.status===401?new Error("Turnの実行詳細を確認するにはログインしてください。"):i.status===403?new Error("このTurnの実行詳細を確認する権限がありません。"):i.status===404?new Error("Session、Turn、または実行詳細が見つかりませんでした。"):new Error("Turnの実行詳細を読み込めませんでした。");return i.json()}function ks({sessionId:e,turnId:n}){const a=St(),r=gn(),[i,o]=J.useState({status:"loading"}),[u,l]=J.useState(0),s=J.useCallback(()=>l(d=>d+1),[]);J.useEffect(()=>{const d=new AbortController;return o({status:"loading"}),Ig(e,n,d.signal).then(m=>o({status:"ready",inspection:kd(m)})).catch(m=>{d.signal.aborted||o({status:"error",message:m instanceof Error?m.message:"Turnの実行詳細を読み込めませんでした。"})}),()=>d.abort()},[u,e,n]);const c=async()=>{await r.api.logout(),r.clearUser(),await a({to:"/account/login"})};return t.jsx(bd,{account:En(r.user),sessionId:e,turnId:n,state:i,onBack:()=>void a({to:"/sessions/$sessionId",params:{sessionId:e}}),onRetry:s,onLogout:c})}ks.__docgenInfo={description:"",methods:[],displayName:"TurnInspectionContainer",props:{sessionId:{required:!0,tsType:{name:"string"},description:""},turnId:{required:!0,tsType:{name:"string"},description:""}}};let L=(function(e){return e[e.None=0]="None",e[e.Mutable=1]="Mutable",e[e.Watching=2]="Watching",e[e.RecursedCheck=4]="RecursedCheck",e[e.Recursed=8]="Recursed",e[e.Dirty=16]="Dirty",e[e.Pending=32]="Pending",e})({});function Bg({update:e,notify:n,unwatched:a}){return{link:r,unlink:i,propagate:o,checkDirty:u,shallowPropagate:l};function r(c,d,m){const g=d.depsTail;if(g!==void 0&&g.dep===c)return;const y=g!==void 0?g.nextDep:d.deps;if(y!==void 0&&y.dep===c){y.version=m,d.depsTail=y;return}const v=c.subsTail;if(v!==void 0&&v.version===m&&v.sub===d)return;const p=d.depsTail=c.subsTail={version:m,dep:c,sub:d,prevDep:g,nextDep:y,prevSub:v,nextSub:void 0};y!==void 0&&(y.prevDep=p),g!==void 0?g.nextDep=p:d.deps=p,v!==void 0?v.nextSub=p:c.subs=p}function i(c,d=c.sub){const m=c.dep,g=c.prevDep,y=c.nextDep,v=c.nextSub,p=c.prevSub;return y!==void 0?y.prevDep=g:d.depsTail=g,g!==void 0?g.nextDep=y:d.deps=y,v!==void 0?v.prevSub=p:m.subsTail=p,p!==void 0?p.nextSub=v:(m.subs=v)===void 0&&a(m),y}function o(c){let d=c.nextSub,m;e:do{const g=c.sub;let y=g.flags;if(y&(L.RecursedCheck|L.Recursed|L.Dirty|L.Pending)?y&(L.RecursedCheck|L.Recursed)?y&L.RecursedCheck?!(y&(L.Dirty|L.Pending))&&s(c,g)?(g.flags=y|(L.Recursed|L.Pending),y&=L.Mutable):y=L.None:g.flags=y&~L.Recursed|L.Pending:y=L.None:g.flags=y|L.Pending,y&L.Watching&&n(g),y&L.Mutable){const v=g.subs;if(v!==void 0){const p=(c=v).nextSub;p!==void 0&&(m={value:d,prev:m},d=p);continue}}if((c=d)!==void 0){d=c.nextSub;continue}for(;m!==void 0;)if(c=m.value,m=m.prev,c!==void 0){d=c.nextSub;continue e}break}while(!0)}function u(c,d){let m,g=0,y=!1;e:do{const v=c.dep,p=v.flags;if(d.flags&L.Dirty)y=!0;else if((p&(L.Mutable|L.Dirty))===(L.Mutable|L.Dirty)){if(e(v)){const b=v.subs;b.nextSub!==void 0&&l(b),y=!0}}else if((p&(L.Mutable|L.Pending))===(L.Mutable|L.Pending)){(c.nextSub!==void 0||c.prevSub!==void 0)&&(m={value:c,prev:m}),c=v.deps,d=v,++g;continue}if(!y){const b=c.nextDep;if(b!==void 0){c=b;continue}}for(;g--;){const b=d.subs,S=b.nextSub!==void 0;if(S?(c=m.value,m=m.prev):c=b,y){if(e(d)){S&&l(b),d=c.sub;continue}y=!1}else d.flags&=~L.Pending;d=c.sub;const k=c.nextDep;if(k!==void 0){c=k;continue e}}return y}while(!0)}function l(c){do{const d=c.sub,m=d.flags;(m&(L.Pending|L.Dirty))===L.Pending&&(d.flags=m|L.Dirty,(m&(L.Watching|L.RecursedCheck))===L.Watching&&n(d))}while((c=c.nextSub)!==void 0)}function s(c,d){let m=d.depsTail;for(;m!==void 0;){if(m===c)return!0;m=m.prevDep}return!1}}function cu(e,n,a){var o,u,l;const r=typeof e=="object",i=r?e:void 0;return{next:(o=r?e.next:e)==null?void 0:o.bind(i),error:(u=r?e.error:n)==null?void 0:u.bind(i),complete:(l=r?e.complete:a)==null?void 0:l.bind(i)}}const Fi=[];let Xr=0;const{link:So,unlink:Eg,propagate:_g,checkDirty:bs,shallowPropagate:qo}=Bg({update(e){return e._update()},notify(e){Fi[Mi++]=e,e.flags&=~L.Watching},unwatched(e){e.depsTail!==void 0&&(e.depsTail=void 0,e.flags=L.Mutable|L.Dirty,mt(e))}});let $r=0,Mi=0,He,Ii=0;function pe(e){try{++Ii,e()}finally{--Ii||Ss()}}function mt(e){const n=e.depsTail;let a=n!==void 0?n.nextDep:e.deps;for(;a!==void 0;)a=Eg(a,e)}function Ss(){if(!(Ii>0)){for(;$r<Mi;){const e=Fi[$r];Fi[$r++]=void 0,e.notify()}$r=0,Mi=0}}function qs(e,n){const a=typeof e=="function",r=e,i={_snapshot:a?void 0:e,subs:void 0,subsTail:void 0,deps:void 0,depsTail:void 0,flags:a?L.None:L.Mutable,get(){return He!==void 0&&So(i,He,Xr),i._snapshot},subscribe(o){const u=cu(o),l={current:!1},s=Dg(()=>{var c;i.get(),l.current?(c=u.next)==null||c.call(u,i._snapshot):l.current=!0});return{unsubscribe:()=>{s.stop()}}},_update(o){const u=He,l=Object.is;if(a)He=i,++Xr,i.depsTail=void 0;else if(o===void 0)return!1;a&&(i.flags=L.Mutable|L.RecursedCheck);try{const s=i._snapshot,c=typeof o=="function"?o(s):o===void 0&&a?r(s):o;return s===void 0||!l(s,c)?(i._snapshot=c,!0):!1}finally{He=u,a&&(i.flags&=~L.RecursedCheck),mt(i)}}};return a?(i.flags=L.Mutable|L.Dirty,i.get=function(){const o=i.flags;if(o&L.Dirty||o&L.Pending&&bs(i.deps,i)){if(i._update()){const u=i.subs;u!==void 0&&qo(u)}}else o&L.Pending&&(i.flags=o&~L.Pending);return He!==void 0&&So(i,He,Xr),i._snapshot}):i.set=function(o){if(i._update(o)){const u=i.subs;u!==void 0&&(_g(u),qo(u),Ss())}},i}function Dg(e){const n=()=>{const r=He;He=a,++Xr,a.depsTail=void 0,a.flags=L.Watching|L.RecursedCheck;try{return e()}finally{He=r,a.flags&=~L.RecursedCheck,mt(a)}},a={deps:void 0,depsTail:void 0,subs:void 0,subsTail:void 0,flags:L.Watching|L.RecursedCheck,notify(){const r=this.flags;r&L.Dirty||r&L.Pending&&bs(this.deps,this)?n():this.flags=L.Watching},stop(){this.flags=L.None,this.depsTail=void 0,mt(this)}};return n(),a}var Ng=class{constructor(e,n){this.atom=qs(e),this.get=this.get.bind(this),this.setState=this.setState.bind(this),this.subscribe=this.subscribe.bind(this),n&&(this.actions=n(this))}setState(e){this.atom.set(e)}get state(){return this.atom.get()}get(){return this.state}subscribe(e){return this.atom.subscribe(cu(e))}},Lg=class{constructor(e){this.atom=qs(e)}get state(){return this.atom.get()}get(){return this.state}subscribe(e){return this.atom.subscribe(cu(e))}};function Va(e,n){return typeof e=="function"?new Lg(e):new Ng(e)}var $g=class{constructor(e,n){this.fn=e,this.options=n,this.lastExecutionTime=0,this.isPending=!1,this.maybeExecute=(...a)=>{const r=Date.now()-this.lastExecutionTime;if(this.options.leading&&r>=this.options.wait)this.execute(...a);else if(this.lastArgs=a,!this.timeoutId&&this.options.trailing){const i=this.options.wait-r;this.isPending=!0,this.timeoutId=setTimeout(()=>{this.lastArgs!==void 0&&this.execute(...this.lastArgs)},i)}},this.execute=(...a)=>{var r,i;this.fn(...a),(i=(r=this.options).onExecute)==null||i.call(r,a,this),this.lastExecutionTime=Date.now(),this.clearTimeout(),this.lastArgs=void 0,this.isPending=!1},this.flush=()=>{this.isPending&&this.lastArgs&&this.execute(...this.lastArgs)},this.cancel=()=>{this.clearTimeout(),this.lastArgs=void 0,this.isPending=!1},this.clearTimeout=()=>{this.timeoutId&&(clearTimeout(this.timeoutId),this.timeoutId=void 0)},this.options.leading===void 0&&this.options.trailing===void 0&&(this.options.leading=!0,this.options.trailing=!0)}};function Gg(e,n){return new $g(e,n).maybeExecute}var Pn,Me,Ve,hr,on,ua,ln,La,Vr,gt,An,$a,sn,Jr,Ga,yt,Lo,Ug=(Lo=class{constructor({pluginId:e,debug:n=!1,enabled:a=!0,reconnectEveryMs:r=300}){N(this,Pn,!0);N(this,Me);N(this,Ve);N(this,hr);N(this,on);N(this,ua);N(this,ln);N(this,La);N(this,Vr,0);N(this,gt,5);N(this,An,!1);N(this,$a,!1);N(this,sn,null);N(this,Jr,()=>{this.debugLog("Connected to event bus"),E(this,ua,!0),E(this,An,!1),this.debugLog("Emitting queued events",C(this,on)),C(this,on).forEach(e=>this.emitEventToBus(e)),E(this,on,[]),this.stopConnectLoop(),C(this,Ve).call(this).removeEventListener("tanstack-connect-success",C(this,Jr))});N(this,Ga,()=>{if(C(this,Vr)<C(this,gt)){Ha(this,Vr)._++,this.dispatchCustomEvent("tanstack-connect",{});return}C(this,Ve).call(this).removeEventListener("tanstack-connect",C(this,Ga)),E(this,$a,!0),this.debugLog("Max retries reached, giving up on connection"),this.stopConnectLoop()});N(this,yt,()=>{C(this,An)||(E(this,An,!0),C(this,Ve).call(this).addEventListener("tanstack-connect-success",C(this,Jr)),C(this,Ga).call(this))});E(this,Me,e),E(this,Pn,a),E(this,Ve,this.getGlobalTarget),E(this,hr,n),this.debugLog(" Initializing event subscription for plugin",C(this,Me)),E(this,on,[]),E(this,ua,!1),E(this,$a,!1),E(this,ln,null),E(this,La,r)}startConnectLoop(){C(this,ln)!==null||C(this,ua)||(this.debugLog(`Starting connect loop (every ${C(this,La)}ms)`),E(this,ln,setInterval(C(this,Ga),C(this,La))))}stopConnectLoop(){E(this,An,!1),C(this,ln)!==null&&(clearInterval(C(this,ln)),E(this,ln,null),E(this,on,[]),this.debugLog("Stopped connect loop"))}debugLog(...e){C(this,hr)&&console.log(`🌴 [tanstack-devtools:${C(this,Me)}-plugin]`,...e)}getGlobalTarget(){if(typeof globalThis<"u"&&globalThis.__TANSTACK_EVENT_TARGET__)return this.debugLog("Using global event target"),globalThis.__TANSTACK_EVENT_TARGET__;if(typeof window<"u"&&typeof window.addEventListener<"u")return this.debugLog("Using window as event target"),window;const e=typeof EventTarget<"u"?new EventTarget:void 0;return typeof e>"u"||typeof e.addEventListener>"u"?(this.debugLog("No event mechanism available, running in non-web environment"),{addEventListener:()=>{},removeEventListener:()=>{},dispatchEvent:()=>!1}):(this.debugLog("Using new EventTarget as fallback"),e)}getPluginId(){return C(this,Me)}dispatchCustomEventShim(e,n){try{const a=new Event(e,{detail:n});C(this,Ve).call(this).dispatchEvent(a)}catch{this.debugLog("Failed to dispatch shim event")}}dispatchCustomEvent(e,n){try{C(this,Ve).call(this).dispatchEvent(new CustomEvent(e,{detail:n}))}catch{this.dispatchCustomEventShim(e,n)}}emitEventToBus(e){this.debugLog("Emitting event to client bus",e),this.dispatchCustomEvent("tanstack-dispatch-event",e)}createEventPayload(e,n){return{type:`${C(this,Me)}:${e}`,payload:n,pluginId:C(this,Me)}}emit(e,n){if(!C(this,Pn)){this.debugLog("Event bus client is disabled, not emitting event",e,n);return}if(C(this,sn)&&(this.debugLog("Emitting event to internal event target",e,n),C(this,sn).dispatchEvent(new CustomEvent(`${C(this,Me)}:${e}`,{detail:this.createEventPayload(e,n)}))),C(this,$a)){this.debugLog("Previously failed to connect, not emitting to bus");return}if(!C(this,ua)){this.debugLog("Bus not available, will be pushed as soon as connected"),C(this,on).push(this.createEventPayload(e,n)),typeof CustomEvent<"u"&&!C(this,An)&&(C(this,yt).call(this),this.startConnectLoop());return}return this.emitEventToBus(this.createEventPayload(e,n))}on(e,n,a){const r=(a==null?void 0:a.withEventTarget)??!1,i=`${C(this,Me)}:${e}`;if(r&&(C(this,sn)||E(this,sn,new EventTarget),C(this,sn).addEventListener(i,u=>{n(u.detail)})),!C(this,Pn))return this.debugLog("Event bus client is disabled, not registering event",i),()=>{};const o=u=>{this.debugLog("Received event from bus",u.detail),n(u.detail)};return C(this,Ve).call(this).addEventListener(i,o),this.debugLog("Registered event to bus",i),()=>{var u;r&&((u=C(this,sn))==null||u.removeEventListener(i,o)),C(this,Ve).call(this).removeEventListener(i,o)}}onAll(e){if(!C(this,Pn))return this.debugLog("Event bus client is disabled, not registering event"),()=>{};const n=a=>{const r=a.detail;e(r)};return C(this,Ve).call(this).addEventListener("tanstack-devtools-global",n),()=>C(this,Ve).call(this).removeEventListener("tanstack-devtools-global",n)}onAllPluginEvents(e){if(!C(this,Pn))return this.debugLog("Event bus client is disabled, not registering event"),()=>{};const n=a=>{const r=a.detail;C(this,Me)&&r.pluginId!==C(this,Me)||e(r)};return C(this,Ve).call(this).addEventListener("tanstack-devtools-global",n),()=>C(this,Ve).call(this).removeEventListener("tanstack-devtools-global",n)}},Pn=new WeakMap,Me=new WeakMap,Ve=new WeakMap,hr=new WeakMap,on=new WeakMap,ua=new WeakMap,ln=new WeakMap,La=new WeakMap,Vr=new WeakMap,gt=new WeakMap,An=new WeakMap,$a=new WeakMap,sn=new WeakMap,Jr=new WeakMap,Ga=new WeakMap,yt=new WeakMap,Lo);class zg extends Ug{constructor(){super({pluginId:"form-devtools",reconnectEveryMs:1e3})}}const Ne=new zg;function Ar(e,n){return typeof e=="function"?e(n):e}function Gr(e,n){return gu(n).reduce((r,i)=>{if(r===null)return null;if(typeof r<"u")return r[i]},e)}function er(e,n,a){const r=gu(n);function i(o){if(!r.length)return Ar(a,o);const u=r.shift();if(typeof u=="string"||typeof u=="number"&&!Array.isArray(o))return typeof o=="object"?(o===null&&(o={}),{...o,[u]:i(o[u])}):{[u]:i()};if(Array.isArray(o)&&typeof u=="number"){const l=o.slice(0,u);return[...l.length?l:new Array(u),i(o[u]),...o.slice(u+1)]}return[...new Array(u),i()]}return i(e)}function Wg(e,n){const a=gu(n);function r(i){if(!i)return;if(a.length===1){const u=a[0];if(Array.isArray(i)&&typeof u=="number")return i.filter((c,d)=>d!==u);const{[u]:l,...s}=i;return s}const o=a.shift();if((typeof o=="string"||typeof o=="number"&&!Array.isArray(i))&&typeof i=="object")return{...i,[o]:r(i[o])};if(typeof o=="number"&&Array.isArray(i)){if(o>=i.length)return i;const u=i.slice(0,o);return[...u.length?u:new Array(o),r(i[o]),...i.slice(o+1)]}throw new Error("It seems we have created an infinite loop in deleteBy. ")}return r(e)}const wo=46,Qt=91,Yt=93,fo=48,Hg=57;function gu(e){if(Array.isArray(e))return[...e];if(typeof e!="string")throw new Error("Path must be a string.");const n=e.length,a=[];let r=n>0&&e.charCodeAt(0)===Qt?1:0,i=!0,o=-1;for(let u=r;u<=n;u++){const l=u<n?e.charCodeAt(u):-1;if(u===n||l===wo||l===Qt||l===Yt){const s=u-r;if(s>0){const c=i&&(s===1||e.charCodeAt(r)!==fo),d=e.slice(r,u);if(c){const m=parseInt(d,10);s<=15||String(m)===d?a.push(m):a.push(d)}else a.push(d)}else o!==Yt&&!(o===-1&&l===Yt)&&!(o===l&&(l===wo||l===Qt))&&a.push("");r=u+1,i=!0}else(l<fo||l>Hg)&&(i=!1);o=l}return a.length||a.push(""),a}function Kg(e){return!(Array.isArray(e)&&e.length===0)}function pr(e,n){const a=r=>r.validators.filter(Boolean).map(i=>({cause:i.cause,validate:i.fn}));return n.validationLogic({form:n.form,group:n.group,validators:n.validators,event:{type:e,fieldName:n.fieldName,async:!1},runValidation:a})}function kr(e,n){const{asyncDebounceMs:a}=n,{onBlurAsyncDebounceMs:r,onChangeAsyncDebounceMs:i,onDynamicAsyncDebounceMs:o}=n.validators||{},u=a??0,l=s=>s.validators.filter(Boolean).map(c=>{const d=(c==null?void 0:c.cause)||e;let m=u;switch(d){case"change":m=i??u;break;case"blur":m=r??u;break;case"dynamic":m=o??u;break;case"submit":m=0;break}return e==="submit"&&(m=0),{cause:d,validate:c.fn,debounceMs:m}});return n.validationLogic({form:n.form,group:n.group,validators:n.validators,event:{type:e,fieldName:n.fieldName,async:!0},runValidation:l})}const Zr=e=>!!e&&typeof e=="object"&&"fields"in e;function mn(e,n){if(Object.is(e,n))return!0;if(typeof e!="object"||e===null||typeof n!="object"||n===null)return!1;if(e instanceof Date&&n instanceof Date)return e.getTime()===n.getTime();if(e instanceof Map&&n instanceof Map){if(e.size!==n.size)return!1;for(const[i,o]of e)if(!n.has(i)||!Object.is(o,n.get(i)))return!1;return!0}if(e instanceof Set&&n instanceof Set){if(e.size!==n.size)return!1;for(const i of e)if(!n.has(i))return!1;return!0}const a=Object.keys(e),r=Object.keys(n);if(a.length!==r.length||a.length===0&&!Array.isArray(e)&&!Array.isArray(n)&&(Object.getPrototypeOf(e)!==Object.prototype||Object.getPrototypeOf(n)!==Object.prototype))return!1;for(const i of a)if(!r.includes(i)||!mn(e[i],n[i]))return!1;return!0}const Bi=({newFormValidatorError:e,isPreviousErrorFromFormValidator:n,previousErrorValue:a})=>e?{newErrorValue:e,newSource:"form"}:n?{newErrorValue:void 0,newSource:void 0}:a?{newErrorValue:a,newSource:"field"}:{newErrorValue:void 0,newSource:void 0},ct=({formLevelError:e,fieldLevelError:n})=>n?{newErrorValue:n,newSource:"field"}:e?{newErrorValue:e,newSource:"form"}:{newErrorValue:void 0,newSource:void 0};function Je(e,n){return e==null?n:{...e,...n}}let Qn=256;const et=[];let Ur;for(;Qn--;)et[Qn]=(Qn+256).toString(16).substring(1);function ws(){let e=0,n,a="";if(!Ur||Qn+16>256){for(Ur=new Array(256),e=256;e--;)Ur[e]=256*Math.random()|0;e=0,Qn=0}for(;e<16;e++)n=Ur[Qn+e],e===6?a+=et[n&15|64]:e===8?a+=et[n&63|128]:a+=et[n],e&1&&e>1&&e<11&&(a+="-");return Qn++,a}const Qg=Gg(e=>Ne.emit("form-state",{id:e.formId,state:e.store.state}),{wait:300});function ir(e){if(e===null||typeof e!="object")return e;if(e instanceof Date)return new Date(e.getTime());if(Array.isArray(e)){const a=[];for(let r=0;r<e.length;r++)a[r]=ir(e[r]);return a}if(e instanceof Map){const a=new Map;return e.forEach((r,i)=>{a.set(i,ir(r))}),a}if(e instanceof Set){const a=new Set;return e.forEach(r=>{a.add(ir(r))}),a}const n={};for(const a in e)Object.prototype.hasOwnProperty.call(e,a)&&(n[a]=ir(e[a]));return n}function ca(e,n){return n===e||n.startsWith(`${e}.`)||n.startsWith(`${e}[`)}const Xe=e=>{if(!e.validators)return e.runValidation({validators:[],form:e.form});const n=e.event.async,a=n?void 0:{fn:e.validators.onMount,cause:"mount"},r={fn:n?e.validators.onChangeAsync:e.validators.onChange,cause:"change"},i={fn:n?e.validators.onBlurAsync:e.validators.onBlur,cause:"blur"},o={fn:n?e.validators.onSubmitAsync:e.validators.onSubmit,cause:"submit"},u=n?void 0:{fn:()=>{},cause:"server"};switch(e.event.type){case"mount":return e.runValidation({validators:[a],form:e.form});case"submit":return e.runValidation({validators:[r,i,o,u],form:e.form});case"server":return e.runValidation({validators:[],form:e.form});case"blur":return e.runValidation({validators:[i,u],form:e.form});case"change":return e.runValidation({validators:[r,u],form:e.form});default:throw new Error(`Unknown validation event type: ${e.event.type}`)}};function Yg(e,n){const a=new Map;for(const r of e){const i=r.path??[];let o=n,u="";for(let l=0;l<i.length;l++){const s=i[l];if(s===void 0)continue;const c=typeof s=="object"?s.key:s,d=Number(c);Array.isArray(o)&&!Number.isNaN(d)?u+=`[${d}]`:u+=(l>0?".":"")+String(c),typeof o=="object"&&o!==null?o=o[c]:o=void 0}a.set(u,(a.get(u)??[]).concat(r))}return Object.fromEntries(a)}const Co=(e,n)=>{const a=Yg(e,n);return{form:a,fields:a}},ga={validate({value:e,validationSource:n},a){const r=a["~standard"].validate(e);if(r instanceof Promise)throw new Error("async function passed to sync validator");if(r.issues)return n==="field"?r.issues:Co(r.issues,e)},async validateAsync({value:e,validationSource:n},a){const r=await a["~standard"].validate(e);if(r.issues)return n==="field"?r.issues:Co(r.issues,e)}},yu=e=>!!e&&"~standard"in e,fe={isValidating:!1,isTouched:!1,isBlurred:!1,isDirty:!1,isPristine:!0,isValid:!0,isDefaultValue:!0,errors:[],errorMap:{},errorSourceMap:{},_arrayVersion:0,_pendingValidationsCount:0};function bn(e){function n(m){const g=e.getFieldMeta(m)??fe;e.setFieldMeta(m,{...g,_arrayVersion:(g._arrayVersion||0)+1})}function a(m,g,y){n(m);const v=l(m,g,"move",y),p=Math.min(g,y),b=Math.max(g,y);for(let k=p;k<=b;k++)v.push(u(m,k));const S=Object.keys(e.fieldInfo).reduce((k,f)=>(f.startsWith(u(m,g))&&k.set(f,e.getFieldMeta(f)),k),new Map);c(v,g<y?"up":"down"),Object.keys(e.fieldInfo).filter(k=>k.startsWith(u(m,y))).forEach(k=>{const f=k.replace(u(m,y),u(m,g)),q=S.get(f);q&&e.setFieldMeta(k,q)})}function r(m,g){n(m);const y=l(m,g,"remove");c(y,"up")}function i(m,g,y){n(m),l(m,g,"swap",y).forEach(p=>{if(!p.toString().startsWith(u(m,g)))return;const b=p.toString().replace(u(m,g),u(m,y)),[S,k]=[e.getFieldMeta(p),e.getFieldMeta(b)];S&&e.setFieldMeta(b,S),k&&e.setFieldMeta(p,k)})}function o(m,g){n(m);const y=l(m,g,"insert");c(y,"down"),y.forEach(v=>{v.toString().startsWith(u(m,g))&&e.setFieldMeta(v,d())})}function u(m,g){return`${m}[${g}]`}function l(m,g,y,v){const p=[u(m,g)];switch(y){case"swap":p.push(u(m,v));break;case"move":{const[b,S]=[Math.min(g,v),Math.max(g,v)];for(let k=b;k<=S;k++)p.push(u(m,k));break}default:{const b=e.getFieldValue(m),S=Array.isArray(b)?b.length:0;for(let k=g+1;k<S;k++)p.push(u(m,k));break}}return Object.keys(e.fieldInfo).filter(b=>p.some(S=>b.startsWith(S)))}function s(m,g){return m.replace(/\[(\d+)\]/,(y,v)=>{const p=parseInt(v,10);return`[${g==="up"?p+1:Math.max(0,p-1)}]`})}function c(m,g){(g==="up"?m:[...m].reverse()).forEach(v=>{const p=s(v.toString(),g),b=e.getFieldMeta(p);b?e.setFieldMeta(v,b):e.setFieldMeta(v,d())})}const d=()=>fe;return{bumpArrayVersion:n,handleArrayMove:a,handleArrayRemove:r,handleArraySwap:i,handleArrayInsert:o}}function Xt(e){return{values:e.values??{},errorMap:e.errorMap??{},fieldMetaBase:e.fieldMetaBase??{},formGroupStateBase:e.formGroupStateBase??{},isSubmitted:e.isSubmitted??!1,isSubmitting:e.isSubmitting??!1,isValidating:e.isValidating??!1,submissionAttempts:e.submissionAttempts??0,isSubmitSuccessful:e.isSubmitSuccessful??!1,validationMetaMap:e.validationMetaMap??{onChange:void 0,onBlur:void 0,onSubmit:void 0,onMount:void 0,onServer:void 0,onDynamic:void 0}}}class jo{constructor(n){var o;this.options={},this.fieldInfo={},this.formGroupApis=new Set,this.mount=()=>{var g,y;const u=this.store.subscribe(()=>{Qg(this)}),l=Ne.on("request-form-state",v=>{v.payload.id===this._formId&&Ne.emit("form-api",{id:this._formId,state:this.store.state,options:this.options})}),s=Ne.on("request-form-reset",v=>{v.payload.id===this._formId&&this.reset()}),c=Ne.on("request-form-force-submit",v=>{v.payload.id===this._formId&&(this._devtoolsSubmissionOverride=!0,this.handleSubmit(),this._devtoolsSubmissionOverride=!1)}),d=()=>{c(),s(),l(),u.unsubscribe(),Ne.emit("form-unmounted",{id:this._formId})};(y=(g=this.options.listeners)==null?void 0:g.onMount)==null||y.call(g,{formApi:this});const{onMount:m}=this.options.validators||{};return Ne.emit("form-api",{id:this._formId,state:this.store.state,options:this.options}),m&&this.validateSync("mount"),d},this.update=u=>{if(!u)return;const l=this.options;this.options=u;const s=u.defaultValues&&!mn(u.defaultValues,l.defaultValues)&&!this.state.isTouched,c=!mn(u.defaultState,l.defaultState)&&!this.state.isTouched;if(!(!s&&!c)){if(pe(()=>{this.baseStore.setState(()=>Xt(Object.assign({},this.state,c?u.defaultState:{},s?{values:u.defaultValues}:{})))}),s){const d=bn(this);for(const m of Object.keys(this.fieldInfo))Array.isArray(this.getFieldValue(m))&&d.bumpArrayVersion(m)}Ne.emit("form-api",{id:this._formId,state:this.store.state,options:this.options})}},this.reset=(u,l)=>{const{fieldMeta:s}=this.state,c=this.resetFieldMeta(s);u&&!(l!=null&&l.keepDefaultValues)&&(this.options={...this.options,defaultValues:u}),this.baseStore.setState(()=>{var m;let d=u??this.options.defaultValues??((m=this.options.defaultState)==null?void 0:m.values);return u||Object.values(this.fieldInfo).forEach(g=>{g.instance&&g.instance.options.defaultValue!==void 0&&(d=er(d,g.instance.name,g.instance.options.defaultValue))}),Xt({...this.options.defaultState,values:d,fieldMetaBase:c})})},this.validateAllFields=async u=>{const l=[];return pe(()=>{Object.values(this.fieldInfo).forEach(c=>{if(!c.instance)return;const d=c.instance;l.push(Promise.resolve().then(()=>d.validate(u,{skipFormValidation:!0,skipGroupValidation:!0}))),c.instance.store.state.meta.isTouched||c.instance.setMeta(m=>({...m,isTouched:!0}))})}),(await Promise.all(l)).flat()},this.validateArrayFieldsStartingFrom=async(u,l,s)=>{const c=this.getFieldValue(u),d=Array.isArray(c)?Math.max(c.length-1,0):null,m=[`${u}[${l}]`];for(let p=l+1;p<=(d??0);p++)m.push(`${u}[${p}]`);const g=Object.keys(this.fieldInfo).filter(p=>m.some(b=>p.startsWith(b))),y=[];return pe(()=>{g.forEach(p=>{y.push(Promise.resolve().then(()=>this.validateField(p,s)))})}),(await Promise.all(y)).flat()},this.validateField=(u,l)=>{var c,d;const s=(c=this.fieldInfo[u])==null?void 0:c.instance;if(!s){const{hasErrored:m}=this.validateSync(l);return m&&!this.options.asyncAlways?((d=this.getFieldMeta(u))==null?void 0:d.errors)??[]:this.validateAsync(l).then(()=>{var g;return((g=this.getFieldMeta(u))==null?void 0:g.errors)??[]})}return s.store.state.meta.isTouched||s.setMeta(m=>({...m,isTouched:!0})),s.validate(l)},this.validateSync=(u,l)=>{const s=pr(u,{...this.options,form:this,group:l==null?void 0:l.group,validationLogic:this.options.validationLogic||Xe});let c=!1;const d={};return pe(()=>{var y,v,p;for(const b of s){if(!b.validate)continue;const S=this.runValidator({validate:b.validate,value:{value:this.state.values,formApi:this,validationSource:"form"},type:"validate"}),{formError:k,fieldErrors:f}=nt(S),q=nr(b.cause);let h=new Set([...Object.keys(this.state.fieldMeta),...Object.keys(f||{})]);l!=null&&l.filterFieldNames&&(h=new Set([...h].filter(l.filterFieldNames)));for(const T of h){if(this.baseStore.state.fieldMetaBase[T]===void 0&&!(f!=null&&f[T]))continue;const x=this.getFieldMeta(T)??fe,{errorMap:V,errorSourceMap:P}=x,w=f==null?void 0:f[T],{newErrorValue:A,newSource:R}=Bi({newFormValidatorError:w,isPreviousErrorFromFormValidator:(P==null?void 0:P[q])==="form",previousErrorValue:V==null?void 0:V[q]});R==="form"&&(d[T]={...d[T],[q]:w}),(V==null?void 0:V[q])!==A&&this.setFieldMeta(T,(j=fe)=>({...j,errorMap:{...j.errorMap,[q]:A},errorSourceMap:{...j.errorSourceMap,[q]:R}}))}l!=null&&l.dontUpdateFormErrorMap||((y=this.state.errorMap)==null?void 0:y[q])!==k&&this.baseStore.setState(T=>({...T,errorMap:{...T.errorMap,[q]:k}})),(k||f)&&(c=!0)}if(l!=null&&l.dontUpdateFormErrorMap)return;const m=nr("submit");(v=this.state.errorMap)!=null&&v[m]&&u!=="submit"&&!c&&this.baseStore.setState(b=>({...b,errorMap:{...b.errorMap,[m]:void 0}}));const g=nr("server");(p=this.state.errorMap)!=null&&p[g]&&u!=="server"&&!c&&this.baseStore.setState(b=>({...b,errorMap:{...b.errorMap,[g]:void 0}}))}),{hasErrored:c,fieldsErrorMap:d}},this.validateAsync=async(u,l)=>{const s=kr(u,{...this.options,form:this,group:l==null?void 0:l.group,validationLogic:this.options.validationLogic||Xe});this.state.isFormValidating||this.baseStore.setState(y=>({...y,isFormValidating:!0}));const c=[];let d;for(const y of s){if(!y.validate)continue;const v=nr(y.cause),p=this.state.validationMetaMap[v];p==null||p.lastAbortController.abort();const b=new AbortController;this.state.validationMetaMap[v]={lastAbortController:b},c.push(new Promise(async S=>{let k;try{k=await new Promise((V,P)=>{setTimeout(async()=>{if(b.signal.aborted)return V(void 0);try{V(await this.runValidator({validate:y.validate,value:{value:this.state.values,formApi:this,validationSource:"form",signal:b.signal},type:"validateAsync"}))}catch(w){P(w)}},y.debounceMs)})}catch(V){k=V}const{formError:f,fieldErrors:q}=nt(k);q&&(d=d?{...d,...q}:q);const h=nr(y.cause),T=new Set([...Object.keys(this.state.fieldMeta),...Object.keys(d||{})]);let x=Array.from(T);l!=null&&l.filterFieldNames&&(x=x.filter(l.filterFieldNames));for(const V of x){if(this.baseStore.state.fieldMetaBase[V]===void 0&&!(d!=null&&d[V]))continue;const P=this.getFieldMeta(V)??fe,{errorMap:w,errorSourceMap:A}=P,R=d==null?void 0:d[V],{newErrorValue:j,newSource:O}=Bi({newFormValidatorError:R,isPreviousErrorFromFormValidator:(A==null?void 0:A[h])==="form",previousErrorValue:w==null?void 0:w[h]});(w==null?void 0:w[h])!==j&&this.setFieldMeta(V,(_=fe)=>({..._,errorMap:{..._.errorMap,[h]:j},errorSourceMap:{..._.errorSourceMap,[h]:O}}))}l!=null&&l.dontUpdateFormErrorMap||this.baseStore.setState(V=>({...V,errorMap:{...V.errorMap,[h]:f}})),S(d?{fieldErrors:d,errorMapKey:h}:void 0)}))}let m=[];const g={};if(c.length){m=await Promise.all(c);for(const y of m)if(y!=null&&y.fieldErrors){const{errorMapKey:v}=y;for(const[p,b]of Object.entries(y.fieldErrors)){const k={...g[p]||{},[v]:b};g[p]=k}}}return this.baseStore.setState(y=>({...y,isFormValidating:!1})),g},this.validate=(u,l)=>{const{hasErrored:s,fieldsErrorMap:c}=this.validateSync(u,l);return s&&!this.options.asyncAlways?c:this.validateAsync(u,l)},this._handleSubmit=async u=>{var c,d,m,g,y,v,p,b,S,k;this.baseStore.setState(f=>({...f,isSubmitted:!1,submissionAttempts:f.submissionAttempts+1,isSubmitSuccessful:!1})),pe(()=>{Object.values(this.fieldInfo).forEach(f=>{f.instance&&(f.instance.store.state.meta.isTouched||f.instance.setMeta(q=>({...q,isTouched:!0})))})});const l=u??this.options.onSubmitMeta;if(!this.state.canSubmit&&!this._devtoolsSubmissionOverride&&this.baseStore.state.submissionAttempts<=1){(d=(c=this.options).onSubmitInvalid)==null||d.call(c,{value:this.state.values,formApi:this,meta:l});return}this.baseStore.setState(f=>({...f,isSubmitting:!0}));const s=()=>{this.baseStore.setState(f=>({...f,isSubmitting:!1}))};if(await this.validateAllFields("submit"),!this.state.isFieldsValid){s(),(g=(m=this.options).onSubmitInvalid)==null||g.call(m,{value:this.state.values,formApi:this,meta:l}),Ne.emit("form-submission",{id:this._formId,submissionAttempt:this.state.submissionAttempts,successful:!1,stage:"validateAllFields",errors:Object.values(this.state.fieldMeta).map(f=>f.errors).flat()});return}if(await this.validate("submit"),!this.state.isValid){s(),(v=(y=this.options).onSubmitInvalid)==null||v.call(y,{value:this.state.values,formApi:this,meta:l}),Ne.emit("form-submission",{id:this._formId,submissionAttempt:this.state.submissionAttempts,successful:!1,stage:"validate",errors:this.state.errors});return}pe(()=>{Object.values(this.fieldInfo).forEach(f=>{var q;(q=f.instance)==null||q.triggerOnSubmitListener()})}),(b=(p=this.options.listeners)==null?void 0:p.onSubmit)==null||b.call(p,{formApi:this,meta:l});try{await((k=(S=this.options).onSubmit)==null?void 0:k.call(S,{value:this.state.values,formApi:this,meta:l})),pe(()=>{this.baseStore.setState(f=>({...f,isSubmitted:!0,isSubmitSuccessful:!0})),Ne.emit("form-submission",{id:this._formId,submissionAttempt:this.state.submissionAttempts,successful:!0}),s()})}catch(f){throw this.baseStore.setState(q=>({...q,isSubmitSuccessful:!1})),Ne.emit("form-submission",{id:this._formId,submissionAttempt:this.state.submissionAttempts,successful:!1,stage:"inflight",onError:f}),s(),f}},this.getFieldValue=u=>Gr(this.state.values,u),this.getFieldMeta=u=>this.state.fieldMeta[u],this.getFormGroupMeta=u=>this.formGroupMetaDerived.state[u],this.getFieldInfo=u=>{var l;return(l=this.fieldInfo)[u]||(l[u]={instance:null,validationMetaMap:{onChange:void 0,onBlur:void 0,onSubmit:void 0,onMount:void 0,onServer:void 0,onDynamic:void 0}})},this.setFieldMeta=(u,l)=>{this.baseStore.setState(s=>({...s,fieldMetaBase:{...s.fieldMetaBase,[u]:Ar(l,s.fieldMetaBase[u])}}))},this.resetFieldMeta=u=>Object.keys(u).reduce((l,s)=>{const c=s;return l[c]=fe,l},{}),this.setFieldValue=(u,l,s)=>{var g;const c=(s==null?void 0:s.dontUpdateMeta)??!1,d=(s==null?void 0:s.dontRunListeners)??!1,m=(s==null?void 0:s.dontValidate)??!1;pe(()=>{c||this.setFieldMeta(u,y=>({...y,isTouched:!0,isDirty:!0,errorMap:{...y==null?void 0:y.errorMap,onMount:void 0}})),this.baseStore.setState(y=>({...y,values:er(y.values,u,l)}))}),d||(g=this.getFieldInfo(u).instance)==null||g.triggerOnChangeListener(),m||this.validateField(u,"change")},this.deleteField=u=>{const s=[...Object.keys(this.fieldInfo).filter(c=>{const d=u.toString();return c!==d&&c.startsWith(d)}),u];this.baseStore.setState(c=>{const d={...c};return s.forEach(m=>{d.values=Wg(d.values,m),delete this.fieldInfo[m],delete d.fieldMetaBase[m]}),d})},this.pushFieldValue=(u,l,s)=>{this.setFieldValue(u,c=>[...Array.isArray(c)?c:[],l],s),bn(this).bumpArrayVersion(u)},this.insertFieldValue=async(u,l,s,c)=>{this.setFieldValue(u,m=>[...m.slice(0,l),s,...m.slice(l)],Je(c,{dontValidate:!0}));const d=(c==null?void 0:c.dontValidate)??!1;d||await this.validateField(u,"change"),bn(this).handleArrayInsert(u,l),d||await this.validateArrayFieldsStartingFrom(u,l,"change")},this.replaceFieldValue=async(u,l,s,c)=>{this.setFieldValue(u,m=>m.map((g,y)=>y===l?s:g),Je(c,{dontValidate:!0})),bn(this).bumpArrayVersion(u),((c==null?void 0:c.dontValidate)??!1)||(await this.validateField(u,"change"),await this.validateArrayFieldsStartingFrom(u,l,"change"))},this.removeFieldValue=async(u,l,s)=>{const c=this.getFieldValue(u),d=Array.isArray(c)?Math.max(c.length-1,0):null;if(this.setFieldValue(u,g=>g.filter((y,v)=>v!==l),Je(s,{dontValidate:!0})),bn(this).handleArrayRemove(u,l),d!==null){const g=`${u}[${d}]`;this.deleteField(g)}((s==null?void 0:s.dontValidate)??!1)||(await this.validateField(u,"change"),await this.validateArrayFieldsStartingFrom(u,l,"change"))},this.swapFieldValues=(u,l,s,c)=>{this.setFieldValue(u,m=>{const g=m[l],y=m[s];return er(er(m,`${l}`,y),`${s}`,g)},Je(c,{dontValidate:!0})),bn(this).handleArraySwap(u,l,s),((c==null?void 0:c.dontValidate)??!1)||(this.validateField(u,"change"),this.validateField(`${u}[${l}]`,"change"),this.validateField(`${u}[${s}]`,"change"))},this.moveFieldValues=(u,l,s,c)=>{this.setFieldValue(u,m=>{const g=[...m];return g.splice(s,0,g.splice(l,1)[0]),g},Je(c,{dontValidate:!0})),bn(this).handleArrayMove(u,l,s),((c==null?void 0:c.dontValidate)??!1)||(this.validateField(u,"change"),this.validateField(`${u}[${l}]`,"change"),this.validateField(`${u}[${s}]`,"change"))},this.clearFieldValues=(u,l)=>{const s=this.getFieldValue(u),c=Array.isArray(s)?Math.max(s.length-1,0):null;if(this.setFieldValue(u,[],Je(l,{dontValidate:!0})),bn(this).bumpArrayVersion(u),c!==null)for(let m=0;m<=c;m++){const g=`${u}[${m}]`;this.deleteField(g)}((l==null?void 0:l.dontValidate)??!1)||this.validateField(u,"change")},this.resetField=u=>{this.baseStore.setState(l=>{var m;const s=(m=this.getFieldInfo(u).instance)==null?void 0:m.options.defaultValue,c=Gr(this.options.defaultValues,u),d=s??c;return{...l,fieldMetaBase:{...l.fieldMetaBase,[u]:fe},values:d!==void 0?er(l.values,u,d):l.values}})},this.setErrorMap=u=>{pe(()=>{Object.entries(u).forEach(([l,s])=>{const c=l;if(Zr(s)){const{formError:d,fieldErrors:m}=nt(s);for(const g of Object.keys(this.fieldInfo))this.getFieldMeta(g)&&this.setFieldMeta(g,v=>({...v,errorMap:{...v.errorMap,[c]:m==null?void 0:m[g]},errorSourceMap:{...v.errorSourceMap,[c]:"form"}}));this.baseStore.setState(g=>({...g,errorMap:{...g.errorMap,[c]:d}}))}else this.baseStore.setState(d=>({...d,errorMap:{...d.errorMap,[c]:s}}))})})},this.getAllErrors=()=>({form:{errors:this.state.errors,errorMap:this.state.errorMap},fields:Object.entries(this.state.fieldMeta).reduce((u,[l,s])=>(Object.keys(s).length&&s.errors.length&&(u[l]={errors:s.errors,errorMap:s.errorMap}),u),{})}),this.parseValuesWithSchema=u=>ga.validate({value:this.state.values,validationSource:"form"},u),this.parseValuesWithSchemaAsync=u=>ga.validateAsync({value:this.state.values,validationSource:"form"},u),this.timeoutIds={validations:{},listeners:{},formListeners:{}},this._formId=(n==null?void 0:n.formId)??ws(),this._devtoolsSubmissionOverride=!1;let a=Xt({...n==null?void 0:n.defaultState,values:(n==null?void 0:n.defaultValues)??((o=n==null?void 0:n.defaultState)==null?void 0:o.values)});if(n!=null&&n.transform){a=n.transform({state:a}).state;for(const u of Object.keys(a.errorMap)){const l=a.errorMap[u];if(!(l===void 0||!Zr(l)))for(const s of Object.keys(l.fields)){const c=l.fields[s];if(c===void 0)continue;const d=a.fieldMetaBase[s];a.fieldMetaBase[s]={isTouched:!1,isValidating:!1,isBlurred:!1,isDirty:!1,_arrayVersion:0,_pendingValidationsCount:0,...d??{},errorSourceMap:{...(d==null?void 0:d.errorSourceMap)??{},onChange:"form"},errorMap:{...(d==null?void 0:d.errorMap)??{},[u]:c}}}}}this.baseStore=Va(a);let r;this.fieldMetaDerived=Va(u=>{var d,m,g;const l=this.baseStore.get();let s=0;const c={};for(const y of Object.keys(l.fieldMetaBase)){const v=l.fieldMetaBase[y],p=r==null?void 0:r.fieldMetaBase[y],b=u==null?void 0:u[y],S=Gr(l.values,y);let k=b==null?void 0:b.errors;if(!p||v.errorMap!==p.errorMap){k=Object.values(v.errorMap??{}).filter(x=>x!==void 0);const T=(d=this.getFieldInfo(y))==null?void 0:d.instance;(!T||!T.options.disableErrorFlat)&&(k=k.flat(1))}const f=!Kg(k),q=!v.isDirty,h=mn(S,((g=(m=this.getFieldInfo(y))==null?void 0:m.instance)==null?void 0:g.options.defaultValue)??Gr(this.options.defaultValues,y));if(b&&b.isPristine===q&&b.isValid===f&&b.isDefaultValue===h&&b.errors===k&&v===p){c[y]=b,s++;continue}c[y]={...v,errors:k??[],isPristine:q,isValid:f,isDefaultValue:h}}return Object.keys(l.fieldMetaBase).length?u&&s===Object.keys(l.fieldMetaBase).length?u:(r=this.baseStore.get(),c):c}),this.formGroupMetaDerived=Va(u=>{const l=this.baseStore.get(),s=this.fieldMetaDerived.get(),c={};for(const d of this.formGroupApis){const m=d.name,g=l.formGroupStateBase[m]??{isSubmitted:!1,isSubmitting:!1,isValidating:!1,submissionAttempts:0,isSubmitSuccessful:!1},y=s[m];let v=!1,p=!0,b=!1,S=!1,k=!0,f=!1;for(const M in s){if(M===m||!ca(m,M))continue;const I=s[M];I&&(I.isValidating&&(v=!0),I.isValid||(p=!1),I.isTouched&&(b=!0),I.isBlurred&&(S=!0),I.isDefaultValue||(k=!1),I.isDirty&&(f=!0))}const q=!f,h=!!v||g.isValidating,T=(y==null?void 0:y.errorMap)??{},x=(y==null?void 0:y.errorSourceMap)??{},V=!!(T.onMount||Object.entries(s).some(([M,I])=>I&&M!==m&&ca(m,M)&&I.errorMap.onMount)),P=u==null?void 0:u[m];let w=(P==null?void 0:P.errors)??[];(!P||P.__srcErrorMap!==T)&&(w=Object.values(T).reduce((M,I)=>{if(I===void 0)return M;if(I&&typeof I=="object"&&"fields"in I){const D=I.group;return D!==void 0&&M.push(D),M}return M.push(I),M},[]));const A=w.length===0,R=p&&A,j=d.options.canSubmitWhenInvalid??!1,O=g.submissionAttempts===0&&!b&&!V||!h&&!g.isSubmitting&&R||j;if(P&&P.errorMap===T&&P.errorSourceMap===x&&P.errors===w&&P.isFieldsValidating===v&&P.isFieldsValid===p&&P.isGroupValid===A&&P.isValid===R&&P.canSubmit===O&&P.isTouched===b&&P.isBlurred===S&&P.isPristine===q&&P.isDefaultValue===k&&P.isDirty===f&&P.isValidating===h&&P.isSubmitting===g.isSubmitting&&P.isSubmitted===g.isSubmitted&&P.submissionAttempts===g.submissionAttempts&&P.isSubmitSuccessful===g.isSubmitSuccessful){c[m]=P;continue}const _={...g,errorMap:T,errorSourceMap:x,_arrayVersion:(y==null?void 0:y._arrayVersion)??0,isTouched:b,isBlurred:S,isDirty:f,isPristine:q,isDefaultValue:k,isValid:R,errors:w,isValidating:h,isFieldsValidating:v,isFieldsValid:p,isGroupValid:A,canSubmit:O};Object.defineProperty(_,"__srcErrorMap",{value:T,enumerable:!1,configurable:!0}),c[m]=_}return c});let i;this.store=Va(u=>{var A,R;const l=this.baseStore.get(),s=this.fieldMetaDerived.get(),c=Object.values(s).filter(Boolean),d=c.some(j=>j.isValidating),m=c.every(j=>j.isValid),g=c.some(j=>j.isTouched),y=c.some(j=>j.isBlurred),v=c.every(j=>j.isDefaultValue),p=g&&((A=l.errorMap)==null?void 0:A.onMount),b=c.some(j=>j.isDirty),S=!b,k=!!((R=l.errorMap)!=null&&R.onMount||c.some(j=>{var O;return(O=j==null?void 0:j.errorMap)==null?void 0:O.onMount})),f=!!d;let q=(u==null?void 0:u.errors)??[];(!i||l.errorMap!==i.errorMap)&&(q=Object.values(l.errorMap).reduce((j,O)=>O===void 0?j:O&&Zr(O)?(j.push(O.form),j):(j.push(O),j),[]));const h=q.length===0,T=m&&h,x=this.options.canSubmitWhenInvalid??!1,V=l.submissionAttempts===0&&!g&&!k||!f&&!l.isSubmitting&&T||x;let P=l.errorMap;if(p&&(q=q.filter(j=>j!==l.errorMap.onMount),P=Object.assign(P,{onMount:void 0})),u&&i&&u.errorMap===P&&u.fieldMeta===this.fieldMetaDerived.state&&u.errors===q&&u.isFieldsValidating===d&&u.isFieldsValid===m&&u.isFormValid===h&&u.isValid===T&&u.canSubmit===V&&u.isTouched===g&&u.isBlurred===y&&u.isPristine===S&&u.isDefaultValue===v&&u.isDirty===b&&mn(i,l))return u;const w={...l,errorMap:P,fieldMeta:this.fieldMetaDerived.state,errors:q,isFieldsValidating:d,isFieldsValid:m,isFormValid:h,isValid:T,canSubmit:V,isTouched:g,isBlurred:y,isPristine:S,isDefaultValue:v,isDirty:b};return i=this.baseStore.get(),w}),this.handleSubmit=this.handleSubmit.bind(this),this.update(n||{})}get state(){return this.store.state}get formId(){return this._formId}runValidator(n){return yu(n.validate)?ga[n.type](n.value,n.validate):n.validate(n.value)}handleSubmit(n){return this._handleSubmit(n)}}function nt(e){if(e){if(Zr(e)){const n=nt(e.form).formError,a=e.fields;return{formError:n,fieldErrors:a}}return{formError:e}}return{formError:void 0}}function nr(e){switch(e){case"submit":return"onSubmit";case"blur":return"onBlur";case"mount":return"onMount";case"server":return"onServer";case"dynamic":return"onDynamic";case"change":default:return"onChange"}}class br{constructor(n){this.options={},this.mount=()=>{var i,o;this.options.defaultValue!==void 0&&!this.getMeta().isTouched&&this.form.setFieldValue(this.name,this.options.defaultValue,{dontUpdateMeta:!0});const a=this.getInfo();a.instance=this,this.update(this.options);const{onMount:r}=this.options.validators||{};if(r){const u=this.runValidator({validate:r,value:{value:this.state.value,fieldApi:this,validationSource:"field"},type:"validate"});u&&this.setMeta(l=>({...l,errorMap:{...l==null?void 0:l.errorMap,onMount:u},errorSourceMap:{...l==null?void 0:l.errorSourceMap,onMount:"field"}}))}return(o=(i=this.options.listeners)==null?void 0:i.onMount)==null||o.call(i,{value:this.state.value,fieldApi:this}),()=>{var l,s,c,d;for(const[m,g]of Object.entries(this.timeoutIds.validations))g&&(clearTimeout(g),this.timeoutIds.validations[m]=null);for(const[m,g]of Object.entries(this.timeoutIds.listeners))g&&(clearTimeout(g),this.timeoutIds.listeners[m]=null);for(const[m,g]of Object.entries(this.timeoutIds.formListeners))g&&(clearTimeout(g),this.timeoutIds.formListeners[m]=null);const u=this.form.fieldInfo[this.name];if(u&&u.instance===this){for(const[m,g]of Object.entries(u.validationMetaMap))g==null||g.lastAbortController.abort(),u.validationMetaMap[m]=void 0;this.form.baseStore.setState(m=>{var g,y,v;return{...m,fieldMetaBase:{...m.fieldMetaBase,[this.name]:{...fe,isTouched:((g=m.fieldMetaBase[this.name])==null?void 0:g.isTouched)??fe.isTouched,isBlurred:((y=m.fieldMetaBase[this.name])==null?void 0:y.isBlurred)??fe.isBlurred,isDirty:((v=m.fieldMetaBase[this.name])==null?void 0:v.isDirty)??fe.isDirty}}}}),u.instance=null,(s=(l=this.options.listeners)==null?void 0:l.onUnmount)==null||s.call(l,{value:this.state.value,fieldApi:this}),(d=(c=this.form.options.listeners)==null?void 0:c.onFieldUnmount)==null||d.call(c,{formApi:this.form,fieldApi:this})}}},this.update=a=>{if(this.options=a,this.name=a.name,!this.state.meta.isTouched&&this.options.defaultValue!==void 0){const r=this.form.getFieldValue(this.name);mn(r,a.defaultValue)||this.form.setFieldValue(this.name,a.defaultValue,{dontUpdateMeta:!0,dontValidate:!0,dontRunListeners:!0})}this.form.getFieldMeta(this.name)||this.form.setFieldMeta(this.name,this.state.meta)},this.getValue=()=>this.form.getFieldValue(this.name),this.setValue=(a,r)=>{this.form.setFieldValue(this.name,a,Je(r,{dontRunListeners:!0,dontValidate:!0})),r!=null&&r.dontRunListeners||this.triggerOnChangeListener(),r!=null&&r.dontValidate||this.validate("change")},this.getMeta=()=>this.store.state.meta,this.setMeta=a=>this.form.setFieldMeta(this.name,a),this.getInfo=()=>this.form.getFieldInfo(this.name),this.pushValue=(a,r)=>{this.form.pushFieldValue(this.name,a,Je(r,{dontRunListeners:!0})),r!=null&&r.dontRunListeners||this.triggerOnChangeListener()},this.insertValue=(a,r,i)=>{this.form.insertFieldValue(this.name,a,r,Je(i,{dontRunListeners:!0})),i!=null&&i.dontRunListeners||this.triggerOnChangeListener()},this.replaceValue=(a,r,i)=>{this.form.replaceFieldValue(this.name,a,r,Je(i,{dontRunListeners:!0})),i!=null&&i.dontRunListeners||this.triggerOnChangeListener()},this.removeValue=(a,r)=>{this.form.removeFieldValue(this.name,a,Je(r,{dontRunListeners:!0})),r!=null&&r.dontRunListeners||this.triggerOnChangeListener()},this.swapValues=(a,r,i)=>{this.form.swapFieldValues(this.name,a,r,Je(i,{dontRunListeners:!0})),i!=null&&i.dontRunListeners||this.triggerOnChangeListener()},this.moveValue=(a,r,i)=>{this.form.moveFieldValues(this.name,a,r,Je(i,{dontRunListeners:!0})),i!=null&&i.dontRunListeners||this.triggerOnChangeListener()},this.clearValues=a=>{this.form.clearFieldValues(this.name,Je(a,{dontRunListeners:!0})),a!=null&&a.dontRunListeners||this.triggerOnChangeListener()},this.getLinkedFields=a=>{const r=Object.values(this.form.fieldInfo),i=[];for(const o of r){if(!o.instance||!(o.instance instanceof br))continue;const{onChangeListenTo:u,onBlurListenTo:l}=o.instance.options.validators||{};a==="change"&&(u!=null&&u.includes(this.name))&&i.push(o.instance),a==="blur"&&(l!=null&&l.includes(this.name))&&i.push(o.instance)}return i},this.validateSync=(a,r)=>{var c;const i=pr(a,{...this.options,form:this.form,fieldName:this.name,validationLogic:this.form.options.validationLogic||Xe}),u=this.getLinkedFields(a).reduce((d,m)=>{const g=pr(a,{...m.options,form:m.form,fieldName:m.name,validationLogic:m.form.options.validationLogic||Xe});return g.forEach(y=>{y.field=m}),d.concat(g)},[]);let l=!1;pe(()=>{const d=(m,g)=>{var k;const y=ar(g.cause),v=g.validate?ho(m.runValidator({validate:g.validate,value:{value:m.store.state.value,validationSource:"field",fieldApi:m},type:"validate"})):void 0,p=r[y],{newErrorValue:b,newSource:S}=ct({formLevelError:p,fieldLevelError:v});((k=m.state.meta.errorMap)==null?void 0:k[y])!==b&&m.setMeta(f=>({...f,errorMap:{...f.errorMap,[y]:b},errorSourceMap:{...f.errorSourceMap,[y]:S}})),b&&(l=!0)};for(const m of i)d(this,m);for(const m of u)m.validate&&d(m.field,m)});const s=ar("submit");return(c=this.state.meta.errorMap)!=null&&c[s]&&a!=="submit"&&!l&&this.setMeta(d=>({...d,errorMap:{...d.errorMap,[s]:void 0},errorSourceMap:{...d.errorSourceMap,[s]:void 0}})),{hasErrored:l}},this.validateAsync=async(a,r)=>{const i=kr(a,{...this.options,form:this.form,fieldName:this.name,validationLogic:this.form.options.validationLogic||Xe}),o=await r,l=this.getLinkedFields(a).reduce((v,p)=>{const b=kr(a,{...p.options,form:p.form,fieldName:p.name,validationLogic:p.form.options.validationLogic||Xe});return b.forEach(S=>{S.field=p}),v.concat(b)},[]),s=[],c=[],d=i.some(v=>v.validate),m=Array.from(new Set(l.filter(v=>v.validate).map(v=>v.field)));pe(()=>{d&&this.startValidation();for(const v of m)v.startValidation()});const g=(v,p,b)=>{const S=ar(p.cause),k=v.getInfo(),f=k.validationMetaMap[S];f==null||f.lastAbortController.abort();const q=new AbortController;k.validationMetaMap[S]={lastAbortController:q},b.push(new Promise(async h=>{var A;let T;try{T=await new Promise((R,j)=>{v.timeoutIds.validations[p.cause]&&(clearTimeout(v.timeoutIds.validations[p.cause]),v.endValidation()),v.timeoutIds.validations[p.cause]=setTimeout(async()=>{if(q.signal.aborted)return R(void 0);try{R(await this.runValidator({validate:p.validate,value:{value:v.store.state.value,fieldApi:v,signal:q.signal,validationSource:"field"},type:"validateAsync"}))}catch(O){j(O)}},p.debounceMs)})}catch(R){T=R}if(q.signal.aborted)return h(void 0);const x=ho(T),V=(A=o[v.name])==null?void 0:A[S],{newErrorValue:P,newSource:w}=ct({formLevelError:V,fieldLevelError:x});if(v.getInfo().instance!==v)return h(void 0);v.setMeta(R=>({...R,errorMap:{...R==null?void 0:R.errorMap,[S]:P},errorSourceMap:{...R.errorSourceMap,[S]:w}})),h(P)}))};for(const v of i)v.validate&&g(this,v,s);for(const v of l)v.validate&&g(v.field,v,c);let y=[];return(s.length||c.length)&&(y=await Promise.all(s),await Promise.all(c)),pe(()=>{d&&this.endValidation();for(const v of m)v.endValidation()}),y.filter(Boolean)},this.validate=(a,r)=>{var g,y;if(!this.state.meta.isTouched)return[];const i=r!=null&&r.skipGroupValidation?[]:Array.from(this.form.formGroupApis).filter(v=>this.name.startsWith(v.name));let u=(r!=null&&r.skipFormValidation?{fieldsErrorMap:{}}:this.form.validateSync(a)).fieldsErrorMap[this.name]??{};if(!(r!=null&&r.skipFormValidation))for(const v of i){if(v.state.meta.submissionAttempts===0)continue;const{fieldsErrorMap:p}=this.form.validateSync(a,{group:v,dontUpdateFormErrorMap:!0,filterFieldNames:b=>ca(v.name,b)});u={...u,...p[this.name]??{}}}const{hasErrored:l}=this.validateSync(a,u),s=new WeakMap;for(const v of i){const{hasErrored:p}=v.validateSync(a,{},{skipRelatedFieldValidation:!0});s.set(v,p)}if(l&&!this.options.asyncAlways){(g=this.getInfo().validationMetaMap[ar(a)])==null||g.lastAbortController.abort();const v=[];for(const p of i)(y=p.getInfo().validationMetaMap[ar(a)])==null||y.lastAbortController.abort(),v.push(p.state.meta.errors);return[...this.state.meta.errors,...v.flat()]}const c=r!=null&&r.skipFormValidation?Promise.resolve({}):this.form.validateAsync(a),d=this.validateAsync(a,c),m=[];for(const v of i)s.get(v)&&!v.options.asyncAlways||m.push(v.validateAsync(a,c,{skipRelatedFieldValidation:!0}));return m.length===0?d:Promise.all([d,...m]).then(v=>v.flat())},this.handleChange=a=>{this.setValue(a)},this.handleBlur=()=>{this.state.meta.isTouched||this.setMeta(r=>({...r,isTouched:!0})),this.state.meta.isBlurred||this.setMeta(r=>({...r,isBlurred:!0})),this.validate("blur"),this.triggerOnBlurListener()},this.setErrorMap=a=>{this.setMeta(r=>({...r,errorMap:{...r.errorMap,...a}}))},this.parseValueWithSchema=a=>ga.validate({value:this.state.value,validationSource:"field"},a),this.parseValueWithSchemaAsync=a=>ga.validateAsync({value:this.state.value,validationSource:"field"},a),this.triggerOnBlurListener=()=>{var i,o,u,l,s,c;const a=(i=this.form.options.listeners)==null?void 0:i.onBlurDebounceMs;a&&a>0?(this.timeoutIds.formListeners.blur&&clearTimeout(this.timeoutIds.formListeners.blur),this.timeoutIds.formListeners.blur=setTimeout(()=>{var d,m;(m=(d=this.form.options.listeners)==null?void 0:d.onBlur)==null||m.call(d,{formApi:this.form,fieldApi:this})},a)):(u=(o=this.form.options.listeners)==null?void 0:o.onBlur)==null||u.call(o,{formApi:this.form,fieldApi:this});const r=(l=this.options.listeners)==null?void 0:l.onBlurDebounceMs;r&&r>0?(this.timeoutIds.listeners.blur&&clearTimeout(this.timeoutIds.listeners.blur),this.timeoutIds.listeners.blur=setTimeout(()=>{var d,m;(m=(d=this.options.listeners)==null?void 0:d.onBlur)==null||m.call(d,{value:this.state.value,fieldApi:this})},r)):(c=(s=this.options.listeners)==null?void 0:s.onBlur)==null||c.call(s,{value:this.state.value,fieldApi:this})},this.triggerOnChangeListener=()=>{var i,o,u,l,s,c;const a=(i=this.form.options.listeners)==null?void 0:i.onChangeDebounceMs;a&&a>0?(this.timeoutIds.formListeners.change&&clearTimeout(this.timeoutIds.formListeners.change),this.timeoutIds.formListeners.change=setTimeout(()=>{var d,m;(m=(d=this.form.options.listeners)==null?void 0:d.onChange)==null||m.call(d,{formApi:this.form,fieldApi:this})},a)):(u=(o=this.form.options.listeners)==null?void 0:o.onChange)==null||u.call(o,{formApi:this.form,fieldApi:this});const r=(l=this.options.listeners)==null?void 0:l.onChangeDebounceMs;r&&r>0?(this.timeoutIds.listeners.change&&clearTimeout(this.timeoutIds.listeners.change),this.timeoutIds.listeners.change=setTimeout(()=>{var d,m;(m=(d=this.options.listeners)==null?void 0:d.onChange)==null||m.call(d,{value:this.state.value,fieldApi:this})},r)):(c=(s=this.options.listeners)==null?void 0:s.onChange)==null||c.call(s,{value:this.state.value,fieldApi:this});for(const d of this.form.formGroupApis)ca(d.name,this.name)&&d.triggerOnChangeListener()},this.triggerOnSubmitListener=()=>{var a,r;(r=(a=this.options.listeners)==null?void 0:a.onSubmit)==null||r.call(a,{value:this.state.value,fieldApi:this})},this.form=n.form,this.name=n.name,this.options=n,this.timeoutIds={validations:{},listeners:{},formListeners:{}},this.store=Va(a=>{this.form.store.get();const r=this.form.getFieldMeta(this.name)??{...fe,...n.defaultMeta};let i=this.form.getFieldValue(this.name);return!r.isTouched&&i===void 0&&this.options.defaultValue!==void 0&&!mn(i,this.options.defaultValue)&&(i=this.options.defaultValue),a&&a.value===i&&a.meta===r?a:{value:i,meta:r}})}get state(){return this.store.state}runValidator(n){return yu(n.validate)?ga[n.type](n.value,n.validate):n.validate(n.value)}startValidation(){this.setMeta(n=>{const a=n._pendingValidationsCount+1;return{...n,_pendingValidationsCount:a,isValidating:a>0&&!n.isValidating?!0:n.isValidating}})}endValidation(){this.setMeta(n=>{const a=Math.max(0,n._pendingValidationsCount-1);return{...n,_pendingValidationsCount:a,isValidating:a===0&&n.isValidating?!1:n.isValidating}})}}function ho(e){if(e)return e}function ar(e){switch(e){case"submit":return"onSubmit";case"blur":return"onBlur";case"mount":return"onMount";case"server":return"onServer";case"dynamic":return"onDynamic";case"change":default:return"onChange"}}function Zt(e){return{isSubmitted:e.isSubmitted??!1,isSubmitting:e.isSubmitting??!1,isValidating:e.isValidating??!1,submissionAttempts:e.submissionAttempts??0,isSubmitSuccessful:e.isSubmitSuccessful??!1}}function Xg(e){return{...fe,...e,errors:[],isPristine:!0,isValid:!0,isDefaultValue:!0,isFieldsValidating:!1,isFieldsValid:!0,isGroupValid:!0,canSubmit:!0,isSubmitting:!1,isSubmitted:!1,isValidating:!1,submissionAttempts:0,isSubmitSuccessful:!1}}class Sr{constructor(n){this.options={},this.setFormGroupState=a=>{this.form.baseStore.setState(r=>{const i=r.formGroupStateBase[this.name]??Zt({});return{...r,formGroupStateBase:{...r.formGroupStateBase,[this.name]:a(i)}}})},this._lastDistributedFieldNames={},this.update=a=>{if(this.options=a,this.name=a.name,!this.state.meta.isTouched&&this.options.defaultValue!==void 0){const r=this.form.getFieldValue(this.name);mn(r,a.defaultValue)||this.form.setFieldValue(this.name,a.defaultValue,{dontUpdateMeta:!0,dontValidate:!0,dontRunListeners:!0})}this.form.getFieldMeta(this.name)||this.form.setFieldMeta(this.name,{...fe,...this.options.defaultMeta})},this.mount=()=>{var r,i;this.update(this.options),this.form.formGroupApis.add(this),this.fieldInfo.instance=this,this.form.baseStore.setState(o=>({...o,formGroupStateBase:{...o.formGroupStateBase,[this.name]:o.formGroupStateBase[this.name]??Zt({...this.options.defaultState})}}));const{onMount:a}=this.options.validators||{};if(a){const o=this.runValidator({validate:a,value:{value:this.state.value,groupApi:this,validationSource:"form"},type:"validate"});let u=o,l;ni(o)&&(u=o.group,l=o.fields);const s=ei(u);s&&this.setMeta(c=>({...c,errorMap:{...c.errorMap,onMount:s},errorSourceMap:{...c.errorSourceMap,onMount:"field"}})),this.distributeFieldErrors("onMount",l)}return(i=(r=this.options.listeners)==null?void 0:r.onMount)==null||i.call(r,{value:this.state.value,groupApi:this}),()=>{var o,u;for(const[l,s]of Object.entries(this.timeoutIds.validations))s&&(clearTimeout(s),this.timeoutIds.validations[l]=null);for(const[l,s]of Object.entries(this.timeoutIds.listeners))s&&(clearTimeout(s),this.timeoutIds.listeners[l]=null);for(const[l,s]of Object.entries(this.timeoutIds.formListeners))s&&(clearTimeout(s),this.timeoutIds.formListeners[l]=null);if(this.fieldInfo.instance===this){for(const[l,s]of Object.entries(this.fieldInfo.validationMetaMap))s==null||s.lastAbortController.abort(),this.fieldInfo.validationMetaMap[l]=void 0;this.form.formGroupApis.delete(this),this.form.baseStore.setState(l=>({...l,formGroupStateBase:{...l.formGroupStateBase,[this.name]:Zt({})}})),this.fieldInfo.instance=null,(u=(o=this.options.listeners)==null?void 0:o.onUnmount)==null||u.call(o,{value:this.state.value,groupApi:this})}}},this.setValue=(a,r)=>{this.form.setFieldValue(this.name,a,Je(r,{dontRunListeners:!0,dontValidate:!0})),r!=null&&r.dontRunListeners||this.triggerOnChangeListener(),r!=null&&r.dontValidate||this.validate("change")},this.getMeta=()=>this.store.state.meta,this.setMeta=a=>this.form.setFieldMeta(this.name,a),this.getInfo=()=>this.fieldInfo,this.getRelatedFields=()=>{const a=Object.values(this.form.fieldInfo),r=[];for(const i of a)i.instance&&i.instance instanceof br&&i.instance.name.startsWith(this.name)&&r.push(i.instance);return r},this.getRelatedFieldMetasDerived=()=>{const a=Object.entries(this.form.fieldMetaDerived.state),r=[];for(const[i,o]of a)i!==this.name&&ca(this.name,i)&&r.push({...o,name:i});return r},this.buildChildFieldName=a=>a===""?this.name:a.startsWith("[")?`${this.name}${a}`:`${this.name}.${a}`,this.distributeFieldErrors=(a,r)=>{const i=this._lastDistributedFieldNames[a]??new Set,o=new Set;if(r)for(const[s,c]of Object.entries(r))c==null||c===!1||o.add(this.buildChildFieldName(s));const u=new Set([...i,...o]);let l=!1;for(const s of u){const c=s.startsWith(this.name+"[")?s.slice(this.name.length):s.slice(this.name.length+1),d=r==null?void 0:r[c],m=this.form.getFieldMeta(s);if(!m&&!d)continue;const g=m==null?void 0:m.errorMap[a],y=(m==null?void 0:m.errorSourceMap[a])==="form",{newErrorValue:v,newSource:p}=Bi({newFormValidatorError:d,isPreviousErrorFromFormValidator:y,previousErrorValue:g});v&&(l=!0),!(g===v&&(m==null?void 0:m.errorSourceMap[a])===p)&&this.form.setFieldMeta(s,(b=fe)=>({...b,errorMap:{...b.errorMap,[a]:v},errorSourceMap:{...b.errorSourceMap,[a]:p}}))}return this._lastDistributedFieldNames[a]=o,l},this.validateSync=(a,r,i={})=>{var d;const o=pr(a,{...this.options,form:this.form,group:this,validationLogic:this.options.validationLogic||this.form.options.validationLogic||Xe}),l=(i.skipRelatedFieldValidation?[]:this.getRelatedFields()).reduce((m,g)=>{const y=pr(a,{...g.options,form:g.form,validationLogic:g.form.options.validationLogic||Xe});return y.forEach(v=>{v.field=g}),m.concat(y)},[]);let s=!1;pe(()=>{const m=(g,y)=>{var x;const v=zr(y.cause),p=g===this;let b;y.validate&&(b=g.runValidator({validate:y.validate,value:{value:g.store.state.value,validationSource:p?"form":"field",...g instanceof Sr?{groupApi:g}:{fieldApi:g}},type:"validate"}));let S=b,k;p&&ni(b)&&(S=b.group,k=b.fields);const f=ei(S),q=r[v],{newErrorValue:h,newSource:T}=ct({formLevelError:q,fieldLevelError:f});((x=g.state.meta.errorMap)==null?void 0:x[v])!==h&&g.setMeta(V=>({...V,errorMap:{...V.errorMap,[v]:h},errorSourceMap:{...V.errorSourceMap,[v]:T}})),h&&(s=!0),p&&this.distributeFieldErrors(v,k)&&(s=!0)};for(const g of o)m(this,g);for(const g of l)g.validate&&m(g.field,g)});const c=zr("submit");return(d=this.state.meta.errorMap)!=null&&d[c]&&a!=="submit"&&!s&&this.setMeta(m=>({...m,errorMap:{...m.errorMap,[c]:void 0},errorSourceMap:{...m.errorSourceMap,[c]:void 0}})),{hasErrored:s}},this.validateAsync=async(a,r,i={})=>{const o=kr(a,{...this.options,form:this.form,group:this,validationLogic:this.options.validationLogic||this.form.options.validationLogic||Xe}),u=await r,l=i.skipRelatedFieldValidation?[]:this.getRelatedFields(),s=l.reduce((v,p)=>{const b=kr(a,{...p.options,form:p.form,validationLogic:p.form.options.validationLogic||Xe});return b.forEach(S=>{S.field=p}),v.concat(b)},[]),c=[],d=[],m=o.some(v=>v.validate)||s.some(v=>v.validate);if(m){this.state.meta.isValidating||this.setMeta(v=>({...v,isValidating:!0}));for(const v of l)v.setMeta(p=>({...p,isValidating:!0}))}const g=(v,p,b)=>{const S=zr(p.cause),k=v.getInfo(),f=k.validationMetaMap[S];f==null||f.lastAbortController.abort();const q=new AbortController;k.validationMetaMap[S]={lastAbortController:q};const h=v===this;b.push(new Promise(async T=>{var O;let x;try{x=await new Promise((_,M)=>{v.timeoutIds.validations[p.cause]&&clearTimeout(v.timeoutIds.validations[p.cause]),v.timeoutIds.validations[p.cause]=setTimeout(async()=>{if(q.signal.aborted)return _(void 0);try{_(await this.runValidator({validate:p.validate,value:{value:v.store.state.value,signal:q.signal,validationSource:h?"form":"field",...v instanceof Sr?{groupApi:v}:{fieldApi:v}},type:"validateAsync"}))}catch(I){M(I)}},p.debounceMs)})}catch(_){x=_}if(q.signal.aborted)return T(void 0);let V=x,P;h&&ni(x)&&(V=x.group,P=x.fields);const w=ei(V),A=(O=u[v.name])==null?void 0:O[S],{newErrorValue:R,newSource:j}=ct({formLevelError:A,fieldLevelError:w});if(v.getInfo().instance!==v)return T(void 0);v.setMeta(_=>({..._,errorMap:{..._==null?void 0:_.errorMap,[S]:R},errorSourceMap:{..._.errorSourceMap,[S]:j}})),h&&this.distributeFieldErrors(S,P),T(R)}))};for(const v of o)v.validate&&g(this,v,c);for(const v of s)v.validate&&g(v.field,v,d);let y=[];if((c.length||d.length)&&(y=await Promise.all(c),await Promise.all(d)),m){this.setMeta(v=>({...v,isValidating:!1}));for(const v of l)v.setMeta(p=>({...p,isValidating:!1}))}return y.filter(Boolean)},this.validateAllFields=async a=>{const r=[];return pe(()=>{Object.values(this.getRelatedFields()).forEach(o=>{r.push(Promise.resolve().then(()=>o.validate(a,{skipFormValidation:!0,skipGroupValidation:!0}))),o.store.state.meta.isTouched||o.setMeta(u=>({...u,isTouched:!0}))})}),(await Promise.all(r)).flat()},this.validateArrayFieldsStartingFrom=(a,r,i)=>this.form.validateArrayFieldsStartingFrom(a,r,i),this.validateField=(a,r)=>this.form.validateField(a,r),this.getFieldValue=a=>this.form.getFieldValue(a),this.getFieldMeta=a=>this.form.getFieldMeta(a),this.setFieldMeta=(a,r)=>this.form.setFieldMeta(a,r),this.setFieldValue=(a,r)=>this.form.setFieldValue(a,r),this.deleteField=a=>this.form.deleteField(a),this.pushFieldValue=(a,r)=>this.form.pushFieldValue(a,r),this.insertFieldValue=(a,r,i)=>this.form.insertFieldValue(a,r,i),this.replaceFieldValue=(a,r,i)=>this.form.replaceFieldValue(a,r,i),this.swapFieldValues=(a,r,i)=>this.form.swapFieldValues(a,r,i),this.moveFieldValues=(a,r,i)=>this.form.moveFieldValues(a,r,i),this.clearFieldValues=a=>this.form.clearFieldValues(a),this.resetField=a=>this.form.resetField(a),this.removeFieldValue=(a,r)=>this.form.removeFieldValue(a,r),this.areRelatedFieldsValid=()=>Object.values(this.getRelatedFields()).every(a=>a.state.meta.isValid),this.validate=(a,r)=>{var l;const{fieldsErrorMap:i}=r!=null&&r.skipFormValidation?{fieldsErrorMap:{}}:this.form.validateSync(a,{dontUpdateFormErrorMap:!0,filterFieldNames:s=>ca(this.name,s)}),{hasErrored:o}=this.validateSync(a,i[this.name]??{},{skipRelatedFieldValidation:r==null?void 0:r.skipRelatedFieldValidation});if(o&&!this.options.asyncAlways)return(l=this.getInfo().validationMetaMap[zr(a)])==null||l.lastAbortController.abort(),this.state.meta.errors;const u=r!=null&&r.skipFormValidation?Promise.resolve({}):this.form.validateAsync(a,{dontUpdateFormErrorMap:!0,filterFieldNames:s=>ca(this.name,s)});return this.validateAsync(a,u,{skipRelatedFieldValidation:r==null?void 0:r.skipRelatedFieldValidation})},this.triggerOnChangeListener=()=>{var i,o,u,l,s,c;const a=(i=this.form.options.listeners)==null?void 0:i.onChangeGroupDebounceMs;a&&a>0?(this.timeoutIds.formListeners.change&&clearTimeout(this.timeoutIds.formListeners.change),this.timeoutIds.formListeners.change=setTimeout(()=>{var d,m;(m=(d=this.form.options.listeners)==null?void 0:d.onChangeGroup)==null||m.call(d,{formApi:this.form,groupApi:this})},a)):(u=(o=this.form.options.listeners)==null?void 0:o.onChangeGroup)==null||u.call(o,{formApi:this.form,groupApi:this});const r=(l=this.options.listeners)==null?void 0:l.onChangeDebounceMs;r&&r>0?(this.timeoutIds.listeners.change&&clearTimeout(this.timeoutIds.listeners.change),this.timeoutIds.listeners.change=setTimeout(()=>{var d,m;(m=(d=this.options.listeners)==null?void 0:d.onChange)==null||m.call(d,{value:this.state.value,groupApi:this})},r)):(c=(s=this.options.listeners)==null?void 0:s.onChange)==null||c.call(s,{value:this.state.value,groupApi:this})},this.triggerOnSubmitListener=()=>{var a,r;(r=(a=this.options.listeners)==null?void 0:a.onSubmit)==null||r.call(a,{value:this.state.value,groupApi:this})},this._handleSubmit=async a=>{var o,u,l,s,c,d,m,g;this.setFormGroupState(y=>({...y,isSubmitted:!1,submissionAttempts:y.submissionAttempts+1,isSubmitSuccessful:!1})),pe(()=>{Object.values(this.getRelatedFields()).forEach(y=>{y.state.meta.isTouched||y.setMeta(v=>({...v,isTouched:!0}))})});const r=a??this.options.onSubmitMeta;this.setFormGroupState(y=>({...y,isSubmitting:!0}));const i=()=>{this.setFormGroupState(y=>({...y,isSubmitting:!1}))};if(await this.validateAllFields("submit"),!this.areRelatedFieldsValid()){i(),(u=(o=this.options).onGroupSubmitInvalid)==null||u.call(o,{value:this.state.value,groupApi:this,meta:r});return}if(await this.validate("submit",{skipRelatedFieldValidation:!0}),!this.areRelatedFieldsValid()||!this.state.meta.isValid){i(),(s=(l=this.options).onGroupSubmitInvalid)==null||s.call(l,{value:this.state.value,groupApi:this,meta:r});return}pe(()=>{Object.values(this.getRelatedFields()).forEach(y=>{var v,p;(p=(v=y.options.listeners)==null?void 0:v.onGroupSubmit)==null||p.call(v,{value:y.state.value,fieldApi:y})})}),(d=(c=this.options.listeners)==null?void 0:c.onSubmit)==null||d.call(c,{groupApi:this,value:this.state.value});try{await((g=(m=this.options).onGroupSubmit)==null?void 0:g.call(m,{value:this.state.value,groupApi:this,meta:r})),pe(()=>{this.setFormGroupState(y=>({...y,isSubmitted:!0,isSubmitSuccessful:!0})),i()})}catch(y){throw this.setFormGroupState(v=>({...v,isSubmitSuccessful:!1})),i(),y}},this.form=n.form,this.name=n.name,this.options=n,this.timeoutIds={validations:{},listeners:{},formListeners:{}},this.fieldInfo={instance:null,validationMetaMap:{onChange:void 0,onBlur:void 0,onSubmit:void 0,onMount:void 0,onServer:void 0,onDynamic:void 0}},this.store=Va(a=>{this.form.formGroupMetaDerived.get(),this.form.baseStore.get();const r=this.form.getFormGroupMeta(this.name)??Xg(n.defaultMeta);let i=this.form.getFieldValue(this.name);return!r.isTouched&&i===void 0&&this.options.defaultValue!==void 0&&!mn(i,this.options.defaultValue)&&(i=this.options.defaultValue),a&&a.value===i&&a.meta===r?a:{value:i,meta:r}}),this.handleSubmit=this.handleSubmit.bind(this)}get state(){return this.store.state}runValidator(n){if(yu(n.validate)){const a=ga[n.type](n.value,n.validate);return n.type==="validate"?Vo(a):a.then(Vo)}return n.validate(n.value)}handleSubmit(n){return this._handleSubmit(n)}}function ei(e){if(e)return e}function ni(e){return!!e&&typeof e=="object"&&"fields"in e}function Vo(e){if(!e||typeof e!="object"||!("form"in e)&&!("fields"in e))return e;const{form:n,fields:a,...r}=e;return{...r,group:n,fields:a}}function zr(e){switch(e){case"submit":return"onSubmit";case"blur":return"onBlur";case"mount":return"onMount";case"server":return"onServer";case"dynamic":return"onDynamic";case"change":default:return"onChange"}}function Zg(e,n){if(!n)return;const a=Object.assign({},e,{state:ir(e.state)});n(a),a.fieldInfo!==e.fieldInfo&&(e.fieldInfo=a.fieldInfo),a.options!==e.options&&(e.options=a.options);const i=Object.keys({values:null,validationMetaMap:null,fieldMetaBase:null,formGroupStateBase:null,isSubmitting:null,isSubmitted:null,isValidating:null,submissionAttempts:null,isSubmitSuccessful:null,_force_re_eval:null}).reduce((o,u)=>(e.state[u]!==a.state[u]&&(o[u]=a.state[u]),o),{});return pe(()=>{Object.keys(i).length&&e.baseStore.setState(o=>({...o,...i})),a.state.errorMap!==e.state.errorMap&&e.setErrorMap(a.state.errorMap)}),a}function ey(e,n){return e===n}function oe(e,n=r=>r,a){const r=(a==null?void 0:a.compare)??ey,i=J.useCallback(u=>{const{unsubscribe:l}=e.subscribe(u);return l},[e]),o=J.useCallback(()=>e.get(),[e]);return Cl.useSyncExternalStoreWithSelector(i,o,o,n,r)}const ny=(e,n=r=>r,a)=>oe(e,n,{compare:a}),Mn=typeof window<"u"?J.useLayoutEffect:J.useEffect;function ay(e){const[n,a]=J.useState(()=>({form:e.form,name:e.name})),[r,i]=J.useState(()=>new br({...e}));let o=r;(n.form!==e.form||n.name!==e.name)&&(o=new br({...e}),i(o),a({form:e.form,name:e.name}));const u=oe(o.store,e.mode==="array"?v=>v.meta._arrayVersion||0:v=>v.value),l=oe(o.store,v=>v.meta.isTouched),s=oe(o.store,v=>v.meta.isBlurred),c=oe(o.store,v=>v.meta.isDirty),d=oe(o.store,v=>v.meta.errorMap),m=oe(o.store,v=>v.meta.errorSourceMap),g=oe(o.store,v=>v.meta.isValidating),y=J.useMemo(()=>({...o,get state(){return{value:e.mode==="array"?o.state.value:u,get meta(){return{...o.state.meta,isTouched:l,isBlurred:s,isDirty:c,errorMap:d,errorSourceMap:m,isValidating:g}}}}}),[o,e.mode,u,l,s,c,d,m,g]);return Mn(o.mount,[o]),Mn(()=>{o.update(e)}),y}const ry=(({children:e,...n})=>{const a=ay(n),r=J.useMemo(()=>Ar(e,a),[e,a]);return t.jsx(t.Fragment,{children:r})});function ty(){return J.useState(()=>ws())[0]}const iy=_s,uy=J.version.split(".")[0]==="17"?ty:iy.useId;function oy(e){const[n,a]=J.useState(()=>({form:e.form,name:e.name})),[r,i]=J.useState(()=>new Sr({...e}));(n.form!==e.form||n.name!==e.name)&&(i(new Sr({...e})),a({form:e.form,name:e.name}));const o=oe(r.store,T=>T.value),u=oe(r.store,T=>T.meta.isTouched),l=oe(r.store,T=>T.meta.isBlurred),s=oe(r.store,T=>T.meta.isDirty),c=oe(r.store,T=>T.meta.errorMap),d=oe(r.store,T=>T.meta.errorSourceMap),m=oe(r.store,T=>T.meta.isValidating),g=oe(r.store,T=>T.meta.isSubmitting),y=oe(r.store,T=>T.meta.isSubmitted),v=oe(r.store,T=>T.meta.submissionAttempts),p=oe(r.store,T=>T.meta.isSubmitSuccessful),b=oe(r.store,T=>T.meta.canSubmit),S=oe(r.store,T=>T.meta.isValid),k=oe(r.store,T=>T.meta.isFieldsValid),f=oe(r.store,T=>T.meta.isFieldsValidating),q=oe(r.store,T=>T.meta.isGroupValid),h=J.useMemo(()=>({...r,handleSubmit:((...V)=>r._handleSubmit(...V)),get state(){return{...r.state,value:o,get meta(){return{...r.state.meta,isTouched:u,isBlurred:l,isDirty:s,errorMap:c,errorSourceMap:d,isValidating:m,isSubmitting:g,isSubmitted:y,submissionAttempts:v,isSubmitSuccessful:p,canSubmit:b,isValid:S,isFieldsValid:k,isFieldsValidating:f,isGroupValid:q}}}}}),[r,o,u,l,s,c,d,m,g,y,v,p,b,S,k,f,q]);return Mn(r.mount,[r]),Mn(()=>{r.update(e)}),h}const ly=(({children:e,...n})=>{const a=oy(n),r=J.useMemo(()=>Ar(e,a),[e,a]);return t.jsx(t.Fragment,{children:r})});function sy({form:e,selector:n=r=>r,children:a}){const r=oe(e.store,n);return t.jsx(t.Fragment,{children:Ar(a,r)})}function dy(e){const n=uy(),[a,r]=J.useState(e==null?void 0:e.formId),[i,o]=J.useState(()=>new jo({...e,formId:(e==null?void 0:e.formId)??n}));if(a!==(e==null?void 0:e.formId)){const s=(e==null?void 0:e.formId)??n;o(new jo({...e,formId:s})),r(s)}const u=J.useMemo(()=>{const s={...i,handleSubmit:((...c)=>i._handleSubmit(...c)),get formId(){return i._formId},get state(){return i.store.state}};return s.Field=function(d){return t.jsx(ry,{...d,form:i})},s.FormGroup=function(d){return t.jsx(ly,{...d,form:i})},s.Subscribe=function(d){return t.jsx(sy,{form:i,selector:d.selector,children:d.children})},s},[i]);Mn(i.mount,[]),Mn(()=>{i.update(e)});const l=J.useRef(!1);return Mn(()=>{l.current&&e!=null&&e.transform&&Zg(i,e.transform)},[i,e==null?void 0:e.transform]),Mn(()=>{l.current=!0}),u}function my(e){const[n,...a]=e.split("/").map(r=>r.trim());return{name:n||"名前未設定",profile:a.join(" / ")||"プロフィールは設定されていません。"}}function Jo({value:e,testId:n}){const a=my(e);return t.jsxs("div",{className:"grid gap-4","data-testid":n,children:[t.jsxs(ee,{as:"label",textRole:"label",className:"grid gap-2",children:["名前",t.jsx(z,{variant:"underline","aria-label":"主人公の名前","aria-readonly":"true",readOnly:!0,value:a.name})]}),t.jsxs(ee,{as:"label",textRole:"label",className:"grid gap-2",children:["プロフィール",t.jsx(ge,{className:"!min-h-28 !rounded-myr-card !border-myr-ink/15 !px-3 !py-3 !text-base !leading-7 !shadow-none","aria-label":"主人公プロフィール","aria-readonly":"true",readOnly:!0,value:a.profile})]})]})}const ai="__free-generation__";function cy({scenario:e,onBeginStory:n,onRecommendHero:a,isBeginning:r,isRecommending:i,onLogin:o,canConfigureInterpretation:u,interpretationEnabled:l,onInterpretationEnabledChange:s}){const c=e.hero.split(`
+}`,signature:{properties:[{key:"id",value:{name:"string",required:!0}},{key:"title",value:{name:"string",required:!0}},{key:"status",value:{name:"union",raw:"'公開中' | '自分用'",elements:[{name:"literal",value:"'公開中'"},{name:"literal",value:"'自分用'"}],required:!0}},{key:"genreTags",value:{name:"Array",elements:[{name:"string"}],raw:"string[]",required:!0}},{key:"basicInformation",value:{name:"string",required:!0}},{key:"heroMode",value:{name:"union",raw:"'fixed' | 'select' | 'free'",elements:[{name:"literal",value:"'fixed'"},{name:"literal",value:"'select'"},{name:"literal",value:"'free'"}],required:!0}},{key:"heroFreeGenerationAllowed",value:{name:"boolean",required:!0}},{key:"hero",value:{name:"string",required:!0}},{key:"opening",value:{name:"string",required:!0}}]}}],raw:"ScenarioSummary[]"},description:""},status:{required:!0,tsType:{name:"union",raw:"'loading' | 'error' | 'ready'",elements:[{name:"literal",value:"'loading'"},{name:"literal",value:"'error'"},{name:"literal",value:"'ready'"}]},description:""},loadError:{required:!1,tsType:{name:"string"},description:""},onRetry:{required:!0,tsType:{name:"signature",type:"function",raw:"() => void",signature:{arguments:[],return:{name:"void"}}},description:""},onRegistration:{required:!0,tsType:{name:"signature",type:"function",raw:"() => void",signature:{arguments:[],return:{name:"void"}}},description:""},onEdit:{required:!0,tsType:{name:"signature",type:"function",raw:"(scenarioId: string) => void",signature:{arguments:[{type:{name:"string"},name:"scenarioId"}],return:{name:"void"}}},description:""},onStart:{required:!0,tsType:{name:"signature",type:"function",raw:"(scenarioId: string) => void",signature:{arguments:[{type:{name:"string"},name:"scenarioId"}],return:{name:"void"}}},description:""},onLogout:{required:!0,tsType:{name:"signature",type:"function",raw:"() => void | Promise<void>",signature:{arguments:[],return:{name:"union",raw:"void | Promise<void>",elements:[{name:"void"},{name:"Promise",elements:[{name:"void"}],raw:"Promise<void>"}]}}},description:""}}};function Mg(e){return(e??"").replace(/^#{1,6}\s+/gm,"").replace(/^[-*+]\s+/gm,"").replace(/\[([^\]]+)\]\([^)]+\)/g,"$1").replace(/[*_`>]/g,"").replace(/\s+/g," ").trim()}function gs(e){return{id:e.id,title:e.title,status:e.status==="published"?"公開中":"自分用",genreTags:st(e.genre),basicInformation:Mg(e.summary)||"基本情報はまだ登録されていません。",heroMode:e.heroMode==="fixed"||e.heroMode==="select"?e.heroMode:"free",heroFreeGenerationAllowed:e.heroMode==="select"&&(e.heroFreeGenerationAllowed??!1),hero:e.hero||"このシナリオの世界観に合う主人公を自由に作成できます。",opening:e.opening||e.summary||`${e.title}の物語が始まる。`}}function ys({api:e}={}){const n=vt(),a=n==null?void 0:n.dispatch,r=pa(),i=gn(),o=J.useMemo(()=>e??wt(),[e]),u=mu({queryKey:["scenarios","list"],queryFn:({signal:d})=>o.getScenarios(d),staleTime:3e4});J.useEffect(()=>{!u.data||!a||a({type:"SCENARIOS_LOADED",scenarios:u.data.map(d=>({...d,status:d.status==="published"||d.status==="private"?d.status:"draft"}))})},[a,u.data]);const l=J.useMemo(()=>(u.data??[]).map(gs),[u.data]),s=(d,m)=>{if(r){d==="startSession"?r(d,{query:{scenarioId:m??""}}):d==="scenarioEdit"?r(d,{scenarioId:m??""}):r(d);return}Ho(Ko[d])},c=async()=>{await i.api.logout(),i.clearUser(),s("login")};return t.jsx(cs,{account:En(i.user),scenarios:l,status:u.isPending?"loading":u.isError?"error":"ready",loadError:u.error instanceof Error?u.error.message:void 0,onRetry:()=>void u.refetch(),onRegistration:()=>s("scenarioRegister"),onEdit:d=>s("scenarioEdit",d),onStart:d=>s("startSession",d),onLogout:c})}ys.__docgenInfo={description:"",methods:[],displayName:"ScenarioListContainer"};async function Kt(e,n){const a=await fetch(e,{credentials:"include",headers:{Accept:"application/json",...n==null?void 0:n.headers},...n});if(!a.ok){const r=await a.json().catch(()=>({})),i=new Error(r.message??`Request failed (${a.status})`);throw i.status=a.status,i.code=r.code,i.execution=r.execution,i}return a.json()}const ur={getExecution:(e,n)=>Kt(`/api/module-executions/${encodeURIComponent(e)}`,{signal:n}),getRuntimeUi:(e,n)=>Kt(`/api/module-executions/${encodeURIComponent(e)}/ui/runtime/`,{signal:n}),async getResource(e,n){var u;const a=await fetch(e.url,{credentials:"include",cache:"no-store",signal:n});if(!a.ok)throw new Error(`Resource request failed (${a.status})`);if(((u=a.headers.get("content-type"))==null?void 0:u.split(";",1)[0])!==e.contentType)throw new Error("Resource content type did not match its descriptor.");const i=new Uint8Array(await a.arrayBuffer());if(i.byteLength!==e.byteLength)throw new Error("Resource length did not match its descriptor.");if(Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",i)),l=>l.toString(16).padStart(2,"0")).join("")!==e.sha256)throw new Error("Resource digest did not match its descriptor.");return new TextDecoder("utf-8",{fatal:!0}).decode(i)},dispatch:(e,n,a)=>Kt(`/api/module-executions/${encodeURIComponent(e)}/dispatch`,{method:"POST",signal:a,headers:{"Content-Type":"application/json"},body:JSON.stringify(n)})};function vs({action:e,onExecution:n}){const{execution:a}=e,[r,i]=J.useState(),[o,u]=J.useState("");return J.useEffect(()=>{const l=new AbortController;return i(void 0),u(""),ur.getRuntimeUi(a.id,l.signal).then(i).catch(s=>{l.signal.aborted||u(s instanceof Error?s.message:"判定画面を読み込めません。")}),()=>l.abort()},[a.id]),t.jsxs("section",{className:"mx-auto mb-4 w-full max-w-myr-reading px-3 max-sm:px-0","aria-label":"現在のモジュール判定","data-testid":"active-module-turn",children:[t.jsxs("div",{className:"mb-3 rounded-2xl border border-myr-ink/15 bg-myr-paper/85 px-4 py-3",children:[t.jsx("strong",{children:e.actionLabel}),t.jsx("p",{className:"m-0 mt-1 text-myr-ui-sm text-myr-ink-soft",children:"この操作画面は、列挙済みの手動アクションに対してのみ表示されます。Object、Action、実行先は変更できません。"})]}),o&&t.jsx("div",{role:"alert",className:"rounded-2xl border border-myr-ruby/30 bg-myr-paper p-4 text-myr-ruby",children:o}),!o&&!r&&t.jsx("div",{role:"status",className:"rounded-2xl border border-myr-ink/15 bg-myr-paper p-4",children:"保存された判定状態を復元しています…"}),r&&t.jsx(Zo,{execution:a,descriptor:r,api:ur,onExecution:n})]})}vs.__docgenInfo={description:"",methods:[],displayName:"ActiveModuleTurnPanel",props:{action:{required:!0,tsType:{name:"NonNullable",elements:[{name:"union",raw:"ScenarioTurnProjection['manualUi']"}],raw:"NonNullable<ScenarioTurnProjection['manualUi']>"},description:""}}};function ps({sessionId:e}){var D;const n=pa(),a=St(),r=gn(),i=En(r.user),o=J.useRef(0),[u,l]=J.useState(null),[s,c]=J.useState(null),[d,m]=J.useState(null),[g,y]=J.useState(null),[v,p]=J.useState(!1),b=J.useRef(!1),[S,k]=J.useState(!1),f=J.useRef(null),q=()=>n==null?void 0:n("login"),h=()=>n==null?void 0:n("sessionList"),T=()=>window.location.reload(),x=async()=>{await r.api.logout(),r.clearUser(),q()};if(J.useEffect(()=>{const U=new AbortController;return l(null),c(null),m(null),y(null),Promise.all([Jt(e,void 0,U.signal),Ls(void 0,U.signal)]).then(([Z,ae])=>{l(Z),c(ae)}).catch(Z=>{if(Z.name==="AbortError")return;const ae=Ln(Z,"Sessionを読み込めませんでした。");ae.kind==="unauthorized"&&r.clearUser(),m($n(ae,"load"))}),()=>U.abort()},[r.clearUser,e]),J.useEffect(()=>{if(!u||!$s(u))return;const U=new AbortController,Z=window.setInterval(()=>{const ae=++o.current;Jt(e,void 0,U.signal).then(re=>{ae===o.current&&l(ne=>!ne||re.revision>=ne.revision?re:ne)}).catch(re=>{re.name!=="AbortError"&&y($n(Ln(re,"Sessionを更新できませんでした。"),"poll"))})},750);return()=>{window.clearInterval(Z),U.abort()}},[u,e]),!u||!s)return t.jsx(Gs,{account:i,notice:d,onLogout:x,onLogin:q,onReload:T,onSessionList:h});const V=async(U,Z,ae,re)=>{var G,xe;if(b.current)return{ok:!1,notice:wu("Scenario Turnを処理中です。")};b.current=!0;const ne=((G=f.current)==null?void 0:G.input)===U&&f.current.interactionType===Z&&f.current.actionDecisionAiProfileId===ae&&f.current.narrativeAiProfileId===re?f.current:null,Se=(ne==null?void 0:ne.requestId)??`scenario-turn-${((xe=crypto.randomUUID)==null?void 0:xe.call(crypto))??`${Date.now()}-${Math.random()}`}`;f.current={input:U,requestId:Se,interactionType:Z,actionDecisionAiProfileId:ae,narrativeAiProfileId:re},p(!0);try{const ue=await Ys(e,U,Se,void 0,Z,void 0,ae,re),ke=Math.max(0,...(u.activity??[]).map(nn=>nn.order))+1;return l({...u,inputs:[...u.inputs??[],ue.input],executions:[...u.executions??[],ue.execution],activity:[...u.activity??[],{type:"input",id:ue.input.id,order:ke},{type:"execution",id:ue.execution.id,order:ke+1,causalId:ue.input.id}]}),f.current=null,{ok:!0,notice:"Player Inputを保存し、Scenario Turnを開始しました。ブラウザを閉じても処理は継続します。"}}catch(ue){const ke=Ln(ue,"Scenario Turnを開始できませんでした。");return ke.kind==="unauthorized"&&r.clearUser(),{ok:!1,notice:$n(ke,"submit")}}finally{b.current=!1,p(!1)}},P=async()=>{if(S||v)return{ok:!1,notice:wu("別のAI処理が進行中です。")};k(!0);try{return{ok:!0,value:await Qs(e),notice:"AIの提案を入力欄へ設定しました。内容を編集してから送信できます。"}}catch(U){const Z=Ln(U,"次の行動案を生成できませんでした。");return Z.kind==="unauthorized"&&r.clearUser(),{ok:!1,notice:$n(Z,"recommend")}}finally{k(!1)}},w=async(U,Z)=>{var ae,re,ne,Se;try{const G=(ae=u.executions)==null?void 0:ae.find(ue=>ue.id===U),xe=await Ks(U,Z);return Z==="dismiss"&&(G==null?void 0:G.triggerType)==="player-input"?l({...u,inputs:(re=u.inputs)==null?void 0:re.filter(ue=>ue.id!==G.triggerId),executions:(ne=u.executions)==null?void 0:ne.filter(ue=>ue.id!==U),activity:(Se=u.activity)==null?void 0:Se.filter(ue=>ue.id!==U&&ue.id!==G.triggerId)}):l({...u,executions:(u.executions??[]).map(ue=>ue.id===U?xe:ue)}),{ok:!0,notice:Z==="retry"?"同じ入力で再試行を開始しました。":Z==="cancel"?"キャンセルを要求しました。":"入力を取り消しました。"}}catch(G){return{ok:!1,notice:$n(Ln(G,"Executionを更新できませんでした。"),"execution")}}},A=async(U,Z,ae)=>{try{const re=await Hs(U,Z,ae);return l({...u,noteProposals:(u.noteProposals??[]).map(ne=>ne.artifactId===U?re:ne)}),{ok:!0,notice:Z==="apply"||Z==="edit-apply"?"ノート変更案を適用し、Revisionを作成しました。":Z==="reject"?"ノート変更案を却下しました。":"ノート変更案を後で確認できるよう保留しました。"}}catch(re){return{ok:!1,notice:$n(Ln(re,"ノート変更案を更新できませんでした。"),"note-review")}}},R=(D=u.executions)==null?void 0:D.filter(U=>U.kind==="scenario-turn").at(-1),j=Us(R),O=zs(R),_=()=>{Jt(e).then(l).catch(U=>{y($n(Ln(U,"手動アクション後のSessionを更新できませんでした。"),"poll"))})},M=u.pendingInputs.at(-1),I=u.status.toLowerCase()==="completed";return t.jsx(Ws,{sessionId:e,account:i,turns:u.turns.map(qu),headingLinks:u.turns.map(qu).map(U=>({title:U.turnTitle,startTurnId:U.id,summary:"Serverに保存された確定済みTurn"})),sessionStateLabel:I?"Completed":"Active",readOnly:I,activitySession:u,activeManualActionPanel:!I&&j?t.jsx(vs,{action:j,onExecution:_}):void 0,committedStateNarrativePending:!I&&O,initialInput:I||M==null?void 0:M.input,initialInteractionType:M==null?void 0:M.interactionType,aiProfiles:s.profiles,defaultActionDecisionAiProfileId:(R==null?void 0:R.actionDecisionAiProfileId)??s.defaultActionDecisionProfileId,defaultNarrativeAiProfileId:(R==null?void 0:R.narrativeAiProfileId)??s.defaultNarrativeProfileId,initialNotice:I?"完了済みの物語を読み取り専用で表示しています。":(M==null?void 0:M.errorMessage)??(M?"未完了のPlayer Inputを復元しました。同じRequest IDで再試行できます。":"Serverに保存された確定済みTurnを表示しています。"),liveNotice:g,isSubmitting:v,isRecommending:S,onLogout:x,onLogin:q,onReload:T,onSessionList:h,onSubmit:V,onRecommend:P,onExecutionAction:w,onNoteReview:A,onInspectTurn:U=>void a({to:"/sessions/$sessionId/turns/$turnId/inspection",params:{sessionId:e,turnId:U}})})}ps.__docgenInfo={description:"",methods:[],displayName:"SessionContainer",props:{sessionId:{required:!0,tsType:{name:"string"},description:""}}};async function Ig(e,n,a,r=Wo()){if(!r)throw new Error("Session APIが設定されていません。");const i=await fetch(`${r}/${encodeURIComponent(e)}/turns/${encodeURIComponent(n)}/inspection`,{credentials:"include",headers:{Accept:"application/json"},signal:a});if(!i.ok)throw i.status===401?new Error("Turnの実行詳細を確認するにはログインしてください。"):i.status===403?new Error("このTurnの実行詳細を確認する権限がありません。"):i.status===404?new Error("Session、Turn、または実行詳細が見つかりませんでした。"):new Error("Turnの実行詳細を読み込めませんでした。");return i.json()}function ks({sessionId:e,turnId:n}){const a=St(),r=gn(),[i,o]=J.useState({status:"loading"}),[u,l]=J.useState(0),s=J.useCallback(()=>l(d=>d+1),[]);J.useEffect(()=>{const d=new AbortController;return o({status:"loading"}),Ig(e,n,d.signal).then(m=>o({status:"ready",inspection:kd(m)})).catch(m=>{d.signal.aborted||o({status:"error",message:m instanceof Error?m.message:"Turnの実行詳細を読み込めませんでした。"})}),()=>d.abort()},[u,e,n]);const c=async()=>{await r.api.logout(),r.clearUser(),await a({to:"/account/login"})};return t.jsx(bd,{account:En(r.user),sessionId:e,turnId:n,state:i,onBack:()=>void a({to:"/sessions/$sessionId",params:{sessionId:e}}),onRetry:s,onLogout:c})}ks.__docgenInfo={description:"",methods:[],displayName:"TurnInspectionContainer",props:{sessionId:{required:!0,tsType:{name:"string"},description:""},turnId:{required:!0,tsType:{name:"string"},description:""}}};let L=(function(e){return e[e.None=0]="None",e[e.Mutable=1]="Mutable",e[e.Watching=2]="Watching",e[e.RecursedCheck=4]="RecursedCheck",e[e.Recursed=8]="Recursed",e[e.Dirty=16]="Dirty",e[e.Pending=32]="Pending",e})({});function Bg({update:e,notify:n,unwatched:a}){return{link:r,unlink:i,propagate:o,checkDirty:u,shallowPropagate:l};function r(c,d,m){const g=d.depsTail;if(g!==void 0&&g.dep===c)return;const y=g!==void 0?g.nextDep:d.deps;if(y!==void 0&&y.dep===c){y.version=m,d.depsTail=y;return}const v=c.subsTail;if(v!==void 0&&v.version===m&&v.sub===d)return;const p=d.depsTail=c.subsTail={version:m,dep:c,sub:d,prevDep:g,nextDep:y,prevSub:v,nextSub:void 0};y!==void 0&&(y.prevDep=p),g!==void 0?g.nextDep=p:d.deps=p,v!==void 0?v.nextSub=p:c.subs=p}function i(c,d=c.sub){const m=c.dep,g=c.prevDep,y=c.nextDep,v=c.nextSub,p=c.prevSub;return y!==void 0?y.prevDep=g:d.depsTail=g,g!==void 0?g.nextDep=y:d.deps=y,v!==void 0?v.prevSub=p:m.subsTail=p,p!==void 0?p.nextSub=v:(m.subs=v)===void 0&&a(m),y}function o(c){let d=c.nextSub,m;e:do{const g=c.sub;let y=g.flags;if(y&(L.RecursedCheck|L.Recursed|L.Dirty|L.Pending)?y&(L.RecursedCheck|L.Recursed)?y&L.RecursedCheck?!(y&(L.Dirty|L.Pending))&&s(c,g)?(g.flags=y|(L.Recursed|L.Pending),y&=L.Mutable):y=L.None:g.flags=y&~L.Recursed|L.Pending:y=L.None:g.flags=y|L.Pending,y&L.Watching&&n(g),y&L.Mutable){const v=g.subs;if(v!==void 0){const p=(c=v).nextSub;p!==void 0&&(m={value:d,prev:m},d=p);continue}}if((c=d)!==void 0){d=c.nextSub;continue}for(;m!==void 0;)if(c=m.value,m=m.prev,c!==void 0){d=c.nextSub;continue e}break}while(!0)}function u(c,d){let m,g=0,y=!1;e:do{const v=c.dep,p=v.flags;if(d.flags&L.Dirty)y=!0;else if((p&(L.Mutable|L.Dirty))===(L.Mutable|L.Dirty)){if(e(v)){const b=v.subs;b.nextSub!==void 0&&l(b),y=!0}}else if((p&(L.Mutable|L.Pending))===(L.Mutable|L.Pending)){(c.nextSub!==void 0||c.prevSub!==void 0)&&(m={value:c,prev:m}),c=v.deps,d=v,++g;continue}if(!y){const b=c.nextDep;if(b!==void 0){c=b;continue}}for(;g--;){const b=d.subs,S=b.nextSub!==void 0;if(S?(c=m.value,m=m.prev):c=b,y){if(e(d)){S&&l(b),d=c.sub;continue}y=!1}else d.flags&=~L.Pending;d=c.sub;const k=c.nextDep;if(k!==void 0){c=k;continue e}}return y}while(!0)}function l(c){do{const d=c.sub,m=d.flags;(m&(L.Pending|L.Dirty))===L.Pending&&(d.flags=m|L.Dirty,(m&(L.Watching|L.RecursedCheck))===L.Watching&&n(d))}while((c=c.nextSub)!==void 0)}function s(c,d){let m=d.depsTail;for(;m!==void 0;){if(m===c)return!0;m=m.prevDep}return!1}}function cu(e,n,a){var o,u,l;const r=typeof e=="object",i=r?e:void 0;return{next:(o=r?e.next:e)==null?void 0:o.bind(i),error:(u=r?e.error:n)==null?void 0:u.bind(i),complete:(l=r?e.complete:a)==null?void 0:l.bind(i)}}const Fi=[];let Xr=0;const{link:So,unlink:Eg,propagate:_g,checkDirty:bs,shallowPropagate:qo}=Bg({update(e){return e._update()},notify(e){Fi[Mi++]=e,e.flags&=~L.Watching},unwatched(e){e.depsTail!==void 0&&(e.depsTail=void 0,e.flags=L.Mutable|L.Dirty,mt(e))}});let $r=0,Mi=0,He,Ii=0;function pe(e){try{++Ii,e()}finally{--Ii||Ss()}}function mt(e){const n=e.depsTail;let a=n!==void 0?n.nextDep:e.deps;for(;a!==void 0;)a=Eg(a,e)}function Ss(){if(!(Ii>0)){for(;$r<Mi;){const e=Fi[$r];Fi[$r++]=void 0,e.notify()}$r=0,Mi=0}}function qs(e,n){const a=typeof e=="function",r=e,i={_snapshot:a?void 0:e,subs:void 0,subsTail:void 0,deps:void 0,depsTail:void 0,flags:a?L.None:L.Mutable,get(){return He!==void 0&&So(i,He,Xr),i._snapshot},subscribe(o){const u=cu(o),l={current:!1},s=Dg(()=>{var c;i.get(),l.current?(c=u.next)==null||c.call(u,i._snapshot):l.current=!0});return{unsubscribe:()=>{s.stop()}}},_update(o){const u=He,l=Object.is;if(a)He=i,++Xr,i.depsTail=void 0;else if(o===void 0)return!1;a&&(i.flags=L.Mutable|L.RecursedCheck);try{const s=i._snapshot,c=typeof o=="function"?o(s):o===void 0&&a?r(s):o;return s===void 0||!l(s,c)?(i._snapshot=c,!0):!1}finally{He=u,a&&(i.flags&=~L.RecursedCheck),mt(i)}}};return a?(i.flags=L.Mutable|L.Dirty,i.get=function(){const o=i.flags;if(o&L.Dirty||o&L.Pending&&bs(i.deps,i)){if(i._update()){const u=i.subs;u!==void 0&&qo(u)}}else o&L.Pending&&(i.flags=o&~L.Pending);return He!==void 0&&So(i,He,Xr),i._snapshot}):i.set=function(o){if(i._update(o)){const u=i.subs;u!==void 0&&(_g(u),qo(u),Ss())}},i}function Dg(e){const n=()=>{const r=He;He=a,++Xr,a.depsTail=void 0,a.flags=L.Watching|L.RecursedCheck;try{return e()}finally{He=r,a.flags&=~L.RecursedCheck,mt(a)}},a={deps:void 0,depsTail:void 0,subs:void 0,subsTail:void 0,flags:L.Watching|L.RecursedCheck,notify(){const r=this.flags;r&L.Dirty||r&L.Pending&&bs(this.deps,this)?n():this.flags=L.Watching},stop(){this.flags=L.None,this.depsTail=void 0,mt(this)}};return n(),a}var Ng=class{constructor(e,n){this.atom=qs(e),this.get=this.get.bind(this),this.setState=this.setState.bind(this),this.subscribe=this.subscribe.bind(this),n&&(this.actions=n(this))}setState(e){this.atom.set(e)}get state(){return this.atom.get()}get(){return this.state}subscribe(e){return this.atom.subscribe(cu(e))}},Lg=class{constructor(e){this.atom=qs(e)}get state(){return this.atom.get()}get(){return this.state}subscribe(e){return this.atom.subscribe(cu(e))}};function Va(e,n){return typeof e=="function"?new Lg(e):new Ng(e)}var $g=class{constructor(e,n){this.fn=e,this.options=n,this.lastExecutionTime=0,this.isPending=!1,this.maybeExecute=(...a)=>{const r=Date.now()-this.lastExecutionTime;if(this.options.leading&&r>=this.options.wait)this.execute(...a);else if(this.lastArgs=a,!this.timeoutId&&this.options.trailing){const i=this.options.wait-r;this.isPending=!0,this.timeoutId=setTimeout(()=>{this.lastArgs!==void 0&&this.execute(...this.lastArgs)},i)}},this.execute=(...a)=>{var r,i;this.fn(...a),(i=(r=this.options).onExecute)==null||i.call(r,a,this),this.lastExecutionTime=Date.now(),this.clearTimeout(),this.lastArgs=void 0,this.isPending=!1},this.flush=()=>{this.isPending&&this.lastArgs&&this.execute(...this.lastArgs)},this.cancel=()=>{this.clearTimeout(),this.lastArgs=void 0,this.isPending=!1},this.clearTimeout=()=>{this.timeoutId&&(clearTimeout(this.timeoutId),this.timeoutId=void 0)},this.options.leading===void 0&&this.options.trailing===void 0&&(this.options.leading=!0,this.options.trailing=!0)}};function Gg(e,n){return new $g(e,n).maybeExecute}var Pn,Me,Ve,hr,on,ua,ln,La,Vr,gt,An,$a,sn,Jr,Ga,yt,Lo,Ug=(Lo=class{constructor({pluginId:e,debug:n=!1,enabled:a=!0,reconnectEveryMs:r=300}){N(this,Pn,!0);N(this,Me);N(this,Ve);N(this,hr);N(this,on);N(this,ua);N(this,ln);N(this,La);N(this,Vr,0);N(this,gt,5);N(this,An,!1);N(this,$a,!1);N(this,sn,null);N(this,Jr,()=>{this.debugLog("Connected to event bus"),E(this,ua,!0),E(this,An,!1),this.debugLog("Emitting queued events",C(this,on)),C(this,on).forEach(e=>this.emitEventToBus(e)),E(this,on,[]),this.stopConnectLoop(),C(this,Ve).call(this).removeEventListener("tanstack-connect-success",C(this,Jr))});N(this,Ga,()=>{if(C(this,Vr)<C(this,gt)){Ha(this,Vr)._++,this.dispatchCustomEvent("tanstack-connect",{});return}C(this,Ve).call(this).removeEventListener("tanstack-connect",C(this,Ga)),E(this,$a,!0),this.debugLog("Max retries reached, giving up on connection"),this.stopConnectLoop()});N(this,yt,()=>{C(this,An)||(E(this,An,!0),C(this,Ve).call(this).addEventListener("tanstack-connect-success",C(this,Jr)),C(this,Ga).call(this))});E(this,Me,e),E(this,Pn,a),E(this,Ve,this.getGlobalTarget),E(this,hr,n),this.debugLog(" Initializing event subscription for plugin",C(this,Me)),E(this,on,[]),E(this,ua,!1),E(this,$a,!1),E(this,ln,null),E(this,La,r)}startConnectLoop(){C(this,ln)!==null||C(this,ua)||(this.debugLog(`Starting connect loop (every ${C(this,La)}ms)`),E(this,ln,setInterval(C(this,Ga),C(this,La))))}stopConnectLoop(){E(this,An,!1),C(this,ln)!==null&&(clearInterval(C(this,ln)),E(this,ln,null),E(this,on,[]),this.debugLog("Stopped connect loop"))}debugLog(...e){C(this,hr)&&console.log(`🌴 [tanstack-devtools:${C(this,Me)}-plugin]`,...e)}getGlobalTarget(){if(typeof globalThis<"u"&&globalThis.__TANSTACK_EVENT_TARGET__)return this.debugLog("Using global event target"),globalThis.__TANSTACK_EVENT_TARGET__;if(typeof window<"u"&&typeof window.addEventListener<"u")return this.debugLog("Using window as event target"),window;const e=typeof EventTarget<"u"?new EventTarget:void 0;return typeof e>"u"||typeof e.addEventListener>"u"?(this.debugLog("No event mechanism available, running in non-web environment"),{addEventListener:()=>{},removeEventListener:()=>{},dispatchEvent:()=>!1}):(this.debugLog("Using new EventTarget as fallback"),e)}getPluginId(){return C(this,Me)}dispatchCustomEventShim(e,n){try{const a=new Event(e,{detail:n});C(this,Ve).call(this).dispatchEvent(a)}catch{this.debugLog("Failed to dispatch shim event")}}dispatchCustomEvent(e,n){try{C(this,Ve).call(this).dispatchEvent(new CustomEvent(e,{detail:n}))}catch{this.dispatchCustomEventShim(e,n)}}emitEventToBus(e){this.debugLog("Emitting event to client bus",e),this.dispatchCustomEvent("tanstack-dispatch-event",e)}createEventPayload(e,n){return{type:`${C(this,Me)}:${e}`,payload:n,pluginId:C(this,Me)}}emit(e,n){if(!C(this,Pn)){this.debugLog("Event bus client is disabled, not emitting event",e,n);return}if(C(this,sn)&&(this.debugLog("Emitting event to internal event target",e,n),C(this,sn).dispatchEvent(new CustomEvent(`${C(this,Me)}:${e}`,{detail:this.createEventPayload(e,n)}))),C(this,$a)){this.debugLog("Previously failed to connect, not emitting to bus");return}if(!C(this,ua)){this.debugLog("Bus not available, will be pushed as soon as connected"),C(this,on).push(this.createEventPayload(e,n)),typeof CustomEvent<"u"&&!C(this,An)&&(C(this,yt).call(this),this.startConnectLoop());return}return this.emitEventToBus(this.createEventPayload(e,n))}on(e,n,a){const r=(a==null?void 0:a.withEventTarget)??!1,i=`${C(this,Me)}:${e}`;if(r&&(C(this,sn)||E(this,sn,new EventTarget),C(this,sn).addEventListener(i,u=>{n(u.detail)})),!C(this,Pn))return this.debugLog("Event bus client is disabled, not registering event",i),()=>{};const o=u=>{this.debugLog("Received event from bus",u.detail),n(u.detail)};return C(this,Ve).call(this).addEventListener(i,o),this.debugLog("Registered event to bus",i),()=>{var u;r&&((u=C(this,sn))==null||u.removeEventListener(i,o)),C(this,Ve).call(this).removeEventListener(i,o)}}onAll(e){if(!C(this,Pn))return this.debugLog("Event bus client is disabled, not registering event"),()=>{};const n=a=>{const r=a.detail;e(r)};return C(this,Ve).call(this).addEventListener("tanstack-devtools-global",n),()=>C(this,Ve).call(this).removeEventListener("tanstack-devtools-global",n)}onAllPluginEvents(e){if(!C(this,Pn))return this.debugLog("Event bus client is disabled, not registering event"),()=>{};const n=a=>{const r=a.detail;C(this,Me)&&r.pluginId!==C(this,Me)||e(r)};return C(this,Ve).call(this).addEventListener("tanstack-devtools-global",n),()=>C(this,Ve).call(this).removeEventListener("tanstack-devtools-global",n)}},Pn=new WeakMap,Me=new WeakMap,Ve=new WeakMap,hr=new WeakMap,on=new WeakMap,ua=new WeakMap,ln=new WeakMap,La=new WeakMap,Vr=new WeakMap,gt=new WeakMap,An=new WeakMap,$a=new WeakMap,sn=new WeakMap,Jr=new WeakMap,Ga=new WeakMap,yt=new WeakMap,Lo);class zg extends Ug{constructor(){super({pluginId:"form-devtools",reconnectEveryMs:1e3})}}const Ne=new zg;function Ar(e,n){return typeof e=="function"?e(n):e}function Gr(e,n){return gu(n).reduce((r,i)=>{if(r===null)return null;if(typeof r<"u")return r[i]},e)}function er(e,n,a){const r=gu(n);function i(o){if(!r.length)return Ar(a,o);const u=r.shift();if(typeof u=="string"||typeof u=="number"&&!Array.isArray(o))return typeof o=="object"?(o===null&&(o={}),{...o,[u]:i(o[u])}):{[u]:i()};if(Array.isArray(o)&&typeof u=="number"){const l=o.slice(0,u);return[...l.length?l:new Array(u),i(o[u]),...o.slice(u+1)]}return[...new Array(u),i()]}return i(e)}function Wg(e,n){const a=gu(n);function r(i){if(!i)return;if(a.length===1){const u=a[0];if(Array.isArray(i)&&typeof u=="number")return i.filter((c,d)=>d!==u);const{[u]:l,...s}=i;return s}const o=a.shift();if((typeof o=="string"||typeof o=="number"&&!Array.isArray(i))&&typeof i=="object")return{...i,[o]:r(i[o])};if(typeof o=="number"&&Array.isArray(i)){if(o>=i.length)return i;const u=i.slice(0,o);return[...u.length?u:new Array(o),r(i[o]),...i.slice(o+1)]}throw new Error("It seems we have created an infinite loop in deleteBy. ")}return r(e)}const wo=46,Qt=91,Yt=93,fo=48,Hg=57;function gu(e){if(Array.isArray(e))return[...e];if(typeof e!="string")throw new Error("Path must be a string.");const n=e.length,a=[];let r=n>0&&e.charCodeAt(0)===Qt?1:0,i=!0,o=-1;for(let u=r;u<=n;u++){const l=u<n?e.charCodeAt(u):-1;if(u===n||l===wo||l===Qt||l===Yt){const s=u-r;if(s>0){const c=i&&(s===1||e.charCodeAt(r)!==fo),d=e.slice(r,u);if(c){const m=parseInt(d,10);s<=15||String(m)===d?a.push(m):a.push(d)}else a.push(d)}else o!==Yt&&!(o===-1&&l===Yt)&&!(o===l&&(l===wo||l===Qt))&&a.push("");r=u+1,i=!0}else(l<fo||l>Hg)&&(i=!1);o=l}return a.length||a.push(""),a}function Kg(e){return!(Array.isArray(e)&&e.length===0)}function pr(e,n){const a=r=>r.validators.filter(Boolean).map(i=>({cause:i.cause,validate:i.fn}));return n.validationLogic({form:n.form,group:n.group,validators:n.validators,event:{type:e,fieldName:n.fieldName,async:!1},runValidation:a})}function kr(e,n){const{asyncDebounceMs:a}=n,{onBlurAsyncDebounceMs:r,onChangeAsyncDebounceMs:i,onDynamicAsyncDebounceMs:o}=n.validators||{},u=a??0,l=s=>s.validators.filter(Boolean).map(c=>{const d=(c==null?void 0:c.cause)||e;let m=u;switch(d){case"change":m=i??u;break;case"blur":m=r??u;break;case"dynamic":m=o??u;break;case"submit":m=0;break}return e==="submit"&&(m=0),{cause:d,validate:c.fn,debounceMs:m}});return n.validationLogic({form:n.form,group:n.group,validators:n.validators,event:{type:e,fieldName:n.fieldName,async:!0},runValidation:l})}const Zr=e=>!!e&&typeof e=="object"&&"fields"in e;function mn(e,n){if(Object.is(e,n))return!0;if(typeof e!="object"||e===null||typeof n!="object"||n===null)return!1;if(e instanceof Date&&n instanceof Date)return e.getTime()===n.getTime();if(e instanceof Map&&n instanceof Map){if(e.size!==n.size)return!1;for(const[i,o]of e)if(!n.has(i)||!Object.is(o,n.get(i)))return!1;return!0}if(e instanceof Set&&n instanceof Set){if(e.size!==n.size)return!1;for(const i of e)if(!n.has(i))return!1;return!0}const a=Object.keys(e),r=Object.keys(n);if(a.length!==r.length||a.length===0&&!Array.isArray(e)&&!Array.isArray(n)&&(Object.getPrototypeOf(e)!==Object.prototype||Object.getPrototypeOf(n)!==Object.prototype))return!1;for(const i of a)if(!r.includes(i)||!mn(e[i],n[i]))return!1;return!0}const Bi=({newFormValidatorError:e,isPreviousErrorFromFormValidator:n,previousErrorValue:a})=>e?{newErrorValue:e,newSource:"form"}:n?{newErrorValue:void 0,newSource:void 0}:a?{newErrorValue:a,newSource:"field"}:{newErrorValue:void 0,newSource:void 0},ct=({formLevelError:e,fieldLevelError:n})=>n?{newErrorValue:n,newSource:"field"}:e?{newErrorValue:e,newSource:"form"}:{newErrorValue:void 0,newSource:void 0};function Je(e,n){return e==null?n:{...e,...n}}let Qn=256;const et=[];let Ur;for(;Qn--;)et[Qn]=(Qn+256).toString(16).substring(1);function ws(){let e=0,n,a="";if(!Ur||Qn+16>256){for(Ur=new Array(256),e=256;e--;)Ur[e]=256*Math.random()|0;e=0,Qn=0}for(;e<16;e++)n=Ur[Qn+e],e===6?a+=et[n&15|64]:e===8?a+=et[n&63|128]:a+=et[n],e&1&&e>1&&e<11&&(a+="-");return Qn++,a}const Qg=Gg(e=>Ne.emit("form-state",{id:e.formId,state:e.store.state}),{wait:300});function ir(e){if(e===null||typeof e!="object")return e;if(e instanceof Date)return new Date(e.getTime());if(Array.isArray(e)){const a=[];for(let r=0;r<e.length;r++)a[r]=ir(e[r]);return a}if(e instanceof Map){const a=new Map;return e.forEach((r,i)=>{a.set(i,ir(r))}),a}if(e instanceof Set){const a=new Set;return e.forEach(r=>{a.add(ir(r))}),a}const n={};for(const a in e)Object.prototype.hasOwnProperty.call(e,a)&&(n[a]=ir(e[a]));return n}function ca(e,n){return n===e||n.startsWith(`${e}.`)||n.startsWith(`${e}[`)}const Xe=e=>{if(!e.validators)return e.runValidation({validators:[],form:e.form});const n=e.event.async,a=n?void 0:{fn:e.validators.onMount,cause:"mount"},r={fn:n?e.validators.onChangeAsync:e.validators.onChange,cause:"change"},i={fn:n?e.validators.onBlurAsync:e.validators.onBlur,cause:"blur"},o={fn:n?e.validators.onSubmitAsync:e.validators.onSubmit,cause:"submit"},u=n?void 0:{fn:()=>{},cause:"server"};switch(e.event.type){case"mount":return e.runValidation({validators:[a],form:e.form});case"submit":return e.runValidation({validators:[r,i,o,u],form:e.form});case"server":return e.runValidation({validators:[],form:e.form});case"blur":return e.runValidation({validators:[i,u],form:e.form});case"change":return e.runValidation({validators:[r,u],form:e.form});default:throw new Error(`Unknown validation event type: ${e.event.type}`)}};function Yg(e,n){const a=new Map;for(const r of e){const i=r.path??[];let o=n,u="";for(let l=0;l<i.length;l++){const s=i[l];if(s===void 0)continue;const c=typeof s=="object"?s.key:s,d=Number(c);Array.isArray(o)&&!Number.isNaN(d)?u+=`[${d}]`:u+=(l>0?".":"")+String(c),typeof o=="object"&&o!==null?o=o[c]:o=void 0}a.set(u,(a.get(u)??[]).concat(r))}return Object.fromEntries(a)}const Co=(e,n)=>{const a=Yg(e,n);return{form:a,fields:a}},ga={validate({value:e,validationSource:n},a){const r=a["~standard"].validate(e);if(r instanceof Promise)throw new Error("async function passed to sync validator");if(r.issues)return n==="field"?r.issues:Co(r.issues,e)},async validateAsync({value:e,validationSource:n},a){const r=await a["~standard"].validate(e);if(r.issues)return n==="field"?r.issues:Co(r.issues,e)}},yu=e=>!!e&&"~standard"in e,fe={isValidating:!1,isTouched:!1,isBlurred:!1,isDirty:!1,isPristine:!0,isValid:!0,isDefaultValue:!0,errors:[],errorMap:{},errorSourceMap:{},_arrayVersion:0,_pendingValidationsCount:0};function bn(e){function n(m){const g=e.getFieldMeta(m)??fe;e.setFieldMeta(m,{...g,_arrayVersion:(g._arrayVersion||0)+1})}function a(m,g,y){n(m);const v=l(m,g,"move",y),p=Math.min(g,y),b=Math.max(g,y);for(let k=p;k<=b;k++)v.push(u(m,k));const S=Object.keys(e.fieldInfo).reduce((k,f)=>(f.startsWith(u(m,g))&&k.set(f,e.getFieldMeta(f)),k),new Map);c(v,g<y?"up":"down"),Object.keys(e.fieldInfo).filter(k=>k.startsWith(u(m,y))).forEach(k=>{const f=k.replace(u(m,y),u(m,g)),q=S.get(f);q&&e.setFieldMeta(k,q)})}function r(m,g){n(m);const y=l(m,g,"remove");c(y,"up")}function i(m,g,y){n(m),l(m,g,"swap",y).forEach(p=>{if(!p.toString().startsWith(u(m,g)))return;const b=p.toString().replace(u(m,g),u(m,y)),[S,k]=[e.getFieldMeta(p),e.getFieldMeta(b)];S&&e.setFieldMeta(b,S),k&&e.setFieldMeta(p,k)})}function o(m,g){n(m);const y=l(m,g,"insert");c(y,"down"),y.forEach(v=>{v.toString().startsWith(u(m,g))&&e.setFieldMeta(v,d())})}function u(m,g){return`${m}[${g}]`}function l(m,g,y,v){const p=[u(m,g)];switch(y){case"swap":p.push(u(m,v));break;case"move":{const[b,S]=[Math.min(g,v),Math.max(g,v)];for(let k=b;k<=S;k++)p.push(u(m,k));break}default:{const b=e.getFieldValue(m),S=Array.isArray(b)?b.length:0;for(let k=g+1;k<S;k++)p.push(u(m,k));break}}return Object.keys(e.fieldInfo).filter(b=>p.some(S=>b.startsWith(S)))}function s(m,g){return m.replace(/\[(\d+)\]/,(y,v)=>{const p=parseInt(v,10);return`[${g==="up"?p+1:Math.max(0,p-1)}]`})}function c(m,g){(g==="up"?m:[...m].reverse()).forEach(v=>{const p=s(v.toString(),g),b=e.getFieldMeta(p);b?e.setFieldMeta(v,b):e.setFieldMeta(v,d())})}const d=()=>fe;return{bumpArrayVersion:n,handleArrayMove:a,handleArrayRemove:r,handleArraySwap:i,handleArrayInsert:o}}function Xt(e){return{values:e.values??{},errorMap:e.errorMap??{},fieldMetaBase:e.fieldMetaBase??{},formGroupStateBase:e.formGroupStateBase??{},isSubmitted:e.isSubmitted??!1,isSubmitting:e.isSubmitting??!1,isValidating:e.isValidating??!1,submissionAttempts:e.submissionAttempts??0,isSubmitSuccessful:e.isSubmitSuccessful??!1,validationMetaMap:e.validationMetaMap??{onChange:void 0,onBlur:void 0,onSubmit:void 0,onMount:void 0,onServer:void 0,onDynamic:void 0}}}class jo{constructor(n){var o;this.options={},this.fieldInfo={},this.formGroupApis=new Set,this.mount=()=>{var g,y;const u=this.store.subscribe(()=>{Qg(this)}),l=Ne.on("request-form-state",v=>{v.payload.id===this._formId&&Ne.emit("form-api",{id:this._formId,state:this.store.state,options:this.options})}),s=Ne.on("request-form-reset",v=>{v.payload.id===this._formId&&this.reset()}),c=Ne.on("request-form-force-submit",v=>{v.payload.id===this._formId&&(this._devtoolsSubmissionOverride=!0,this.handleSubmit(),this._devtoolsSubmissionOverride=!1)}),d=()=>{c(),s(),l(),u.unsubscribe(),Ne.emit("form-unmounted",{id:this._formId})};(y=(g=this.options.listeners)==null?void 0:g.onMount)==null||y.call(g,{formApi:this});const{onMount:m}=this.options.validators||{};return Ne.emit("form-api",{id:this._formId,state:this.store.state,options:this.options}),m&&this.validateSync("mount"),d},this.update=u=>{if(!u)return;const l=this.options;this.options=u;const s=u.defaultValues&&!mn(u.defaultValues,l.defaultValues)&&!this.state.isTouched,c=!mn(u.defaultState,l.defaultState)&&!this.state.isTouched;if(!(!s&&!c)){if(pe(()=>{this.baseStore.setState(()=>Xt(Object.assign({},this.state,c?u.defaultState:{},s?{values:u.defaultValues}:{})))}),s){const d=bn(this);for(const m of Object.keys(this.fieldInfo))Array.isArray(this.getFieldValue(m))&&d.bumpArrayVersion(m)}Ne.emit("form-api",{id:this._formId,state:this.store.state,options:this.options})}},this.reset=(u,l)=>{const{fieldMeta:s}=this.state,c=this.resetFieldMeta(s);u&&!(l!=null&&l.keepDefaultValues)&&(this.options={...this.options,defaultValues:u}),this.baseStore.setState(()=>{var m;let d=u??this.options.defaultValues??((m=this.options.defaultState)==null?void 0:m.values);return u||Object.values(this.fieldInfo).forEach(g=>{g.instance&&g.instance.options.defaultValue!==void 0&&(d=er(d,g.instance.name,g.instance.options.defaultValue))}),Xt({...this.options.defaultState,values:d,fieldMetaBase:c})})},this.validateAllFields=async u=>{const l=[];return pe(()=>{Object.values(this.fieldInfo).forEach(c=>{if(!c.instance)return;const d=c.instance;l.push(Promise.resolve().then(()=>d.validate(u,{skipFormValidation:!0,skipGroupValidation:!0}))),c.instance.store.state.meta.isTouched||c.instance.setMeta(m=>({...m,isTouched:!0}))})}),(await Promise.all(l)).flat()},this.validateArrayFieldsStartingFrom=async(u,l,s)=>{const c=this.getFieldValue(u),d=Array.isArray(c)?Math.max(c.length-1,0):null,m=[`${u}[${l}]`];for(let p=l+1;p<=(d??0);p++)m.push(`${u}[${p}]`);const g=Object.keys(this.fieldInfo).filter(p=>m.some(b=>p.startsWith(b))),y=[];return pe(()=>{g.forEach(p=>{y.push(Promise.resolve().then(()=>this.validateField(p,s)))})}),(await Promise.all(y)).flat()},this.validateField=(u,l)=>{var c,d;const s=(c=this.fieldInfo[u])==null?void 0:c.instance;if(!s){const{hasErrored:m}=this.validateSync(l);return m&&!this.options.asyncAlways?((d=this.getFieldMeta(u))==null?void 0:d.errors)??[]:this.validateAsync(l).then(()=>{var g;return((g=this.getFieldMeta(u))==null?void 0:g.errors)??[]})}return s.store.state.meta.isTouched||s.setMeta(m=>({...m,isTouched:!0})),s.validate(l)},this.validateSync=(u,l)=>{const s=pr(u,{...this.options,form:this,group:l==null?void 0:l.group,validationLogic:this.options.validationLogic||Xe});let c=!1;const d={};return pe(()=>{var y,v,p;for(const b of s){if(!b.validate)continue;const S=this.runValidator({validate:b.validate,value:{value:this.state.values,formApi:this,validationSource:"form"},type:"validate"}),{formError:k,fieldErrors:f}=nt(S),q=nr(b.cause);let h=new Set([...Object.keys(this.state.fieldMeta),...Object.keys(f||{})]);l!=null&&l.filterFieldNames&&(h=new Set([...h].filter(l.filterFieldNames)));for(const T of h){if(this.baseStore.state.fieldMetaBase[T]===void 0&&!(f!=null&&f[T]))continue;const x=this.getFieldMeta(T)??fe,{errorMap:V,errorSourceMap:P}=x,w=f==null?void 0:f[T],{newErrorValue:A,newSource:R}=Bi({newFormValidatorError:w,isPreviousErrorFromFormValidator:(P==null?void 0:P[q])==="form",previousErrorValue:V==null?void 0:V[q]});R==="form"&&(d[T]={...d[T],[q]:w}),(V==null?void 0:V[q])!==A&&this.setFieldMeta(T,(j=fe)=>({...j,errorMap:{...j.errorMap,[q]:A},errorSourceMap:{...j.errorSourceMap,[q]:R}}))}l!=null&&l.dontUpdateFormErrorMap||((y=this.state.errorMap)==null?void 0:y[q])!==k&&this.baseStore.setState(T=>({...T,errorMap:{...T.errorMap,[q]:k}})),(k||f)&&(c=!0)}if(l!=null&&l.dontUpdateFormErrorMap)return;const m=nr("submit");(v=this.state.errorMap)!=null&&v[m]&&u!=="submit"&&!c&&this.baseStore.setState(b=>({...b,errorMap:{...b.errorMap,[m]:void 0}}));const g=nr("server");(p=this.state.errorMap)!=null&&p[g]&&u!=="server"&&!c&&this.baseStore.setState(b=>({...b,errorMap:{...b.errorMap,[g]:void 0}}))}),{hasErrored:c,fieldsErrorMap:d}},this.validateAsync=async(u,l)=>{const s=kr(u,{...this.options,form:this,group:l==null?void 0:l.group,validationLogic:this.options.validationLogic||Xe});this.state.isFormValidating||this.baseStore.setState(y=>({...y,isFormValidating:!0}));const c=[];let d;for(const y of s){if(!y.validate)continue;const v=nr(y.cause),p=this.state.validationMetaMap[v];p==null||p.lastAbortController.abort();const b=new AbortController;this.state.validationMetaMap[v]={lastAbortController:b},c.push(new Promise(async S=>{let k;try{k=await new Promise((V,P)=>{setTimeout(async()=>{if(b.signal.aborted)return V(void 0);try{V(await this.runValidator({validate:y.validate,value:{value:this.state.values,formApi:this,validationSource:"form",signal:b.signal},type:"validateAsync"}))}catch(w){P(w)}},y.debounceMs)})}catch(V){k=V}const{formError:f,fieldErrors:q}=nt(k);q&&(d=d?{...d,...q}:q);const h=nr(y.cause),T=new Set([...Object.keys(this.state.fieldMeta),...Object.keys(d||{})]);let x=Array.from(T);l!=null&&l.filterFieldNames&&(x=x.filter(l.filterFieldNames));for(const V of x){if(this.baseStore.state.fieldMetaBase[V]===void 0&&!(d!=null&&d[V]))continue;const P=this.getFieldMeta(V)??fe,{errorMap:w,errorSourceMap:A}=P,R=d==null?void 0:d[V],{newErrorValue:j,newSource:O}=Bi({newFormValidatorError:R,isPreviousErrorFromFormValidator:(A==null?void 0:A[h])==="form",previousErrorValue:w==null?void 0:w[h]});(w==null?void 0:w[h])!==j&&this.setFieldMeta(V,(_=fe)=>({..._,errorMap:{..._.errorMap,[h]:j},errorSourceMap:{..._.errorSourceMap,[h]:O}}))}l!=null&&l.dontUpdateFormErrorMap||this.baseStore.setState(V=>({...V,errorMap:{...V.errorMap,[h]:f}})),S(d?{fieldErrors:d,errorMapKey:h}:void 0)}))}let m=[];const g={};if(c.length){m=await Promise.all(c);for(const y of m)if(y!=null&&y.fieldErrors){const{errorMapKey:v}=y;for(const[p,b]of Object.entries(y.fieldErrors)){const k={...g[p]||{},[v]:b};g[p]=k}}}return this.baseStore.setState(y=>({...y,isFormValidating:!1})),g},this.validate=(u,l)=>{const{hasErrored:s,fieldsErrorMap:c}=this.validateSync(u,l);return s&&!this.options.asyncAlways?c:this.validateAsync(u,l)},this._handleSubmit=async u=>{var c,d,m,g,y,v,p,b,S,k;this.baseStore.setState(f=>({...f,isSubmitted:!1,submissionAttempts:f.submissionAttempts+1,isSubmitSuccessful:!1})),pe(()=>{Object.values(this.fieldInfo).forEach(f=>{f.instance&&(f.instance.store.state.meta.isTouched||f.instance.setMeta(q=>({...q,isTouched:!0})))})});const l=u??this.options.onSubmitMeta;if(!this.state.canSubmit&&!this._devtoolsSubmissionOverride&&this.baseStore.state.submissionAttempts<=1){(d=(c=this.options).onSubmitInvalid)==null||d.call(c,{value:this.state.values,formApi:this,meta:l});return}this.baseStore.setState(f=>({...f,isSubmitting:!0}));const s=()=>{this.baseStore.setState(f=>({...f,isSubmitting:!1}))};if(await this.validateAllFields("submit"),!this.state.isFieldsValid){s(),(g=(m=this.options).onSubmitInvalid)==null||g.call(m,{value:this.state.values,formApi:this,meta:l}),Ne.emit("form-submission",{id:this._formId,submissionAttempt:this.state.submissionAttempts,successful:!1,stage:"validateAllFields",errors:Object.values(this.state.fieldMeta).map(f=>f.errors).flat()});return}if(await this.validate("submit"),!this.state.isValid){s(),(v=(y=this.options).onSubmitInvalid)==null||v.call(y,{value:this.state.values,formApi:this,meta:l}),Ne.emit("form-submission",{id:this._formId,submissionAttempt:this.state.submissionAttempts,successful:!1,stage:"validate",errors:this.state.errors});return}pe(()=>{Object.values(this.fieldInfo).forEach(f=>{var q;(q=f.instance)==null||q.triggerOnSubmitListener()})}),(b=(p=this.options.listeners)==null?void 0:p.onSubmit)==null||b.call(p,{formApi:this,meta:l});try{await((k=(S=this.options).onSubmit)==null?void 0:k.call(S,{value:this.state.values,formApi:this,meta:l})),pe(()=>{this.baseStore.setState(f=>({...f,isSubmitted:!0,isSubmitSuccessful:!0})),Ne.emit("form-submission",{id:this._formId,submissionAttempt:this.state.submissionAttempts,successful:!0}),s()})}catch(f){throw this.baseStore.setState(q=>({...q,isSubmitSuccessful:!1})),Ne.emit("form-submission",{id:this._formId,submissionAttempt:this.state.submissionAttempts,successful:!1,stage:"inflight",onError:f}),s(),f}},this.getFieldValue=u=>Gr(this.state.values,u),this.getFieldMeta=u=>this.state.fieldMeta[u],this.getFormGroupMeta=u=>this.formGroupMetaDerived.state[u],this.getFieldInfo=u=>{var l;return(l=this.fieldInfo)[u]||(l[u]={instance:null,validationMetaMap:{onChange:void 0,onBlur:void 0,onSubmit:void 0,onMount:void 0,onServer:void 0,onDynamic:void 0}})},this.setFieldMeta=(u,l)=>{this.baseStore.setState(s=>({...s,fieldMetaBase:{...s.fieldMetaBase,[u]:Ar(l,s.fieldMetaBase[u])}}))},this.resetFieldMeta=u=>Object.keys(u).reduce((l,s)=>{const c=s;return l[c]=fe,l},{}),this.setFieldValue=(u,l,s)=>{var g;const c=(s==null?void 0:s.dontUpdateMeta)??!1,d=(s==null?void 0:s.dontRunListeners)??!1,m=(s==null?void 0:s.dontValidate)??!1;pe(()=>{c||this.setFieldMeta(u,y=>({...y,isTouched:!0,isDirty:!0,errorMap:{...y==null?void 0:y.errorMap,onMount:void 0}})),this.baseStore.setState(y=>({...y,values:er(y.values,u,l)}))}),d||(g=this.getFieldInfo(u).instance)==null||g.triggerOnChangeListener(),m||this.validateField(u,"change")},this.deleteField=u=>{const s=[...Object.keys(this.fieldInfo).filter(c=>{const d=u.toString();return c!==d&&c.startsWith(d)}),u];this.baseStore.setState(c=>{const d={...c};return s.forEach(m=>{d.values=Wg(d.values,m),delete this.fieldInfo[m],delete d.fieldMetaBase[m]}),d})},this.pushFieldValue=(u,l,s)=>{this.setFieldValue(u,c=>[...Array.isArray(c)?c:[],l],s),bn(this).bumpArrayVersion(u)},this.insertFieldValue=async(u,l,s,c)=>{this.setFieldValue(u,m=>[...m.slice(0,l),s,...m.slice(l)],Je(c,{dontValidate:!0}));const d=(c==null?void 0:c.dontValidate)??!1;d||await this.validateField(u,"change"),bn(this).handleArrayInsert(u,l),d||await this.validateArrayFieldsStartingFrom(u,l,"change")},this.replaceFieldValue=async(u,l,s,c)=>{this.setFieldValue(u,m=>m.map((g,y)=>y===l?s:g),Je(c,{dontValidate:!0})),bn(this).bumpArrayVersion(u),((c==null?void 0:c.dontValidate)??!1)||(await this.validateField(u,"change"),await this.validateArrayFieldsStartingFrom(u,l,"change"))},this.removeFieldValue=async(u,l,s)=>{const c=this.getFieldValue(u),d=Array.isArray(c)?Math.max(c.length-1,0):null;if(this.setFieldValue(u,g=>g.filter((y,v)=>v!==l),Je(s,{dontValidate:!0})),bn(this).handleArrayRemove(u,l),d!==null){const g=`${u}[${d}]`;this.deleteField(g)}((s==null?void 0:s.dontValidate)??!1)||(await this.validateField(u,"change"),await this.validateArrayFieldsStartingFrom(u,l,"change"))},this.swapFieldValues=(u,l,s,c)=>{this.setFieldValue(u,m=>{const g=m[l],y=m[s];return er(er(m,`${l}`,y),`${s}`,g)},Je(c,{dontValidate:!0})),bn(this).handleArraySwap(u,l,s),((c==null?void 0:c.dontValidate)??!1)||(this.validateField(u,"change"),this.validateField(`${u}[${l}]`,"change"),this.validateField(`${u}[${s}]`,"change"))},this.moveFieldValues=(u,l,s,c)=>{this.setFieldValue(u,m=>{const g=[...m];return g.splice(s,0,g.splice(l,1)[0]),g},Je(c,{dontValidate:!0})),bn(this).handleArrayMove(u,l,s),((c==null?void 0:c.dontValidate)??!1)||(this.validateField(u,"change"),this.validateField(`${u}[${l}]`,"change"),this.validateField(`${u}[${s}]`,"change"))},this.clearFieldValues=(u,l)=>{const s=this.getFieldValue(u),c=Array.isArray(s)?Math.max(s.length-1,0):null;if(this.setFieldValue(u,[],Je(l,{dontValidate:!0})),bn(this).bumpArrayVersion(u),c!==null)for(let m=0;m<=c;m++){const g=`${u}[${m}]`;this.deleteField(g)}((l==null?void 0:l.dontValidate)??!1)||this.validateField(u,"change")},this.resetField=u=>{this.baseStore.setState(l=>{var m;const s=(m=this.getFieldInfo(u).instance)==null?void 0:m.options.defaultValue,c=Gr(this.options.defaultValues,u),d=s??c;return{...l,fieldMetaBase:{...l.fieldMetaBase,[u]:fe},values:d!==void 0?er(l.values,u,d):l.values}})},this.setErrorMap=u=>{pe(()=>{Object.entries(u).forEach(([l,s])=>{const c=l;if(Zr(s)){const{formError:d,fieldErrors:m}=nt(s);for(const g of Object.keys(this.fieldInfo))this.getFieldMeta(g)&&this.setFieldMeta(g,v=>({...v,errorMap:{...v.errorMap,[c]:m==null?void 0:m[g]},errorSourceMap:{...v.errorSourceMap,[c]:"form"}}));this.baseStore.setState(g=>({...g,errorMap:{...g.errorMap,[c]:d}}))}else this.baseStore.setState(d=>({...d,errorMap:{...d.errorMap,[c]:s}}))})})},this.getAllErrors=()=>({form:{errors:this.state.errors,errorMap:this.state.errorMap},fields:Object.entries(this.state.fieldMeta).reduce((u,[l,s])=>(Object.keys(s).length&&s.errors.length&&(u[l]={errors:s.errors,errorMap:s.errorMap}),u),{})}),this.parseValuesWithSchema=u=>ga.validate({value:this.state.values,validationSource:"form"},u),this.parseValuesWithSchemaAsync=u=>ga.validateAsync({value:this.state.values,validationSource:"form"},u),this.timeoutIds={validations:{},listeners:{},formListeners:{}},this._formId=(n==null?void 0:n.formId)??ws(),this._devtoolsSubmissionOverride=!1;let a=Xt({...n==null?void 0:n.defaultState,values:(n==null?void 0:n.defaultValues)??((o=n==null?void 0:n.defaultState)==null?void 0:o.values)});if(n!=null&&n.transform){a=n.transform({state:a}).state;for(const u of Object.keys(a.errorMap)){const l=a.errorMap[u];if(!(l===void 0||!Zr(l)))for(const s of Object.keys(l.fields)){const c=l.fields[s];if(c===void 0)continue;const d=a.fieldMetaBase[s];a.fieldMetaBase[s]={isTouched:!1,isValidating:!1,isBlurred:!1,isDirty:!1,_arrayVersion:0,_pendingValidationsCount:0,...d??{},errorSourceMap:{...(d==null?void 0:d.errorSourceMap)??{},onChange:"form"},errorMap:{...(d==null?void 0:d.errorMap)??{},[u]:c}}}}}this.baseStore=Va(a);let r;this.fieldMetaDerived=Va(u=>{var d,m,g;const l=this.baseStore.get();let s=0;const c={};for(const y of Object.keys(l.fieldMetaBase)){const v=l.fieldMetaBase[y],p=r==null?void 0:r.fieldMetaBase[y],b=u==null?void 0:u[y],S=Gr(l.values,y);let k=b==null?void 0:b.errors;if(!p||v.errorMap!==p.errorMap){k=Object.values(v.errorMap??{}).filter(x=>x!==void 0);const T=(d=this.getFieldInfo(y))==null?void 0:d.instance;(!T||!T.options.disableErrorFlat)&&(k=k.flat(1))}const f=!Kg(k),q=!v.isDirty,h=mn(S,((g=(m=this.getFieldInfo(y))==null?void 0:m.instance)==null?void 0:g.options.defaultValue)??Gr(this.options.defaultValues,y));if(b&&b.isPristine===q&&b.isValid===f&&b.isDefaultValue===h&&b.errors===k&&v===p){c[y]=b,s++;continue}c[y]={...v,errors:k??[],isPristine:q,isValid:f,isDefaultValue:h}}return Object.keys(l.fieldMetaBase).length?u&&s===Object.keys(l.fieldMetaBase).length?u:(r=this.baseStore.get(),c):c}),this.formGroupMetaDerived=Va(u=>{const l=this.baseStore.get(),s=this.fieldMetaDerived.get(),c={};for(const d of this.formGroupApis){const m=d.name,g=l.formGroupStateBase[m]??{isSubmitted:!1,isSubmitting:!1,isValidating:!1,submissionAttempts:0,isSubmitSuccessful:!1},y=s[m];let v=!1,p=!0,b=!1,S=!1,k=!0,f=!1;for(const M in s){if(M===m||!ca(m,M))continue;const I=s[M];I&&(I.isValidating&&(v=!0),I.isValid||(p=!1),I.isTouched&&(b=!0),I.isBlurred&&(S=!0),I.isDefaultValue||(k=!1),I.isDirty&&(f=!0))}const q=!f,h=!!v||g.isValidating,T=(y==null?void 0:y.errorMap)??{},x=(y==null?void 0:y.errorSourceMap)??{},V=!!(T.onMount||Object.entries(s).some(([M,I])=>I&&M!==m&&ca(m,M)&&I.errorMap.onMount)),P=u==null?void 0:u[m];let w=(P==null?void 0:P.errors)??[];(!P||P.__srcErrorMap!==T)&&(w=Object.values(T).reduce((M,I)=>{if(I===void 0)return M;if(I&&typeof I=="object"&&"fields"in I){const D=I.group;return D!==void 0&&M.push(D),M}return M.push(I),M},[]));const A=w.length===0,R=p&&A,j=d.options.canSubmitWhenInvalid??!1,O=g.submissionAttempts===0&&!b&&!V||!h&&!g.isSubmitting&&R||j;if(P&&P.errorMap===T&&P.errorSourceMap===x&&P.errors===w&&P.isFieldsValidating===v&&P.isFieldsValid===p&&P.isGroupValid===A&&P.isValid===R&&P.canSubmit===O&&P.isTouched===b&&P.isBlurred===S&&P.isPristine===q&&P.isDefaultValue===k&&P.isDirty===f&&P.isValidating===h&&P.isSubmitting===g.isSubmitting&&P.isSubmitted===g.isSubmitted&&P.submissionAttempts===g.submissionAttempts&&P.isSubmitSuccessful===g.isSubmitSuccessful){c[m]=P;continue}const _={...g,errorMap:T,errorSourceMap:x,_arrayVersion:(y==null?void 0:y._arrayVersion)??0,isTouched:b,isBlurred:S,isDirty:f,isPristine:q,isDefaultValue:k,isValid:R,errors:w,isValidating:h,isFieldsValidating:v,isFieldsValid:p,isGroupValid:A,canSubmit:O};Object.defineProperty(_,"__srcErrorMap",{value:T,enumerable:!1,configurable:!0}),c[m]=_}return c});let i;this.store=Va(u=>{var A,R;const l=this.baseStore.get(),s=this.fieldMetaDerived.get(),c=Object.values(s).filter(Boolean),d=c.some(j=>j.isValidating),m=c.every(j=>j.isValid),g=c.some(j=>j.isTouched),y=c.some(j=>j.isBlurred),v=c.every(j=>j.isDefaultValue),p=g&&((A=l.errorMap)==null?void 0:A.onMount),b=c.some(j=>j.isDirty),S=!b,k=!!((R=l.errorMap)!=null&&R.onMount||c.some(j=>{var O;return(O=j==null?void 0:j.errorMap)==null?void 0:O.onMount})),f=!!d;let q=(u==null?void 0:u.errors)??[];(!i||l.errorMap!==i.errorMap)&&(q=Object.values(l.errorMap).reduce((j,O)=>O===void 0?j:O&&Zr(O)?(j.push(O.form),j):(j.push(O),j),[]));const h=q.length===0,T=m&&h,x=this.options.canSubmitWhenInvalid??!1,V=l.submissionAttempts===0&&!g&&!k||!f&&!l.isSubmitting&&T||x;let P=l.errorMap;if(p&&(q=q.filter(j=>j!==l.errorMap.onMount),P=Object.assign(P,{onMount:void 0})),u&&i&&u.errorMap===P&&u.fieldMeta===this.fieldMetaDerived.state&&u.errors===q&&u.isFieldsValidating===d&&u.isFieldsValid===m&&u.isFormValid===h&&u.isValid===T&&u.canSubmit===V&&u.isTouched===g&&u.isBlurred===y&&u.isPristine===S&&u.isDefaultValue===v&&u.isDirty===b&&mn(i,l))return u;const w={...l,errorMap:P,fieldMeta:this.fieldMetaDerived.state,errors:q,isFieldsValidating:d,isFieldsValid:m,isFormValid:h,isValid:T,canSubmit:V,isTouched:g,isBlurred:y,isPristine:S,isDefaultValue:v,isDirty:b};return i=this.baseStore.get(),w}),this.handleSubmit=this.handleSubmit.bind(this),this.update(n||{})}get state(){return this.store.state}get formId(){return this._formId}runValidator(n){return yu(n.validate)?ga[n.type](n.value,n.validate):n.validate(n.value)}handleSubmit(n){return this._handleSubmit(n)}}function nt(e){if(e){if(Zr(e)){const n=nt(e.form).formError,a=e.fields;return{formError:n,fieldErrors:a}}return{formError:e}}return{formError:void 0}}function nr(e){switch(e){case"submit":return"onSubmit";case"blur":return"onBlur";case"mount":return"onMount";case"server":return"onServer";case"dynamic":return"onDynamic";case"change":default:return"onChange"}}class br{constructor(n){this.options={},this.mount=()=>{var i,o;this.options.defaultValue!==void 0&&!this.getMeta().isTouched&&this.form.setFieldValue(this.name,this.options.defaultValue,{dontUpdateMeta:!0});const a=this.getInfo();a.instance=this,this.update(this.options);const{onMount:r}=this.options.validators||{};if(r){const u=this.runValidator({validate:r,value:{value:this.state.value,fieldApi:this,validationSource:"field"},type:"validate"});u&&this.setMeta(l=>({...l,errorMap:{...l==null?void 0:l.errorMap,onMount:u},errorSourceMap:{...l==null?void 0:l.errorSourceMap,onMount:"field"}}))}return(o=(i=this.options.listeners)==null?void 0:i.onMount)==null||o.call(i,{value:this.state.value,fieldApi:this}),()=>{var l,s,c,d;for(const[m,g]of Object.entries(this.timeoutIds.validations))g&&(clearTimeout(g),this.timeoutIds.validations[m]=null);for(const[m,g]of Object.entries(this.timeoutIds.listeners))g&&(clearTimeout(g),this.timeoutIds.listeners[m]=null);for(const[m,g]of Object.entries(this.timeoutIds.formListeners))g&&(clearTimeout(g),this.timeoutIds.formListeners[m]=null);const u=this.form.fieldInfo[this.name];if(u&&u.instance===this){for(const[m,g]of Object.entries(u.validationMetaMap))g==null||g.lastAbortController.abort(),u.validationMetaMap[m]=void 0;this.form.baseStore.setState(m=>{var g,y,v;return{...m,fieldMetaBase:{...m.fieldMetaBase,[this.name]:{...fe,isTouched:((g=m.fieldMetaBase[this.name])==null?void 0:g.isTouched)??fe.isTouched,isBlurred:((y=m.fieldMetaBase[this.name])==null?void 0:y.isBlurred)??fe.isBlurred,isDirty:((v=m.fieldMetaBase[this.name])==null?void 0:v.isDirty)??fe.isDirty}}}}),u.instance=null,(s=(l=this.options.listeners)==null?void 0:l.onUnmount)==null||s.call(l,{value:this.state.value,fieldApi:this}),(d=(c=this.form.options.listeners)==null?void 0:c.onFieldUnmount)==null||d.call(c,{formApi:this.form,fieldApi:this})}}},this.update=a=>{if(this.options=a,this.name=a.name,!this.state.meta.isTouched&&this.options.defaultValue!==void 0){const r=this.form.getFieldValue(this.name);mn(r,a.defaultValue)||this.form.setFieldValue(this.name,a.defaultValue,{dontUpdateMeta:!0,dontValidate:!0,dontRunListeners:!0})}this.form.getFieldMeta(this.name)||this.form.setFieldMeta(this.name,this.state.meta)},this.getValue=()=>this.form.getFieldValue(this.name),this.setValue=(a,r)=>{this.form.setFieldValue(this.name,a,Je(r,{dontRunListeners:!0,dontValidate:!0})),r!=null&&r.dontRunListeners||this.triggerOnChangeListener(),r!=null&&r.dontValidate||this.validate("change")},this.getMeta=()=>this.store.state.meta,this.setMeta=a=>this.form.setFieldMeta(this.name,a),this.getInfo=()=>this.form.getFieldInfo(this.name),this.pushValue=(a,r)=>{this.form.pushFieldValue(this.name,a,Je(r,{dontRunListeners:!0})),r!=null&&r.dontRunListeners||this.triggerOnChangeListener()},this.insertValue=(a,r,i)=>{this.form.insertFieldValue(this.name,a,r,Je(i,{dontRunListeners:!0})),i!=null&&i.dontRunListeners||this.triggerOnChangeListener()},this.replaceValue=(a,r,i)=>{this.form.replaceFieldValue(this.name,a,r,Je(i,{dontRunListeners:!0})),i!=null&&i.dontRunListeners||this.triggerOnChangeListener()},this.removeValue=(a,r)=>{this.form.removeFieldValue(this.name,a,Je(r,{dontRunListeners:!0})),r!=null&&r.dontRunListeners||this.triggerOnChangeListener()},this.swapValues=(a,r,i)=>{this.form.swapFieldValues(this.name,a,r,Je(i,{dontRunListeners:!0})),i!=null&&i.dontRunListeners||this.triggerOnChangeListener()},this.moveValue=(a,r,i)=>{this.form.moveFieldValues(this.name,a,r,Je(i,{dontRunListeners:!0})),i!=null&&i.dontRunListeners||this.triggerOnChangeListener()},this.clearValues=a=>{this.form.clearFieldValues(this.name,Je(a,{dontRunListeners:!0})),a!=null&&a.dontRunListeners||this.triggerOnChangeListener()},this.getLinkedFields=a=>{const r=Object.values(this.form.fieldInfo),i=[];for(const o of r){if(!o.instance||!(o.instance instanceof br))continue;const{onChangeListenTo:u,onBlurListenTo:l}=o.instance.options.validators||{};a==="change"&&(u!=null&&u.includes(this.name))&&i.push(o.instance),a==="blur"&&(l!=null&&l.includes(this.name))&&i.push(o.instance)}return i},this.validateSync=(a,r)=>{var c;const i=pr(a,{...this.options,form:this.form,fieldName:this.name,validationLogic:this.form.options.validationLogic||Xe}),u=this.getLinkedFields(a).reduce((d,m)=>{const g=pr(a,{...m.options,form:m.form,fieldName:m.name,validationLogic:m.form.options.validationLogic||Xe});return g.forEach(y=>{y.field=m}),d.concat(g)},[]);let l=!1;pe(()=>{const d=(m,g)=>{var k;const y=ar(g.cause),v=g.validate?ho(m.runValidator({validate:g.validate,value:{value:m.store.state.value,validationSource:"field",fieldApi:m},type:"validate"})):void 0,p=r[y],{newErrorValue:b,newSource:S}=ct({formLevelError:p,fieldLevelError:v});((k=m.state.meta.errorMap)==null?void 0:k[y])!==b&&m.setMeta(f=>({...f,errorMap:{...f.errorMap,[y]:b},errorSourceMap:{...f.errorSourceMap,[y]:S}})),b&&(l=!0)};for(const m of i)d(this,m);for(const m of u)m.validate&&d(m.field,m)});const s=ar("submit");return(c=this.state.meta.errorMap)!=null&&c[s]&&a!=="submit"&&!l&&this.setMeta(d=>({...d,errorMap:{...d.errorMap,[s]:void 0},errorSourceMap:{...d.errorSourceMap,[s]:void 0}})),{hasErrored:l}},this.validateAsync=async(a,r)=>{const i=kr(a,{...this.options,form:this.form,fieldName:this.name,validationLogic:this.form.options.validationLogic||Xe}),o=await r,l=this.getLinkedFields(a).reduce((v,p)=>{const b=kr(a,{...p.options,form:p.form,fieldName:p.name,validationLogic:p.form.options.validationLogic||Xe});return b.forEach(S=>{S.field=p}),v.concat(b)},[]),s=[],c=[],d=i.some(v=>v.validate),m=Array.from(new Set(l.filter(v=>v.validate).map(v=>v.field)));pe(()=>{d&&this.startValidation();for(const v of m)v.startValidation()});const g=(v,p,b)=>{const S=ar(p.cause),k=v.getInfo(),f=k.validationMetaMap[S];f==null||f.lastAbortController.abort();const q=new AbortController;k.validationMetaMap[S]={lastAbortController:q},b.push(new Promise(async h=>{var A;let T;try{T=await new Promise((R,j)=>{v.timeoutIds.validations[p.cause]&&(clearTimeout(v.timeoutIds.validations[p.cause]),v.endValidation()),v.timeoutIds.validations[p.cause]=setTimeout(async()=>{if(q.signal.aborted)return R(void 0);try{R(await this.runValidator({validate:p.validate,value:{value:v.store.state.value,fieldApi:v,signal:q.signal,validationSource:"field"},type:"validateAsync"}))}catch(O){j(O)}},p.debounceMs)})}catch(R){T=R}if(q.signal.aborted)return h(void 0);const x=ho(T),V=(A=o[v.name])==null?void 0:A[S],{newErrorValue:P,newSource:w}=ct({formLevelError:V,fieldLevelError:x});if(v.getInfo().instance!==v)return h(void 0);v.setMeta(R=>({...R,errorMap:{...R==null?void 0:R.errorMap,[S]:P},errorSourceMap:{...R.errorSourceMap,[S]:w}})),h(P)}))};for(const v of i)v.validate&&g(this,v,s);for(const v of l)v.validate&&g(v.field,v,c);let y=[];return(s.length||c.length)&&(y=await Promise.all(s),await Promise.all(c)),pe(()=>{d&&this.endValidation();for(const v of m)v.endValidation()}),y.filter(Boolean)},this.validate=(a,r)=>{var g,y;if(!this.state.meta.isTouched)return[];const i=r!=null&&r.skipGroupValidation?[]:Array.from(this.form.formGroupApis).filter(v=>this.name.startsWith(v.name));let u=(r!=null&&r.skipFormValidation?{fieldsErrorMap:{}}:this.form.validateSync(a)).fieldsErrorMap[this.name]??{};if(!(r!=null&&r.skipFormValidation))for(const v of i){if(v.state.meta.submissionAttempts===0)continue;const{fieldsErrorMap:p}=this.form.validateSync(a,{group:v,dontUpdateFormErrorMap:!0,filterFieldNames:b=>ca(v.name,b)});u={...u,...p[this.name]??{}}}const{hasErrored:l}=this.validateSync(a,u),s=new WeakMap;for(const v of i){const{hasErrored:p}=v.validateSync(a,{},{skipRelatedFieldValidation:!0});s.set(v,p)}if(l&&!this.options.asyncAlways){(g=this.getInfo().validationMetaMap[ar(a)])==null||g.lastAbortController.abort();const v=[];for(const p of i)(y=p.getInfo().validationMetaMap[ar(a)])==null||y.lastAbortController.abort(),v.push(p.state.meta.errors);return[...this.state.meta.errors,...v.flat()]}const c=r!=null&&r.skipFormValidation?Promise.resolve({}):this.form.validateAsync(a),d=this.validateAsync(a,c),m=[];for(const v of i)s.get(v)&&!v.options.asyncAlways||m.push(v.validateAsync(a,c,{skipRelatedFieldValidation:!0}));return m.length===0?d:Promise.all([d,...m]).then(v=>v.flat())},this.handleChange=a=>{this.setValue(a)},this.handleBlur=()=>{this.state.meta.isTouched||this.setMeta(r=>({...r,isTouched:!0})),this.state.meta.isBlurred||this.setMeta(r=>({...r,isBlurred:!0})),this.validate("blur"),this.triggerOnBlurListener()},this.setErrorMap=a=>{this.setMeta(r=>({...r,errorMap:{...r.errorMap,...a}}))},this.parseValueWithSchema=a=>ga.validate({value:this.state.value,validationSource:"field"},a),this.parseValueWithSchemaAsync=a=>ga.validateAsync({value:this.state.value,validationSource:"field"},a),this.triggerOnBlurListener=()=>{var i,o,u,l,s,c;const a=(i=this.form.options.listeners)==null?void 0:i.onBlurDebounceMs;a&&a>0?(this.timeoutIds.formListeners.blur&&clearTimeout(this.timeoutIds.formListeners.blur),this.timeoutIds.formListeners.blur=setTimeout(()=>{var d,m;(m=(d=this.form.options.listeners)==null?void 0:d.onBlur)==null||m.call(d,{formApi:this.form,fieldApi:this})},a)):(u=(o=this.form.options.listeners)==null?void 0:o.onBlur)==null||u.call(o,{formApi:this.form,fieldApi:this});const r=(l=this.options.listeners)==null?void 0:l.onBlurDebounceMs;r&&r>0?(this.timeoutIds.listeners.blur&&clearTimeout(this.timeoutIds.listeners.blur),this.timeoutIds.listeners.blur=setTimeout(()=>{var d,m;(m=(d=this.options.listeners)==null?void 0:d.onBlur)==null||m.call(d,{value:this.state.value,fieldApi:this})},r)):(c=(s=this.options.listeners)==null?void 0:s.onBlur)==null||c.call(s,{value:this.state.value,fieldApi:this})},this.triggerOnChangeListener=()=>{var i,o,u,l,s,c;const a=(i=this.form.options.listeners)==null?void 0:i.onChangeDebounceMs;a&&a>0?(this.timeoutIds.formListeners.change&&clearTimeout(this.timeoutIds.formListeners.change),this.timeoutIds.formListeners.change=setTimeout(()=>{var d,m;(m=(d=this.form.options.listeners)==null?void 0:d.onChange)==null||m.call(d,{formApi:this.form,fieldApi:this})},a)):(u=(o=this.form.options.listeners)==null?void 0:o.onChange)==null||u.call(o,{formApi:this.form,fieldApi:this});const r=(l=this.options.listeners)==null?void 0:l.onChangeDebounceMs;r&&r>0?(this.timeoutIds.listeners.change&&clearTimeout(this.timeoutIds.listeners.change),this.timeoutIds.listeners.change=setTimeout(()=>{var d,m;(m=(d=this.options.listeners)==null?void 0:d.onChange)==null||m.call(d,{value:this.state.value,fieldApi:this})},r)):(c=(s=this.options.listeners)==null?void 0:s.onChange)==null||c.call(s,{value:this.state.value,fieldApi:this});for(const d of this.form.formGroupApis)ca(d.name,this.name)&&d.triggerOnChangeListener()},this.triggerOnSubmitListener=()=>{var a,r;(r=(a=this.options.listeners)==null?void 0:a.onSubmit)==null||r.call(a,{value:this.state.value,fieldApi:this})},this.form=n.form,this.name=n.name,this.options=n,this.timeoutIds={validations:{},listeners:{},formListeners:{}},this.store=Va(a=>{this.form.store.get();const r=this.form.getFieldMeta(this.name)??{...fe,...n.defaultMeta};let i=this.form.getFieldValue(this.name);return!r.isTouched&&i===void 0&&this.options.defaultValue!==void 0&&!mn(i,this.options.defaultValue)&&(i=this.options.defaultValue),a&&a.value===i&&a.meta===r?a:{value:i,meta:r}})}get state(){return this.store.state}runValidator(n){return yu(n.validate)?ga[n.type](n.value,n.validate):n.validate(n.value)}startValidation(){this.setMeta(n=>{const a=n._pendingValidationsCount+1;return{...n,_pendingValidationsCount:a,isValidating:a>0&&!n.isValidating?!0:n.isValidating}})}endValidation(){this.setMeta(n=>{const a=Math.max(0,n._pendingValidationsCount-1);return{...n,_pendingValidationsCount:a,isValidating:a===0&&n.isValidating?!1:n.isValidating}})}}function ho(e){if(e)return e}function ar(e){switch(e){case"submit":return"onSubmit";case"blur":return"onBlur";case"mount":return"onMount";case"server":return"onServer";case"dynamic":return"onDynamic";case"change":default:return"onChange"}}function Zt(e){return{isSubmitted:e.isSubmitted??!1,isSubmitting:e.isSubmitting??!1,isValidating:e.isValidating??!1,submissionAttempts:e.submissionAttempts??0,isSubmitSuccessful:e.isSubmitSuccessful??!1}}function Xg(e){return{...fe,...e,errors:[],isPristine:!0,isValid:!0,isDefaultValue:!0,isFieldsValidating:!1,isFieldsValid:!0,isGroupValid:!0,canSubmit:!0,isSubmitting:!1,isSubmitted:!1,isValidating:!1,submissionAttempts:0,isSubmitSuccessful:!1}}class Sr{constructor(n){this.options={},this.setFormGroupState=a=>{this.form.baseStore.setState(r=>{const i=r.formGroupStateBase[this.name]??Zt({});return{...r,formGroupStateBase:{...r.formGroupStateBase,[this.name]:a(i)}}})},this._lastDistributedFieldNames={},this.update=a=>{if(this.options=a,this.name=a.name,!this.state.meta.isTouched&&this.options.defaultValue!==void 0){const r=this.form.getFieldValue(this.name);mn(r,a.defaultValue)||this.form.setFieldValue(this.name,a.defaultValue,{dontUpdateMeta:!0,dontValidate:!0,dontRunListeners:!0})}this.form.getFieldMeta(this.name)||this.form.setFieldMeta(this.name,{...fe,...this.options.defaultMeta})},this.mount=()=>{var r,i;this.update(this.options),this.form.formGroupApis.add(this),this.fieldInfo.instance=this,this.form.baseStore.setState(o=>({...o,formGroupStateBase:{...o.formGroupStateBase,[this.name]:o.formGroupStateBase[this.name]??Zt({...this.options.defaultState})}}));const{onMount:a}=this.options.validators||{};if(a){const o=this.runValidator({validate:a,value:{value:this.state.value,groupApi:this,validationSource:"form"},type:"validate"});let u=o,l;ni(o)&&(u=o.group,l=o.fields);const s=ei(u);s&&this.setMeta(c=>({...c,errorMap:{...c.errorMap,onMount:s},errorSourceMap:{...c.errorSourceMap,onMount:"field"}})),this.distributeFieldErrors("onMount",l)}return(i=(r=this.options.listeners)==null?void 0:r.onMount)==null||i.call(r,{value:this.state.value,groupApi:this}),()=>{var o,u;for(const[l,s]of Object.entries(this.timeoutIds.validations))s&&(clearTimeout(s),this.timeoutIds.validations[l]=null);for(const[l,s]of Object.entries(this.timeoutIds.listeners))s&&(clearTimeout(s),this.timeoutIds.listeners[l]=null);for(const[l,s]of Object.entries(this.timeoutIds.formListeners))s&&(clearTimeout(s),this.timeoutIds.formListeners[l]=null);if(this.fieldInfo.instance===this){for(const[l,s]of Object.entries(this.fieldInfo.validationMetaMap))s==null||s.lastAbortController.abort(),this.fieldInfo.validationMetaMap[l]=void 0;this.form.formGroupApis.delete(this),this.form.baseStore.setState(l=>({...l,formGroupStateBase:{...l.formGroupStateBase,[this.name]:Zt({})}})),this.fieldInfo.instance=null,(u=(o=this.options.listeners)==null?void 0:o.onUnmount)==null||u.call(o,{value:this.state.value,groupApi:this})}}},this.setValue=(a,r)=>{this.form.setFieldValue(this.name,a,Je(r,{dontRunListeners:!0,dontValidate:!0})),r!=null&&r.dontRunListeners||this.triggerOnChangeListener(),r!=null&&r.dontValidate||this.validate("change")},this.getMeta=()=>this.store.state.meta,this.setMeta=a=>this.form.setFieldMeta(this.name,a),this.getInfo=()=>this.fieldInfo,this.getRelatedFields=()=>{const a=Object.values(this.form.fieldInfo),r=[];for(const i of a)i.instance&&i.instance instanceof br&&i.instance.name.startsWith(this.name)&&r.push(i.instance);return r},this.getRelatedFieldMetasDerived=()=>{const a=Object.entries(this.form.fieldMetaDerived.state),r=[];for(const[i,o]of a)i!==this.name&&ca(this.name,i)&&r.push({...o,name:i});return r},this.buildChildFieldName=a=>a===""?this.name:a.startsWith("[")?`${this.name}${a}`:`${this.name}.${a}`,this.distributeFieldErrors=(a,r)=>{const i=this._lastDistributedFieldNames[a]??new Set,o=new Set;if(r)for(const[s,c]of Object.entries(r))c==null||c===!1||o.add(this.buildChildFieldName(s));const u=new Set([...i,...o]);let l=!1;for(const s of u){const c=s.startsWith(this.name+"[")?s.slice(this.name.length):s.slice(this.name.length+1),d=r==null?void 0:r[c],m=this.form.getFieldMeta(s);if(!m&&!d)continue;const g=m==null?void 0:m.errorMap[a],y=(m==null?void 0:m.errorSourceMap[a])==="form",{newErrorValue:v,newSource:p}=Bi({newFormValidatorError:d,isPreviousErrorFromFormValidator:y,previousErrorValue:g});v&&(l=!0),!(g===v&&(m==null?void 0:m.errorSourceMap[a])===p)&&this.form.setFieldMeta(s,(b=fe)=>({...b,errorMap:{...b.errorMap,[a]:v},errorSourceMap:{...b.errorSourceMap,[a]:p}}))}return this._lastDistributedFieldNames[a]=o,l},this.validateSync=(a,r,i={})=>{var d;const o=pr(a,{...this.options,form:this.form,group:this,validationLogic:this.options.validationLogic||this.form.options.validationLogic||Xe}),l=(i.skipRelatedFieldValidation?[]:this.getRelatedFields()).reduce((m,g)=>{const y=pr(a,{...g.options,form:g.form,validationLogic:g.form.options.validationLogic||Xe});return y.forEach(v=>{v.field=g}),m.concat(y)},[]);let s=!1;pe(()=>{const m=(g,y)=>{var x;const v=zr(y.cause),p=g===this;let b;y.validate&&(b=g.runValidator({validate:y.validate,value:{value:g.store.state.value,validationSource:p?"form":"field",...g instanceof Sr?{groupApi:g}:{fieldApi:g}},type:"validate"}));let S=b,k;p&&ni(b)&&(S=b.group,k=b.fields);const f=ei(S),q=r[v],{newErrorValue:h,newSource:T}=ct({formLevelError:q,fieldLevelError:f});((x=g.state.meta.errorMap)==null?void 0:x[v])!==h&&g.setMeta(V=>({...V,errorMap:{...V.errorMap,[v]:h},errorSourceMap:{...V.errorSourceMap,[v]:T}})),h&&(s=!0),p&&this.distributeFieldErrors(v,k)&&(s=!0)};for(const g of o)m(this,g);for(const g of l)g.validate&&m(g.field,g)});const c=zr("submit");return(d=this.state.meta.errorMap)!=null&&d[c]&&a!=="submit"&&!s&&this.setMeta(m=>({...m,errorMap:{...m.errorMap,[c]:void 0},errorSourceMap:{...m.errorSourceMap,[c]:void 0}})),{hasErrored:s}},this.validateAsync=async(a,r,i={})=>{const o=kr(a,{...this.options,form:this.form,group:this,validationLogic:this.options.validationLogic||this.form.options.validationLogic||Xe}),u=await r,l=i.skipRelatedFieldValidation?[]:this.getRelatedFields(),s=l.reduce((v,p)=>{const b=kr(a,{...p.options,form:p.form,validationLogic:p.form.options.validationLogic||Xe});return b.forEach(S=>{S.field=p}),v.concat(b)},[]),c=[],d=[],m=o.some(v=>v.validate)||s.some(v=>v.validate);if(m){this.state.meta.isValidating||this.setMeta(v=>({...v,isValidating:!0}));for(const v of l)v.setMeta(p=>({...p,isValidating:!0}))}const g=(v,p,b)=>{const S=zr(p.cause),k=v.getInfo(),f=k.validationMetaMap[S];f==null||f.lastAbortController.abort();const q=new AbortController;k.validationMetaMap[S]={lastAbortController:q};const h=v===this;b.push(new Promise(async T=>{var O;let x;try{x=await new Promise((_,M)=>{v.timeoutIds.validations[p.cause]&&clearTimeout(v.timeoutIds.validations[p.cause]),v.timeoutIds.validations[p.cause]=setTimeout(async()=>{if(q.signal.aborted)return _(void 0);try{_(await this.runValidator({validate:p.validate,value:{value:v.store.state.value,signal:q.signal,validationSource:h?"form":"field",...v instanceof Sr?{groupApi:v}:{fieldApi:v}},type:"validateAsync"}))}catch(I){M(I)}},p.debounceMs)})}catch(_){x=_}if(q.signal.aborted)return T(void 0);let V=x,P;h&&ni(x)&&(V=x.group,P=x.fields);const w=ei(V),A=(O=u[v.name])==null?void 0:O[S],{newErrorValue:R,newSource:j}=ct({formLevelError:A,fieldLevelError:w});if(v.getInfo().instance!==v)return T(void 0);v.setMeta(_=>({..._,errorMap:{..._==null?void 0:_.errorMap,[S]:R},errorSourceMap:{..._.errorSourceMap,[S]:j}})),h&&this.distributeFieldErrors(S,P),T(R)}))};for(const v of o)v.validate&&g(this,v,c);for(const v of s)v.validate&&g(v.field,v,d);let y=[];if((c.length||d.length)&&(y=await Promise.all(c),await Promise.all(d)),m){this.setMeta(v=>({...v,isValidating:!1}));for(const v of l)v.setMeta(p=>({...p,isValidating:!1}))}return y.filter(Boolean)},this.validateAllFields=async a=>{const r=[];return pe(()=>{Object.values(this.getRelatedFields()).forEach(o=>{r.push(Promise.resolve().then(()=>o.validate(a,{skipFormValidation:!0,skipGroupValidation:!0}))),o.store.state.meta.isTouched||o.setMeta(u=>({...u,isTouched:!0}))})}),(await Promise.all(r)).flat()},this.validateArrayFieldsStartingFrom=(a,r,i)=>this.form.validateArrayFieldsStartingFrom(a,r,i),this.validateField=(a,r)=>this.form.validateField(a,r),this.getFieldValue=a=>this.form.getFieldValue(a),this.getFieldMeta=a=>this.form.getFieldMeta(a),this.setFieldMeta=(a,r)=>this.form.setFieldMeta(a,r),this.setFieldValue=(a,r)=>this.form.setFieldValue(a,r),this.deleteField=a=>this.form.deleteField(a),this.pushFieldValue=(a,r)=>this.form.pushFieldValue(a,r),this.insertFieldValue=(a,r,i)=>this.form.insertFieldValue(a,r,i),this.replaceFieldValue=(a,r,i)=>this.form.replaceFieldValue(a,r,i),this.swapFieldValues=(a,r,i)=>this.form.swapFieldValues(a,r,i),this.moveFieldValues=(a,r,i)=>this.form.moveFieldValues(a,r,i),this.clearFieldValues=a=>this.form.clearFieldValues(a),this.resetField=a=>this.form.resetField(a),this.removeFieldValue=(a,r)=>this.form.removeFieldValue(a,r),this.areRelatedFieldsValid=()=>Object.values(this.getRelatedFields()).every(a=>a.state.meta.isValid),this.validate=(a,r)=>{var l;const{fieldsErrorMap:i}=r!=null&&r.skipFormValidation?{fieldsErrorMap:{}}:this.form.validateSync(a,{dontUpdateFormErrorMap:!0,filterFieldNames:s=>ca(this.name,s)}),{hasErrored:o}=this.validateSync(a,i[this.name]??{},{skipRelatedFieldValidation:r==null?void 0:r.skipRelatedFieldValidation});if(o&&!this.options.asyncAlways)return(l=this.getInfo().validationMetaMap[zr(a)])==null||l.lastAbortController.abort(),this.state.meta.errors;const u=r!=null&&r.skipFormValidation?Promise.resolve({}):this.form.validateAsync(a,{dontUpdateFormErrorMap:!0,filterFieldNames:s=>ca(this.name,s)});return this.validateAsync(a,u,{skipRelatedFieldValidation:r==null?void 0:r.skipRelatedFieldValidation})},this.triggerOnChangeListener=()=>{var i,o,u,l,s,c;const a=(i=this.form.options.listeners)==null?void 0:i.onChangeGroupDebounceMs;a&&a>0?(this.timeoutIds.formListeners.change&&clearTimeout(this.timeoutIds.formListeners.change),this.timeoutIds.formListeners.change=setTimeout(()=>{var d,m;(m=(d=this.form.options.listeners)==null?void 0:d.onChangeGroup)==null||m.call(d,{formApi:this.form,groupApi:this})},a)):(u=(o=this.form.options.listeners)==null?void 0:o.onChangeGroup)==null||u.call(o,{formApi:this.form,groupApi:this});const r=(l=this.options.listeners)==null?void 0:l.onChangeDebounceMs;r&&r>0?(this.timeoutIds.listeners.change&&clearTimeout(this.timeoutIds.listeners.change),this.timeoutIds.listeners.change=setTimeout(()=>{var d,m;(m=(d=this.options.listeners)==null?void 0:d.onChange)==null||m.call(d,{value:this.state.value,groupApi:this})},r)):(c=(s=this.options.listeners)==null?void 0:s.onChange)==null||c.call(s,{value:this.state.value,groupApi:this})},this.triggerOnSubmitListener=()=>{var a,r;(r=(a=this.options.listeners)==null?void 0:a.onSubmit)==null||r.call(a,{value:this.state.value,groupApi:this})},this._handleSubmit=async a=>{var o,u,l,s,c,d,m,g;this.setFormGroupState(y=>({...y,isSubmitted:!1,submissionAttempts:y.submissionAttempts+1,isSubmitSuccessful:!1})),pe(()=>{Object.values(this.getRelatedFields()).forEach(y=>{y.state.meta.isTouched||y.setMeta(v=>({...v,isTouched:!0}))})});const r=a??this.options.onSubmitMeta;this.setFormGroupState(y=>({...y,isSubmitting:!0}));const i=()=>{this.setFormGroupState(y=>({...y,isSubmitting:!1}))};if(await this.validateAllFields("submit"),!this.areRelatedFieldsValid()){i(),(u=(o=this.options).onGroupSubmitInvalid)==null||u.call(o,{value:this.state.value,groupApi:this,meta:r});return}if(await this.validate("submit",{skipRelatedFieldValidation:!0}),!this.areRelatedFieldsValid()||!this.state.meta.isValid){i(),(s=(l=this.options).onGroupSubmitInvalid)==null||s.call(l,{value:this.state.value,groupApi:this,meta:r});return}pe(()=>{Object.values(this.getRelatedFields()).forEach(y=>{var v,p;(p=(v=y.options.listeners)==null?void 0:v.onGroupSubmit)==null||p.call(v,{value:y.state.value,fieldApi:y})})}),(d=(c=this.options.listeners)==null?void 0:c.onSubmit)==null||d.call(c,{groupApi:this,value:this.state.value});try{await((g=(m=this.options).onGroupSubmit)==null?void 0:g.call(m,{value:this.state.value,groupApi:this,meta:r})),pe(()=>{this.setFormGroupState(y=>({...y,isSubmitted:!0,isSubmitSuccessful:!0})),i()})}catch(y){throw this.setFormGroupState(v=>({...v,isSubmitSuccessful:!1})),i(),y}},this.form=n.form,this.name=n.name,this.options=n,this.timeoutIds={validations:{},listeners:{},formListeners:{}},this.fieldInfo={instance:null,validationMetaMap:{onChange:void 0,onBlur:void 0,onSubmit:void 0,onMount:void 0,onServer:void 0,onDynamic:void 0}},this.store=Va(a=>{this.form.formGroupMetaDerived.get(),this.form.baseStore.get();const r=this.form.getFormGroupMeta(this.name)??Xg(n.defaultMeta);let i=this.form.getFieldValue(this.name);return!r.isTouched&&i===void 0&&this.options.defaultValue!==void 0&&!mn(i,this.options.defaultValue)&&(i=this.options.defaultValue),a&&a.value===i&&a.meta===r?a:{value:i,meta:r}}),this.handleSubmit=this.handleSubmit.bind(this)}get state(){return this.store.state}runValidator(n){if(yu(n.validate)){const a=ga[n.type](n.value,n.validate);return n.type==="validate"?Vo(a):a.then(Vo)}return n.validate(n.value)}handleSubmit(n){return this._handleSubmit(n)}}function ei(e){if(e)return e}function ni(e){return!!e&&typeof e=="object"&&"fields"in e}function Vo(e){if(!e||typeof e!="object"||!("form"in e)&&!("fields"in e))return e;const{form:n,fields:a,...r}=e;return{...r,group:n,fields:a}}function zr(e){switch(e){case"submit":return"onSubmit";case"blur":return"onBlur";case"mount":return"onMount";case"server":return"onServer";case"dynamic":return"onDynamic";case"change":default:return"onChange"}}function Zg(e,n){if(!n)return;const a=Object.assign({},e,{state:ir(e.state)});n(a),a.fieldInfo!==e.fieldInfo&&(e.fieldInfo=a.fieldInfo),a.options!==e.options&&(e.options=a.options);const i=Object.keys({values:null,validationMetaMap:null,fieldMetaBase:null,formGroupStateBase:null,isSubmitting:null,isSubmitted:null,isValidating:null,submissionAttempts:null,isSubmitSuccessful:null,_force_re_eval:null}).reduce((o,u)=>(e.state[u]!==a.state[u]&&(o[u]=a.state[u]),o),{});return pe(()=>{Object.keys(i).length&&e.baseStore.setState(o=>({...o,...i})),a.state.errorMap!==e.state.errorMap&&e.setErrorMap(a.state.errorMap)}),a}function ey(e,n){return e===n}function oe(e,n=r=>r,a){const r=(a==null?void 0:a.compare)??ey,i=J.useCallback(u=>{const{unsubscribe:l}=e.subscribe(u);return l},[e]),o=J.useCallback(()=>e.get(),[e]);return Cl.useSyncExternalStoreWithSelector(i,o,o,n,r)}const ny=(e,n=r=>r,a)=>oe(e,n,{compare:a}),Mn=typeof window<"u"?J.useLayoutEffect:J.useEffect;function ay(e){const[n,a]=J.useState(()=>({form:e.form,name:e.name})),[r,i]=J.useState(()=>new br({...e}));let o=r;(n.form!==e.form||n.name!==e.name)&&(o=new br({...e}),i(o),a({form:e.form,name:e.name}));const u=oe(o.store,e.mode==="array"?v=>v.meta._arrayVersion||0:v=>v.value),l=oe(o.store,v=>v.meta.isTouched),s=oe(o.store,v=>v.meta.isBlurred),c=oe(o.store,v=>v.meta.isDirty),d=oe(o.store,v=>v.meta.errorMap),m=oe(o.store,v=>v.meta.errorSourceMap),g=oe(o.store,v=>v.meta.isValidating),y=J.useMemo(()=>({...o,get state(){return{value:e.mode==="array"?o.state.value:u,get meta(){return{...o.state.meta,isTouched:l,isBlurred:s,isDirty:c,errorMap:d,errorSourceMap:m,isValidating:g}}}}}),[o,e.mode,u,l,s,c,d,m,g]);return Mn(o.mount,[o]),Mn(()=>{o.update(e)}),y}const ry=(({children:e,...n})=>{const a=ay(n),r=J.useMemo(()=>Ar(e,a),[e,a]);return t.jsx(t.Fragment,{children:r})});function ty(){return J.useState(()=>ws())[0]}const iy=_s,uy=J.version.split(".")[0]==="17"?ty:iy.useId;function oy(e){const[n,a]=J.useState(()=>({form:e.form,name:e.name})),[r,i]=J.useState(()=>new Sr({...e}));(n.form!==e.form||n.name!==e.name)&&(i(new Sr({...e})),a({form:e.form,name:e.name}));const o=oe(r.store,T=>T.value),u=oe(r.store,T=>T.meta.isTouched),l=oe(r.store,T=>T.meta.isBlurred),s=oe(r.store,T=>T.meta.isDirty),c=oe(r.store,T=>T.meta.errorMap),d=oe(r.store,T=>T.meta.errorSourceMap),m=oe(r.store,T=>T.meta.isValidating),g=oe(r.store,T=>T.meta.isSubmitting),y=oe(r.store,T=>T.meta.isSubmitted),v=oe(r.store,T=>T.meta.submissionAttempts),p=oe(r.store,T=>T.meta.isSubmitSuccessful),b=oe(r.store,T=>T.meta.canSubmit),S=oe(r.store,T=>T.meta.isValid),k=oe(r.store,T=>T.meta.isFieldsValid),f=oe(r.store,T=>T.meta.isFieldsValidating),q=oe(r.store,T=>T.meta.isGroupValid),h=J.useMemo(()=>({...r,handleSubmit:((...V)=>r._handleSubmit(...V)),get state(){return{...r.state,value:o,get meta(){return{...r.state.meta,isTouched:u,isBlurred:l,isDirty:s,errorMap:c,errorSourceMap:d,isValidating:m,isSubmitting:g,isSubmitted:y,submissionAttempts:v,isSubmitSuccessful:p,canSubmit:b,isValid:S,isFieldsValid:k,isFieldsValidating:f,isGroupValid:q}}}}}),[r,o,u,l,s,c,d,m,g,y,v,p,b,S,k,f,q]);return Mn(r.mount,[r]),Mn(()=>{r.update(e)}),h}const ly=(({children:e,...n})=>{const a=oy(n),r=J.useMemo(()=>Ar(e,a),[e,a]);return t.jsx(t.Fragment,{children:r})});function sy({form:e,selector:n=r=>r,children:a}){const r=oe(e.store,n);return t.jsx(t.Fragment,{children:Ar(a,r)})}function dy(e){const n=uy(),[a,r]=J.useState(e==null?void 0:e.formId),[i,o]=J.useState(()=>new jo({...e,formId:(e==null?void 0:e.formId)??n}));if(a!==(e==null?void 0:e.formId)){const s=(e==null?void 0:e.formId)??n;o(new jo({...e,formId:s})),r(s)}const u=J.useMemo(()=>{const s={...i,handleSubmit:((...c)=>i._handleSubmit(...c)),get formId(){return i._formId},get state(){return i.store.state}};return s.Field=function(d){return t.jsx(ry,{...d,form:i})},s.FormGroup=function(d){return t.jsx(ly,{...d,form:i})},s.Subscribe=function(d){return t.jsx(sy,{form:i,selector:d.selector,children:d.children})},s},[i]);Mn(i.mount,[]),Mn(()=>{i.update(e)});const l=J.useRef(!1);return Mn(()=>{l.current&&e!=null&&e.transform&&Zg(i,e.transform)},[i,e==null?void 0:e.transform]),Mn(()=>{l.current=!0}),u}function my(e){const[n,...a]=e.split("/").map(r=>r.trim());return{name:n||"名前未設定",profile:a.join(" / ")||"プロフィールは設定されていません。"}}function Jo({value:e,testId:n}){const a=my(e);return t.jsxs("div",{className:"grid gap-4","data-testid":n,children:[t.jsxs(ee,{as:"label",textRole:"label",className:"grid gap-2",children:["名前",t.jsx(z,{variant:"underline","aria-label":"主人公の名前","aria-readonly":"true",readOnly:!0,value:a.name})]}),t.jsxs(ee,{as:"label",textRole:"label",className:"grid gap-2",children:["プロフィール",t.jsx(ge,{className:"!min-h-28 !rounded-myr-card !border-myr-ink/15 !px-3 !py-3 !text-base !leading-7 !shadow-none","aria-label":"主人公プロフィール","aria-readonly":"true",readOnly:!0,value:a.profile})]})]})}const ai="__free-generation__";function cy({scenario:e,onBeginStory:n,onRecommendHero:a,isBeginning:r,isRecommending:i,onLogin:o,canConfigureInterpretation:u,interpretationEnabled:l,onInterpretationEnabledChange:s}){const c=e.hero.split(`
 `).map(V=>V.trim()).filter(Boolean),[d,m]=J.useState(""),[g,y]=J.useState(!1),[v,p]=J.useState(""),[b,S]=J.useState(!1),k=dy({defaultValues:{heroSelection:e.heroMode==="free"?ai:c[0]??"",createdName:"アオイ",createdProfile:"この世界の掟にまだ不慣れな旅人。"},onSubmit:()=>{y(!0)}}),f=ny(k.store,V=>V.values),q=e.heroMode==="free"||f.heroSelection===ai?"free":"select",h=e.heroMode==="fixed"?e.hero:q==="free"?`${f.createdName} / ${f.createdProfile}`:f.heroSelection,T=async()=>{m("");const V=await a({name:k.state.values.createdName,profile:k.state.values.createdProfile});V.ok&&V.value?(k.setFieldValue("createdName",V.value.name),k.setFieldValue("createdProfile",V.value.profile),m(V.message??"AI案を入力欄へ反映しました。確認・修正してから確定してください。")):m(V.message??"主人公案を取得できませんでした。")},x=async()=>{p(""),S(!1);const V=await n(h,l);V.ok||(p(V.message??"Sessionを開始できませんでした。"),S(V.requiresLogin===!0))};return t.jsxs(t.Fragment,{children:[t.jsxs("section",{className:"border-t border-myr-ink/20 py-7 md:py-9","aria-label":"主人公確定",children:[t.jsx("div",{className:"mb-6",children:t.jsx(ee,{as:"p",textRole:"eyebrowData",className:"mb-2",children:"Protagonist"})}),t.jsxs("form",{onSubmit:V=>{V.preventDefault(),V.stopPropagation(),k.handleSubmit()},children:[e.heroMode==="select"&&t.jsxs(t.Fragment,{children:[t.jsx(k.Field,{name:"heroSelection",children:V=>t.jsx(ie,{label:"候補キャラクター",value:V.state.value,onValueChange:V.handleChange,options:[...c.map(P=>({value:P,label:P})),...e.heroFreeGenerationAllowed?[{value:ai,label:"自由生成"}]:[]]})}),q==="select"&&t.jsx(Jo,{value:f.heroSelection,testId:"readonly-hero"})]}),e.heroMode==="fixed"&&t.jsx(Jo,{value:e.hero,testId:"fixed-hero"}),q==="free"&&t.jsxs("div",{className:"grid gap-4",children:[t.jsx(k.Field,{name:"createdName",children:V=>t.jsxs(ee,{as:"label",textRole:"label",className:"grid gap-2",children:["名前",t.jsx(z,{variant:"underline","aria-label":"主人公の名前",value:V.state.value,onBlur:V.handleBlur,onChange:P=>V.handleChange(P.target.value)})]})}),t.jsx(k.Field,{name:"createdProfile",children:V=>t.jsxs(ee,{as:"label",textRole:"label",className:"grid gap-2",children:["プロフィール",t.jsx(ge,{className:"!min-h-36 !rounded-myr-card !border-myr-ink/20 !bg-white/55 !px-3 !py-3 !text-base !leading-7","aria-label":"主人公プロフィール",value:V.state.value,onBlur:V.handleBlur,onChange:P=>V.handleChange(P.target.value)})]})}),t.jsxs("div",{className:"flex flex-wrap items-center gap-3",children:[t.jsx(B,{type:"button",variant:"ghost",size:"sm",onClick:()=>void T(),disabled:i,children:i?"AIが主人公を推薦しています…":"AIに主人公を生成してもらう"}),d&&t.jsx("p",{className:"m-0 text-xs font-bold text-myr-iris",role:"status",children:d})]})]}),u&&t.jsx("section",{className:"mt-7 border-t border-myr-ink/15 pt-5","aria-label":"解釈説明のデバッグ設定",children:t.jsxs("label",{className:"flex items-start gap-3 rounded-myr-card bg-myr-vellum/55 p-4 text-sm text-myr-ink",children:[t.jsx("input",{type:"checkbox",className:"mt-1 size-4 accent-myr-iris",checked:l,onChange:V=>s(V.target.checked)}),t.jsxs("span",{children:[t.jsx("strong",{className:"block",children:"解釈説明を有効にする"}),t.jsx("span",{className:"mt-1 block text-xs leading-5 text-myr-slate",children:"デバッグ用です。有効なSessionではAIに短い解釈説明も生成させ、「どう解釈された？」を表示します。"})]})]})}),t.jsx("div",{className:"mt-7 flex justify-end border-t border-myr-ink/15 pt-5",children:t.jsx(B,{type:"submit",variant:"primary",size:"lg",className:"shadow-myr-card",children:"開始内容を確認"})})]})]}),t.jsx(vd,{open:g,onOpenChange:y,children:t.jsxs(pd,{title:"開始前の最終確認",description:"Scenarioと主人公を確認してから物語を開始します。",size:"wide",portal:!1,"data-testid":"start-review-dialog",footer:t.jsxs(t.Fragment,{children:[t.jsx(B,{variant:"ghost",onClick:()=>y(!1),children:"主人公選択を修正"}),b?t.jsx(B,{variant:"secondary",onClick:o,children:"ログインへ"}):t.jsx(B,{variant:"secondary",onClick:()=>void x(),disabled:r,children:r?"Sessionを作成しています…":"物語を始める"})]}),children:[v&&t.jsx("p",{className:"m-0 mb-4 text-sm font-bold text-myr-ruby",role:"alert",children:v}),t.jsxs(Xo,{as:"article",className:"!bg-white/65","data-testid":"start-summary",children:[t.jsx(ee,{textRole:"eyebrowData",className:"!tracking-[0.08em]",children:"Session snapshot"}),t.jsx(ee,{as:"h2",textRole:"section",className:"my-2 !text-3xl",children:e.title}),t.jsxs("p",{className:"my-2 text-sm text-myr-slate",children:["Scenario: ",e.title]}),u&&t.jsxs("p",{className:"my-2 text-sm text-myr-slate",children:["解釈説明: ",l?"有効（デバッグ）":"無効"]}),t.jsxs("p",{className:"my-2 text-sm text-myr-slate",children:["主人公: ",h]})]})]})})]})}function fs({account:e,scenario:n,status:a,loadError:r,canConfigureInterpretation:i,isBeginning:o,isRecommending:u,onLogout:l,onLogin:s,onScenarioList:c,onRecommendHero:d,onBeginStory:m}){const[g,y]=J.useState(!1),v=[{label:"Myriale",to:"home"},{label:"セッション",to:"scenarioList"},{label:"セッション開始"}];return a==="loading"?t.jsx(oa,{section:"sessions",breadcrumbs:v,account:e,onLogout:l,children:t.jsx("main",{className:"grid min-h-[calc(100vh-118px)] place-items-center bg-[image:var(--myr-screen-background)] p-6 text-myr-ink",children:t.jsx("p",{className:"rounded-full bg-myr-paper px-5 py-3 font-black shadow-myr-card",role:"status",children:"シナリオを読み込んでいます。"})})}):a==="error"||!n?t.jsx(oa,{section:"sessions",breadcrumbs:v,account:e,onLogout:l,children:t.jsx("main",{className:"grid min-h-[calc(100vh-118px)] place-items-center bg-[image:var(--myr-screen-background)] p-6 text-myr-ink",children:t.jsxs("section",{className:"max-w-xl rounded-myr-panel bg-myr-paper p-8 text-center shadow-myr-panel","aria-label":"シナリオ読み込みエラー",children:[t.jsx("h1",{className:"font-myr-display text-4xl",children:"シナリオを読み込めませんでした"}),t.jsx("p",{className:"my-4 text-myr-slate",children:r??"指定されたシナリオが見つかりません。シナリオ一覧から選び直してください。"}),t.jsx(B,{variant:"secondary",size:"lg",onClick:c,children:"シナリオ一覧へ"})]})})}):t.jsx(oa,{section:"sessions",breadcrumbs:v,account:e,onLogout:l,children:t.jsx(Ki,{"data-myriale-theme":"archive",children:t.jsxs(Qi,{width:"focused","aria-label":"セッション開始アプリ画面",children:[t.jsxs("header",{className:"mb-6 flex flex-col items-start justify-between gap-4 border-b border-myr-ink/15 pb-5 md:flex-row",children:[t.jsxs("div",{children:[t.jsx(ee,{as:"p",textRole:"eyebrow",className:"mb-2",children:"Session Start / Scenario to play"}),t.jsx(ee,{as:"h1",textRole:"display",className:"m-0 max-w-myr-section","data-testid":"selected-scenario-title",children:n.title})]}),t.jsx(B,{variant:"text",onClick:c,children:"シナリオ一覧へ戻る"})]}),t.jsxs("section",{className:"overflow-hidden rounded-myr-card bg-white/45 px-5 shadow-myr-card md:px-8 [&_.myr-ui-field]:mb-5 [&_.myr-ui-field>label]:!text-xs [&_.myr-ui-field>label]:!font-black [&_.myr-ui-field>label]:!tracking-myr-label [&_.myr-ui-field>label]:!text-myr-slate [&_.myr-ui-select-trigger]:!rounded-none [&_.myr-ui-select-trigger]:!border-x-0 [&_.myr-ui-select-trigger]:!border-t-0 [&_.myr-ui-select-trigger]:!border-b-2 [&_.myr-ui-select-trigger]:!border-myr-ink/20 [&_.myr-ui-select-trigger]:!bg-white/45","aria-label":"イントロと主人公選択",children:[t.jsxs("section",{className:"relative py-7 md:py-9","aria-label":"イントロNarrative",children:[t.jsx(ee,{as:"p",textRole:"eyebrowData",className:"mb-3",children:"Opening narrative"}),t.jsx("article",{className:"relative pr-4 before:pointer-events-none before:absolute before:-top-8 before:right-0 before:font-myr-display before:text-8xl before:text-myr-iris/10 before:content-['✦']","data-testid":"intro-narrative",children:t.jsx("p",{className:"relative z-10 m-0 max-w-200 font-myr-display text-[clamp(1.25rem,2.5vw,1.75rem)] leading-[1.65] tracking-[-0.025em]",children:n.opening})})]}),t.jsx(cy,{scenario:n,onBeginStory:m,onRecommendHero:d,isBeginning:o,isRecommending:u,onLogin:s,canConfigureInterpretation:i,interpretationEnabled:g,onInterpretationEnabledChange:y})]})]})})})}fs.__docgenInfo={description:"",methods:[],displayName:"StartSessionPresentation",props:{account:{required:!0,tsType:{name:"union",raw:"AppChromeAccount | null",elements:[{name:"NonNullable",elements:[{name:"union",raw:"AppChromeProps['account']"}],raw:"NonNullable<AppChromeProps['account']>"},{name:"null"}]},description:""},scenario:{required:!0,tsType:{name:"union",raw:"ScenarioSummary | null",elements:[{name:"signature",type:"object",raw:`{
   id: string;
   title: string;
@@ -8995,17 +8995,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -9237,17 +9237,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -9495,17 +9495,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -9737,17 +9737,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -9973,17 +9973,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -10209,17 +10209,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -10445,17 +10445,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -10681,17 +10681,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -10921,17 +10921,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -11233,17 +11233,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -11491,17 +11491,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -11733,17 +11733,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -11985,17 +11985,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -12243,17 +12243,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -12485,17 +12485,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
@@ -12740,17 +12740,17 @@ ${Pe}`:$.value.message),$.value.prompt&&G("sampleScene",$.value.prompt),S(`${T}�
 | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
 | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
 | {
-    operation: 'adjust';
-    targetTypeCode: string;
-    targetRuleCode: string;
-    adjustments: {
-      condition?: ScenarioCondition;
-      priority?: number;
-      note?: string | null;
-      effects?: ScenarioRuleEffectPayload[];
-      moduleBinding?: ScenarioModuleBindingPayload | null;
-    };
-  }`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
+  operation: 'adjust';
+  targetTypeCode: string;
+  targetRuleCode: string;
+  adjustments: {
+    condition?: ScenarioCondition;
+    priority?: number;
+    note?: string | null;
+    effects?: ScenarioRuleEffectPayload[];
+    moduleBinding?: ScenarioModuleBindingPayload | null;
+  };
+}`,elements:[{name:"signature",type:"object",raw:"{ operation: 'add'; rule: ScenarioActionRulePayload }",signature:{properties:[{key:"operation",value:{name:"literal",value:"'add'",required:!0}},{key:"rule",value:{name:"signature",type:"object",raw:`{
   code: string;
   actionCode: string;
   condition: ScenarioCondition;
