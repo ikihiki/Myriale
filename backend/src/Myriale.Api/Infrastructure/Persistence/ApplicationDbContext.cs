@@ -7,6 +7,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 {
     public DbSet<Scenario> Scenarios => Set<Scenario>();
     public DbSet<ScenarioDefinitionVersion> ScenarioDefinitionVersions => Set<ScenarioDefinitionVersion>();
+    public DbSet<ScenarioAiEvaluationRun> ScenarioAiEvaluationRuns => Set<ScenarioAiEvaluationRun>();
+    public DbSet<ScenarioAiEvaluationCase> ScenarioAiEvaluationCases => Set<ScenarioAiEvaluationCase>();
+    public DbSet<ScenarioAiEvaluationAttempt> ScenarioAiEvaluationAttempts => Set<ScenarioAiEvaluationAttempt>();
     public DbSet<ScenarioLocation> ScenarioLocations => Set<ScenarioLocation>();
     public DbSet<ScenarioObjectType> ScenarioObjectTypes => Set<ScenarioObjectType>();
     public DbSet<ScenarioObjectTypeAction> ScenarioObjectTypeActions => Set<ScenarioObjectTypeAction>();

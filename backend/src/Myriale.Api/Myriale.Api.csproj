@@ -21,6 +21,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Features\Scenarios\Fixtures\ai-evaluation-corpus.v1.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Myriale.Architecture.Analyzers\Myriale.Architecture.Analyzers.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />

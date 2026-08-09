@@ -39,6 +39,12 @@ internal sealed class ScenarioProgressionNodeIdConverter()
     : ValueConverter<ScenarioProgressionNodeId, string>(id => id.AsPrimitive(), value => new ScenarioProgressionNodeId(value));
 internal sealed class ScenarioProgressionTransitionIdConverter()
     : ValueConverter<ScenarioProgressionTransitionId, string>(id => id.AsPrimitive(), value => new ScenarioProgressionTransitionId(value));
+internal sealed class ScenarioAiEvaluationRunIdConverter()
+    : ValueConverter<ScenarioAiEvaluationRunId, string>(id => id.AsPrimitive(), value => new ScenarioAiEvaluationRunId(value));
+internal sealed class ScenarioAiEvaluationCaseIdConverter()
+    : ValueConverter<ScenarioAiEvaluationCaseId, string>(id => id.AsPrimitive(), value => new ScenarioAiEvaluationCaseId(value));
+internal sealed class ScenarioAiEvaluationAttemptIdConverter()
+    : ValueConverter<ScenarioAiEvaluationAttemptId, string>(id => id.AsPrimitive(), value => new ScenarioAiEvaluationAttemptId(value));
 
 internal sealed class SessionIdConverter()
     : ValueConverter<SessionId, string>(id => id.AsPrimitive(), value => new SessionId(value));
@@ -116,6 +122,9 @@ internal static class StronglyTypedIdConventions
         configurationBuilder.Properties<ScenarioObjectId>().HaveConversion<ScenarioObjectIdConverter>();
         configurationBuilder.Properties<ScenarioProgressionNodeId>().HaveConversion<ScenarioProgressionNodeIdConverter>();
         configurationBuilder.Properties<ScenarioProgressionTransitionId>().HaveConversion<ScenarioProgressionTransitionIdConverter>();
+        configurationBuilder.Properties<ScenarioAiEvaluationRunId>().HaveConversion<ScenarioAiEvaluationRunIdConverter>();
+        configurationBuilder.Properties<ScenarioAiEvaluationCaseId>().HaveConversion<ScenarioAiEvaluationCaseIdConverter>();
+        configurationBuilder.Properties<ScenarioAiEvaluationAttemptId>().HaveConversion<ScenarioAiEvaluationAttemptIdConverter>();
 
         configurationBuilder.Properties<SessionId>().HaveConversion<SessionIdConverter>();
         configurationBuilder.Properties<SessionTurnId>().HaveConversion<SessionTurnIdConverter>();
