@@ -7,6 +7,13 @@ public sealed class ScenarioActionDecisionModelMapperTests
     private readonly ScenarioActionDecisionModelMapper mapper = new();
 
     [Fact]
+    public void SystemPrompt_PrioritizesFinalStateChangingIntentOverCourtesySpeech()
+    {
+        Assert.Contains("礼を言い、扉を通って庭へ移動する", ScenarioActionDecisionModelMapper.SystemPrompt, StringComparison.Ordinal);
+        Assert.Contains("talkではなく扉の移動action", ScenarioActionDecisionModelMapper.SystemPrompt, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CreateRequest_UsesEnabledCodeOnlyGroupedCandidates()
     {
         var request = mapper.CreateRequest("進む", Snapshot());
