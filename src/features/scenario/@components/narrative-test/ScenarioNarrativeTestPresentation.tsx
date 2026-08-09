@@ -31,6 +31,9 @@ export function ScenarioNarrativeTestPresentation({ values, actions }: { values:
   const [contextJson, setContextJson] = useState(withoutTurns(seed));
   const [result, setResult] = useState<CompareScenarioDraftNarrativeResponse | null>(null);
   const [notice, setNotice] = useState('状態と過去Turnを固定し、公開版と画面上の未保存ドラフトを同じAIで比較します。');
+  const [profileIds, setProfileIds] = useState('runpod-economy\nrunpod-recommended');
+  const [repetitions, setRepetitions] = useState(3);
+  const [evaluation, setEvaluation] = useState<import('../../../../app/scenarioApi').ScenarioAiEvaluationRun | null>(null);
   const [working, setWorking] = useState(false);
 
   const importTurn = async () => {
@@ -59,6 +62,26 @@ export function ScenarioNarrativeTestPresentation({ values, actions }: { values:
     } catch (error) {
       setNotice(error instanceof SyntaxError ? '状態・Narrative材料はJSONオブジェクトで入力してください。' : '比較生成に失敗しました。');
     } finally { setWorking(false); }
+  };
+
+  const runEvaluation = async () => {
+    if (!actions.runAiEvaluation) return;
+    setWorking(true);
+    try {
+      const context = JSON.parse(contextJson) as Omit<ScenarioNarrativeTestCase, 'recentTurns' | 'playerInput'>;
+      const ids = profileIds.split(/\s|,/).map((item) => item.trim()).filter(Boolean);
+      const response = await actions.runAiEvaluation(ids, repetitions, { ...context, recentTurns, playerInput }, {
+        temperature: 0.8, topP: 0.95, repetitionPenalty: 1.05, seed: 42, maxOutputTokens: 1200, thinkingEnabled: false, retryAttempts: 0,
+      });
+      setNotice(response.message); setEvaluation(response.value ?? null);
+    } catch (error) {
+      setNotice(error instanceof SyntaxError ? '状態・Narrative材料はJSONオブジェクトで入力してください。' : 'モデル比較に失敗しました。');
+    } finally { setWorking(false); }
+  };
+
+  const exportEvaluation = async (format: 'json' | 'csv') => {
+    if (!evaluation || !actions.exportAiEvaluation) return;
+    const response = await actions.exportAiEvaluation(evaluation.summary.id, format); setNotice(response.message);
   };
 
   const updateTurn = (index: number, patch: ScenarioNarrativeRecentTurn) => setRecentTurns((current) => current.map((turn, turnIndex) => turnIndex === index ? { ...turn, ...patch } : turn));
@@ -98,6 +121,20 @@ export function ScenarioNarrativeTestPresentation({ values, actions }: { values:
       <Textarea className="!min-h-[28rem] font-mono text-xs" aria-label="Narrativeテスト状態JSON" value={contextJson} onChange={(event) => setContextJson(event.target.value)} />
       <Button variant="primary" disabled={working || !playerInput.trim()} onClick={() => void compare()}>{working ? '比較生成中…' : '公開版と未保存ドラフトを比較'}</Button>
     </section>
+
+    {actions.runAiEvaluation && <section className="grid gap-4 rounded-2xl border border-[#5c4f8f]/30 bg-[#f8f5ff] p-5" aria-label="AIモデルブラインド比較">
+      <div><p className="text-xs font-black uppercase tracking-[0.14em] text-[#5c4f8f]">Model evaluation</p><h3>同じケースを複数AIで反復比較</h3><p className="text-sm text-myr-ink-subtle">Profile IDを改行区切りで指定します。モデル名は結果本文ではBlind codeとして扱い、厳格なルール判定・latency・tokenを保存します。</p></div>
+      <div className="grid gap-3 md:grid-cols-[1fr_10rem_auto] md:items-end">
+        <label>AI Profile IDs<Textarea aria-label="比較するAI Profile IDs" className="!min-h-28 font-mono text-xs" value={profileIds} onChange={(event) => setProfileIds(event.target.value)} /></label>
+        <label>反復回数<Input aria-label="AI比較の反復回数" type="number" min={1} max={10} value={repetitions} onChange={(event) => setRepetitions(Math.max(1, Math.min(10, Number(event.target.value))))} /></label>
+        <Button variant="primary" disabled={working || !playerInput.trim() || !profileIds.trim()} onClick={() => void runEvaluation()}>{working ? '比較実行中…' : 'ブラインド比較を実行'}</Button>
+      </div>
+      <p className="text-xs text-myr-ink-subtle">固定条件: temperature 0.8 / top_p 0.95 / repetition penalty 1.05 / seed 42 / 1200 tokens / thinking off / retry 0</p>
+      {evaluation && <div className="grid gap-3" data-testid="ai-evaluation-result">
+        <div className="flex flex-wrap items-center justify-between gap-3"><strong>{evaluation.summary.passedAttemptCount} / {evaluation.summary.attemptCount} attempts passed</strong><div className="flex gap-2"><Button size="sm" variant="secondary" onClick={() => void exportEvaluation('json')}>JSON export</Button><Button size="sm" variant="secondary" onClick={() => void exportEvaluation('csv')}>CSV export</Button></div></div>
+        <div className="grid gap-3 lg:grid-cols-2">{evaluation.cases.flatMap((item) => item.attempts).map((attempt) => <article key={attempt.id} className="rounded-xl border border-[#17151f]/15 bg-white p-4"><div className="flex items-center justify-between gap-2"><strong>{attempt.blindCode}</strong><span className={attempt.passed ? 'text-emerald-700' : 'text-red-700'}>{attempt.passed ? 'PASS' : 'FAIL'}</span></div><p className="text-xs text-myr-ink-subtle">{attempt.latencyMilliseconds ?? '-'}ms / in {attempt.inputTokens ?? '-'} / out {attempt.outputTokens ?? '-'}</p><p className="mt-2 text-xs">{attempt.labels.join(' · ')}</p></article>)}</div>
+      </div>}
+    </section>}
 
     {result && <section className="grid gap-4 xl:grid-cols-2" aria-label="Narrative比較結果" data-testid="narrative-comparison">
       {([['公開版', result.published], ['未保存ドラフト', result.draft]] as const).map(([label, narrative]) => <article key={label} className="grid content-start gap-3 rounded-2xl border border-[#17151f]/15 bg-white/75 p-5">

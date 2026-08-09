@@ -331,6 +331,38 @@ export type ImportScenarioNarrativeTestResponse = { sessionId: string; turnId: s
 export type ScenarioNarrativeTestResult = { heading: string; body: string; model: string; latencyMilliseconds: number };
 export type CompareScenarioDraftNarrativeResponse = { publishedDefinitionVersionId: string; aiProfileId: string; published: ScenarioNarrativeTestResult; draft: ScenarioNarrativeTestResult };
 
+export type AiGenerationOverrides = {
+  temperature?: number | null;
+  topP?: number | null;
+  repetitionPenalty?: number | null;
+  seed?: number | null;
+  maxOutputTokens?: number | null;
+  thinkingEnabled?: boolean | null;
+  retryAttempts?: number | null;
+};
+export type ScenarioAiEvaluationCaseInput = { caseId: string; stage: 'action' | 'narrative' | 'entityState'; request: ScenarioJsonObject; metadata: ScenarioJsonObject };
+export type CreateScenarioAiEvaluationRunPayload = {
+  profileIds: string[];
+  repetitions: number;
+  corpusId?: string;
+  corpusVersion?: string;
+  generationOverrides?: AiGenerationOverrides | null;
+  config: ScenarioJsonObject;
+  cases: ScenarioAiEvaluationCaseInput[];
+};
+export type ScenarioAiEvaluationAttempt = {
+  id: string; profileId: string; profileRevision: number; model: string; repetition: number; blindCode: string;
+  status: string; passed: boolean; labels: string[]; output: ScenarioJsonObject; metadata: ScenarioJsonObject;
+  errorCode?: string | null; inputTokens?: number | null; outputTokens?: number | null; latencyMilliseconds?: number | null;
+  startedAt: string; completedAt: string;
+};
+export type ScenarioAiEvaluationRun = {
+  summary: { id: string; scenarioId: string; status: string; corpusId: string; corpusVersion: string; profileIds: string[]; repetitions: number; caseCount: number; attemptCount: number; passedAttemptCount: number; createdAt: string; completedAt?: string | null };
+  config: ScenarioJsonObject;
+  cases: Array<{ id: string; caseId: string; stage: string; canonicalPayloadHash: string; request: ScenarioJsonObject; metadata: ScenarioJsonObject; attempts: ScenarioAiEvaluationAttempt[] }>;
+};
+export type ScenarioAiEvaluationCorpusManifest = { corpusId: string; version: string; description: string; stages: Array<{ stage: string; plannedCaseCount: number; plannedRepetitions: number; generationOverrides: AiGenerationOverrides }> };
+
 export type ScenarioApiError = Error & {
   status?: number;
   errors?: Record<string, string[]>;
@@ -375,6 +407,10 @@ export type ScenarioApi = {
   debugScenarioRuleData: (scenarioId: string, payload: ScenarioRuleDebugRequest) => Promise<ScenarioRuleDebugResponse>;
   importScenarioNarrativeTest: (scenarioId: string, sessionId: string, turnId: string) => Promise<ImportScenarioNarrativeTestResponse>;
   compareScenarioDraftNarrative: (scenarioId: string, draft: CreateScenarioPayload, testCase: ScenarioNarrativeTestCase) => Promise<CompareScenarioDraftNarrativeResponse>;
+  getScenarioAiEvaluationCorpus: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioAiEvaluationCorpusManifest>;
+  createScenarioAiEvaluationRun: (scenarioId: string, payload: CreateScenarioAiEvaluationRunPayload) => Promise<ScenarioAiEvaluationRun>;
+  listScenarioAiEvaluationRuns: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioAiEvaluationRun['summary'][]>;
+  exportScenarioAiEvaluationRun: (scenarioId: string, runId: string, format: 'json' | 'csv') => Promise<Blob>;
   recommendHero: (scenarioId: string, payload: RecommendScenarioHeroPayload) => Promise<ScenarioHeroRecommendation>;
   createScenario: (payload: CreateScenarioPayload) => Promise<ScenarioDraftDto>;
   updateScenario: (scenarioId: string, payload: CreateScenarioPayload) => Promise<ScenarioDraftDto>;
@@ -485,6 +521,28 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
       });
       if (!response.ok) throw await toApiError(response);
       return response.json() as Promise<CompareScenarioDraftNarrativeResponse>;
+    },
+    async getScenarioAiEvaluationCorpus(scenarioId, signal) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/ai-evaluations/corpus`, { credentials: 'include', headers: { Accept: 'application/json' }, signal });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<ScenarioAiEvaluationCorpusManifest>;
+    },
+    async createScenarioAiEvaluationRun(scenarioId, payload) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/ai-evaluations/runs`, {
+        method: 'POST', credentials: 'include', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<ScenarioAiEvaluationRun>;
+    },
+    async listScenarioAiEvaluationRuns(scenarioId, signal) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/ai-evaluations/runs`, { credentials: 'include', headers: { Accept: 'application/json' }, signal });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<ScenarioAiEvaluationRun['summary'][]>;
+    },
+    async exportScenarioAiEvaluationRun(scenarioId, runId, format) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/ai-evaluations/runs/${encodeURIComponent(runId)}/export?format=${format}`, { credentials: 'include' });
+      if (!response.ok) throw await toApiError(response);
+      return response.blob();
     },
     async recommendHero(scenarioId, payload) {
       const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/hero-recommendation`, {
@@ -768,6 +826,22 @@ export function createDemoScenarioApi(): ScenarioApi {
         draft: { heading: '未保存ドラフト', body: `${draft.tone || '落ち着いた調子'}で、メイドは館の閉鎖された東棟に残る帳簿の存在を初めて明かした。`, model: 'demo', latencyMilliseconds: 430 },
       };
     },
+    async getScenarioAiEvaluationCorpus(scenarioId) {
+      if (!demoScenarios[scenarioId]) throw demoError('シナリオが見つかりません。', 404);
+      return { corpusId: 'myriale-low-cost-model-comparison', version: '1.0.0', description: '低コストAI比較', stages: [{ stage: 'narrative', plannedCaseCount: 36, plannedRepetitions: 3, generationOverrides: { temperature: 0.8, topP: 0.95, repetitionPenalty: 1.05, maxOutputTokens: 1200, thinkingEnabled: false, retryAttempts: 0 } }] };
+    },
+    async createScenarioAiEvaluationRun(scenarioId, payload) {
+      if (!demoScenarios[scenarioId]) throw demoError('シナリオが見つかりません。', 404);
+      const attempts = payload.profileIds.flatMap((profileId, profileIndex) => Array.from({ length: payload.repetitions }, (_, repetition) => ({
+        id: `demo-${profileIndex}-${repetition}`, profileId, profileRevision: 1, model: profileId, repetition: repetition + 1, blindCode: `B${profileIndex + 1}${repetition + 1}`,
+        status: 'succeeded', passed: profileIndex !== 1 || repetition !== 1, labels: ['schema_valid', profileIndex !== 1 || repetition !== 1 ? 'required_terms_present' : 'forbidden_term'],
+        output: { schemaVersion: 'post-state-narrative.v1', heading: '比較結果', body: `${profileId} のブラインド出力` }, metadata: { generationOverrides: payload.generationOverrides ?? null },
+        errorCode: null, inputTokens: 420, outputTokens: 180, latencyMilliseconds: 900 + profileIndex * 200, startedAt: new Date().toISOString(), completedAt: new Date().toISOString(),
+      })));
+      return { summary: { id: 'AER-DEMO', scenarioId, status: 'completed', corpusId: payload.corpusId ?? 'api-frozen-cases', corpusVersion: payload.corpusVersion ?? '1', profileIds: payload.profileIds, repetitions: payload.repetitions, caseCount: payload.cases.length, attemptCount: attempts.length, passedAttemptCount: attempts.filter((item) => item.passed).length, createdAt: new Date().toISOString(), completedAt: new Date().toISOString() }, config: payload.config, cases: [{ id: 'AEC-DEMO', caseId: payload.cases[0]?.caseId ?? 'narrative-current', stage: 'narrative', canonicalPayloadHash: 'demo', request: payload.cases[0]?.request ?? {}, metadata: payload.cases[0]?.metadata ?? {}, attempts }] };
+    },
+    async listScenarioAiEvaluationRuns() { return []; },
+    async exportScenarioAiEvaluationRun(_scenarioId, _runId, format) { return new Blob([format === 'csv' ? 'profileId,passed\n' : '{}'], { type: format === 'csv' ? 'text/csv' : 'application/json' }); },
     async recommendHero(scenarioId) {
       const scenario = demoScenarios[scenarioId];
       if (!scenario) throw demoError('シナリオが見つかりません。', 404);

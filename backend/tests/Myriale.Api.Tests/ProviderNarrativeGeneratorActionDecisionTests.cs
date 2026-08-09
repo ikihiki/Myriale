@@ -70,6 +70,19 @@ public sealed class ProviderNarrativeGeneratorActionDecisionTests
         Assert.Equal(ScenarioTurnSchemas.PostStateNarrative, schemaVersion.GetProperty("const").GetString());
     }
 
+    [Fact]
+    public async Task EvaluationProfileMethods_ForwardPerRequestGenerationOverrides()
+    {
+        var textProvider = new CapturingProvider("""{"schemaVersion":"post-state-narrative.v1","heading":"告白","body":"レンは真相を認めた。"}""");
+        var generator = new ProviderNarrativeGenerator(textProvider, new ScenarioActionDecisionModelMapper(), NullLogger<ProviderNarrativeGenerator>.Instance);
+        var overrides = new AiGenerationOverrides(0.8, 0.95, 1.05, 42, 1200, false, 0);
+
+        await generator.GeneratePostStateNarrativeForProfileWithOverridesAsync(
+            new AiProviderProfileId("evaluation-model"), PostStateRequest(), overrides, default);
+
+        Assert.Equal(overrides, textProvider.Request!.GenerationOverrides);
+    }
+
     private static PostStateNarrativeRequest PostStateRequest()
     {
         var state = JsonSerializer.Deserialize<JsonElement>("{\"stance\":\"confessed\",\"evidenceAcknowledged\":true}");

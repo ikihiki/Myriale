@@ -1,4 +1,4 @@
-import type { CompareScenarioDraftNarrativeResponse, CreateScenarioPayload, ImportScenarioNarrativeTestResponse, ScenarioAiAssistResponse, ScenarioAiKind, ScenarioDraftDto, ScenarioNarrativeTestCase, ScenarioRuleDataReadinessDto, ScenarioRuleDebugRequest, ScenarioRuleDebugResponse } from '../../../app/scenarioApi';
+import type { AiGenerationOverrides, CompareScenarioDraftNarrativeResponse, CreateScenarioPayload, ImportScenarioNarrativeTestResponse, ScenarioAiAssistResponse, ScenarioAiEvaluationRun, ScenarioAiKind, ScenarioDraftDto, ScenarioNarrativeTestCase, ScenarioRuleDataReadinessDto, ScenarioRuleDebugRequest, ScenarioRuleDebugResponse } from '../../../app/scenarioApi';
 import { emptyScenarioRuleData } from './rule-data/scenarioRuleDataModel';
 
 export type ScenarioFormValues = Required<Omit<CreateScenarioPayload, 'ruleData'>> & {
@@ -17,6 +17,7 @@ export type ScenarioFormAssistResult = ScenarioFormCommandResult<ScenarioAiAssis
 export type ScenarioFormDebugResult = ScenarioFormCommandResult<ScenarioRuleDebugResponse>;
 export type ScenarioFormNarrativeImportResult = ScenarioFormCommandResult<ImportScenarioNarrativeTestResponse>;
 export type ScenarioFormNarrativeCompareResult = ScenarioFormCommandResult<CompareScenarioDraftNarrativeResponse>;
+export type ScenarioFormEvaluationResult = ScenarioFormCommandResult<ScenarioAiEvaluationRun>;
 export type ScenarioFormReadinessResult = ScenarioFormCommandResult<ScenarioRuleDataReadinessDto>;
 export type ScenarioFormPublishResult = ScenarioFormCommandResult;
 
@@ -26,6 +27,8 @@ export type ScenarioFormActions = {
   debug: (values: ScenarioFormValues, request: ScenarioRuleDebugRequest) => Promise<ScenarioFormDebugResult>;
   importNarrativeTest?: (sessionId: string, turnId: string) => Promise<ScenarioFormNarrativeImportResult>;
   compareNarrativeDraft?: (values: ScenarioFormValues, testCase: ScenarioNarrativeTestCase) => Promise<ScenarioFormNarrativeCompareResult>;
+  runAiEvaluation?: (profileIds: string[], repetitions: number, testCase: ScenarioNarrativeTestCase, overrides: AiGenerationOverrides) => Promise<ScenarioFormEvaluationResult>;
+  exportAiEvaluation?: (runId: string, format: 'json' | 'csv') => Promise<ScenarioFormCommandResult>;
   checkReadiness?: () => Promise<ScenarioFormReadinessResult>;
   publish?: () => Promise<ScenarioFormPublishResult>;
 };

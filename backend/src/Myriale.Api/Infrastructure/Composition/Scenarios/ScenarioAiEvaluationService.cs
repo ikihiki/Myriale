@@ -125,7 +125,7 @@ public sealed class ScenarioAiEvaluationService(ApplicationDbContext db, IAiProf
                 case ScenarioAiEvaluationStage.Action:
                 {
                     var request = Deserialize<ModelActionDecisionRequest>(testCase.RequestJson);
-                    var generation = await ai.DecideActionForProfileAsync(attempt.ProfileId, request, ct);
+                    var generation = await ai.DecideActionForProfileWithOverridesAsync(attempt.ProfileId, request, RunOverrides(attempt), ct);
                     var score = ScoreAction(generation.Value, testCase.MetadataJson);
                     Complete(attempt, generation, score);
                     break;
@@ -133,7 +133,7 @@ public sealed class ScenarioAiEvaluationService(ApplicationDbContext db, IAiProf
                 case ScenarioAiEvaluationStage.Narrative:
                 {
                     var request = Deserialize<PostStateNarrativeRequest>(testCase.RequestJson);
-                    var generation = await ai.GeneratePostStateNarrativeForProfileAsync(attempt.ProfileId, request, ct);
+                    var generation = await ai.GeneratePostStateNarrativeForProfileWithOverridesAsync(attempt.ProfileId, request, RunOverrides(attempt), ct);
                     var score = ScoreNarrative(generation.Value, request, testCase.MetadataJson);
                     Complete(attempt, generation, score);
                     break;
@@ -141,7 +141,7 @@ public sealed class ScenarioAiEvaluationService(ApplicationDbContext db, IAiProf
                 case ScenarioAiEvaluationStage.EntityState:
                 {
                     var request = Deserialize<EntityStateTransitionRequest>(testCase.RequestJson);
-                    var generation = await ai.GenerateEntityStateTransitionForProfileAsync(attempt.ProfileId, request, ct);
+                    var generation = await ai.GenerateEntityStateTransitionForProfileWithOverridesAsync(attempt.ProfileId, request, RunOverrides(attempt), ct);
                     var score = ScoreState(generation.Value, request, testCase.MetadataJson);
                     Complete(attempt, generation, score);
                     break;
@@ -308,6 +308,15 @@ public sealed class ScenarioAiEvaluationService(ApplicationDbContext db, IAiProf
         ScenarioAiEvaluationStage.Narrative => "narrative",
         _ => "entityState",
     };
+
+    private static AiGenerationOverrides? RunOverrides(ScenarioAiEvaluationAttempt attempt)
+    {
+        using var config = JsonDocument.Parse(attempt.ConfigJson);
+        return config.RootElement.TryGetProperty("generationOverrides", out var value)
+            && value.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined)
+            ? value.Deserialize<AiGenerationOverrides>(Json)
+            : null;
+    }
 
     private static T Deserialize<T>(string json) => JsonSerializer.Deserialize<T>(json, Json) ?? throw new JsonException("Frozen payload was empty.");
     private static JsonElement Element(string json) => JsonDocument.Parse(string.IsNullOrWhiteSpace(json) ? "{}" : json).RootElement.Clone();

@@ -57,6 +57,20 @@ export function MockEditScenarioContainer({ scenarioId }: { scenarioId: string }
     },
   });
 
+  const runAiEvaluation: NonNullable<ScenarioFormActions['runAiEvaluation']> = async (profileIds, repetitions) => {
+    const attempts = profileIds.flatMap((profileId, profileIndex) => Array.from({ length: repetitions }, (_, repetition) => ({
+      id: `AEA-${profileIndex}-${repetition}`, profileId, profileRevision: 1, model: profileId, repetition: repetition + 1, blindCode: `B${profileIndex + 1}${repetition + 1}`,
+      status: 'succeeded', passed: profileIndex === 0 || repetition !== 1, labels: profileIndex === 0 || repetition !== 1 ? ['schema_valid', 'grounded'] : ['schema_valid', 'forbidden_term'],
+      output: { heading: '比較結果', body: 'ブラインド出力' }, metadata: {}, errorCode: null, inputTokens: 510, outputTokens: 160,
+      latencyMilliseconds: 780 + profileIndex * 240, startedAt: '2026-08-09T00:00:00Z', completedAt: '2026-08-09T00:00:01Z',
+    })));
+    return { ok: true, message: `${profileIds.length}モデル × ${repetitions}回のブラインド比較を完了しました。`, value: {
+      summary: { id: 'AER-STORY', scenarioId, status: 'completed', corpusId: 'myriale-low-cost-model-comparison', corpusVersion: '1.0.0', profileIds, repetitions, caseCount: 1, attemptCount: attempts.length, passedAttemptCount: attempts.filter((item) => item.passed).length, createdAt: '2026-08-09T00:00:00Z', completedAt: '2026-08-09T00:00:03Z' }, config: {},
+      cases: [{ id: 'AEC-STORY', caseId: 'maid-direct-answer', stage: 'narrative', canonicalPayloadHash: 'story', request: {}, metadata: {}, attempts }],
+    } };
+  };
+  const exportAiEvaluation: NonNullable<ScenarioFormActions['exportAiEvaluation']> = async (_runId, format) => ({ ok: true, message: `${format.toUpperCase()}をエクスポートしました。` });
+
   const checkReadiness: NonNullable<ScenarioFormActions['checkReadiness']> = async () => ({
     ok: true,
     message: '公開準備が完了しています。シナリオを公開できます。',
@@ -74,7 +88,7 @@ export function MockEditScenarioContainer({ scenarioId }: { scenarioId: string }
     status="ready"
     saving={saving}
     aiWorking={false}
-    actions={{ save, assist, debug, importNarrativeTest, compareNarrativeDraft, checkReadiness, publish }}
+    actions={{ save, assist, debug, importNarrativeTest, compareNarrativeDraft, runAiEvaluation, exportAiEvaluation, checkReadiness, publish }}
     onRetry={() => undefined}
     onLogout={() => undefined}
   />;

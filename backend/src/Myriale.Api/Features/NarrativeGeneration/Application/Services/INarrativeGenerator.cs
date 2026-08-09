@@ -22,6 +22,15 @@ public interface IScenarioTurnAiService
         GenerateEntityStateTransitionAsync(request, cancellationToken);
     Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeForProfileAsync(AiProviderProfileId profileId, PostStateNarrativeRequest request, CancellationToken cancellationToken) =>
         GeneratePostStateNarrativeAsync(request, cancellationToken);
+    Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionForProfileWithOverridesAsync(
+        AiProviderProfileId profileId, ModelActionDecisionRequest request, AiGenerationOverrides? generationOverrides, CancellationToken cancellationToken) =>
+        DecideActionForProfileAsync(profileId, request, cancellationToken);
+    Task<NarrativeGeneration<EntityStateTransitionResult>> GenerateEntityStateTransitionForProfileWithOverridesAsync(
+        AiProviderProfileId profileId, EntityStateTransitionRequest request, AiGenerationOverrides? generationOverrides, CancellationToken cancellationToken) =>
+        GenerateEntityStateTransitionForProfileAsync(profileId, request, cancellationToken);
+    Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeForProfileWithOverridesAsync(
+        AiProviderProfileId profileId, PostStateNarrativeRequest request, AiGenerationOverrides? generationOverrides, CancellationToken cancellationToken) =>
+        GeneratePostStateNarrativeForProfileAsync(profileId, request, cancellationToken);
 }
 
 public interface INarrativeGenerator
