@@ -339,7 +339,7 @@ export const ConfigureInitialSceneFromWorldData: Story = {
     await step('7ステップが制作順に並ぶことを確認する', async () => {
       const navigation = canvas.getByRole('list', { name: '登録ウィザードのステップ' });
       const labels = within(navigation).getAllByRole('button').map((button) => button.getAttribute('aria-label'));
-      expect(labels).toEqual(['基本情報へ', '場所へ', '主人公へ', 'エンティティへ', '開始状態へ', '挿絵へ', '動作確認へ']);
+      expect(labels).toEqual(['基本情報へ', '場所へ', '主人公へ', 'エンティティへ', '開始状態へ', '挿絵へ', 'テストへ']);
     });
     await step('主人公の扱いを独立して編集できることを確認する', async () => {
       await goToStep(canvas, '主人公');
@@ -509,7 +509,7 @@ export const US12DebugRuleEngineFromArbitraryState: Story = {
   render: renderRuleDataFixture,
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await goToStep(canvas, '動作確認');
+    await goToStep(canvas, 'テスト');
 
     await step('全状態を上書きして公開状態と利用可能アクションを確認する', async () => {
       const state = canvas.getAllByLabelText(/のstate$/)[0];
