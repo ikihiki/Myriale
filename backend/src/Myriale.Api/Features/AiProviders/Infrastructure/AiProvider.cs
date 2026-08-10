@@ -16,6 +16,7 @@ public sealed class AiProviderOptions
 {
     public const string SectionName = "AiProvider";
     public int TimeoutSeconds { get; set; } = 300;
+    public int EvaluationTimeoutSeconds { get; set; } = 1800;
     public int MaxOutputTokens { get; set; } = 1200;
     public double Temperature { get; set; } = 0.4;
     public int MaxAttempts { get; set; } = 2;
@@ -310,7 +311,7 @@ public sealed class OpenAiCompatibleTextProvider(
     private static AiProviderRequestOptions ResolveProfileOptions(AiProviderOptions configured, AiProfileDescriptor profile, AiGenerationOverrides? overrides) => new(
         profile.BaseUrl,
         profile.Model,
-        configured.TimeoutSeconds,
+        profile.Selectable ? configured.TimeoutSeconds : configured.EvaluationTimeoutSeconds,
         overrides?.MaxOutputTokens ?? configured.MaxOutputTokens,
         overrides?.Temperature ?? configured.Temperature,
         overrides?.TopP,

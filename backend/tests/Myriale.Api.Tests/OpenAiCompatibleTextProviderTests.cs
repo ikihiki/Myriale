@@ -133,6 +133,23 @@ public sealed class OpenAiCompatibleTextProviderTests
     }
 
     [Fact]
+    public async Task Generate_NonSelectableEvaluationProfileUsesEvaluationTimeout()
+    {
+        var handler = new DelayedHandler(TimeSpan.FromSeconds(5));
+        var profile = Profile("evaluation", "https://example.test/v1", "evaluation-model", "shared", selectable: false);
+        var provider = Create(handler, Catalog(profile), new CredentialResolver("secret"),
+            maxAttempts: 1, timeoutSeconds: 5, evaluationTimeoutSeconds: 1);
+
+        var exception = await Assert.ThrowsAsync<AiProviderException>(() =>
+            provider.GenerateForProfileAsync(profile.Id, Request(), default));
+
+        Assert.Equal(AiProviderErrorCodes.Timeout, exception.Code);
+        Assert.True(handler.WasCancelled);
+        Assert.NotNull(exception.Metadata);
+        Assert.InRange(exception.Metadata.LatencyMilliseconds, 900, 3000);
+    }
+
+    [Fact]
     public async Task Generate_RetriesRateLimit()
     {
         var limited = new HttpResponseMessage(HttpStatusCode.TooManyRequests) { Content = new StringContent("rate limited") };
@@ -166,14 +183,21 @@ public sealed class OpenAiCompatibleTextProviderTests
         Assert.Equal(2, result.Metadata.AttemptCount);
     }
 
-    private static OpenAiCompatibleTextProvider Create(QueueHandler handler, IAiProfileCatalog? catalog = null, IAiRuntimeCredentialResolver? resolver = null, int maxAttempts = 2)
+    private static OpenAiCompatibleTextProvider Create(HttpMessageHandler handler, IAiProfileCatalog? catalog = null, IAiRuntimeCredentialResolver? resolver = null,
+        int maxAttempts = 2, int timeoutSeconds = 300, int evaluationTimeoutSeconds = 1800)
     {
         catalog ??= Catalog(Profile("runpod", "https://example.test/openai/v1", "test-model", "runpod"));
         resolver ??= new CredentialResolver("secret");
         var active = new ActiveAiProviderQueryService(new Reader(new AiProviderProfileId("runpod")), catalog);
-        return new(new Factory(new HttpClient(handler)), resolver, Options.Create(new AiProviderOptions { MaxAttempts = maxAttempts, InitialBackoffMilliseconds = 0 }), catalog, active, NullLogger<OpenAiCompatibleTextProvider>.Instance);
+        return new(new Factory(new HttpClient(handler)), resolver, Options.Create(new AiProviderOptions
+        {
+            MaxAttempts = maxAttempts,
+            InitialBackoffMilliseconds = 0,
+            TimeoutSeconds = timeoutSeconds,
+            EvaluationTimeoutSeconds = evaluationTimeoutSeconds,
+        }), catalog, active, NullLogger<OpenAiCompatibleTextProvider>.Instance);
     }
-    private static AiProfileDescriptor Profile(string id, string baseUrl, string model, string credentialId, string systemPrompt = "") => new(new AiProviderProfileId(id), id, baseUrl, model, new AiCredentialId(credentialId), true, AiProfileDefinitionSource.Deployment, 0, SystemPrompt: systemPrompt);
+    private static AiProfileDescriptor Profile(string id, string baseUrl, string model, string credentialId, string systemPrompt = "", bool selectable = true) => new(new AiProviderProfileId(id), id, baseUrl, model, new AiCredentialId(credentialId), true, AiProfileDefinitionSource.Deployment, 0, Selectable: selectable, SystemPrompt: systemPrompt);
     private static IAiProfileCatalog Catalog(params AiProfileDescriptor[] profiles) => new CatalogStub(profiles);
     private static QueueHandler Success() => new(SuccessResponse());
     private static HttpResponseMessage SuccessResponse() => new(HttpStatusCode.OK) { Content = new StringContent("{\"id\":\"resp-1\",\"choices\":[{\"message\":{\"content\":\"{\\\"ok\\\":true}\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":4}}", Encoding.UTF8, "application/json") };
@@ -189,6 +213,25 @@ public sealed class OpenAiCompatibleTextProviderTests
     private sealed class CredentialResolver(string secret) : IAiRuntimeCredentialResolver { public AiCredentialId? LastId { get; private set; } public Task<ResolvedAiCredential?> ResolveAsync(AiCredentialId id, CancellationToken ct) { LastId = id; return Task.FromResult<ResolvedAiCredential?>(new(secret, AiCredentialSource.Database, 1, "masked")); } }
     private sealed class Reader(AiProviderProfileId provider) : IActiveAiProviderSettingsReader { public Task<ActiveAiProviderSelection?> GetAsync(CancellationToken ct) => Task.FromResult<ActiveAiProviderSelection?>(new(provider, 1)); }
     private sealed class Factory(HttpClient client) : IHttpClientFactory { public HttpClient CreateClient(string name) => client; }
+    private sealed class DelayedHandler(TimeSpan delay) : HttpMessageHandler
+    {
+        public bool WasCancelled { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            try
+            {
+                await Task.Delay(delay, ct);
+                return SuccessResponse();
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                WasCancelled = true;
+                throw;
+            }
+        }
+    }
+
     private sealed class QueueHandler(params HttpResponseMessage[] responses) : HttpMessageHandler
     {
         private readonly Queue<HttpResponseMessage> _responses = new(responses); public string LastBody { get; private set; } = ""; public Uri? LastUri { get; private set; } public int RequestCount { get; private set; }

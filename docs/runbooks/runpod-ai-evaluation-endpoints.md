@@ -15,7 +15,8 @@ All five endpoints are pinned to the same runtime cohort:
 - Prepared/disabled scale: minimum `0`, maximum `0`
 - Active benchmark scale: minimum `0`, maximum `1`, idle timeout `60` seconds
 - Queue scaler: `QUEUE_DELAY`, value `4`
-- Execution timeout: `900000` milliseconds
+- Application evaluation timeout: `1800` seconds (30 minutes)
+- Runpod execution timeout: `1800000` milliseconds (30 minutes)
 - Language-only mode; image/video inputs disabled
 
 This cohort intentionally does not mix GGUF/llama.cpp with vLLM, or third-party AWQ checkpoints with dynamically quantized source checkpoints. Model and tokenizer revisions are pinned by commit SHA.
