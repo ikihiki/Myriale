@@ -58,6 +58,8 @@ public sealed class ProviderNarrativeGeneratorActionDecisionTests
 
         await generator.GeneratePostStateNarrativeAsync(PostStateRequest(), default);
 
+        Assert.Contains("schemaVersion、heading、bodyの3フィールドをこの順序", textProvider.Request!.Messages[0].Text, StringComparison.Ordinal);
+        Assert.Contains("空白埋め、タブ、連続する空行を生成しない", textProvider.Request.Messages[0].Text, StringComparison.Ordinal);
         Assert.Contains("RecentTurnsは直前までの継続性を判断するための参照情報", textProvider.Request!.Messages[0].Text, StringComparison.Ordinal);
         Assert.Contains("その本文を再掲・複製・言い換えしてはならない", textProvider.Request.Messages[0].Text, StringComparison.Ordinal);
         Assert.Contains("RecentTurns内のNarrativeと同一になることは禁止", textProvider.Request.Messages[0].Text, StringComparison.Ordinal);
