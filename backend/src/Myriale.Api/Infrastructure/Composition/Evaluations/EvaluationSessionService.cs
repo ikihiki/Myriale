@@ -1,8 +1,10 @@
+using System.Data.Common;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Myriale.Api.Infrastructure.Composition.Evaluations;
 
@@ -137,70 +139,251 @@ public sealed class EvaluationSessionService(ApplicationDbContext db, IAiProfile
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, EvaluationAttemptStatus.Queued).SetProperty(x => x.NextAttemptAt, (DateTimeOffset?)null).SetProperty(x => x.CompletedAt, (DateTimeOffset?)null).SetProperty(x => x.ErrorCode, (string?)null).SetProperty(x => x.Revision, x => x.Revision + 1), ct);
         await db.EvaluationSessions.Where(x => x.Id == id).ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, EvaluationSessionStatus.Queued).SetProperty(x => x.QueuedAt, now), ct); return count;
     }
-    public async Task<EvaluationClaim?> ClaimAsync(string workerId, TimeSpan leaseDuration, CancellationToken ct)
+    public async Task<EvaluationClaim?> ClaimAsync(string workerId, TimeSpan leaseDuration, CancellationToken ct) =>
+        (await ClaimBatchAsync(workerId, 1, leaseDuration, ct)).SingleOrDefault();
+
+    public async Task<IReadOnlyList<EvaluationClaim>> ClaimBatchAsync(
+        string workerId,
+        int maxBatchSize,
+        TimeSpan leaseDuration,
+        CancellationToken ct)
     {
-        await using var tx = await db.Database.BeginTransactionAsync(ct); var now = timeProvider.GetUtcNow();
-        var candidates = await db.EvaluationAttempts.Include(x => x.Session).Include(x => x.Situation).Include(x => x.Candidate).Include(x => x.Invocations)
-            .Where(x => (x.Status == EvaluationAttemptStatus.Queued || x.Status == EvaluationAttemptStatus.RetryWait || x.Status == EvaluationAttemptStatus.Running)
-                && x.Session.Status != EvaluationSessionStatus.CancelRequested && x.Session.Status != EvaluationSessionStatus.Cancelled)
-            .OrderBy(x => x.Id).Take(64).ToListAsync(ct);
-        var attempt = candidates.FirstOrDefault(x => x.Status == EvaluationAttemptStatus.Queued
-            || x.Status == EvaluationAttemptStatus.RetryWait && (x.NextAttemptAt is null || x.NextAttemptAt <= now)
-            || x.Status == EvaluationAttemptStatus.Running && x.LeaseExpiresAt < now);
-        if (attempt is null) { await tx.RollbackAsync(ct); return null; }
-        foreach (var stale in attempt.Invocations.Where(x => x.Status == EvaluationInvocationStatus.Started && x.CompletedAt == null))
-        { stale.Status = EvaluationInvocationStatus.UnknownOutcome; stale.ExpiredAt = now; stale.CompletedAt = now; stale.ErrorCode = "lease_expired"; stale.ErrorCategory = "lease"; stale.Retryable = true; }
-        if (attempt.InvocationCount >= attempt.Candidate.MaxInvocations) { attempt.Status = EvaluationAttemptStatus.Failed; attempt.ErrorCode = "max_invocations_exhausted"; attempt.CompletedAt = now; await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); await UpdateSessionProgressAsync(attempt.SessionId, ct); return null; }
-        var token = Guid.NewGuid().ToString("N"); attempt.Status = EvaluationAttemptStatus.Running; attempt.LeaseOwner = workerId; attempt.LeaseToken = token; attempt.LeaseExpiresAt = now + leaseDuration; attempt.StartedAt ??= now; attempt.InvocationCount++; attempt.Revision++;
-        if (attempt.Session.Status is EvaluationSessionStatus.Queued or EvaluationSessionStatus.Ready) { attempt.Session.Status = EvaluationSessionStatus.Running; attempt.Session.StartedAt ??= now; attempt.Session.Revision++; }
-        var invocation = new EvaluationModelInvocation { Id = NewInvocationId(), AttemptId = attempt.Id, InvocationNumber = attempt.InvocationCount,
-            Status = EvaluationInvocationStatus.Started, LeaseToken = token, AttemptRevision = attempt.Revision, RequestEnvelopeJson = attempt.Situation.RequestJson,
-            ProfileSnapshotJson = attempt.Candidate.ProfileDescriptorJson, GenerationConfigJson = attempt.Candidate.GenerationOverridesJson,
-            Provider = attempt.Candidate.Provider, Model = attempt.Candidate.Model, StartedAt = now, RequestHash = attempt.Situation.RequestHash };
-        attempt.Invocations.Add(invocation); await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
-        return new(attempt.Id, invocation.Id, token, attempt.Revision, attempt.Situation.Stage, attempt.Situation.RequestJson, attempt.Situation.ExpectationsJson, attempt.Candidate);
+        if (string.IsNullOrWhiteSpace(workerId)) throw new ArgumentException("Worker ID is required.", nameof(workerId));
+        if (maxBatchSize is < 1 or > 32) throw new ArgumentOutOfRangeException(nameof(maxBatchSize));
+        if (leaseDuration <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(leaseDuration));
+
+        var now = timeProvider.GetUtcNow();
+        var scanSize = db.Database.IsNpgsql()
+            ? maxBatchSize
+            : Math.Min(128, Math.Max(32, maxBatchSize * 4));
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var candidates = await LoadClaimCandidatesAsync(now, scanSize, ct);
+        var claims = new List<EvaluationClaim>(maxBatchSize);
+        var claimedSessions = new HashSet<EvaluationSessionId>();
+        var completedSessions = new HashSet<EvaluationSessionId>();
+
+        foreach (var attempt in candidates)
+        {
+            foreach (var stale in attempt.Invocations.Where(x => x.Status == EvaluationInvocationStatus.Started && x.CompletedAt == null))
+            {
+                stale.Status = EvaluationInvocationStatus.UnknownOutcome;
+                stale.ExpiredAt = now;
+                stale.CompletedAt = now;
+                stale.ErrorCode = "lease_expired";
+                stale.ErrorCategory = "lease";
+                stale.Retryable = true;
+            }
+
+            if (attempt.InvocationCount >= attempt.Candidate.MaxInvocations)
+            {
+                attempt.Status = EvaluationAttemptStatus.Failed;
+                attempt.ErrorCode = "max_invocations_exhausted";
+                attempt.CompletedAt = now;
+                ClearLease(attempt);
+                completedSessions.Add(attempt.SessionId);
+                continue;
+            }
+
+            var token = Guid.NewGuid().ToString("N");
+            attempt.Status = EvaluationAttemptStatus.Running;
+            attempt.LeaseOwner = workerId;
+            attempt.LeaseToken = token;
+            attempt.LeaseExpiresAt = now + leaseDuration;
+            attempt.StartedAt ??= now;
+            attempt.NextAttemptAt = null;
+            attempt.ErrorCode = null;
+            attempt.InvocationCount++;
+            attempt.Revision++;
+            claimedSessions.Add(attempt.SessionId);
+
+            var invocation = new EvaluationModelInvocation
+            {
+                Id = NewInvocationId(),
+                AttemptId = attempt.Id,
+                InvocationNumber = attempt.InvocationCount,
+                Status = EvaluationInvocationStatus.Started,
+                LeaseToken = token,
+                AttemptRevision = attempt.Revision,
+                RequestEnvelopeJson = attempt.Situation.RequestJson,
+                ProfileSnapshotJson = attempt.Candidate.ProfileDescriptorJson,
+                GenerationConfigJson = attempt.Candidate.GenerationOverridesJson,
+                Provider = attempt.Candidate.Provider,
+                Model = attempt.Candidate.Model,
+                StartedAt = now,
+                RequestHash = attempt.Situation.RequestHash,
+            };
+            attempt.Invocations.Add(invocation);
+            claims.Add(new(attempt.Id, invocation.Id, token, attempt.Revision, attempt.Situation.Stage,
+                attempt.Situation.RequestJson, attempt.Situation.ExpectationsJson, attempt.Candidate));
+            if (claims.Count == maxBatchSize) break;
+        }
+
+        await db.SaveChangesAsync(ct);
+        foreach (var sessionId in claimedSessions)
+        {
+            await db.EvaluationSessions
+                .Where(x => x.Id == sessionId && (x.Status == EvaluationSessionStatus.Queued || x.Status == EvaluationSessionStatus.Ready))
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(x => x.Status, EvaluationSessionStatus.Running)
+                    .SetProperty(x => x.StartedAt, x => x.StartedAt ?? now)
+                    .SetProperty(x => x.Revision, x => x.Revision + 1), ct);
+        }
+        await tx.CommitAsync(ct);
+        foreach (var sessionId in completedSessions) await UpdateSessionProgressAsync(sessionId, ct);
+        return claims;
     }
+
     public async Task<bool> HeartbeatAsync(EvaluationClaim claim, TimeSpan duration, CancellationToken ct)
     {
-        var now = timeProvider.GetUtcNow(); return await db.EvaluationAttempts.Where(x => x.Id == claim.AttemptId && x.Status == EvaluationAttemptStatus.Running && x.LeaseToken == claim.LeaseToken && x.Revision == claim.Revision)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.LeaseExpiresAt, now + duration), ct) == 1;
+        if (duration <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(duration));
+        var now = timeProvider.GetUtcNow();
+        var fenced = db.EvaluationAttempts.Where(x => x.Id == claim.AttemptId
+            && x.Status == EvaluationAttemptStatus.Running
+            && x.LeaseToken == claim.LeaseToken
+            && x.Revision == claim.Revision);
+        if (!db.Database.IsSqlite())
+        {
+            return await fenced.Where(x => x.LeaseExpiresAt > now)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.LeaseExpiresAt, now + duration), ct) == 1;
+        }
+
+        var attempt = await fenced.SingleOrDefaultAsync(ct);
+        if (attempt?.LeaseExpiresAt is null || attempt.LeaseExpiresAt <= now) return false;
+        attempt.LeaseExpiresAt = now + duration;
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return false;
+        }
     }
-    public async Task CompleteSuccessAsync(EvaluationClaim claim, NarrativeGeneration<ModelActionDecisionResult> generation, IEvaluationMachineJudge judge, CancellationToken ct) =>
-        await CompleteSuccessCoreAsync(claim, JsonSerializer.Serialize(generation.Value, Json), generation.Metadata, generation.SentPrompt, generation.ReceivedResult, judge, ct);
-    public async Task CompleteSuccessAsync(EvaluationClaim claim, NarrativeGeneration<PostStateNarrativeResult> generation, IEvaluationMachineJudge judge, CancellationToken ct) =>
-        await CompleteSuccessCoreAsync(claim, JsonSerializer.Serialize(generation.Value, Json), generation.Metadata, generation.SentPrompt, generation.ReceivedResult, judge, ct);
-    public async Task CompleteSuccessAsync(EvaluationClaim claim, NarrativeGeneration<EntityStateTransitionResult> generation, IEvaluationMachineJudge judge, CancellationToken ct) =>
-        await CompleteSuccessCoreAsync(claim, JsonSerializer.Serialize(generation.Value, Json), generation.Metadata, generation.SentPrompt, generation.ReceivedResult, judge, ct);
-    private async Task CompleteSuccessCoreAsync(EvaluationClaim claim, string outputJson, AiGenerationMetadata metadata, string? sentPrompt, string? raw, IEvaluationMachineJudge judge, CancellationToken ct)
+    public Task<bool> CompleteSuccessAsync(EvaluationClaim claim, NarrativeGeneration<ModelActionDecisionResult> generation, IEvaluationMachineJudge judge, CancellationToken ct) =>
+        CompleteSuccessCoreAsync(claim, JsonSerializer.Serialize(generation.Value, Json), generation.Metadata, generation.SentPrompt, generation.ReceivedResult, judge, ct);
+    public Task<bool> CompleteSuccessAsync(EvaluationClaim claim, NarrativeGeneration<PostStateNarrativeResult> generation, IEvaluationMachineJudge judge, CancellationToken ct) =>
+        CompleteSuccessCoreAsync(claim, JsonSerializer.Serialize(generation.Value, Json), generation.Metadata, generation.SentPrompt, generation.ReceivedResult, judge, ct);
+    public Task<bool> CompleteSuccessAsync(EvaluationClaim claim, NarrativeGeneration<EntityStateTransitionResult> generation, IEvaluationMachineJudge judge, CancellationToken ct) =>
+        CompleteSuccessCoreAsync(claim, JsonSerializer.Serialize(generation.Value, Json), generation.Metadata, generation.SentPrompt, generation.ReceivedResult, judge, ct);
+
+    public Task AuditLeaseLostAsync(EvaluationClaim claim, NarrativeGeneration<ModelActionDecisionResult> generation, CancellationToken ct) =>
+        RecordStaleSuccessAsync(claim, JsonSerializer.Serialize(generation.Value, Json), generation.Metadata, generation.SentPrompt, generation.ReceivedResult, ct);
+    public Task AuditLeaseLostAsync(EvaluationClaim claim, NarrativeGeneration<PostStateNarrativeResult> generation, CancellationToken ct) =>
+        RecordStaleSuccessAsync(claim, JsonSerializer.Serialize(generation.Value, Json), generation.Metadata, generation.SentPrompt, generation.ReceivedResult, ct);
+    public Task AuditLeaseLostAsync(EvaluationClaim claim, NarrativeGeneration<EntityStateTransitionResult> generation, CancellationToken ct) =>
+        RecordStaleSuccessAsync(claim, JsonSerializer.Serialize(generation.Value, Json), generation.Metadata, generation.SentPrompt, generation.ReceivedResult, ct);
+    public Task AuditLeaseLostAsync(EvaluationClaim claim, Exception exception, CancellationToken ct) =>
+        RecordStaleFailureAsync(claim, exception, ct);
+
+    private async Task<bool> CompleteSuccessCoreAsync(
+        EvaluationClaim claim,
+        string outputJson,
+        AiGenerationMetadata metadata,
+        string? sentPrompt,
+        string? raw,
+        IEvaluationMachineJudge judge,
+        CancellationToken ct)
     {
-        var attempt = await db.EvaluationAttempts.Include(x => x.Session).SingleOrDefaultAsync(x => x.Id == claim.AttemptId && x.LeaseToken == claim.LeaseToken && x.Revision == claim.Revision, ct); if (attempt is null) return;
-        var invocation = await db.EvaluationModelInvocations.SingleAsync(x => x.Id == claim.InvocationId, ct); if (invocation.Status != EvaluationInvocationStatus.Started) return;
-        var now = timeProvider.GetUtcNow(); invocation.Status = EvaluationInvocationStatus.Succeeded; invocation.SentPrompt = sentPrompt; invocation.RawResponse = raw; invocation.ParsedOutputJson = outputJson;
-        invocation.Provider = metadata.Provider.AsPrimitive(); invocation.Model = metadata.Model; invocation.ProviderRequestId = metadata.ResponseId; invocation.FinishReason = metadata.FinishReason;
-        invocation.InputTokens = metadata.InputTokens; invocation.OutputTokens = metadata.OutputTokens; invocation.GenerationLatencyMilliseconds = metadata.LatencyMilliseconds; invocation.EndToEndLatencyMilliseconds = Math.Max(0, (long)(now - invocation.StartedAt).TotalMilliseconds);
-        invocation.CompletedAt = now; invocation.PromptHash = sentPrompt is null ? null : Hash(sentPrompt); invocation.RawResultHash = raw is null ? null : Hash(raw); invocation.OutputHash = Hash(outputJson);
+        var now = timeProvider.GetUtcNow();
+        var fenced = db.EvaluationAttempts.Include(x => x.Session)
+            .Where(x => x.Id == claim.AttemptId
+                && x.Status == EvaluationAttemptStatus.Running
+                && x.LeaseToken == claim.LeaseToken
+                && x.Revision == claim.Revision);
+        var attempt = db.Database.IsSqlite()
+            ? await fenced.SingleOrDefaultAsync(ct)
+            : await fenced.SingleOrDefaultAsync(x => x.LeaseExpiresAt > now, ct);
+        if (attempt?.LeaseExpiresAt is null || attempt.LeaseExpiresAt <= now)
+        {
+            await RecordStaleSuccessAsync(claim, outputJson, metadata, sentPrompt, raw, ct);
+            return false;
+        }
+
+        var invocation = await db.EvaluationModelInvocations.SingleOrDefaultAsync(x => x.Id == claim.InvocationId
+            && x.LeaseToken == claim.LeaseToken && x.AttemptRevision == claim.Revision, ct);
+        if (invocation is null || invocation.Status != EvaluationInvocationStatus.Started) return false;
+        ApplySuccessAudit(invocation, outputJson, metadata, sentPrompt, raw, now);
+
         EvaluationScore score;
-        try { score = judge.Judge(claim.Stage, claim.RequestJson, outputJson, claim.ExpectationsJson); invocation.ValidationJson = Serialize(new { status = "judged", judge = judge.Key, version = judge.Version, score.Passed, score.Labels }); }
-        catch (Exception exception) { invocation.ValidationJson = Serialize(new { status = "scoring-failed", error = exception.GetType().Name }); attempt.Status = EvaluationAttemptStatus.Failed; attempt.ErrorCode = "machine_judgment_failed"; attempt.CompletedAt = now; ClearLease(attempt); await db.SaveChangesAsync(ct); await UpdateSessionProgressAsync(attempt.SessionId, ct); return; }
-        db.EvaluationMachineJudgments.Add(new EvaluationMachineJudgment { Id = NewMachineJudgmentId(), SessionId = attempt.SessionId, AttemptId = attempt.Id, InvocationId = invocation.Id,
-            OutputHash = invocation.OutputHash, JudgeKey = judge.Key, JudgeVersion = judge.Version, CriterionKey = "overall", Passed = score.Passed, Score = score.Score,
-            Confidence = score.Confidence, LabelsJson = Serialize(score.Labels), Rationale = score.Rationale, CreatedAt = now });
-        attempt.Status = EvaluationAttemptStatus.Succeeded; attempt.CompletedAt = now; ClearLease(attempt); await db.SaveChangesAsync(ct); await UpdateSessionProgressAsync(attempt.SessionId, ct);
+        try
+        {
+            score = judge.Judge(claim.Stage, claim.RequestJson, outputJson, claim.ExpectationsJson);
+            invocation.ValidationJson = Serialize(new { status = "judged", judge = judge.Key, version = judge.Version, score.Passed, score.Labels });
+        }
+        catch (Exception exception)
+        {
+            invocation.ValidationJson = Serialize(new { status = "scoring-failed", error = exception.GetType().Name });
+            attempt.Status = EvaluationAttemptStatus.Failed;
+            attempt.ErrorCode = "machine_judgment_failed";
+            attempt.CompletedAt = now;
+            ClearLease(attempt);
+            if (!await SaveFinalizationAsync(() => RecordStaleSuccessAsync(claim, outputJson, metadata, sentPrompt, raw, ct), ct)) return false;
+            await UpdateSessionProgressAsync(attempt.SessionId, ct);
+            return true;
+        }
+
+        db.EvaluationMachineJudgments.Add(new EvaluationMachineJudgment
+        {
+            Id = NewMachineJudgmentId(),
+            SessionId = attempt.SessionId,
+            AttemptId = attempt.Id,
+            InvocationId = invocation.Id,
+            OutputHash = invocation.OutputHash!,
+            JudgeKey = judge.Key,
+            JudgeVersion = judge.Version,
+            CriterionKey = "overall",
+            Passed = score.Passed,
+            Score = score.Score,
+            Confidence = score.Confidence,
+            LabelsJson = Serialize(score.Labels),
+            Rationale = score.Rationale,
+            CreatedAt = now,
+        });
+        attempt.Status = EvaluationAttemptStatus.Succeeded;
+        attempt.CompletedAt = now;
+        ClearLease(attempt);
+        if (!await SaveFinalizationAsync(() => RecordStaleSuccessAsync(claim, outputJson, metadata, sentPrompt, raw, ct), ct)) return false;
+        await UpdateSessionProgressAsync(attempt.SessionId, ct);
+        return true;
     }
-    public async Task CompleteFailureAsync(EvaluationClaim claim, Exception exception, CancellationToken ct)
+
+    public async Task<bool> CompleteFailureAsync(EvaluationClaim claim, Exception exception, CancellationToken ct)
     {
-        var attempt = await db.EvaluationAttempts.Include(x => x.Candidate).SingleOrDefaultAsync(x => x.Id == claim.AttemptId && x.LeaseToken == claim.LeaseToken && x.Revision == claim.Revision, ct); if (attempt is null) return;
-        var invocation = await db.EvaluationModelInvocations.SingleAsync(x => x.Id == claim.InvocationId, ct); if (invocation.Status != EvaluationInvocationStatus.Started) return;
-        var now = timeProvider.GetUtcNow(); var provider = exception as AiProviderException; var retryable = provider?.Retryable ?? exception is TimeoutException;
-        invocation.Status = exception is OperationCanceledException ? EvaluationInvocationStatus.Cancelled : EvaluationInvocationStatus.Failed; invocation.CompletedAt = now;
-        invocation.ErrorCode = provider?.Code ?? (exception is OperationCanceledException ? "cancelled" : "evaluation_execution_failed"); invocation.ErrorCategory = provider is null ? "internal" : "provider"; invocation.Retryable = retryable;
-        invocation.SentPrompt = provider?.SentPrompt; invocation.RawResponse = provider?.ReceivedResult; invocation.RawError = provider?.ProviderResponseExcerpt ?? exception.Message;
-        invocation.ProviderRequestId = provider?.Metadata?.ResponseId; invocation.InputTokens = provider?.Metadata?.InputTokens; invocation.OutputTokens = provider?.Metadata?.OutputTokens;
-        invocation.GenerationLatencyMilliseconds = provider?.Metadata?.LatencyMilliseconds; invocation.EndToEndLatencyMilliseconds = Math.Max(0, (long)(now - invocation.StartedAt).TotalMilliseconds);
-        invocation.PromptHash = invocation.SentPrompt is null ? null : Hash(invocation.SentPrompt); invocation.RawResultHash = invocation.RawResponse is null ? Hash(invocation.RawError ?? "") : Hash(invocation.RawResponse);
-        if (retryable && attempt.InvocationCount < attempt.Candidate.MaxInvocations) { attempt.Status = EvaluationAttemptStatus.RetryWait; attempt.NextAttemptAt = now + TimeSpan.FromSeconds(Math.Min(30, Math.Pow(2, attempt.InvocationCount))); }
-        else { attempt.Status = exception is OperationCanceledException ? EvaluationAttemptStatus.Cancelled : EvaluationAttemptStatus.Failed; attempt.CompletedAt = now; }
-        attempt.ErrorCode = invocation.ErrorCode; ClearLease(attempt); await db.SaveChangesAsync(ct); await UpdateSessionProgressAsync(attempt.SessionId, ct);
+        var now = timeProvider.GetUtcNow();
+        var fenced = db.EvaluationAttempts.Include(x => x.Candidate)
+            .Where(x => x.Id == claim.AttemptId
+                && x.Status == EvaluationAttemptStatus.Running
+                && x.LeaseToken == claim.LeaseToken
+                && x.Revision == claim.Revision);
+        var attempt = db.Database.IsSqlite()
+            ? await fenced.SingleOrDefaultAsync(ct)
+            : await fenced.SingleOrDefaultAsync(x => x.LeaseExpiresAt > now, ct);
+        if (attempt?.LeaseExpiresAt is null || attempt.LeaseExpiresAt <= now)
+        {
+            await RecordStaleFailureAsync(claim, exception, ct);
+            return false;
+        }
+
+        var invocation = await db.EvaluationModelInvocations.SingleOrDefaultAsync(x => x.Id == claim.InvocationId
+            && x.LeaseToken == claim.LeaseToken && x.AttemptRevision == claim.Revision, ct);
+        if (invocation is null || invocation.Status != EvaluationInvocationStatus.Started) return false;
+        ApplyFailureAudit(invocation, exception, now, stale: false);
+        if (invocation.Retryable && attempt.InvocationCount < attempt.Candidate.MaxInvocations)
+        {
+            attempt.Status = EvaluationAttemptStatus.RetryWait;
+            attempt.NextAttemptAt = now + TimeSpan.FromSeconds(Math.Min(30, Math.Pow(2, attempt.InvocationCount)));
+        }
+        else
+        {
+            attempt.Status = exception is OperationCanceledException ? EvaluationAttemptStatus.Cancelled : EvaluationAttemptStatus.Failed;
+            attempt.CompletedAt = now;
+        }
+        attempt.ErrorCode = invocation.ErrorCode;
+        ClearLease(attempt);
+        if (!await SaveFinalizationAsync(() => RecordStaleFailureAsync(claim, exception, ct), ct)) return false;
+        await UpdateSessionProgressAsync(attempt.SessionId, ct);
+        return true;
     }
     public async Task<EvaluationRawInvocationResponse?> RawInvocationAsync(AccountId owner, bool admin, bool rawReader, EvaluationModelInvocationId id, CancellationToken ct)
     {
@@ -360,6 +543,180 @@ public sealed class EvaluationSessionService(ApplicationDbContext db, IAiProfile
         using var doc = JsonDocument.Parse(stream); var root = doc.RootElement; var cases = root.GetProperty("cases").EnumerateArray().Select(x => new EvaluationCorpusCaseResponse(x.GetProperty("caseId").GetString()!, x.GetProperty("stage").GetString()!, x.GetProperty("request").Clone(), x.GetProperty("metadata").Clone())).ToList();
         return new(root.GetProperty("corpusId").GetString()!, root.GetProperty("version").GetString()!, root.GetProperty("description").GetString()!, cases);
     }
+    private async Task<List<EvaluationAttempt>> LoadClaimCandidatesAsync(DateTimeOffset now, int scanSize, CancellationToken ct)
+    {
+        if (db.Database.IsNpgsql())
+        {
+            var ids = await ReadLockedPostgresCandidateIdsAsync(now, scanSize, ct);
+            if (ids.Count == 0) return [];
+            var rows = await db.EvaluationAttempts
+                .Include(x => x.Session)
+                .Include(x => x.Situation)
+                .Include(x => x.Candidate)
+                .Include(x => x.Invocations)
+                .Where(x => ids.Contains(x.Id))
+                .ToListAsync(ct);
+            var order = ids.Select((id, index) => (id, index)).ToDictionary(x => x.id, x => x.index);
+            return rows.OrderBy(x => order[x.Id]).ToList();
+        }
+
+        return (await db.EvaluationAttempts
+                .Include(x => x.Session)
+                .Include(x => x.Situation)
+                .Include(x => x.Candidate)
+                .Include(x => x.Invocations)
+                .Where(x => (x.Status == EvaluationAttemptStatus.Queued
+                        || x.Status == EvaluationAttemptStatus.RetryWait
+                        || x.Status == EvaluationAttemptStatus.Running)
+                    && x.Session.Status != EvaluationSessionStatus.CancelRequested
+                    && x.Session.Status != EvaluationSessionStatus.Cancelled)
+                .OrderBy(x => x.Id)
+                .Take(scanSize)
+                .ToListAsync(ct))
+            .Where(x => x.Status == EvaluationAttemptStatus.Queued
+                || x.Status == EvaluationAttemptStatus.RetryWait && (x.NextAttemptAt is null || x.NextAttemptAt <= now)
+                || x.Status == EvaluationAttemptStatus.Running && x.LeaseExpiresAt <= now)
+            .OrderBy(x => x.CreatedAt)
+            .ThenBy(x => x.Id.AsPrimitive(), StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private async Task<List<EvaluationAttemptId>> ReadLockedPostgresCandidateIdsAsync(DateTimeOffset now, int scanSize, CancellationToken ct)
+    {
+        await db.Database.OpenConnectionAsync(ct);
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction()
+            ?? throw new InvalidOperationException("A claim transaction is required.");
+        command.CommandText = """
+            SELECT a."Id"
+            FROM "EvaluationAttempts" AS a
+            INNER JOIN "EvaluationSessions" AS s ON s."Id" = a."SessionId"
+            WHERE a."Status" IN ('Queued', 'RetryWait', 'Running')
+              AND s."Status" NOT IN ('CancelRequested', 'Cancelled')
+              AND (
+                    a."Status" = 'Queued'
+                 OR (a."Status" = 'RetryWait' AND (a."NextAttemptAt" IS NULL OR a."NextAttemptAt" <= @now))
+                 OR (a."Status" = 'Running' AND a."LeaseExpiresAt" <= @now)
+              )
+            ORDER BY a."CreatedAt", a."Id"
+            FOR UPDATE OF a SKIP LOCKED
+            LIMIT @scanSize
+            """;
+        AddParameter(command, "now", now);
+        AddParameter(command, "scanSize", scanSize);
+        var ids = new List<EvaluationAttemptId>(scanSize);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct)) ids.Add(new(reader.GetString(0)));
+        return ids;
+    }
+
+    private static void AddParameter(DbCommand command, string name, object value)
+    {
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = name;
+        parameter.Value = value;
+        command.Parameters.Add(parameter);
+    }
+
+    private async Task<bool> SaveFinalizationAsync(Func<Task> recordStale, CancellationToken ct)
+    {
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            db.ChangeTracker.Clear();
+            await recordStale();
+            return false;
+        }
+    }
+
+    private async Task RecordStaleSuccessAsync(
+        EvaluationClaim claim,
+        string outputJson,
+        AiGenerationMetadata metadata,
+        string? sentPrompt,
+        string? raw,
+        CancellationToken ct)
+    {
+        var invocation = await db.EvaluationModelInvocations.SingleOrDefaultAsync(x => x.Id == claim.InvocationId
+            && x.LeaseToken == claim.LeaseToken && x.AttemptRevision == claim.Revision, ct);
+        if (invocation is null || invocation.Status is not (EvaluationInvocationStatus.Started or EvaluationInvocationStatus.UnknownOutcome)) return;
+        var now = timeProvider.GetUtcNow();
+        ApplySuccessAudit(invocation, outputJson, metadata, sentPrompt, raw, now);
+        invocation.Status = EvaluationInvocationStatus.UnknownOutcome;
+        invocation.ExpiredAt ??= now;
+        invocation.CompletedAt ??= now;
+        invocation.ErrorCode ??= "lease_lost";
+        invocation.ErrorCategory = "lease";
+        invocation.Retryable = true;
+        invocation.ValidationJson = Serialize(new { status = "lease-lost-after-provider-success", outputAudited = true });
+        await db.SaveChangesAsync(ct);
+    }
+
+    private async Task RecordStaleFailureAsync(EvaluationClaim claim, Exception exception, CancellationToken ct)
+    {
+        var invocation = await db.EvaluationModelInvocations.SingleOrDefaultAsync(x => x.Id == claim.InvocationId
+            && x.LeaseToken == claim.LeaseToken && x.AttemptRevision == claim.Revision, ct);
+        if (invocation is null || invocation.Status is not (EvaluationInvocationStatus.Started or EvaluationInvocationStatus.UnknownOutcome)) return;
+        var now = timeProvider.GetUtcNow();
+        ApplyFailureAudit(invocation, exception, now, stale: true);
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static void ApplySuccessAudit(
+        EvaluationModelInvocation invocation,
+        string outputJson,
+        AiGenerationMetadata metadata,
+        string? sentPrompt,
+        string? raw,
+        DateTimeOffset now)
+    {
+        invocation.Status = EvaluationInvocationStatus.Succeeded;
+        invocation.SentPrompt = sentPrompt;
+        invocation.RawResponse = raw;
+        invocation.ParsedOutputJson = outputJson;
+        invocation.Provider = metadata.Provider.AsPrimitive();
+        invocation.Model = metadata.Model;
+        invocation.ProviderRequestId = metadata.ResponseId;
+        invocation.FinishReason = metadata.FinishReason;
+        invocation.InputTokens = metadata.InputTokens;
+        invocation.OutputTokens = metadata.OutputTokens;
+        invocation.GenerationLatencyMilliseconds = metadata.LatencyMilliseconds;
+        invocation.EndToEndLatencyMilliseconds = Math.Max(0, (long)(now - invocation.StartedAt).TotalMilliseconds);
+        invocation.CompletedAt = now;
+        invocation.PromptHash = sentPrompt is null ? null : Hash(sentPrompt);
+        invocation.RawResultHash = raw is null ? null : Hash(raw);
+        invocation.OutputHash = Hash(outputJson);
+    }
+
+    private static void ApplyFailureAudit(EvaluationModelInvocation invocation, Exception exception, DateTimeOffset now, bool stale)
+    {
+        var provider = exception as AiProviderException;
+        var retryable = provider?.Retryable ?? exception is TimeoutException;
+        invocation.Status = stale ? EvaluationInvocationStatus.UnknownOutcome
+            : exception is OperationCanceledException ? EvaluationInvocationStatus.Cancelled : EvaluationInvocationStatus.Failed;
+        invocation.CompletedAt ??= now;
+        invocation.ExpiredAt = stale ? invocation.ExpiredAt ?? now : invocation.ExpiredAt;
+        invocation.ErrorCode = stale ? invocation.ErrorCode ?? "lease_lost"
+            : provider?.Code ?? (exception is OperationCanceledException ? "cancelled" : "evaluation_execution_failed");
+        invocation.ErrorCategory = stale ? "lease" : provider is null ? "internal" : "provider";
+        invocation.Retryable = stale || retryable;
+        invocation.SentPrompt ??= provider?.SentPrompt;
+        invocation.RawResponse ??= provider?.ReceivedResult;
+        invocation.RawError ??= provider?.ProviderResponseExcerpt ?? exception.Message;
+        invocation.ProviderRequestId ??= provider?.Metadata?.ResponseId;
+        invocation.InputTokens ??= provider?.Metadata?.InputTokens;
+        invocation.OutputTokens ??= provider?.Metadata?.OutputTokens;
+        invocation.GenerationLatencyMilliseconds ??= provider?.Metadata?.LatencyMilliseconds;
+        invocation.EndToEndLatencyMilliseconds ??= Math.Max(0, (long)(now - invocation.StartedAt).TotalMilliseconds);
+        invocation.PromptHash ??= invocation.SentPrompt is null ? null : Hash(invocation.SentPrompt);
+        invocation.RawResultHash ??= invocation.RawResponse is null ? Hash(invocation.RawError ?? "") : Hash(invocation.RawResponse);
+        if (stale) invocation.ValidationJson = Serialize(new { status = "lease-lost-after-provider-failure", errorAudited = true });
+    }
+
     private async Task UpdateSessionProgressAsync(EvaluationSessionId id, CancellationToken ct)
     {
         db.ChangeTracker.Clear();
