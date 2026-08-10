@@ -99,6 +99,61 @@ export function EditScenarioContainer({ scenarioId, api }: { scenarioId: string;
     }
   };
 
+  const importNarrativeTest: NonNullable<ScenarioFormActions['importNarrativeTest']> = async (sessionId, turnId) => {
+    try {
+      const response = await scenarioApi.importScenarioNarrativeTest(scenarioId, sessionId, turnId);
+      return { ok: true, message: `${sessionId} / ${turnId} の状態と過去Turnを取り込みました。`, value: response };
+    } catch (caught) {
+      const error = caught as ScenarioApiError;
+      return { ok: false, message: error.message ?? 'Session / Turnをインポートできませんでした。' };
+    }
+  };
+
+  const compareNarrativeDraft: NonNullable<ScenarioFormActions['compareNarrativeDraft']> = async (values, testCase) => {
+    setAiWorking(true);
+    try {
+      const response = await scenarioApi.compareScenarioDraftNarrative(scenarioId, values, testCase);
+      return { ok: true, message: '同じ状態・過去Turn・AIで、公開版と未保存ドラフトを生成しました。', value: response };
+    } catch (caught) {
+      const error = caught as ScenarioApiError;
+      return { ok: false, message: error.errors?.test?.[0] ?? error.message ?? 'Narrative比較を実行できませんでした。' };
+    } finally { setAiWorking(false); }
+  };
+
+  const runAiEvaluation: NonNullable<ScenarioFormActions['runAiEvaluation']> = async (profileIds, repetitions, testCase, generationOverrides) => {
+    setAiWorking(true);
+    try {
+      const narrativeRequest = {
+        schemaVersion: 'post-state-narrative.v1',
+        scenario: {
+          title: scenarioQuery.data?.scenario.title ?? '', summary: scenarioQuery.data?.scenario.summary ?? '', genre: scenarioQuery.data?.scenario.genre ?? '',
+          tone: scenarioQuery.data?.scenario.tone ?? '', lore: scenarioQuery.data?.scenario.lore ?? '', aiFreedom: scenarioQuery.data?.scenario.aiFreedom ?? '',
+          hero: scenarioQuery.data?.scenario.hero ?? '', entities: testCase.entities, opening: scenarioQuery.data?.scenario.opening ?? '',
+        },
+        recentTurns: testCase.recentTurns, playerInput: testCase.playerInput, selectedObject: testCase.selectedObject, selectedAction: testCase.selectedAction,
+        postState: testCase.postState, facts: testCase.facts, events: testCase.events, narrativeHints: testCase.narrativeHints, forbiddenNarrativeFacts: testCase.forbiddenNarrativeFacts,
+      };
+      const response = await scenarioApi.createScenarioAiEvaluationRun(scenarioId, {
+        profileIds, repetitions, corpusId: 'myriale-low-cost-model-comparison', corpusVersion: '1.1.0', generationOverrides,
+        config: { source: 'scenario-editor', stage: 'narrative', coldStart: false },
+        cases: [{ caseId: 'narrative-editor-current', stage: 'narrative', request: narrativeRequest, metadata: { forbiddenTerms: testCase.forbiddenNarrativeFacts } }],
+      });
+      return { ok: true, message: `${profileIds.length}モデル × ${repetitions}回のブラインド比較を完了しました。`, value: response };
+    } catch (caught) {
+      const error = caught as ScenarioApiError;
+      return { ok: false, message: error.errors?.evaluation?.[0] ?? error.message ?? 'AIモデル比較を実行できませんでした。' };
+    } finally { setAiWorking(false); }
+  };
+
+  const exportAiEvaluation: NonNullable<ScenarioFormActions['exportAiEvaluation']> = async (runId, format) => {
+    try {
+      const blob = await scenarioApi.exportScenarioAiEvaluationRun(scenarioId, runId, format);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${runId}.${format}`; anchor.click(); URL.revokeObjectURL(url);
+      return { ok: true, message: `${format.toUpperCase()}をエクスポートしました。` };
+    } catch (caught) { return { ok: false, message: caught instanceof Error ? caught.message : 'エクスポートできませんでした。' }; }
+  };
+
   const checkReadiness: NonNullable<ScenarioFormActions['checkReadiness']> = async () => {
     try {
       const readiness = await scenarioApi.getScenarioRuleDataReadiness(scenarioId);
@@ -148,7 +203,7 @@ export function EditScenarioContainer({ scenarioId, api }: { scenarioId: string;
     loadError={scenarioQuery.error instanceof Error ? scenarioQuery.error.message : undefined}
     saving={saving}
     aiWorking={aiWorking}
-    actions={{ save, assist, debug, checkReadiness, publish }}
+    actions={{ save, assist, debug, importNarrativeTest, compareNarrativeDraft, runAiEvaluation, openAiEvaluationCorpus: () => navigate?.('scenarioAiEvaluation', { scenarioId }), exportAiEvaluation, checkReadiness, publish }}
     onRetry={() => void scenarioQuery.refetch()}
     onLogout={logout}
   />;

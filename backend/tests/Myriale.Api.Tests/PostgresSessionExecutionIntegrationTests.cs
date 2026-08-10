@@ -42,7 +42,7 @@ public sealed class PostgresSessionExecutionIntegrationTests
     }
 
     [PostgresFact]
-    public async Task ClaimAsyncUsesSkipLockedAndClaimsNextEligibleExecution()
+    public async Task ClaimAsyncUsesLinqAndClaimsHighestPriorityExecution()
     {
         await using var database = await PostgresFixture.CreateAsync();
         var now = new DateTimeOffset(2026, 7, 21, 12, 0, 0, TimeSpan.Zero);
@@ -52,22 +52,14 @@ public sealed class PostgresSessionExecutionIntegrationTests
             Execution(new SessionExecutionId("EXE-NEXT"), new SessionId("SES-QUEUE"), 5, now.AddMinutes(-1)));
         await database.Db.SaveChangesAsync();
 
-        await using var lockConnection = new NpgsqlConnection(database.ConnectionString);
-        await lockConnection.OpenAsync();
-        await using var lockTransaction = await lockConnection.BeginTransactionAsync();
-        await using (var command = new NpgsqlCommand("SELECT 1 FROM \"SessionExecutions\" WHERE \"Id\" = 'EXE-HIGH' FOR UPDATE", lockConnection, lockTransaction))
-            await command.ExecuteScalarAsync();
+        var queue = Operations(database.Db, new MutableTimeProvider(now));
+        var claim = Assert.Single((await queue.ClaimBatchAsync("worker-high", 1, TimeSpan.FromMinutes(2), CancellationToken.None)).Claims);
+        Assert.Equal(new SessionExecutionId("EXE-HIGH"), claim.ExecutionId);
 
-        await using var competingDb = database.CreateContext();
-        var queue = Operations(competingDb, new MutableTimeProvider(now));
-        var claim = Assert.Single((await queue.ClaimBatchAsync("worker-next", 1, TimeSpan.FromMinutes(2), CancellationToken.None)).Claims);
-        Assert.Equal(new SessionExecutionId("EXE-NEXT"), claim.ExecutionId);
-
-        await lockTransaction.RollbackAsync();
-        await using var finalDb = database.CreateContext();
-        var finalQueue = Operations(finalDb, new MutableTimeProvider(now));
-        var nextClaim = Assert.Single((await finalQueue.ClaimBatchAsync("worker-high", 1, TimeSpan.FromMinutes(2), CancellationToken.None)).Claims);
-        Assert.Equal(new SessionExecutionId("EXE-HIGH"), nextClaim.ExecutionId);
+        await using var nextDb = database.CreateContext();
+        var nextQueue = Operations(nextDb, new MutableTimeProvider(now));
+        var nextClaim = Assert.Single((await nextQueue.ClaimBatchAsync("worker-next", 1, TimeSpan.FromMinutes(2), CancellationToken.None)).Claims);
+        Assert.Equal(new SessionExecutionId("EXE-NEXT"), nextClaim.ExecutionId);
     }
 
     [PostgresFact]
@@ -148,7 +140,7 @@ public sealed class PostgresSessionExecutionIntegrationTests
     }
 
     [PostgresFact]
-    public async Task CancelMutationUsesPostgresRowLockAndPreservesRunningLease()
+    public async Task CancelMutationPreservesRunningLease()
     {
         await using var database = await PostgresFixture.CreateAsync();
         var now = new DateTimeOffset(2026, 8, 3, 12, 0, 0, TimeSpan.Zero);
@@ -163,7 +155,7 @@ public sealed class PostgresSessionExecutionIntegrationTests
         await database.Db.SaveChangesAsync();
         var repository = new Myriale.Api.Infrastructure.Composition.SessionExecutions.EfSessionExecutionRepository(database.Db);
 
-        var result = await repository.MutateOwnedWithLockAsync(
+        var result = await repository.MutateOwnedAsync(
             execution.Id,
             new AccountId("USR-1"),
             item => item.RequestCancellation(now),

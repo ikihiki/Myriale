@@ -3,10 +3,10 @@ namespace Myriale.Api.Features.AiProviders.Contracts;
 
 public sealed record AiProfileResponse(AiProviderProfileId Id, string DisplayName);
 public sealed record AiProfilesResponse(IReadOnlyList<AiProfileResponse> Profiles, AiProviderProfileId DefaultActionDecisionProfileId, AiProviderProfileId DefaultNarrativeProfileId);
-public sealed record AiAdminProfileResponse(AiProviderProfileId Id, string DisplayName, string Adapter, string BaseUrl, string Model, AiCredentialId CredentialId, bool Enabled, string Source, long Revision, bool Active, string CredentialSource, bool CredentialConfigured, long CredentialRevision, string ValidationStatus, DateTimeOffset? LastValidatedAt);
+public sealed record AiAdminProfileResponse(AiProviderProfileId Id, string DisplayName, string Adapter, string BaseUrl, string Model, string SystemPrompt, AiCredentialId CredentialId, bool Enabled, string Source, long Revision, bool Active, string CredentialSource, bool CredentialConfigured, long CredentialRevision, string ValidationStatus, DateTimeOffset? LastValidatedAt);
 public sealed record AiAdminCredentialResponse(AiCredentialId Id, string DisplayName, string MaskedSecret, string Source, long Revision, DateTimeOffset UpdatedAt, int ReferencedProfileCount);
-public sealed record CreateAiProviderProfileRequest(AiProviderProfileId Id, string DisplayName, string BaseUrl, string Model, AiCredentialId CredentialId, bool Enabled = true);
-public sealed record UpdateAiProviderProfileRequest(string DisplayName, string BaseUrl, string Model, AiCredentialId CredentialId, long ExpectedRevision);
+public sealed record CreateAiProviderProfileRequest(AiProviderProfileId Id, string DisplayName, string BaseUrl, string Model, string SystemPrompt, AiCredentialId CredentialId, bool Enabled = true);
+public sealed record UpdateAiProviderProfileRequest(string DisplayName, string BaseUrl, string Model, string SystemPrompt, AiCredentialId CredentialId, long ExpectedRevision);
 public sealed record ExpectedRevisionRequest(long ExpectedRevision);
 public sealed record SetAiCredentialRequest(AiCredentialId Id, string DisplayName, string Secret);
 public sealed record ReplaceAiCredentialRequest(string DisplayName, string Secret, long ExpectedRevision);

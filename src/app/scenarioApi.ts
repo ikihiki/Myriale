@@ -47,15 +47,15 @@ export type CanonicalScenarioObjectRuleOperationDto =
   | ({ operation: 'override'; targetTypeCode: string; targetRuleCode: string } & Omit<CanonicalScenarioActionRuleDto, 'code'>)
   | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
   | {
-      operation: 'adjust';
-      targetTypeCode: string;
-      targetRuleCode: string;
-      condition?: ScenarioJsonObject;
-      priority?: number;
-      authoringNote?: string | null;
-      effects?: ScenarioJsonValue[];
-      moduleBinding?: CanonicalScenarioModuleBindingDto | null;
-    };
+    operation: 'adjust';
+    targetTypeCode: string;
+    targetRuleCode: string;
+    condition?: ScenarioJsonObject;
+    priority?: number;
+    authoringNote?: string | null;
+    effects?: ScenarioJsonValue[];
+    moduleBinding?: CanonicalScenarioModuleBindingDto | null;
+  };
 
 export type CanonicalScenarioObjectTypeDto = {
   code: string;
@@ -204,17 +204,17 @@ export type ScenarioObjectRuleOperationPayload =
   | { operation: 'override'; targetTypeCode: string; targetRuleCode: string; rule: ScenarioActionRulePayload }
   | { operation: 'delete'; targetTypeCode: string; targetRuleCode: string }
   | {
-      operation: 'adjust';
-      targetTypeCode: string;
-      targetRuleCode: string;
-      adjustments: {
-        condition?: ScenarioCondition;
-        priority?: number;
-        note?: string | null;
-        effects?: ScenarioRuleEffectPayload[];
-        moduleBinding?: ScenarioModuleBindingPayload | null;
-      };
+    operation: 'adjust';
+    targetTypeCode: string;
+    targetRuleCode: string;
+    adjustments: {
+      condition?: ScenarioCondition;
+      priority?: number;
+      note?: string | null;
+      effects?: ScenarioRuleEffectPayload[];
+      moduleBinding?: ScenarioModuleBindingPayload | null;
     };
+  };
 
 export type ScenarioObjectPayload = {
   code: string;
@@ -313,6 +313,61 @@ export type ScenarioRuleDebugResponse = {
   forbiddenFacts: string[];
 };
 
+export type ScenarioNarrativeRecentTurn = { playerInput?: string | null; narrative?: string | null };
+export type ScenarioNarrativeEntity = { code: string; name: string; profileMarkdown: string };
+export type ScenarioNarrativeTestCase = {
+  recentTurns: ScenarioNarrativeRecentTurn[];
+  playerInput: string;
+  selectedObject: { id: string; code: string; name: string; locationId: string; isGlobal: boolean; revision: number; state: ScenarioJsonObject };
+  selectedAction: { objectId: string; actionId: string; code: string; label: string; description: string; argumentSchema: ScenarioJsonObject; enabled: boolean };
+  postState: { schemaVersion: string; currentLocation: { id: string; code: string; name: string; description: string }; objects: Array<{ id: string; code: string; name: string; locationId: string; isGlobal: boolean; revision: number; state: ScenarioJsonObject }>; sessionFlags: Record<string, boolean>; sessionStateRevision: number };
+  facts: string[];
+  events: ScenarioJsonValue[];
+  narrativeHints: string[];
+  forbiddenNarrativeFacts: string[];
+  entities: ScenarioNarrativeEntity[];
+};
+export type ImportScenarioNarrativeTestResponse = { sessionId: string; turnId: string; testCase: ScenarioNarrativeTestCase };
+export type ScenarioNarrativeTestResult = { heading: string; body: string; model: string; latencyMilliseconds: number };
+export type CompareScenarioDraftNarrativeResponse = { publishedDefinitionVersionId: string; aiProfileId: string; published: ScenarioNarrativeTestResult; draft: ScenarioNarrativeTestResult };
+
+export type AiGenerationOverrides = {
+  temperature?: number | null;
+  topP?: number | null;
+  repetitionPenalty?: number | null;
+  seed?: number | null;
+  maxOutputTokens?: number | null;
+  thinkingEnabled?: boolean | null;
+  retryAttempts?: number | null;
+};
+export type ScenarioAiEvaluationCaseInput = { caseId: string; stage: 'action' | 'narrative' | 'entityState'; request: ScenarioJsonObject; metadata: ScenarioJsonObject };
+export type CreateScenarioAiEvaluationRunPayload = {
+  profileIds: string[];
+  repetitions: number;
+  corpusId?: string;
+  corpusVersion?: string;
+  generationOverrides?: AiGenerationOverrides | null;
+  config: ScenarioJsonObject;
+  cases: ScenarioAiEvaluationCaseInput[];
+};
+export type CreateScenarioAiEvaluationCorpusRunPayload = {
+  profileIds: string[];
+  repetitions?: number | null;
+  caseIds?: string[] | null;
+};
+export type ScenarioAiEvaluationAttempt = {
+  id: string; profileId: string; profileRevision: number; model: string; repetition: number; blindCode: string;
+  status: string; passed: boolean; labels: string[]; output: ScenarioJsonObject; metadata: ScenarioJsonObject;
+  errorCode?: string | null; sentPrompt?: string | null; rawResult?: string | null; inputTokens?: number | null; outputTokens?: number | null; latencyMilliseconds?: number | null;
+  startedAt: string; completedAt: string;
+};
+export type ScenarioAiEvaluationRun = {
+  summary: { id: string; scenarioId: string; status: string; corpusId: string; corpusVersion: string; profileIds: string[]; repetitions: number; caseCount: number; attemptCount: number; passedAttemptCount: number; createdAt: string; completedAt?: string | null };
+  config: ScenarioJsonObject;
+  cases: Array<{ id: string; caseId: string; stage: string; canonicalPayloadHash: string; request: ScenarioJsonObject; metadata: ScenarioJsonObject; attempts: ScenarioAiEvaluationAttempt[] }>;
+};
+export type ScenarioAiEvaluationCorpusManifest = { corpusId: string; version: string; description: string; stages: Array<{ stage: string; plannedCaseCount: number; plannedRepetitions: number; generationOverrides: AiGenerationOverrides }>; cases: ScenarioAiEvaluationCaseInput[] };
+
 export type ScenarioApiError = Error & {
   status?: number;
   errors?: Record<string, string[]>;
@@ -355,6 +410,13 @@ export type ScenarioApi = {
   getScenarioRuleDataReadiness: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioRuleDataReadinessDto>;
   publishScenarioRuleData: (scenarioId: string) => Promise<ScenarioRuleDataPayload>;
   debugScenarioRuleData: (scenarioId: string, payload: ScenarioRuleDebugRequest) => Promise<ScenarioRuleDebugResponse>;
+  importScenarioNarrativeTest: (scenarioId: string, sessionId: string, turnId: string) => Promise<ImportScenarioNarrativeTestResponse>;
+  compareScenarioDraftNarrative: (scenarioId: string, draft: CreateScenarioPayload, testCase: ScenarioNarrativeTestCase) => Promise<CompareScenarioDraftNarrativeResponse>;
+  getScenarioAiEvaluationCorpus: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioAiEvaluationCorpusManifest>;
+  createScenarioAiEvaluationCorpusRun: (scenarioId: string, payload: CreateScenarioAiEvaluationCorpusRunPayload) => Promise<ScenarioAiEvaluationRun>;
+  createScenarioAiEvaluationRun: (scenarioId: string, payload: CreateScenarioAiEvaluationRunPayload) => Promise<ScenarioAiEvaluationRun>;
+  listScenarioAiEvaluationRuns: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioAiEvaluationRun['summary'][]>;
+  exportScenarioAiEvaluationRun: (scenarioId: string, runId: string, format: 'json' | 'csv') => Promise<Blob>;
   recommendHero: (scenarioId: string, payload: RecommendScenarioHeroPayload) => Promise<ScenarioHeroRecommendation>;
   createScenario: (payload: CreateScenarioPayload) => Promise<ScenarioDraftDto>;
   updateScenario: (scenarioId: string, payload: CreateScenarioPayload) => Promise<ScenarioDraftDto>;
@@ -447,6 +509,53 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
       });
       if (!response.ok) throw await toApiError(response);
       return response.json() as Promise<ScenarioRuleDebugResponse>;
+    },
+    async importScenarioNarrativeTest(scenarioId, sessionId, turnId) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/narrative-tests/import`, {
+        method: 'POST', credentials: 'include',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, turnId }),
+      });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<ImportScenarioNarrativeTestResponse>;
+    },
+    async compareScenarioDraftNarrative(scenarioId, draft, testCase) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/narrative-tests/compare`, {
+        method: 'POST', credentials: 'include',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft: toScenarioTransport(draft), testCase }),
+      });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<CompareScenarioDraftNarrativeResponse>;
+    },
+    async getScenarioAiEvaluationCorpus(scenarioId, signal) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/ai-evaluations/corpus`, { credentials: 'include', headers: { Accept: 'application/json' }, signal });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<ScenarioAiEvaluationCorpusManifest>;
+    },
+    async createScenarioAiEvaluationCorpusRun(scenarioId, payload) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/ai-evaluations/corpus/runs`, {
+        method: 'POST', credentials: 'include', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<ScenarioAiEvaluationRun>;
+    },
+    async createScenarioAiEvaluationRun(scenarioId, payload) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/ai-evaluations/runs`, {
+        method: 'POST', credentials: 'include', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<ScenarioAiEvaluationRun>;
+    },
+    async listScenarioAiEvaluationRuns(scenarioId, signal) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/ai-evaluations/runs`, { credentials: 'include', headers: { Accept: 'application/json' }, signal });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<ScenarioAiEvaluationRun['summary'][]>;
+    },
+    async exportScenarioAiEvaluationRun(scenarioId, runId, format) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/ai-evaluations/runs/${encodeURIComponent(runId)}/export?format=${format}`, { credentials: 'include' });
+      if (!response.ok) throw await toApiError(response);
+      return response.blob();
     },
     async recommendHero(scenarioId, payload) {
       const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/hero-recommendation`, {
@@ -707,20 +816,65 @@ export function createDemoScenarioApi(): ScenarioApi {
       const snapshot = { schemaVersion: 'rule-action-snapshot.v1', snapshotId: 'DEMO-DEBUG', currentLocation: { id: location?.code ?? '', code: location?.code ?? '', name: location?.name ?? '', description: location?.description ?? '' }, objects: publicObject ? [publicObject] : [], actions: action && object ? [{ objectId: object.code, actionId: action.code, code: action.code, label: action.label, description: action.description, argumentSchema: {}, enabled: true }] : [] };
       return { snapshot, decision: action && object && payload.trigger !== 'enumerate' ? { schemaVersion: 'rule-action-decision.v1', objectId: object.code, actionId: action.code, arguments: payload.arguments } : null, selectedRuleCode: action ? `${action.code}-preview` : null, appliedEffects: [], postState: payload.trigger === 'enumerate' ? null : { schemaVersion: 'rule-post-state.v1', currentLocation: snapshot.currentLocation, objects: snapshot.objects, sessionFlags: payload.flags, sessionStateRevision: 1 }, facts: payload.trigger === 'enumerate' ? [] : ['デバッグ実行は本番Sessionへ保存されません。'], events: [], hints: payload.playerInput ? [`入力「${payload.playerInput}」からアクション候補を選択しました。`] : [], forbiddenFacts: [] };
     },
+    async importScenarioNarrativeTest(scenarioId, sessionId, turnId) {
+      const scenario = demoScenarios[scenarioId];
+      if (!scenario) throw demoError('シナリオが見つかりません。', 404);
+      const location = scenario.ruleData?.locations[0] ?? { code: 'start', name: '開始地点', description: '' };
+      const testCase: ScenarioNarrativeTestCase = {
+        recentTurns: [{ playerInput: '館について教えて', narrative: 'メイドは窓辺に立ち、古い館の来歴を静かに語った。' }],
+        playerInput: 'まだ知らないことを教えて',
+        selectedObject: { id: 'maid', code: 'maid', name: 'メイド', locationId: location.code, isGlobal: false, revision: 1, state: {} },
+        selectedAction: { objectId: 'maid', actionId: 'talk', code: 'talk', label: '会話する', description: '', argumentSchema: {}, enabled: true },
+        postState: { schemaVersion: 'rule-post-state.v1', currentLocation: { id: location.code, code: location.code, name: location.name, description: location.description }, objects: [], sessionFlags: {}, sessionStateRevision: 1 },
+        facts: [], events: [], narrativeHints: ['直前までに明かしていない情報を一つ示す。'], forbiddenNarrativeFacts: [],
+        entities: [{ code: 'maid', name: 'メイド', profileMarkdown: '館に仕える人物。' }],
+      };
+      return { sessionId, turnId, testCase };
+    },
+    async compareScenarioDraftNarrative(scenarioId, draft) {
+      if (!demoScenarios[scenarioId]) throw demoError('シナリオが見つかりません。', 404);
+      return {
+        publishedDefinitionVersionId: `published-${scenarioId}`, aiProfileId: 'demo-narrative',
+        published: { heading: '公開版', body: 'メイドは再び紅茶を注ぎ、庭のバラについて語った。', model: 'demo', latencyMilliseconds: 420 },
+        draft: { heading: '未保存ドラフト', body: `${draft.tone || '落ち着いた調子'}で、メイドは館の閉鎖された東棟に残る帳簿の存在を初めて明かした。`, model: 'demo', latencyMilliseconds: 430 },
+      };
+    },
+    async getScenarioAiEvaluationCorpus(scenarioId) {
+      if (!demoScenarios[scenarioId]) throw demoError('シナリオが見つかりません。', 404);
+      return { corpusId: 'myriale-low-cost-model-comparison', version: '1.1.0', description: '低コストAI比較（成人同士の合意ある官能表現・グロ表現を含む）', stages: [{ stage: 'narrative', plannedCaseCount: 38, plannedRepetitions: 3, generationOverrides: { temperature: 0.8, topP: 0.95, repetitionPenalty: 1.05, maxOutputTokens: 1200, thinkingEnabled: false, retryAttempts: 0 } }], cases: [] };
+    },
+    async createScenarioAiEvaluationCorpusRun(scenarioId, payload) {
+      if (!demoScenarios[scenarioId]) throw demoError('シナリオが見つかりません。', 404);
+      const manifest = await this.getScenarioAiEvaluationCorpus(scenarioId);
+      const selected = payload.caseIds?.length ? manifest.cases.filter((item) => payload.caseIds?.includes(item.caseId)) : manifest.cases;
+      return this.createScenarioAiEvaluationRun(scenarioId, { profileIds: payload.profileIds, repetitions: payload.repetitions ?? 3, corpusId: manifest.corpusId, corpusVersion: manifest.version, generationOverrides: manifest.stages.find((item) => item.stage === selected[0]?.stage)?.generationOverrides, config: { source: 'versioned-corpus' }, cases: selected });
+    },
+    async createScenarioAiEvaluationRun(scenarioId, payload) {
+      if (!demoScenarios[scenarioId]) throw demoError('シナリオが見つかりません。', 404);
+      const attempts = payload.profileIds.flatMap((profileId, profileIndex) => Array.from({ length: payload.repetitions }, (_, repetition) => ({
+        id: `demo-${profileIndex}-${repetition}`, profileId, profileRevision: 1, model: profileId, repetition: repetition + 1, blindCode: `B${profileIndex + 1}${repetition + 1}`,
+        status: 'succeeded', passed: profileIndex !== 1 || repetition !== 1, labels: ['schema_valid', profileIndex !== 1 || repetition !== 1 ? 'required_terms_present' : 'forbidden_term'],
+        output: { schemaVersion: 'post-state-narrative.v1', heading: '比較結果', body: `${profileId} のブラインド出力` }, metadata: { generationOverrides: payload.generationOverrides ?? null },
+        errorCode: null, inputTokens: 420, outputTokens: 180, latencyMilliseconds: 900 + profileIndex * 200, startedAt: new Date().toISOString(), completedAt: new Date().toISOString(),
+      })));
+      return { summary: { id: 'AER-DEMO', scenarioId, status: 'completed', corpusId: payload.corpusId ?? 'api-frozen-cases', corpusVersion: payload.corpusVersion ?? '1', profileIds: payload.profileIds, repetitions: payload.repetitions, caseCount: payload.cases.length, attemptCount: attempts.length, passedAttemptCount: attempts.filter((item) => item.passed).length, createdAt: new Date().toISOString(), completedAt: new Date().toISOString() }, config: payload.config, cases: [{ id: 'AEC-DEMO', caseId: payload.cases[0]?.caseId ?? 'narrative-current', stage: 'narrative', canonicalPayloadHash: 'demo', request: payload.cases[0]?.request ?? {}, metadata: payload.cases[0]?.metadata ?? {}, attempts }] };
+    },
+    async listScenarioAiEvaluationRuns() { return []; },
+    async exportScenarioAiEvaluationRun(_scenarioId, _runId, format) { return new Blob([format === 'csv' ? 'profileId,passed\n' : '{}'], { type: format === 'csv' ? 'text/csv' : 'application/json' }); },
     async recommendHero(scenarioId) {
       const scenario = demoScenarios[scenarioId];
       if (!scenario) throw demoError('シナリオが見つかりません。', 404);
       return scenarioId === 'SCN-MOONLIT-GARDEN'
         ? {
-            name: 'ルネ',
-            profile: '失われた庭園の色を探し、十三回目の鐘の意味を読み解く記憶の採集者。',
-            message: 'AIがシナリオ設定から主人公案を推薦しました。内容を確認・修正してから確定してください。',
-          }
+          name: 'ルネ',
+          profile: '失われた庭園の色を探し、十三回目の鐘の意味を読み解く記憶の採集者。',
+          message: 'AIがシナリオ設定から主人公案を推薦しました。内容を確認・修正してから確定してください。',
+        }
         : {
-            name: 'ノクト',
-            profile: `${scenario.title}の導入と世界観を手掛かりに、物語の謎を追う旅人。`,
-            message: 'AIがシナリオ設定から主人公案を推薦しました。内容を確認・修正してから確定してください。',
-          };
+          name: 'ノクト',
+          profile: `${scenario.title}の導入と世界観を手掛かりに、物語の謎を追う旅人。`,
+          message: 'AIがシナリオ設定から主人公案を推薦しました。内容を確認・修正してから確定してください。',
+        };
     },
     async createScenario(payload) {
       if (!payload.title.trim()) throw demoError('タイトルを入力すると下書き保存できます。', 400, { title: ['シナリオタイトルを入力してください。'] });

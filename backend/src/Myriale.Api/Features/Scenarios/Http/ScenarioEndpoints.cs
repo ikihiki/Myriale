@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Myriale.Api.Features.Scenarios.Application;
 
@@ -22,6 +23,8 @@ public static class ScenarioEndpoints
         group.MapGet("/{scenarioId}/rule-data/readiness", GetRuleDataReadinessAsync).RequireAuthorization().WithName("GetScenarioRuleDataReadiness");
         group.MapPost("/{scenarioId}/rule-data/publish", PublishRuleDataAsync).RequireAuthorization().WithName("PublishScenarioRuleData");
         group.MapPost("/{scenarioId}/rule-data/debug", DebugRuleDataAsync).RequireAuthorization().WithName("DebugScenarioRuleData");
+        group.MapPost("/{scenarioId}/narrative-tests/import", ImportNarrativeTestAsync).RequireAuthorization().WithName("ImportScenarioNarrativeTest");
+        group.MapPost("/{scenarioId}/narrative-tests/compare", CompareNarrativeTestAsync).RequireAuthorization().WithName("CompareScenarioDraftNarrative");
         return group;
     }
 
@@ -128,6 +131,37 @@ public static class ScenarioEndpoints
         try { var response = await debug.ExecuteAsync(scenarioId, request, ct); return response is null ? TypedResults.NotFound() : TypedResults.Ok(response); }
         catch (ScenarioTurnValidationException ex) { return TypedResults.BadRequest(new ScenarioErrorResponse("Debug execution failed.", new Dictionary<string, string[]> { ["debug"] = [ex.Code] })); }
         catch (JsonException) { return TypedResults.BadRequest(new ScenarioErrorResponse("Debug state contains invalid JSON.", new Dictionary<string, string[]> { ["debug"] = ["invalid_debug_json"] })); }
+    }
+
+    private static async Task<IResult> ImportNarrativeTestAsync(
+        ScenarioId scenarioId, ImportScenarioNarrativeTestRequest request, ClaimsPrincipal principal,
+        Microsoft.AspNetCore.Authorization.IAuthorizationService authorization, ScenarioNarrativeTestService service, CancellationToken ct)
+    {
+        var userId = UserId(principal); if (userId is null) return TypedResults.Unauthorized();
+        var isAdmin = (await authorization.AuthorizeAsync(principal, "Administration")).Succeeded;
+        var response = await service.ImportAsync(userId.Value, isAdmin, scenarioId, request.SessionId, request.TurnId, ct);
+        return response is null ? TypedResults.NotFound() : TypedResults.Ok(response);
+    }
+
+    private static async Task<IResult> CompareNarrativeTestAsync(
+        ScenarioId scenarioId, CompareScenarioDraftNarrativeRequest request, ClaimsPrincipal principal,
+        Microsoft.AspNetCore.Authorization.IAuthorizationService authorization, ScenarioNarrativeTestService service, CancellationToken ct)
+    {
+        var userId = UserId(principal); if (userId is null) return TypedResults.Unauthorized();
+        var isAdmin = (await authorization.AuthorizeAsync(principal, "Administration")).Succeeded;
+        try
+        {
+            var response = await service.CompareAsync(userId.Value, isAdmin, scenarioId, request, ct);
+            return response is null ? TypedResults.NotFound() : TypedResults.Ok(response);
+        }
+        catch (ScenarioNarrativeTestValidationException ex)
+        {
+            return TypedResults.BadRequest(new ScenarioErrorResponse("入力内容を確認してください。", ex.Errors));
+        }
+        catch (ScenarioTurnValidationException ex)
+        {
+            return TypedResults.BadRequest(new ScenarioErrorResponse("Narrative test failed.", new Dictionary<string, string[]> { ["test"] = [ex.Code] }));
+        }
     }
 
     private static AccountId? UserId(ClaimsPrincipal principal) =>

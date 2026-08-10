@@ -41,6 +41,26 @@ describe('scenario list API', () => {
   });
 });
 
+describe('scenario Narrative test lab API', () => {
+  it('imports a Session Turn and compares the inline draft through scenario-owned endpoints', async () => {
+    const imported = { sessionId: 'SES-1', turnId: 'TRN-2', testCase: { recentTurns: [], playerInput: '調べる' } };
+    const compared = { publishedDefinitionVersionId: 'DEF-1', aiProfileId: 'default', published: {}, draft: {} };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(imported), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(compared), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    const api = createFetchScenarioApi('/api/scenarios');
+
+    await api.importScenarioNarrativeTest('SCN/1', 'SES-1', 'TRN-2');
+    await api.compareScenarioDraftNarrative('SCN/1', { title: '未保存ドラフト', tone: '静謐' }, imported.testCase as never);
+
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/scenarios/SCN%2F1/narrative-tests/import');
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string)).toEqual({ sessionId: 'SES-1', turnId: 'TRN-2' });
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/scenarios/SCN%2F1/narrative-tests/compare');
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body as string)).toMatchObject({ draft: { title: '未保存ドラフト', tone: '静謐' }, testCase: { playerInput: '調べる' } });
+  });
+});
+
 describe('scenario rule-data API', () => {
   it('keeps rule-data off the basic scenario create endpoint', async () => {
     const responseBody = {

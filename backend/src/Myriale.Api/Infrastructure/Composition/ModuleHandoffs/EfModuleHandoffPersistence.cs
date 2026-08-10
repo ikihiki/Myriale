@@ -261,17 +261,8 @@ public sealed class EfModuleHandoffPublishUnitOfWork(
         }
     }
 
-    private Task<SessionExecution?> LoadFencedAsync(SessionExecutionContext context, CancellationToken cancellationToken)
-    {
-        if (db.Database.IsNpgsql())
-            return db.SessionExecutions.FromSqlInterpolated($$"""
-                SELECT * FROM "SessionExecutions"
-                WHERE "Id" = {{context.ExecutionId}} AND "Status" = {{SessionExecutionStatus.Running}}
-                  AND "LeaseToken" = {{context.LeaseToken}} AND "Revision" = {{context.Revision}}
-                FOR UPDATE
-                """).SingleOrDefaultAsync(cancellationToken);
-        return db.SessionExecutions.SingleOrDefaultAsync(item => item.Id == context.ExecutionId
+    private Task<SessionExecution?> LoadFencedAsync(SessionExecutionContext context, CancellationToken cancellationToken) =>
+        db.SessionExecutions.SingleOrDefaultAsync(item => item.Id == context.ExecutionId
             && item.Status == SessionExecutionStatus.Running && item.LeaseToken == context.LeaseToken
             && item.Revision == context.Revision, cancellationToken);
-    }
 }

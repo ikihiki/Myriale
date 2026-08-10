@@ -3,14 +3,14 @@ export type AiCredentialSource = 'none' | 'deployment' | 'database';
 export type AiValidationStatus = 'untested' | 'valid' | 'invalidCredential' | 'modelNotFound' | 'rateLimited' | 'providerUnavailable' | 'schemaFailure';
 
 export type AdminAiProfile = {
-  id: string; displayName: string; adapter: 'openai-compatible'; baseUrl: string; model: string; credentialId: string;
+  id: string; displayName: string; adapter: 'openai-compatible'; baseUrl: string; model: string; systemPrompt: string; credentialId: string;
   enabled: boolean; source: AiProfileDefinitionSource; revision: number; active: boolean; credentialSource: AiCredentialSource;
   credentialConfigured: boolean; credentialRevision: number; validationStatus: AiValidationStatus; lastValidatedAt?: string | null;
 };
 export type AdminAiCredential = { id: string; displayName: string; maskedSecret: string; source: AiCredentialSource; revision: number; updatedAt: string; referencedProfileCount: number };
 export type AiPromptTestResult = { provider: string; model: string; response: string; inputTokens?: number | null; outputTokens?: number | null; latencyMilliseconds: number; finishReason?: string | null };
 export type AdminAiApiError = Error & { status?: number; errors?: Record<string, string[]> };
-export type ProfileInput = { id: string; displayName: string; baseUrl: string; model: string; credentialId: string; enabled: boolean };
+export type ProfileInput = { id: string; displayName: string; baseUrl: string; model: string; systemPrompt: string; credentialId: string; enabled: boolean };
 
 export type AdminAiApi = {
   listProfiles: () => Promise<AdminAiProfile[]>;
@@ -59,14 +59,14 @@ export function createFetchAdminAiApi(baseUrl = getAdminAiApiBaseUrl()): AdminAi
 
 export function createDemoAdminAiApi(): AdminAiApi {
   let profiles: AdminAiProfile[] = [
-    { id: 'openai', displayName: 'OpenAI', adapter: 'openai-compatible', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4.1-mini', credentialId: 'openai', enabled: true, source: 'deployment', revision: 0, active: true, credentialSource: 'deployment', credentialConfigured: true, credentialRevision: 0, validationStatus: 'valid', lastValidatedAt: new Date().toISOString() },
-    { id: 'runpod', displayName: 'Runpod Serverless', adapter: 'openai-compatible', baseUrl: 'https://api.runpod.ai/v2/demo/openai/v1', model: 'Qwen/Qwen3-8B', credentialId: 'runpod', enabled: true, source: 'database', revision: 1, active: false, credentialSource: 'database', credentialConfigured: true, credentialRevision: 1, validationStatus: 'untested', lastValidatedAt: null },
+    { id: 'openai', displayName: 'OpenAI', adapter: 'openai-compatible', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4.1-mini', systemPrompt: '', credentialId: 'openai', enabled: true, source: 'deployment', revision: 0, active: true, credentialSource: 'deployment', credentialConfigured: true, credentialRevision: 0, validationStatus: 'valid', lastValidatedAt: new Date().toISOString() },
+    { id: 'runpod', displayName: 'Runpod Serverless', adapter: 'openai-compatible', baseUrl: 'https://api.runpod.ai/v2/demo/openai/v1', model: 'Qwen/Qwen3-8B', systemPrompt: '日本語の情景描写を重視する。', credentialId: 'runpod', enabled: true, source: 'database', revision: 1, active: false, credentialSource: 'database', credentialConfigured: true, credentialRevision: 1, validationStatus: 'untested', lastValidatedAt: null },
   ];
   let credentials: AdminAiCredential[] = [{ id: 'runpod', displayName: 'Runpod', maskedSecret: '••••••••demo', source: 'database', revision: 1, updatedAt: new Date().toISOString(), referencedProfileCount: 1 }];
   const find = (id: string) => { const profile = profiles.find((item) => item.id === id); if (!profile) throw demoError('Profileが見つかりません。', 404); return profile; };
   return {
     async listProfiles() { return structuredClone(profiles); },
-    async createProfile(input) { if (profiles.some((p) => p.id === input.id)) throw demoError('同じIDが存在します。', 409); profiles.push({ ...input, adapter: 'openai-compatible', source: 'database', revision: 1, active: false, credentialSource: 'none', credentialConfigured: false, credentialRevision: 0, validationStatus: 'untested', lastValidatedAt: null }); },
+    async createProfile(input) { const existingIndex = profiles.findIndex((p) => p.id === input.id); const existing = existingIndex >= 0 ? profiles[existingIndex] : null; if (existing?.source === 'database') throw demoError('同じIDが存在します。', 409); const created: AdminAiProfile = { ...input, adapter: 'openai-compatible', source: 'database', revision: 1, active: existing?.active ?? false, credentialSource: existing?.credentialSource ?? 'none', credentialConfigured: existing?.credentialConfigured ?? false, credentialRevision: existing?.credentialRevision ?? 0, validationStatus: 'untested', lastValidatedAt: null }; if (existingIndex >= 0) profiles[existingIndex] = created; else profiles.push(created); },
     async updateProfile(id, input) { const p = find(id); if (p.revision !== input.expectedRevision) throw demoError('Profileが更新されています。', 409); Object.assign(p, input, { revision: p.revision + 1, validationStatus: 'untested' }); },
     async setProfileEnabled(id, enabled, expectedRevision) { const p = find(id); if (p.revision !== expectedRevision || (!enabled && p.active)) throw demoError('使用中のProfileは無効化できません。', 409); p.enabled = enabled; p.revision++; },
     async deleteProfile(id, expectedRevision) { const p = find(id); if (p.revision !== expectedRevision || p.active) throw demoError('使用中または更新済みのProfileは削除できません。', 409); profiles = profiles.filter((item) => item.id !== id); },

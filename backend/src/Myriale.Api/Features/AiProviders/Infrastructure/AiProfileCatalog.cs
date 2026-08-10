@@ -14,7 +14,8 @@ public sealed record AiProfileDescriptor(
     bool Enabled,
     AiProfileDefinitionSource Source,
     long Revision,
-    bool Selectable = true)
+    bool Selectable = true,
+    string SystemPrompt = "")
 {
     public string Adapter => "openai-compatible";
 }
@@ -50,8 +51,10 @@ public sealed class AiDeploymentProfileOptions
     public string DisplayName { get; set; } = string.Empty;
     public string BaseUrl { get; set; } = string.Empty;
     public string Model { get; set; } = string.Empty;
+    public string SystemPrompt { get; set; } = string.Empty;
     public string CredentialId { get; set; } = string.Empty;
     public bool Enabled { get; set; } = true;
+    public bool Selectable { get; set; } = true;
 }
 
 public sealed class AiDeploymentCredentialOptions
@@ -88,7 +91,7 @@ public sealed class ConfigurationAiDeploymentCatalogSource(
 
         foreach (var pair in deploymentOptions.Value.Profiles)
             profiles[new AiProviderProfileId(pair.Key)] = CreateProfile(pair.Key, pair.Value.DisplayName, pair.Value.BaseUrl,
-                pair.Value.Model, pair.Value.CredentialId, pair.Value.Enabled, null);
+                pair.Value.Model, pair.Value.SystemPrompt, pair.Value.CredentialId, pair.Value.Enabled, pair.Value.Selectable, null);
         foreach (var pair in deploymentOptions.Value.Credentials)
             AddCredential(credentials, pair.Key, pair.Value.Secret);
 
@@ -106,7 +109,7 @@ public sealed class ConfigurationAiDeploymentCatalogSource(
                 foreach (var configured in document.EnumerateProfiles())
                 {
                     var profile = CreateProfile(configured.Id, configured.DisplayName, configured.BaseUrl, configured.Model,
-                        configured.CredentialId, configured.Enabled, configured.Adapter);
+                        configured.SystemPrompt, configured.CredentialId, configured.Enabled, configured.Selectable, configured.Adapter);
                     profiles[profile.Id] = profile;
                     if (!string.IsNullOrWhiteSpace(configured.ApiKey))
                         AddCredential(catalogCredentials, profile.CredentialId.AsPrimitive(), configured.ApiKey);
@@ -133,8 +136,10 @@ public sealed class ConfigurationAiDeploymentCatalogSource(
         string? displayName,
         string? baseUrl,
         string? model,
+        string? systemPrompt,
         string? credentialId,
         bool enabled,
+        bool selectable,
         string? adapter)
     {
         if (!string.IsNullOrWhiteSpace(adapter)
@@ -143,9 +148,9 @@ public sealed class ConfigurationAiDeploymentCatalogSource(
         var profileId = new AiProviderProfileId(id ?? string.Empty);
         var resolvedCredentialId = new AiCredentialId(string.IsNullOrWhiteSpace(credentialId) ? profileId.AsPrimitive() : credentialId);
         var profile = AiProviderProfile.Create(profileId, displayName ?? string.Empty, baseUrl ?? string.Empty, model ?? string.Empty,
-            resolvedCredentialId, enabled, DateTimeOffset.UnixEpoch);
+            resolvedCredentialId, enabled, DateTimeOffset.UnixEpoch, systemPrompt ?? string.Empty);
         return new(profile.Id, profile.DisplayName, profile.BaseUrl, profile.Model, profile.CredentialId, profile.Enabled,
-            AiProfileDefinitionSource.Deployment, 0);
+            AiProfileDefinitionSource.Deployment, 0, Selectable: selectable, SystemPrompt: profile.SystemPrompt);
     }
 
     private static void AddCredential(IDictionary<AiCredentialId, string> credentials, string id, string? secret)
@@ -198,8 +203,10 @@ public sealed class ConfigurationAiDeploymentCatalogSource(
         public string? Adapter { get; init; }
         public string? BaseUrl { get; init; }
         public string? Model { get; init; }
+        public string? SystemPrompt { get; init; }
         public string? CredentialId { get; init; }
         public bool Enabled { get; init; } = true;
+        public bool Selectable { get; init; } = true;
         public string? ApiKey { get; init; }
     }
 
@@ -219,7 +226,7 @@ public sealed class AiProfileCatalog(
         var deploymentSnapshot = deployment.GetSnapshot();
         var combined = deploymentSnapshot.Profiles.ToDictionary(pair => pair.Key, pair => pair.Value);
         foreach (var profile in await profiles.ListAsync(cancellationToken))
-            combined[profile.Id] = new(profile.Id, profile.DisplayName, profile.BaseUrl, profile.Model, profile.CredentialId, profile.Enabled, AiProfileDefinitionSource.Database, profile.Revision);
+            combined[profile.Id] = new(profile.Id, profile.DisplayName, profile.BaseUrl, profile.Model, profile.CredentialId, profile.Enabled, AiProfileDefinitionSource.Database, profile.Revision, SystemPrompt: profile.SystemPrompt);
         var enabled = combined.Values.Where(x => x.Enabled).OrderBy(x => x.Id.AsPrimitive(), StringComparer.Ordinal).ToDictionary(x => x.Id);
         if (enabled.Count == 0) throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "Selectable AI profiles are not configured.", false);
         var fallback = enabled.Keys.First();

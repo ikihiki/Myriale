@@ -5,6 +5,8 @@ export const editScenarioFixture: ScenarioFormValues = {
   title: '目覚めの研究室',
   summary: '# シナリオ\n閉鎖された地下研究施設から脱出します。\n# 描写\n- 緊張感のある静かな雰囲気を維持する',
   genre: 'SF,ミステリー,脱出劇',
+  tone: '静謐で緊張感のあるSFミステリー',
+  lore: '施設の過去は断片的に明かし、同じ手掛かりや所作を反復しない。各応答では新しい事実か状況変化を一つ進める。',
   aiFreedom: '低: 厳密に守る',
   heroMode: 'free',
   heroFreeGenerationAllowed: false,

@@ -164,7 +164,7 @@ internal static class ScenarioDefinitionSeedFactory
                 "talk-freely",
                 talk,
                 "{}",
-                "[{\"type\":\"add-narrative-hint\",\"text\":\"クララの構造化プロフィールとcommit済みのAI管理状態を踏まえ、プレイヤーの発言へ直接応答する。紅茶の給仕、視線、微笑みなどの所作を1つ添える。\"},{\"type\":\"forbid-narrative-fact\",\"text\":\"プレイヤーが話していない好みや過去をクララが以前から知っていた\"}]"));
+                "[{\"type\":\"add-narrative-hint\",\"text\":\"Player Inputの依頼へ、クララの最初の台詞で直接答える。質問を質問で返さない。公開済み設定またはcommit済み状態に根拠がなければ、知らない・まだ話せないと簡潔に答える。直近Narrativeと同じ紅茶、カップ、視線、微笑み、庭への誘いを再利用しない。talkでは会話だけを進め、扉の開閉、移動、客人の行動を描かない。\"},{\"type\":\"forbid-narrative-fact\",\"text\":\"プレイヤーが話していない好みや過去をクララが以前から知っていた\"},{\"type\":\"forbid-narrative-fact\",\"text\":\"talk actionだけで扉が開く、場所を移動する、客人が行動する\"}]"));
 
         var sunroomToGarden = NewPassageType(
             version,

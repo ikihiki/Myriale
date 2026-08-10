@@ -1,7 +1,7 @@
-import type { CreateScenarioPayload, ScenarioAiAssistResponse, ScenarioAiKind, ScenarioDraftDto, ScenarioRuleDataReadinessDto, ScenarioRuleDebugRequest, ScenarioRuleDebugResponse } from '../../../app/scenarioApi';
+import type { AiGenerationOverrides, CompareScenarioDraftNarrativeResponse, CreateScenarioPayload, ImportScenarioNarrativeTestResponse, ScenarioAiAssistResponse, ScenarioAiEvaluationRun, ScenarioAiKind, ScenarioDraftDto, ScenarioNarrativeTestCase, ScenarioRuleDataReadinessDto, ScenarioRuleDebugRequest, ScenarioRuleDebugResponse } from '../../../app/scenarioApi';
 import { emptyScenarioRuleData } from './rule-data/scenarioRuleDataModel';
 
-export type ScenarioFormValues = Required<Omit<CreateScenarioPayload, 'tone' | 'lore' | 'ruleData'>> & {
+export type ScenarioFormValues = Required<Omit<CreateScenarioPayload, 'ruleData'>> & {
   ruleData: NonNullable<CreateScenarioPayload['ruleData']>;
 };
 
@@ -15,6 +15,9 @@ export type ScenarioFormCommandResult<T = undefined> = {
 export type ScenarioFormSaveResult = ScenarioFormCommandResult<{ scenarioId: string }>;
 export type ScenarioFormAssistResult = ScenarioFormCommandResult<ScenarioAiAssistResponse>;
 export type ScenarioFormDebugResult = ScenarioFormCommandResult<ScenarioRuleDebugResponse>;
+export type ScenarioFormNarrativeImportResult = ScenarioFormCommandResult<ImportScenarioNarrativeTestResponse>;
+export type ScenarioFormNarrativeCompareResult = ScenarioFormCommandResult<CompareScenarioDraftNarrativeResponse>;
+export type ScenarioFormEvaluationResult = ScenarioFormCommandResult<ScenarioAiEvaluationRun>;
 export type ScenarioFormReadinessResult = ScenarioFormCommandResult<ScenarioRuleDataReadinessDto>;
 export type ScenarioFormPublishResult = ScenarioFormCommandResult;
 
@@ -22,6 +25,11 @@ export type ScenarioFormActions = {
   save: (values: ScenarioFormValues) => Promise<ScenarioFormSaveResult>;
   assist: (values: ScenarioFormValues, kind: ScenarioAiKind, target: string) => Promise<ScenarioFormAssistResult>;
   debug: (values: ScenarioFormValues, request: ScenarioRuleDebugRequest) => Promise<ScenarioFormDebugResult>;
+  importNarrativeTest?: (sessionId: string, turnId: string) => Promise<ScenarioFormNarrativeImportResult>;
+  compareNarrativeDraft?: (values: ScenarioFormValues, testCase: ScenarioNarrativeTestCase) => Promise<ScenarioFormNarrativeCompareResult>;
+  runAiEvaluation?: (profileIds: string[], repetitions: number, testCase: ScenarioNarrativeTestCase, overrides: AiGenerationOverrides) => Promise<ScenarioFormEvaluationResult>;
+  openAiEvaluationCorpus?: () => void;
+  exportAiEvaluation?: (runId: string, format: 'json' | 'csv') => Promise<ScenarioFormCommandResult>;
   checkReadiness?: () => Promise<ScenarioFormReadinessResult>;
   publish?: () => Promise<ScenarioFormPublishResult>;
 };
@@ -30,6 +38,8 @@ export const emptyScenarioFormValues: ScenarioFormValues = {
   title: '',
   summary: '',
   genre: '',
+  tone: '',
+  lore: '',
   aiFreedom: '中: 設定を守りつつ提案する',
   heroMode: 'free',
   heroFreeGenerationAllowed: false,
@@ -50,6 +60,8 @@ export function scenarioDraftToFormValues(
     title: scenario.title,
     summary: scenario.summary,
     genre: scenario.genre,
+    tone: scenario.tone,
+    lore: scenario.lore,
     aiFreedom: scenario.aiFreedom,
     heroMode: scenario.heroMode,
     heroFreeGenerationAllowed: scenario.heroFreeGenerationAllowed,

@@ -27,6 +27,7 @@ export const STORY_IDS = {
   // Library / authoring
   scenarioRegister: 'ユーザーストーリー-scenario-registration--us-01-create-draft-scenario',
   scenarioEdit: 'ユーザーストーリー-edit-scenario--use-01-edit-existing-scenario',
+  scenarioAiEvaluation: 'ユーザーストーリー-ai-corpus-evaluation--use-01-run-versioned-corpus',
   advancedScenario: 'ユーザーストーリー-edit-scenario--use-01-edit-existing-scenario',
   // Sessions
   scenarioList: 'ユーザーストーリー-start-session--uss-01-start-new-session-from-scenario',

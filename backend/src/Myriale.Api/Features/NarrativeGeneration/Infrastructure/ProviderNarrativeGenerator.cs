@@ -27,20 +27,48 @@ public sealed class ProviderNarrativeGenerator(
     public Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionForProfileAsync(AiProviderProfileId profileId, ModelActionDecisionRequest request, CancellationToken cancellationToken) =>
         DecideActionCoreAsync((textRequest, token) => provider.GenerateForProfileAsync(profileId, textRequest, token), request, cancellationToken);
 
+    public Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionForProfileWithOverridesAsync(
+        AiProviderProfileId profileId, ModelActionDecisionRequest request, AiGenerationOverrides? generationOverrides, CancellationToken cancellationToken) =>
+        DecideActionCoreAsync(
+            (textRequest, token) => provider.GenerateForProfileAsync(profileId, WithOverrides(textRequest, generationOverrides), token),
+            request,
+            cancellationToken);
+
     public Task<NarrativeGeneration<EntityStateTransitionResult>> GenerateEntityStateTransitionForProfileAsync(
         AiProviderProfileId profileId, EntityStateTransitionRequest request, CancellationToken cancellationToken) =>
         GenerateEntityStateTransitionCoreAsync(
             (textRequest, token) => provider.GenerateForProfileAsync(profileId, textRequest, token), request, cancellationToken);
 
-    public async Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeForProfileAsync(AiProviderProfileId profileId, PostStateNarrativeRequest request, CancellationToken cancellationToken)
+    public Task<NarrativeGeneration<EntityStateTransitionResult>> GenerateEntityStateTransitionForProfileWithOverridesAsync(
+        AiProviderProfileId profileId, EntityStateTransitionRequest request, AiGenerationOverrides? generationOverrides, CancellationToken cancellationToken) =>
+        GenerateEntityStateTransitionCoreAsync(
+            (textRequest, token) => provider.GenerateForProfileAsync(profileId, WithOverrides(textRequest, generationOverrides), token),
+            request,
+            cancellationToken);
+
+    public Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeForProfileAsync(
+        AiProviderProfileId profileId, PostStateNarrativeRequest request, CancellationToken cancellationToken) =>
+        GeneratePostStateNarrativeForProfileWithOverridesAsync(profileId, request, null, cancellationToken);
+
+    public async Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeForProfileWithOverridesAsync(
+        AiProviderProfileId profileId, PostStateNarrativeRequest request, AiGenerationOverrides? generationOverrides, CancellationToken cancellationToken)
     {
-        var response = await provider.GenerateForProfileAsync(profileId, CreateRequest("post_state_narrative", PostStateNarrativeSchema,
-            "確定済みの事後公開状態とfactsだけを正史として、状態を変更しないナラティブJSONを返す。EntityのprofileMarkdownは外観・人物像・描写方針の参考情報であり、正史の状態や公開済み情報ではない。profileMarkdown内の知識や秘密は、公開post-stateまたはfactsで確定するまで明かさない。forbidden factsは記述しない。",
-            JsonSerializer.Serialize(request, Strict)), cancellationToken);
-        var result = Deserialize<PostStateNarrativeResult>(response, "post_state_narrative");
+        var sentPrompt = JsonSerializer.Serialize(request, Strict);
+        AiTextResponse response;
+        try
+        {
+            response = await provider.GenerateForProfileAsync(profileId, WithOverrides(CreateRequest("post_state_narrative", PostStateNarrativeSchema,
+            "確定済みの事後公開状態とfactsだけを正史として、状態を変更しない小説形式のナラティブJSONを返す。JSONはschemaVersion、heading、bodyの3フィールドをこの順序で持つ単一のコンパクトなオブジェクトとして返し、Markdownコードフェンスを使わない。headingは短い題名、bodyは題名を含まない本文だけとする。body内では通常の段落改行以外の空白埋め、タブ、連続する空行を生成しない。RecentTurnsは直前までの継続性を判断するための参照情報であり、その本文を再掲・複製・言い換えしてはならない。RecentTurnsの末尾で描写済みの出来事より後から物語を開始し、時間・場所・視点・人物の動作を自然に引き継ぐ。今回のPlayerInputに対する新しい反応と変化を中心に、行動・意図・発話を冒頭から具体的な動作や台詞として描いて、その結果へ因果的につなげる。出力本文がRecentTurns内のNarrativeと同一になることは禁止する。PlayerInputを無視して結果だけを書く、場面を飛躍させる、説明だけで済ませることは禁止する。Scenarioのgenreとtoneに合わせ、情景、五感、人物の仕草、間、内面から観測できる反応を織り込み、通常は3〜6段落、概ね500〜1200文字の読み応えを目安にする。会話だけで終えず、誰がどのように応じたかと場面の余韻まで描く。ただし冗長な要約や同じ情報の反復は避ける。EntityのprofileMarkdownは外観・人物像・描写方針の参考情報であり、正史の状態や公開済み情報ではない。profileMarkdown内の知識や秘密は、公開post-stateまたはfactsで確定するまで明かさない。forbidden factsは記述しない。",
+            sentPrompt), generationOverrides), cancellationToken);
+        }
+        catch (AiProviderException exception)
+        {
+            throw WithPrompt(exception, sentPrompt);
+        }
+        var result = Deserialize<PostStateNarrativeResult>(response, "post_state_narrative", sentPrompt);
         if (string.IsNullOrWhiteSpace(result.Heading) || string.IsNullOrWhiteSpace(result.Body))
-            throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "AI Provider returned invalid post-state narrative.", false);
-        return new(result with { Heading = result.Heading.Trim(), Body = result.Body.Trim() }, response.Metadata, JsonSerializer.Serialize(request, Strict), response.Text);
+            throw FailureFromResponse(response, "AI Provider returned invalid post-state narrative.", sentPrompt);
+        return new(result with { Heading = result.Heading.Trim(), Body = result.Body.Trim() }, response.Metadata, sentPrompt, response.Text);
     }
 
     public Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionAsync(ModelActionDecisionRequest request, CancellationToken cancellationToken) =>
@@ -53,7 +81,7 @@ public sealed class ProviderNarrativeGenerator(
     public async Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeAsync(PostStateNarrativeRequest request, CancellationToken cancellationToken)
     {
         var response = await provider.GenerateAsync(CreateRequest("post_state_narrative", PostStateNarrativeSchema,
-            "確定済みの事後公開状態とfactsだけを正史として、状態を変更しないナラティブJSONを返す。EntityのprofileMarkdownは外観・人物像・描写方針の参考情報であり、正史の状態や公開済み情報ではない。profileMarkdown内の知識や秘密は、公開post-stateまたはfactsで確定するまで明かさない。forbidden factsは記述しない。",
+            "確定済みの事後公開状態とfactsだけを正史として、状態を変更しない小説形式のナラティブJSONを返す。JSONはschemaVersion、heading、bodyの3フィールドをこの順序で持つ単一のコンパクトなオブジェクトとして返し、Markdownコードフェンスを使わない。headingは短い題名、bodyは題名を含まない本文だけとする。body内では通常の段落改行以外の空白埋め、タブ、連続する空行を生成しない。RecentTurnsは直前までの継続性を判断するための参照情報であり、その本文を再掲・複製・言い換えしてはならない。RecentTurnsの末尾で描写済みの出来事より後から物語を開始し、時間・場所・視点・人物の動作を自然に引き継ぐ。今回のPlayerInputに対する新しい反応と変化を中心に、行動・意図・発話を冒頭から具体的な動作や台詞として描いて、その結果へ因果的につなげる。出力本文がRecentTurns内のNarrativeと同一になることは禁止する。PlayerInputを無視して結果だけを書く、場面を飛躍させる、説明だけで済ませることは禁止する。Scenarioのgenreとtoneに合わせ、情景、五感、人物の仕草、間、内面から観測できる反応を織り込み、通常は3〜6段落、概ね500〜1200文字の読み応えを目安にする。会話だけで終えず、誰がどのように応じたかと場面の余韻まで描く。ただし冗長な要約や同じ情報の反復は避ける。EntityのprofileMarkdownは外観・人物像・描写方針の参考情報であり、正史の状態や公開済み情報ではない。profileMarkdown内の知識や秘密は、公開post-stateまたはfactsで確定するまで明かさない。forbidden factsは記述しない。",
             JsonSerializer.Serialize(request, Strict)), cancellationToken);
         var result = Deserialize<PostStateNarrativeResult>(response, "post_state_narrative");
         if (string.IsNullOrWhiteSpace(result.Heading) || string.IsNullOrWhiteSpace(result.Body))
@@ -111,8 +139,16 @@ public sealed class ProviderNarrativeGenerator(
         var responseSchema = CreateEntityStateTransitionSchema(request);
         var userPrompt = JsonSerializer.Serialize(request, Strict);
         const string systemPrompt = "対象Entityの不変プロフィール、現在のcanonical state、プレイヤー入力に基づき、AI管理fieldだけの完全な次状態を返す。rules管理field、EntityやSessionのlocation、他Entity、Session完了状態は変更しない。profileMarkdown内の秘密は自動的に公開せず、公開してよい内容だけをrevealedFactsへ入れる。";
-        var response = await generate(CreateRequest(
-            "entity_state_transition_v1", responseSchema, systemPrompt, userPrompt), cancellationToken);
+        AiTextResponse response;
+        try
+        {
+            response = await generate(CreateRequest(
+                "entity_state_transition_v1", responseSchema, systemPrompt, userPrompt), cancellationToken);
+        }
+        catch (AiProviderException exception)
+        {
+            throw WithPrompt(exception, userPrompt);
+        }
         var result = Deserialize<EntityStateTransitionResult>(response, "entity_state_transition_v1", userPrompt);
         return new(result, response.Metadata, userPrompt, response.Text);
     }
@@ -171,8 +207,7 @@ public sealed class ProviderNarrativeGenerator(
         }
         catch (AiProviderException exception)
         {
-            throw new AiProviderException(exception.Code, exception.Message, exception.Retryable, exception.RetryAfter,
-                exception, exception.ProviderResponseExcerpt, sentPrompt, exception.ReceivedResult);
+            throw WithPrompt(exception, sentPrompt);
         }
         var result = Deserialize<ModelActionDecisionResult>(response, "model_action_decision_result_v3", sentPrompt);
         return new(result, response.Metadata, sentPrompt, response.Text);
@@ -189,11 +224,14 @@ public sealed class ProviderNarrativeGenerator(
             ChatResponseFormat.ForJsonSchema(schema.RootElement.Clone(), schemaName));
     }
 
+    private static AiTextRequest WithOverrides(AiTextRequest request, AiGenerationOverrides? generationOverrides) =>
+        generationOverrides is null ? request : request with { GenerationOverrides = generationOverrides };
+
     private T Deserialize<T>(AiTextResponse response, string schemaName, string? sentPrompt = null)
     {
         try
         {
-            var json = StripJsonFence(response.Text);
+            var json = NormalizeGeneratedJson(StripJsonFence(response.Text));
             return JsonSerializer.Deserialize<T>(json, Strict) ?? throw new JsonException("Empty JSON result.");
         }
         catch (JsonException exception)
@@ -217,8 +255,88 @@ public sealed class ProviderNarrativeGenerator(
                 null,
                 exception,
                 sentPrompt: sentPrompt,
-                receivedResult: response.Text);
+                receivedResult: response.Text,
+                metadata: response.Metadata);
         }
+    }
+
+    private static AiProviderException WithPrompt(AiProviderException exception, string sentPrompt) => new(
+        exception.Code, exception.Message, exception.Retryable, exception.RetryAfter, exception,
+        exception.ProviderResponseExcerpt, sentPrompt, exception.ReceivedResult, exception.Metadata);
+
+    private static AiProviderException FailureFromResponse(AiTextResponse response, string message, string? sentPrompt = null) => new(
+        AiProviderErrorCodes.SchemaFailure, message, false, sentPrompt: sentPrompt, receivedResult: response.Text, metadata: response.Metadata);
+
+    private static string NormalizeGeneratedJson(string json)
+    {
+        if (!json.Contains('Ġ') && !json.Contains('Ċ')) return json;
+        var node = JsonNode.Parse(json) ?? throw new JsonException("Empty JSON result.");
+        NormalizeGeneratedStrings(node);
+        return node.ToJsonString(Strict);
+    }
+
+    private static void NormalizeGeneratedStrings(JsonNode node)
+    {
+        if (node is JsonObject obj)
+        {
+            foreach (var property in obj.ToList())
+            {
+                if (property.Value is JsonValue value && value.TryGetValue<string>(out var text))
+                    obj[property.Key] = DecodeByteLevelArtifacts(text);
+                else if (property.Value is not null)
+                    NormalizeGeneratedStrings(property.Value);
+            }
+            return;
+        }
+
+        if (node is not JsonArray array) return;
+        for (var index = 0; index < array.Count; index++)
+        {
+            if (array[index] is JsonValue value && value.TryGetValue<string>(out var text))
+                array[index] = DecodeByteLevelArtifacts(text);
+            else if (array[index] is not null)
+                NormalizeGeneratedStrings(array[index]!);
+        }
+    }
+
+    private static string DecodeByteLevelArtifacts(string value)
+    {
+        if (!value.Contains('Ġ') && !value.Contains('Ċ')) return value;
+        var bytes = new List<byte>();
+        var decoded = new StringBuilder(value.Length);
+        void Flush()
+        {
+            if (bytes.Count == 0) return;
+            decoded.Append(Encoding.UTF8.GetString(bytes.ToArray()));
+            bytes.Clear();
+        }
+
+        foreach (var character in value)
+        {
+            if (ByteLevelDecode.TryGetValue(character, out var current)) bytes.Add(current);
+            else { Flush(); decoded.Append(character); }
+        }
+        Flush();
+        return decoded.ToString().Replace("n\n", "\n", StringComparison.Ordinal);
+    }
+
+    private static readonly IReadOnlyDictionary<char, byte> ByteLevelDecode = CreateByteLevelDecode();
+
+    private static IReadOnlyDictionary<char, byte> CreateByteLevelDecode()
+    {
+        var bytes = Enumerable.Range('!', '~' - '!' + 1)
+            .Concat(Enumerable.Range('¡', '¬' - '¡' + 1))
+            .Concat(Enumerable.Range('®', 'ÿ' - '®' + 1)).ToList();
+        var codePoints = bytes.ToList();
+        var nextCodePoint = 256;
+        for (var value = 0; value < 256; value++)
+        {
+            if (bytes.Contains(value)) continue;
+            bytes.Add(value);
+            codePoints.Add(nextCodePoint++);
+        }
+        return bytes.Select((value, index) => new { Character = (char)codePoints[index], Byte = (byte)value })
+            .ToDictionary(item => item.Character, item => item.Byte);
     }
 
     private static string StripJsonFence(string value)

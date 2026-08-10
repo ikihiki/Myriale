@@ -17,8 +17,8 @@ public static class ScenarioTurnSchemas
     public const string ActionStep = "rule-action-step.v1";
     public const string EntityStateTransition = "entity-state-transition.v1";
     public const string PostStateNarrative = "post-state-narrative.v1";
-    public const string NarrativeContext = "post-state-context.v1";
-    public const string NarrativePrompt = "post-state-prompt.v1";
+    public const string NarrativeContext = "post-state-context.v2";
+    public const string NarrativePrompt = "post-state-prompt.v2";
 }
 
 [CrossSliceContract]
@@ -81,7 +81,7 @@ public sealed record EntityStateTransitionResult(
     string? PrivateReason);
 
 [CrossSliceContract]
-public sealed record PostStateNarrativeRequest(string SchemaVersion, NarrativeScenarioInput Scenario, string PlayerInput, RulePublicObject SelectedObject, RulePublicAction SelectedAction, RulePostState PostState, IReadOnlyList<string> Facts, IReadOnlyList<JsonElement> Events, IReadOnlyList<string> NarrativeHints, IReadOnlyList<string> ForbiddenNarrativeFacts);
+public sealed record PostStateNarrativeRequest(string SchemaVersion, NarrativeScenarioInput Scenario, IReadOnlyList<NarrativeRecentTurnInput> RecentTurns, string PlayerInput, RulePublicObject SelectedObject, RulePublicAction SelectedAction, RulePostState PostState, IReadOnlyList<string> Facts, IReadOnlyList<JsonElement> Events, IReadOnlyList<string> NarrativeHints, IReadOnlyList<string> ForbiddenNarrativeFacts);
 [CrossSliceContract]
 public sealed record PostStateNarrativeResult(string SchemaVersion, string Heading, string Body);
 

@@ -58,10 +58,69 @@ public sealed class ProviderNarrativeGeneratorActionDecisionTests
 
         await generator.GeneratePostStateNarrativeAsync(PostStateRequest(), default);
 
+        Assert.Contains("schemaVersion、heading、bodyの3フィールドをこの順序", textProvider.Request!.Messages[0].Text, StringComparison.Ordinal);
+        Assert.Contains("空白埋め、タブ、連続する空行を生成しない", textProvider.Request.Messages[0].Text, StringComparison.Ordinal);
+        Assert.Contains("RecentTurnsは直前までの継続性を判断するための参照情報", textProvider.Request!.Messages[0].Text, StringComparison.Ordinal);
+        Assert.Contains("その本文を再掲・複製・言い換えしてはならない", textProvider.Request.Messages[0].Text, StringComparison.Ordinal);
+        Assert.Contains("RecentTurns内のNarrativeと同一になることは禁止", textProvider.Request.Messages[0].Text, StringComparison.Ordinal);
+        Assert.Contains("3〜6段落", textProvider.Request.Messages[0].Text, StringComparison.Ordinal);
+        Assert.Contains("調査官は机の上へ古い記録を置いた。", textProvider.Request.Messages[1].Text, StringComparison.Ordinal);
+        Assert.Contains("この記録を見ろ。", textProvider.Request.Messages[1].Text, StringComparison.Ordinal);
         var schemaVersion = textProvider.Request!.ResponseFormat.Schema!.Value
             .GetProperty("properties").GetProperty("schemaVersion");
         Assert.Equal("string", schemaVersion.GetProperty("type").GetString());
         Assert.Equal(ScenarioTurnSchemas.PostStateNarrative, schemaVersion.GetProperty("const").GetString());
+    }
+
+    [Fact]
+    public async Task EvaluationNarrativeSchemaFailureRetainsPromptResultAndGenerationMetadata()
+    {
+        const string rawResult = "{not valid narrative json}";
+        var textProvider = new CapturingProvider(rawResult);
+        var generator = new ProviderNarrativeGenerator(
+            textProvider,
+            new ScenarioActionDecisionModelMapper(),
+            NullLogger<ProviderNarrativeGenerator>.Instance);
+
+        var exception = await Assert.ThrowsAsync<AiProviderException>(() =>
+            generator.GeneratePostStateNarrativeForProfileAsync(
+                new AiProviderProfileId("evaluation-model"), PostStateRequest(), default));
+
+        Assert.Equal(AiProviderErrorCodes.SchemaFailure, exception.Code);
+        Assert.Contains("この記録を見ろ。", exception.SentPrompt, StringComparison.Ordinal);
+        Assert.Equal(rawResult, exception.ReceivedResult);
+        Assert.NotNull(exception.Metadata);
+        Assert.Equal("response", exception.Metadata.ResponseId);
+        Assert.Equal(1, exception.Metadata.InputTokens);
+        Assert.Equal(1, exception.Metadata.OutputTokens);
+        Assert.Equal(2, exception.Metadata.LatencyMilliseconds);
+        Assert.Equal("stop", exception.Metadata.FinishReason);
+    }
+
+    [Fact]
+    public async Task GeneratePostStateNarrative_DecodesByteLevelTokenizerArtifactsInStringValues()
+    {
+        var textProvider = new CapturingProvider("""{"schemaVersion":"post-state-narrative.v1","heading":"FinalĠBlow","body":"BloodâĢĶdark.nĊĊStoneĠfell."}""");
+        var generator = new ProviderNarrativeGenerator(textProvider, new ScenarioActionDecisionModelMapper(), NullLogger<ProviderNarrativeGenerator>.Instance);
+
+        var generated = await generator.GeneratePostStateNarrativeAsync(PostStateRequest(), default);
+
+        Assert.Equal("Final Blow", generated.Value.Heading);
+        Assert.Equal("Blood—dark.\n\nStone fell.", generated.Value.Body);
+        Assert.Contains("FinalĠBlow", generated.ReceivedResult, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task EvaluationProfileMethods_ForwardPerRequestGenerationOverrides()
+    {
+        var textProvider = new CapturingProvider("""{"schemaVersion":"post-state-narrative.v1","heading":"告白","body":"レンは真相を認めた。"}""");
+        var generator = new ProviderNarrativeGenerator(textProvider, new ScenarioActionDecisionModelMapper(), NullLogger<ProviderNarrativeGenerator>.Instance);
+        var overrides = new AiGenerationOverrides(0.8, 0.95, 1.05, 42, 1200, false, 0);
+
+        await generator.GeneratePostStateNarrativeForProfileWithOverridesAsync(
+            new AiProviderProfileId("evaluation-model"), PostStateRequest(), overrides, default);
+
+        Assert.Equal(overrides, textProvider.Request!.GenerationOverrides);
     }
 
     private static PostStateNarrativeRequest PostStateRequest()
@@ -74,6 +133,7 @@ public sealed class ProviderNarrativeGeneratorActionDecisionTests
         return new(
             ScenarioTurnSchemas.PostStateNarrative,
             new("灯台守の告白", "会話劇", "ミステリー", "緊張", "", "低", "調査官", [], "レンと向き合う。"),
+            [new NarrativeRecentTurnInput("記録を取り出す。", "調査官は机の上へ古い記録を置いた。")],
             "この記録を見ろ。",
             item,
             action,

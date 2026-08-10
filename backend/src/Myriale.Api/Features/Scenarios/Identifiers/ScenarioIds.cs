@@ -37,3 +37,15 @@ public readonly partial struct ScenarioProgressionNodeId;
 [CrossSliceContract]
 [UnitOf<string>(UnitGenerateOptions.ParseMethod | UnitGenerateOptions.JsonConverter)]
 public readonly partial struct ScenarioProgressionTransitionId;
+
+[CrossSliceContract]
+[UnitOf<string>(UnitGenerateOptions.ParseMethod | UnitGenerateOptions.JsonConverter)]
+public readonly partial struct ScenarioAiEvaluationRunId;
+
+[CrossSliceContract]
+[UnitOf<string>(UnitGenerateOptions.ParseMethod | UnitGenerateOptions.JsonConverter)]
+public readonly partial struct ScenarioAiEvaluationCaseId;
+
+[CrossSliceContract]
+[UnitOf<string>(UnitGenerateOptions.ParseMethod | UnitGenerateOptions.JsonConverter)]
+public readonly partial struct ScenarioAiEvaluationAttemptId;

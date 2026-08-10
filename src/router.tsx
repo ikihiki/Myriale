@@ -3,6 +3,7 @@ import { createBrowserHistory, createMemoryHistory, createRouter } from '@tansta
 import { createFetchAccountApi, type AccountApi } from './account/api/accountApi';
 import { ScenarioRegistrationContainer } from './features/scenario-registration/ScenarioRegistrationContainer';
 import { EditScenarioContainer } from './features/scenario-editor/EditScenarioContainer';
+import { ScenarioAiEvaluationContainer } from './features/scenario-ai-evaluation/ScenarioAiEvaluationContainer';
 import { ScenarioListContainer } from './features/session-start/ScenarioListContainer';
 import { SessionContainer } from './features/session-play/SessionContainer';
 import { TurnInspectionContainer } from './features/turn-inspection/TurnInspectionContainer';
@@ -14,6 +15,7 @@ export type AppRouterContext = {
   accountApi: AccountApi;
   scenarioListContainer: ComponentType;
   scenarioRegistrationContainer: ComponentType;
+  scenarioAiEvaluationContainer: ComponentType<{ scenarioId: string }>;
   editScenarioContainer: ComponentType<{ scenarioId: string }>;
   sessionContainer: ComponentType<{ sessionId: string }>;
   turnInspectionContainer: ComponentType<{ sessionId: string; turnId: string }>;
@@ -29,6 +31,7 @@ export function createAppRouter({
   accountApi = createFetchAccountApi(),
   scenarioListContainer = ScenarioListContainer,
   scenarioRegistrationContainer = ScenarioRegistrationContainer,
+  scenarioAiEvaluationContainer = ScenarioAiEvaluationContainer,
   editScenarioContainer = EditScenarioContainer,
   sessionContainer = SessionContainer,
   turnInspectionContainer = TurnInspectionContainer,
@@ -40,6 +43,7 @@ export function createAppRouter({
   accountApi?: AccountApi;
   scenarioListContainer?: ComponentType;
   scenarioRegistrationContainer?: ComponentType;
+  scenarioAiEvaluationContainer?: ComponentType<{ scenarioId: string }>;
   editScenarioContainer?: ComponentType<{ scenarioId: string }>;
   sessionContainer?: ComponentType<{ sessionId: string }>;
   turnInspectionContainer?: ComponentType<{ sessionId: string; turnId: string }>;
@@ -52,7 +56,7 @@ export function createAppRouter({
   return createRouter({
     routeTree,
     history,
-    context: { showDebugPanel, accountApi, scenarioListContainer, scenarioRegistrationContainer, editScenarioContainer, sessionContainer, turnInspectionContainer, startSessionContainer },
+    context: { showDebugPanel, accountApi, scenarioListContainer, scenarioRegistrationContainer, editScenarioContainer, scenarioAiEvaluationContainer, sessionContainer, turnInspectionContainer, startSessionContainer },
     defaultPreload: 'intent',
   });
 }

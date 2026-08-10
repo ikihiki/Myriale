@@ -327,7 +327,9 @@ public interface IScenarioNarrativeGenerationService
 public sealed class ScenarioNarrativeGenerationService(
     IScenarioTurnAiService ai,
     IScenarioAiInteractionRecorder recorder,
-    IScenarioWorldSnapshotQuery worldQuery) : IScenarioNarrativeGenerationService
+    IScenarioWorldSnapshotQuery worldQuery,
+    ApplicationDbContext db,
+    INarrativeRecentTurnSelector recentTurnSelector) : IScenarioNarrativeGenerationService
 {
     private static readonly JsonSerializerOptions Json = ScenarioJson.Options;
 
@@ -343,12 +345,27 @@ public sealed class ScenarioNarrativeGenerationService(
             ? new RulePublicObject(new("system"), "system", "システム", postState.CurrentLocation.Id, true, 0, Parse("{}"))
             : snapshot.Objects.Single(item => item.Id == decision.ObjectId);
         var world = await worldQuery.LoadAsync(execution.SessionId, cancellationToken);
+        var turnsQuery = db.SessionTurns.AsNoTracking()
+            .Where(turn => turn.SessionId == execution.SessionId && turn.Kind == SessionTurnKind.Narrative);
+        if (execution.AcceptedHeadTurnId is { } acceptedHeadTurnId)
+        {
+            var acceptedPosition = await db.SessionTurns.AsNoTracking()
+                .Where(turn => turn.Id == acceptedHeadTurnId)
+                .Select(turn => (int?)turn.Position)
+                .SingleOrDefaultAsync(cancellationToken);
+            if (acceptedPosition is not null) turnsQuery = turnsQuery.Where(turn => turn.Position <= acceptedPosition.Value);
+        }
+        else turnsQuery = turnsQuery.Where(_ => false);
+        var newestTurns = await turnsQuery.Include(turn => turn.PlayerInput).OrderByDescending(turn => turn.Position)
+            .Select(turn => new NarrativeRecentTurnInput(turn.PlayerInput == null ? null : turn.PlayerInput.Text, turn.NarrativeBody))
+            .ToListAsync(cancellationToken);
+        var recentTurns = recentTurnSelector.Select(newestTurns);
         var request = new PostStateNarrativeRequest(
             ScenarioTurnSchemas.PostStateNarrative,
             new NarrativeScenarioInput(world.Narrative.Title, world.Narrative.Summary, world.Narrative.Genre,
                 world.Narrative.Tone, world.Narrative.Lore, world.Narrative.AiFreedom,
                 world.Narrative.SelectedHero, world.Narrative.Entities, world.Narrative.Opening),
-            execution.PlayerInput, selectedObject, action, postState,
+            recentTurns, execution.PlayerInput, selectedObject, action, postState,
             DeserializeList<string>(step.FactsJson), DeserializeList<JsonElement>(step.EventsJson),
             DeserializeList<string>(step.NarrativeHintsJson), DeserializeList<string>(step.ForbiddenNarrativeFactsJson));
         var startedAt = DateTimeOffset.UtcNow;
@@ -360,7 +377,7 @@ public sealed class ScenarioNarrativeGenerationService(
                 execution.NarrativeAiProfileId, startedAt, exception, cancellationToken);
             throw;
         }
-        try { Validate(generated.Value, request.ForbiddenNarrativeFacts); }
+        try { Validate(generated.Value, request.ForbiddenNarrativeFacts, request.RecentTurns); }
         catch (ScenarioTurnValidationException exception)
         {
             await recorder.RecordValidationFailureAsync(execution, context, 3, SessionAiInteractionStage.Narrative,
@@ -373,14 +390,25 @@ public sealed class ScenarioNarrativeGenerationService(
         return generated;
     }
 
-    private static void Validate(PostStateNarrativeResult result, IReadOnlyList<string> forbidden)
+    internal static void Validate(
+        PostStateNarrativeResult result,
+        IReadOnlyList<string> forbidden,
+        IReadOnlyList<NarrativeRecentTurnInput> recentTurns)
     {
         if (result.SchemaVersion != ScenarioTurnSchemas.PostStateNarrative || string.IsNullOrWhiteSpace(result.Heading)
             || result.Heading.Length > 120 || string.IsNullOrWhiteSpace(result.Body) || result.Body.Length > 20_000)
             throw new ScenarioTurnValidationException("invalid_post_state_narrative");
         if (forbidden.Any(item => !string.IsNullOrWhiteSpace(item) && result.Body.Contains(item, StringComparison.OrdinalIgnoreCase)))
             throw new ScenarioTurnValidationException("forbidden_narrative_fact");
+
+        var normalizedBody = NormalizeNarrative(result.Body);
+        if (recentTurns.Any(turn => !string.IsNullOrWhiteSpace(turn.Narrative)
+            && NormalizeNarrative(turn.Narrative) == normalizedBody))
+            throw new ScenarioTurnValidationException("duplicate_narrative");
     }
+
+    private static string NormalizeNarrative(string value) =>
+        new(value.Where(character => !char.IsWhiteSpace(character)).ToArray());
 
     private static JsonElement Parse(string json) { using var document = JsonDocument.Parse(json); return document.RootElement.Clone(); }
     private static IReadOnlyList<T> DeserializeList<T>(string? json) => string.IsNullOrWhiteSpace(json) ? [] : JsonSerializer.Deserialize<List<T>>(json, Json) ?? [];
@@ -545,6 +573,11 @@ public sealed class ScenarioTurnExecutionOrchestrator(
         catch (ScenarioRuntimeRevisionConflictException)
         {
             return StaleObjects();
+        }
+        catch (ScenarioTurnValidationException exception) when (exception.Code == "duplicate_narrative")
+        {
+            logger.LogWarning("Scenario narrative duplicated a recent turn. ExecutionId={ExecutionId}", context.ExecutionId);
+            return new(false, true, exception.Code, "AIが直前と同じナラティブを返したため再試行します。");
         }
         catch (ScenarioTurnValidationException exception) when (exception.Code == "stale_object_revision")
         {

@@ -109,24 +109,24 @@ export const Playground: StoryObj<PlaygroundArgs> = {
         lead={
           args.showLead
             ? {
-                tone: args.leadTone,
-                tag: args.leadTag,
-                srLabel: args.leadTone === 'player' ? 'プレイヤーの入力: ' : undefined,
-                text: args.leadText,
-                actions:
+              tone: args.leadTone,
+              tag: args.leadTag,
+              srLabel: args.leadTone === 'player' ? 'プレイヤーの入力: ' : undefined,
+              text: args.leadText,
+              actions:
                   args.leadTone === 'player' && args.showInterpretation ? (
                     <MyrialeToggle className="!justify-self-start !rounded-full !border !border-myr-iris/30 !bg-white/55 !px-2.5 !py-1 !text-myr-caption !font-extrabold !text-[#6044d4] data-[state=on]:!bg-myr-iris/16 data-[state=on]:!text-[#4a32b0]" pressed>
                       ⌄ 解釈を隠す
                     </MyrialeToggle>
                   ) : undefined,
-                detail:
+              detail:
                   args.leadTone === 'player' && args.showInterpretation ? (
                     <p className="m-0 flex max-w-none items-baseline gap-2 rounded-xl bg-myr-gold/18 px-3 py-2.5 text-myr-ui-sm font-semibold text-[#4b3a20]">
                       <span className="shrink-0 text-[#b07a16]" aria-hidden="true">⚙</span>
                       {args.interpretationText}
                     </p>
                   ) : undefined,
-              }
+            }
             : undefined
         }
       />,
