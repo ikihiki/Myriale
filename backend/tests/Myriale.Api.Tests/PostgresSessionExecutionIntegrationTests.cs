@@ -37,8 +37,8 @@ public sealed class PostgresSessionExecutionIntegrationTests
         await database.Db.Database.OpenConnectionAsync();
         await using var reader = await command.ExecuteReaderAsync();
         Assert.True(await reader.ReadAsync());
-        Assert.Equal("text", reader.GetString(0));
-        Assert.Equal("text", reader.GetString(1));
+        Assert.Equal("character varying", reader.GetString(0));
+        Assert.Equal("character varying", reader.GetString(1));
         Assert.Equal(3L, reader.GetInt64(2));
     }
 
