@@ -13,11 +13,13 @@ GET /api/evaluation-corpora | name=ListEvaluationCorpora | auth=authenticated | 
 GET /api/evaluation-responses/{id} | name=GetEvaluationRawInvocation | auth=authenticated | cors=MyrialeFrontend
 GET /api/evaluation-review-assignments/{opaqueCode} | name=GetBlindEvaluationAssignment | auth=authenticated | cors=MyrialeFrontend
 GET /api/evaluation-sessions/ | name=ListEvaluationSessions | auth=authenticated | cors=MyrialeFrontend
+GET /api/evaluation-sessions/quote-sources | name=ListEvaluationQuoteSources | auth=authenticated | cors=MyrialeFrontend
 GET /api/evaluation-sessions/{id} | name=GetEvaluationSession | auth=authenticated | cors=MyrialeFrontend
 GET /api/evaluation-sessions/{id}/execution | name=GetEvaluationExecution | auth=authenticated | cors=MyrialeFrontend
 GET /api/evaluation-sessions/{id}/exports | name=ExportEvaluationSession | auth=authenticated | cors=MyrialeFrontend
 GET /api/evaluation-sessions/{id}/judgments | name=GetEvaluationJudgments | auth=authenticated | cors=MyrialeFrontend
 GET /api/evaluation-sessions/{id}/results | name=GetEvaluationResults | auth=authenticated | cors=MyrialeFrontend
+GET /api/evaluation-sessions/{id}/review-batches | name=ListEvaluationReviewBatches | auth=authenticated | cors=MyrialeFrontend
 GET /api/home/dashboard | name=GetHomeDashboard | auth=authenticated | cors=MyrialeFrontend
 GET /api/module-executions/{executionId} | name=GetModuleExecution | auth=authenticated | cors=MyrialeFrontend
 GET /api/module-executions/{executionId}/ui/runtime/ | name=GetModuleRuntimeUi | auth=authenticated | cors=MyrialeFrontend

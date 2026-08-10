@@ -204,9 +204,14 @@ public sealed class EvaluationSessionService(ApplicationDbContext db, IAiProfile
     }
     public async Task<EvaluationRawInvocationResponse?> RawInvocationAsync(AccountId owner, bool admin, bool rawReader, EvaluationModelInvocationId id, CancellationToken ct)
     {
-        var row = await db.EvaluationModelInvocations.AsNoTracking().Include(x => x.Attempt).ThenInclude(x => x.Session).SingleOrDefaultAsync(x => x.Id == id, ct);
+        var row = await db.EvaluationModelInvocations.AsNoTracking()
+            .Include(x => x.Attempt).ThenInclude(x => x.Session)
+            .Include(x => x.Attempt).ThenInclude(x => x.Situation)
+            .Include(x => x.Attempt).ThenInclude(x => x.Candidate)
+            .SingleOrDefaultAsync(x => x.Id == id, ct);
         if (row is null || (!admin && (!rawReader || row.Attempt.Session.OwnerId != owner))) return null;
-        return new(row.Id, row.AttemptId, row.Status.Wire(), Element(row.RequestEnvelopeJson), row.SentPrompt, row.RawResponse, row.RawError,
+        return new(row.Id, row.AttemptId, row.Attempt.Situation.StableKey, row.Attempt.Candidate.CandidateKey,
+            row.Attempt.Candidate.BlindCode, row.Status.Wire(), Element(row.RequestEnvelopeJson), row.SentPrompt, row.RawResponse, row.RawError,
             NullableElement(row.ParsedOutputJson), NullableElement(row.ValidationJson), row.ProfileSnapshotJson, row.GenerationConfigJson, row.Provider, row.Model,
             row.ProviderRequestId, row.FinishReason, row.InputTokens, row.OutputTokens, row.EndToEndLatencyMilliseconds, row.ErrorCode, row.ErrorCategory,
             row.Retryable, row.StartedAt, row.CompletedAt);
@@ -215,6 +220,65 @@ public sealed class EvaluationSessionService(ApplicationDbContext db, IAiProfile
     {
         if (!await Owned(id, owner, admin).AnyAsync(ct)) return null; var rows = await db.EvaluationMachineJudgments.AsNoTracking().Where(x => x.SessionId == id).ToListAsync(ct); return rows.OrderBy(x => x.CreatedAt).Select(Map).ToList();
     }
+    public async Task<EvaluationQuoteSourcesResponse> QuoteSourcesAsync(AccountId owner, bool admin, CancellationToken ct)
+    {
+        var authoredScenarioIds = admin
+            ? await db.Scenarios.AsNoTracking().Select(x => x.Id).ToListAsync(ct)
+            : await db.Scenarios.AsNoTracking().Where(x => x.AuthorId == owner).Select(x => x.Id).ToListAsync(ct);
+        var sessions = await db.Sessions.AsNoTracking()
+            .Where(x => admin || x.OwnerId == owner || authoredScenarioIds.Contains(x.ScenarioId))
+            .ToListAsync(ct);
+        if (sessions.Count == 0) return new([]);
+
+        var sessionIds = sessions.Select(x => x.Id).ToList();
+        var scenarioIds = sessions.Select(x => x.ScenarioId).Distinct().ToList();
+        var scenarios = await db.Scenarios.AsNoTracking().Where(x => scenarioIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, ct);
+        var turns = await db.SessionTurns.AsNoTracking().Where(x => sessionIds.Contains(x.SessionId) && x.PlayerInputId != null).ToListAsync(ct);
+        var interactions = await db.SessionAiInteractions.AsNoTracking().Include(x => x.Execution)
+            .Where(x => sessionIds.Contains(x.SessionId) && x.Status == SessionAiInteractionStatus.Succeeded && x.SentPrompt != null)
+            .ToListAsync(ct);
+        var turnByInput = turns.Where(x => x.PlayerInputId is not null)
+            .ToDictionary(x => x.PlayerInputId!.Value.AsPrimitive(), x => x, StringComparer.Ordinal);
+
+        var response = sessions.GroupBy(x => x.ScenarioId).OrderBy(x => scenarios[x.Key].Title.Value).Select(scenarioGroup =>
+            new EvaluationQuoteScenarioResponse(scenarioGroup.Key, scenarios[scenarioGroup.Key].Title.Value,
+                scenarioGroup.OrderByDescending(x => x.UpdatedAt).Select(session =>
+                {
+                    var stagesByTurn = interactions.Where(x => x.SessionId == session.Id && x.Execution.TriggerType == SessionExecutionTriggerType.PlayerInput)
+                        .Select(x => new { Interaction = x, Trigger = x.Execution.TriggerId.AsPrimitive() })
+                        .Where(x => turnByInput.TryGetValue(x.Trigger, out var turn) && turn.SessionId == session.Id)
+                        .GroupBy(x => turnByInput[x.Trigger].Id)
+                        .ToDictionary(x => x.Key, x => x.OrderBy(y => y.Interaction.Sequence).Select(y =>
+                            new EvaluationQuoteStageResponse(y.Interaction.Stage switch
+                            {
+                                SessionAiInteractionStage.ActionDecision => "action",
+                                SessionAiInteractionStage.Narrative => "narrative",
+                                _ => "entityState",
+                            }, y.Interaction.Stage.ToString(), Preview(y.Interaction.ReceivedResult), y.Interaction.Id)).ToList());
+                    var quoteTurns = turns.Where(x => x.SessionId == session.Id && stagesByTurn.ContainsKey(x.Id)).OrderBy(x => x.Position)
+                        .Select(x => new EvaluationQuoteTurnResponse(x.Id, x.Position, stagesByTurn[x.Id])).ToList();
+                    return new EvaluationQuoteSessionResponse(session.Id, $"{scenarios[session.ScenarioId].Title.Value} · {session.Id.AsPrimitive()}", quoteTurns);
+                }).Where(x => x.Turns.Count > 0).ToList())).Where(x => x.Sessions.Count > 0).ToList();
+        return new(response);
+    }
+
+    public async Task<IReadOnlyList<EvaluationReviewBatchResponse>?> ReviewBatchesAsync(AccountId owner, bool admin, EvaluationSessionId id, CancellationToken ct)
+    {
+        if (!await Owned(id, owner, admin).AnyAsync(ct)) return null;
+        var batches = (await db.EvaluationReviewBatches.AsNoTracking().Include(x => x.Assignments).ThenInclude(x => x.Items)
+            .Where(x => x.SessionId == id).ToListAsync(ct)).OrderByDescending(x => x.CreatedAt).ToList();
+        var itemIds = batches.SelectMany(x => x.Assignments).SelectMany(x => x.Items).Select(x => x.Id).ToList();
+        IReadOnlyList<EvaluationHumanJudgment> judgmentRows = itemIds.Count == 0
+            ? []
+            : await db.EvaluationHumanJudgments.AsNoTracking().Where(x => itemIds.Contains(x.ItemId)).ToListAsync(ct);
+        var judged = judgmentRows.GroupBy(x => x.ItemId)
+            .ToDictionary(x => x.Key, x => x.Select(y => y.CriterionKey).Distinct(StringComparer.Ordinal).Count());
+        return batches.Select(batch => new EvaluationReviewBatchResponse(batch.Id, batch.Status.Wire(), batch.RequiredReviewsPerOutput,
+            batch.Deadline, batch.CreatedAt, batch.ClosedAt, batch.Assignments.OrderBy(x => x.CreatedAt).Select(assignment =>
+                new EvaluationReviewAssignmentSummaryResponse(assignment.OpaqueCode, assignment.ReviewerId, assignment.Status.Wire(),
+                    assignment.Items.Count, assignment.Items.Count(item => judged.TryGetValue(item.Id, out var count) && count > 0), assignment.SubmittedAt)).ToList())).ToList();
+    }
+
     public async Task<EvaluationReviewBatchId?> CreateReviewBatchAsync(AccountId owner, bool admin, EvaluationSessionId id, CreateEvaluationReviewBatchRequest input, CancellationToken ct)
     {
         var session = await Owned(id, owner, admin).SingleOrDefaultAsync(ct); if (session is null) return null;
@@ -364,6 +428,12 @@ public sealed class EvaluationSessionService(ApplicationDbContext db, IAiProfile
     private static IReadOnlyList<T> Deserialize<T>(string json) => JsonSerializer.Deserialize<List<T>>(json, Json) ?? [];
     private static string Hash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
     private static string BlindCode() => $"C-{Convert.ToHexString(RandomNumberGenerator.GetBytes(5))}";
+    private static string Preview(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "Stored response";
+        var compact = value.Replace('\r', ' ').Replace('\n', ' ').Trim();
+        return compact.Length <= 180 ? compact : compact[..177] + "...";
+    }
     private static string Csv(object? value) { var text = Convert.ToString(value, CultureInfo.InvariantCulture) ?? ""; if (text.Length > 0 && "=+-@\t\r".Contains(text[0])) text = "'" + text; return '"' + text.Replace("\"", "\"\"") + '"'; }
     private static EvaluationSessionId NewSessionId() => new($"EVS-{Guid.NewGuid():N}".ToUpperInvariant()); private static EvaluationSituationId NewSituationId() => new($"EVQ-{Guid.NewGuid():N}".ToUpperInvariant());
     private static EvaluationCandidateId NewCandidateId() => new($"EVC-{Guid.NewGuid():N}".ToUpperInvariant()); private static EvaluationAttemptId NewAttemptId() => new($"EVA-{Guid.NewGuid():N}".ToUpperInvariant());

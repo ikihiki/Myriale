@@ -33,11 +33,12 @@ public sealed record EvaluationAttemptResponse(EvaluationAttemptId Id, Evaluatio
     IReadOnlyList<EvaluationInvocationSummaryResponse> Invocations);
 public sealed record EvaluationInvocationSummaryResponse(EvaluationModelInvocationId Id, int Number, string Status, string? ErrorCode,
     DateTimeOffset StartedAt, DateTimeOffset? CompletedAt);
-public sealed record EvaluationRawInvocationResponse(EvaluationModelInvocationId Id, EvaluationAttemptId AttemptId, string Status,
-    JsonElement RequestEnvelope, string? SentPrompt, string? RawResponse, string? RawError, JsonElement? ParsedOutput,
-    JsonElement? Validation, string ProfileSnapshotJson, string GenerationConfigJson, string? Provider, string? Model,
-    string? ProviderRequestId, string? FinishReason, int? InputTokens, int? OutputTokens, long? LatencyMilliseconds,
-    string? ErrorCode, string? ErrorCategory, bool Retryable, DateTimeOffset StartedAt, DateTimeOffset? CompletedAt);
+public sealed record EvaluationRawInvocationResponse(EvaluationModelInvocationId Id, EvaluationAttemptId AttemptId,
+    string SituationLabel, string CandidateLabel, string CandidateCode, string Status, JsonElement RequestEnvelope,
+    string? SentPrompt, string? RawResponse, string? RawError, JsonElement? ParsedOutput, JsonElement? Validation,
+    string ProfileSnapshotJson, string GenerationConfigJson, string? Provider, string? Model, string? ProviderRequestId,
+    string? FinishReason, int? InputTokens, int? OutputTokens, long? LatencyMilliseconds, string? ErrorCode,
+    string? ErrorCategory, bool Retryable, DateTimeOffset StartedAt, DateTimeOffset? CompletedAt);
 public sealed record EvaluationJudgmentResponse(EvaluationMachineJudgmentId Id, EvaluationAttemptId AttemptId,
     EvaluationModelInvocationId InvocationId, string JudgeKey, string JudgeVersion, string CriterionKey, bool Passed,
     decimal? Score, decimal? Confidence, IReadOnlyList<string> Labels, string Rationale, DateTimeOffset CreatedAt);
@@ -55,4 +56,14 @@ public sealed record EvaluationCandidateResultResponse(EvaluationCandidateId Can
 public sealed record EvaluationCorpusManifestResponse(string CorpusId, string Version, string Description,
     IReadOnlyList<EvaluationCorpusCaseResponse> Cases);
 public sealed record EvaluationCorpusCaseResponse(string CaseId, string Stage, JsonElement Request, JsonElement Expectations);
+public sealed record EvaluationQuoteSourcesResponse(IReadOnlyList<EvaluationQuoteScenarioResponse> Scenarios);
+public sealed record EvaluationQuoteScenarioResponse(ScenarioId Id, string Title, IReadOnlyList<EvaluationQuoteSessionResponse> Sessions);
+public sealed record EvaluationQuoteSessionResponse(SessionId Id, string Title, IReadOnlyList<EvaluationQuoteTurnResponse> Turns);
+public sealed record EvaluationQuoteTurnResponse(SessionTurnId Id, int Index, IReadOnlyList<EvaluationQuoteStageResponse> Stages);
+public sealed record EvaluationQuoteStageResponse(string Stage, string Label, string Preview, SessionAiInteractionId InteractionId);
+public sealed record EvaluationReviewBatchResponse(EvaluationReviewBatchId Id, string Status, int RequiredReviewsPerOutput,
+    DateTimeOffset? Deadline, DateTimeOffset CreatedAt, DateTimeOffset? ClosedAt, IReadOnlyList<EvaluationReviewAssignmentSummaryResponse> Assignments);
+public sealed record EvaluationReviewAssignmentSummaryResponse(string OpaqueCode, AccountId ReviewerId, string Status,
+    int ItemCount, int JudgedItemCount, DateTimeOffset? SubmittedAt);
+
 public sealed record EvaluationErrorResponse(string Error, string Code);

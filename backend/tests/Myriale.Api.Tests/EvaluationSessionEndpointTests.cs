@@ -57,6 +57,19 @@ public sealed class EvaluationSessionEndpointTests : IDisposable
         var json = await reviewer.GetStringAsync($"/api/evaluation-review-assignments/{code}");
         foreach (var forbidden in new[] { "profileId", "provider", "model", "machine", "inputTokens", "outputTokens", "latency", "providerRequestId" }) Assert.DoesNotContain($"\"{forbidden}\"", json, StringComparison.OrdinalIgnoreCase);
         var document = JsonDocument.Parse(json); Assert.Equal("C-", document.RootElement.GetProperty("items")[0].GetProperty("candidateCode").GetString()![..2]);
+        var itemId = document.RootElement.GetProperty("items")[0].GetProperty("id").GetString()!;
+        var revision = document.RootElement.GetProperty("revision").GetInt64();
+        using var saved = await reviewer.PutAsJsonAsync($"/api/evaluation-review-assignments/{code}/judgments/{itemId}", new
+        {
+            assignmentRevision = revision, criterionKey = "overall", score = 5m, verdict = (bool?)null,
+            tags = Array.Empty<string>(), comment = "blind judgment", confidence = .9m,
+        });
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        using var submitted = await reviewer.PostAsync($"/api/evaluation-review-assignments/{code}:submit?revision={revision + 1}", null);
+        Assert.Equal(HttpStatusCode.NoContent, submitted.StatusCode);
+        var listed = await owner.GetFromJsonAsync<JsonElement>($"/api/evaluation-sessions/{id}/review-batches");
+        Assert.Equal(code, listed[0].GetProperty("assignments")[0].GetProperty("opaqueCode").GetString());
+        Assert.Equal("submitted", listed[0].GetProperty("assignments")[0].GetProperty("status").GetString());
     }
 
     [Fact]
@@ -66,6 +79,39 @@ public sealed class EvaluationSessionEndpointTests : IDisposable
         var request = ActionRequest(); using var added = await owner.PostAsJsonAsync($"/api/evaluation-sessions/{id}/situations/fixed", new { stableKey = "fixed", stage = "action", request, expectations = Element("{\"expectedSelectionCode\":\"system:clarify\",\"expectedArguments\":{}}"), corpusKey = "fixture", corpusVersion = "1", corpusCaseKey = "fixed", sensitivity = "internal" });
         added.EnsureSuccessStatusCode(); var hash = (await added.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("requestHash").GetString(); Assert.Equal(64, hash!.Length);
         using var corpus = await owner.GetAsync("/api/evaluation-corpora"); corpus.EnsureSuccessStatusCode(); var manifests = await corpus.Content.ReadFromJsonAsync<JsonElement>(); Assert.Equal("myriale-low-cost-model-comparison", manifests[0].GetProperty("corpusId").GetString());
+        var source = await SeedQuotedActionSourceAsync("snapshot");
+        using var quoteSources = await owner.GetAsync("/api/evaluation-sessions/quote-sources"); quoteSources.EnsureSuccessStatusCode();
+        var sources = await quoteSources.Content.ReadFromJsonAsync<JsonElement>();
+        var quotedStage = sources.GetProperty("scenarios")[0].GetProperty("sessions")[0].GetProperty("turns")[0].GetProperty("stages")[0];
+        Assert.Equal(source.InteractionId, quotedStage.GetProperty("interactionId").GetString());
+        using var quoted = await owner.PostAsJsonAsync($"/api/evaluation-sessions/{id}/situations/quoted", new
+        {
+            stableKey = "quoted-action", stage = "action", sessionId = source.SessionId, turnId = source.TurnId,
+            interactionId = source.InteractionId, expectations = Element("{\"expectedSelectionCode\":\"system:clarify\",\"expectedArguments\":{}}"), sensitivity = "internal",
+        });
+        Assert.Equal(HttpStatusCode.Created, quoted.StatusCode);
+        var quotedSituation = await quoted.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("sessionQuote", quotedSituation.GetProperty("sourceKind").GetString());
+        Assert.Equal(source.InteractionId, quotedSituation.GetProperty("citation").GetProperty("interactionId").GetString());
+    }
+
+    private async Task<(string SessionId, string TurnId, string InteractionId)> SeedQuotedActionSourceAsync(string ownerName)
+    {
+        var ownerId = new AccountId(await UserIdAsync(ownerName));
+        var sessionId = new SessionId("SES-EVALUATION-QUOTE"); var inputId = new SessionPlayerInputId("INP-EVALUATION-QUOTE");
+        var turnId = new SessionTurnId("TUR-EVALUATION-QUOTE"); var executionId = new SessionExecutionId("EXE-EVALUATION-QUOTE");
+        var attemptId = new SessionExecutionAttemptId("ATT-EVALUATION-QUOTE"); var interactionId = new SessionAiInteractionId("AII-EVALUATION-QUOTE");
+        var now = new DateTimeOffset(2026, 8, 10, 12, 0, 0, TimeSpan.Zero);
+        var prompt = JsonSerializer.Serialize(new ModelActionDecisionPromptAudit(ScenarioTurnSchemas.ModelActionDecisionPrompt, "fixture system prompt", ActionRequest(), ScenarioTurnSchemas.ModelActionDecisionResult), new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        await using var scope = factory.Services.CreateAsyncScope(); var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var scenario = await db.Scenarios.OrderBy(x => x.Id).FirstAsync(); scenario.AuthorId = ownerId;
+        db.Sessions.Add(new Session { Id = sessionId, OwnerId = ownerId, ScenarioId = scenario.Id, SelectedHero = "hero", Status = SessionStatus.Active, Revision = 1, CreatedAt = now, UpdatedAt = now });
+        db.SessionPlayerInputs.Add(new SessionPlayerInput { Id = inputId, SessionId = sessionId, RequestId = "quote-request", Text = "open", InteractionType = SessionInputInteractionType.Dialogue, PayloadHash = new string('b', 64), CreatedBy = ownerId, CreatedAt = now });
+        db.SessionTurns.Add(new SessionTurn { Id = turnId, SessionId = sessionId, Position = 1, Kind = SessionTurnKind.Narrative, NarrativeBody = "The action completes.", PlayerInputId = inputId, CreatedAt = now.AddSeconds(1) });
+        db.SessionExecutions.Add(new SessionExecution { Id = executionId, SessionId = sessionId, Kind = SessionExecutionKind.ScenarioTurn, TriggerType = SessionExecutionTriggerType.PlayerInput, TriggerId = new SessionExecutionTriggerId(inputId.AsPrimitive()), Status = SessionExecutionStatus.Succeeded, Stage = ScenarioTurnStage.Completed.ToWireValue(), AttemptCount = 1, IdempotencyKey = "quote-execution", PayloadHash = new string('a', 64), CreatedAt = now, QueuedAt = now, StartedAt = now, CompletedAt = now.AddSeconds(1) });
+        var attempt = SessionExecutionAttempt.Start(attemptId, executionId, 1, "fixture", now); attempt.Succeed(now.AddMilliseconds(100)); db.SessionExecutionAttempts.Add(attempt);
+        db.SessionAiInteractions.Add(new SessionAiInteraction { Id = interactionId, SessionId = sessionId, ExecutionId = executionId, AttemptId = attemptId, Sequence = 1, Stage = SessionAiInteractionStage.ActionDecision, AiProfileId = new AiProviderProfileId("profile-test"), Provider = "provider-test", Model = "model-test", ProviderRequestId = "provider-request-1", StartedAt = now.AddMilliseconds(10), CompletedAt = now.AddMilliseconds(50), LatencyMilliseconds = 40, Status = SessionAiInteractionStatus.Succeeded, SentPrompt = prompt, ReceivedResult = "{\"schemaVersion\":\"model-action-decision-result.v3\",\"selectionCode\":\"system:clarify\",\"arguments\":{}}", ValidationResult = "{\"status\":\"valid\"}" });
+        await db.SaveChangesAsync(); return (sessionId.AsPrimitive(), turnId.AsPrimitive(), interactionId.AsPrimitive());
     }
 
     private async Task<JsonElement> CreateDraftAsync(HttpClient client, string title)

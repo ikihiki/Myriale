@@ -10,12 +10,13 @@ public static class EvaluationEndpoints
     {
         var sessions = endpoints.MapGroup("/api/evaluation-sessions").WithTags("Evaluation Sessions").RequireCors("MyrialeFrontend").RequireAuthorization();
         sessions.MapGet("", List).WithName("ListEvaluationSessions"); sessions.MapPost("", Create).WithName("CreateEvaluationSession");
+        sessions.MapGet("/quote-sources", QuoteSources).WithName("ListEvaluationQuoteSources");
         sessions.MapGet("/{id}", Get).WithName("GetEvaluationSession"); sessions.MapPatch("/{id}", Update).WithName("UpdateEvaluationSession");
         sessions.MapPost("/{id}/situations/fixed", AddFixed).WithName("AddFixedEvaluationSituation"); sessions.MapPost("/{id}/situations/quoted", Quote).WithName("QuoteEvaluationSituation");
         sessions.MapDelete("/{id}/situations/{situationId}", DeleteSituation).WithName("DeleteEvaluationSituation"); sessions.MapPost("/{id}/candidates", AddCandidate).WithName("AddEvaluationCandidate");
         sessions.MapPost("/{id}:start", Start).WithName("StartEvaluationSession"); sessions.MapPost("/{id}:cancel", Cancel).WithName("CancelEvaluationSession"); sessions.MapPost("/{id}:retry-failed", Retry).WithName("RetryFailedEvaluationAttempts");
         sessions.MapGet("/{id}/execution", Execution).WithName("GetEvaluationExecution"); sessions.MapGet("/{id}/judgments", Judgments).WithName("GetEvaluationJudgments");
-        sessions.MapPost("/{id}/review-batches", CreateReviewBatch).WithName("CreateEvaluationReviewBatch"); sessions.MapPost("/{id}:close-review", CloseReview).WithName("CloseEvaluationReview"); sessions.MapPost("/{id}:reveal-identities", Reveal).WithName("RevealEvaluationIdentities");
+        sessions.MapGet("/{id}/review-batches", ReviewBatches).WithName("ListEvaluationReviewBatches"); sessions.MapPost("/{id}/review-batches", CreateReviewBatch).WithName("CreateEvaluationReviewBatch"); sessions.MapPost("/{id}:close-review", CloseReview).WithName("CloseEvaluationReview"); sessions.MapPost("/{id}:reveal-identities", Reveal).WithName("RevealEvaluationIdentities");
         sessions.MapGet("/{id}/results", GetResults).WithName("GetEvaluationResults"); sessions.MapGet("/{id}/exports", Export).WithName("ExportEvaluationSession");
         endpoints.MapGet("/api/evaluation-responses/{id}", RawInvocation).WithName("GetEvaluationRawInvocation").WithTags("Evaluation Sessions").RequireCors("MyrialeFrontend").RequireAuthorization();
         endpoints.MapGet("/api/evaluation-corpora", Corpus).WithName("ListEvaluationCorpora").WithTags("Evaluation Sessions").RequireCors("MyrialeFrontend").RequireAuthorization();
@@ -38,6 +39,10 @@ public static class EvaluationEndpoints
     private static async Task<IResult> Judgments(EvaluationSessionId id, ClaimsPrincipal p, IAuthorizationService a, EvaluationSessionService s, CancellationToken ct) => await Owned(await s.JudgmentsAsync(User(p)!.Value, await Admin(p,a), id, ct));
     private static async Task<IResult> RawInvocation(EvaluationModelInvocationId id, ClaimsPrincipal p, IAuthorizationService a, EvaluationSessionService s, CancellationToken ct) => await Owned(await s.RawInvocationAsync(User(p)!.Value, await Admin(p,a), await Raw(p,a), id, ct));
     private static IResult Corpus(EvaluationSessionService s) => Results.Ok(new[] { s.Corpus() });
+    private static async Task<IResult> QuoteSources(ClaimsPrincipal p, IAuthorizationService a, EvaluationSessionService s, CancellationToken ct) =>
+        User(p) is not { } user ? Results.Unauthorized() : Results.Ok(await s.QuoteSourcesAsync(user, await Admin(p, a), ct));
+    private static async Task<IResult> ReviewBatches(EvaluationSessionId id, ClaimsPrincipal p, IAuthorizationService a, EvaluationSessionService s, CancellationToken ct) =>
+        await Owned(await s.ReviewBatchesAsync(User(p)!.Value, await Admin(p, a), id, ct));
     private static async Task<IResult> CreateReviewBatch(EvaluationSessionId id, CreateEvaluationReviewBatchRequest r, ClaimsPrincipal p, IAuthorizationService a, EvaluationSessionService s, CancellationToken ct) => await Handle(async () => (await s.CreateReviewBatchAsync(User(p)!.Value, await Admin(p,a), id, r, ct)) is { } batch ? Results.Created($"/api/evaluation-sessions/{id}/review-batches/{batch}", new { id = batch }) : Results.NotFound());
     private static async Task<IResult> Blind(string opaqueCode, ClaimsPrincipal p, IAuthorizationService a, EvaluationSessionService s, CancellationToken ct) => await Owned(await s.BlindAssignmentAsync(User(p)!.Value, await Admin(p,a), opaqueCode, ct));
     private static async Task<IResult> SaveJudgment(string opaqueCode, EvaluationReviewItemId itemId, SaveBlindJudgmentRequest r, ClaimsPrincipal p, IAuthorizationService a, EvaluationSessionService s, CancellationToken ct) => await Handle(async () => await Owned(await s.SaveBlindJudgmentAsync(User(p)!.Value, await Admin(p,a), opaqueCode, itemId, r, ct)));
