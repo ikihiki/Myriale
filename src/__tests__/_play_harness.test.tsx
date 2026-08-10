@@ -7,7 +7,7 @@ import * as kitStories from '../stories/AccountKit.stories';
 import * as appChromeStories from '../stories/AppChrome.stories';
 import * as sessionListStories from '../stories/SessionListPage.stories';
 import * as scenarioRegistrationStories from '../stories/ScenarioRegistrationPage.stories';
-import * as scenarioAiEvaluationStories from '../stories/ScenarioAiEvaluationPage.stories';
+import * as evaluationStories from '../stories/EvaluationSessions.stories';
 import * as editScenarioStories from '../stories/EditScenarioPage.stories';
 import * as programDrivenStories from '../stories/SessionPage.program-driven.stories';
 import * as sessionTurnStories from '../stories/SessionTurn.stories';
@@ -29,7 +29,7 @@ const composedKit = composeStories(kitStories);
 const composedAppChrome = composeStories(appChromeStories);
 const composedSessionList = composeStories(sessionListStories);
 const composedScenarioRegistration = composeStories(scenarioRegistrationStories);
-const composedScenarioAiEvaluation = composeStories(scenarioAiEvaluationStories);
+const composedEvaluations = composeStories(evaluationStories);
 const composedEditScenario = composeStories(editScenarioStories);
 const composedProgramDriven = composeStories(programDrivenStories);
 const composedSessionTurn = composeStories(sessionTurnStories);
@@ -141,8 +141,8 @@ describe('play: ScenarioRegistrationPage stories', () => {
   }
 });
 
-describe('play: Scenario AI Corpus evaluation stories', () => {
-  for (const [name, Story] of Object.entries(composedScenarioAiEvaluation)) {
+describe('play: independent Evaluation Session stories', () => {
+  for (const [name, Story] of Object.entries(composedEvaluations)) {
     it(name, async () => {
       const { container } = render(<Story />);
       await waitFor(() => expect(container.firstElementChild).not.toBeNull());

@@ -1,0 +1,1 @@
+import { createFileRoute } from '@tanstack/react-router'; export const Route = createFileRoute('/evaluations/$id/execution')({ component: Page }); function Page() { const { id } = Route.useParams(); const { evaluationExecutionContainer: Container } = Route.useRouteContext(); return <Container evaluationId={id}/>; }

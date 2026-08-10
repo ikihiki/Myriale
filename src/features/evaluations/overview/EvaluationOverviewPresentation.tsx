@@ -1,0 +1,17 @@
+import { Badge, Button, HomeCard, Notice, Panel } from '../../../components/ui';
+import type { EvaluationSession } from '../api/evaluationsApi';
+import { EvaluationPageFrame } from '../shared/EvaluationPageFrame';
+import { EvaluationLoadState } from '../shared/EvaluationLoadState';
+import { canStart, statusLabel, type EvaluationAccount, type EvaluationCommand, type LoadState } from '../shared/evaluationPageModel';
+export function EvaluationOverviewPresentation({ account, evaluationId, state, starting, onStart, onRetry, onNavigate, onLogout }: { account: EvaluationAccount; evaluationId: string; state: LoadState<EvaluationSession>; starting: boolean; onStart: () => Promise<EvaluationCommand<EvaluationSession>>; onRetry: () => void; onNavigate: Parameters<typeof EvaluationPageFrame>[0]['onNavigate']; onLogout: () => void | Promise<void> }) {
+  return <EvaluationPageFrame account={account} evaluationId={evaluationId} activeTab="overview" title={state.status === 'ready' ? state.data.name : '評価概要'} kicker="Evaluation overview" onNavigate={onNavigate} onLogout={onLogout}>
+    <EvaluationLoadState state={state} onRetry={onRetry}>{(session) => <div className="grid gap-5">
+      <Panel as="section" className="grid gap-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="m-0 text-sm text-myr-ink-subtle">{session.id}</p><h2 className="m-0">{session.description || '評価の目的は未記入です。'}</h2></div><Badge tone={session.status === 'completed' ? 'success' : 'info'}>{statusLabel(session.status)}</Badge></div>
+        <div className="grid gap-3 sm:grid-cols-4">{[['Situations', session.situations.length], ['Candidates', session.candidates.length], ['Planned responses', session.plannedResponseCount], ['Human reviews', session.reviewProgress ? `${session.reviewProgress.completed}/${session.reviewProgress.total}` : '—']].map(([label, value]) => <HomeCard as="div" key={label}><p className="m-0 text-xs uppercase tracking-[.1em] text-myr-ink-subtle">{label}</p><strong className="text-2xl">{value}</strong></HomeCard>)}</div>
+        {session.status === 'draft' && <div className="grid gap-3"><Notice tone={canStart(session) ? 'success' : 'warning'}>{canStart(session) ? '開始できます。開始後は入力snapshotが固定されます。' : '開始前に少なくとも1つのSituationとCandidateが必要です。'}</Notice><div className="flex flex-wrap gap-3"><Button disabled={!canStart(session) || starting} onClick={() => void onStart()}>{starting ? '開始中…' : '評価を開始'}</Button><Button variant="secondary" onClick={() => onNavigate('evaluationSetup', { evaluationId })}>セットアップを編集</Button></div></div>}
+        {session.status !== 'draft' && <Button className="w-fit" onClick={() => onNavigate(session.status === 'completed' || session.status === 'completedWithErrors' ? 'evaluationResults' : 'evaluationExecution', { evaluationId })}>{session.status === 'completed' || session.status === 'completedWithErrors' ? '結果を見る' : '実行状況を見る'}</Button>}
+      </Panel>
+      <div className="grid gap-4 lg:grid-cols-2"><Panel as="section"><h2>入力snapshot</h2><p>{session.situations.length} situations / source mutationから独立</p>{session.situations.slice(0, 3).map((s) => <p key={s.id} className="text-sm"><strong>{s.label}</strong> · {s.sourceLabel}</p>)}</Panel><Panel as="section"><h2>評価設計</h2><p>{session.candidates.length} candidates / {session.rubric.length} rubric criteria</p><p className="text-sm text-myr-ink-subtle">Review policy: {session.reviewPolicy} / identities {session.identitiesRevealed ? 'revealed' : 'hidden'}</p></Panel></div>
+    </div>}</EvaluationLoadState>
+  </EvaluationPageFrame>;
+}
