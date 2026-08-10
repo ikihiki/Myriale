@@ -30,7 +30,7 @@ This cohort intentionally does not mix GGUF/llama.cpp with vLLM, or third-party 
 | `runpod-eval-deckard-27b` | `9qwsm6b3s2pgtr` | `868po2wp64` | `DavidAU/Qwen3.5-27B-Deckard-PKD-Heretic-Uncensored-Thinking@774ef180ccaa460b0f7416d07cdd5f73fb0860c6` |
 | `runpod-eval-skyfall-heretic` | `fv1isqaex0xy4s` | `fs0bbnpfcy` | `Silicone-Moss/TheDrummer-Skyfall-31B-v4.1-Heretic-Absolute@4b818809e9f37b0a6e46aab277e78e47f23fb0e9` |
 
-The application profiles reuse credential ID `runpod`; no API key is committed. Forge production obtains that credential through `AiProvider__CatalogJson`. Evaluation profiles are enabled for explicit evaluation-run resolution but set `Selectable=false`, so they do not appear in the normal session-play AI selector.
+The application profiles reuse Forge credential ID `runpod-main`; no API key is committed. Forge obtains that credential through `AiProvider__CatalogJson`. Evaluation profiles are enabled for explicit evaluation-run resolution but set `Selectable=false`, so they do not appear in the normal session-play AI selector.
 
 ## Smoke verification
 
