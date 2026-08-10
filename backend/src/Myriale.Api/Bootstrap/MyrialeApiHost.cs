@@ -130,17 +130,11 @@ public static class MyrialeApiHost
     {
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var reset = app.Configuration.GetValue<bool>("Database:ResetOnStartup");
-        if (reset && !app.Configuration.GetValue<bool>("Database:ConfirmResetDataLoss"))
-            throw new InvalidOperationException("Database reset requires Database:ConfirmResetDataLoss=true.");
-        if (reset)
-        {
-            if (db.Database.IsNpgsql())
-                await db.Database.ExecuteSqlRawAsync("DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;");
-            else
-                await db.Database.EnsureDeletedAsync();
-        }
-        await db.Database.MigrateAsync();
+        await DatabaseStartupMigrator.InitializeAsync(
+            db,
+            app.Configuration.GetValue<bool>("Database:ResetOnStartup"),
+            app.Configuration.GetValue<bool>("Database:ConfirmResetDataLoss"),
+            scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Myriale.DatabaseStartup"));
 
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var developmentSeedUser = await AccountSeedData.SeedAsync(userManager, app.Configuration);
