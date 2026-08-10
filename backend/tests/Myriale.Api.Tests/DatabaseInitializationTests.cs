@@ -102,7 +102,7 @@ public sealed class DatabaseInitializationTests : IDisposable
     {
         using var db = new ApplicationDbContext(
             new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseNpgsql("Host=localhost;Database=myriale_migration_script;Username=postgres;Password=postgres")
+                .UseNpgsql("Host=localhost;Database=myriale_migration_script;Username=migration_script")
                 .Options);
 
         var sql = db.GetService<IMigrator>().GenerateScript();
