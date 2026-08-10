@@ -10,6 +10,7 @@ public static class ScenarioAiEvaluationEndpoints
         var group = routes.MapGroup("/api/scenarios/{scenarioId}/ai-evaluations")
             .WithTags("Scenario AI Evaluations").RequireCors("MyrialeFrontend").RequireAuthorization();
         group.MapGet("/corpus", GetCorpusAsync).WithName("GetScenarioAiEvaluationCorpus");
+        group.MapPost("/corpus/runs", CreateCorpusRunAsync).WithName("CreateScenarioAiEvaluationCorpusRun");
         group.MapPost("/runs", CreateRunAsync).WithName("CreateScenarioAiEvaluationRun");
         group.MapGet("/runs", ListRunsAsync).WithName("ListScenarioAiEvaluationRuns");
         group.MapGet("/runs/{runId}", GetRunAsync).WithName("GetScenarioAiEvaluationRun");
@@ -24,6 +25,28 @@ public static class ScenarioAiEvaluationEndpoints
         var response = await service.GetCorpusManifestAsync(userId.Value,
             (await authorization.AuthorizeAsync(principal, "Administration")).Succeeded, scenarioId, ct);
         return response is null ? TypedResults.NotFound() : TypedResults.Ok(response);
+    }
+
+    private static async Task<IResult> CreateCorpusRunAsync(ScenarioId scenarioId, CreateScenarioAiEvaluationCorpusRunRequest request,
+        ClaimsPrincipal principal, IAuthorizationService authorization, ScenarioAiEvaluationService service, CancellationToken ct)
+    {
+        var userId = UserId(principal); if (userId is null) return TypedResults.Unauthorized();
+        var isAdmin = (await authorization.AuthorizeAsync(principal, "Administration")).Succeeded;
+        try
+        {
+            var response = await service.CreateCorpusRunAsync(userId.Value, isAdmin, scenarioId, request, ct);
+            return response is null ? TypedResults.NotFound() : TypedResults.Created($"/api/scenarios/{scenarioId}/ai-evaluations/runs/{response.Summary.Id}", response);
+        }
+        catch (ScenarioAiEvaluationValidationException exception)
+        {
+            return TypedResults.BadRequest(new ScenarioErrorResponse("AI evaluation corpus request is invalid.",
+                new Dictionary<string, string[]> { ["evaluation"] = [exception.Code] }));
+        }
+        catch (AiProviderException exception)
+        {
+            return TypedResults.BadRequest(new ScenarioErrorResponse("AI evaluation profile is unavailable.",
+                new Dictionary<string, string[]> { ["profile"] = [exception.Code] }));
+        }
     }
 
     private static async Task<IResult> CreateRunAsync(ScenarioId scenarioId, CreateScenarioAiEvaluationRunRequest request,

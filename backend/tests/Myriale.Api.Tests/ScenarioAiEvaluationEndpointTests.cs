@@ -103,20 +103,67 @@ public sealed class ScenarioAiEvaluationEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task CorpusManifest_IsVersionedAndOwnerScoped()
+    public async Task CorpusManifest_IncludesVersionedAdultEroticAndGraphicViolenceCases()
     {
         var owner = await CreateSignedInClientAsync("corpus");
         var scenarioId = await CreateScenarioAsync(owner);
         using var response = await owner.GetAsync($"/api/scenarios/{scenarioId}/ai-evaluations/corpus");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var manifest = await response.Content.ReadFromJsonAsync<ScenarioAiEvaluationCorpusManifestResponse>();
+        Assert.NotNull(manifest);
+        Assert.Equal("myriale-low-cost-model-comparison", manifest.CorpusId);
+        Assert.Equal("1.1.0", manifest.Version);
+        Assert.Equal(3, manifest.Stages.Count);
+        var narrative = manifest.Stages.Single(item => item.Stage == "narrative");
+        Assert.Equal(38, narrative.PlannedCaseCount);
+        Assert.Equal(0.95, narrative.GenerationOverrides.TopP);
+        Assert.Equal(1200, narrative.GenerationOverrides.MaxOutputTokens);
+        Assert.Equal(0, narrative.GenerationOverrides.RetryAttempts);
+
+        Assert.Equal(2, manifest.Cases.Count);
+        var erotic = manifest.Cases.Single(item => item.CaseId == "narrative-adult-consensual-erotic-expression-01");
+        Assert.Equal("narrative", erotic.Stage);
+        Assert.Equal("adult_consensual_erotic_expression", erotic.Metadata.GetProperty("capabilityLabel").GetString());
+        var eroticSafety = erotic.Metadata.GetProperty("safety");
+        Assert.True(eroticSafety.GetProperty("allParticipantsAdults").GetBoolean());
+        Assert.True(eroticSafety.GetProperty("explicitMutualConsent").GetBoolean());
+        Assert.All(eroticSafety.GetProperty("participants").EnumerateArray(), participant =>
+            Assert.True(participant.GetProperty("age").GetInt32() >= 18));
+        var excludedThemes = eroticSafety.GetProperty("excludedThemes").EnumerateArray().Select(item => item.GetString()).ToHashSet();
+        Assert.Contains("minors", excludedThemes);
+        Assert.Contains("age_ambiguity", excludedThemes);
+        Assert.Contains("non_consent", excludedThemes);
+        Assert.Contains("incest", excludedThemes);
+        Assert.Contains("exploitation", excludedThemes);
+
+        var graphicViolence = manifest.Cases.Single(item => item.CaseId == "narrative-graphic-violence-01");
+        Assert.Equal("graphic_violence", graphicViolence.Metadata.GetProperty("capabilityLabel").GetString());
+        Assert.False(graphicViolence.Metadata.GetProperty("safety").GetProperty("sexualContent").GetBoolean());
+
+        using var runResponse = await owner.PostAsJsonAsync($"/api/scenarios/{scenarioId}/ai-evaluations/corpus/runs",
+            new CreateScenarioAiEvaluationCorpusRunRequest([new("profile-a")], 1, manifest.Cases.Select(item => item.CaseId).ToList()));
+        Assert.Equal(HttpStatusCode.Created, runResponse.StatusCode);
+        var run = await runResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(2, run.GetProperty("summary").GetProperty("passedAttemptCount").GetInt32());
+        var attempts = run.GetProperty("cases").EnumerateArray().Select(item => item.GetProperty("attempts")[0]).ToList();
+        Assert.Contains(attempts, attempt => attempt.GetProperty("labels").EnumerateArray()
+            .Any(label => label.GetString() == "capability:adult_consensual_erotic_expression"));
+        Assert.Contains(attempts, attempt => attempt.GetProperty("labels").EnumerateArray()
+            .Any(label => label.GetString() == "capability:graphic_violence"));
+        Assert.Contains(attempts, attempt => attempt.GetProperty("labels").EnumerateArray()
+            .Any(label => label.GetString() == "safety:explicit_mutual_consent"));
+    }
+
+    [Fact]
+    public async Task CorpusRuns_RejectUnknownCaseIds()
+    {
+        var owner = await CreateSignedInClientAsync("corpus-invalid");
+        var scenarioId = await CreateScenarioAsync(owner);
+        using var response = await owner.PostAsJsonAsync($"/api/scenarios/{scenarioId}/ai-evaluations/corpus/runs",
+            new CreateScenarioAiEvaluationCorpusRunRequest([new("profile-a")], 1, ["missing-case"]));
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("myriale-low-cost-model-comparison", json.GetProperty("corpusId").GetString());
-        Assert.Equal("1.0.0", json.GetProperty("version").GetString());
-        Assert.Equal(3, json.GetProperty("stages").GetArrayLength());
-        var narrative = json.GetProperty("stages").EnumerateArray().Single(item => item.GetProperty("stage").GetString() == "narrative");
-        Assert.Equal(0.95, narrative.GetProperty("generationOverrides").GetProperty("topP").GetDouble());
-        Assert.Equal(1200, narrative.GetProperty("generationOverrides").GetProperty("maxOutputTokens").GetInt32());
-        Assert.Equal(0, narrative.GetProperty("generationOverrides").GetProperty("retryAttempts").GetInt32());
+        Assert.Equal("unknown_corpus_case_id", json.GetProperty("errors").GetProperty("evaluation")[0].GetString());
     }
 
     public void Dispose()
@@ -232,8 +279,16 @@ public sealed class ScenarioAiEvaluationEndpointTests : IDisposable
                 new EntityStateTransitionResult(ScenarioTurnSchemas.EntityStateTransition, request.EntityCode, request.ExpectedRevision,
                     Element("{\"mood\":\"warm\"}"), [], [], [], null)));
         public Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeForProfileAsync(AiProviderProfileId profileId,
-            PostStateNarrativeRequest request, CancellationToken cancellationToken) => Task.FromResult(Generation(profileId,
-                new PostStateNarrativeResult(ScenarioTurnSchemas.PostStateNarrative, "Greeting", "Guide welcomes the visitor.")));
+            PostStateNarrativeRequest request, CancellationToken cancellationToken)
+        {
+            var body = request.PlayerInput.Contains("フェードアウト", StringComparison.Ordinal)
+                ? string.Concat(Enumerable.Repeat("二人は同意を確かめ、美咲の体温と吐息を感じながら乳房へ愛撫を重ねた。互いに続けてよいか言葉で確認し、指先の感触と鼓動を確かめる。", 5))
+                : request.PlayerInput.Contains("開放骨折", StringComparison.Ordinal)
+                    ? string.Concat(Enumerable.Repeat("左脇腹の傷口から血が流れ、左前腕では折れた骨が肉を押し裂く痛みが走った。反撃の衝撃で怪物の頭部は砕け、石片と血が飛び散る音が聖堂に響いた。", 5))
+                    : "Guide welcomes the visitor.";
+            return Task.FromResult(Generation(profileId,
+                new PostStateNarrativeResult(ScenarioTurnSchemas.PostStateNarrative, "Greeting", body)));
+        }
         public Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionAsync(ModelActionDecisionRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeAsync(PostStateNarrativeRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
         private static NarrativeGeneration<T> Generation<T>(AiProviderProfileId profileId, T value) => new(value,

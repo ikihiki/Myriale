@@ -123,6 +123,7 @@ export function ScenarioNarrativeTestPresentation({ values, actions }: { values:
     </section>
 
     {actions.runAiEvaluation && <section className="grid gap-4 rounded-2xl border border-[#5c4f8f]/30 bg-[#f8f5ff] p-5" aria-label="AIモデルブラインド比較">
+      {actions.openAiEvaluationCorpus && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#5c4f8f]/20 bg-white/70 p-4"><div><strong>Versioned Corpusを専用画面で実行</strong><p className="m-0 text-xs text-myr-ink-subtle">サーバー正本の官能・グロケースを選択し、5モデルを同じ条件で評価します。</p></div><Button variant="secondary" size="sm" onClick={actions.openAiEvaluationCorpus}>Corpus評価画面を開く</Button></div>}
       <div><p className="text-xs font-black uppercase tracking-[0.14em] text-[#5c4f8f]">Model evaluation</p><h3>同じケースを複数AIで反復比較</h3><p className="text-sm text-myr-ink-subtle">Profile IDを改行区切りで指定します。モデル名は結果本文ではBlind codeとして扱い、厳格なルール判定・latency・tokenを保存します。</p></div>
       <div className="grid gap-3 md:grid-cols-[1fr_10rem_auto] md:items-end">
         <label>AI Profile IDs<Textarea aria-label="比較するAI Profile IDs" className="!min-h-28 font-mono text-xs" value={profileIds} onChange={(event) => setProfileIds(event.target.value)} /></label>

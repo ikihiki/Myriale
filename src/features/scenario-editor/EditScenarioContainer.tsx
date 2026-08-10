@@ -134,7 +134,7 @@ export function EditScenarioContainer({ scenarioId, api }: { scenarioId: string;
         postState: testCase.postState, facts: testCase.facts, events: testCase.events, narrativeHints: testCase.narrativeHints, forbiddenNarrativeFacts: testCase.forbiddenNarrativeFacts,
       };
       const response = await scenarioApi.createScenarioAiEvaluationRun(scenarioId, {
-        profileIds, repetitions, corpusId: 'myriale-low-cost-model-comparison', corpusVersion: '1.0.0', generationOverrides,
+        profileIds, repetitions, corpusId: 'myriale-low-cost-model-comparison', corpusVersion: '1.1.0', generationOverrides,
         config: { source: 'scenario-editor', stage: 'narrative', coldStart: false },
         cases: [{ caseId: 'narrative-editor-current', stage: 'narrative', request: narrativeRequest, metadata: { forbiddenTerms: testCase.forbiddenNarrativeFacts } }],
       });
@@ -203,7 +203,7 @@ export function EditScenarioContainer({ scenarioId, api }: { scenarioId: string;
     loadError={scenarioQuery.error instanceof Error ? scenarioQuery.error.message : undefined}
     saving={saving}
     aiWorking={aiWorking}
-    actions={{ save, assist, debug, importNarrativeTest, compareNarrativeDraft, runAiEvaluation, exportAiEvaluation, checkReadiness, publish }}
+    actions={{ save, assist, debug, importNarrativeTest, compareNarrativeDraft, runAiEvaluation, openAiEvaluationCorpus: () => navigate?.('scenarioAiEvaluation', { scenarioId }), exportAiEvaluation, checkReadiness, publish }}
     onRetry={() => void scenarioQuery.refetch()}
     onLogout={logout}
   />;

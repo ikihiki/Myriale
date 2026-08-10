@@ -28,6 +28,7 @@ export type ScenarioFormActions = {
   importNarrativeTest?: (sessionId: string, turnId: string) => Promise<ScenarioFormNarrativeImportResult>;
   compareNarrativeDraft?: (values: ScenarioFormValues, testCase: ScenarioNarrativeTestCase) => Promise<ScenarioFormNarrativeCompareResult>;
   runAiEvaluation?: (profileIds: string[], repetitions: number, testCase: ScenarioNarrativeTestCase, overrides: AiGenerationOverrides) => Promise<ScenarioFormEvaluationResult>;
+  openAiEvaluationCorpus?: () => void;
   exportAiEvaluation?: (runId: string, format: 'json' | 'csv') => Promise<ScenarioFormCommandResult>;
   checkReadiness?: () => Promise<ScenarioFormReadinessResult>;
   publish?: () => Promise<ScenarioFormPublishResult>;

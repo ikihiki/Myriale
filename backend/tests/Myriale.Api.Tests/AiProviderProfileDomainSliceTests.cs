@@ -109,7 +109,8 @@ public sealed class AiProviderProfileDomainSliceTests
                           "baseUrl": "https://story.example/v1",
                           "model": "future/story",
                           "systemPrompt": "文学的な日本語で描写する。",
-                          "credentialId": "shared"
+                          "credentialId": "shared",
+                          "selectable": false
                         }
                       }
                     }
@@ -125,6 +126,7 @@ public sealed class AiProviderProfileDomainSliceTests
         Assert.Equal(2, snapshot.Profiles.Count);
         Assert.Equal("catalog-secret", snapshot.Credentials[new AiCredentialId("shared")]);
         Assert.Equal("文学的な日本語で描写する。", snapshot.Profiles[new AiProviderProfileId("future-story")].SystemPrompt);
+        Assert.False(snapshot.Profiles[new AiProviderProfileId("future-story")].Selectable);
         Assert.Equal(new AiProviderProfileId("future-fast"), resolved.DefaultActionDecisionProfileId);
         Assert.Equal(new AiProviderProfileId("future-story"), resolved.DefaultNarrativeProfileId);
         Assert.All(resolved.Profiles.Values, profile => Assert.Equal(AiProfileDefinitionSource.Deployment, profile.Source));

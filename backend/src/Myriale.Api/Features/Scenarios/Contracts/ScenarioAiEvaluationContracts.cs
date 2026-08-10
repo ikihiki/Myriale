@@ -11,6 +11,11 @@ public sealed record CreateScenarioAiEvaluationRunRequest(
     JsonElement Config,
     IReadOnlyList<ScenarioAiEvaluationCaseInput> Cases);
 
+public sealed record CreateScenarioAiEvaluationCorpusRunRequest(
+    IReadOnlyList<AiProviderProfileId> ProfileIds,
+    int? Repetitions,
+    IReadOnlyList<string>? CaseIds);
+
 public sealed record ScenarioAiEvaluationCaseInput(
     string CaseId,
     string Stage,
@@ -68,7 +73,8 @@ public sealed record ScenarioAiEvaluationCorpusManifestResponse(
     string CorpusId,
     string Version,
     string Description,
-    IReadOnlyList<ScenarioAiEvaluationCorpusStageResponse> Stages);
+    IReadOnlyList<ScenarioAiEvaluationCorpusStageResponse> Stages,
+    IReadOnlyList<ScenarioAiEvaluationCaseInput> Cases);
 
 public sealed record ScenarioAiEvaluationCorpusStageResponse(
     string Stage,

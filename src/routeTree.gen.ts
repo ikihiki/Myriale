@@ -34,6 +34,7 @@ import { Route as AccountAdminAuditLogRouteImport } from './routes/account/admin
 import { Route as AccountAdminUsersRouteRouteImport } from './routes/account/admin/users/route'
 import { Route as AccountProfileIndexRouteImport } from './routes/account/profile/index'
 import { Route as AccountProfileEditRouteImport } from './routes/account/profile/edit'
+import { Route as ScenariosScenarioIdAiEvaluationsRouteImport } from './routes/scenarios/$scenarioId/ai-evaluations'
 import { Route as ScenariosScenarioIdEditRouteImport } from './routes/scenarios/$scenarioId/edit'
 import { Route as ScenariosScenarioIdRunSettingsRouteImport } from './routes/scenarios/$scenarioId/run-settings'
 import { Route as SessionsSessionIdIndexRouteImport } from './routes/sessions/$sessionId/index'
@@ -171,6 +172,12 @@ const AccountProfileEditRoute = AccountProfileEditRouteImport.update({
   path: '/edit',
   getParentRoute: () => AccountProfileRouteRoute,
 } as any)
+const ScenariosScenarioIdAiEvaluationsRoute =
+  ScenariosScenarioIdAiEvaluationsRouteImport.update({
+    id: '/$scenarioId/ai-evaluations',
+    path: '/$scenarioId/ai-evaluations',
+    getParentRoute: () => ScenariosRouteRoute,
+  } as any)
 const ScenariosScenarioIdEditRoute = ScenariosScenarioIdEditRouteImport.update({
   id: '/$scenarioId/edit',
   path: '/$scenarioId/edit',
@@ -251,6 +258,7 @@ export interface FileRoutesByFullPath {
   '/account/admin/ai-providers': typeof AccountAdminAiProvidersRoute
   '/account/admin/audit-log': typeof AccountAdminAuditLogRoute
   '/account/profile/edit': typeof AccountProfileEditRoute
+  '/scenarios/$scenarioId/ai-evaluations': typeof ScenariosScenarioIdAiEvaluationsRoute
   '/scenarios/$scenarioId/edit': typeof ScenariosScenarioIdEditRoute
   '/scenarios/$scenarioId/run-settings': typeof ScenariosScenarioIdRunSettingsRoute
   '/sessions/$sessionId/mode-exception': typeof SessionsSessionIdModeExceptionRoute
@@ -283,6 +291,7 @@ export interface FileRoutesByTo {
   '/account/admin/ai-providers': typeof AccountAdminAiProvidersRoute
   '/account/admin/audit-log': typeof AccountAdminAuditLogRoute
   '/account/profile/edit': typeof AccountProfileEditRoute
+  '/scenarios/$scenarioId/ai-evaluations': typeof ScenariosScenarioIdAiEvaluationsRoute
   '/scenarios/$scenarioId/edit': typeof ScenariosScenarioIdEditRoute
   '/scenarios/$scenarioId/run-settings': typeof ScenariosScenarioIdRunSettingsRoute
   '/sessions/$sessionId/mode-exception': typeof SessionsSessionIdModeExceptionRoute
@@ -321,6 +330,7 @@ export interface FileRoutesById {
   '/account/admin/ai-providers': typeof AccountAdminAiProvidersRoute
   '/account/admin/audit-log': typeof AccountAdminAuditLogRoute
   '/account/profile/edit': typeof AccountProfileEditRoute
+  '/scenarios/$scenarioId/ai-evaluations': typeof ScenariosScenarioIdAiEvaluationsRoute
   '/scenarios/$scenarioId/edit': typeof ScenariosScenarioIdEditRoute
   '/scenarios/$scenarioId/run-settings': typeof ScenariosScenarioIdRunSettingsRoute
   '/sessions/$sessionId/mode-exception': typeof SessionsSessionIdModeExceptionRoute
@@ -360,6 +370,7 @@ export interface FileRouteTypes {
     | '/account/admin/ai-providers'
     | '/account/admin/audit-log'
     | '/account/profile/edit'
+    | '/scenarios/$scenarioId/ai-evaluations'
     | '/scenarios/$scenarioId/edit'
     | '/scenarios/$scenarioId/run-settings'
     | '/sessions/$sessionId/mode-exception'
@@ -392,6 +403,7 @@ export interface FileRouteTypes {
     | '/account/admin/ai-providers'
     | '/account/admin/audit-log'
     | '/account/profile/edit'
+    | '/scenarios/$scenarioId/ai-evaluations'
     | '/scenarios/$scenarioId/edit'
     | '/scenarios/$scenarioId/run-settings'
     | '/sessions/$sessionId/mode-exception'
@@ -429,6 +441,7 @@ export interface FileRouteTypes {
     | '/account/admin/ai-providers'
     | '/account/admin/audit-log'
     | '/account/profile/edit'
+    | '/scenarios/$scenarioId/ai-evaluations'
     | '/scenarios/$scenarioId/edit'
     | '/scenarios/$scenarioId/run-settings'
     | '/sessions/$sessionId/mode-exception'
@@ -628,6 +641,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountProfileEditRouteImport
       parentRoute: typeof AccountProfileRouteRoute
     }
+    '/scenarios/$scenarioId/ai-evaluations': {
+      id: '/scenarios/$scenarioId/ai-evaluations'
+      path: '/$scenarioId/ai-evaluations'
+      fullPath: '/scenarios/$scenarioId/ai-evaluations'
+      preLoaderRoute: typeof ScenariosScenarioIdAiEvaluationsRouteImport
+      parentRoute: typeof ScenariosRouteRoute
+    }
     '/scenarios/$scenarioId/edit': {
       id: '/scenarios/$scenarioId/edit'
       path: '/$scenarioId/edit'
@@ -776,6 +796,7 @@ const AccountRouteRouteWithChildren = AccountRouteRoute._addFileChildren(
 interface ScenariosRouteRouteChildren {
   ScenariosNewRoute: typeof ScenariosNewRoute
   ScenariosIndexRoute: typeof ScenariosIndexRoute
+  ScenariosScenarioIdAiEvaluationsRoute: typeof ScenariosScenarioIdAiEvaluationsRoute
   ScenariosScenarioIdEditRoute: typeof ScenariosScenarioIdEditRoute
   ScenariosScenarioIdRunSettingsRoute: typeof ScenariosScenarioIdRunSettingsRoute
 }
@@ -783,6 +804,7 @@ interface ScenariosRouteRouteChildren {
 const ScenariosRouteRouteChildren: ScenariosRouteRouteChildren = {
   ScenariosNewRoute: ScenariosNewRoute,
   ScenariosIndexRoute: ScenariosIndexRoute,
+  ScenariosScenarioIdAiEvaluationsRoute: ScenariosScenarioIdAiEvaluationsRoute,
   ScenariosScenarioIdEditRoute: ScenariosScenarioIdEditRoute,
   ScenariosScenarioIdRunSettingsRoute: ScenariosScenarioIdRunSettingsRoute,
 }

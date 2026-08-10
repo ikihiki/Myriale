@@ -4,6 +4,7 @@ const navigationPaths: Record<StoryKey, string> = {
   home: '/',
   scenarioRegister: '/scenarios/new',
   scenarioEdit: '/scenarios/SCN-STAR-LIBRARY/edit',
+  scenarioAiEvaluation: '/scenarios/SCN-STAR-LIBRARY/ai-evaluations',
   advancedScenario: '/scenarios/SCN-STAR-LIBRARY/edit',
   scenarioList: '/scenarios',
   startSession: '/sessions/start',
@@ -28,6 +29,9 @@ const navigationPaths: Record<StoryKey, string> = {
 export function appPathForStoryKey(key: StoryKey, options?: AppNavigateOptions): string {
   if (options?.scenarioId && (key === 'scenarioEdit' || key === 'advancedScenario')) {
     return `/scenarios/${encodeURIComponent(options.scenarioId)}/edit`;
+  }
+  if (options?.scenarioId && key === 'scenarioAiEvaluation') {
+    return `/scenarios/${encodeURIComponent(options.scenarioId)}/ai-evaluations`;
   }
   if (options?.sessionId) {
     const session = `/sessions/${encodeURIComponent(options.sessionId)}`;

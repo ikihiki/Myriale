@@ -8,7 +8,7 @@ namespace Myriale.Api.Infrastructure.Composition.Scenarios;
 
 public sealed class ScenarioAiEvaluationService(ApplicationDbContext db, IAiProfileCatalog profiles, IScenarioTurnAiService ai)
 {
-    private const int MaxAttemptsPerRun = 300;
+    private const int MaxAttemptsPerRun = 1_000;
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     public async Task<ScenarioAiEvaluationRunResponse?> CreateAsync(AccountId userId, bool isAdministrator, ScenarioId scenarioId,
@@ -109,6 +109,41 @@ public sealed class ScenarioAiEvaluationService(ApplicationDbContext db, IAiProf
         ScenarioId scenarioId, CancellationToken cancellationToken)
     {
         if (!await CanAccessAsync(userId, isAdministrator, scenarioId, cancellationToken)) return null;
+        return LoadCorpusManifest();
+    }
+
+    public async Task<ScenarioAiEvaluationRunResponse?> CreateCorpusRunAsync(AccountId userId, bool isAdministrator, ScenarioId scenarioId,
+        CreateScenarioAiEvaluationCorpusRunRequest input, CancellationToken cancellationToken)
+    {
+        if (!await CanAccessAsync(userId, isAdministrator, scenarioId, cancellationToken)) return null;
+        var manifest = LoadCorpusManifest();
+        var requestedCaseIds = input.CaseIds?.Select(item => item.Trim()).Where(item => item.Length > 0).ToList() ?? [];
+        if (requestedCaseIds.Count != requestedCaseIds.Distinct(StringComparer.Ordinal).Count())
+            throw new ScenarioAiEvaluationValidationException("duplicate_case_ids");
+        var cases = requestedCaseIds.Count == 0
+            ? manifest.Cases
+            : manifest.Cases.Where(item => requestedCaseIds.Contains(item.CaseId, StringComparer.Ordinal)).ToList();
+        if (requestedCaseIds.Count > 0 && cases.Count != requestedCaseIds.Count)
+            throw new ScenarioAiEvaluationValidationException("unknown_corpus_case_id");
+        if (cases.Count == 0) throw new ScenarioAiEvaluationValidationException("corpus_cases_required");
+
+        var stages = cases.Select(item => item.Stage).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var stage = stages.Count == 1
+            ? manifest.Stages.SingleOrDefault(item => string.Equals(item.Stage, stages[0], StringComparison.OrdinalIgnoreCase))
+            : null;
+        var repetitions = input.Repetitions ?? stage?.PlannedRepetitions ?? 3;
+        var config = JsonSerializer.SerializeToElement(new
+        {
+            source = "versioned-corpus",
+            selectedCaseIds = cases.Select(item => item.CaseId).ToList(),
+            manifestStages = stages,
+        }, Json);
+        return await CreateAsync(userId, isAdministrator, scenarioId,
+            new(input.ProfileIds, repetitions, manifest.CorpusId, manifest.Version, stage?.GenerationOverrides, config, cases), cancellationToken);
+    }
+
+    private static ScenarioAiEvaluationCorpusManifestResponse LoadCorpusManifest()
+    {
         var assembly = typeof(ScenarioAiEvaluationService).Assembly;
         var resource = assembly.GetManifestResourceNames().Single(name => name.EndsWith("ai-evaluation-corpus.v1.json", StringComparison.Ordinal));
         using var stream = assembly.GetManifestResourceStream(resource) ?? throw new InvalidOperationException("Evaluation corpus manifest is missing.");
@@ -190,16 +225,39 @@ public sealed class ScenarioAiEvaluationService(ApplicationDbContext db, IAiProf
         try { ScenarioNarrativeGenerationService.Validate(output, request.ForbiddenNarrativeFacts, request.RecentTurns); labels.Add("runtime_validator_passed"); }
         catch (ScenarioTurnValidationException exception) { labels.Add($"runtime_validator:{exception.Code}"); valid = false; }
         using var metadata = JsonDocument.Parse(metadataJson);
+        if (metadata.RootElement.TryGetProperty("capabilityLabel", out var capability) && capability.ValueKind == JsonValueKind.String
+            && !string.IsNullOrWhiteSpace(capability.GetString()))
+            labels.Add($"capability:{capability.GetString()}");
+        if (metadata.RootElement.TryGetProperty("minimumBodyCharacters", out var minimumCharacters)
+            && minimumCharacters.TryGetInt32(out var minimum))
+        {
+            var longEnough = output.Body.Length >= minimum;
+            Add(labels, longEnough, "minimum_body_length_reached", "body_too_short"); valid &= longEnough;
+        }
         foreach (var term in Strings(metadata.RootElement, "requiredTerms"))
         {
             var present = output.Body.Contains(term, StringComparison.OrdinalIgnoreCase);
             Add(labels, present, $"required_term:{term}", $"missing_required_term:{term}"); valid &= present;
+        }
+        if (metadata.RootElement.TryGetProperty("requiredAnyTermGroups", out var groups) && groups.ValueKind == JsonValueKind.Array)
+        foreach (var group in groups.EnumerateArray())
+        {
+            var groupLabel = RequiredString(group, "label");
+            var present = Strings(group, "terms").Any(term => output.Body.Contains(term, StringComparison.OrdinalIgnoreCase));
+            Add(labels, present, $"required_term_group:{groupLabel}", $"missing_required_term_group:{groupLabel}"); valid &= present;
         }
         foreach (var property in new[] { "forbiddenTerms", "forbiddenInternalStateTerms", "forbiddenPlayerAgencyTerms" })
         foreach (var term in Strings(metadata.RootElement, property))
         {
             var absent = !output.Body.Contains(term, StringComparison.OrdinalIgnoreCase);
             Add(labels, absent, $"absent:{term}", $"forbidden_term:{term}"); valid &= absent;
+        }
+        if (metadata.RootElement.TryGetProperty("safety", out var safety) && safety.ValueKind == JsonValueKind.Object)
+        {
+            if (safety.TryGetProperty("allParticipantsAdults", out _))
+                valid &= AddRequiredSafetyFlag(labels, safety, "allParticipantsAdults", "safety:adults_only");
+            if (safety.TryGetProperty("explicitMutualConsent", out _))
+                valid &= AddRequiredSafetyFlag(labels, safety, "explicitMutualConsent", "safety:explicit_mutual_consent");
         }
         return new(valid, labels);
     }
@@ -328,6 +386,12 @@ public sealed class ScenarioAiEvaluationService(ApplicationDbContext db, IAiProf
         ? value.GetString() ?? string.Empty : throw new JsonException($"Metadata property '{name}' is required.");
     private static IEnumerable<string> Strings(JsonElement metadata, string name) => metadata.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Array
         ? value.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.String).Select(item => item.GetString()!).Where(item => !string.IsNullOrWhiteSpace(item)) : [];
+    private static bool AddRequiredSafetyFlag(ICollection<string> labels, JsonElement safety, string propertyName, string successLabel)
+    {
+        var passed = safety.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.True;
+        Add(labels, passed, successLabel, $"{successLabel}_missing");
+        return passed;
+    }
     private static void Add(ICollection<string> labels, bool passed, string success, string failure) => labels.Add(passed ? success : failure);
     private static string Csv(string? value) => $"\"{(value ?? string.Empty).Replace("\"", "\"\"")}\"";
     private sealed record Score(bool Passed, IReadOnlyList<string> Labels);

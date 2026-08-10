@@ -48,6 +48,7 @@ POST /api/module-executions/ | name=InitializeModuleExecution | auth=authenticat
 POST /api/module-executions/{executionId}/dispatch | name=DispatchModuleExecution | auth=authenticated | cors=MyrialeFrontend
 POST /api/scenarios/ | name=CreateScenario | auth=authenticated | cors=MyrialeFrontend
 POST /api/scenarios/ai/assist | name=AssistScenarioCreation | auth=authenticated | cors=MyrialeFrontend
+POST /api/scenarios/{scenarioId}/ai-evaluations/corpus/runs | name=CreateScenarioAiEvaluationCorpusRun | auth=authenticated | cors=MyrialeFrontend
 POST /api/scenarios/{scenarioId}/ai-evaluations/runs | name=CreateScenarioAiEvaluationRun | auth=authenticated | cors=MyrialeFrontend
 POST /api/scenarios/{scenarioId}/hero-recommendation | name=RecommendScenarioHero | auth=anonymous | cors=MyrialeFrontend
 POST /api/scenarios/{scenarioId}/narrative-tests/compare | name=CompareScenarioDraftNarrative | auth=authenticated | cors=MyrialeFrontend

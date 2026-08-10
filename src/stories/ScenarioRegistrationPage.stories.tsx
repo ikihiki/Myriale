@@ -270,7 +270,7 @@ export const US19AiCompletesSummary: Story = {
       await userEvent.click(canvas.getByRole('button', { name: '採用して編集' }));
       expect((canvas.getByLabelText('基本情報') as HTMLTextAreaElement).value).toContain('## 物語の目的');
       await expect(canvas.getByTestId('scenario-notice')).toHaveTextContent('採用しました');
-      await userEvent.click(canvas.getByRole('button', { name: 'プレビュー' }));
+      await userEvent.click(within(canvas.getByLabelText('基本情報の表示切替')).getByRole('button', { name: 'プレビュー' }));
       await expect(canvas.getByRole('article', { name: '基本情報のMarkdownプレビュー' })).toHaveTextContent('水没した書庫を探索する');
     });
   },

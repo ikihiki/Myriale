@@ -350,6 +350,11 @@ export type CreateScenarioAiEvaluationRunPayload = {
   config: ScenarioJsonObject;
   cases: ScenarioAiEvaluationCaseInput[];
 };
+export type CreateScenarioAiEvaluationCorpusRunPayload = {
+  profileIds: string[];
+  repetitions?: number | null;
+  caseIds?: string[] | null;
+};
 export type ScenarioAiEvaluationAttempt = {
   id: string; profileId: string; profileRevision: number; model: string; repetition: number; blindCode: string;
   status: string; passed: boolean; labels: string[]; output: ScenarioJsonObject; metadata: ScenarioJsonObject;
@@ -361,7 +366,7 @@ export type ScenarioAiEvaluationRun = {
   config: ScenarioJsonObject;
   cases: Array<{ id: string; caseId: string; stage: string; canonicalPayloadHash: string; request: ScenarioJsonObject; metadata: ScenarioJsonObject; attempts: ScenarioAiEvaluationAttempt[] }>;
 };
-export type ScenarioAiEvaluationCorpusManifest = { corpusId: string; version: string; description: string; stages: Array<{ stage: string; plannedCaseCount: number; plannedRepetitions: number; generationOverrides: AiGenerationOverrides }> };
+export type ScenarioAiEvaluationCorpusManifest = { corpusId: string; version: string; description: string; stages: Array<{ stage: string; plannedCaseCount: number; plannedRepetitions: number; generationOverrides: AiGenerationOverrides }>; cases: ScenarioAiEvaluationCaseInput[] };
 
 export type ScenarioApiError = Error & {
   status?: number;
@@ -408,6 +413,7 @@ export type ScenarioApi = {
   importScenarioNarrativeTest: (scenarioId: string, sessionId: string, turnId: string) => Promise<ImportScenarioNarrativeTestResponse>;
   compareScenarioDraftNarrative: (scenarioId: string, draft: CreateScenarioPayload, testCase: ScenarioNarrativeTestCase) => Promise<CompareScenarioDraftNarrativeResponse>;
   getScenarioAiEvaluationCorpus: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioAiEvaluationCorpusManifest>;
+  createScenarioAiEvaluationCorpusRun: (scenarioId: string, payload: CreateScenarioAiEvaluationCorpusRunPayload) => Promise<ScenarioAiEvaluationRun>;
   createScenarioAiEvaluationRun: (scenarioId: string, payload: CreateScenarioAiEvaluationRunPayload) => Promise<ScenarioAiEvaluationRun>;
   listScenarioAiEvaluationRuns: (scenarioId: string, signal?: AbortSignal) => Promise<ScenarioAiEvaluationRun['summary'][]>;
   exportScenarioAiEvaluationRun: (scenarioId: string, runId: string, format: 'json' | 'csv') => Promise<Blob>;
@@ -526,6 +532,13 @@ export function createFetchScenarioApi(baseUrl = getScenarioApiBaseUrl()): Scena
       const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/ai-evaluations/corpus`, { credentials: 'include', headers: { Accept: 'application/json' }, signal });
       if (!response.ok) throw await toApiError(response);
       return response.json() as Promise<ScenarioAiEvaluationCorpusManifest>;
+    },
+    async createScenarioAiEvaluationCorpusRun(scenarioId, payload) {
+      const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/ai-evaluations/corpus/runs`, {
+        method: 'POST', credentials: 'include', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw await toApiError(response);
+      return response.json() as Promise<ScenarioAiEvaluationRun>;
     },
     async createScenarioAiEvaluationRun(scenarioId, payload) {
       const response = await fetch(`${baseUrl}/${encodeURIComponent(scenarioId)}/ai-evaluations/runs`, {
@@ -828,7 +841,13 @@ export function createDemoScenarioApi(): ScenarioApi {
     },
     async getScenarioAiEvaluationCorpus(scenarioId) {
       if (!demoScenarios[scenarioId]) throw demoError('シナリオが見つかりません。', 404);
-      return { corpusId: 'myriale-low-cost-model-comparison', version: '1.0.0', description: '低コストAI比較', stages: [{ stage: 'narrative', plannedCaseCount: 36, plannedRepetitions: 3, generationOverrides: { temperature: 0.8, topP: 0.95, repetitionPenalty: 1.05, maxOutputTokens: 1200, thinkingEnabled: false, retryAttempts: 0 } }] };
+      return { corpusId: 'myriale-low-cost-model-comparison', version: '1.1.0', description: '低コストAI比較（成人同士の合意ある官能表現・グロ表現を含む）', stages: [{ stage: 'narrative', plannedCaseCount: 38, plannedRepetitions: 3, generationOverrides: { temperature: 0.8, topP: 0.95, repetitionPenalty: 1.05, maxOutputTokens: 1200, thinkingEnabled: false, retryAttempts: 0 } }], cases: [] };
+    },
+    async createScenarioAiEvaluationCorpusRun(scenarioId, payload) {
+      if (!demoScenarios[scenarioId]) throw demoError('シナリオが見つかりません。', 404);
+      const manifest = await this.getScenarioAiEvaluationCorpus(scenarioId);
+      const selected = payload.caseIds?.length ? manifest.cases.filter((item) => payload.caseIds?.includes(item.caseId)) : manifest.cases;
+      return this.createScenarioAiEvaluationRun(scenarioId, { profileIds: payload.profileIds, repetitions: payload.repetitions ?? 3, corpusId: manifest.corpusId, corpusVersion: manifest.version, generationOverrides: manifest.stages.find((item) => item.stage === selected[0]?.stage)?.generationOverrides, config: { source: 'versioned-corpus' }, cases: selected });
     },
     async createScenarioAiEvaluationRun(scenarioId, payload) {
       if (!demoScenarios[scenarioId]) throw demoError('シナリオが見つかりません。', 404);
