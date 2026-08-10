@@ -309,7 +309,8 @@ public sealed class DevelopmentScenarioSeedTests : IDisposable
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseSetting("ConnectionStrings:MyrialeAccounts", $"Data Source={_dbPath}");
-            builder.UseSetting("Database:RecreateOnStartup", recreateOnStartup.ToString());
+            builder.UseSetting("Database:ResetOnStartup", recreateOnStartup.ToString());
+            builder.UseSetting("Database:ConfirmResetDataLoss", recreateOnStartup.ToString());
             builder.UseSetting("TestScenarioFixtures:Enabled", "false");
         });
 

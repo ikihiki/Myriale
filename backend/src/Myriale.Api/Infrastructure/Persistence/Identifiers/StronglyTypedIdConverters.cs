@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Myriale.Api.Features.Accounts.Identifiers;
 using Myriale.Api.Features.AiProviders.Identifiers;
+using Myriale.Api.Features.Evaluations.Identifiers;
 using Myriale.Api.Features.ModuleExecutions.Identifiers;
 using Myriale.Api.Features.ModulePackages.Identifiers;
 using Myriale.Api.Features.ProgressionRuntime.Identifiers;
@@ -39,12 +40,17 @@ internal sealed class ScenarioProgressionNodeIdConverter()
     : ValueConverter<ScenarioProgressionNodeId, string>(id => id.AsPrimitive(), value => new ScenarioProgressionNodeId(value));
 internal sealed class ScenarioProgressionTransitionIdConverter()
     : ValueConverter<ScenarioProgressionTransitionId, string>(id => id.AsPrimitive(), value => new ScenarioProgressionTransitionId(value));
-internal sealed class ScenarioAiEvaluationRunIdConverter()
-    : ValueConverter<ScenarioAiEvaluationRunId, string>(id => id.AsPrimitive(), value => new ScenarioAiEvaluationRunId(value));
-internal sealed class ScenarioAiEvaluationCaseIdConverter()
-    : ValueConverter<ScenarioAiEvaluationCaseId, string>(id => id.AsPrimitive(), value => new ScenarioAiEvaluationCaseId(value));
-internal sealed class ScenarioAiEvaluationAttemptIdConverter()
-    : ValueConverter<ScenarioAiEvaluationAttemptId, string>(id => id.AsPrimitive(), value => new ScenarioAiEvaluationAttemptId(value));
+internal sealed class EvaluationSessionIdConverter() : ValueConverter<EvaluationSessionId, string>(id => id.AsPrimitive(), value => new EvaluationSessionId(value));
+internal sealed class EvaluationSituationIdConverter() : ValueConverter<EvaluationSituationId, string>(id => id.AsPrimitive(), value => new EvaluationSituationId(value));
+internal sealed class EvaluationCandidateIdConverter() : ValueConverter<EvaluationCandidateId, string>(id => id.AsPrimitive(), value => new EvaluationCandidateId(value));
+internal sealed class EvaluationAttemptIdConverter() : ValueConverter<EvaluationAttemptId, string>(id => id.AsPrimitive(), value => new EvaluationAttemptId(value));
+internal sealed class EvaluationModelInvocationIdConverter() : ValueConverter<EvaluationModelInvocationId, string>(id => id.AsPrimitive(), value => new EvaluationModelInvocationId(value));
+internal sealed class EvaluationMachineJudgmentIdConverter() : ValueConverter<EvaluationMachineJudgmentId, string>(id => id.AsPrimitive(), value => new EvaluationMachineJudgmentId(value));
+internal sealed class EvaluationReviewBatchIdConverter() : ValueConverter<EvaluationReviewBatchId, string>(id => id.AsPrimitive(), value => new EvaluationReviewBatchId(value));
+internal sealed class EvaluationReviewAssignmentIdConverter() : ValueConverter<EvaluationReviewAssignmentId, string>(id => id.AsPrimitive(), value => new EvaluationReviewAssignmentId(value));
+internal sealed class EvaluationReviewItemIdConverter() : ValueConverter<EvaluationReviewItemId, string>(id => id.AsPrimitive(), value => new EvaluationReviewItemId(value));
+internal sealed class EvaluationHumanJudgmentIdConverter() : ValueConverter<EvaluationHumanJudgmentId, string>(id => id.AsPrimitive(), value => new EvaluationHumanJudgmentId(value));
+internal sealed class EvaluationAggregateIdConverter() : ValueConverter<EvaluationAggregateId, string>(id => id.AsPrimitive(), value => new EvaluationAggregateId(value));
 
 internal sealed class SessionIdConverter()
     : ValueConverter<SessionId, string>(id => id.AsPrimitive(), value => new SessionId(value));
@@ -122,9 +128,17 @@ internal static class StronglyTypedIdConventions
         configurationBuilder.Properties<ScenarioObjectId>().HaveConversion<ScenarioObjectIdConverter>();
         configurationBuilder.Properties<ScenarioProgressionNodeId>().HaveConversion<ScenarioProgressionNodeIdConverter>();
         configurationBuilder.Properties<ScenarioProgressionTransitionId>().HaveConversion<ScenarioProgressionTransitionIdConverter>();
-        configurationBuilder.Properties<ScenarioAiEvaluationRunId>().HaveConversion<ScenarioAiEvaluationRunIdConverter>();
-        configurationBuilder.Properties<ScenarioAiEvaluationCaseId>().HaveConversion<ScenarioAiEvaluationCaseIdConverter>();
-        configurationBuilder.Properties<ScenarioAiEvaluationAttemptId>().HaveConversion<ScenarioAiEvaluationAttemptIdConverter>();
+        configurationBuilder.Properties<EvaluationSessionId>().HaveConversion<EvaluationSessionIdConverter>();
+        configurationBuilder.Properties<EvaluationSituationId>().HaveConversion<EvaluationSituationIdConverter>();
+        configurationBuilder.Properties<EvaluationCandidateId>().HaveConversion<EvaluationCandidateIdConverter>();
+        configurationBuilder.Properties<EvaluationAttemptId>().HaveConversion<EvaluationAttemptIdConverter>();
+        configurationBuilder.Properties<EvaluationModelInvocationId>().HaveConversion<EvaluationModelInvocationIdConverter>();
+        configurationBuilder.Properties<EvaluationMachineJudgmentId>().HaveConversion<EvaluationMachineJudgmentIdConverter>();
+        configurationBuilder.Properties<EvaluationReviewBatchId>().HaveConversion<EvaluationReviewBatchIdConverter>();
+        configurationBuilder.Properties<EvaluationReviewAssignmentId>().HaveConversion<EvaluationReviewAssignmentIdConverter>();
+        configurationBuilder.Properties<EvaluationReviewItemId>().HaveConversion<EvaluationReviewItemIdConverter>();
+        configurationBuilder.Properties<EvaluationHumanJudgmentId>().HaveConversion<EvaluationHumanJudgmentIdConverter>();
+        configurationBuilder.Properties<EvaluationAggregateId>().HaveConversion<EvaluationAggregateIdConverter>();
 
         configurationBuilder.Properties<SessionId>().HaveConversion<SessionIdConverter>();
         configurationBuilder.Properties<SessionTurnId>().HaveConversion<SessionTurnIdConverter>();

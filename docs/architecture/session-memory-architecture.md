@@ -23,4 +23,4 @@ Session Memory の最初の縦 slice は、Scenario と同じ DDD/CQRS-lite の�
 
 既存 API の path、request/response shape、validation error code、note ID prefix (`LOR-` / `NOT-`)、revision history (`NRV-`) を維持する。enum の EF converter は既存の lowercase / kebab-case database value を維持する。
 
-この repository は EF migration ではなく startup/test の `EnsureCreatedAsync` を使用している。proposal の `Revision` column を追加したため、既存の開発 database は通常の schema recreate/reset 手順で更新する。
+この slice を含む完成 schema は単一の `InitialCreate` migration に含まれる。通常起動は `MigrateAsync` で非破壊に適用し、migration以前のdatabaseだけを明示的resetする。

@@ -11,34 +11,60 @@ public sealed class DatabaseInitializationTests : IDisposable
     private readonly string dbPath = Path.Combine(Path.GetTempPath(), $"myriale-database-initialization-{Guid.NewGuid():N}.db");
 
     [Fact]
-    public async Task StartupRecreatesTheDatabaseByDefault()
+    public async Task NormalStartupMigratesAndPreservesExistingData()
     {
-        await StartApiAsync(recreateOnStartup: true);
+        await StartApiAsync();
         await SetScenarioSummaryAsync("restart-marker");
-        await StartApiAsync(recreateOnStartup: true);
+        await StartApiAsync();
 
-        Assert.NotEqual("restart-marker", await GetScenarioSummaryAsync());
+        Assert.Equal("restart-marker", await GetScenarioSummaryAsync());
     }
 
     [Fact]
-    public async Task StartupRejectsPersistentModeUntilMigrationsExist()
+    public async Task ExplicitConfirmedResetDeletesDataAndReappliesInitialCreate()
+    {
+        await StartApiAsync();
+        await SetScenarioSummaryAsync("reset-marker");
+        await StartApiAsync(resetOnStartup: true, confirmReset: true);
+
+        Assert.NotEqual("reset-marker", await GetScenarioSummaryAsync());
+    }
+
+    [Fact]
+    public async Task ResetWithoutDataLossConfirmationIsRejected()
     {
         await using var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
                 builder.UseSetting("ConnectionStrings:MyrialeAccounts", $"Data Source={dbPath}");
-                builder.UseSetting("Database:RecreateOnStartup", "false");
+                builder.UseSetting("Database:ResetOnStartup", "true");
             });
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => factory.CreateClient().GetAsync("/api/scenarios/SCN-STAR-LIBRARY"));
-        Assert.Contains("production EF migrations", exception.ToString(), StringComparison.Ordinal);
-        Assert.Contains("destructive clean-schema baseline", exception.ToString(), StringComparison.Ordinal);
+        Assert.Contains("ConfirmResetDataLoss=true", exception.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RepositoryContainsOneInitialMigrationAndNoLegacyEvaluationTables()
+    {
+        await StartApiAsync();
+        await using var connection = new SqliteConnection($"Data Source={dbPath}");
+        await connection.OpenAsync();
+        await using var migration = connection.CreateCommand();
+        migration.CommandText = "SELECT MigrationId FROM __EFMigrationsHistory";
+        Assert.EndsWith("_InitialCreate", (string)(await migration.ExecuteScalarAsync())!, StringComparison.Ordinal);
+        await using var tables = connection.CreateCommand();
+        tables.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name LIKE 'ScenarioAiEvaluation%'";
+        Assert.Equal(0L, (long)(await tables.ExecuteScalarAsync())!);
+        await using var evaluationTables = connection.CreateCommand();
+        evaluationTables.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('EvaluationSessions','EvaluationSituations','EvaluationCandidates','EvaluationAttempts','EvaluationModelInvocations','EvaluationMachineJudgments','EvaluationHumanJudgments')";
+        Assert.Equal(7L, (long)(await evaluationTables.ExecuteScalarAsync())!);
     }
 
     [Fact]
     public async Task SqliteBaselineContainsTypedLifecycleColumnsAndRequiredIndexes()
     {
-        await StartApiAsync(recreateOnStartup: true);
+        await StartApiAsync();
         await using var connection = new SqliteConnection($"Data Source={dbPath}");
         await connection.OpenAsync();
 
@@ -115,13 +141,14 @@ public sealed class DatabaseInitializationTests : IDisposable
         Assert.Equal(1L, (long)(await sharedDigest.ExecuteScalarAsync())!);
     }
 
-    private async Task StartApiAsync(bool recreateOnStartup)
+    private async Task StartApiAsync(bool resetOnStartup = false, bool confirmReset = false)
     {
         using var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
                 builder.UseSetting("ConnectionStrings:MyrialeAccounts", $"Data Source={dbPath}");
-                builder.UseSetting("Database:RecreateOnStartup", recreateOnStartup.ToString());
+                builder.UseSetting("Database:ResetOnStartup", resetOnStartup.ToString());
+                builder.UseSetting("Database:ConfirmResetDataLoss", confirmReset.ToString());
             });
         using var client = factory.CreateClient();
         using var response = await client.GetAsync("/api/scenarios/SCN-STAR-LIBRARY");

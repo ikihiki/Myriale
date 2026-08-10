@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Myriale.Api.Features.Accounts;
 using Myriale.Api.Features.Accounts.Infrastructure;
 using Myriale.Api.Features.AiProviders;
 using Myriale.Api.Features.AiProviders.Infrastructure;
 using Myriale.Api.Features.Dashboard;
+using Myriale.Api.Features.Evaluations;
 using Myriale.Api.Features.ModuleExecutions;
 using Myriale.Api.Features.ModuleExecutions.Infrastructure;
 using Myriale.Api.Features.ModulePackages;
@@ -38,6 +40,7 @@ public static class MyrialeApiHost
         builder.Services.AddAiProvidersFeature(builder.Configuration);
         builder.Services.AddNarrativeGenerationFeature(builder.Configuration);
         builder.Services.AddDashboardFeature();
+        builder.Services.AddEvaluationsFeature(builder.Configuration);
         builder.Services.AddSessionMemoryFeature();
         builder.Services.AddSessionArtifactsFeature(builder.Configuration);
         builder.Services.AddModulePackagesFeature(builder.Configuration);
@@ -59,6 +62,8 @@ public static class MyrialeApiHost
             ?? "Data Source=myriale-accounts.db";
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
         {
+            // Converted ValueGeneratedOnAdd long IDs trigger a false SQLite pending-model warning; migration conformance is tested explicitly.
+            options.ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
             if (IsPostgresConnectionString(accountConnectionString))
                 options.UseNpgsql(accountConnectionString);
             else
@@ -73,6 +78,8 @@ public static class MyrialeApiHost
                 policy.RequireClaim("myriale:ai-admin", "true"));
             options.AddPolicy("Administration", policy =>
                 policy.RequireClaim("myriale:admin", "true"));
+            options.AddPolicy("EvaluationRawAudit", policy =>
+                policy.RequireAssertion(context => context.User.HasClaim("myriale:admin", "true") || context.User.HasClaim("myriale:evaluation-raw-audit", "true")));
         });
         builder.Services.AddAccountsFeature(builder.Environment);
 
@@ -106,6 +113,7 @@ public static class MyrialeApiHost
         app.MapNarrativeGenerationFeature();
         app.MapDashboardFeature();
         app.MapAccountsFeature();
+        app.MapEvaluationsFeature();
         app.MapScenariosFeature();
         app.MapModulePackagesFeature();
         app.MapSessionsFeature();
@@ -122,47 +130,27 @@ public static class MyrialeApiHost
     {
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-        var recreateOnStartup = app.Configuration.GetValue("Database:RecreateOnStartup", true);
-        if (!recreateOnStartup)
-            throw new InvalidOperationException(
-                "Database:RecreateOnStartup=false is unsupported until production EF migrations and an upgrade/rollback runbook exist. " +
-                "Myriale currently requires a destructive clean-schema baseline.");
-
-        if (db.Database.IsNpgsql())
-            await db.Database.ExecuteSqlRawAsync("DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;");
-        else
-            await db.Database.EnsureDeletedAsync();
-
-        await db.Database.EnsureCreatedAsync();
+        var reset = app.Configuration.GetValue<bool>("Database:ResetOnStartup");
+        if (reset && !app.Configuration.GetValue<bool>("Database:ConfirmResetDataLoss"))
+            throw new InvalidOperationException("Database reset requires Database:ConfirmResetDataLoss=true.");
+        if (reset)
+        {
+            if (db.Database.IsNpgsql())
+                await db.Database.ExecuteSqlRawAsync("DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;");
+            else
+                await db.Database.EnsureDeletedAsync();
+        }
+        await db.Database.MigrateAsync();
 
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var developmentSeedUser = await AccountSeedData.SeedAsync(userManager, app.Configuration);
         var useTestScenarioFixtures = isTestHost && app.Configuration.GetValue("TestScenarioFixtures:Enabled", true);
-        if (useTestScenarioFixtures)
-            await ScenarioTestFixtureData.CreateAsync(db);
-        else
-            await ScenarioSeedData.SeedAsync(db, developmentSeedUser?.Id);
-
-        if (app.Configuration.GetValue<bool>("DemoModules:Enabled")
-            && (!isTestHost || app.Configuration.GetValue<bool>("DemoModules:EnableInTestHost")))
-        {
-            await DemoModuleSeedData.SeedAsync(
-                db,
-                scope.ServiceProvider.GetRequiredService<InstallModulePackageCommand>(),
-                scope.ServiceProvider.GetRequiredService<EnableModulePackageCommand>(),
-                scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>());
-        }
-
-        if (app.Configuration.GetValue<bool>("SessionArtifactFixture:Enabled")
-            && (!isTestHost || app.Configuration.GetValue<bool>("SessionArtifactFixture:EnableInTestHost")))
-        {
-            await SessionArtifactFixtureSeedData.SeedAsync(
-                db,
-                scope.ServiceProvider.GetRequiredService<ISessionObjectStorage>(),
-                scope.ServiceProvider.GetRequiredService<ISessionArtifactWriter>(),
-                app.Configuration);
-        }
+        if (useTestScenarioFixtures) await ScenarioTestFixtureData.CreateAsync(db);
+        else await ScenarioSeedData.SeedAsync(db, developmentSeedUser?.Id);
+        if (app.Configuration.GetValue<bool>("DemoModules:Enabled") && (!isTestHost || app.Configuration.GetValue<bool>("DemoModules:EnableInTestHost")))
+            await DemoModuleSeedData.SeedAsync(db, scope.ServiceProvider.GetRequiredService<InstallModulePackageCommand>(), scope.ServiceProvider.GetRequiredService<EnableModulePackageCommand>(), scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>());
+        if (app.Configuration.GetValue<bool>("SessionArtifactFixture:Enabled") && (!isTestHost || app.Configuration.GetValue<bool>("SessionArtifactFixture:EnableInTestHost")))
+            await SessionArtifactFixtureSeedData.SeedAsync(db, scope.ServiceProvider.GetRequiredService<ISessionObjectStorage>(), scope.ServiceProvider.GetRequiredService<ISessionArtifactWriter>(), app.Configuration);
     }
 
     private static bool IsPostgresConnectionString(string connectionString) =>

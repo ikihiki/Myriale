@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Myriale.Api.Features.SessionExecutions.Application;
 using Myriale.Api.Infrastructure.Persistence;
 using Myriale.Api.Features.SessionExecutions.Infrastructure;
@@ -20,7 +21,7 @@ public sealed class PostgresSessionExecutionIntegrationTests
     public const string ConnectionEnvironmentVariable = "MYRIALE_TEST_POSTGRES";
 
     [PostgresFact]
-    public async Task DestructiveBaselineCreatesTypedLifecycleColumnsAndRequiredIndexes()
+    public async Task InitialCreateMigrationCreatesTypedLifecycleColumnsAndRequiredIndexes()
     {
         await using var database = await PostgresFixture.CreateAsync();
         await using var command = database.Db.Database.GetDbConnection().CreateCommand();
@@ -42,7 +43,7 @@ public sealed class PostgresSessionExecutionIntegrationTests
     }
 
     [PostgresFact]
-    public async Task ClaimAsyncUsesLinqAndClaimsHighestPriorityExecution()
+    public async Task ClaimAsyncClaimsHighestPriorityExecution()
     {
         await using var database = await PostgresFixture.CreateAsync();
         var now = new DateTimeOffset(2026, 7, 21, 12, 0, 0, TimeSpan.Zero);
@@ -259,14 +260,16 @@ public sealed class PostgresSessionExecutionIntegrationTests
             }
             var builder = new NpgsqlConnectionStringBuilder(configuredConnectionString) { Database = databaseName };
             var connectionString = builder.ConnectionString;
-            var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(connectionString).Options;
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(connectionString)
+                .ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning)).Options;
             var db = new ApplicationDbContext(options);
-            await db.Database.EnsureCreatedAsync();
+            await db.Database.MigrateAsync();
             return new PostgresFixture(adminConnectionString, connectionString, databaseName, db);
         }
 
         public ApplicationDbContext CreateContext() => new(
-            new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(ConnectionString).Options);
+            new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(ConnectionString)
+                .ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning)).Options);
 
         public async ValueTask DisposeAsync()
         {

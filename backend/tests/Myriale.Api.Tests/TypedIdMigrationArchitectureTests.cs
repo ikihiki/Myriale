@@ -16,6 +16,8 @@ public sealed class TypedIdMigrationArchitectureTests
             [$"{typeof(SessionPlayerInput).FullName}.RequestId"] = "Caller-controlled idempotency token.",
             [$"{typeof(SessionRuleActionStep).FullName}.SelectedRuleId"] = "Synthetic rule identifier without a persisted principal.",
             [$"{typeof(SessionAiInteraction).FullName}.ProviderRequestId"] = "External AI-provider request identifier.",
+            [$"{typeof(EvaluationModelInvocation).FullName}.ProviderRequestId"] = "External AI-provider request identifier.",
+            [$"{typeof(EvaluationModelInvocation).FullName}.CorrelationId"] = "Observability correlation identifier.",
             [$"{typeof(SessionExecutionAttempt).FullName}.WorkerId"] = "Worker-process lease owner identifier.",
             [$"{typeof(SessionExecutionAttempt).FullName}.ProviderRequestId"] = "External AI-provider request identifier.",
             [$"{typeof(SessionExecutionAttempt).FullName}.CorrelationId"] = "Observability correlation identifier.",

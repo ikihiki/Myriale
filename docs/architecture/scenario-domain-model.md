@@ -444,7 +444,7 @@ Repositories do not replace database constraints. Version allocation, one-Draft-
 
 The modernization sequence below has been delivered: Scenario and Scenario Definition expose aggregate behavior with non-public lifecycle setters; publication, Hero mode, action visibility, and execution mode are closed domain values; publication is coordinated by application use cases with optimistic concurrency and database uniqueness; progression and runtime execution pin the published Definition; and endpoints no longer perform EF mutation. Rule authoring JSON remains intentionally open at the persistence/wire boundary, while the runtime converts stable condition/effect discriminators to typed domain models before evaluation.
 
-Remaining limitations are operational rather than compatibility facades: the current database lifecycle is a destructive `EnsureCreated` baseline, domain events are synchronous/non-durable, and persistent production deployment requires migrations plus upgrade/rollback procedures. See `domain-modernization-roadmap.md` and `../runbooks/schema-baseline.md`.
+Remaining limitations are operational rather than compatibility facades: `InitialCreate` deliberately has no pre-migration upgrade/backfill path, and domain events remain synchronous/non-durable. Normal startup is non-destructive `MigrateAsync`; explicit reset and rollback procedures are documented in `../runbooks/schema-baseline.md`.
 
 ## Required invariant tests
 

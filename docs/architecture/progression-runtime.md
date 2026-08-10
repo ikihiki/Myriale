@@ -17,7 +17,7 @@ A successful claim increments `AttemptCount` and `Revision`, assigns a two-minut
 
 Cancellation releases the claim without using the cancelled token. Invalid snapshot JSON is non-retryable. Unexpected module initialization exceptions, 5xx results, `request_in_progress`, and `package_unavailable` remain retryable; other module errors are terminal. Missing snapshots are terminal with `module_snapshot_missing` and do not dispatch module execution.
 
-Signal creation and receipt lifecycle use the existing unique constraints and text wire values. The current reset-and-`EnsureCreated` schema lifecycle requires no migration for this slice.
+Signal creation and receipt lifecycle use the existing unique constraints and text wire values. They are included in the repository's single `InitialCreate` migration.
 
 ## Verification
 

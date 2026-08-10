@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace Myriale.Api.Features.ModuleExecutions.Infrastructure.Persistence;
 
@@ -19,7 +20,7 @@ internal sealed class ModuleExecutionRequestConfiguration : IEntityTypeConfigura
 {
     public void Configure(EntityTypeBuilder<ModuleExecutionRequest> builder)
     {
-        builder.Property(request => request.Id).ValueGeneratedOnAdd();
+        builder.Property(request => request.Id).ValueGeneratedOnAdd().HasAnnotation("Sqlite:Autoincrement", true).HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
         builder.Property(request => request.Operation).HasConversion<string>();
         builder.Property(request => request.Status).HasConversion<string>();
         builder.HasIndex(request => new { request.OwnerId, request.RequestId }).IsUnique();
@@ -33,7 +34,7 @@ internal sealed class ModuleOutcomeApplicationConfiguration : IEntityTypeConfigu
 {
     public void Configure(EntityTypeBuilder<ModuleOutcomeApplication> builder)
     {
-        builder.Property(application => application.Id).ValueGeneratedOnAdd();
+        builder.Property(application => application.Id).ValueGeneratedOnAdd().HasAnnotation("Sqlite:Autoincrement", true).HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
         builder.HasIndex(application => application.ExecutionId).IsUnique();
         builder.HasIndex(application => application.ModuleExecutionRequestId).IsUnique();
         builder.HasOne(application => application.Execution).WithOne(execution => execution.OutcomeApplication)
