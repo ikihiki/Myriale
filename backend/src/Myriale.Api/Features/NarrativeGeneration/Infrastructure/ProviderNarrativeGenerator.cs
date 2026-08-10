@@ -231,7 +231,7 @@ public sealed class ProviderNarrativeGenerator(
     {
         try
         {
-            var json = StripJsonFence(response.Text);
+            var json = NormalizeGeneratedJson(StripJsonFence(response.Text));
             return JsonSerializer.Deserialize<T>(json, Strict) ?? throw new JsonException("Empty JSON result.");
         }
         catch (JsonException exception)
@@ -266,6 +266,78 @@ public sealed class ProviderNarrativeGenerator(
 
     private static AiProviderException FailureFromResponse(AiTextResponse response, string message, string? sentPrompt = null) => new(
         AiProviderErrorCodes.SchemaFailure, message, false, sentPrompt: sentPrompt, receivedResult: response.Text, metadata: response.Metadata);
+
+    private static string NormalizeGeneratedJson(string json)
+    {
+        if (!json.Contains('Ġ') && !json.Contains('Ċ')) return json;
+        var node = JsonNode.Parse(json) ?? throw new JsonException("Empty JSON result.");
+        NormalizeGeneratedStrings(node);
+        return node.ToJsonString(Strict);
+    }
+
+    private static void NormalizeGeneratedStrings(JsonNode node)
+    {
+        if (node is JsonObject obj)
+        {
+            foreach (var property in obj.ToList())
+            {
+                if (property.Value is JsonValue value && value.TryGetValue<string>(out var text))
+                    obj[property.Key] = DecodeByteLevelArtifacts(text);
+                else if (property.Value is not null)
+                    NormalizeGeneratedStrings(property.Value);
+            }
+            return;
+        }
+
+        if (node is not JsonArray array) return;
+        for (var index = 0; index < array.Count; index++)
+        {
+            if (array[index] is JsonValue value && value.TryGetValue<string>(out var text))
+                array[index] = DecodeByteLevelArtifacts(text);
+            else if (array[index] is not null)
+                NormalizeGeneratedStrings(array[index]!);
+        }
+    }
+
+    private static string DecodeByteLevelArtifacts(string value)
+    {
+        if (!value.Contains('Ġ') && !value.Contains('Ċ')) return value;
+        var bytes = new List<byte>();
+        var decoded = new StringBuilder(value.Length);
+        void Flush()
+        {
+            if (bytes.Count == 0) return;
+            decoded.Append(Encoding.UTF8.GetString(bytes.ToArray()));
+            bytes.Clear();
+        }
+
+        foreach (var character in value)
+        {
+            if (ByteLevelDecode.TryGetValue(character, out var current)) bytes.Add(current);
+            else { Flush(); decoded.Append(character); }
+        }
+        Flush();
+        return decoded.ToString().Replace("n\n", "\n", StringComparison.Ordinal);
+    }
+
+    private static readonly IReadOnlyDictionary<char, byte> ByteLevelDecode = CreateByteLevelDecode();
+
+    private static IReadOnlyDictionary<char, byte> CreateByteLevelDecode()
+    {
+        var bytes = Enumerable.Range('!', '~' - '!' + 1)
+            .Concat(Enumerable.Range('¡', '¬' - '¡' + 1))
+            .Concat(Enumerable.Range('®', 'ÿ' - '®' + 1)).ToList();
+        var codePoints = bytes.ToList();
+        var nextCodePoint = 256;
+        for (var value = 0; value < 256; value++)
+        {
+            if (bytes.Contains(value)) continue;
+            bytes.Add(value);
+            codePoints.Add(nextCodePoint++);
+        }
+        return bytes.Select((value, index) => new { Character = (char)codePoints[index], Byte = (byte)value })
+            .ToDictionary(item => item.Character, item => item.Byte);
+    }
 
     private static string StripJsonFence(string value)
     {

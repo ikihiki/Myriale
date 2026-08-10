@@ -98,6 +98,19 @@ public sealed class ProviderNarrativeGeneratorActionDecisionTests
     }
 
     [Fact]
+    public async Task GeneratePostStateNarrative_DecodesByteLevelTokenizerArtifactsInStringValues()
+    {
+        var textProvider = new CapturingProvider("""{"schemaVersion":"post-state-narrative.v1","heading":"FinalĠBlow","body":"BloodâĢĶdark.nĊĊStoneĠfell."}""");
+        var generator = new ProviderNarrativeGenerator(textProvider, new ScenarioActionDecisionModelMapper(), NullLogger<ProviderNarrativeGenerator>.Instance);
+
+        var generated = await generator.GeneratePostStateNarrativeAsync(PostStateRequest(), default);
+
+        Assert.Equal("Final Blow", generated.Value.Heading);
+        Assert.Equal("Blood—dark.\n\nStone fell.", generated.Value.Body);
+        Assert.Contains("FinalĠBlow", generated.ReceivedResult, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task EvaluationProfileMethods_ForwardPerRequestGenerationOverrides()
     {
         var textProvider = new CapturingProvider("""{"schemaVersion":"post-state-narrative.v1","heading":"告白","body":"レンは真相を認めた。"}""");
