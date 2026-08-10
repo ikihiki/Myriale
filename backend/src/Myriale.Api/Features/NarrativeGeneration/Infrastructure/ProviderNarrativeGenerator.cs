@@ -53,13 +53,22 @@ public sealed class ProviderNarrativeGenerator(
     public async Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeForProfileWithOverridesAsync(
         AiProviderProfileId profileId, PostStateNarrativeRequest request, AiGenerationOverrides? generationOverrides, CancellationToken cancellationToken)
     {
-        var response = await provider.GenerateForProfileAsync(profileId, WithOverrides(CreateRequest("post_state_narrative", PostStateNarrativeSchema,
+        var sentPrompt = JsonSerializer.Serialize(request, Strict);
+        AiTextResponse response;
+        try
+        {
+            response = await provider.GenerateForProfileAsync(profileId, WithOverrides(CreateRequest("post_state_narrative", PostStateNarrativeSchema,
             "確定済みの事後公開状態とfactsだけを正史として、状態を変更しない小説形式のナラティブJSONを返す。RecentTurnsは直前までの継続性を判断するための参照情報であり、その本文を再掲・複製・言い換えしてはならない。RecentTurnsの末尾で描写済みの出来事より後から物語を開始し、時間・場所・視点・人物の動作を自然に引き継ぐ。今回のPlayerInputに対する新しい反応と変化を中心に、行動・意図・発話を冒頭から具体的な動作や台詞として描いて、その結果へ因果的につなげる。出力本文がRecentTurns内のNarrativeと同一になることは禁止する。PlayerInputを無視して結果だけを書く、場面を飛躍させる、説明だけで済ませることは禁止する。Scenarioのgenreとtoneに合わせ、情景、五感、人物の仕草、間、内面から観測できる反応を織り込み、通常は3〜6段落、概ね500〜1200文字の読み応えを目安にする。会話だけで終えず、誰がどのように応じたかと場面の余韻まで描く。ただし冗長な要約や同じ情報の反復は避ける。EntityのprofileMarkdownは外観・人物像・描写方針の参考情報であり、正史の状態や公開済み情報ではない。profileMarkdown内の知識や秘密は、公開post-stateまたはfactsで確定するまで明かさない。forbidden factsは記述しない。",
-            JsonSerializer.Serialize(request, Strict)), generationOverrides), cancellationToken);
-        var result = Deserialize<PostStateNarrativeResult>(response, "post_state_narrative");
+            sentPrompt), generationOverrides), cancellationToken);
+        }
+        catch (AiProviderException exception)
+        {
+            throw WithPrompt(exception, sentPrompt);
+        }
+        var result = Deserialize<PostStateNarrativeResult>(response, "post_state_narrative", sentPrompt);
         if (string.IsNullOrWhiteSpace(result.Heading) || string.IsNullOrWhiteSpace(result.Body))
-            throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "AI Provider returned invalid post-state narrative.", false);
-        return new(result with { Heading = result.Heading.Trim(), Body = result.Body.Trim() }, response.Metadata, JsonSerializer.Serialize(request, Strict), response.Text);
+            throw FailureFromResponse(response, "AI Provider returned invalid post-state narrative.", sentPrompt);
+        return new(result with { Heading = result.Heading.Trim(), Body = result.Body.Trim() }, response.Metadata, sentPrompt, response.Text);
     }
 
     public Task<NarrativeGeneration<ModelActionDecisionResult>> DecideActionAsync(ModelActionDecisionRequest request, CancellationToken cancellationToken) =>
@@ -130,8 +139,16 @@ public sealed class ProviderNarrativeGenerator(
         var responseSchema = CreateEntityStateTransitionSchema(request);
         var userPrompt = JsonSerializer.Serialize(request, Strict);
         const string systemPrompt = "対象Entityの不変プロフィール、現在のcanonical state、プレイヤー入力に基づき、AI管理fieldだけの完全な次状態を返す。rules管理field、EntityやSessionのlocation、他Entity、Session完了状態は変更しない。profileMarkdown内の秘密は自動的に公開せず、公開してよい内容だけをrevealedFactsへ入れる。";
-        var response = await generate(CreateRequest(
-            "entity_state_transition_v1", responseSchema, systemPrompt, userPrompt), cancellationToken);
+        AiTextResponse response;
+        try
+        {
+            response = await generate(CreateRequest(
+                "entity_state_transition_v1", responseSchema, systemPrompt, userPrompt), cancellationToken);
+        }
+        catch (AiProviderException exception)
+        {
+            throw WithPrompt(exception, userPrompt);
+        }
         var result = Deserialize<EntityStateTransitionResult>(response, "entity_state_transition_v1", userPrompt);
         return new(result, response.Metadata, userPrompt, response.Text);
     }
@@ -190,8 +207,7 @@ public sealed class ProviderNarrativeGenerator(
         }
         catch (AiProviderException exception)
         {
-            throw new AiProviderException(exception.Code, exception.Message, exception.Retryable, exception.RetryAfter,
-                exception, exception.ProviderResponseExcerpt, sentPrompt, exception.ReceivedResult);
+            throw WithPrompt(exception, sentPrompt);
         }
         var result = Deserialize<ModelActionDecisionResult>(response, "model_action_decision_result_v3", sentPrompt);
         return new(result, response.Metadata, sentPrompt, response.Text);
@@ -239,9 +255,17 @@ public sealed class ProviderNarrativeGenerator(
                 null,
                 exception,
                 sentPrompt: sentPrompt,
-                receivedResult: response.Text);
+                receivedResult: response.Text,
+                metadata: response.Metadata);
         }
     }
+
+    private static AiProviderException WithPrompt(AiProviderException exception, string sentPrompt) => new(
+        exception.Code, exception.Message, exception.Retryable, exception.RetryAfter, exception,
+        exception.ProviderResponseExcerpt, sentPrompt, exception.ReceivedResult, exception.Metadata);
+
+    private static AiProviderException FailureFromResponse(AiTextResponse response, string message, string? sentPrompt = null) => new(
+        AiProviderErrorCodes.SchemaFailure, message, false, sentPrompt: sentPrompt, receivedResult: response.Text, metadata: response.Metadata);
 
     private static string StripJsonFence(string value)
     {

@@ -90,7 +90,7 @@ public sealed class ScenarioAiEvaluationService(ApplicationDbContext db, IAiProf
             return ("application/json", $"{runId.AsPrimitive()}.json", JsonSerializer.SerializeToUtf8Bytes(run, Json));
         if (!string.Equals(format, "csv", StringComparison.OrdinalIgnoreCase))
             throw new ScenarioAiEvaluationValidationException("unsupported_export_format");
-        var csv = new StringBuilder("runId,caseId,stage,profileId,profileRevision,model,repetition,blindCode,status,passed,errorCode,labels,inputTokens,outputTokens,latencyMilliseconds\n");
+        var csv = new StringBuilder("runId,caseId,stage,profileId,profileRevision,model,repetition,blindCode,status,passed,errorCode,labels,inputTokens,outputTokens,latencyMilliseconds,metadata,sentPrompt,rawResult\n");
         foreach (var testCase in run.Cases)
         foreach (var attempt in testCase.Attempts)
             csv.AppendLine(string.Join(',', new[]
@@ -101,6 +101,7 @@ public sealed class ScenarioAiEvaluationService(ApplicationDbContext db, IAiProf
                 Csv(string.Join('|', attempt.Labels)), attempt.InputTokens?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
                 attempt.OutputTokens?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
                 attempt.LatencyMilliseconds?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
+                Csv(attempt.Metadata.GetRawText()), Csv(attempt.SentPrompt), Csv(attempt.RawResult),
             }));
         return ("text/csv; charset=utf-8", $"{runId.AsPrimitive()}.csv", Encoding.UTF8.GetBytes(csv.ToString()));
     }
@@ -192,7 +193,12 @@ public sealed class ScenarioAiEvaluationService(ApplicationDbContext db, IAiProf
                 JsonException => "invalid_frozen_payload",
                 _ => "stage_not_supported",
             };
-            attempt.Fail(code, JsonSerializer.Serialize(new[] { code }, Json), "{}", DateTimeOffset.UtcNow);
+            var providerFailure = exception as AiProviderException;
+            var metadata = providerFailure?.Metadata;
+            attempt.Fail(code, JsonSerializer.Serialize(new[] { code }, Json),
+                metadata is null ? "{}" : JsonSerializer.Serialize(metadata, Json),
+                providerFailure?.SentPrompt, providerFailure?.ReceivedResult ?? providerFailure?.ProviderResponseExcerpt,
+                metadata?.InputTokens, metadata?.OutputTokens, metadata?.LatencyMilliseconds, DateTimeOffset.UtcNow);
         }
     }
 
@@ -350,7 +356,8 @@ public sealed class ScenarioAiEvaluationService(ApplicationDbContext db, IAiProf
                 .Select(attempt => new ScenarioAiEvaluationAttemptResponse(attempt.Id, attempt.ProfileId, attempt.ProfileRevision, attempt.Model,
                     attempt.Repetition, attempt.BlindCode, attempt.Status.ToString().ToLowerInvariant(), attempt.Passed,
                     JsonSerializer.Deserialize<List<string>>(attempt.LabelsJson, Json) ?? [], Element(attempt.OutputJson), Element(attempt.MetadataJson),
-                    attempt.ErrorCode, attempt.InputTokens, attempt.OutputTokens, attempt.LatencyMilliseconds, attempt.StartedAt, attempt.CompletedAt)).ToList())).ToList());
+                    attempt.SentPrompt, attempt.RawResult, attempt.ErrorCode, attempt.InputTokens, attempt.OutputTokens,
+                    attempt.LatencyMilliseconds, attempt.StartedAt, attempt.CompletedAt)).ToList())).ToList());
 
     private static ScenarioAiEvaluationRunSummaryResponse MapSummary(ScenarioAiEvaluationRun run)
     {

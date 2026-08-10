@@ -90,6 +90,49 @@ public sealed class OpenAiCompatibleTextProviderTests
     }
 
     [Fact]
+    public async Task Generate_HttpFailureRetainsRawBodyAndAttemptMetadata()
+    {
+        const string body = "{\"error\":{\"message\":\"invalid schema\",\"detail\":\"full diagnostic\"}}";
+        var response = new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = new StringContent(body) };
+        response.Headers.Add("x-request-id", "request-failed");
+        var overrides = new AiGenerationOverrides(Temperature: 0, RetryAttempts: 0);
+
+        var exception = await Assert.ThrowsAsync<AiProviderException>(() =>
+            Create(new QueueHandler(response), maxAttempts: 1).GenerateAsync(Request(overrides), default));
+
+        Assert.Equal(body, exception.ReceivedResult);
+        Assert.Contains("invalid schema", exception.ProviderResponseExcerpt, StringComparison.Ordinal);
+        Assert.NotNull(exception.Metadata);
+        Assert.Equal(new AiProviderProfileId("runpod"), exception.Metadata.Provider);
+        Assert.Equal("test-model", exception.Metadata.Model);
+        Assert.Equal("request-failed", exception.Metadata.ResponseId);
+        Assert.Equal(1, exception.Metadata.AttemptCount);
+        Assert.Null(exception.Metadata.InputTokens);
+        Assert.Null(exception.Metadata.OutputTokens);
+        Assert.True(exception.Metadata.LatencyMilliseconds >= 0);
+        Assert.Same(overrides, exception.Metadata.GenerationOverrides);
+    }
+
+    [Fact]
+    public async Task Generate_InvalidSuccessEnvelopeRetainsRawBodyAndAttemptMetadata()
+    {
+        const string body = "{\"id\":\"response-invalid\",\"choices\":[]}";
+        var handler = new QueueHandler(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(body, Encoding.UTF8, "application/json"),
+        });
+
+        var exception = await Assert.ThrowsAsync<AiProviderException>(() =>
+            Create(handler, maxAttempts: 1).GenerateAsync(Request(), default));
+
+        Assert.Equal(AiProviderErrorCodes.SchemaFailure, exception.Code);
+        Assert.Equal(body, exception.ReceivedResult);
+        Assert.NotNull(exception.Metadata);
+        Assert.Equal(1, exception.Metadata.AttemptCount);
+        Assert.True(exception.Metadata.LatencyMilliseconds >= 0);
+    }
+
+    [Fact]
     public async Task Generate_RetriesRateLimit()
     {
         var limited = new HttpResponseMessage(HttpStatusCode.TooManyRequests) { Content = new StringContent("rate limited") };

@@ -103,6 +103,48 @@ public sealed class ScenarioAiEvaluationEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task FailedAttempts_PersistAndExportTheSameProviderDiagnosticsAsSuccessfulAttempts()
+    {
+        var owner = await CreateSignedInClientAsync("failed-diagnostics");
+        var scenarioId = await CreateScenarioAsync(owner);
+        using var created = await owner.PostAsJsonAsync($"/api/scenarios/{scenarioId}/ai-evaluations/runs",
+            CreateRequest([NarrativeFailureCase()], [new("profile-a")], 1));
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var run = await created.Content.ReadFromJsonAsync<JsonElement>();
+        var summary = run.GetProperty("summary");
+        var attempt = run.GetProperty("cases")[0].GetProperty("attempts")[0];
+        Assert.Equal("failed", attempt.GetProperty("status").GetString());
+        Assert.Equal(AiProviderErrorCodes.SchemaFailure, attempt.GetProperty("errorCode").GetString());
+        Assert.Equal("failure prompt", attempt.GetProperty("sentPrompt").GetString());
+        Assert.Equal("{not valid narrative json}", attempt.GetProperty("rawResult").GetString());
+        Assert.Equal(123, attempt.GetProperty("inputTokens").GetInt32());
+        Assert.Equal(45, attempt.GetProperty("outputTokens").GetInt32());
+        Assert.Equal(678, attempt.GetProperty("latencyMilliseconds").GetInt64());
+        Assert.Equal("response-failed", attempt.GetProperty("metadata").GetProperty("responseId").GetString());
+        Assert.Equal(1, attempt.GetProperty("metadata").GetProperty("attemptCount").GetInt32());
+        Assert.Equal("stop", attempt.GetProperty("metadata").GetProperty("finishReason").GetString());
+        Assert.Equal(JsonValueKind.Object, attempt.GetProperty("output").ValueKind);
+        Assert.Empty(attempt.GetProperty("output").EnumerateObject());
+
+        var runId = summary.GetProperty("id").GetString();
+        using var loaded = await owner.GetAsync($"/api/scenarios/{scenarioId}/ai-evaluations/runs/{runId}");
+        var loadedAttempt = (await loaded.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("cases")[0].GetProperty("attempts")[0];
+        Assert.Equal("failure prompt", loadedAttempt.GetProperty("sentPrompt").GetString());
+        Assert.Equal("{not valid narrative json}", loadedAttempt.GetProperty("rawResult").GetString());
+
+        using var jsonExport = await owner.GetAsync($"/api/scenarios/{scenarioId}/ai-evaluations/runs/{runId}/export?format=json");
+        var exportedAttempt = (await jsonExport.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("cases")[0].GetProperty("attempts")[0];
+        Assert.Equal(678, exportedAttempt.GetProperty("latencyMilliseconds").GetInt64());
+        Assert.Equal("response-failed", exportedAttempt.GetProperty("metadata").GetProperty("responseId").GetString());
+
+        using var csvExport = await owner.GetAsync($"/api/scenarios/{scenarioId}/ai-evaluations/runs/{runId}/export?format=csv");
+        var csv = await csvExport.Content.ReadAsStringAsync();
+        Assert.Contains("metadata,sentPrompt,rawResult", csv);
+        Assert.Contains("failure prompt", csv);
+        Assert.Contains("{not valid narrative json}", csv);
+    }
+
+    [Fact]
     public async Task CorpusManifest_IncludesVersionedAdultEroticAndGraphicViolenceCases()
     {
         var owner = await CreateSignedInClientAsync("corpus");
@@ -195,6 +237,17 @@ public sealed class ScenarioAiEvaluationEndpointTests : IDisposable
             Element("{\"requiredTerms\":[\"Guide\"],\"forbiddenTerms\":[\"secret\"],\"forbiddenPlayerAgencyTerms\":[\"Hero decided\"]}"));
     }
 
+    private static ScenarioAiEvaluationCaseInput NarrativeFailureCase()
+    {
+        var location = new RulePublicLocation(new("LOC"), "room", "Room", "");
+        var selectedObject = new RulePublicObject(new("OBJ"), "guide", "Guide", location.Id, false, 1, Element("{}"));
+        var action = new RulePublicAction(selectedObject.Id, new("ACT"), "talk", "Talk", "", Element("{}"), true);
+        var state = new RulePostState("state.v1", location, [selectedObject], new Dictionary<string, bool>(), 2);
+        var request = new PostStateNarrativeRequest(ScenarioTurnSchemas.PostStateNarrative,
+            new("Title", "", "", "", "", "", "Hero", [], ""), [], "force schema failure", selectedObject, action, state, [], [], [], []);
+        return new("narrative-failure", "narrative", Element(request), Element("{}"));
+    }
+
     private static ScenarioAiEvaluationCaseInput StateCase()
     {
         var request = new EntityStateTransitionRequest(ScenarioTurnSchemas.EntityStateTransition, "guide", 4, Element("{}"), "",
@@ -281,6 +334,11 @@ public sealed class ScenarioAiEvaluationEndpointTests : IDisposable
         public Task<NarrativeGeneration<PostStateNarrativeResult>> GeneratePostStateNarrativeForProfileAsync(AiProviderProfileId profileId,
             PostStateNarrativeRequest request, CancellationToken cancellationToken)
         {
+            if (request.PlayerInput == "force schema failure")
+                throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "invalid structured output", false,
+                    sentPrompt: "failure prompt", receivedResult: "{not valid narrative json}",
+                    metadata: new(profileId, $"model-{profileId.AsPrimitive()}", "response-failed", 123, 45, 678, 1, "stop",
+                        new(0, 1, 1, 42, 512, false, 0)));
             var body = request.PlayerInput.Contains("フェードアウト", StringComparison.Ordinal)
                 ? string.Concat(Enumerable.Repeat("二人は同意を確かめ、美咲の体温と吐息を感じながら乳房へ愛撫を重ねた。互いに続けてよいか言葉で確認し、指先の感触と鼓動を確かめる。", 5))
                 : request.PlayerInput.Contains("開放骨折", StringComparison.Ordinal)

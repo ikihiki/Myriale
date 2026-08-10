@@ -99,9 +99,11 @@ public sealed class ScenarioAiEvaluationAttempt
         OutputTokens = outputTokens; LatencyMilliseconds = latencyMilliseconds; CompletedAt = now;
     }
 
-    public void Fail(string errorCode, string labelsJson, string metadataJson, DateTimeOffset now)
+    public void Fail(string errorCode, string labelsJson, string metadataJson, string? sentPrompt, string? rawResult,
+        long? inputTokens, long? outputTokens, long? latencyMilliseconds, DateTimeOffset now)
     {
         Status = ScenarioAiEvaluationAttemptStatus.Failed; Passed = false; ErrorCode = errorCode;
-        LabelsJson = labelsJson; MetadataJson = metadataJson; CompletedAt = now;
+        LabelsJson = labelsJson; MetadataJson = metadataJson; SentPrompt = sentPrompt; RawResult = rawResult;
+        InputTokens = inputTokens; OutputTokens = outputTokens; LatencyMilliseconds = latencyMilliseconds; CompletedAt = now;
     }
 }

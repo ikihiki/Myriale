@@ -358,7 +358,7 @@ export type CreateScenarioAiEvaluationCorpusRunPayload = {
 export type ScenarioAiEvaluationAttempt = {
   id: string; profileId: string; profileRevision: number; model: string; repetition: number; blindCode: string;
   status: string; passed: boolean; labels: string[]; output: ScenarioJsonObject; metadata: ScenarioJsonObject;
-  errorCode?: string | null; inputTokens?: number | null; outputTokens?: number | null; latencyMilliseconds?: number | null;
+  errorCode?: string | null; sentPrompt?: string | null; rawResult?: string | null; inputTokens?: number | null; outputTokens?: number | null; latencyMilliseconds?: number | null;
   startedAt: string; completedAt: string;
 };
 export type ScenarioAiEvaluationRun = {

@@ -24,7 +24,8 @@ public sealed class AiProviderException(
     Exception? inner = null,
     string? providerResponseExcerpt = null,
     string? sentPrompt = null,
-    string? receivedResult = null)
+    string? receivedResult = null,
+    AiGenerationMetadata? metadata = null)
     : Exception(message, inner)
 {
     public string Code { get; } = code;
@@ -32,6 +33,7 @@ public sealed class AiProviderException(
     public TimeSpan? RetryAfter { get; } = retryAfter;
     public string? SentPrompt { get; } = sentPrompt;
     public string? ReceivedResult { get; } = receivedResult;
+    public AiGenerationMetadata? Metadata { get; } = metadata;
     public string? ProviderResponseExcerpt { get; } = providerResponseExcerpt;
 }
 

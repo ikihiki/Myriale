@@ -62,6 +62,8 @@ public sealed record ScenarioAiEvaluationAttemptResponse(
     IReadOnlyList<string> Labels,
     JsonElement Output,
     JsonElement Metadata,
+    string? SentPrompt,
+    string? RawResult,
     string? ErrorCode,
     long? InputTokens,
     long? OutputTokens,

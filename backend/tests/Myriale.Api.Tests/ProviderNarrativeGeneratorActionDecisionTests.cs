@@ -71,6 +71,31 @@ public sealed class ProviderNarrativeGeneratorActionDecisionTests
     }
 
     [Fact]
+    public async Task EvaluationNarrativeSchemaFailureRetainsPromptResultAndGenerationMetadata()
+    {
+        const string rawResult = "{not valid narrative json}";
+        var textProvider = new CapturingProvider(rawResult);
+        var generator = new ProviderNarrativeGenerator(
+            textProvider,
+            new ScenarioActionDecisionModelMapper(),
+            NullLogger<ProviderNarrativeGenerator>.Instance);
+
+        var exception = await Assert.ThrowsAsync<AiProviderException>(() =>
+            generator.GeneratePostStateNarrativeForProfileAsync(
+                new AiProviderProfileId("evaluation-model"), PostStateRequest(), default));
+
+        Assert.Equal(AiProviderErrorCodes.SchemaFailure, exception.Code);
+        Assert.Contains("この記録を見ろ。", exception.SentPrompt, StringComparison.Ordinal);
+        Assert.Equal(rawResult, exception.ReceivedResult);
+        Assert.NotNull(exception.Metadata);
+        Assert.Equal("response", exception.Metadata.ResponseId);
+        Assert.Equal(1, exception.Metadata.InputTokens);
+        Assert.Equal(1, exception.Metadata.OutputTokens);
+        Assert.Equal(2, exception.Metadata.LatencyMilliseconds);
+        Assert.Equal("stop", exception.Metadata.FinishReason);
+    }
+
+    [Fact]
     public async Task EvaluationProfileMethods_ForwardPerRequestGenerationOverrides()
     {
         var textProvider = new CapturingProvider("""{"schemaVersion":"post-state-narrative.v1","heading":"告白","body":"レンは真相を認めた。"}""");
