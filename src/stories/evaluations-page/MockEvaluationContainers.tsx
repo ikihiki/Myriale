@@ -1,13 +1,13 @@
-import { useState } from "react";
-import { EvaluationListPresentation } from "../../features/evaluations/list/EvaluationListPresentation";
-import { EvaluationCreatePresentation } from "../../features/evaluations/create/EvaluationCreatePresentation";
-import { EvaluationOverviewPresentation } from "../../features/evaluations/overview/EvaluationOverviewPresentation";
-import { EvaluationSetupPresentation } from "../../features/evaluations/setup/EvaluationSetupPresentation";
-import { EvaluationExecutionPresentation } from "../../features/evaluations/execution/EvaluationExecutionPresentation";
-import { EvaluationReviewAdminPresentation } from "../../features/evaluations/review-admin/EvaluationReviewAdminPresentation";
-import { EvaluationBlindReviewPresentation } from "../../features/evaluations/blind-review/EvaluationBlindReviewPresentation";
-import { EvaluationResultsPresentation } from "../../features/evaluations/results/EvaluationResultsPresentation";
-import type { EvaluationSession } from "../../features/evaluations/api/evaluationsApi";
+import { useState } from 'react';
+import { EvaluationListPresentation } from '../../features/evaluations/list/EvaluationListPresentation';
+import { EvaluationCreatePresentation } from '../../features/evaluations/create/EvaluationCreatePresentation';
+import { EvaluationOverviewPresentation } from '../../features/evaluations/overview/EvaluationOverviewPresentation';
+import { EvaluationSetupPresentation } from '../../features/evaluations/setup/EvaluationSetupPresentation';
+import { EvaluationExecutionPresentation } from '../../features/evaluations/execution/EvaluationExecutionPresentation';
+import { EvaluationReviewAdminPresentation } from '../../features/evaluations/review-admin/EvaluationReviewAdminPresentation';
+import { EvaluationBlindReviewPresentation } from '../../features/evaluations/blind-review/EvaluationBlindReviewPresentation';
+import { EvaluationResultsPresentation } from '../../features/evaluations/results/EvaluationResultsPresentation';
+import type { EvaluationSession } from '../../features/evaluations/api/evaluationsApi';
 import {
   account,
   assignment,
@@ -19,14 +19,14 @@ import {
   response,
   results,
   sessions,
-} from "./evaluationFixtures";
+} from './evaluationFixtures';
 const navigate = () => undefined;
 const logout = () => undefined;
 export function MockEvaluationListContainer() {
   return (
     <EvaluationListPresentation
       account={account}
-      state={{ status: "ready", data: sessions }}
+      state={{ status: 'ready', data: sessions }}
       onOpen={navigate}
       onCreate={navigate}
       onRetry={navigate}
@@ -52,7 +52,7 @@ export function MockEvaluationCreateContainer({
         setCreating(false);
         return {
           ok: true,
-          message: "評価Draftを作成しました。",
+          message: '評価Draftを作成しました。',
           value: draftSession,
         };
       }}
@@ -71,12 +71,12 @@ export function MockEvaluationOverviewContainer({
     <EvaluationOverviewPresentation
       account={account}
       evaluationId={evaluationId}
-      state={{ status: "ready", data: session }}
+      state={{ status: 'ready', data: session }}
       starting={false}
       onStart={async () => {
-        const value = { ...session, status: "queued" as const };
+        const value = { ...session, status: 'queued' as const };
         setSession(value);
-        return { ok: true, message: "開始しました。", value };
+        return { ok: true, message: '開始しました。', value };
       }}
       onRetry={navigate}
       onNavigate={navigate}
@@ -98,10 +98,10 @@ export function MockEvaluationSetupContainer({
     <EvaluationSetupPresentation
       account={account}
       evaluationId={evaluationId}
-      state={{ status: "ready", data: { session, corpora, quotes } }}
+      state={{ status: 'ready', data: { session, corpora, quotes } }}
       busy={false}
       actions={{
-        addFixed: () => ok(session, "固定ケースを追加しました。"),
+        addFixed: () => ok(session, '固定ケースを追加しました。'),
         addQuoted: (input) =>
           ok(
             {
@@ -109,30 +109,30 @@ export function MockEvaluationSetupContainer({
               situations: [
                 ...session.situations,
                 {
-                  id: "SIT-NEW",
+                  id: 'SIT-NEW',
                   label: input.label,
                   stage: input.stage,
-                  source: "quoted",
-                  sourceLabel: "Session quote",
-                  snapshotHash: "sha256:new",
-                  preview: "引用preview",
-                  createdAt: "2026-08-10T03:00:00Z",
+                  source: 'quoted',
+                  sourceLabel: 'Session quote',
+                  snapshotHash: 'sha256:new',
+                  preview: '引用preview',
+                  createdAt: '2026-08-10T03:00:00Z',
                 },
               ],
             },
-            "Session stageを引用して固定しました。",
+            'Session stageを引用して固定しました。',
           ),
-        removeSituation: async () => ({ ok: true, message: "削除しました。" }),
+        removeSituation: async () => ({ ok: true, message: '削除しました。' }),
         addCandidate: (input) =>
           ok(
             {
               ...session,
-              candidates: [...session.candidates, { id: "CAN-NEW", ...input }],
+              candidates: [...session.candidates, { id: 'CAN-NEW', ...input }],
             },
-            "候補を追加しました。",
+            '候補を追加しました。',
           ),
         saveDesign: (reviewPolicy, rubric) =>
-          ok({ ...session, reviewPolicy, rubric }, "Rubricを保存しました。"),
+          ok({ ...session, reviewPolicy, rubric }, 'Rubricを保存しました。'),
       }}
       onRetry={navigate}
       onNavigate={navigate}
@@ -150,17 +150,17 @@ export function MockEvaluationExecutionContainer({
       account={account}
       evaluationId={evaluationId}
       state={{
-        status: "ready",
+        status: 'ready',
         data: {
-          session: { ...draftSession, status: "completedWithErrors" },
+          session: { ...draftSession, status: 'completedWithErrors' },
           execution,
         },
       }}
       busy={false}
-      onCancel={async () => ({ ok: true, message: "cancelled" })}
+      onCancel={async () => ({ ok: true, message: 'cancelled' })}
       onRetryFailed={async () => ({
         ok: true,
-        message: "失敗attemptを再投入しました。",
+        message: '失敗attemptを再投入しました。',
       })}
       onRefresh={navigate}
       onNavigate={navigate}
@@ -179,39 +179,39 @@ export function MockEvaluationReviewAdminContainer({
       account={account}
       evaluationId={evaluationId}
       state={{
-        status: "ready",
-        data: { session: { ...draftSession, status: "review" }, batches: list },
+        status: 'ready',
+        data: { session: { ...draftSession, status: 'review' }, batches: list },
       }}
       busy={false}
       onCreateBatch={async (label) => {
         setList((v) => [
           ...v,
           {
-            id: "BATCH-NEW",
+            id: 'BATCH-NEW',
             reviewerLabel: label,
             assignmentCount: 4,
             completedCount: 0,
-            status: "open",
+            status: 'open',
             assignments: [
               {
-                opaqueCode: "REV-NEW",
+                opaqueCode: 'REV-NEW',
                 reviewerId: label,
-                status: "draft",
+                status: 'draft',
                 itemCount: 4,
                 judgedItemCount: 0,
               },
             ],
           },
         ]);
-        return { ok: true, message: "Review batchを作成しました。" };
+        return { ok: true, message: 'Review batchを作成しました。' };
       }}
       onClose={async () => ({
         ok: true,
-        message: "レビューを締め切りました。",
+        message: 'レビューを締め切りました。',
       })}
       onReveal={async () => ({
         ok: true,
-        message: "候補identityを公開しました。",
+        message: '候補identityを公開しました。',
       })}
       onRetry={navigate}
       onNavigate={navigate}
@@ -224,11 +224,11 @@ export function MockEvaluationBlindReviewContainer() {
   return (
     <EvaluationBlindReviewPresentation
       account={account}
-      state={{ status: "ready", data: current }}
+      state={{ status: 'ready', data: current }}
       saving={false}
       onSave={async () => ({
         ok: true,
-        message: "Draftを自動保存しました。",
+        message: 'Draftを自動保存しました。',
         value: current,
       })}
       onSubmit={async () => {
@@ -238,7 +238,7 @@ export function MockEvaluationBlindReviewContainer() {
           item: null,
         } as typeof current;
         setCurrent(value);
-        return { ok: true, message: "Judgmentを提出してlockしました。", value };
+        return { ok: true, message: 'Judgmentを提出してlockしました。', value };
       }}
       onRetry={navigate}
       onNavigate={navigate}
@@ -257,14 +257,14 @@ export function MockEvaluationResultsContainer({
       account={account}
       evaluationId={evaluationId}
       state={{
-        status: "ready",
+        status: 'ready',
         data: {
-          session: { ...draftSession, status: "completed" },
+          session: { ...draftSession, status: 'completed' },
           results,
           exports: [],
         },
       }}
-      response={detail ? { status: "ready", data: detail } : null}
+      response={detail ? { status: 'ready', data: detail } : null}
       busy={false}
       onOpenResponse={() => setDetail(response)}
       onExport={async (format) => ({

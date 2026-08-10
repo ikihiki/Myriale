@@ -1,14 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 import type {
   EvaluationExport,
   EvaluationResponseDetail,
   EvaluationResults,
   EvaluationSession,
   EvaluationsApi,
-} from "../api/evaluationsApi";
-import type { LoadState } from "../shared/evaluationPageModel";
-import { useEvaluationContainer } from "../shared/useEvaluationContainer";
-import { EvaluationResultsPresentation } from "./EvaluationResultsPresentation";
+} from '../api/evaluationsApi';
+import type { LoadState } from '../shared/evaluationPageModel';
+import { useEvaluationContainer } from '../shared/useEvaluationContainer';
+import { EvaluationResultsPresentation } from './EvaluationResultsPresentation';
 
 type Data = {
   session: EvaluationSession;
@@ -24,7 +24,7 @@ export function EvaluationResultsContainer({
   api?: EvaluationsApi;
 }) {
   const context = useEvaluationContainer(api);
-  const [state, setState] = useState<LoadState<Data>>({ status: "loading" });
+  const [state, setState] = useState<LoadState<Data>>({ status: 'loading' });
   const [response, setResponse] =
     useState<LoadState<EvaluationResponseDetail> | null>(null);
   const [reload, setReload] = useState(0);
@@ -37,16 +37,16 @@ export function EvaluationResultsContainer({
       context.api.getResults(evaluationId, controller.signal),
     ])
       .then(([session, results]) =>
-        setState({ status: "ready", data: { session, results, exports: [] } }),
+        setState({ status: 'ready', data: { session, results, exports: [] } }),
       )
       .catch((error: unknown) => {
         if (!controller.signal.aborted)
           setState({
-            status: "error",
+            status: 'error',
             message:
               error instanceof Error
                 ? error.message
-                : "結果を取得できませんでした。",
+                : '結果を取得できませんでした。',
           });
       });
     return () => controller.abort();
@@ -64,17 +64,17 @@ export function EvaluationResultsContainer({
       response={response}
       busy={busy}
       onOpenResponse={(id) => {
-        setResponse({ status: "loading" });
+        setResponse({ status: 'loading' });
         void context.api
           .getResponse(id)
-          .then((data) => setResponse({ status: "ready", data }))
+          .then((data) => setResponse({ status: 'ready', data }))
           .catch((error: unknown) =>
             setResponse({
-              status: "error",
+              status: 'error',
               message:
                 error instanceof Error
                   ? error.message
-                  : "Responseを取得できませんでした。",
+                  : 'Responseを取得できませんでした。',
             }),
           );
       }}
@@ -83,14 +83,14 @@ export function EvaluationResultsContainer({
         try {
           const value = await context.api.createExport(evaluationId, format);
           setState((current) =>
-            current.status === "ready"
+            current.status === 'ready'
               ? {
-                  status: "ready",
-                  data: {
-                    ...current.data,
-                    exports: [value, ...current.data.exports],
-                  },
-                }
+                status: 'ready',
+                data: {
+                  ...current.data,
+                  exports: [value, ...current.data.exports],
+                },
+              }
               : current,
           );
           return {
@@ -104,7 +104,7 @@ export function EvaluationResultsContainer({
             message:
               error instanceof Error
                 ? error.message
-                : "Exportを作成できませんでした。",
+                : 'Exportを作成できませんでした。',
           };
         } finally {
           setBusy(false);

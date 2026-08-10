@@ -1,18 +1,18 @@
-import { useState } from "react";
-import { Badge, Button, Notice, Panel } from "../../../components/ui";
+import { useState } from 'react';
+import { Badge, Button, Notice, Panel } from '../../../components/ui';
 import type {
   EvaluationExport,
   EvaluationResponseDetail,
   EvaluationResults,
   EvaluationSession,
-} from "../api/evaluationsApi";
-import { EvaluationPageFrame } from "../shared/EvaluationPageFrame";
-import { EvaluationLoadState } from "../shared/EvaluationLoadState";
+} from '../api/evaluationsApi';
+import { EvaluationPageFrame } from '../shared/EvaluationPageFrame';
+import { EvaluationLoadState } from '../shared/EvaluationLoadState';
 import type {
   EvaluationAccount,
   EvaluationCommand,
   LoadState,
-} from "../shared/evaluationPageModel";
+} from '../shared/evaluationPageModel';
 type Data = {
   session: EvaluationSession;
   results: EvaluationResults;
@@ -37,14 +37,14 @@ export function EvaluationResultsPresentation({
   busy: boolean;
   onOpenResponse: (id: string) => void;
   onExport: (
-    format: EvaluationExport["format"],
+    format: EvaluationExport['format'],
   ) => Promise<EvaluationCommand<EvaluationExport>>;
   onRetry: () => void;
-  onNavigate: Parameters<typeof EvaluationPageFrame>[0]["onNavigate"];
+  onNavigate: Parameters<typeof EvaluationPageFrame>[0]['onNavigate'];
   onLogout: () => void | Promise<void>;
 }) {
   const [notice, setNotice] = useState(
-    "Aggregate revisionはsource judgmentsのwatermarkとalgorithm versionから再生成されます。",
+    'Aggregate revisionはsource judgmentsのwatermarkとalgorithm versionから再生成されます。',
   );
   return (
     <EvaluationPageFrame
@@ -52,9 +52,9 @@ export function EvaluationResultsPresentation({
       evaluationId={evaluationId}
       activeTab="results"
       title={
-        state.status === "ready"
+        state.status === 'ready'
           ? `${state.data.session.name} — 結果`
-          : "評価結果"
+          : '評価結果'
       }
       kicker="Aggregates and audit drill-down"
       onNavigate={onNavigate}
@@ -66,7 +66,7 @@ export function EvaluationResultsPresentation({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <Notice tone="info">{notice}</Notice>
               <div className="flex gap-2">
-                {(["json", "csv"] as const).map((f) => (
+                {(['json', 'csv'] as const).map((f) => (
                   <Button
                     key={f}
                     size="sm"
@@ -85,11 +85,11 @@ export function EvaluationResultsPresentation({
               <div className="flex justify-between">
                 <h2>Candidate × rubric matrix</h2>
                 <Badge
-                  tone={results.identitiesRevealed ? "success" : "warning"}
+                  tone={results.identitiesRevealed ? 'success' : 'warning'}
                 >
                   {results.identitiesRevealed
-                    ? "identity revealed"
-                    : "identity hidden"}
+                    ? 'identity revealed'
+                    : 'identity hidden'}
                 </Badge>
               </div>
               <table className="w-full border-collapse text-left">
@@ -138,9 +138,9 @@ export function EvaluationResultsPresentation({
                     <strong>{x.label}</strong>
                     <br />
                     <small>
-                      machine {x.machineAverage.toFixed(2)} / human{" "}
-                      {x.humanAverage?.toFixed(2) ?? "—"} / agreement{" "}
-                      {x.agreement?.toFixed(2) ?? "—"}
+                      machine {x.machineAverage.toFixed(2)} / human{' '}
+                      {x.humanAverage?.toFixed(2) ?? '—'} / agreement{' '}
+                      {x.agreement?.toFixed(2) ?? '—'}
                     </small>
                   </p>
                 ))}
@@ -176,7 +176,7 @@ export function EvaluationResultsPresentation({
                     <small>
                       {Object.entries(x.scores)
                         .map(([k, v]) => `${k}: ${v.toFixed(2)}`)
-                        .join(" · ")}
+                        .join(' · ')}
                     </small>
                   </p>
                 ))}
@@ -199,16 +199,16 @@ export function EvaluationResultsPresentation({
                         : x.candidateCode}
                     </small>
                   </span>
-                  <span>{x.humanScore ?? x.machineScore ?? "—"}</span>
+                  <span>{x.humanScore ?? x.machineScore ?? '—'}</span>
                 </button>
               ))}
-              {response?.status === "loading" && (
+              {response?.status === 'loading' && (
                 <Notice tone="info">Responseを読み込んでいます。</Notice>
               )}
-              {response?.status === "error" && (
+              {response?.status === 'error' && (
                 <Notice tone="danger">{response.message}</Notice>
               )}
-              {response?.status === "ready" && (
+              {response?.status === 'ready' && (
                 <article
                   className="grid gap-3 rounded-xl bg-myr-ink p-5 text-myr-paper"
                   data-testid="response-drilldown"
@@ -221,10 +221,10 @@ export function EvaluationResultsPresentation({
                     {response.data.output}
                   </p>
                   <small>
-                    {response.data.latencyMilliseconds ?? "—"}ms · in{" "}
-                    {response.data.inputTokens ?? "—"} / out{" "}
-                    {response.data.outputTokens ?? "—"} · $
-                    {response.data.costUsd?.toFixed(4) ?? "—"}
+                    {response.data.latencyMilliseconds ?? '—'}ms · in{' '}
+                    {response.data.inputTokens ?? '—'} / out{' '}
+                    {response.data.outputTokens ?? '—'} · $
+                    {response.data.costUsd?.toFixed(4) ?? '—'}
                   </small>
                 </article>
               )}
@@ -237,7 +237,7 @@ export function EvaluationResultsPresentation({
                     {x.format.toUpperCase()} · {x.status}
                     {x.downloadUrl && (
                       <>
-                        {" "}
+                        {' '}
                         · <a href={x.downloadUrl}>download</a>
                       </>
                     )}

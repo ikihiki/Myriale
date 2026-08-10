@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 import {
   Badge,
   Button,
@@ -6,18 +6,18 @@ import {
   Notice,
   Panel,
   Textarea,
-} from "../../../components/ui";
+} from '../../../components/ui';
 import type {
   BlindJudgmentInput,
   BlindReviewAssignment,
-} from "../api/evaluationsApi";
-import { EvaluationPageFrame } from "../shared/EvaluationPageFrame";
-import { EvaluationLoadState } from "../shared/EvaluationLoadState";
+} from '../api/evaluationsApi';
+import { EvaluationPageFrame } from '../shared/EvaluationPageFrame';
+import { EvaluationLoadState } from '../shared/EvaluationLoadState';
 import type {
   EvaluationAccount,
   EvaluationCommand,
   LoadState,
-} from "../shared/evaluationPageModel";
+} from '../shared/evaluationPageModel';
 export function EvaluationBlindReviewPresentation({
   account,
   state,
@@ -40,25 +40,25 @@ export function EvaluationBlindReviewPresentation({
     input: BlindJudgmentInput,
   ) => Promise<EvaluationCommand<BlindReviewAssignment>>;
   onRetry: () => void;
-  onNavigate: Parameters<typeof EvaluationPageFrame>[0]["onNavigate"];
+  onNavigate: Parameters<typeof EvaluationPageFrame>[0]['onNavigate'];
   onLogout: () => void | Promise<void>;
 }) {
   const [scores, setScores] = useState<Record<string, number>>({});
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState('');
   const [notice, setNotice] = useState(
-    "候補identityとmachine judgmentはこのworkbenchのDTOに存在しません。",
+    '候補identityとmachine judgmentはこのworkbenchのDTOに存在しません。',
   );
-  const item = state.status === "ready" ? state.data.item : null;
+  const item = state.status === 'ready' ? state.data.item : null;
   useEffect(() => {
     setScores(item?.draft?.scores ?? {});
-    setNote(item?.draft?.note ?? "");
+    setNote(item?.draft?.note ?? '');
   }, [item?.itemId]);
   const input = { scores, note };
   return (
     <EvaluationPageFrame
       account={account}
       title={
-        state.status === "ready" ? state.data.evaluationLabel : "Blind review"
+        state.status === 'ready' ? state.data.evaluationLabel : 'Blind review'
       }
       kicker="Opaque reviewer workbench"
       description="Rubricだけでresponseを判定します。"
@@ -70,7 +70,7 @@ export function EvaluationBlindReviewPresentation({
           <div className="grid gap-5">
             <div className="flex items-center justify-between">
               <Badge tone="info">
-                Item {Math.min(assignment.currentIndex + 1, assignment.total)} /{" "}
+                Item {Math.min(assignment.currentIndex + 1, assignment.total)} /{' '}
                 {assignment.total}
               </Badge>
               <span className="text-sm text-myr-ink-subtle">
@@ -115,7 +115,7 @@ export function EvaluationBlindReviewPresentation({
                         type="number"
                         min={criterion.scaleMin}
                         max={criterion.scaleMax}
-                        value={scores[criterion.criterionId] ?? ""}
+                        value={scores[criterion.criterionId] ?? ''}
                         onChange={(e) =>
                           setScores((v) => ({
                             ...v,
@@ -134,7 +134,7 @@ export function EvaluationBlindReviewPresentation({
                     />
                   </label>
                   <Notice
-                    tone={notice.includes("できません") ? "danger" : "info"}
+                    tone={notice.includes('できません') ? 'danger' : 'info'}
                     data-testid="blind-review-notice"
                   >
                     {notice}
@@ -149,7 +149,7 @@ export function EvaluationBlindReviewPresentation({
                         )
                       }
                     >
-                      {saving ? "保存中…" : "Draftを保存"}
+                      {saving ? '保存中…' : 'Draftを保存'}
                     </Button>
                     <Button
                       disabled={

@@ -1,16 +1,16 @@
-import { useState } from "react";
-import { Badge, Button, Input, Notice, Panel } from "../../../components/ui";
+import { useState } from 'react';
+import { Badge, Button, Input, Notice, Panel } from '../../../components/ui';
 import type {
   EvaluationReviewBatch,
   EvaluationSession,
-} from "../api/evaluationsApi";
-import { EvaluationPageFrame } from "../shared/EvaluationPageFrame";
-import { EvaluationLoadState } from "../shared/EvaluationLoadState";
+} from '../api/evaluationsApi';
+import { EvaluationPageFrame } from '../shared/EvaluationPageFrame';
+import { EvaluationLoadState } from '../shared/EvaluationLoadState';
 import type {
   EvaluationAccount,
   EvaluationCommand,
   LoadState,
-} from "../shared/evaluationPageModel";
+} from '../shared/evaluationPageModel';
 type Data = { session: EvaluationSession; batches: EvaluationReviewBatch[] };
 export function EvaluationReviewAdminPresentation({
   account,
@@ -32,12 +32,12 @@ export function EvaluationReviewAdminPresentation({
   onClose: () => Promise<EvaluationCommand>;
   onReveal: () => Promise<EvaluationCommand>;
   onRetry: () => void;
-  onNavigate: Parameters<typeof EvaluationPageFrame>[0]["onNavigate"];
+  onNavigate: Parameters<typeof EvaluationPageFrame>[0]['onNavigate'];
   onLogout: () => void | Promise<void>;
 }) {
-  const [label, setLabel] = useState("");
+  const [label, setLabel] = useState('');
   const [notice, setNotice] = useState(
-    "Reviewer assignmentはopaque URLを使い、候補identityとmachine judgmentを含みません。",
+    'Reviewer assignmentはopaque URLを使い、候補identityとmachine judgmentを含みません。',
   );
   return (
     <EvaluationPageFrame
@@ -45,9 +45,9 @@ export function EvaluationReviewAdminPresentation({
       evaluationId={evaluationId}
       activeTab="reviews"
       title={
-        state.status === "ready"
+        state.status === 'ready'
           ? `${state.data.session.name} — レビュー管理`
-          : "レビュー管理"
+          : 'レビュー管理'
       }
       kicker="Blind human review"
       onNavigate={onNavigate}
@@ -57,7 +57,7 @@ export function EvaluationReviewAdminPresentation({
         {({ session, batches }) => (
           <div className="grid gap-5">
             <Notice
-              tone={notice.includes("できません") ? "danger" : "info"}
+              tone={notice.includes('できません') ? 'danger' : 'info'}
               data-testid="review-admin-notice"
             >
               {notice}
@@ -77,7 +77,7 @@ export function EvaluationReviewAdminPresentation({
                   onClick={() =>
                     void onCreateBatch(label).then((r) => {
                       setNotice(r.message);
-                      if (r.ok) setLabel("");
+                      if (r.ok) setLabel('');
                     })
                   }
                 >
@@ -92,7 +92,7 @@ export function EvaluationReviewAdminPresentation({
                   <span>
                     <strong>{batch.reviewerLabel}</strong>
                     <small className="block text-myr-ink-subtle">
-                      {batch.completedCount}/{batch.assignmentCount} items ·{" "}
+                      {batch.completedCount}/{batch.assignmentCount} items ·{' '}
                       {batch.id}
                     </small>
                     {batch.assignments.map((assignment) => (
@@ -107,7 +107,7 @@ export function EvaluationReviewAdminPresentation({
                     ))}
                   </span>
                   <Badge
-                    tone={batch.status === "completed" ? "success" : "info"}
+                    tone={batch.status === 'completed' ? 'success' : 'info'}
                   >
                     {batch.status}
                   </Badge>
@@ -123,7 +123,7 @@ export function EvaluationReviewAdminPresentation({
               <div className="flex flex-wrap gap-3">
                 <Button
                   variant="secondary"
-                  disabled={busy || session.status === "completed"}
+                  disabled={busy || session.status === 'completed'}
                   onClick={() =>
                     void onClose().then((r) => setNotice(r.message))
                   }
@@ -133,7 +133,7 @@ export function EvaluationReviewAdminPresentation({
                 <Button
                   disabled={
                     busy ||
-                    session.status !== "completed" ||
+                    session.status !== 'completed' ||
                     session.identitiesRevealed
                   }
                   onClick={() =>
@@ -144,7 +144,7 @@ export function EvaluationReviewAdminPresentation({
                 </Button>
                 <Button
                   onClick={() =>
-                    onNavigate("evaluationResults", { evaluationId })
+                    onNavigate('evaluationResults', { evaluationId })
                   }
                 >
                   集計結果へ

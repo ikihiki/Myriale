@@ -1,14 +1,14 @@
 export type EvaluationStatus =
-  | "draft"
-  | "queued"
-  | "running"
-  | "review"
-  | "completed"
-  | "completedWithErrors"
-  | "cancelled"
-  | "archived";
-export type EvaluationStage = "action" | "narrative" | "entityState";
-export type EvaluationReviewPolicy = "none" | "single" | "double-blind";
+  | 'draft'
+  | 'queued'
+  | 'running'
+  | 'review'
+  | 'completed'
+  | 'completedWithErrors'
+  | 'cancelled'
+  | 'archived';
+export type EvaluationStage = 'action' | 'narrative' | 'entityState';
+export type EvaluationReviewPolicy = 'none' | 'single' | 'double-blind';
 export type EvaluationCommandResult<T = undefined> = {
   ok: boolean;
   message: string;
@@ -32,7 +32,7 @@ export type EvaluationSituation = {
   id: string;
   label: string;
   stage: EvaluationStage;
-  source: "fixed" | "quoted";
+  source: 'fixed' | 'quoted';
   sourceLabel: string;
   snapshotHash: string;
   preview: string;
@@ -123,7 +123,7 @@ export type EvaluationReviewBatch = {
   reviewerLabel: string;
   assignmentCount: number;
   completedCount: number;
-  status: "open" | "completed" | "locked";
+  status: 'open' | 'completed' | 'locked';
   assignments: Array<{
     opaqueCode: string;
     reviewerId: string;
@@ -154,7 +154,7 @@ export type BlindReviewItem = {
 export type BlindReviewAssignment = {
   assignmentId: string;
   evaluationLabel: string;
-  status: "open" | "submitted" | "locked";
+  status: 'open' | 'submitted' | 'locked';
   currentIndex: number;
   total: number;
   item: BlindReviewItem | null;
@@ -169,7 +169,7 @@ export type EvaluationResponseSummary = {
   situationLabel: string;
   candidateLabel: string;
   candidateCode: string;
-  status: "succeeded" | "failed";
+  status: 'succeeded' | 'failed';
   machineScore?: number;
   humanScore?: number;
 };
@@ -181,7 +181,7 @@ export type EvaluationResponseDetail = EvaluationResponseSummary & {
   outputTokens?: number;
   costUsd?: number;
   judgments: Array<{
-    source: "machine" | "human";
+    source: 'machine' | 'human';
     criterion: string;
     score: number;
     note?: string;
@@ -218,8 +218,8 @@ export type EvaluationResults = {
 };
 export type EvaluationExport = {
   id: string;
-  format: "json" | "csv";
-  status: "ready";
+  format: 'json' | 'csv';
+  status: 'ready';
   downloadUrl: string;
 };
 
@@ -229,7 +229,7 @@ export type CreateEvaluationSessionInput = {
   sourceScenarioId?: string;
 };
 export type PatchEvaluationSessionInput = Partial<
-  Pick<EvaluationSession, "name" | "description" | "reviewPolicy" | "rubric">
+  Pick<EvaluationSession, 'name' | 'description' | 'reviewPolicy' | 'rubric'>
 > & { revision: number };
 export type AddFixedSituationInput = {
   corpusId: string;
@@ -244,7 +244,7 @@ export type AddQuotedSituationInput = {
   stage: EvaluationStage;
   label: string;
 };
-export type AddCandidateInput = Omit<EvaluationCandidate, "id">;
+export type AddCandidateInput = Omit<EvaluationCandidate, 'id'>;
 
 export type EvaluationsApi = {
   listSessions(signal?: AbortSignal): Promise<EvaluationSessionSummary[]>;
@@ -306,7 +306,7 @@ export type EvaluationsApi = {
   ): Promise<EvaluationResponseDetail>;
   createExport(
     id: string,
-    format: EvaluationExport["format"],
+    format: EvaluationExport['format'],
   ): Promise<EvaluationExport>;
 };
 
@@ -483,56 +483,56 @@ function request(
 ): RequestInit {
   return {
     method,
-    credentials: "include",
+    credentials: 'include',
     signal,
     headers: {
-      Accept: "application/json",
+      Accept: 'application/json',
       ...(body === undefined
         ? {}
-        : { "Content-Type": "application/json", "Idempotency-Key": key() }),
+        : { 'Content-Type': 'application/json', 'Idempotency-Key': key() }),
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   };
 }
 function preview(value: unknown): string {
-  const text = typeof value === "string" ? value : JSON.stringify(value);
+  const text = typeof value === 'string' ? value : JSON.stringify(value);
   return text.length > 180 ? `${text.slice(0, 177)}...` : text;
 }
 function status(value: string): EvaluationStatus {
   switch (value) {
-    case "awaitingHumanReview":
-    case "aggregating":
-      return "review";
-    case "cancelRequested":
-      return "running";
-    case "failed":
-      return "completedWithErrors";
-    case "draft":
-    case "queued":
-    case "running":
-    case "completed":
-    case "completedWithErrors":
-    case "cancelled":
-    case "archived":
+    case 'awaitingHumanReview':
+    case 'aggregating':
+      return 'review';
+    case 'cancelRequested':
+      return 'running';
+    case 'failed':
+      return 'completedWithErrors';
+    case 'draft':
+    case 'queued':
+    case 'running':
+    case 'completed':
+    case 'completedWithErrors':
+    case 'cancelled':
+    case 'archived':
       return value;
     default:
-      return "draft";
+      return 'draft';
   }
 }
 function rubric(value: unknown): EvaluationRubricCriterion[] {
   const source = Array.isArray(value)
     ? value
-    : typeof value === "object" &&
+    : typeof value === 'object' &&
         value &&
         Array.isArray((value as { criteria?: unknown[] }).criteria)
       ? (value as { criteria: unknown[] }).criteria
       : [];
   return source.map((item, index) => {
-    if (typeof item === "string")
+    if (typeof item === 'string')
       return {
         id: item,
         label: item,
-        description: "",
+        description: '',
         scaleMin: 1,
         scaleMax: 5,
         weight: 1,
@@ -545,7 +545,7 @@ function rubric(value: unknown): EvaluationRubricCriterion[] {
     return {
       id,
       label: row.label ?? id,
-      description: row.description ?? "",
+      description: row.description ?? '',
       scaleMin: row.scaleMin ?? 1,
       scaleMax: row.scaleMax ?? 5,
       weight: row.weight ?? 1,
@@ -555,18 +555,18 @@ function rubric(value: unknown): EvaluationRubricCriterion[] {
 }
 function reviewPolicy(value: unknown): EvaluationReviewPolicy {
   if (
-    typeof value === "string" &&
-    (value === "none" || value === "single" || value === "double-blind")
+    typeof value === 'string' &&
+    (value === 'none' || value === 'single' || value === 'double-blind')
   )
     return value;
-  if (typeof value === "object" && value) {
+  if (typeof value === 'object' && value) {
     const mode =
       (value as { mode?: string; type?: string }).mode ??
       (value as { type?: string }).type;
-    if (mode === "none" || mode === "single" || mode === "double-blind")
+    if (mode === 'none' || mode === 'single' || mode === 'double-blind')
       return mode;
   }
-  return "double-blind";
+  return 'double-blind';
 }
 function mapSummary(value: BackendSummary): EvaluationSessionSummary {
   return {
@@ -579,11 +579,11 @@ function mapSummary(value: BackendSummary): EvaluationSessionSummary {
     completedResponseCount: value.terminalAttemptCount,
     plannedResponseCount: value.plannedAttemptCount,
     reviewProgress:
-      value.reviewedItemCount || value.status === "awaitingHumanReview"
+      value.reviewedItemCount || value.status === 'awaitingHumanReview'
         ? {
-            completed: value.reviewedItemCount,
-            total: value.succeededAttemptCount,
-          }
+          completed: value.reviewedItemCount,
+          total: value.succeededAttemptCount,
+        }
         : undefined,
     createdAt: value.createdAt,
     updatedAt: value.completedAt ?? value.createdAt,
@@ -597,13 +597,13 @@ function mapSession(value: BackendSession): EvaluationSession {
       id: item.id,
       label: item.stableKey,
       stage: item.stage,
-      source: item.sourceKind === "sessionQuote" ? "quoted" : "fixed",
+      source: item.sourceKind === 'sessionQuote' ? 'quoted' : 'fixed',
       sourceLabel:
-        item.sourceKind === "corpus"
-          ? String(item.citation?.corpusKey ?? "Corpus")
-          : item.sourceKind === "sessionQuote"
-            ? "Session quote"
-            : "Fixture",
+        item.sourceKind === 'corpus'
+          ? String(item.citation?.corpusKey ?? 'Corpus')
+          : item.sourceKind === 'sessionQuote'
+            ? 'Session quote'
+            : 'Fixture',
       snapshotHash: item.requestHash,
       preview: preview(item.request),
       createdAt: value.summary.createdAt,
@@ -633,11 +633,11 @@ function mapExecution(
   return {
     status: status(value.session.status),
     planned: value.session.plannedAttemptCount,
-    queued: count(["queued", "retryWait"]),
-    running: count(["running"]),
-    succeeded: count(["succeeded"]),
-    failed: count(["failed"]),
-    cancelled: count(["cancelled", "skipped"]),
+    queued: count(['queued', 'retryWait']),
+    running: count(['running']),
+    succeeded: count(['succeeded']),
+    failed: count(['failed']),
+    cancelled: count(['cancelled', 'skipped']),
     startedAt: value.attempts
       .map((x) => x.startedAt)
       .filter(Boolean)
@@ -649,12 +649,12 @@ function mapExecution(
         .sort()
         .at(-1) ?? value.session.createdAt,
     failures: value.attempts
-      .filter((x) => x.status === "failed")
+      .filter((x) => x.status === 'failed')
       .map((x) => ({
         attemptId: x.id,
         situationLabel: situation.get(x.situationId) ?? x.situationId,
         candidateLabel: candidate.get(x.candidateId) ?? x.candidateId,
-        error: x.errorCode ?? "evaluation_failed",
+        error: x.errorCode ?? 'evaluation_failed',
         retryable: false,
       })),
   };
@@ -677,38 +677,38 @@ function blindAssignment(value: BackendBlindAssignment): BlindReviewAssignment {
   current?.judgments.forEach((x) => latest.set(x.criterionKey, x));
   const item = current
     ? {
-        itemId: current.id,
-        situationLabel: `${current.stage} situation`,
-        situationContext: preview(current.situation),
-        candidateCode: current.candidateCode,
-        responseText: preview(current.response),
-        rubric: criteria.map((x) => ({
-          criterionId: x.id,
-          label: x.label,
-          description: x.description,
-          scaleMin: x.scaleMin,
-          scaleMax: x.scaleMax,
-          required: x.required,
-        })),
-        draft: {
-          scores: Object.fromEntries(
-            [...latest]
-              .filter(([, x]) => x.score !== undefined)
-              .map(([criterion, x]) => [criterion, x.score!]),
-          ),
-          note: [...latest.values()].at(-1)?.comment ?? "",
-        },
-      }
+      itemId: current.id,
+      situationLabel: `${current.stage} situation`,
+      situationContext: preview(current.situation),
+      candidateCode: current.candidateCode,
+      responseText: preview(current.response),
+      rubric: criteria.map((x) => ({
+        criterionId: x.id,
+        label: x.label,
+        description: x.description,
+        scaleMin: x.scaleMin,
+        scaleMax: x.scaleMax,
+        required: x.required,
+      })),
+      draft: {
+        scores: Object.fromEntries(
+          [...latest]
+            .filter(([, x]) => x.score !== undefined)
+            .map(([criterion, x]) => [criterion, x.score!]),
+        ),
+        note: [...latest.values()].at(-1)?.comment ?? '',
+      },
+    }
     : null;
   return {
     assignmentId: value.opaqueCode,
-    evaluationLabel: "Blind evaluation review",
+    evaluationLabel: 'Blind evaluation review',
     status:
-      value.status === "locked"
-        ? "locked"
-        : value.status === "submitted"
-          ? "submitted"
-          : "open",
+      value.status === 'locked'
+        ? 'locked'
+        : value.status === 'submitted'
+          ? 'submitted'
+          : 'open',
     currentIndex,
     total: ordered.length,
     item,
@@ -716,22 +716,22 @@ function blindAssignment(value: BackendBlindAssignment): BlindReviewAssignment {
 }
 
 export function createFetchEvaluationsApi(
-  baseUrl = "/api/evaluation-sessions",
+  baseUrl = '/api/evaluation-sessions',
 ): EvaluationsApi {
   const encoded = (value: string) => encodeURIComponent(value);
   const rawSession = (id: string, signal?: AbortSignal) =>
-    fetch(`${baseUrl}/${encoded(id)}`, request("GET", undefined, signal)).then(
+    fetch(`${baseUrl}/${encoded(id)}`, request('GET', undefined, signal)).then(
       parse<BackendSession>,
     );
   const rawExecution = (id: string, signal?: AbortSignal) =>
     fetch(
       `${baseUrl}/${encoded(id)}/execution`,
-      request("GET", undefined, signal),
+      request('GET', undefined, signal),
     ).then(parse<BackendExecution>);
   const rawBlind = (id: string, signal?: AbortSignal) =>
     fetch(
       `/api/evaluation-review-assignments/${encoded(id)}`,
-      request("GET", undefined, signal),
+      request('GET', undefined, signal),
     ).then(parse<BackendBlindAssignment>);
   const saveBlind = async (
     assignmentId: string,
@@ -743,7 +743,7 @@ export function createFetchEvaluationsApi(
     for (const [criterionKey, score] of Object.entries(input.scores)) {
       await fetch(
         `/api/evaluation-review-assignments/${encoded(assignmentId)}/judgments/${encoded(itemId)}`,
-        request("PUT", {
+        request('PUT', {
           assignmentRevision: revision,
           criterionKey,
           score,
@@ -760,23 +760,23 @@ export function createFetchEvaluationsApi(
   };
   const api: EvaluationsApi = {
     listSessions: (signal) =>
-      fetch(baseUrl, request("GET", undefined, signal))
+      fetch(baseUrl, request('GET', undefined, signal))
         .then(parse<BackendSummary[]>)
         .then((x) => x.map(mapSummary)),
     createSession: (input) =>
       fetch(
         baseUrl,
-        request("POST", {
+        request('POST', {
           title: input.name,
-          purpose: input.description ?? "",
+          purpose: input.description ?? '',
           tags: input.sourceScenarioId
             ? [`scenario:${input.sourceScenarioId}`]
             : [],
-          sensitivity: "internal",
-          retentionPolicy: "standard",
+          sensitivity: 'internal',
+          retentionPolicy: 'standard',
           config: {},
           rubric: [],
-          reviewPolicy: { mode: "double-blind" },
+          reviewPolicy: { mode: 'double-blind' },
           idempotencyKey: key(),
         }),
       )
@@ -786,7 +786,7 @@ export function createFetchEvaluationsApi(
     patchSession: (id, input) =>
       fetch(
         `${baseUrl}/${encoded(id)}`,
-        request("PATCH", {
+        request('PATCH', {
           revision: input.revision,
           ...(input.name === undefined ? {} : { title: input.name }),
           ...(input.description === undefined
@@ -801,7 +801,7 @@ export function createFetchEvaluationsApi(
         .then(parse<BackendSession>)
         .then(mapSession),
     listCorpora: (signal) =>
-      fetch("/api/evaluation-corpora", request("GET", undefined, signal))
+      fetch('/api/evaluation-corpora', request('GET', undefined, signal))
         .then(
           parse<
             Array<{
@@ -831,13 +831,13 @@ export function createFetchEvaluationsApi(
           })),
         ),
     getQuoteBrowser: (signal) =>
-      fetch(`${baseUrl}/quote-sources`, request("GET", undefined, signal)).then(
+      fetch(`${baseUrl}/quote-sources`, request('GET', undefined, signal)).then(
         parse<QuoteBrowser>,
       ),
     addFixedSituations: async (id, input) => {
       const corpora = await fetch(
-        "/api/evaluation-corpora",
-        request("GET"),
+        '/api/evaluation-corpora',
+        request('GET'),
       ).then(
         parse<
           Array<{
@@ -858,7 +858,7 @@ export function createFetchEvaluationsApi(
       );
       if (!corpus)
         throw new EvaluationsApiError(
-          "Evaluation corpus version was not found.",
+          'Evaluation corpus version was not found.',
           404,
         );
       for (const caseId of input.caseIds) {
@@ -870,7 +870,7 @@ export function createFetchEvaluationsApi(
           );
         await fetch(
           `${baseUrl}/${encoded(id)}/situations/fixed`,
-          request("POST", {
+          request('POST', {
             stableKey: item.caseId,
             stage: item.stage,
             request: item.request,
@@ -878,7 +878,7 @@ export function createFetchEvaluationsApi(
             corpusKey: corpus.corpusId,
             corpusVersion: corpus.version,
             corpusCaseKey: item.caseId,
-            sensitivity: "internal",
+            sensitivity: 'internal',
           }),
         ).then(parse<unknown>);
       }
@@ -887,14 +887,14 @@ export function createFetchEvaluationsApi(
     addQuotedSituation: async (id, input) => {
       await fetch(
         `${baseUrl}/${encoded(id)}/situations/quoted`,
-        request("POST", {
+        request('POST', {
           stableKey: input.label,
           stage: input.stage,
           sessionId: input.sessionId,
           turnId: input.turnId,
           interactionId: input.interactionId,
           expectations: {},
-          sensitivity: "internal",
+          sensitivity: 'internal',
         }),
       ).then(parse<unknown>);
       return api.getSession(id);
@@ -902,12 +902,12 @@ export function createFetchEvaluationsApi(
     removeSituation: (id, situationId) =>
       fetch(
         `${baseUrl}/${encoded(id)}/situations/${encoded(situationId)}`,
-        request("DELETE"),
+        request('DELETE'),
       ).then(parse<void>),
     addCandidate: async (id, input) => {
       await fetch(
         `${baseUrl}/${encoded(id)}/candidates`,
-        request("POST", {
+        request('POST', {
           candidateKey: input.label,
           profileId: input.profileId,
           repetitions: input.repetitions,
@@ -918,13 +918,13 @@ export function createFetchEvaluationsApi(
       return api.getSession(id);
     },
     start: async (id) => {
-      await fetch(`${baseUrl}/${encoded(id)}:start`, request("POST")).then(
+      await fetch(`${baseUrl}/${encoded(id)}:start`, request('POST')).then(
         parse<unknown>,
       );
       return api.getSession(id);
     },
     cancel: async (id) => {
-      await fetch(`${baseUrl}/${encoded(id)}:cancel`, request("POST")).then(
+      await fetch(`${baseUrl}/${encoded(id)}:cancel`, request('POST')).then(
         parse<void>,
       );
       return api.getExecution(id);
@@ -932,7 +932,7 @@ export function createFetchEvaluationsApi(
     retryFailed: async (id) => {
       await fetch(
         `${baseUrl}/${encoded(id)}:retry-failed`,
-        request("POST"),
+        request('POST'),
       ).then(parse<unknown>);
       return api.getExecution(id);
     },
@@ -946,13 +946,13 @@ export function createFetchEvaluationsApi(
     listReviewBatches: (id, signal) =>
       fetch(
         `${baseUrl}/${encoded(id)}/review-batches`,
-        request("GET", undefined, signal),
+        request('GET', undefined, signal),
       )
         .then(parse<BackendReviewBatch[]>)
         .then((items) =>
           items.map((item) => ({
             id: item.id,
-            reviewerLabel: item.assignments.map((x) => x.reviewerId).join(", "),
+            reviewerLabel: item.assignments.map((x) => x.reviewerId).join(', '),
             assignmentCount: item.assignments.reduce(
               (sum, x) => sum + x.itemCount,
               0,
@@ -962,21 +962,21 @@ export function createFetchEvaluationsApi(
               0,
             ),
             status:
-              item.status === "closed"
-                ? "locked"
-                : item.assignments.every((x) => x.status !== "draft")
-                  ? "completed"
-                  : "open",
+              item.status === 'closed'
+                ? 'locked'
+                : item.assignments.every((x) => x.status !== 'draft')
+                  ? 'completed'
+                  : 'open',
             assignments: item.assignments,
           })),
         ),
     createReviewBatch: async (id, reviewerIds) => {
       const created = await fetch(
         `${baseUrl}/${encoded(id)}/review-batches`,
-        request("POST", {
+        request('POST', {
           reviewerIds,
           requiredReviewsPerOutput: 1,
-          rubricVersion: "1",
+          rubricVersion: '1',
           deadline: null,
         }),
       ).then(parse<{ id: string }>);
@@ -986,14 +986,14 @@ export function createFetchEvaluationsApi(
     closeReview: async (id) => {
       await fetch(
         `${baseUrl}/${encoded(id)}:close-review`,
-        request("POST"),
+        request('POST'),
       ).then(parse<void>);
       return api.getSession(id);
     },
     revealIdentities: async (id) => {
       await fetch(
         `${baseUrl}/${encoded(id)}:reveal-identities`,
-        request("POST"),
+        request('POST'),
       ).then(parse<void>);
       return api.getSession(id);
     },
@@ -1007,7 +1007,7 @@ export function createFetchEvaluationsApi(
       if (!mapped.item) {
         await fetch(
           `/api/evaluation-review-assignments/${encoded(assignmentId)}:submit?revision=${assignment.revision}`,
-          request("POST"),
+          request('POST'),
         ).then(parse<void>);
         assignment = await rawBlind(assignmentId);
       }
@@ -1017,7 +1017,7 @@ export function createFetchEvaluationsApi(
       const [result, execution, sessionRaw] = await Promise.all([
         fetch(
           `${baseUrl}/${encoded(id)}/results`,
-          request("GET", undefined, signal),
+          request('GET', undefined, signal),
         ).then(parse<BackendResults>),
         rawExecution(id, signal),
         rawSession(id, signal),
@@ -1078,15 +1078,15 @@ export function createFetchEvaluationsApi(
               candidateCode:
                 candidateRawCode(sessionRaw, attempt.candidateId) ??
                 attempt.candidateId,
-              status: attempt.status === "succeeded" ? "succeeded" : "failed",
+              status: attempt.status === 'succeeded' ? 'succeeded' : 'failed',
               ...(js.length
                 ? {
-                    machineScore:
+                  machineScore:
                       js.reduce(
                         (sum, x) => sum + (x.score ?? (x.passed ? 1 : 0)),
                         0,
                       ) / js.length,
-                  }
+                }
                 : {}),
             },
           ];
@@ -1113,11 +1113,11 @@ export function createFetchEvaluationsApi(
       }));
       const failureCounts = new Map<string, number>();
       execution.attempts
-        .filter((x) => x.status === "failed")
+        .filter((x) => x.status === 'failed')
         .forEach((x) =>
           failureCounts.set(
-            x.errorCode ?? "evaluation_failed",
-            (failureCounts.get(x.errorCode ?? "evaluation_failed") ?? 0) + 1,
+            x.errorCode ?? 'evaluation_failed',
+            (failureCounts.get(x.errorCode ?? 'evaluation_failed') ?? 0) + 1,
           ),
         );
       return {
@@ -1146,7 +1146,7 @@ export function createFetchEvaluationsApi(
     getResponse: (responseId, signal) =>
       fetch(
         `/api/evaluation-responses/${encoded(responseId)}`,
-        request("GET", undefined, signal),
+        request('GET', undefined, signal),
       )
         .then(parse<BackendRawInvocation>)
         .then((x) => ({
@@ -1154,11 +1154,11 @@ export function createFetchEvaluationsApi(
           situationLabel: x.situationLabel,
           candidateLabel: x.candidateLabel,
           candidateCode: x.candidateCode,
-          status: x.status === "succeeded" ? "succeeded" : "failed",
+          status: x.status === 'succeeded' ? 'succeeded' : 'failed',
           output:
             x.parsedOutput !== undefined
               ? JSON.stringify(x.parsedOutput, null, 2)
-              : (x.rawResponse ?? x.rawError ?? ""),
+              : (x.rawResponse ?? x.rawError ?? ''),
           labels: [],
           latencyMilliseconds: x.latencyMilliseconds,
           inputTokens: x.inputTokens,
@@ -1169,9 +1169,9 @@ export function createFetchEvaluationsApi(
       const response = await fetch(
         `${baseUrl}/${encoded(id)}/exports?format=${format}&redacted=true`,
         {
-          credentials: "include",
+          credentials: 'include',
           headers: {
-            Accept: format === "json" ? "application/json" : "text/csv",
+            Accept: format === 'json' ? 'application/json' : 'text/csv',
           },
         },
       );
@@ -1180,7 +1180,7 @@ export function createFetchEvaluationsApi(
       return {
         id: `${id}-${format}-${Date.now()}`,
         format,
-        status: "ready",
+        status: 'ready',
         downloadUrl: URL.createObjectURL(blob),
       };
     },

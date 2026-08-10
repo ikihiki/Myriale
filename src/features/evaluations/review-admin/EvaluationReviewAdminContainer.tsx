@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 import type {
   EvaluationsApi,
   EvaluationReviewBatch,
   EvaluationSession,
-} from "../api/evaluationsApi";
-import type { LoadState } from "../shared/evaluationPageModel";
-import { useEvaluationContainer } from "../shared/useEvaluationContainer";
-import { EvaluationReviewAdminPresentation } from "./EvaluationReviewAdminPresentation";
+} from '../api/evaluationsApi';
+import type { LoadState } from '../shared/evaluationPageModel';
+import { useEvaluationContainer } from '../shared/useEvaluationContainer';
+import { EvaluationReviewAdminPresentation } from './EvaluationReviewAdminPresentation';
 type Data = { session: EvaluationSession; batches: EvaluationReviewBatch[] };
 export function EvaluationReviewAdminContainer({
   evaluationId,
@@ -16,7 +16,7 @@ export function EvaluationReviewAdminContainer({
   api?: EvaluationsApi;
 }) {
   const context = useEvaluationContainer(api);
-  const [state, setState] = useState<LoadState<Data>>({ status: "loading" });
+  const [state, setState] = useState<LoadState<Data>>({ status: 'loading' });
   const [reload, setReload] = useState(0);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -26,16 +26,16 @@ export function EvaluationReviewAdminContainer({
       context.api.listReviewBatches(evaluationId, c.signal),
     ])
       .then(([session, batches]) =>
-        setState({ status: "ready", data: { session, batches } }),
+        setState({ status: 'ready', data: { session, batches } }),
       )
       .catch((e: unknown) => {
         if (!c.signal.aborted)
           setState({
-            status: "error",
+            status: 'error',
             message:
               e instanceof Error
                 ? e.message
-                : "レビューを取得できませんでした。",
+                : 'レビューを取得できませんでした。',
           });
       });
     return () => c.abort();
@@ -49,7 +49,7 @@ export function EvaluationReviewAdminContainer({
     } catch (e) {
       return {
         ok: false,
-        message: e instanceof Error ? e.message : "操作できませんでした。",
+        message: e instanceof Error ? e.message : '操作できませんでした。',
       };
     } finally {
       setBusy(false);
@@ -71,23 +71,23 @@ export function EvaluationReviewAdminContainer({
             context.api.createReviewBatch(
               evaluationId,
               label
-                .split(",")
+                .split(',')
                 .map((value) => value.trim())
                 .filter(Boolean),
             ),
-          "Review batchを作成しました。",
+          'Review batchを作成しました。',
         )
       }
       onClose={() =>
         run(
           () => context.api.closeReview(evaluationId),
-          "レビューを締め切りました。",
+          'レビューを締め切りました。',
         )
       }
       onReveal={() =>
         run(
           () => context.api.revealIdentities(evaluationId),
-          "候補identityを公開しました。",
+          '候補identityを公開しました。',
         )
       }
       onRetry={() => setReload((v) => v + 1)}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState } from 'react';
 import {
   Badge,
   Button,
@@ -6,22 +6,22 @@ import {
   Notice,
   Panel,
   Textarea,
-} from "../../../components/ui";
-import { MyrialeSelect } from "../../../ui/MyrialeRadix";
+} from '../../../components/ui';
+import { MyrialeSelect } from '../../../ui/MyrialeRadix';
 import type {
   AddCandidateInput,
   AddQuotedSituationInput,
   EvaluationCorpus,
   EvaluationSession,
   QuoteBrowser,
-} from "../api/evaluationsApi";
-import { EvaluationPageFrame } from "../shared/EvaluationPageFrame";
-import { EvaluationLoadState } from "../shared/EvaluationLoadState";
+} from '../api/evaluationsApi';
+import { EvaluationPageFrame } from '../shared/EvaluationPageFrame';
+import { EvaluationLoadState } from '../shared/EvaluationLoadState';
 import type {
   EvaluationAccount,
   EvaluationCommand,
   LoadState,
-} from "../shared/evaluationPageModel";
+} from '../shared/evaluationPageModel';
 type SetupData = {
   session: EvaluationSession;
   corpora: EvaluationCorpus[];
@@ -41,8 +41,8 @@ export type SetupActions = {
     input: AddCandidateInput,
   ) => Promise<EvaluationCommand<EvaluationSession>>;
   saveDesign: (
-    reviewPolicy: EvaluationSession["reviewPolicy"],
-    rubric: EvaluationSession["rubric"],
+    reviewPolicy: EvaluationSession['reviewPolicy'],
+    rubric: EvaluationSession['rubric'],
   ) => Promise<EvaluationCommand<EvaluationSession>>;
 };
 export function EvaluationSetupPresentation({
@@ -61,30 +61,30 @@ export function EvaluationSetupPresentation({
   busy: boolean;
   actions: SetupActions;
   onRetry: () => void;
-  onNavigate: Parameters<typeof EvaluationPageFrame>[0]["onNavigate"];
+  onNavigate: Parameters<typeof EvaluationPageFrame>[0]['onNavigate'];
   onLogout: () => void | Promise<void>;
 }) {
   const [notice, setNotice] = useState(
-    "固定ケースまたはSessionのturn/stageを引用し、実行前にimmutable snapshotへ固定します。",
+    '固定ケースまたはSessionのturn/stageを引用し、実行前にimmutable snapshotへ固定します。',
   );
   const [selectedCases, setSelectedCases] = useState<string[]>([]);
-  const [profileId, setProfileId] = useState("");
-  const [candidateLabel, setCandidateLabel] = useState("");
+  const [profileId, setProfileId] = useState('');
+  const [candidateLabel, setCandidateLabel] = useState('');
   const [repetitions, setRepetitions] = useState(1);
-  const [scenarioId, setScenarioId] = useState("");
-  const [sessionId, setSessionId] = useState("");
-  const [turnId, setTurnId] = useState("");
+  const [scenarioId, setScenarioId] = useState('');
+  const [sessionId, setSessionId] = useState('');
+  const [turnId, setTurnId] = useState('');
   const [stage, setStage] =
-    useState<AddQuotedSituationInput["stage"]>("narrative");
-  const [quoteLabel, setQuoteLabel] = useState("");
+    useState<AddQuotedSituationInput['stage']>('narrative');
+  const [quoteLabel, setQuoteLabel] = useState('');
   const [policy, setPolicy] =
-    useState<EvaluationSession["reviewPolicy"]>("double-blind");
+    useState<EvaluationSession['reviewPolicy']>('double-blind');
   const [rubricText, setRubricText] = useState(
-    "Narrative quality|物語としての完成度\nInstruction fidelity|状況と指示への忠実さ\nSafety and continuity|安全性と連続性",
+    'Narrative quality|物語としての完成度\nInstruction fidelity|状況と指示への忠実さ\nSafety and continuity|安全性と連続性',
   );
   const quoteScenario = useMemo(
     () =>
-      state.status === "ready"
+      state.status === 'ready'
         ? state.data.quotes.scenarios.find((x) => x.id === scenarioId)
         : undefined,
     [state, scenarioId],
@@ -98,9 +98,9 @@ export function EvaluationSetupPresentation({
       evaluationId={evaluationId}
       activeTab="setup"
       title={
-        state.status === "ready"
+        state.status === 'ready'
           ? `${state.data.session.name} — セットアップ`
-          : "評価セットアップ"
+          : '評価セットアップ'
       }
       kicker="Freeze inputs before execution"
       onNavigate={onNavigate}
@@ -111,9 +111,9 @@ export function EvaluationSetupPresentation({
           <div className="grid gap-6">
             <Notice
               tone={
-                notice.includes("できません") || notice.includes("選択")
-                  ? "danger"
-                  : "info"
+                notice.includes('できません') || notice.includes('選択')
+                  ? 'danger'
+                  : 'info'
               }
               data-testid="evaluation-setup-notice"
             >
@@ -185,8 +185,8 @@ export function EvaluationSetupPresentation({
                   value={scenarioId}
                   onValueChange={(v) => {
                     setScenarioId(v);
-                    setSessionId("");
-                    setTurnId("");
+                    setSessionId('');
+                    setTurnId('');
                   }}
                   options={data.quotes.scenarios.map((x) => ({
                     value: x.id,
@@ -198,7 +198,7 @@ export function EvaluationSetupPresentation({
                   value={sessionId}
                   onValueChange={(v) => {
                     setSessionId(v);
-                    setTurnId("");
+                    setTurnId('');
                   }}
                   options={(quoteScenario?.sessions ?? []).map((x) => ({
                     value: x.id,
@@ -333,9 +333,9 @@ export function EvaluationSetupPresentation({
                 value={policy}
                 onValueChange={(v) => setPolicy(v as typeof policy)}
                 options={[
-                  { value: "none", label: "Machine only" },
-                  { value: "single", label: "Single blind" },
-                  { value: "double-blind", label: "Double blind" },
+                  { value: 'none', label: 'Machine only' },
+                  { value: 'single', label: 'Single blind' },
+                  { value: 'double-blind', label: 'Double blind' },
                 ]}
               />
               <label>
@@ -351,10 +351,10 @@ export function EvaluationSetupPresentation({
                 disabled={busy}
                 onClick={() => {
                   const rubric = rubricText
-                    .split("\n")
+                    .split('\n')
                     .filter(Boolean)
                     .map((line, index) => {
-                      const [label, description = ""] = line.split("|");
+                      const [label, description = ''] = line.split('|');
                       return {
                         id: `criterion-${index + 1}`,
                         label: label.trim(),
@@ -378,13 +378,13 @@ export function EvaluationSetupPresentation({
                 <div>
                   <h2>現在のsnapshot</h2>
                   <p>
-                    {data.session.situations.length} situations /{" "}
+                    {data.session.situations.length} situations /{' '}
                     {data.session.candidates.length} candidates
                   </p>
                 </div>
                 <Button
                   onClick={() =>
-                    onNavigate("evaluationOverview", { evaluationId })
+                    onNavigate('evaluationOverview', { evaluationId })
                   }
                 >
                   概要で開始条件を確認
