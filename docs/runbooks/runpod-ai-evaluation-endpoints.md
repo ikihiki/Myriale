@@ -47,16 +47,20 @@ Each endpoint accepted an OpenAI-compatible `chat/completions` request with stri
 
 These values include worker startup/model loading and must not be used as warm latency results. Goetia's empty text is a quality warning rather than a transport/schema failure and should be covered by the Japanese/content screening gate.
 
-## Dedicated Corpus API and UI
+## Independent Evaluation Sessions API and UI
 
-The server-authoritative corpus workflow uses:
+The server-authoritative corpus is now part of the independent Evaluations domain:
 
-- `GET /api/scenarios/{scenarioId}/ai-evaluations/corpus` to inspect the versioned manifest and selectable executable cases.
-- `POST /api/scenarios/{scenarioId}/ai-evaluations/corpus/runs` with only `profileIds`, optional `repetitions`, and optional `caseIds`.
+- `GET /api/evaluation-corpora` lists the versioned manifest and executable cases.
+- `POST /api/evaluation-sessions` creates a durable Draft.
+- `POST /api/evaluation-sessions/{id}/situations/fixed` copies selected corpus requests into immutable situations.
+- `POST /api/evaluation-sessions/{id}/candidates` freezes a profile/model candidate and repetition count.
+- `POST /api/evaluation-sessions/{id}:start` freezes the configuration and queues durable background attempts.
+- `GET /api/evaluation-sessions/{id}/execution` reports progress after reload or client disconnect.
 
-The corpus-run endpoint loads the embedded manifest itself and derives the corpus ID, version, frozen case payloads, and stage generation overrides. Clients cannot replace those values with modified case payloads. The generic `/runs` endpoint remains available for ad-hoc editor-authored cases.
+Open `/evaluations` to create and manage Evaluation Sessions. The setup page can mix fixed corpus cases with immutable situations quoted from Scenario Sessions. Execution, machine judgments, blind human review, aggregation, raw invocation audit, and export remain attached to the Evaluation Session rather than a Scenario.
 
-Authors can open `/scenarios/{scenarioId}/ai-evaluations` from the Scenario editor Test step. The dedicated UI shows the manifest version, case selection, Profile IDs, repetition count, planned attempt count, blind results, recent runs, and JSON/CSV export controls.
+Every provider call creates a separate immutable invocation row containing its exact request/prompt, raw response or sanitized error body, parsed output, validation, frozen profile/runtime configuration, request ID, tokens, latency, finish reason, and timestamps. Reviewer endpoints deliberately omit model identity, machine judgment, and operational telemetry until the organizer closes review and reveals identities.
 
 ## Sensitive-expression capability cases
 
