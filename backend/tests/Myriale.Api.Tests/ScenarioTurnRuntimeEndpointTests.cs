@@ -86,7 +86,7 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
 
         Assert.Equal(1, acceptedJson.GetProperty("execution").GetProperty("schemaVersion").GetInt32());
 
-        var session = await WaitForExecutionAsync(client, sessionId, "succeeded");
+        var session = await WaitForExecutionAsync(client, sessionId, "succeeded", minimumTurnCount: 2);
         var step = Assert.Single(session.GetProperty("ruleActionSteps").EnumerateArray().ToArray());
         Assert.Equal("completed", step.GetProperty("stage").GetString());
         Assert.Equal("rule-action-step.v1", step.GetProperty("schemaVersion").GetString());
@@ -534,7 +534,11 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         return scenarioId;
     }
 
-    private static async Task<JsonElement> WaitForExecutionAsync(HttpClient client, string sessionId, string status)
+    private static async Task<JsonElement> WaitForExecutionAsync(
+        HttpClient client,
+        string sessionId,
+        string status,
+        int? minimumTurnCount = null)
     {
         for (var i = 0; i < 120; i++)
         {
@@ -542,7 +546,11 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
             var body = await response.Content.ReadAsStringAsync();
             if (!response.IsSuccessStatusCode) throw new Xunit.Sdk.XunitException($"GET session failed {(int)response.StatusCode}: {body}");
             var json = JsonSerializer.Deserialize<JsonElement>(body);
-            if (json.GetProperty("executions").GetArrayLength() > 0 && json.GetProperty("executions")[0].GetProperty("status").GetString() == status) return json;
+            var executionCompleted = json.GetProperty("executions").GetArrayLength() > 0
+                && json.GetProperty("executions")[0].GetProperty("status").GetString() == status;
+            var turnsCompleted = minimumTurnCount is null
+                || json.GetProperty("turns").GetArrayLength() >= minimumTurnCount.Value;
+            if (executionCompleted && turnsCompleted) return json;
             await Task.Delay(100);
         }
         throw new TimeoutException();
