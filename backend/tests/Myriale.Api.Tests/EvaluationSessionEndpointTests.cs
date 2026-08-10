@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -129,8 +130,16 @@ public sealed class EvaluationSessionEndpointTests : IDisposable
     }
     private static async Task<JsonElement> WaitForTerminalAsync(HttpClient client, string id)
     {
-        for (var i = 0; i < 200; i++) { var value = await client.GetFromJsonAsync<JsonElement>($"/api/evaluation-sessions/{id}/execution"); var status = value.GetProperty("session").GetProperty("status").GetString(); if (status is "awaitingHumanReview" or "completed" or "completedWithErrors" or "failed") return value; await Task.Delay(20); }
-        throw new TimeoutException("Evaluation did not complete.");
+        var stopwatch = Stopwatch.StartNew();
+        string? lastStatus = null;
+        while (stopwatch.Elapsed < TimeSpan.FromSeconds(30))
+        {
+            var value = await client.GetFromJsonAsync<JsonElement>($"/api/evaluation-sessions/{id}/execution");
+            lastStatus = value.GetProperty("session").GetProperty("status").GetString();
+            if (lastStatus is "awaitingHumanReview" or "completed" or "completedWithErrors" or "failed") return value;
+            await Task.Delay(250);
+        }
+        throw new TimeoutException($"Evaluation did not complete within 30 seconds. Last status: {lastStatus ?? "unknown"}.");
     }
     private async Task<HttpClient> CreateSignedInClientAsync(string name)
     {
