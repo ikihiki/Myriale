@@ -57,12 +57,18 @@ internal static class DatabaseStartupMigrator
         CancellationToken cancellationToken)
     {
         var automaticLegacyReset = !explicitReset && await IsPreMigrationDatabaseAsync(db, cancellationToken);
-        if (explicitReset || automaticLegacyReset)
+        var automaticProviderMappingReset = !explicitReset
+            && !automaticLegacyReset
+            && await IsSqliteMappedPostgresInitialCreateAsync(db, cancellationToken);
+        if (explicitReset || automaticLegacyReset || automaticProviderMappingReset)
         {
             if (automaticLegacyReset)
                 logger.LogWarning(
                     "Detected pre-migration Myriale tables without {HistoryTable}; deleting the legacy database/schema before applying InitialCreate.",
                     EfMigrationsHistoryTable);
+            else if (automaticProviderMappingReset)
+                logger.LogWarning(
+                    "Detected the PostgreSQL InitialCreate with SQLite column mappings; deleting the invalid schema before reapplying the same migration.");
             else
                 logger.LogWarning("Explicit confirmed database reset requested; deleting the database/schema before applying migrations.");
             await ResetDatabaseAsync(db, cancellationToken);
@@ -89,6 +95,58 @@ internal static class DatabaseStartupMigrator
         return existingTables.Any(existing => applicationTables.Any(application =>
             string.Equals(existing.Name, application.Name, StringComparison.Ordinal)
             && (!db.Database.IsNpgsql() || string.Equals(existing.Schema, application.Schema, StringComparison.Ordinal))));
+    }
+
+    private static async Task<bool> IsSqliteMappedPostgresInitialCreateAsync(
+        ApplicationDbContext db,
+        CancellationToken cancellationToken)
+    {
+        if (!db.Database.IsNpgsql()) return false;
+
+        var existingTables = await ReadExistingTablesAsync(db, cancellationToken);
+        var schema = await ReadCurrentPostgresSchemaAsync(db, cancellationToken);
+        if (!existingTables.Any(table =>
+                string.Equals(table.Schema, schema, StringComparison.Ordinal)
+                && string.Equals(table.Name, EfMigrationsHistoryTable, StringComparison.Ordinal)))
+        {
+            return false;
+        }
+
+        var connection = db.Database.GetDbConnection();
+        var closeConnection = connection.State != ConnectionState.Open;
+        if (closeConnection) await db.Database.OpenConnectionAsync(cancellationToken);
+        try
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM "__EFMigrationsHistory"
+                    WHERE "MigrationId" LIKE '%_InitialCreate'
+                )
+                AND EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = current_schema()
+                      AND table_name = 'AspNetUsers'
+                      AND column_name = 'EmailConfirmed'
+                      AND data_type = 'integer'
+                )
+                AND EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = current_schema()
+                      AND table_name = 'EvaluationSessions'
+                      AND column_name = 'CreatedAt'
+                      AND data_type = 'text'
+                )
+                """;
+            return (bool?)await command.ExecuteScalarAsync(cancellationToken) == true;
+        }
+        finally
+        {
+            if (closeConnection) await db.Database.CloseConnectionAsync();
+        }
     }
 
     private static async Task<IReadOnlyList<DatabaseTable>> ReadExistingTablesAsync(

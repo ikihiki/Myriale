@@ -348,6 +348,61 @@ public sealed class PostgresDatabaseInitializationTests
         Assert.Equal(1L, (long)(await command.ExecuteScalarAsync())!);
     }
 
+    [PostgresFact]
+    public async Task SqliteMappedInitialCreateIsResetAndReappliedWithPostgresTypes()
+    {
+        await using var database = await PostgresStartupDatabase.CreateAsync();
+        await using (var connection = new NpgsqlConnection(database.ConnectionString))
+        {
+            await connection.OpenAsync();
+            await using var setupCommand = new NpgsqlCommand("""
+                CREATE TABLE "__EFMigrationsHistory" (
+                    "MigrationId" character varying(150) NOT NULL PRIMARY KEY,
+                    "ProductVersion" character varying(32) NOT NULL
+                );
+                INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+                VALUES ('20260810101338_InitialCreate', '10.0.9');
+                CREATE TABLE "AspNetUsers" (
+                    "Id" text NOT NULL PRIMARY KEY,
+                    "EmailConfirmed" integer NOT NULL
+                );
+                CREATE TABLE "EvaluationSessions" (
+                    "Id" text NOT NULL PRIMARY KEY,
+                    "CreatedAt" text NOT NULL
+                );
+                """, connection);
+            await setupCommand.ExecuteNonQueryAsync();
+        }
+
+        using (var factory = database.CreateFactory())
+        using (var client = factory.CreateClient())
+        using (var response = await client.PostAsJsonAsync("/api/account/register", new
+        {
+            displayName = "PostgreSQL mapping repair account",
+            email = "postgres-mapping-repair@example.test",
+            password = "letters1",
+        }))
+        {
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        await using var verification = new NpgsqlConnection(database.ConnectionString);
+        await verification.OpenAsync();
+        await using var command = new NpgsqlCommand("""
+            SELECT
+                (SELECT COUNT(*) FROM "__EFMigrationsHistory"),
+                (SELECT data_type FROM information_schema.columns
+                 WHERE table_schema = current_schema() AND table_name = 'AspNetUsers' AND column_name = 'EmailConfirmed'),
+                (SELECT data_type FROM information_schema.columns
+                 WHERE table_schema = current_schema() AND table_name = 'EvaluationSessions' AND column_name = 'CreatedAt')
+            """, verification);
+        await using var reader = await command.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        Assert.Equal(1L, reader.GetInt64(0));
+        Assert.Equal("boolean", reader.GetString(1));
+        Assert.Equal("timestamp with time zone", reader.GetString(2));
+    }
+
     private sealed class PostgresStartupDatabase(
         string adminConnectionString,
         string connectionString,
