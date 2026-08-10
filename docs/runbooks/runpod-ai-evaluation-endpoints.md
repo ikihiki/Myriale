@@ -105,6 +105,12 @@ curl -X POST -H "Authorization: Bearer $RUNPOD_API_KEY" \
 
 To roll back completely, delete the five endpoints first and then their five templates through the Runpod REST API. Do not delete the pre-existing `runpod-economy` or `runpod-recommended` resources.
 
+## Live worker logs
+
+Worker logs are available only while a Serverless worker is active. List active workers with `GET https://api.runpod.io/v2/serverless/ENDPOINT_ID/workers`, then stream container or system logs with `GET https://api.runpod.io/v2/serverless/ENDPOINT_ID/workers/WORKER_ID/logs?source=container&tail=5000`. Scaled-down worker logs cannot be retrieved through this API, so start the stream during a diagnostic run.
+
+The pinned worker image logs a deprecation warning for `DISABLE_LOG_REQUESTS`; use `ENABLE_LOG_REQUESTS=true` and a bounded `MAX_LOG_LEN` when request-level diagnostics are needed. Never copy credentials or complete sensitive prompts into issue comments or committed files.
+
 ## Known limitations
 
 - In-flight BitsAndBytes is the only uniform 4-bit cohort prepared here because a consistent published AWQ/GPTQ set was not available for all five exact candidates.
