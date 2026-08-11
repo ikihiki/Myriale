@@ -100,7 +100,7 @@ export function EvaluationBlindReviewPresentation({
                     </Badge>
                   </div>
                   <div className="grid gap-2">
-                    <strong>Situation</strong>
+                    <strong>AI input（system・user・schema）</strong>
                     <pre
                       className="m-0 max-h-[32rem] overflow-auto whitespace-pre-wrap break-words rounded-xl border border-myr-ink/15 bg-myr-vellum/35 p-4 text-sm leading-6 text-myr-ink-subtle"
                       data-testid="blind-situation"

@@ -58,6 +58,8 @@ public sealed class ProviderNarrativeGeneratorActionDecisionTests
 
         await generator.GeneratePostStateNarrativeAsync(PostStateRequest(), default);
 
+        Assert.Contains("headingとbodyは必ず自然な日本語", textProvider.Request!.Messages[0].Text, StringComparison.Ordinal);
+        Assert.Contains("英語だけの文章", textProvider.Request.Messages[0].Text, StringComparison.Ordinal);
         Assert.Contains("schemaVersion、heading、bodyの3フィールドをこの順序", textProvider.Request!.Messages[0].Text, StringComparison.Ordinal);
         Assert.Contains("空白埋め、タブ、連続する空行を生成しない", textProvider.Request.Messages[0].Text, StringComparison.Ordinal);
         Assert.Contains("RecentTurnsは直前までの継続性を判断するための参照情報", textProvider.Request!.Messages[0].Text, StringComparison.Ordinal);

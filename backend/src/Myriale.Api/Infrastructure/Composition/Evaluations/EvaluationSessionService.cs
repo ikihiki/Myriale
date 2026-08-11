@@ -486,7 +486,7 @@ public sealed class EvaluationSessionService(ApplicationDbContext db, IAiProfile
         var judgments = await db.EvaluationHumanJudgments.AsNoTracking().Where(x => itemIds.Contains(x.ItemId) && x.ReviewerId == assignment.ReviewerId).ToListAsync(ct);
         var attemptIds = assignment.Items.Select(x => x.AttemptId).ToList(); var attempts = await db.EvaluationAttempts.AsNoTracking().Include(x => x.Situation).Include(x => x.Invocations).Where(x => attemptIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, ct);
         var items = assignment.Items.OrderBy(x => x.DisplayOrder).Select(item => { var attempt = attempts[item.AttemptId]; var invocation = attempt.Invocations.Where(x => x.Status == EvaluationInvocationStatus.Succeeded).OrderByDescending(x => x.InvocationNumber).First();
-            return new BlindReviewItemResponse(item.Id, item.OpaqueCandidateCode, attempt.Situation.Stage.Wire(), Element(attempt.Situation.RequestJson), Element(invocation.ParsedOutputJson ?? "{}"), item.DisplayOrder,
+            return new BlindReviewItemResponse(item.Id, item.OpaqueCandidateCode, attempt.Situation.Stage.Wire(), ElementOrString(invocation.RequestEnvelopeJson), Element(invocation.ParsedOutputJson ?? "{}"), item.DisplayOrder,
                 judgments.Where(x => x.ItemId == item.Id).OrderBy(x => x.Revision).Select(x => new BlindHumanJudgmentResponse(x.Id, x.CriterionKey, x.Score, x.Verdict, Deserialize<string>(x.TagsJson), x.Comment, x.Confidence, x.Revision, x.SubmittedAt)).ToList()); }).ToList();
         return new(assignment.OpaqueCode, assignment.Status.Wire(), assignment.Revision, Element(session.RubricJson), items);
     }
@@ -678,6 +678,7 @@ public sealed class EvaluationSessionService(ApplicationDbContext db, IAiProfile
         DateTimeOffset now)
     {
         invocation.Status = EvaluationInvocationStatus.Succeeded;
+        if (!string.IsNullOrWhiteSpace(sentPrompt)) invocation.RequestEnvelopeJson = sentPrompt;
         invocation.SentPrompt = sentPrompt;
         invocation.RawResponse = raw;
         invocation.ParsedOutputJson = outputJson;
@@ -707,6 +708,7 @@ public sealed class EvaluationSessionService(ApplicationDbContext db, IAiProfile
             : provider?.Code ?? (exception is OperationCanceledException ? "cancelled" : "evaluation_execution_failed");
         invocation.ErrorCategory = stale ? "lease" : provider is null ? "internal" : "provider";
         invocation.Retryable = stale || retryable;
+        if (!string.IsNullOrWhiteSpace(provider?.SentPrompt)) invocation.RequestEnvelopeJson = provider.SentPrompt;
         invocation.SentPrompt ??= provider?.SentPrompt;
         invocation.RawResponse ??= provider?.ReceivedResult;
         invocation.RawError ??= provider?.ProviderResponseExcerpt ?? exception.Message;
@@ -813,6 +815,11 @@ public sealed class EvaluationSessionService(ApplicationDbContext db, IAiProfile
     private static string Normalize<T>(T value) => JsonSerializer.Serialize(value, Json);
     private static string Serialize<T>(T value) => JsonSerializer.Serialize(value, Json);
     private static JsonElement Element(string json) => JsonDocument.Parse(string.IsNullOrWhiteSpace(json) ? "{}" : json).RootElement.Clone();
+    private static JsonElement ElementOrString(string value)
+    {
+        try { return Element(value); }
+        catch (JsonException) { return JsonSerializer.SerializeToElement(value, Json); }
+    }
     private static JsonElement? NullableElement(string? json) => string.IsNullOrWhiteSpace(json) ? null : Element(json);
     private static IReadOnlyList<T> Deserialize<T>(string json) => JsonSerializer.Deserialize<List<T>>(json, Json) ?? [];
     private static string Hash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();

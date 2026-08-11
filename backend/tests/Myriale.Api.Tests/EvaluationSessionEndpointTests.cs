@@ -39,6 +39,7 @@ public sealed class EvaluationSessionEndpointTests : IDisposable
         Assert.Equal(1, execution.GetProperty("session").GetProperty("succeededAttemptCount").GetInt32());
         await using var scope = factory.Services.CreateAsyncScope(); var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var invocation = await db.EvaluationModelInvocations.AsNoTracking().SingleAsync(); Assert.Equal(EvaluationInvocationStatus.Succeeded, invocation.Status);
+        Assert.Equal("prompt", invocation.RequestEnvelopeJson);
         Assert.Equal("prompt", invocation.SentPrompt); Assert.Contains("system:clarify", invocation.RawResponse); Assert.NotNull(invocation.RequestHash); Assert.NotNull(invocation.OutputHash);
         var judgment = await db.EvaluationMachineJudgments.AsNoTracking().SingleAsync(); Assert.True(judgment.Passed); Assert.Equal("myriale-stage-rubric", judgment.JudgeKey); Assert.Equal("1.0.0", judgment.JudgeVersion);
         Assert.Empty(await db.Set<Scenario>().Where(x => false).ToListAsync());

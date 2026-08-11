@@ -58,12 +58,18 @@ public sealed class OpenAiCompatibleTextProviderTests
         var handler = Success();
         var provider = Create(handler, Catalog(Profile("styled", "https://example.test/v1", "model", "shared", "余韻のある日本語で描く。")), new CredentialResolver("secret"));
 
-        await provider.GenerateForProfileAsync(new AiProviderProfileId("styled"), Request(), default);
+        var result = await provider.GenerateForProfileAsync(new AiProviderProfileId("styled"), Request(), default);
 
         using var payload = JsonDocument.Parse(handler.LastBody);
         var systemMessage = payload.RootElement.GetProperty("messages")[0].GetProperty("content").GetString();
         Assert.Contains("application contract", systemMessage, StringComparison.Ordinal);
         Assert.Contains("余韻のある日本語で描く。", systemMessage, StringComparison.Ordinal);
+        Assert.NotNull(result.SentPrompt);
+        using var audit = JsonDocument.Parse(result.SentPrompt);
+        Assert.Equal("ai-prompt-audit.v1", audit.RootElement.GetProperty("schemaVersion").GetString());
+        var auditedSystem = audit.RootElement.GetProperty("messages")[0].GetProperty("content").GetString();
+        Assert.Equal(systemMessage, auditedSystem);
+        Assert.Equal("test", audit.RootElement.GetProperty("responseFormat").GetProperty("schemaName").GetString());
         Assert.Contains("built-in instruction", systemMessage, StringComparison.Ordinal);
     }
 
