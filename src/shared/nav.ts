@@ -27,8 +27,16 @@ export const STORY_IDS = {
   // Library / authoring
   scenarioRegister: 'ユーザーストーリー-scenario-registration--us-01-create-draft-scenario',
   scenarioEdit: 'ユーザーストーリー-edit-scenario--use-01-edit-existing-scenario',
-  scenarioAiEvaluation: 'ユーザーストーリー-ai-corpus-evaluation--use-01-run-versioned-corpus',
   advancedScenario: 'ユーザーストーリー-edit-scenario--use-01-edit-existing-scenario',
+  // Independent evaluations
+  evaluationList: 'ユーザーストーリー-evaluation-sessions--list-evaluation-sessions',
+  evaluationCreate: 'ユーザーストーリー-evaluation-sessions--create-evaluation-draft',
+  evaluationOverview: 'ユーザーストーリー-evaluation-sessions--overview-and-start',
+  evaluationSetup: 'ユーザーストーリー-evaluation-sessions--setup-fixed-and-quoted-situations',
+  evaluationExecution: 'ユーザーストーリー-evaluation-sessions--recover-execution-progress',
+  evaluationReviews: 'ユーザーストーリー-evaluation-sessions--administer-blind-review',
+  evaluationBlindReview: 'ユーザーストーリー-evaluation-sessions--complete-opaque-review',
+  evaluationResults: 'ユーザーストーリー-evaluation-sessions--inspect-results-and-export',
   // Sessions
   scenarioList: 'ユーザーストーリー-start-session--uss-01-start-new-session-from-scenario',
   startSession: 'ユーザーストーリー-start-session--uss-02-read-intro-before-hero',
@@ -46,6 +54,8 @@ export type AppNavigateOptions = {
   query?: Record<string, string>;
   scenarioId?: string;
   sessionId?: string;
+  evaluationId?: string;
+  assignmentId?: string;
 };
 
 type AppNavigate = (to: StoryKey, options?: AppNavigateOptions) => void;

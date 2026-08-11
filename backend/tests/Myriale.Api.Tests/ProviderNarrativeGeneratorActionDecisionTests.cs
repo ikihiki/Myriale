@@ -58,6 +58,8 @@ public sealed class ProviderNarrativeGeneratorActionDecisionTests
 
         await generator.GeneratePostStateNarrativeAsync(PostStateRequest(), default);
 
+        Assert.Contains("headingとbodyは必ず自然な日本語", textProvider.Request!.Messages[0].Text, StringComparison.Ordinal);
+        Assert.Contains("英語だけの文章", textProvider.Request.Messages[0].Text, StringComparison.Ordinal);
         Assert.Contains("schemaVersion、heading、bodyの3フィールドをこの順序", textProvider.Request!.Messages[0].Text, StringComparison.Ordinal);
         Assert.Contains("空白埋め、タブ、連続する空行を生成しない", textProvider.Request.Messages[0].Text, StringComparison.Ordinal);
         Assert.Contains("RecentTurnsは直前までの継続性を判断するための参照情報", textProvider.Request!.Messages[0].Text, StringComparison.Ordinal);
@@ -100,14 +102,31 @@ public sealed class ProviderNarrativeGeneratorActionDecisionTests
     [Fact]
     public async Task GeneratePostStateNarrative_DecodesByteLevelTokenizerArtifactsInStringValues()
     {
-        var textProvider = new CapturingProvider("""{"schemaVersion":"post-state-narrative.v1","heading":"FinalĠBlow","body":"BloodâĢĶdark.nĊĊStoneĠfell."}""");
+        var textProvider = new CapturingProvider("""{"schemaVersion":"post-state-narrative.v1","heading":"決死ĠのĠ一撃","body":"石像はâĢĶ崩れた.nĊĊカイは息をついた。"}""");
         var generator = new ProviderNarrativeGenerator(textProvider, new ScenarioActionDecisionModelMapper(), NullLogger<ProviderNarrativeGenerator>.Instance);
 
         var generated = await generator.GeneratePostStateNarrativeAsync(PostStateRequest(), default);
 
-        Assert.Equal("Final Blow", generated.Value.Heading);
-        Assert.Equal("Blood—dark.\n\nStone fell.", generated.Value.Body);
-        Assert.Contains("FinalĠBlow", generated.ReceivedResult, StringComparison.Ordinal);
+        Assert.Equal("決死 の 一撃", generated.Value.Heading);
+        Assert.Equal("石像は—崩れた.\n\nカイは息をついた。", generated.Value.Body);
+        Assert.Contains("決死ĠのĠ一撃", generated.ReceivedResult, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task EvaluationNarrativeRejectsEnglishOutputAndRetainsAudit()
+    {
+        const string rawResult = "{\"schemaVersion\":\"post-state-narrative.v1\",\"heading\":\"The Final Blow\",\"body\":\"The stone abomination collapses into rubble.\"}";
+        var textProvider = new CapturingProvider(rawResult);
+        var generator = new ProviderNarrativeGenerator(textProvider, new ScenarioActionDecisionModelMapper(), NullLogger<ProviderNarrativeGenerator>.Instance);
+
+        var exception = await Assert.ThrowsAsync<AiProviderException>(() =>
+            generator.GeneratePostStateNarrativeForProfileAsync(
+                new AiProviderProfileId("evaluation-model"), PostStateRequest(), default));
+
+        Assert.Equal(AiProviderErrorCodes.SchemaFailure, exception.Code);
+        Assert.Contains("この記録を見ろ。", exception.SentPrompt, StringComparison.Ordinal);
+        Assert.Equal(rawResult, exception.ReceivedResult);
+        Assert.NotNull(exception.Metadata);
     }
 
     [Fact]

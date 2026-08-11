@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountRouteRouteImport } from './routes/account/route'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as EvaluationsRouteRouteImport } from './routes/evaluations/route'
 import { Route as ScenariosRouteRouteImport } from './routes/scenarios/route'
 import { Route as SessionsRouteRouteImport } from './routes/sessions/route'
 import { Route as AccountAdminRouteRouteImport } from './routes/account/admin/route'
@@ -23,6 +24,8 @@ import { Route as AccountRegisterRouteImport } from './routes/account/register'
 import { Route as AccountResetPasswordRouteImport } from './routes/account/reset-password'
 import { Route as AccountSecurityRouteImport } from './routes/account/security'
 import { Route as AccountWithdrawRouteImport } from './routes/account/withdraw'
+import { Route as EvaluationsIndexRouteImport } from './routes/evaluations/index'
+import { Route as EvaluationsNewRouteImport } from './routes/evaluations/new'
 import { Route as ModuleExecutionsExecutionIdRouteImport } from './routes/module-executions/$executionId'
 import { Route as ScenariosIndexRouteImport } from './routes/scenarios/index'
 import { Route as ScenariosNewRouteImport } from './routes/scenarios/new'
@@ -34,7 +37,12 @@ import { Route as AccountAdminAuditLogRouteImport } from './routes/account/admin
 import { Route as AccountAdminUsersRouteRouteImport } from './routes/account/admin/users/route'
 import { Route as AccountProfileIndexRouteImport } from './routes/account/profile/index'
 import { Route as AccountProfileEditRouteImport } from './routes/account/profile/edit'
-import { Route as ScenariosScenarioIdAiEvaluationsRouteImport } from './routes/scenarios/$scenarioId/ai-evaluations'
+import { Route as EvaluationsIdIndexRouteImport } from './routes/evaluations/$id/index'
+import { Route as EvaluationsIdExecutionRouteImport } from './routes/evaluations/$id/execution'
+import { Route as EvaluationsIdResultsRouteImport } from './routes/evaluations/$id/results'
+import { Route as EvaluationsIdReviewsRouteImport } from './routes/evaluations/$id/reviews'
+import { Route as EvaluationsIdSetupRouteImport } from './routes/evaluations/$id/setup'
+import { Route as EvaluationsReviewAssignmentIdRouteImport } from './routes/evaluations/review/$assignmentId'
 import { Route as ScenariosScenarioIdEditRouteImport } from './routes/scenarios/$scenarioId/edit'
 import { Route as ScenariosScenarioIdRunSettingsRouteImport } from './routes/scenarios/$scenarioId/run-settings'
 import { Route as SessionsSessionIdIndexRouteImport } from './routes/sessions/$sessionId/index'
@@ -59,6 +67,11 @@ const AccountRouteRoute = AccountRouteRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EvaluationsRouteRoute = EvaluationsRouteRouteImport.update({
+  id: '/evaluations',
+  path: '/evaluations',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ScenariosRouteRoute = ScenariosRouteRouteImport.update({
@@ -116,6 +129,16 @@ const AccountWithdrawRoute = AccountWithdrawRouteImport.update({
   path: '/withdraw',
   getParentRoute: () => AccountRouteRoute,
 } as any)
+const EvaluationsIndexRoute = EvaluationsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => EvaluationsRouteRoute,
+} as any)
+const EvaluationsNewRoute = EvaluationsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => EvaluationsRouteRoute,
+} as any)
 const ModuleExecutionsExecutionIdRoute =
   ModuleExecutionsExecutionIdRouteImport.update({
     id: '/module-executions/$executionId',
@@ -172,11 +195,36 @@ const AccountProfileEditRoute = AccountProfileEditRouteImport.update({
   path: '/edit',
   getParentRoute: () => AccountProfileRouteRoute,
 } as any)
-const ScenariosScenarioIdAiEvaluationsRoute =
-  ScenariosScenarioIdAiEvaluationsRouteImport.update({
-    id: '/$scenarioId/ai-evaluations',
-    path: '/$scenarioId/ai-evaluations',
-    getParentRoute: () => ScenariosRouteRoute,
+const EvaluationsIdIndexRoute = EvaluationsIdIndexRouteImport.update({
+  id: '/$id/',
+  path: '/$id/',
+  getParentRoute: () => EvaluationsRouteRoute,
+} as any)
+const EvaluationsIdExecutionRoute = EvaluationsIdExecutionRouteImport.update({
+  id: '/$id/execution',
+  path: '/$id/execution',
+  getParentRoute: () => EvaluationsRouteRoute,
+} as any)
+const EvaluationsIdResultsRoute = EvaluationsIdResultsRouteImport.update({
+  id: '/$id/results',
+  path: '/$id/results',
+  getParentRoute: () => EvaluationsRouteRoute,
+} as any)
+const EvaluationsIdReviewsRoute = EvaluationsIdReviewsRouteImport.update({
+  id: '/$id/reviews',
+  path: '/$id/reviews',
+  getParentRoute: () => EvaluationsRouteRoute,
+} as any)
+const EvaluationsIdSetupRoute = EvaluationsIdSetupRouteImport.update({
+  id: '/$id/setup',
+  path: '/$id/setup',
+  getParentRoute: () => EvaluationsRouteRoute,
+} as any)
+const EvaluationsReviewAssignmentIdRoute =
+  EvaluationsReviewAssignmentIdRouteImport.update({
+    id: '/review/$assignmentId',
+    path: '/review/$assignmentId',
+    getParentRoute: () => EvaluationsRouteRoute,
   } as any)
 const ScenariosScenarioIdEditRoute = ScenariosScenarioIdEditRouteImport.update({
   id: '/$scenarioId/edit',
@@ -236,6 +284,7 @@ const SessionsSessionIdTurnsTurnIdInspectionRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account': typeof AccountRouteRouteWithChildren
+  '/evaluations': typeof EvaluationsRouteRouteWithChildren
   '/scenarios': typeof ScenariosRouteRouteWithChildren
   '/sessions': typeof SessionsRouteRouteWithChildren
   '/admin': typeof AdminRoute
@@ -249,16 +298,22 @@ export interface FileRoutesByFullPath {
   '/account/reset-password': typeof AccountResetPasswordRoute
   '/account/security': typeof AccountSecurityRoute
   '/account/withdraw': typeof AccountWithdrawRoute
+  '/evaluations/new': typeof EvaluationsNewRoute
   '/module-executions/$executionId': typeof ModuleExecutionsExecutionIdRoute
   '/scenarios/new': typeof ScenariosNewRoute
   '/sessions/start': typeof SessionsStartRoute
+  '/evaluations/': typeof EvaluationsIndexRoute
   '/scenarios/': typeof ScenariosIndexRoute
   '/sessions/': typeof SessionsIndexRoute
   '/account/admin/users': typeof AccountAdminUsersRouteRouteWithChildren
   '/account/admin/ai-providers': typeof AccountAdminAiProvidersRoute
   '/account/admin/audit-log': typeof AccountAdminAuditLogRoute
   '/account/profile/edit': typeof AccountProfileEditRoute
-  '/scenarios/$scenarioId/ai-evaluations': typeof ScenariosScenarioIdAiEvaluationsRoute
+  '/evaluations/$id/execution': typeof EvaluationsIdExecutionRoute
+  '/evaluations/$id/results': typeof EvaluationsIdResultsRoute
+  '/evaluations/$id/reviews': typeof EvaluationsIdReviewsRoute
+  '/evaluations/$id/setup': typeof EvaluationsIdSetupRoute
+  '/evaluations/review/$assignmentId': typeof EvaluationsReviewAssignmentIdRoute
   '/scenarios/$scenarioId/edit': typeof ScenariosScenarioIdEditRoute
   '/scenarios/$scenarioId/run-settings': typeof ScenariosScenarioIdRunSettingsRoute
   '/sessions/$sessionId/mode-exception': typeof SessionsSessionIdModeExceptionRoute
@@ -266,6 +321,7 @@ export interface FileRoutesByFullPath {
   '/sessions/$sessionId/play': typeof SessionsSessionIdPlayRoute
   '/sessions/$sessionId/program': typeof SessionsSessionIdProgramRoute
   '/account/profile/': typeof AccountProfileIndexRoute
+  '/evaluations/$id/': typeof EvaluationsIdIndexRoute
   '/sessions/$sessionId/': typeof SessionsSessionIdIndexRoute
   '/account/admin/users/$userId': typeof AccountAdminUsersUserIdRoute
   '/account/admin/users/': typeof AccountAdminUsersIndexRoute
@@ -283,15 +339,21 @@ export interface FileRoutesByTo {
   '/account/reset-password': typeof AccountResetPasswordRoute
   '/account/security': typeof AccountSecurityRoute
   '/account/withdraw': typeof AccountWithdrawRoute
+  '/evaluations/new': typeof EvaluationsNewRoute
   '/module-executions/$executionId': typeof ModuleExecutionsExecutionIdRoute
   '/scenarios/new': typeof ScenariosNewRoute
   '/sessions/start': typeof SessionsStartRoute
+  '/evaluations': typeof EvaluationsIndexRoute
   '/scenarios': typeof ScenariosIndexRoute
   '/sessions': typeof SessionsIndexRoute
   '/account/admin/ai-providers': typeof AccountAdminAiProvidersRoute
   '/account/admin/audit-log': typeof AccountAdminAuditLogRoute
   '/account/profile/edit': typeof AccountProfileEditRoute
-  '/scenarios/$scenarioId/ai-evaluations': typeof ScenariosScenarioIdAiEvaluationsRoute
+  '/evaluations/$id/execution': typeof EvaluationsIdExecutionRoute
+  '/evaluations/$id/results': typeof EvaluationsIdResultsRoute
+  '/evaluations/$id/reviews': typeof EvaluationsIdReviewsRoute
+  '/evaluations/$id/setup': typeof EvaluationsIdSetupRoute
+  '/evaluations/review/$assignmentId': typeof EvaluationsReviewAssignmentIdRoute
   '/scenarios/$scenarioId/edit': typeof ScenariosScenarioIdEditRoute
   '/scenarios/$scenarioId/run-settings': typeof ScenariosScenarioIdRunSettingsRoute
   '/sessions/$sessionId/mode-exception': typeof SessionsSessionIdModeExceptionRoute
@@ -299,6 +361,7 @@ export interface FileRoutesByTo {
   '/sessions/$sessionId/play': typeof SessionsSessionIdPlayRoute
   '/sessions/$sessionId/program': typeof SessionsSessionIdProgramRoute
   '/account/profile': typeof AccountProfileIndexRoute
+  '/evaluations/$id': typeof EvaluationsIdIndexRoute
   '/sessions/$sessionId': typeof SessionsSessionIdIndexRoute
   '/account/admin/users/$userId': typeof AccountAdminUsersUserIdRoute
   '/account/admin/users': typeof AccountAdminUsersIndexRoute
@@ -308,6 +371,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/account': typeof AccountRouteRouteWithChildren
+  '/evaluations': typeof EvaluationsRouteRouteWithChildren
   '/scenarios': typeof ScenariosRouteRouteWithChildren
   '/sessions': typeof SessionsRouteRouteWithChildren
   '/admin': typeof AdminRoute
@@ -321,16 +385,22 @@ export interface FileRoutesById {
   '/account/reset-password': typeof AccountResetPasswordRoute
   '/account/security': typeof AccountSecurityRoute
   '/account/withdraw': typeof AccountWithdrawRoute
+  '/evaluations/new': typeof EvaluationsNewRoute
   '/module-executions/$executionId': typeof ModuleExecutionsExecutionIdRoute
   '/scenarios/new': typeof ScenariosNewRoute
   '/sessions/start': typeof SessionsStartRoute
+  '/evaluations/': typeof EvaluationsIndexRoute
   '/scenarios/': typeof ScenariosIndexRoute
   '/sessions/': typeof SessionsIndexRoute
   '/account/admin/users': typeof AccountAdminUsersRouteRouteWithChildren
   '/account/admin/ai-providers': typeof AccountAdminAiProvidersRoute
   '/account/admin/audit-log': typeof AccountAdminAuditLogRoute
   '/account/profile/edit': typeof AccountProfileEditRoute
-  '/scenarios/$scenarioId/ai-evaluations': typeof ScenariosScenarioIdAiEvaluationsRoute
+  '/evaluations/$id/execution': typeof EvaluationsIdExecutionRoute
+  '/evaluations/$id/results': typeof EvaluationsIdResultsRoute
+  '/evaluations/$id/reviews': typeof EvaluationsIdReviewsRoute
+  '/evaluations/$id/setup': typeof EvaluationsIdSetupRoute
+  '/evaluations/review/$assignmentId': typeof EvaluationsReviewAssignmentIdRoute
   '/scenarios/$scenarioId/edit': typeof ScenariosScenarioIdEditRoute
   '/scenarios/$scenarioId/run-settings': typeof ScenariosScenarioIdRunSettingsRoute
   '/sessions/$sessionId/mode-exception': typeof SessionsSessionIdModeExceptionRoute
@@ -338,6 +408,7 @@ export interface FileRoutesById {
   '/sessions/$sessionId/play': typeof SessionsSessionIdPlayRoute
   '/sessions/$sessionId/program': typeof SessionsSessionIdProgramRoute
   '/account/profile/': typeof AccountProfileIndexRoute
+  '/evaluations/$id/': typeof EvaluationsIdIndexRoute
   '/sessions/$sessionId/': typeof SessionsSessionIdIndexRoute
   '/account/admin/users/$userId': typeof AccountAdminUsersUserIdRoute
   '/account/admin/users/': typeof AccountAdminUsersIndexRoute
@@ -348,6 +419,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/account'
+    | '/evaluations'
     | '/scenarios'
     | '/sessions'
     | '/admin'
@@ -361,16 +433,22 @@ export interface FileRouteTypes {
     | '/account/reset-password'
     | '/account/security'
     | '/account/withdraw'
+    | '/evaluations/new'
     | '/module-executions/$executionId'
     | '/scenarios/new'
     | '/sessions/start'
+    | '/evaluations/'
     | '/scenarios/'
     | '/sessions/'
     | '/account/admin/users'
     | '/account/admin/ai-providers'
     | '/account/admin/audit-log'
     | '/account/profile/edit'
-    | '/scenarios/$scenarioId/ai-evaluations'
+    | '/evaluations/$id/execution'
+    | '/evaluations/$id/results'
+    | '/evaluations/$id/reviews'
+    | '/evaluations/$id/setup'
+    | '/evaluations/review/$assignmentId'
     | '/scenarios/$scenarioId/edit'
     | '/scenarios/$scenarioId/run-settings'
     | '/sessions/$sessionId/mode-exception'
@@ -378,6 +456,7 @@ export interface FileRouteTypes {
     | '/sessions/$sessionId/play'
     | '/sessions/$sessionId/program'
     | '/account/profile/'
+    | '/evaluations/$id/'
     | '/sessions/$sessionId/'
     | '/account/admin/users/$userId'
     | '/account/admin/users/'
@@ -395,15 +474,21 @@ export interface FileRouteTypes {
     | '/account/reset-password'
     | '/account/security'
     | '/account/withdraw'
+    | '/evaluations/new'
     | '/module-executions/$executionId'
     | '/scenarios/new'
     | '/sessions/start'
+    | '/evaluations'
     | '/scenarios'
     | '/sessions'
     | '/account/admin/ai-providers'
     | '/account/admin/audit-log'
     | '/account/profile/edit'
-    | '/scenarios/$scenarioId/ai-evaluations'
+    | '/evaluations/$id/execution'
+    | '/evaluations/$id/results'
+    | '/evaluations/$id/reviews'
+    | '/evaluations/$id/setup'
+    | '/evaluations/review/$assignmentId'
     | '/scenarios/$scenarioId/edit'
     | '/scenarios/$scenarioId/run-settings'
     | '/sessions/$sessionId/mode-exception'
@@ -411,6 +496,7 @@ export interface FileRouteTypes {
     | '/sessions/$sessionId/play'
     | '/sessions/$sessionId/program'
     | '/account/profile'
+    | '/evaluations/$id'
     | '/sessions/$sessionId'
     | '/account/admin/users/$userId'
     | '/account/admin/users'
@@ -419,6 +505,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/account'
+    | '/evaluations'
     | '/scenarios'
     | '/sessions'
     | '/admin'
@@ -432,16 +519,22 @@ export interface FileRouteTypes {
     | '/account/reset-password'
     | '/account/security'
     | '/account/withdraw'
+    | '/evaluations/new'
     | '/module-executions/$executionId'
     | '/scenarios/new'
     | '/sessions/start'
+    | '/evaluations/'
     | '/scenarios/'
     | '/sessions/'
     | '/account/admin/users'
     | '/account/admin/ai-providers'
     | '/account/admin/audit-log'
     | '/account/profile/edit'
-    | '/scenarios/$scenarioId/ai-evaluations'
+    | '/evaluations/$id/execution'
+    | '/evaluations/$id/results'
+    | '/evaluations/$id/reviews'
+    | '/evaluations/$id/setup'
+    | '/evaluations/review/$assignmentId'
     | '/scenarios/$scenarioId/edit'
     | '/scenarios/$scenarioId/run-settings'
     | '/sessions/$sessionId/mode-exception'
@@ -449,6 +542,7 @@ export interface FileRouteTypes {
     | '/sessions/$sessionId/play'
     | '/sessions/$sessionId/program'
     | '/account/profile/'
+    | '/evaluations/$id/'
     | '/sessions/$sessionId/'
     | '/account/admin/users/$userId'
     | '/account/admin/users/'
@@ -458,6 +552,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountRouteRoute: typeof AccountRouteRouteWithChildren
+  EvaluationsRouteRoute: typeof EvaluationsRouteRouteWithChildren
   ScenariosRouteRoute: typeof ScenariosRouteRouteWithChildren
   SessionsRouteRoute: typeof SessionsRouteRouteWithChildren
   AdminRoute: typeof AdminRoute
@@ -485,6 +580,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/evaluations': {
+      id: '/evaluations'
+      path: '/evaluations'
+      fullPath: '/evaluations'
+      preLoaderRoute: typeof EvaluationsRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/scenarios': {
@@ -564,6 +666,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountWithdrawRouteImport
       parentRoute: typeof AccountRouteRoute
     }
+    '/evaluations/': {
+      id: '/evaluations/'
+      path: '/'
+      fullPath: '/evaluations/'
+      preLoaderRoute: typeof EvaluationsIndexRouteImport
+      parentRoute: typeof EvaluationsRouteRoute
+    }
+    '/evaluations/new': {
+      id: '/evaluations/new'
+      path: '/new'
+      fullPath: '/evaluations/new'
+      preLoaderRoute: typeof EvaluationsNewRouteImport
+      parentRoute: typeof EvaluationsRouteRoute
+    }
     '/module-executions/$executionId': {
       id: '/module-executions/$executionId'
       path: '/module-executions/$executionId'
@@ -641,12 +757,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountProfileEditRouteImport
       parentRoute: typeof AccountProfileRouteRoute
     }
-    '/scenarios/$scenarioId/ai-evaluations': {
-      id: '/scenarios/$scenarioId/ai-evaluations'
-      path: '/$scenarioId/ai-evaluations'
-      fullPath: '/scenarios/$scenarioId/ai-evaluations'
-      preLoaderRoute: typeof ScenariosScenarioIdAiEvaluationsRouteImport
-      parentRoute: typeof ScenariosRouteRoute
+    '/evaluations/$id/': {
+      id: '/evaluations/$id/'
+      path: '/$id'
+      fullPath: '/evaluations/$id/'
+      preLoaderRoute: typeof EvaluationsIdIndexRouteImport
+      parentRoute: typeof EvaluationsRouteRoute
+    }
+    '/evaluations/$id/execution': {
+      id: '/evaluations/$id/execution'
+      path: '/$id/execution'
+      fullPath: '/evaluations/$id/execution'
+      preLoaderRoute: typeof EvaluationsIdExecutionRouteImport
+      parentRoute: typeof EvaluationsRouteRoute
+    }
+    '/evaluations/$id/results': {
+      id: '/evaluations/$id/results'
+      path: '/$id/results'
+      fullPath: '/evaluations/$id/results'
+      preLoaderRoute: typeof EvaluationsIdResultsRouteImport
+      parentRoute: typeof EvaluationsRouteRoute
+    }
+    '/evaluations/$id/reviews': {
+      id: '/evaluations/$id/reviews'
+      path: '/$id/reviews'
+      fullPath: '/evaluations/$id/reviews'
+      preLoaderRoute: typeof EvaluationsIdReviewsRouteImport
+      parentRoute: typeof EvaluationsRouteRoute
+    }
+    '/evaluations/$id/setup': {
+      id: '/evaluations/$id/setup'
+      path: '/$id/setup'
+      fullPath: '/evaluations/$id/setup'
+      preLoaderRoute: typeof EvaluationsIdSetupRouteImport
+      parentRoute: typeof EvaluationsRouteRoute
+    }
+    '/evaluations/review/$assignmentId': {
+      id: '/evaluations/review/$assignmentId'
+      path: '/review/$assignmentId'
+      fullPath: '/evaluations/review/$assignmentId'
+      preLoaderRoute: typeof EvaluationsReviewAssignmentIdRouteImport
+      parentRoute: typeof EvaluationsRouteRoute
     }
     '/scenarios/$scenarioId/edit': {
       id: '/scenarios/$scenarioId/edit'
@@ -793,10 +944,34 @@ const AccountRouteRouteWithChildren = AccountRouteRoute._addFileChildren(
   AccountRouteRouteChildren,
 )
 
+interface EvaluationsRouteRouteChildren {
+  EvaluationsNewRoute: typeof EvaluationsNewRoute
+  EvaluationsIndexRoute: typeof EvaluationsIndexRoute
+  EvaluationsIdExecutionRoute: typeof EvaluationsIdExecutionRoute
+  EvaluationsIdResultsRoute: typeof EvaluationsIdResultsRoute
+  EvaluationsIdReviewsRoute: typeof EvaluationsIdReviewsRoute
+  EvaluationsIdSetupRoute: typeof EvaluationsIdSetupRoute
+  EvaluationsReviewAssignmentIdRoute: typeof EvaluationsReviewAssignmentIdRoute
+  EvaluationsIdIndexRoute: typeof EvaluationsIdIndexRoute
+}
+
+const EvaluationsRouteRouteChildren: EvaluationsRouteRouteChildren = {
+  EvaluationsNewRoute: EvaluationsNewRoute,
+  EvaluationsIndexRoute: EvaluationsIndexRoute,
+  EvaluationsIdExecutionRoute: EvaluationsIdExecutionRoute,
+  EvaluationsIdResultsRoute: EvaluationsIdResultsRoute,
+  EvaluationsIdReviewsRoute: EvaluationsIdReviewsRoute,
+  EvaluationsIdSetupRoute: EvaluationsIdSetupRoute,
+  EvaluationsReviewAssignmentIdRoute: EvaluationsReviewAssignmentIdRoute,
+  EvaluationsIdIndexRoute: EvaluationsIdIndexRoute,
+}
+
+const EvaluationsRouteRouteWithChildren =
+  EvaluationsRouteRoute._addFileChildren(EvaluationsRouteRouteChildren)
+
 interface ScenariosRouteRouteChildren {
   ScenariosNewRoute: typeof ScenariosNewRoute
   ScenariosIndexRoute: typeof ScenariosIndexRoute
-  ScenariosScenarioIdAiEvaluationsRoute: typeof ScenariosScenarioIdAiEvaluationsRoute
   ScenariosScenarioIdEditRoute: typeof ScenariosScenarioIdEditRoute
   ScenariosScenarioIdRunSettingsRoute: typeof ScenariosScenarioIdRunSettingsRoute
 }
@@ -804,7 +979,6 @@ interface ScenariosRouteRouteChildren {
 const ScenariosRouteRouteChildren: ScenariosRouteRouteChildren = {
   ScenariosNewRoute: ScenariosNewRoute,
   ScenariosIndexRoute: ScenariosIndexRoute,
-  ScenariosScenarioIdAiEvaluationsRoute: ScenariosScenarioIdAiEvaluationsRoute,
   ScenariosScenarioIdEditRoute: ScenariosScenarioIdEditRoute,
   ScenariosScenarioIdRunSettingsRoute: ScenariosScenarioIdRunSettingsRoute,
 }
@@ -857,6 +1031,7 @@ const SessionsRouteRouteWithChildren = SessionsRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRouteRoute: AccountRouteRouteWithChildren,
+  EvaluationsRouteRoute: EvaluationsRouteRouteWithChildren,
   ScenariosRouteRoute: ScenariosRouteRouteWithChildren,
   SessionsRouteRoute: SessionsRouteRouteWithChildren,
   AdminRoute: AdminRoute,

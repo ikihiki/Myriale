@@ -20,7 +20,7 @@ import { STORY_IDS, navigateToStory, useAppNavigation, type StoryKey } from './n
  * destination via Storybook's selectStory event (see ./nav).
  */
 
-export type SectionId = 'home' | 'library' | 'sessions' | 'operations' | 'account';
+export type SectionId = 'home' | 'library' | 'sessions' | 'evaluations' | 'operations' | 'account';
 
 type NavLink = { label: string; to: StoryKey; hint?: string };
 type Section = { id: SectionId; label: string; to: StoryKey; links: NavLink[] };
@@ -57,6 +57,16 @@ const sections: Section[] = [
       { label: 'モード遷移と例外', to: 'modeTransition', hint: '切替・中断・復帰の共通基盤' },
       { label: 'ノート自動生成', to: 'sessionNotesAuto', hint: 'Lorebook更新通知と差分レビュー' },
       { label: 'Lorebook管理', to: 'sessionNotesLorebook', hint: '人物・場所・Canon辞書と要約' },
+    ],
+  },
+  {
+    id: 'evaluations',
+    label: '評価',
+    to: 'evaluationList',
+    links: [
+      { label: '評価セッション一覧', to: 'evaluationList', hint: '独立した比較評価を管理' },
+      { label: '新しい評価を作成', to: 'evaluationCreate', hint: 'Draftから状況・候補・rubricを設定' },
+      { label: 'Blind review', to: 'evaluationBlindReview', hint: 'Opaque assignmentで人手評価' },
     ],
   },
   {

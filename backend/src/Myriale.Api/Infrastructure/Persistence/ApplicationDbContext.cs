@@ -7,9 +7,17 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 {
     public DbSet<Scenario> Scenarios => Set<Scenario>();
     public DbSet<ScenarioDefinitionVersion> ScenarioDefinitionVersions => Set<ScenarioDefinitionVersion>();
-    public DbSet<ScenarioAiEvaluationRun> ScenarioAiEvaluationRuns => Set<ScenarioAiEvaluationRun>();
-    public DbSet<ScenarioAiEvaluationCase> ScenarioAiEvaluationCases => Set<ScenarioAiEvaluationCase>();
-    public DbSet<ScenarioAiEvaluationAttempt> ScenarioAiEvaluationAttempts => Set<ScenarioAiEvaluationAttempt>();
+    public DbSet<EvaluationSession> EvaluationSessions => Set<EvaluationSession>();
+    public DbSet<EvaluationSituation> EvaluationSituations => Set<EvaluationSituation>();
+    public DbSet<EvaluationCandidate> EvaluationCandidates => Set<EvaluationCandidate>();
+    public DbSet<EvaluationAttempt> EvaluationAttempts => Set<EvaluationAttempt>();
+    public DbSet<EvaluationModelInvocation> EvaluationModelInvocations => Set<EvaluationModelInvocation>();
+    public DbSet<EvaluationMachineJudgment> EvaluationMachineJudgments => Set<EvaluationMachineJudgment>();
+    public DbSet<EvaluationReviewBatch> EvaluationReviewBatches => Set<EvaluationReviewBatch>();
+    public DbSet<EvaluationReviewAssignment> EvaluationReviewAssignments => Set<EvaluationReviewAssignment>();
+    public DbSet<EvaluationReviewItem> EvaluationReviewItems => Set<EvaluationReviewItem>();
+    public DbSet<EvaluationHumanJudgment> EvaluationHumanJudgments => Set<EvaluationHumanJudgment>();
+    public DbSet<EvaluationAggregate> EvaluationAggregates => Set<EvaluationAggregate>();
     public DbSet<ScenarioLocation> ScenarioLocations => Set<ScenarioLocation>();
     public DbSet<ScenarioObjectType> ScenarioObjectTypes => Set<ScenarioObjectType>();
     public DbSet<ScenarioObjectTypeAction> ScenarioObjectTypeActions => Set<ScenarioObjectTypeAction>();

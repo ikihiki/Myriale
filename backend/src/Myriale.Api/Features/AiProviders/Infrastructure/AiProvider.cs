@@ -137,8 +137,21 @@ public sealed class OpenAiCompatibleTextProvider(
         throw last ?? new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "AI Provider request failed.", true);
     }
 
+    private static string SerializePromptAudit(AiTextRequest input) => JsonSerializer.Serialize(new
+    {
+        schemaVersion = "ai-prompt-audit.v1",
+        messages = input.Messages.Select(message => new { role = message.Role.Value, content = message.Text }),
+        responseFormat = new
+        {
+            schemaName = input.ResponseFormat.SchemaName,
+            schema = input.ResponseFormat.Schema,
+        },
+        generationOverrides = input.GenerationOverrides,
+    }, Json);
+
     private async Task<AiTextResponse> SendAsync(AiProviderProfileId provider, AiProviderRequestOptions options, string credential, AiTextRequest input, int attempt, CancellationToken cancellationToken)
     {
+        var sentPrompt = SerializePromptAudit(input);
         var client = clients.CreateClient("OpenAiCompatible");
         var endpoint = new Uri(new Uri(ResolveBaseUrl(options.BaseUrl)), "chat/completions");
         using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
@@ -188,7 +201,7 @@ public sealed class OpenAiCompatibleTextProvider(
                     "AI Provider returned an unsuccessful response. Provider={Provider} Model={Model} Schema={SchemaName} Endpoint={Endpoint} Attempt={Attempt} StatusCode={StatusCode} ReasonPhrase={ReasonPhrase} ProviderRequestId={ProviderRequestId} ErrorCode={ErrorCode} ResponseBody={ResponseBody}",
                     provider.AsPrimitive(), options.Model, input.ResponseFormat.SchemaName, endpoint.GetLeftPart(UriPartial.Path), attempt,
                     (int)response.StatusCode, response.ReasonPhrase, providerRequestId, providerException.Code, providerException.ProviderResponseExcerpt);
-                throw WithMetadata(providerException, FailureMetadata(provider, options, input, attempt, stopwatch.ElapsedMilliseconds, providerRequestId));
+                throw WithMetadata(providerException, FailureMetadata(provider, options, input, attempt, stopwatch.ElapsedMilliseconds, providerRequestId), sentPrompt);
             }
 
             responseBody = await response.Content.ReadAsStringAsync(timeout.Token);
@@ -209,12 +222,12 @@ public sealed class OpenAiCompatibleTextProvider(
             var textResult = choice.GetProperty("message").GetProperty("content").GetString();
             if (finishReason is "content_filter")
                 throw new AiProviderException(AiProviderErrorCodes.ContentRejected, "AI Provider rejected the content.", false,
-                    receivedResult: textResult ?? responseBody, metadata: metadata);
+                    sentPrompt: sentPrompt, receivedResult: textResult ?? responseBody, metadata: metadata);
             if (string.IsNullOrWhiteSpace(textResult))
                 throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "AI Provider returned empty structured output.", false,
-                    receivedResult: responseBody, metadata: metadata);
+                    sentPrompt: sentPrompt, receivedResult: responseBody, metadata: metadata);
             SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider.AsPrimitive(), options.Model, "succeeded"));
-            return new AiTextResponse(textResult, metadata);
+            return new AiTextResponse(textResult, metadata, sentPrompt);
         }
         catch (AiProviderException exception)
         {
@@ -229,7 +242,7 @@ public sealed class OpenAiCompatibleTextProvider(
                 provider, options.Model, input.ResponseFormat.SchemaName, endpoint.GetLeftPart(UriPartial.Path), attempt, options.TimeoutSeconds);
             SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider.AsPrimitive(), options.Model, "failed", AiProviderErrorCodes.Timeout));
             throw new AiProviderException(AiProviderErrorCodes.Timeout, "AI Provider request timed out.", true, null, exception,
-                receivedResult: responseBody, metadata: FailureMetadata(provider, options, input, attempt, stopwatch.ElapsedMilliseconds, providerRequestId));
+                sentPrompt: sentPrompt, receivedResult: responseBody, metadata: FailureMetadata(provider, options, input, attempt, stopwatch.ElapsedMilliseconds, providerRequestId));
         }
         catch (HttpRequestException exception)
         {
@@ -239,7 +252,7 @@ public sealed class OpenAiCompatibleTextProvider(
                 provider, options.Model, input.ResponseFormat.SchemaName, endpoint.GetLeftPart(UriPartial.Path), attempt, exception.HttpRequestError, exception.StatusCode is null ? null : (int)exception.StatusCode);
             SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider.AsPrimitive(), options.Model, "failed", AiProviderErrorCodes.ProviderUnavailable));
             throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "AI Provider is unavailable.", true, null, exception,
-                receivedResult: responseBody, metadata: FailureMetadata(provider, options, input, attempt, stopwatch.ElapsedMilliseconds, providerRequestId));
+                sentPrompt: sentPrompt, receivedResult: responseBody, metadata: FailureMetadata(provider, options, input, attempt, stopwatch.ElapsedMilliseconds, providerRequestId));
         }
         catch (Exception exception) when (exception is JsonException or KeyNotFoundException or InvalidOperationException or IndexOutOfRangeException)
         {
@@ -249,7 +262,7 @@ public sealed class OpenAiCompatibleTextProvider(
                 provider, options.Model, input.ResponseFormat.SchemaName, endpoint.GetLeftPart(UriPartial.Path), attempt, exception.GetType().Name);
             SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider.AsPrimitive(), options.Model, "failed", AiProviderErrorCodes.SchemaFailure));
             throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "AI Provider returned an invalid response envelope.", false, null, exception,
-                receivedResult: responseBody, metadata: FailureMetadata(provider, options, input, attempt, stopwatch.ElapsedMilliseconds, providerRequestId));
+                sentPrompt: sentPrompt, receivedResult: responseBody, metadata: FailureMetadata(provider, options, input, attempt, stopwatch.ElapsedMilliseconds, providerRequestId));
         }
     }
 
@@ -257,9 +270,9 @@ public sealed class OpenAiCompatibleTextProvider(
         AiTextRequest input, int attempt, long latencyMilliseconds, string? responseId) =>
         new(provider, options.Model, responseId, null, null, latencyMilliseconds, attempt, null, input.GenerationOverrides);
 
-    private static AiProviderException WithMetadata(AiProviderException exception, AiGenerationMetadata metadata) => new(
+    private static AiProviderException WithMetadata(AiProviderException exception, AiGenerationMetadata metadata, string? sentPrompt = null) => new(
         exception.Code, exception.Message, exception.Retryable, exception.RetryAfter, exception,
-        exception.ProviderResponseExcerpt, exception.SentPrompt, exception.ReceivedResult, metadata);
+        exception.ProviderResponseExcerpt, exception.SentPrompt ?? sentPrompt, exception.ReceivedResult, metadata);
 
     private static async Task<AiProviderException> ClassifyAsync(HttpResponseMessage response)
     {

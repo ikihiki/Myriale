@@ -101,33 +101,3 @@ internal sealed class ScenarioProgressionTransitionConfiguration : IEntityTypeCo
             .HasForeignKey(transition => transition.TargetNodeId).OnDelete(DeleteBehavior.Restrict);
     }
 }
-
-internal sealed class ScenarioAiEvaluationRunConfiguration : IEntityTypeConfiguration<ScenarioAiEvaluationRun>
-{
-    public void Configure(EntityTypeBuilder<ScenarioAiEvaluationRun> builder)
-    {
-        builder.Property(run => run.Status).HasConversion<string>();
-        builder.HasIndex(run => new { run.ScenarioId, run.CreatedAt });
-        builder.HasOne(run => run.Scenario).WithMany().HasForeignKey(run => run.ScenarioId).OnDelete(DeleteBehavior.Cascade);
-    }
-}
-
-internal sealed class ScenarioAiEvaluationCaseConfiguration : IEntityTypeConfiguration<ScenarioAiEvaluationCase>
-{
-    public void Configure(EntityTypeBuilder<ScenarioAiEvaluationCase> builder)
-    {
-        builder.Property(item => item.Stage).HasConversion<string>();
-        builder.HasIndex(item => new { item.RunId, item.CaseKey }).IsUnique();
-        builder.HasOne(item => item.Run).WithMany(run => run.Cases).HasForeignKey(item => item.RunId).OnDelete(DeleteBehavior.Cascade);
-    }
-}
-
-internal sealed class ScenarioAiEvaluationAttemptConfiguration : IEntityTypeConfiguration<ScenarioAiEvaluationAttempt>
-{
-    public void Configure(EntityTypeBuilder<ScenarioAiEvaluationAttempt> builder)
-    {
-        builder.Property(item => item.Status).HasConversion<string>();
-        builder.HasIndex(item => new { item.CaseId, item.ProfileId, item.Repetition }).IsUnique();
-        builder.HasOne(item => item.Case).WithMany(testCase => testCase.Attempts).HasForeignKey(item => item.CaseId).OnDelete(DeleteBehavior.Cascade);
-    }
-}

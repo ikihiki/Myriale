@@ -1,0 +1,1 @@
+import { createFileRoute } from '@tanstack/react-router'; export const Route = createFileRoute('/evaluations/review/$assignmentId')({ component: Page }); function Page() { const { assignmentId } = Route.useParams(); const { evaluationBlindReviewContainer: Container } = Route.useRouteContext(); return <Container assignmentId={assignmentId}/>; }

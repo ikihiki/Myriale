@@ -148,27 +148,21 @@ export const USE06CompareUnsavedDraftNarrative: Story = {
   },
 };
 
-export const USE07CompareAiModelsBlindly: Story = {
-  name: 'US-E07: 同じNarrative条件で複数AIを反復ブラインド評価したい',
+export const USE07CreateIndependentEvaluation: Story = {
+  name: 'US-E07: Scenarioを起点に独立した評価Draftを作成したい',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await goToStep(canvas, 'テスト');
-    await step('Session Turnを取り込み、比較対象Profileと反復回数を固定する', async () => {
+    await step('Session Turnを取り込み、Narrative比較条件を確認する', async () => {
       await userEvent.type(canvas.getByLabelText('インポートするSession ID'), 'SES-MAID-001');
       await userEvent.type(canvas.getByLabelText('インポートするTurn ID'), 'TRN-MAID-004');
       await userEvent.click(canvas.getByRole('button', { name: 'インポート' }));
-      await expect(canvas.getByLabelText('比較するAI Profile IDs')).toHaveValue('runpod-economy\nrunpod-recommended');
-      await expect(canvas.getByLabelText('AI比較の反復回数')).toHaveValue(3);
+      await expect(canvas.getByLabelText('NarrativeテストのPlayer Input')).toHaveValue('この館について、まだ知らないことを教えて');
     });
-    await step('モデル名ではなくBlind codeで合否・latency・tokenを確認する', async () => {
-      await userEvent.click(canvas.getByRole('button', { name: 'ブラインド比較を実行' }));
-      const result = await canvas.findByTestId('ai-evaluation-result');
-      await expect(result).toHaveTextContent('5 / 6 attempts passed');
-      await expect(result).toHaveTextContent('B11');
-      await expect(result).toHaveTextContent('PASS');
-      await expect(result).toHaveTextContent('FAIL');
-      await expect(result).toHaveTextContent('JSON export');
-      await expect(result).toHaveTextContent('CSV export');
+    await step('Scenarioにネストせず、新しい評価ドメインへの導線を使う', async () => {
+      await expect(canvas.getByRole('button', { name: '評価セッションを作成' })).toBeVisible();
+      await expect(canvas.getByText(/評価はScenarioに所属せず/)).toBeVisible();
+      await userEvent.click(canvas.getByRole('button', { name: '評価セッションを作成' }));
     });
   },
 };

@@ -4,8 +4,15 @@ const navigationPaths: Record<StoryKey, string> = {
   home: '/',
   scenarioRegister: '/scenarios/new',
   scenarioEdit: '/scenarios/SCN-STAR-LIBRARY/edit',
-  scenarioAiEvaluation: '/scenarios/SCN-STAR-LIBRARY/ai-evaluations',
   advancedScenario: '/scenarios/SCN-STAR-LIBRARY/edit',
+  evaluationList: '/evaluations',
+  evaluationCreate: '/evaluations/new',
+  evaluationOverview: '/evaluations/EVAL-DEMO',
+  evaluationSetup: '/evaluations/EVAL-DEMO/setup',
+  evaluationExecution: '/evaluations/EVAL-DEMO/execution',
+  evaluationReviews: '/evaluations/EVAL-DEMO/reviews',
+  evaluationBlindReview: '/evaluations/review/ASSIGN-DEMO',
+  evaluationResults: '/evaluations/EVAL-DEMO/results',
   scenarioList: '/scenarios',
   startSession: '/sessions/start',
   playSession: '/sessions',
@@ -30,8 +37,16 @@ export function appPathForStoryKey(key: StoryKey, options?: AppNavigateOptions):
   if (options?.scenarioId && (key === 'scenarioEdit' || key === 'advancedScenario')) {
     return `/scenarios/${encodeURIComponent(options.scenarioId)}/edit`;
   }
-  if (options?.scenarioId && key === 'scenarioAiEvaluation') {
-    return `/scenarios/${encodeURIComponent(options.scenarioId)}/ai-evaluations`;
+  if (options?.evaluationId) {
+    const evaluation = `/evaluations/${encodeURIComponent(options.evaluationId)}`;
+    if (key === 'evaluationOverview') return evaluation;
+    if (key === 'evaluationSetup') return `${evaluation}/setup`;
+    if (key === 'evaluationExecution') return `${evaluation}/execution`;
+    if (key === 'evaluationReviews') return `${evaluation}/reviews`;
+    if (key === 'evaluationResults') return `${evaluation}/results`;
+  }
+  if (options?.assignmentId && key === 'evaluationBlindReview') {
+    return `/evaluations/review/${encodeURIComponent(options.assignmentId)}`;
   }
   if (options?.sessionId) {
     const session = `/sessions/${encodeURIComponent(options.sessionId)}`;

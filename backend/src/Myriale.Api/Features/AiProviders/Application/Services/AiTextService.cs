@@ -67,7 +67,7 @@ public sealed record AiGenerationMetadata(
     AiGenerationOverrides? GenerationOverrides = null);
 
 [CrossSliceContract]
-public sealed record AiTextResponse(string Text, AiGenerationMetadata Metadata);
+public sealed record AiTextResponse(string Text, AiGenerationMetadata Metadata, string? SentPrompt = null);
 
 [CrossSliceContract]
 public interface IAiTextService

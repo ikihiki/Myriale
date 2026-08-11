@@ -1,8 +1,14 @@
+using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Myriale.Api.Infrastructure.Persistence;
+using Npgsql;
 
 namespace Myriale.Api.Tests;
 
@@ -11,34 +17,129 @@ public sealed class DatabaseInitializationTests : IDisposable
     private readonly string dbPath = Path.Combine(Path.GetTempPath(), $"myriale-database-initialization-{Guid.NewGuid():N}.db");
 
     [Fact]
-    public async Task StartupRecreatesTheDatabaseByDefault()
+    public async Task PreMigrationEnsureCreatedDatabaseIsAutomaticallyResetBeforeInitialCreate()
     {
-        await StartApiAsync(recreateOnStartup: true);
-        await SetScenarioSummaryAsync("restart-marker");
-        await StartApiAsync(recreateOnStartup: true);
+        const string legacyEmail = "legacy-cutover@example.test";
+        await CreatePreMigrationDatabaseAsync(legacyEmail);
 
-        Assert.NotEqual("restart-marker", await GetScenarioSummaryAsync());
+        using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+        using var response = await client.PostAsJsonAsync("/api/account/register", new
+        {
+            displayName = "Cutover account",
+            email = legacyEmail,
+            password = "letters1",
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1L, await MigrationCountAsync());
     }
 
     [Fact]
-    public async Task StartupRejectsPersistentModeUntilMigrationsExist()
+    public async Task EmptyDatabaseMigratesNormally()
+    {
+        await File.WriteAllBytesAsync(dbPath, []);
+
+        await StartApiAsync();
+
+        Assert.Equal(1L, await MigrationCountAsync());
+    }
+
+    [Fact]
+    public async Task NormalStartupMigratesAndPreservesExistingData()
+    {
+        await StartApiAsync();
+        await SetScenarioSummaryAsync("restart-marker");
+        await StartApiAsync();
+
+        Assert.Equal("restart-marker", await GetScenarioSummaryAsync());
+    }
+
+    [Fact]
+    public async Task ExplicitConfirmedResetDeletesDataAndReappliesInitialCreate()
+    {
+        await StartApiAsync();
+        await SetScenarioSummaryAsync("reset-marker");
+        await StartApiAsync(resetOnStartup: true, confirmReset: true);
+
+        Assert.NotEqual("reset-marker", await GetScenarioSummaryAsync());
+    }
+
+    [Fact]
+    public async Task ResetWithoutDataLossConfirmationIsRejected()
     {
         await using var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
                 builder.UseSetting("ConnectionStrings:MyrialeAccounts", $"Data Source={dbPath}");
-                builder.UseSetting("Database:RecreateOnStartup", "false");
+                builder.UseSetting("Database:ResetOnStartup", "true");
             });
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => factory.CreateClient().GetAsync("/api/scenarios/SCN-STAR-LIBRARY"));
-        Assert.Contains("production EF migrations", exception.ToString(), StringComparison.Ordinal);
-        Assert.Contains("destructive clean-schema baseline", exception.ToString(), StringComparison.Ordinal);
+        Assert.Contains("ConfirmResetDataLoss=true", exception.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RepositoryContainsOneInitialMigrationAndNoLegacyEvaluationTables()
+    {
+        await StartApiAsync();
+        await using var connection = new SqliteConnection($"Data Source={dbPath}");
+        await connection.OpenAsync();
+        await using var migration = connection.CreateCommand();
+        migration.CommandText = "SELECT MigrationId FROM __EFMigrationsHistory";
+        Assert.EndsWith("_InitialCreate", (string)(await migration.ExecuteScalarAsync())!, StringComparison.Ordinal);
+        Assert.Equal(1L, await MigrationCountAsync());
+        await using var tables = connection.CreateCommand();
+        tables.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name LIKE 'ScenarioAiEvaluation%'";
+        Assert.Equal(0L, (long)(await tables.ExecuteScalarAsync())!);
+        await using var evaluationTables = connection.CreateCommand();
+        evaluationTables.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('EvaluationSessions','EvaluationSituations','EvaluationCandidates','EvaluationAttempts','EvaluationModelInvocations','EvaluationMachineJudgments','EvaluationHumanJudgments')";
+        Assert.Equal(7L, (long)(await evaluationTables.ExecuteScalarAsync())!);
+    }
+
+    [Fact]
+    public void InitialCreateGeneratesProviderCorrectPostgresSql()
+    {
+        using var db = new ApplicationDbContext(
+            new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseNpgsql("Host=localhost;Database=myriale_migration_script;Username=migration_script")
+                .Options);
+
+        var sql = db.GetService<IMigrator>().GenerateScript();
+
+        Assert.Contains("\"EmailConfirmed\" boolean NOT NULL", sql, StringComparison.Ordinal);
+        Assert.Contains("\"CreatedAt\" timestamp with time zone NOT NULL", sql, StringComparison.Ordinal);
+        Assert.Contains("\"Score\" numeric", sql, StringComparison.Ordinal);
+        Assert.Contains("\"Id\" integer GENERATED BY DEFAULT AS IDENTITY", sql, StringComparison.Ordinal);
+        Assert.Contains("\"Id\" bigint GENERATED BY DEFAULT AS IDENTITY", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"EmailConfirmed\" INTEGER", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"CreatedAt\" TEXT", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"Score\" TEXT", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("AUTOINCREMENT", sql, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void InitialCreateGeneratesProviderCorrectSqliteSql()
+    {
+        using var db = new ApplicationDbContext(
+            new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseSqlite("Data Source=:memory:")
+                .Options);
+
+        var sql = db.GetService<IMigrator>().GenerateScript();
+
+        Assert.Contains("\"EmailConfirmed\" INTEGER NOT NULL", sql, StringComparison.Ordinal);
+        Assert.Contains("\"CreatedAt\" TEXT NOT NULL", sql, StringComparison.Ordinal);
+        Assert.Contains("\"Score\" TEXT", sql, StringComparison.Ordinal);
+        Assert.Contains("PRIMARY KEY AUTOINCREMENT", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("timestamp with time zone", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("GENERATED BY DEFAULT AS IDENTITY", sql, StringComparison.Ordinal);
     }
 
     [Fact]
     public async Task SqliteBaselineContainsTypedLifecycleColumnsAndRequiredIndexes()
     {
-        await StartApiAsync(recreateOnStartup: true);
+        await StartApiAsync();
         await using var connection = new SqliteConnection($"Data Source={dbPath}");
         await connection.OpenAsync();
 
@@ -115,14 +216,42 @@ public sealed class DatabaseInitializationTests : IDisposable
         Assert.Equal(1L, (long)(await sharedDigest.ExecuteScalarAsync())!);
     }
 
-    private async Task StartApiAsync(bool recreateOnStartup)
-    {
-        using var factory = new WebApplicationFactory<Program>()
+    private WebApplicationFactory<Program> CreateFactory(bool resetOnStartup = false, bool confirmReset = false) =>
+        new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
                 builder.UseSetting("ConnectionStrings:MyrialeAccounts", $"Data Source={dbPath}");
-                builder.UseSetting("Database:RecreateOnStartup", recreateOnStartup.ToString());
+                builder.UseSetting("Database:ResetOnStartup", resetOnStartup.ToString());
+                builder.UseSetting("Database:ConfirmResetDataLoss", confirmReset.ToString());
             });
+
+    private async Task CreatePreMigrationDatabaseAsync(string legacyEmail)
+    {
+        await using var db = new ApplicationDbContext(
+            new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseSqlite($"Data Source={dbPath}")
+                .ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning))
+                .Options);
+        await db.Database.EnsureCreatedAsync();
+        var legacyUser = ApplicationUser.Create("Legacy account", legacyEmail);
+        legacyUser.NormalizedEmail = legacyEmail.ToUpperInvariant();
+        legacyUser.NormalizedUserName = legacyEmail.ToUpperInvariant();
+        db.Users.Add(legacyUser);
+        await db.SaveChangesAsync();
+    }
+
+    private async Task<long> MigrationCountAsync()
+    {
+        await using var connection = new SqliteConnection($"Data Source={dbPath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM __EFMigrationsHistory";
+        return (long)(await command.ExecuteScalarAsync())!;
+    }
+
+    private async Task StartApiAsync(bool resetOnStartup = false, bool confirmReset = false)
+    {
+        using var factory = CreateFactory(resetOnStartup, confirmReset);
         using var client = factory.CreateClient();
         using var response = await client.GetAsync("/api/scenarios/SCN-STAR-LIBRARY");
         response.EnsureSuccessStatusCode();
@@ -169,5 +298,162 @@ public sealed class DatabaseInitializationTests : IDisposable
     public void Dispose()
     {
         if (File.Exists(dbPath)) File.Delete(dbPath);
+    }
+}
+
+public sealed class PostgresDatabaseInitializationTests
+{
+    [PostgresFact]
+    public async Task PreMigrationEnsureCreatedSchemaIsResetOnceAndMigratedRestartPreservesData()
+    {
+        const string legacyEmail = "postgres-legacy-cutover@example.test";
+        await using var database = await PostgresStartupDatabase.CreateAsync();
+        await using (var legacyDb = database.CreateContext())
+        {
+            await legacyDb.Database.EnsureCreatedAsync();
+            var legacyUser = ApplicationUser.Create("Legacy PostgreSQL account", legacyEmail);
+            legacyUser.NormalizedEmail = legacyEmail.ToUpperInvariant();
+            legacyUser.NormalizedUserName = legacyEmail.ToUpperInvariant();
+            legacyDb.Users.Add(legacyUser);
+            await legacyDb.SaveChangesAsync();
+        }
+
+        using (var factory = database.CreateFactory())
+        using (var client = factory.CreateClient())
+        using (var response = await client.PostAsJsonAsync("/api/account/register", new
+        {
+            displayName = "PostgreSQL cutover account",
+            email = legacyEmail,
+            password = "letters1",
+        }))
+        {
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        using (var factory = database.CreateFactory())
+        using (var client = factory.CreateClient())
+        using (var response = await client.PostAsJsonAsync("/api/account/register", new
+        {
+            displayName = "Duplicate account",
+            email = legacyEmail,
+            password = "letters1",
+        }))
+        {
+            Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        }
+
+        await using var connection = new NpgsqlConnection(database.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand("SELECT COUNT(*) FROM \"__EFMigrationsHistory\"", connection);
+        Assert.Equal(1L, (long)(await command.ExecuteScalarAsync())!);
+    }
+
+    [PostgresFact]
+    public async Task SqliteMappedInitialCreateIsResetAndReappliedWithPostgresTypes()
+    {
+        await using var database = await PostgresStartupDatabase.CreateAsync();
+        await using (var connection = new NpgsqlConnection(database.ConnectionString))
+        {
+            await connection.OpenAsync();
+            await using var setupCommand = new NpgsqlCommand("""
+                CREATE TABLE "__EFMigrationsHistory" (
+                    "MigrationId" character varying(150) NOT NULL PRIMARY KEY,
+                    "ProductVersion" character varying(32) NOT NULL
+                );
+                INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+                VALUES ('20260810101338_InitialCreate', '10.0.9');
+                CREATE TABLE "AspNetUsers" (
+                    "Id" text NOT NULL PRIMARY KEY,
+                    "EmailConfirmed" integer NOT NULL
+                );
+                CREATE TABLE "EvaluationSessions" (
+                    "Id" text NOT NULL PRIMARY KEY,
+                    "CreatedAt" text NOT NULL
+                );
+                """, connection);
+            await setupCommand.ExecuteNonQueryAsync();
+        }
+
+        using (var factory = database.CreateFactory())
+        using (var client = factory.CreateClient())
+        using (var response = await client.PostAsJsonAsync("/api/account/register", new
+        {
+            displayName = "PostgreSQL mapping repair account",
+            email = "postgres-mapping-repair@example.test",
+            password = "letters1",
+        }))
+        {
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        await using var verification = new NpgsqlConnection(database.ConnectionString);
+        await verification.OpenAsync();
+        await using var command = new NpgsqlCommand("""
+            SELECT
+                (SELECT COUNT(*) FROM "__EFMigrationsHistory"),
+                (SELECT data_type FROM information_schema.columns
+                 WHERE table_schema = current_schema() AND table_name = 'AspNetUsers' AND column_name = 'EmailConfirmed'),
+                (SELECT data_type FROM information_schema.columns
+                 WHERE table_schema = current_schema() AND table_name = 'EvaluationSessions' AND column_name = 'CreatedAt')
+            """, verification);
+        await using var reader = await command.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        Assert.Equal(1L, reader.GetInt64(0));
+        Assert.Equal("boolean", reader.GetString(1));
+        Assert.Equal("timestamp with time zone", reader.GetString(2));
+    }
+
+    private sealed class PostgresStartupDatabase(
+        string adminConnectionString,
+        string connectionString,
+        string databaseName) : IAsyncDisposable
+    {
+        public string ConnectionString { get; } = connectionString;
+
+        public static async Task<PostgresStartupDatabase> CreateAsync()
+        {
+            var configuredConnectionString = Environment.GetEnvironmentVariable(
+                PostgresSessionExecutionIntegrationTests.ConnectionEnvironmentVariable)
+                ?? throw new InvalidOperationException(
+                    $"{PostgresSessionExecutionIntegrationTests.ConnectionEnvironmentVariable} is required.");
+            var databaseName = $"database_startup_{Guid.NewGuid():N}";
+            var adminBuilder = new NpgsqlConnectionStringBuilder(configuredConnectionString) { Database = "postgres" };
+            await using (var connection = new NpgsqlConnection(adminBuilder.ConnectionString))
+            {
+                await connection.OpenAsync();
+                await using var command = new NpgsqlCommand($"CREATE DATABASE \"{databaseName}\"", connection);
+                await command.ExecuteNonQueryAsync();
+            }
+
+            var builder = new NpgsqlConnectionStringBuilder(configuredConnectionString) { Database = databaseName };
+            return new PostgresStartupDatabase(adminBuilder.ConnectionString, builder.ConnectionString, databaseName);
+        }
+
+        public ApplicationDbContext CreateContext() => new(
+            new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseNpgsql(ConnectionString)
+                .ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning))
+                .Options);
+
+        public WebApplicationFactory<Program> CreateFactory() =>
+            new WebApplicationFactory<Program>()
+                .WithWebHostBuilder(builder =>
+                    builder.UseSetting("ConnectionStrings:MyrialeAccounts", ConnectionString));
+
+        public async ValueTask DisposeAsync()
+        {
+            NpgsqlConnection.ClearAllPools();
+            await using var connection = new NpgsqlConnection(adminConnectionString);
+            await connection.OpenAsync();
+            await using (var terminate = new NpgsqlCommand(
+                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = @database AND pid <> pg_backend_pid()",
+                connection))
+            {
+                terminate.Parameters.AddWithValue("database", databaseName);
+                await terminate.ExecuteNonQueryAsync();
+            }
+            await using var command = new NpgsqlCommand($"DROP DATABASE IF EXISTS \"{databaseName}\"", connection);
+            await command.ExecuteNonQueryAsync();
+        }
     }
 }
