@@ -498,6 +498,19 @@ function preview(value: unknown): string {
   const text = typeof value === 'string' ? value : JSON.stringify(value);
   return text.length > 180 ? `${text.slice(0, 177)}...` : text;
 }
+function reviewResponseText(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object' && value) {
+    const response = value as { heading?: unknown; body?: unknown; text?: unknown };
+    if (typeof response.body === 'string') {
+      return typeof response.heading === 'string' && response.heading.trim()
+        ? `${response.heading}\n\n${response.body}`
+        : response.body;
+    }
+    if (typeof response.text === 'string') return response.text;
+  }
+  return JSON.stringify(value, null, 2);
+}
 function status(value: string): EvaluationStatus {
   switch (value) {
     case 'awaitingHumanReview':
@@ -681,7 +694,7 @@ function blindAssignment(value: BackendBlindAssignment): BlindReviewAssignment {
       situationLabel: `${current.stage} situation`,
       situationContext: preview(current.situation),
       candidateCode: current.candidateCode,
-      responseText: preview(current.response),
+      responseText: reviewResponseText(current.response),
       rubric: criteria.map((x) => ({
         criterionId: x.id,
         label: x.label,

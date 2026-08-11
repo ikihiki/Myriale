@@ -492,9 +492,12 @@ public sealed class EvaluationSessionService(ApplicationDbContext db, IAiProfile
     }
     public async Task<BlindHumanJudgmentResponse?> SaveBlindJudgmentAsync(AccountId reviewer, bool admin, string opaqueCode, EvaluationReviewItemId itemId, SaveBlindJudgmentRequest input, CancellationToken ct)
     {
-        var assignment = await db.EvaluationReviewAssignments.Include(x => x.Items).SingleOrDefaultAsync(x => x.OpaqueCode == opaqueCode && (admin || x.ReviewerId == reviewer), ct); if (assignment is null) return null;
+        var assignment = await db.EvaluationReviewAssignments.Include(x => x.Items).Include(x => x.Batch).SingleOrDefaultAsync(x => x.OpaqueCode == opaqueCode && (admin || x.ReviewerId == reviewer), ct); if (assignment is null) return null;
         if (assignment.Status != EvaluationAssignmentStatus.Draft) throw new EvaluationValidationException("assignment_locked"); if (assignment.Revision != input.AssignmentRevision) throw new EvaluationValidationException("revision_conflict");
-        if (!assignment.Items.Any(x => x.Id == itemId)) return null; var prior = await db.EvaluationHumanJudgments.Where(x => x.ItemId == itemId && x.ReviewerId == assignment.ReviewerId && x.CriterionKey == input.CriterionKey).OrderByDescending(x => x.Revision).FirstOrDefaultAsync(ct);
+        if (!assignment.Items.Any(x => x.Id == itemId)) return null;
+        var rubricJson = await db.EvaluationSessions.AsNoTracking().Where(x => x.Id == assignment.Batch.SessionId).Select(x => x.RubricJson).SingleAsync(ct);
+        ValidateHumanJudgment(rubricJson, input);
+        var prior = await db.EvaluationHumanJudgments.Where(x => x.ItemId == itemId && x.ReviewerId == assignment.ReviewerId && x.CriterionKey == input.CriterionKey).OrderByDescending(x => x.Revision).FirstOrDefaultAsync(ct);
         var row = new EvaluationHumanJudgment { Id = NewHumanJudgmentId(), ItemId = itemId, ReviewerId = assignment.ReviewerId, CriterionKey = Required(input.CriterionKey, "criterion_required"), Score = input.Score, Verdict = input.Verdict,
             TagsJson = Serialize(input.Tags ?? []), Comment = input.Comment?.Trim() ?? "", Confidence = input.Confidence, Revision = (prior?.Revision ?? 0) + 1, SupersedesJudgmentId = prior?.Id, SubmittedAt = timeProvider.GetUtcNow() };
         db.EvaluationHumanJudgments.Add(row); assignment.Revision++; await db.SaveChangesAsync(ct); return new(row.Id, row.CriterionKey, row.Score, row.Verdict, Deserialize<string>(row.TagsJson), row.Comment, row.Confidence, row.Revision, row.SubmittedAt);
@@ -767,6 +770,35 @@ public sealed class EvaluationSessionService(ApplicationDbContext db, IAiProfile
             _ => JsonSerializer.Deserialize<EntityStateTransitionRequest>(request, Json),
         };
         if (value is null) throw new EvaluationValidationException("request_invalid");
+    }
+    private static void ValidateHumanJudgment(string rubricJson, SaveBlindJudgmentRequest input)
+    {
+        var criterionKey = Required(input.CriterionKey, "criterion_required");
+        using var rubric = JsonDocument.Parse(string.IsNullOrWhiteSpace(rubricJson) ? "{}" : rubricJson);
+        var root = rubric.RootElement;
+        var criteria = root.ValueKind == JsonValueKind.Array
+            ? root
+            : root.ValueKind == JsonValueKind.Object && root.TryGetProperty("criteria", out var nested) && nested.ValueKind == JsonValueKind.Array
+                ? nested
+                : default;
+        if (criteria.ValueKind != JsonValueKind.Array) throw new EvaluationValidationException("criterion_not_found");
+        foreach (var criterion in criteria.EnumerateArray())
+        {
+            var key = criterion.ValueKind == JsonValueKind.String
+                ? criterion.GetString()
+                : criterion.ValueKind == JsonValueKind.Object && criterion.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.String
+                    ? id.GetString()
+                    : criterion.ValueKind == JsonValueKind.Object && criterion.TryGetProperty("criterionKey", out var legacyId) && legacyId.ValueKind == JsonValueKind.String
+                        ? legacyId.GetString()
+                        : null;
+            if (!string.Equals(key, criterionKey, StringComparison.Ordinal)) continue;
+            if (input.Score is null) return;
+            var minimum = criterion.ValueKind == JsonValueKind.Object && criterion.TryGetProperty("scaleMin", out var min) && min.TryGetDecimal(out var parsedMin) ? parsedMin : 1m;
+            var maximum = criterion.ValueKind == JsonValueKind.Object && criterion.TryGetProperty("scaleMax", out var max) && max.TryGetDecimal(out var parsedMax) ? parsedMax : 5m;
+            if (input.Score < minimum || input.Score > maximum) throw new EvaluationValidationException("score_out_of_range");
+            return;
+        }
+        throw new EvaluationValidationException("criterion_not_found");
     }
     private static EvaluationSessionResponse Map(EvaluationSession x) => new(MapSummary(x), Element(x.ConfigJson), Element(x.RubricJson), Element(x.ReviewPolicyJson), x.Situations.OrderBy(y => y.StableKey).ThenBy(y => y.Revision).Select(Map).ToList(), x.Candidates.OrderBy(y => y.CandidateKey).Select(Map).ToList());
     private static EvaluationSessionSummaryResponse MapSummary(EvaluationSession x) => new(x.Id, x.Title, x.Purpose, Deserialize<string>(x.TagsJson), x.Sensitivity, x.Status.Wire(), x.Revision, x.Situations.Count, x.Candidates.Count, x.PlannedAttemptCount, x.TerminalAttemptCount, x.SucceededAttemptCount, x.FailedAttemptCount, x.ReviewedItemCount, x.IdentitiesRevealed, x.CreatedAt, x.CompletedAt);

@@ -53,6 +53,15 @@ export function EvaluationBlindReviewPresentation({
     setScores(item?.draft?.scores ?? {});
     setNote(item?.draft?.note ?? '');
   }, [item?.itemId]);
+  const invalidCriteria = item?.rubric.filter((criterion) => {
+    const score = scores[criterion.criterionId];
+    return (
+      score !== undefined &&
+      (!Number.isFinite(score) ||
+        score < criterion.scaleMin ||
+        score > criterion.scaleMax)
+    );
+  }) ?? [];
   const input = { scores, note };
   return (
     <EvaluationPageFrame
@@ -109,19 +118,34 @@ export function EvaluationBlindReviewPresentation({
                         <small className="block text-myr-ink-subtle">
                           {criterion.description}
                         </small>
+                        <small className="block text-myr-ink-subtle">
+                          {criterion.scaleMin}〜{criterion.scaleMax}の範囲で入力
+                        </small>
                       </span>
                       <Input
                         aria-label={`${criterion.label} score`}
+                        aria-invalid={invalidCriteria.some(
+                          (item) => item.criterionId === criterion.criterionId,
+                        )}
                         type="number"
                         min={criterion.scaleMin}
                         max={criterion.scaleMax}
+                        step="any"
                         value={scores[criterion.criterionId] ?? ''}
-                        onChange={(e) =>
-                          setScores((v) => ({
-                            ...v,
-                            [criterion.criterionId]: Number(e.target.value),
-                          }))
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setScores((current) => {
+                            if (value === '') {
+                              const next = { ...current };
+                              delete next[criterion.criterionId];
+                              return next;
+                            }
+                            return {
+                              ...current,
+                              [criterion.criterionId]: Number(value),
+                            };
+                          });
+                        }}
                       />
                     </label>
                   ))}
@@ -133,6 +157,11 @@ export function EvaluationBlindReviewPresentation({
                       onChange={(e) => setNote(e.target.value)}
                     />
                   </label>
+                  {invalidCriteria.length > 0 && (
+                    <Notice tone="danger">
+                      評価点はRubricに定義された範囲内で入力してください。
+                    </Notice>
+                  )}
                   <Notice
                     tone={notice.includes('できません') ? 'danger' : 'info'}
                     data-testid="blind-review-notice"
@@ -142,7 +171,7 @@ export function EvaluationBlindReviewPresentation({
                   <div className="flex flex-wrap gap-3">
                     <Button
                       variant="secondary"
-                      disabled={saving}
+                      disabled={saving || invalidCriteria.length > 0}
                       onClick={() =>
                         void onSave(assignment.item!.itemId, input).then((r) =>
                           setNotice(r.message),
@@ -154,6 +183,7 @@ export function EvaluationBlindReviewPresentation({
                     <Button
                       disabled={
                         saving ||
+                        invalidCriteria.length > 0 ||
                         assignment.item.rubric.some(
                           (c) =>
                             c.required && scores[c.criterionId] === undefined,

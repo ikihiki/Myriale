@@ -102,6 +102,35 @@ describe('evaluation API contracts', () => {
     expect(fetchMock.mock.calls[1][0]).toBe('/api/evaluation-sessions/EVS-1');
   });
 
+  it('preserves the complete narrative response for blind review', async () => {
+    const body = '長い本文'.repeat(100);
+    const fetchMock = vi.fn().mockResolvedValue(
+      json({
+        opaqueCode: 'REV-1',
+        status: 'draft',
+        revision: 0,
+        rubric: [{ id: 'quality', label: 'Quality', required: true }],
+        items: [
+          {
+            id: 'ITEM-1',
+            candidateCode: 'C-A',
+            stage: 'narrative',
+            situation: { prompt: 'blind' },
+            response: { heading: '見出し', body },
+            displayOrder: 1,
+            judgments: [],
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await createFetchEvaluationsApi().getBlindAssignment('REV-1');
+
+    expect(result.item?.responseText).toBe(`見出し\n\n${body}`);
+    expect(result.item?.responseText).not.toContain('...');
+  });
+
   it('submits reviewer judgments through criterion PUTs and the assignment submit route', async () => {
     const open = {
       opaqueCode: 'REV-1',

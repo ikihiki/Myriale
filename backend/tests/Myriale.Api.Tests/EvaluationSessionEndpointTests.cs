@@ -60,6 +60,13 @@ public sealed class EvaluationSessionEndpointTests : IDisposable
         var document = JsonDocument.Parse(json); Assert.Equal("C-", document.RootElement.GetProperty("items")[0].GetProperty("candidateCode").GetString()![..2]);
         var itemId = document.RootElement.GetProperty("items")[0].GetProperty("id").GetString()!;
         var revision = document.RootElement.GetProperty("revision").GetInt64();
+        using var outOfRange = await reviewer.PutAsJsonAsync($"/api/evaluation-review-assignments/{code}/judgments/{itemId}", new
+        {
+            assignmentRevision = revision, criterionKey = "overall", score = 40000m, verdict = (bool?)null,
+            tags = Array.Empty<string>(), comment = "invalid score", confidence = .9m,
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, outOfRange.StatusCode);
+        Assert.Equal("score_out_of_range", (await outOfRange.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
         using var saved = await reviewer.PutAsJsonAsync($"/api/evaluation-review-assignments/{code}/judgments/{itemId}", new
         {
             assignmentRevision = revision, criterionKey = "overall", score = 5m, verdict = (bool?)null,
