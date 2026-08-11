@@ -14,7 +14,7 @@ const assignment: BlindReviewAssignment = {
   item: {
     itemId: 'ITEM-1',
     situationLabel: 'narrative situation',
-    situationContext: 'context',
+    situationContext: '完全なSituation情報\n'.repeat(40),
     candidateCode: 'C-A',
     responseText: '完全なレスポンス本文',
     rubric: [
@@ -45,6 +45,9 @@ describe('EvaluationBlindReviewPresentation', () => {
       />,
     );
 
+    expect(screen.getByTestId('blind-situation').textContent).toBe(
+      '完全なSituation情報\n'.repeat(40),
+    );
     expect(screen.getByTestId('blind-response').textContent).toBe(
       '完全なレスポンス本文',
     );

@@ -498,6 +498,9 @@ function preview(value: unknown): string {
   const text = typeof value === 'string' ? value : JSON.stringify(value);
   return text.length > 180 ? `${text.slice(0, 177)}...` : text;
 }
+function reviewSituationText(value: unknown): string {
+  return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+}
 function reviewResponseText(value: unknown): string {
   if (typeof value === 'string') return value;
   if (typeof value === 'object' && value) {
@@ -692,7 +695,7 @@ function blindAssignment(value: BackendBlindAssignment): BlindReviewAssignment {
     ? {
       itemId: current.id,
       situationLabel: `${current.stage} situation`,
-      situationContext: preview(current.situation),
+      situationContext: reviewSituationText(current.situation),
       candidateCode: current.candidateCode,
       responseText: reviewResponseText(current.response),
       rubric: criteria.map((x) => ({

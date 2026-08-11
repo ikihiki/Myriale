@@ -99,15 +99,24 @@ export function EvaluationBlindReviewPresentation({
                       {assignment.item.candidateCode}
                     </Badge>
                   </div>
-                  <p className="m-0 text-sm text-myr-ink-subtle">
-                    {assignment.item.situationContext}
-                  </p>
-                  <article
-                    className="whitespace-pre-wrap rounded-xl border border-myr-ink/15 bg-white p-5 leading-8"
-                    data-testid="blind-response"
-                  >
-                    {assignment.item.responseText}
-                  </article>
+                  <div className="grid gap-2">
+                    <strong>Situation</strong>
+                    <pre
+                      className="m-0 max-h-[32rem] overflow-auto whitespace-pre-wrap break-words rounded-xl border border-myr-ink/15 bg-myr-vellum/35 p-4 text-sm leading-6 text-myr-ink-subtle"
+                      data-testid="blind-situation"
+                    >
+                      {assignment.item.situationContext}
+                    </pre>
+                  </div>
+                  <div className="grid gap-2">
+                    <strong>Response</strong>
+                    <article
+                      className="whitespace-pre-wrap rounded-xl border border-myr-ink/15 bg-white p-5 leading-8"
+                      data-testid="blind-response"
+                    >
+                      {assignment.item.responseText}
+                    </article>
+                  </div>
                 </Panel>
                 <Panel as="section" className="grid gap-5">
                   <h2 className="m-0">Human rubric</h2>

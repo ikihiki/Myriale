@@ -102,7 +102,8 @@ describe('evaluation API contracts', () => {
     expect(fetchMock.mock.calls[1][0]).toBe('/api/evaluation-sessions/EVS-1');
   });
 
-  it('preserves the complete narrative response for blind review', async () => {
+  it('preserves the complete narrative situation and response for blind review', async () => {
+    const situationDetail = '長い状況'.repeat(100);
     const body = '長い本文'.repeat(100);
     const fetchMock = vi.fn().mockResolvedValue(
       json({
@@ -115,7 +116,7 @@ describe('evaluation API contracts', () => {
             id: 'ITEM-1',
             candidateCode: 'C-A',
             stage: 'narrative',
-            situation: { prompt: 'blind' },
+            situation: { prompt: 'blind', detail: situationDetail },
             response: { heading: '見出し', body },
             displayOrder: 1,
             judgments: [],
@@ -127,6 +128,10 @@ describe('evaluation API contracts', () => {
 
     const result = await createFetchEvaluationsApi().getBlindAssignment('REV-1');
 
+    expect(result.item?.situationContext).toBe(
+      JSON.stringify({ prompt: 'blind', detail: situationDetail }, null, 2),
+    );
+    expect(result.item?.situationContext).not.toContain('...');
     expect(result.item?.responseText).toBe(`見出し\n\n${body}`);
     expect(result.item?.responseText).not.toContain('...');
   });
