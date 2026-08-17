@@ -37,6 +37,7 @@ POST /api/account/withdraw | name=WithdrawAccount | auth=authenticated | cors=My
 POST /api/admin/ai-credentials/ | name=- | auth=AiAdministration | cors=MyrialeFrontend
 POST /api/admin/ai-profiles/ | name=- | auth=AiAdministration | cors=MyrialeFrontend
 POST /api/admin/ai-profiles/{id}/connection-tests | name=- | auth=AiAdministration | cors=MyrialeFrontend
+POST /api/admin/ai-profiles/{id}/conversation-tests | name=- | auth=AiAdministration | cors=MyrialeFrontend
 POST /api/admin/ai-profiles/{id}/disable | name=- | auth=AiAdministration | cors=MyrialeFrontend
 POST /api/admin/ai-profiles/{id}/enable | name=- | auth=AiAdministration | cors=MyrialeFrontend
 POST /api/admin/ai-profiles/{id}/prompt-tests | name=- | auth=AiAdministration | cors=MyrialeFrontend

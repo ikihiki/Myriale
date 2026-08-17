@@ -15,5 +15,11 @@ public sealed record AiProfileTestRequest(long ExpectedProfileRevision, long Exp
 public sealed record AiPromptTestRequest(string Prompt, long ExpectedProfileRevision, long ExpectedCredentialRevision);
 public sealed record AiConnectionTestResponse(AiProviderProfileId ProfileId, long ProfileRevision, AiCredentialId CredentialId, long CredentialRevision, string Status, DateTimeOffset TestedAt);
 public sealed record AiPromptTestResponse(AiProviderProfileId Provider, string Model, string Response, int? InputTokens, int? OutputTokens, long LatencyMilliseconds, string? FinishReason);
+public sealed record AiConversationMessageRequest(string Role, string Content);
+public sealed record AiConversationGenerationOverridesRequest(double? Temperature = null, double? TopP = null, int? MaximumOutputTokens = null, long? Seed = null, int? RetryAttempts = null);
+public sealed record AiConversationTestRequest(IReadOnlyList<AiConversationMessageRequest?> Messages, AiConversationGenerationOverridesRequest? GenerationOverrides, long ExpectedProfileRevision, long ExpectedCredentialRevision, string? ClientRequestId = null);
+public sealed record AiConversationMessageResponse(string Role, string Content);
+public sealed record AiConversationTestResponse(AiConversationMessageResponse Message, AiProviderProfileId Provider, string Model, string? ResponseId, int? InputTokens, int? OutputTokens, long LatencyMilliseconds, int AttemptCount, string? FinishReason, string? RequestId);
+public sealed record AiConversationTestErrorResponse(string Code, string Message, bool Retryable, string? RequestId = null);
 public sealed record AiAdminErrorResponse(string Message, IReadOnlyDictionary<string, string[]> Errors);
 

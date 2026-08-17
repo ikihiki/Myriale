@@ -15,6 +15,7 @@ public static class AiAdminEndpoints
         profiles.MapDelete("/{id}", DeleteProfileAsync);
         profiles.MapPut("/active", ActivateAsync);
         profiles.MapPost("/{id}/connection-tests", ConnectionTestAsync);
+        profiles.MapPost("/{id}/conversation-tests", ConversationTestAsync);
         profiles.MapPost("/{id}/prompt-tests", PromptTestAsync);
 
         var credentials = routes.MapGroup("/api/admin/ai-credentials").WithTags("Admin AI Credentials").RequireCors("MyrialeFrontend").RequireAuthorization("AiAdministration");
@@ -60,6 +61,39 @@ public static class AiAdminEndpoints
             _ => Map(result)
         };
     }
+    private static async Task<IResult> ConversationTestAsync(AiProviderProfileId id, AiConversationTestRequest request, AiProviderTestUseCases useCases, CancellationToken ct)
+    {
+        var overrides = request.GenerationOverrides is null ? null : new AiGenerationOverrides(
+            Temperature: request.GenerationOverrides.Temperature,
+            TopP: request.GenerationOverrides.TopP,
+            Seed: request.GenerationOverrides.Seed,
+            MaxOutputTokens: request.GenerationOverrides.MaximumOutputTokens,
+            RetryAttempts: request.GenerationOverrides.RetryAttempts);
+        var messages = request.Messages?.Select(message => message is null ? null : new AiConversationInputMessage(message.Role, message.Content)).ToArray()
+            ?? Array.Empty<AiConversationInputMessage?>();
+        var result = await useCases.ConversationAsync(new(id, messages, overrides, request.ExpectedProfileRevision, request.ExpectedCredentialRevision, request.ClientRequestId), ct);
+        if (result.Outcome == AiAdministrationOutcome.Success)
+        {
+            var value = result.Value!;
+            var metadata = value.Metadata;
+            return Results.Ok(new AiConversationTestResponse(
+                new("assistant", value.Response), metadata.Provider, metadata.Model, metadata.ResponseId,
+                metadata.InputTokens, metadata.OutputTokens, metadata.LatencyMilliseconds, metadata.AttemptCount,
+                metadata.FinishReason, value.RequestId));
+        }
+        if (result.Outcome != AiAdministrationOutcome.ProviderFailure) return Map(result);
+        var code = result.Error ?? AiProviderErrorCodes.ProviderUnavailable;
+        var status = code switch
+        {
+            AiProviderErrorCodes.RateLimited => StatusCodes.Status429TooManyRequests,
+            AiProviderErrorCodes.Timeout => StatusCodes.Status504GatewayTimeout,
+            AiProviderErrorCodes.ContentRejected or AiProviderErrorCodes.InvalidCredential or AiProviderErrorCodes.ModelNotFound => StatusCodes.Status422UnprocessableEntity,
+            AiProviderErrorCodes.SchemaFailure => StatusCodes.Status502BadGateway,
+            _ => StatusCodes.Status503ServiceUnavailable,
+        };
+        return Results.Json(new AiConversationTestErrorResponse(code, "The AI provider could not complete the conversation request.", result.Retryable, result.RequestId), statusCode: status);
+    }
+
     private static async Task<IResult> PromptTestAsync(AiProviderProfileId id, AiPromptTestRequest request, AiProviderTestUseCases useCases, CancellationToken ct) =>
         Map(await useCases.PromptAsync(new(id, request.Prompt, request.ExpectedProfileRevision, request.ExpectedCredentialRevision), ct));
 

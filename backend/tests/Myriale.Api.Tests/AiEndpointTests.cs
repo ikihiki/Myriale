@@ -16,7 +16,7 @@ public sealed class AiEndpointTests : IDisposable
     public AiEndpointTests() => _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
     {
         builder.UseSetting("ConnectionStrings:MyrialeAccounts", $"Data Source={_dbPath}");
-        builder.ConfigureServices(services => { services.RemoveAll<IAiTextService>(); services.AddSingleton<IAiTextService, SuccessfulTextProvider>(); });
+        builder.ConfigureServices(services => { services.RemoveAll<IAiTextService>(); services.RemoveAll<IAiConversationService>(); services.AddSingleton<SuccessfulTextProvider>(); services.AddSingleton<IAiTextService>(provider => provider.GetRequiredService<SuccessfulTextProvider>()); services.AddSingleton<IAiConversationService>(provider => provider.GetRequiredService<SuccessfulTextProvider>()); });
     });
 
     [Fact]
@@ -24,8 +24,10 @@ public sealed class AiEndpointTests : IDisposable
     {
         var anonymous = _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync("/api/admin/ai-keys/")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.PostAsJsonAsync("/api/admin/ai-profiles/local/conversation-tests", new { messages = new[] { new { role = "user", content = "hello" } }, expectedProfileRevision = 1, expectedCredentialRevision = 1 })).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/admin/ai-profiles/")).StatusCode);
         var user = await CreateSignedInClientAsync(false);
+        Assert.Equal(HttpStatusCode.Forbidden, (await user.PostAsJsonAsync("/api/admin/ai-profiles/local/conversation-tests", new { messages = new[] { new { role = "user", content = "hello" } }, expectedProfileRevision = 1, expectedCredentialRevision = 1 })).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await user.GetAsync("/api/admin/ai-credentials/")).StatusCode);
     }
 
@@ -46,6 +48,19 @@ public sealed class AiEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, tested.StatusCode);
         using var prompt = await client.PostAsJsonAsync("/api/admin/ai-profiles/local/prompt-tests", new { prompt = "hello", expectedProfileRevision = 1, expectedCredentialRevision = 1 });
         Assert.Equal(HttpStatusCode.OK, prompt.StatusCode); Assert.Contains("テスト応答", await prompt.Content.ReadAsStringAsync());
+        using var conversation = await client.PostAsJsonAsync("/api/admin/ai-profiles/local/conversation-tests", new
+        {
+            messages = new[] { new { role = "system", content = "Be concise." }, new { role = "user", content = "hello" } },
+            generationOverrides = new { temperature = 0.5, topP = 0.9, maximumOutputTokens = 256, seed = 42, retryAttempts = 0 },
+            expectedProfileRevision = 1,
+            expectedCredentialRevision = 1,
+            clientRequestId = "client-123"
+        });
+        Assert.Equal(HttpStatusCode.OK, conversation.StatusCode);
+        var conversationBody = await conversation.Content.ReadAsStringAsync();
+        Assert.Contains("conversation response", conversationBody);
+        Assert.Contains("client-123", conversationBody);
+        Assert.DoesNotContain("top-secret-9876", conversationBody);
         using var replaced = await client.PutAsJsonAsync("/api/admin/ai-credentials/local-secret", new { displayName = "Local replaced", secret = "replacement-4321", expectedRevision = 1 });
         Assert.Equal(HttpStatusCode.OK, replaced.StatusCode);
         using var afterReplacement = await client.GetAsync("/api/admin/ai-profiles/");
@@ -111,6 +126,59 @@ public sealed class AiEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.Conflict, disabled.StatusCode);
     }
 
+    [Fact]
+    public async Task ConversationTestRejectsInvalidHistoriesAndStaleRevisions()
+    {
+        var client = await CreateSignedInClientAsync(true);
+        await client.PostAsJsonAsync("/api/admin/ai-credentials/", new { id = "conversation-secret", displayName = "Conversation", secret = "not-returned" });
+        await client.PostAsJsonAsync("/api/admin/ai-profiles/", new { id = "conversation", displayName = "Conversation", baseUrl = "https://provider.test/v1", model = "model", credentialId = "conversation-secret", enabled = true });
+
+        async Task<HttpResponseMessage> PostAsync(object messages, object? generationOverrides = null, long profileRevision = 1, long credentialRevision = 1) =>
+            await client.PostAsJsonAsync("/api/admin/ai-profiles/conversation/conversation-tests", new { messages, generationOverrides, expectedProfileRevision = profileRevision, expectedCredentialRevision = credentialRevision });
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await PostAsync(Array.Empty<object>())).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await PostAsync(new[] { new { role = "tool", content = "no" } })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await PostAsync(new[] { new { role = "user", content = " " } })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await PostAsync(Enumerable.Range(0, 101).Select(_ => new { role = "user", content = "x" }).ToArray())).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await PostAsync(new[] { new { role = "user", content = "hello" } }, new { temperature = 3 })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await PostAsync(new[] { new { role = "user", content = "hello" } }, profileRevision: 0)).StatusCode);
+
+        await client.PostAsJsonAsync("/api/admin/ai-profiles/", new { id = "missing-credential", displayName = "Missing", baseUrl = "https://provider.test/v1", model = "model", credentialId = "absent", enabled = true });
+        using var missingCredential = await client.PostAsJsonAsync("/api/admin/ai-profiles/missing-credential/conversation-tests", new { messages = new[] { new { role = "user", content = "hello" } }, expectedProfileRevision = 1, expectedCredentialRevision = 1 });
+        Assert.Equal(HttpStatusCode.Conflict, missingCredential.StatusCode);
+        await client.PostAsJsonAsync("/api/admin/ai-profiles/", new { id = "disabled", displayName = "Disabled", baseUrl = "https://provider.test/v1", model = "model", credentialId = "conversation-secret", enabled = false });
+        using var disabled = await client.PostAsJsonAsync("/api/admin/ai-profiles/disabled/conversation-tests", new { messages = new[] { new { role = "user", content = "hello" } }, expectedProfileRevision = 1, expectedCredentialRevision = 1 });
+        Assert.Equal(HttpStatusCode.NotFound, disabled.StatusCode);
+
+        await client.PutAsJsonAsync("/api/admin/ai-credentials/conversation-secret", new { displayName = "Conversation", secret = "new-secret", expectedRevision = 1 });
+        Assert.Equal(HttpStatusCode.Conflict, (await PostAsync(new[] { new { role = "user", content = "hello" } }, credentialRevision: 1)).StatusCode);
+    }
+
+    [Fact]
+    public async Task ConversationTestReturnsSafeProviderErrorWithoutRawBodyOrSecret()
+    {
+        const string secret = "credential-must-not-leak";
+        const string rawBody = "upstream raw body must not leak";
+        using var factory = _factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IAiConversationService>();
+            services.AddSingleton<IAiConversationService>(new FailingConversationProvider(secret, rawBody));
+        }));
+        var client = await CreateSignedInClientAsync(true, factory);
+        await client.PostAsJsonAsync("/api/admin/ai-credentials/", new { id = "failure-secret", displayName = "Failure", secret });
+        await client.PostAsJsonAsync("/api/admin/ai-profiles/", new { id = "failure", displayName = "Failure", baseUrl = "https://provider.test/v1", model = "model", credentialId = "failure-secret", enabled = true });
+
+        using var response = await client.PostAsJsonAsync("/api/admin/ai-profiles/failure/conversation-tests", new
+        {
+            messages = new[] { new { role = "user", content = "hello" } }, expectedProfileRevision = 1, expectedCredentialRevision = 1
+        });
+        Assert.Equal(HttpStatusCode.TooManyRequests, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains(AiProviderErrorCodes.RateLimited, body);
+        Assert.DoesNotContain(secret, body);
+        Assert.DoesNotContain(rawBody, body);
+    }
+
     public void Dispose() { _factory.Dispose(); if (File.Exists(_dbPath)) File.Delete(_dbPath); }
     private async Task<HttpClient> CreateSignedInClientAsync(bool grantAdmin, WebApplicationFactory<Program>? factory = null)
     {
@@ -121,10 +189,23 @@ public sealed class AiEndpointTests : IDisposable
         return client;
     }
     private static void ApplyCookies(HttpClient client, HttpResponseMessage response) { if (!response.Headers.TryGetValues("Set-Cookie", out var values)) return; client.DefaultRequestHeaders.Remove("Cookie"); foreach (var value in values) { var cookie = value.Split(';', 2)[0]; if (!string.IsNullOrWhiteSpace(cookie)) client.DefaultRequestHeaders.Add("Cookie", cookie); } }
-    private sealed class SuccessfulTextProvider : IAiTextService
+    private sealed class SuccessfulTextProvider : IAiTextService, IAiConversationService
     {
         public Task<AiTextResponse> GenerateAsync(AiTextRequest request, CancellationToken ct) => GenerateForProviderAsync(new AiProviderProfileId("openai"), "test", request, ct);
         public Task<AiTextResponse> GenerateForProviderAsync(AiProviderProfileId provider, string credential, AiTextRequest request, CancellationToken ct) => Task.FromResult(new AiTextResponse("{\"response\":\"テスト応答です。\"}", new(provider, "test-model", "response-1", 12, 7, 42, 1, "stop")));
+        public Task<AiConversationResponse> GenerateForProfileAsync(AiProviderProfileId profileId, AiConversationRequest request, CancellationToken ct) => GenerateForProviderAsync(profileId, "test", request, ct);
+        public Task<AiConversationResponse> GenerateForProviderAsync(AiProviderProfileId provider, string credential, AiConversationRequest request, CancellationToken ct) => Task.FromResult(new AiConversationResponse("conversation response", new(provider, "test-model", "conversation-1", 10, 5, 25, 1, "stop", request.GenerationOverrides)));
         public Task TestConnectionAsync(AiProviderProfileId provider, string credential, CancellationToken ct) => Task.CompletedTask;
+    }
+
+    private sealed class FailingConversationProvider(string expectedCredential, string rawBody) : IAiConversationService
+    {
+        public Task<AiConversationResponse> GenerateForProfileAsync(AiProviderProfileId profileId, AiConversationRequest request, CancellationToken ct) => throw new NotSupportedException();
+        public Task<AiConversationResponse> GenerateForProviderAsync(AiProviderProfileId provider, string credential, AiConversationRequest request, CancellationToken ct)
+        {
+            Assert.Equal(expectedCredential, credential);
+            throw new AiProviderException(AiProviderErrorCodes.RateLimited, "safe message", true, providerResponseExcerpt: rawBody, receivedResult: rawBody,
+                metadata: new(provider, "model", "safe-request-id", null, null, 1, 1, null));
+        }
     }
 }

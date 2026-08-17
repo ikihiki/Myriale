@@ -4,7 +4,7 @@ using Microsoft.Extensions.AI;
 namespace Myriale.Api.Features.AiProviders.Application;
 
 public enum AiAdministrationOutcome { Success, NotFound, Conflict, ValidationFailed, ActiveProfile, CredentialReferenced, CredentialMissing, ProviderFailure }
-public sealed record AiAdministrationResult<T>(AiAdministrationOutcome Outcome, T? Value = default, string? Error = null);
+public sealed record AiAdministrationResult<T>(AiAdministrationOutcome Outcome, T? Value = default, string? Error = null, bool Retryable = false, string? RequestId = null);
 
 public interface IAiProviderProfileRepository
 {
@@ -33,6 +33,8 @@ public sealed record DeleteAiProviderProfileCommand(AiProviderProfileId Id, long
 public sealed record SetAiCredentialCommand(AiCredentialId Id, string DisplayName, string Secret);
 public sealed record ReplaceAiCredentialCommand(AiCredentialId Id, string DisplayName, string Secret, long ExpectedRevision);
 public sealed record DeleteAiCredentialCommand(AiCredentialId Id, long ExpectedRevision);
+public sealed record AiConversationInputMessage(string Role, string Content);
+public sealed record ConversationTestAiProviderProfileCommand(AiProviderProfileId Id, IReadOnlyList<AiConversationInputMessage?> Messages, AiGenerationOverrides? GenerationOverrides, long ExpectedProfileRevision, long ExpectedCredentialRevision, string? ClientRequestId = null);
 public sealed record TestAiProviderProfileCommand(AiProviderProfileId Id, long ExpectedProfileRevision, long ExpectedCredentialRevision);
 public sealed record PromptTestAiProviderProfileCommand(AiProviderProfileId Id, string Prompt, long ExpectedProfileRevision, long ExpectedCredentialRevision);
 
@@ -130,8 +132,9 @@ public sealed class AiCredentialUseCases(IAiCredentialRepository repository, IAi
 
 public sealed record AiConnectionTestResult(AiProviderProfileId ProfileId, long ProfileRevision, AiCredentialId CredentialId, long CredentialRevision, AiCredentialValidationStatus Status, DateTimeOffset TestedAt);
 public sealed record AiPromptProbeResult(AiProviderProfileId Provider, string Model, string Response, int? InputTokens, int? OutputTokens, long LatencyMilliseconds, string? FinishReason);
+public sealed record AiConversationProbeResult(string Response, AiGenerationMetadata Metadata, string? RequestId);
 
-public sealed class AiProviderTestUseCases(IAiProfileCatalog catalog, IAiRuntimeCredentialResolver credentials, IAiCredentialRepository credentialRepository, IAiTextService provider, TimeProvider time)
+public sealed class AiProviderTestUseCases(IAiProfileCatalog catalog, IAiRuntimeCredentialResolver credentials, IAiCredentialRepository credentialRepository, IAiTextService provider, IAiConversationService conversation, TimeProvider time)
 {
     public async Task<AiAdministrationResult<AiConnectionTestResult>> TestConnectionAsync(TestAiProviderProfileCommand command, CancellationToken ct)
     {
@@ -168,6 +171,67 @@ public sealed class AiProviderTestUseCases(IAiProfileCatalog catalog, IAiRuntime
         catch (AiProviderException ex) { return new(AiAdministrationOutcome.ProviderFailure, Error: ex.Code); }
         catch (JsonException) { return new(AiAdministrationOutcome.ProviderFailure, Error: AiProviderErrorCodes.SchemaFailure); }
     }
+    public async Task<AiAdministrationResult<AiConversationProbeResult>> ConversationAsync(ConversationTestAiProviderProfileCommand command, CancellationToken ct)
+    {
+        var validationError = ValidateConversation(command);
+        if (validationError is not null) return new(AiAdministrationOutcome.ValidationFailed, Error: validationError);
+
+        AiProfileDescriptor profile;
+        try { profile = await catalog.ResolveAsync(command.Id, ct); }
+        catch (AiProviderException) { return new(AiAdministrationOutcome.NotFound, Error: "AI profile was not found or is unavailable."); }
+        if (!profile.Enabled || !profile.Selectable) return new(AiAdministrationOutcome.NotFound, Error: "AI profile was not found or is unavailable.");
+
+        var credential = await credentials.ResolveAsync(profile.CredentialId, ct);
+        if (credential is null) return new(AiAdministrationOutcome.CredentialMissing, Error: "Credential is not configured.");
+        if (profile.Revision != command.ExpectedProfileRevision || credential.Revision != command.ExpectedCredentialRevision)
+            return Conflict<AiConversationProbeResult>();
+
+        var messages = command.Messages.Select(message => new ChatMessage(message!.Role switch
+        {
+            "system" => ChatRole.System,
+            "user" => ChatRole.User,
+            "assistant" => ChatRole.Assistant,
+            _ => throw new InvalidOperationException("Conversation role validation was bypassed."),
+        }, message.Content)).ToArray();
+
+        try
+        {
+            var generated = await conversation.GenerateForProviderAsync(profile.Id, credential.Secret, new(messages, command.GenerationOverrides), ct);
+            var currentProfile = await catalog.ResolveAsync(profile.Id, ct);
+            var currentCredential = await credentials.ResolveAsync(profile.CredentialId, ct);
+            if (currentProfile.Revision != profile.Revision || currentCredential?.Revision != credential.Revision)
+                return Conflict<AiConversationProbeResult>();
+            return new(AiAdministrationOutcome.Success, new(generated.Text, generated.Metadata, command.ClientRequestId));
+        }
+        catch (AiProviderException ex)
+        {
+            return new(AiAdministrationOutcome.ProviderFailure, Error: ex.Code, Retryable: ex.Retryable, RequestId: ex.Metadata?.ResponseId);
+        }
+    }
+
+    private static string? ValidateConversation(ConversationTestAiProviderProfileCommand command)
+    {
+        const int maxMessages = 100, maxMessageLength = 10_000, maxTotalLength = 50_000, maxOutputTokens = 32_768, maxRetryAttempts = 5;
+        if (command.Messages is null || command.Messages.Count == 0) return "At least one conversation message is required.";
+        if (command.Messages.Count > maxMessages) return $"Conversation history cannot exceed {maxMessages} messages.";
+        var total = 0;
+        foreach (var message in command.Messages)
+        {
+            if (message is null || message.Role is not ("system" or "user" or "assistant")) return "Message role must be system, user, or assistant.";
+            if (string.IsNullOrWhiteSpace(message.Content)) return "Message content is required.";
+            if (message.Content.Length > maxMessageLength) return $"Message content cannot exceed {maxMessageLength} characters.";
+            total += message.Content.Length;
+            if (total > maxTotalLength) return $"Conversation content cannot exceed {maxTotalLength} characters.";
+        }
+        if (command.ClientRequestId is { Length: > 128 }) return "Client request ID cannot exceed 128 characters.";
+        var options = command.GenerationOverrides;
+        if (options?.Temperature is < 0 or > 2) return "Temperature must be between 0 and 2.";
+        if (options?.TopP is <= 0 or > 1) return "Top P must be greater than 0 and at most 1.";
+        if (options?.MaxOutputTokens is <= 0 or > maxOutputTokens) return $"Maximum output tokens must be between 1 and {maxOutputTokens}.";
+        if (options?.RetryAttempts is < 0 or > maxRetryAttempts) return $"Retry attempts must be between 0 and {maxRetryAttempts}.";
+        return null;
+    }
+
     private static AiCredentialValidationStatus ToStatus(string code) => code switch { AiProviderErrorCodes.InvalidCredential => AiCredentialValidationStatus.InvalidCredential, AiProviderErrorCodes.ModelNotFound => AiCredentialValidationStatus.ModelNotFound, AiProviderErrorCodes.RateLimited => AiCredentialValidationStatus.RateLimited, AiProviderErrorCodes.SchemaFailure => AiCredentialValidationStatus.SchemaFailure, _ => AiCredentialValidationStatus.ProviderUnavailable };
     private static AiAdministrationResult<T> Conflict<T>() => new(AiAdministrationOutcome.Conflict, Error: "Profile or credential revision changed.");
 }

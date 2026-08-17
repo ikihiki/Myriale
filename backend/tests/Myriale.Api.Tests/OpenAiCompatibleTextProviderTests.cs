@@ -77,6 +77,34 @@ public sealed class OpenAiCompatibleTextProviderTests
         Assert.DoesNotContain("shared-secret", handler.LastBody, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Conversation_PreservesOrderedMessagesMapsOverridesAndOmitsResponseFormat()
+    {
+        var handler = Success();
+        var provider = Create(handler, Catalog(Profile("runpod", "https://example.test/v1", "test-model", "shared")), new CredentialResolver("secret"));
+        var overrides = new AiGenerationOverrides(Temperature: 0.7, TopP: 0.9, Seed: 17, MaxOutputTokens: 321, RetryAttempts: 0);
+
+        var result = await ((IAiConversationService)provider).GenerateForProviderAsync(new("runpod"), "secret",
+            new([
+                new ChatMessage(ChatRole.System, "system text"),
+                new ChatMessage(ChatRole.User, "first user"),
+                new ChatMessage(ChatRole.Assistant, "prior assistant"),
+                new ChatMessage(ChatRole.User, "next user"),
+            ], overrides), default);
+
+        using var payload = JsonDocument.Parse(handler.LastBody);
+        var root = payload.RootElement;
+        Assert.False(root.TryGetProperty("response_format", out _));
+        Assert.Equal(["system", "user", "assistant", "user"], root.GetProperty("messages").EnumerateArray().Select(x => x.GetProperty("role").GetString()!).ToArray());
+        Assert.Equal(["system text", "first user", "prior assistant", "next user"], root.GetProperty("messages").EnumerateArray().Select(x => x.GetProperty("content").GetString()!).ToArray());
+        Assert.Equal(0.7, root.GetProperty("temperature").GetDouble());
+        Assert.Equal(0.9, root.GetProperty("top_p").GetDouble());
+        Assert.Equal(17, root.GetProperty("seed").GetInt64());
+        Assert.Equal(321, root.GetProperty("max_tokens").GetInt32());
+        Assert.Equal("{\"ok\":true}", result.Text);
+        Assert.Same(overrides, result.Metadata.GenerationOverrides);
+    }
+
     [Theory]
     [InlineData(HttpStatusCode.Unauthorized, AiProviderErrorCodes.InvalidCredential, false)]
     [InlineData(HttpStatusCode.TooManyRequests, AiProviderErrorCodes.RateLimited, true)]
