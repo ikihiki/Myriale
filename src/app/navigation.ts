@@ -24,6 +24,7 @@ const navigationPaths: Record<StoryKey, string> = {
   adminUsers: '/account/admin/users',
   auditLog: '/account/admin/audit-log',
   adminAiProviders: '/admin',
+  aiPlayground: '/admin/ai-playground',
 };
 
 export function appPathForStoryKey(key: StoryKey, options?: AppNavigateOptions): string {

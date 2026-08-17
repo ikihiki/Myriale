@@ -11,7 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountRouteRouteImport } from './routes/account/route'
-import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as ScenariosRouteRouteImport } from './routes/scenarios/route'
 import { Route as SessionsRouteRouteImport } from './routes/sessions/route'
 import { Route as AccountAdminRouteRouteImport } from './routes/account/admin/route'
@@ -23,6 +23,8 @@ import { Route as AccountRegisterRouteImport } from './routes/account/register'
 import { Route as AccountResetPasswordRouteImport } from './routes/account/reset-password'
 import { Route as AccountSecurityRouteImport } from './routes/account/security'
 import { Route as AccountWithdrawRouteImport } from './routes/account/withdraw'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminAiPlaygroundRouteImport } from './routes/admin/ai-playground'
 import { Route as ModuleExecutionsExecutionIdRouteImport } from './routes/module-executions/$executionId'
 import { Route as ScenariosIndexRouteImport } from './routes/scenarios/index'
 import { Route as ScenariosNewRouteImport } from './routes/scenarios/new'
@@ -56,7 +58,7 @@ const AccountRouteRoute = AccountRouteRouteImport.update({
   path: '/account',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminRoute = AdminRouteImport.update({
+const AdminRouteRoute = AdminRouteRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => rootRouteImport,
@@ -115,6 +117,16 @@ const AccountWithdrawRoute = AccountWithdrawRouteImport.update({
   id: '/withdraw',
   path: '/withdraw',
   getParentRoute: () => AccountRouteRoute,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminAiPlaygroundRoute = AdminAiPlaygroundRouteImport.update({
+  id: '/ai-playground',
+  path: '/ai-playground',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const ModuleExecutionsExecutionIdRoute =
   ModuleExecutionsExecutionIdRouteImport.update({
@@ -236,9 +248,9 @@ const SessionsSessionIdTurnsTurnIdInspectionRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account': typeof AccountRouteRouteWithChildren
+  '/admin': typeof AdminRouteRouteWithChildren
   '/scenarios': typeof ScenariosRouteRouteWithChildren
   '/sessions': typeof SessionsRouteRouteWithChildren
-  '/admin': typeof AdminRoute
   '/account/admin': typeof AccountAdminRouteRouteWithChildren
   '/account/profile': typeof AccountProfileRouteRouteWithChildren
   '/sessions/$sessionId': typeof SessionsSessionIdRouteRouteWithChildren
@@ -249,9 +261,11 @@ export interface FileRoutesByFullPath {
   '/account/reset-password': typeof AccountResetPasswordRoute
   '/account/security': typeof AccountSecurityRoute
   '/account/withdraw': typeof AccountWithdrawRoute
+  '/admin/ai-playground': typeof AdminAiPlaygroundRoute
   '/module-executions/$executionId': typeof ModuleExecutionsExecutionIdRoute
   '/scenarios/new': typeof ScenariosNewRoute
   '/sessions/start': typeof SessionsStartRoute
+  '/admin/': typeof AdminIndexRoute
   '/scenarios/': typeof ScenariosIndexRoute
   '/sessions/': typeof SessionsIndexRoute
   '/account/admin/users': typeof AccountAdminUsersRouteRouteWithChildren
@@ -274,7 +288,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRouteRouteWithChildren
-  '/admin': typeof AdminRoute
   '/account/admin': typeof AccountAdminRouteRouteWithChildren
   '/account/export': typeof AccountExportRoute
   '/account/login': typeof AccountLoginRoute
@@ -283,9 +296,11 @@ export interface FileRoutesByTo {
   '/account/reset-password': typeof AccountResetPasswordRoute
   '/account/security': typeof AccountSecurityRoute
   '/account/withdraw': typeof AccountWithdrawRoute
+  '/admin/ai-playground': typeof AdminAiPlaygroundRoute
   '/module-executions/$executionId': typeof ModuleExecutionsExecutionIdRoute
   '/scenarios/new': typeof ScenariosNewRoute
   '/sessions/start': typeof SessionsStartRoute
+  '/admin': typeof AdminIndexRoute
   '/scenarios': typeof ScenariosIndexRoute
   '/sessions': typeof SessionsIndexRoute
   '/account/admin/ai-providers': typeof AccountAdminAiProvidersRoute
@@ -308,9 +323,9 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/account': typeof AccountRouteRouteWithChildren
+  '/admin': typeof AdminRouteRouteWithChildren
   '/scenarios': typeof ScenariosRouteRouteWithChildren
   '/sessions': typeof SessionsRouteRouteWithChildren
-  '/admin': typeof AdminRoute
   '/account/admin': typeof AccountAdminRouteRouteWithChildren
   '/account/profile': typeof AccountProfileRouteRouteWithChildren
   '/sessions/$sessionId': typeof SessionsSessionIdRouteRouteWithChildren
@@ -321,9 +336,11 @@ export interface FileRoutesById {
   '/account/reset-password': typeof AccountResetPasswordRoute
   '/account/security': typeof AccountSecurityRoute
   '/account/withdraw': typeof AccountWithdrawRoute
+  '/admin/ai-playground': typeof AdminAiPlaygroundRoute
   '/module-executions/$executionId': typeof ModuleExecutionsExecutionIdRoute
   '/scenarios/new': typeof ScenariosNewRoute
   '/sessions/start': typeof SessionsStartRoute
+  '/admin/': typeof AdminIndexRoute
   '/scenarios/': typeof ScenariosIndexRoute
   '/sessions/': typeof SessionsIndexRoute
   '/account/admin/users': typeof AccountAdminUsersRouteRouteWithChildren
@@ -348,9 +365,9 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/account'
+    | '/admin'
     | '/scenarios'
     | '/sessions'
-    | '/admin'
     | '/account/admin'
     | '/account/profile'
     | '/sessions/$sessionId'
@@ -361,9 +378,11 @@ export interface FileRouteTypes {
     | '/account/reset-password'
     | '/account/security'
     | '/account/withdraw'
+    | '/admin/ai-playground'
     | '/module-executions/$executionId'
     | '/scenarios/new'
     | '/sessions/start'
+    | '/admin/'
     | '/scenarios/'
     | '/sessions/'
     | '/account/admin/users'
@@ -386,7 +405,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/account'
-    | '/admin'
     | '/account/admin'
     | '/account/export'
     | '/account/login'
@@ -395,9 +413,11 @@ export interface FileRouteTypes {
     | '/account/reset-password'
     | '/account/security'
     | '/account/withdraw'
+    | '/admin/ai-playground'
     | '/module-executions/$executionId'
     | '/scenarios/new'
     | '/sessions/start'
+    | '/admin'
     | '/scenarios'
     | '/sessions'
     | '/account/admin/ai-providers'
@@ -419,9 +439,9 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/account'
+    | '/admin'
     | '/scenarios'
     | '/sessions'
-    | '/admin'
     | '/account/admin'
     | '/account/profile'
     | '/sessions/$sessionId'
@@ -432,9 +452,11 @@ export interface FileRouteTypes {
     | '/account/reset-password'
     | '/account/security'
     | '/account/withdraw'
+    | '/admin/ai-playground'
     | '/module-executions/$executionId'
     | '/scenarios/new'
     | '/sessions/start'
+    | '/admin/'
     | '/scenarios/'
     | '/sessions/'
     | '/account/admin/users'
@@ -458,9 +480,9 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountRouteRoute: typeof AccountRouteRouteWithChildren
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
   ScenariosRouteRoute: typeof ScenariosRouteRouteWithChildren
   SessionsRouteRoute: typeof SessionsRouteRouteWithChildren
-  AdminRoute: typeof AdminRoute
   ModuleExecutionsExecutionIdRoute: typeof ModuleExecutionsExecutionIdRoute
 }
 
@@ -484,7 +506,7 @@ declare module '@tanstack/react-router' {
       id: '/admin'
       path: '/admin'
       fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
+      preLoaderRoute: typeof AdminRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/scenarios': {
@@ -563,6 +585,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/account/withdraw'
       preLoaderRoute: typeof AccountWithdrawRouteImport
       parentRoute: typeof AccountRouteRoute
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/ai-playground': {
+      id: '/admin/ai-playground'
+      path: '/ai-playground'
+      fullPath: '/admin/ai-playground'
+      preLoaderRoute: typeof AdminAiPlaygroundRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/module-executions/$executionId': {
       id: '/module-executions/$executionId'
@@ -793,6 +829,20 @@ const AccountRouteRouteWithChildren = AccountRouteRoute._addFileChildren(
   AccountRouteRouteChildren,
 )
 
+interface AdminRouteRouteChildren {
+  AdminAiPlaygroundRoute: typeof AdminAiPlaygroundRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminAiPlaygroundRoute: AdminAiPlaygroundRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
+
 interface ScenariosRouteRouteChildren {
   ScenariosNewRoute: typeof ScenariosNewRoute
   ScenariosIndexRoute: typeof ScenariosIndexRoute
@@ -857,9 +907,9 @@ const SessionsRouteRouteWithChildren = SessionsRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRouteRoute: AccountRouteRouteWithChildren,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
   ScenariosRouteRoute: ScenariosRouteRouteWithChildren,
   SessionsRouteRoute: SessionsRouteRouteWithChildren,
-  AdminRoute: AdminRoute,
   ModuleExecutionsExecutionIdRoute: ModuleExecutionsExecutionIdRoute,
 }
 export const routeTree = rootRouteImport

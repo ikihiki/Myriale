@@ -45,3 +45,23 @@ describe('AdminAiApi split profile and credential contracts', () => {
     expect(runpod.validationStatus).toBe('untested');
   });
 });
+
+import { afterEach, vi } from 'vitest';
+import { createFetchAdminAiApi } from './adminAiApi';
+
+afterEach(() => vi.restoreAllMocks());
+
+describe('AdminAiApi conversation test contract', () => {
+  it('posts ordered messages, generation overrides, and revision fences without profile secrets', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ message: { role: 'assistant', content: 'answer' }, provider: 'provider', model: 'model', latencyMilliseconds: 12, attemptCount: 1 }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    const api = createFetchAdminAiApi('/api/admin');
+    const profile = (await createDemoAdminAiApi().listProfiles())[0];
+    await api.testConversation(profile, [{ role: 'system', content: 'rules' }, { role: 'user', content: 'question' }], { temperature: 0.4, maximumOutputTokens: 300 });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`/api/admin/ai-profiles/${profile.id}/conversation-tests`);
+    const body = JSON.parse(String(init?.body));
+    expect(body).toEqual({ messages: [{ role: 'system', content: 'rules' }, { role: 'user', content: 'question' }], generationOverrides: { temperature: 0.4, maximumOutputTokens: 300 }, expectedProfileRevision: profile.revision, expectedCredentialRevision: profile.credentialRevision });
+    expect(JSON.stringify(body)).not.toContain(profile.baseUrl);
+    expect(JSON.stringify(body)).not.toContain(profile.credentialId);
+  });
+});
