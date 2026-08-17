@@ -10,7 +10,7 @@ The selectable AI profile `runpod-llm` targets the Runpod endpoint named `llm` f
 |---|---|---|---|
 | `runpod-llm` | `z2fbw7xlmrvgok` | `tcw5m1y0y7` | `DavidAU/Qwen3.6-40B-Claude-4.6-Opus-Deckard-Heretic-Uncensored-Thinking-NEO-CODE-Di-IMatrix-MAX-GGUF` |
 
-The profile reuses credential ID `runpod`; no API key is committed. The endpoint is separate from the parked fair-comparison cohort below and remains selectable in the normal AI profile and conversation playground flows.
+The profile reuses credential ID `runpod-main`; no API key is committed. The endpoint is separate from the parked fair-comparison cohort below and remains selectable in the normal AI profile and conversation playground flows.
 
 ## Fair-comparison cohort
 
