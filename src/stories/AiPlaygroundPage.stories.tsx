@@ -35,6 +35,13 @@ export const BuildAndGenerateConversation: Story = {
       await expect(await canvas.findByText(/古いドームの隙間/)).toBeVisible();
       await expect(canvas.getByTestId('ai-playground-metadata')).toHaveTextContent('qwen-story-8b');
     });
+    await step('新しいllm endpointを選択して実行できる', async () => {
+      await userEvent.selectOptions(canvas.getByLabelText('AI Profile'), 'runpod-llm');
+      await userEvent.click(canvas.getByRole('button', { name: '次のassistant応答を生成' }));
+      await expect(await canvas.findByText(/観測窓がゆっくりと夜空へ開きます/)).toBeVisible();
+      await expect(canvas.getByTestId('ai-playground-metadata')).toHaveTextContent('runpod-llm');
+      await expect(canvas.getByTestId('ai-playground-metadata')).toHaveTextContent('Qwen3.6-40B');
+    });
   },
 };
 
