@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Options;
@@ -8,6 +9,7 @@ namespace Myriale.Api.Features.ModulePackages.Infrastructure;
 
 internal sealed class FileModulePackageArtifactStore : IModulePackageArtifactStore, IModulePackageResourceService
 {
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> PromotionLocks = new(StringComparer.Ordinal);
     private readonly ModulePackageOptions _options;
     private readonly ILogger<FileModulePackageArtifactStore> _logger;
     private readonly string _root;
@@ -53,9 +55,18 @@ internal sealed class FileModulePackageArtifactStore : IModulePackageArtifactSto
     {
         if (staged.Digest != inspection.Digest) throw new InvalidDataException("Staged digest and inspection digest differ.");
         var canonical = PackagePath(inspection.Digest, inspection.Format);
-        if (!File.Exists(canonical)) File.Copy(StagedInput(staged), canonical, overwrite: false);
-        else await RequireDigestAsync(canonical, inspection.Digest, cancellationToken);
-        await ExpandCanonicalAsync(canonical, inspection, cancellationToken);
+        var promotionLock = PromotionLocks.GetOrAdd(canonical, static _ => new SemaphoreSlim(1, 1));
+        await promotionLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (!File.Exists(canonical)) File.Copy(StagedInput(staged), canonical, overwrite: false);
+            else await RequireDigestAsync(canonical, inspection.Digest, cancellationToken);
+            await ExpandCanonicalAsync(canonical, inspection, cancellationToken);
+        }
+        finally
+        {
+            promotionLock.Release();
+        }
     }
 
     public async Task<ModulePackageArtifactVerification> VerifyAsync(ModulePackageSnapshot package, CancellationToken cancellationToken)
