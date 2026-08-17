@@ -57,7 +57,7 @@ export const ProviderErrorPreservesHistory: Story = {
 export const InvalidImportAndEmptyHistory: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await step('壊れたJSONを拒否して現在の履歴を残す', async () => { await userEvent.click(canvas.getByText('JSON import / export')); await userEvent.type(canvas.getByLabelText('会話履歴import JSON'), '{broken'); await userEvent.click(canvas.getByRole('button', { name: 'JSONを読み込む' })); await expect(canvas.getByRole('alert')).toHaveTextContent('変更されていません'); await expect(canvas.getByLabelText('2番目のmessage content')).toHaveValue('古い天文台の扉を開けます。中の様子を教えてください。'); });
+    await step('壊れたJSONを拒否して現在の履歴を残す', async () => { await userEvent.click(canvas.getByText('JSON import / export')); await userEvent.click(canvas.getByLabelText('会話履歴import JSON')); await userEvent.paste('{broken'); await userEvent.click(canvas.getByRole('button', { name: 'JSONを読み込む' })); await expect(canvas.getByRole('alert')).toHaveTextContent('変更されていません'); await expect(canvas.getByLabelText('2番目のmessage content')).toHaveValue('古い天文台の扉を開けます。中の様子を教えてください。'); });
     await step('空履歴では生成できない', async () => { await userEvent.click(canvas.getByRole('button', { name: '全消去' })); await expect(canvas.getByRole('button', { name: '次のassistant応答を生成' })).toBeDisabled(); await expect(canvas.getByText(/会話履歴は空です/)).toBeVisible(); });
   },
 };
