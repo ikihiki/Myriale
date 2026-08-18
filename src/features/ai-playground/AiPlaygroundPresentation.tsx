@@ -3,7 +3,7 @@ import type { AppChromeAccount } from '../../account/accountPresentation';
 import type { AiPlaygroundGenerationOverrides, AiPlaygroundRole } from '../../account/api/adminAiApi';
 import { Badge, Button, Input, Label, Notice, PageCanvas, PageShell, Panel, Textarea } from '../../components/ui';
 import { AppChrome } from '../../shared/AppChrome';
-import type { AiPlaygroundActions, AiPlaygroundRunMetadata, AiPlaygroundState, EditableAiPlaygroundMessage } from './aiPlaygroundModel';
+import type { AiPlaygroundActions, AiPlaygroundRunRecord, AiPlaygroundState, EditableAiPlaygroundMessage } from './aiPlaygroundModel';
 import { exportConversation, parseConversationImport, toRequestMessages } from './aiPlaygroundModel';
 
 type Props = { account: AppChromeAccount | null; state: AiPlaygroundState; actions: AiPlaygroundActions };
@@ -19,13 +19,14 @@ function toOptionalNumber(value: string) { return value.trim() === '' ? null : N
 
 export function AiPlaygroundPresentation({ account, state, actions }: Props) {
   const nextId = useRef(1);
+  const nextRunId = useRef(1);
   const createMessages = (items: { role: AiPlaygroundRole; content: string }[]) => items.map((item) => ({ ...item, id: `message-${nextId.current++}` }));
   const [messages, setMessages] = useState<EditableAiPlaygroundMessage[]>(() => createMessages(starter));
   const [generation, setGeneration] = useState<GenerationDraft>(defaultGeneration);
   const [working, setWorking] = useState(false);
   const [notice, setNotice] = useState('送信される順序で架空の会話を編集し、次のassistant応答を生成します。');
   const [noticeTone, setNoticeTone] = useState<'info' | 'danger' | 'success'>('info');
-  const [metadata, setMetadata] = useState<AiPlaygroundRunMetadata | null>(null);
+  const [runs, setRuns] = useState<AiPlaygroundRunRecord[]>([]);
   const [importText, setImportText] = useState('');
   const [exportText, setExportText] = useState('');
 
@@ -56,8 +57,9 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
       const result = await actions.generate(toRequestMessages(messages), generationOverrides);
       setNotice(result.message); setNoticeTone(result.ok ? 'success' : 'danger');
       if (result.ok && result.value) {
+        const sequence = nextRunId.current++;
         setMessages((current) => [...current, ...createMessages([result.value!.message])]);
-        setMetadata(result.value.metadata);
+        setRuns((current) => [{ ...result.value!, id: `run-${sequence}`, sequence }, ...current]);
       }
     } finally { setWorking(false); }
   };
@@ -77,7 +79,7 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
         <Panel as="section" className="grid gap-5" aria-label="会話コンテキスト">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div><Label as="h2" textRole="sectionEditorial" className="m-0 !text-3xl">Conversation context</Label><p className="m-0 text-sm text-myr-ink-subtle">番号とrailがAPIへ送信される順序を表します。</p></div>
-            <div className="flex flex-wrap gap-2"><Button size="sm" variant="secondary" onClick={() => setMessages(createMessages(starter))}>サンプル初期化</Button><Button size="sm" variant="secondary" onClick={() => { setMessages([]); setMetadata(null); }}>全消去</Button></div>
+            <div className="flex flex-wrap gap-2"><Button size="sm" variant="secondary" onClick={() => setMessages(createMessages(starter))}>サンプル初期化</Button><Button size="sm" variant="secondary" onClick={() => { setMessages([]); setRuns([]); }}>全消去</Button></div>
           </div>
           <ol className="relative m-0 grid list-none gap-4 p-0 before:absolute before:top-6 before:bottom-6 before:left-[1.05rem] before:w-px before:bg-[#5c4f8f]/35">
             {messages.map((message, index) => <li key={message.id} className="relative grid grid-cols-[2.2rem_minmax(0,1fr)] gap-3" data-testid={`playground-message-${index}`}>
@@ -98,7 +100,14 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
             <details><summary className="cursor-pointer font-bold">Generation overrides</summary><div className="mt-3 grid grid-cols-2 gap-3"><label className="text-sm">Temperature<Input aria-label="Temperature" type="number" min="0" max="2" step="0.1" value={generation.temperature} onChange={(event) => setGeneration((current) => ({ ...current, temperature: event.target.value }))} /></label><label className="text-sm">Top P<Input aria-label="Top P" type="number" min="0" max="1" step="0.05" value={generation.topP} onChange={(event) => setGeneration((current) => ({ ...current, topP: event.target.value }))} /></label><label className="text-sm">Max output tokens<Input aria-label="Maximum output tokens" type="number" min="1" value={generation.maximumOutputTokens} onChange={(event) => setGeneration((current) => ({ ...current, maximumOutputTokens: event.target.value }))} /></label><label className="text-sm">Seed<Input aria-label="Seed" type="number" value={generation.seed} onChange={(event) => setGeneration((current) => ({ ...current, seed: event.target.value }))} /></label><label className="text-sm">Retry attempts<Input aria-label="Retry attempts" type="number" min="0" value={generation.retryAttempts} onChange={(event) => setGeneration((current) => ({ ...current, retryAttempts: event.target.value }))} /></label></div></details>
             <Button variant="primary" size="lg" disabled={working || !selectedProfile || messages.length === 0 || hasBlankMessage} onClick={() => void generate()}>{working ? '生成中…' : '次のassistant応答を生成'}</Button>
           </Panel>
-          <Panel as="section" className="grid gap-3" aria-label="直近の実行結果" data-testid="ai-playground-metadata"><Label as="h2" textRole="sectionEditorial" className="m-0 !text-2xl">Last run</Label>{metadata ? <dl className="m-0 grid grid-cols-2 gap-x-3 gap-y-2 text-sm"><dt className="text-myr-ink-subtle">Provider / model</dt><dd className="m-0 break-words text-right font-bold">{metadata.provider} / {metadata.model}</dd><dt className="text-myr-ink-subtle">Tokens</dt><dd className="m-0 text-right">{metadata.inputTokens ?? '—'} in / {metadata.outputTokens ?? '—'} out</dd><dt className="text-myr-ink-subtle">Latency</dt><dd className="m-0 text-right">{metadata.latencyMilliseconds} ms</dd><dt className="text-myr-ink-subtle">Attempt / finish</dt><dd className="m-0 text-right">{metadata.attemptCount} / {metadata.finishReason ?? '—'}</dd><dt className="text-myr-ink-subtle">Response ID</dt><dd className="m-0 break-all text-right font-mono text-xs">{metadata.responseId ?? '—'}</dd><dt className="text-myr-ink-subtle">Request ID</dt><dd className="m-0 break-all text-right font-mono text-xs">{metadata.requestId ?? '—'}</dd></dl> : <p className="m-0 text-sm text-myr-ink-subtle">まだ実行していません。</p>}</Panel>
+          <Panel as="section" className="grid gap-4" aria-label="応答履歴" data-testid="ai-playground-metadata">
+            <div className="flex items-start justify-between gap-3"><div><Label as="h2" textRole="sectionEditorial" className="m-0 !text-2xl">Response history</Label><p className="m-0 text-xs text-myr-ink-subtle">新しい応答から順に、この画面を開いている間だけ保持します。</p></div><Badge tone="info">{runs.length}</Badge></div>
+            {runs.length > 0 ? <><div className="grid max-h-[36rem] gap-3 overflow-y-auto pr-1" aria-live="polite">{runs.map((run) => <article key={run.id} className="grid gap-3 rounded-xl border border-[#17151f]/15 bg-white/75 p-4" data-testid="ai-playground-response-item" aria-label={`Response ${run.sequence}`}>
+              <div className="flex items-center justify-between gap-3"><div><p className="m-0 text-xs font-black uppercase tracking-widest text-[#5c4f8f]">Response {String(run.sequence).padStart(2, '0')}</p><p className="m-0 break-all font-mono text-[11px] leading-4 text-myr-ink-subtle">{run.metadata.provider} / {run.metadata.model}</p></div><Button size="sm" variant="secondary" aria-label={`Response ${run.sequence}を削除`} onClick={() => setRuns((current) => current.filter((item) => item.id !== run.id))}>削除</Button></div>
+              <p className="m-0 whitespace-pre-wrap break-words text-sm leading-6">{run.message.content}</p>
+              <dl className="m-0 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-[#17151f]/10 pt-3 text-xs"><dt className="text-myr-ink-subtle">Tokens</dt><dd className="m-0 text-right">{run.metadata.inputTokens ?? '—'} in / {run.metadata.outputTokens ?? '—'} out</dd><dt className="text-myr-ink-subtle">Latency</dt><dd className="m-0 text-right">{run.metadata.latencyMilliseconds} ms</dd><dt className="text-myr-ink-subtle">Attempt / finish</dt><dd className="m-0 text-right">{run.metadata.attemptCount} / {run.metadata.finishReason ?? '—'}</dd><dt className="text-myr-ink-subtle">Response ID</dt><dd className="m-0 break-all text-right font-mono text-[10px]">{run.metadata.responseId ?? '—'}</dd><dt className="text-myr-ink-subtle">Request ID</dt><dd className="m-0 break-all text-right font-mono text-[10px]">{run.metadata.requestId ?? '—'}</dd></dl>
+            </article>)}</div><Button size="sm" variant="secondary" onClick={() => setRuns([])}>応答履歴を全消去</Button></> : <p className="m-0 text-sm text-myr-ink-subtle">まだ応答はありません。生成するたびに、ここへ結果が追加されます。</p>}
+          </Panel>
         </aside>
       </div>}
     </PageShell></PageCanvas>

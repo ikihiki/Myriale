@@ -25,22 +25,32 @@ export const BuildAndGenerateConversation: Story = {
     });
     await step('生成するとassistant応答が末尾へ追加されmetadataを確認できる', async () => {
       await userEvent.click(canvas.getByRole('button', { name: '次のassistant応答を生成' }));
-      await expect(await canvas.findByText(/扉の向こうには/)).toBeVisible();
+      await expect(await canvas.findByRole('article', { name: 'Response 1' })).toHaveTextContent('扉の向こうには');
       await expect(canvas.getByTestId('ai-playground-metadata')).toHaveTextContent('gpt-story-mini');
       await expect(canvas.getByTestId('ai-playground-metadata')).toHaveTextContent('48 in / 24 out');
+      await expect(canvas.getAllByTestId('ai-playground-response-item')).toHaveLength(1);
     });
     await step('Profileを切り替えると別modelの応答とmetadataになる', async () => {
       await userEvent.selectOptions(canvas.getByLabelText('AI Profile'), 'story-local');
       await userEvent.click(canvas.getByRole('button', { name: '次のassistant応答を生成' }));
-      await expect(await canvas.findByText(/古いドームの隙間/)).toBeVisible();
+      await expect(await canvas.findByRole('article', { name: 'Response 2' })).toHaveTextContent('古いドームの隙間');
       await expect(canvas.getByTestId('ai-playground-metadata')).toHaveTextContent('qwen-story-8b');
+      await expect(canvas.getAllByTestId('ai-playground-response-item')).toHaveLength(2);
+      await expect(canvas.getAllByTestId('ai-playground-response-item')[0]).toHaveTextContent('古いドームの隙間');
     });
     await step('新しいllm endpointを選択して実行できる', async () => {
       await userEvent.selectOptions(canvas.getByLabelText('AI Profile'), 'runpod-llm');
       await userEvent.click(canvas.getByRole('button', { name: '次のassistant応答を生成' }));
-      await expect(await canvas.findByText(/観測窓がゆっくりと夜空へ開きます/)).toBeVisible();
+      await expect(await canvas.findByRole('article', { name: 'Response 3' })).toHaveTextContent('観測窓がゆっくりと夜空へ開きます');
       await expect(canvas.getByTestId('ai-playground-metadata')).toHaveTextContent('runpod-llm');
       await expect(canvas.getByTestId('ai-playground-metadata')).toHaveTextContent('Qwen3.6-40B');
+      await expect(canvas.getAllByTestId('ai-playground-response-item')).toHaveLength(3);
+    });
+    await step('個別の応答を削除して残りをリストで管理する', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: 'Response 2を削除' }));
+      await expect(canvas.getAllByTestId('ai-playground-response-item')).toHaveLength(2);
+      await expect(canvas.queryByRole('article', { name: 'Response 2' })).not.toBeInTheDocument();
+      await expect(canvas.getByRole('article', { name: 'Response 3' })).toBeVisible();
     });
   },
 };
@@ -50,7 +60,7 @@ export const ProviderErrorPreservesHistory: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement); const before = '古い天文台の扉を開けます。中の様子を教えてください。';
     await step('Provider errorでも編集中の履歴を保持する', async () => { await userEvent.click(canvas.getByRole('button', { name: '次のassistant応答を生成' })); await expect(canvas.getByRole('alert')).toHaveTextContent('一時的に利用できません'); await expect(canvas.getByLabelText('2番目のmessage content')).toHaveValue(before); });
-    await step('同じ履歴で再試行できる', async () => { await userEvent.click(canvas.getByRole('button', { name: '次のassistant応答を生成' })); await expect(await canvas.findByText(/扉の向こうには/)).toBeVisible(); });
+    await step('同じ履歴で再試行できる', async () => { await userEvent.click(canvas.getByRole('button', { name: '次のassistant応答を生成' })); await expect(await canvas.findByRole('article', { name: 'Response 1' })).toHaveTextContent('扉の向こうには'); });
   },
 };
 

@@ -8,6 +8,7 @@ export type AiPlaygroundState =
   | { status: 'ready'; profiles: AiPlaygroundProfile[]; selectedProfileId: string | null };
 export type AiPlaygroundCommandResult<T = undefined> = { ok: boolean; message: string; value?: T; action?: 'login' | 'reload' };
 export type AiPlaygroundGenerationResult = { message: AiPlaygroundMessage & { role: 'assistant' }; metadata: AiPlaygroundRunMetadata };
+export type AiPlaygroundRunRecord = AiPlaygroundGenerationResult & { id: string; sequence: number };
 export type AiPlaygroundActions = {
   selectProfile: (profileId: string) => void;
   generate: (messages: AiPlaygroundMessage[], generationOverrides: AiPlaygroundGenerationOverrides) => Promise<AiPlaygroundCommandResult<AiPlaygroundGenerationResult>>;
