@@ -22,7 +22,7 @@ public static class AiPlaygroundEndpoints
     {
         var ownerAccountId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(ownerAccountId)) return Results.Unauthorized();
-        return Map(await service.GetAsync(ownerAccountId, cancellationToken));
+        return Map(await service.GetAsync(new AccountId(ownerAccountId), cancellationToken));
     }
 
     private static async Task<IResult> PutAsync(
@@ -33,7 +33,7 @@ public static class AiPlaygroundEndpoints
     {
         var ownerAccountId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(ownerAccountId)) return Results.Unauthorized();
-        return Map(await service.PutAsync(ownerAccountId, request.Document, request.ExpectedRevision, cancellationToken));
+        return Map(await service.PutAsync(new AccountId(ownerAccountId), request.Document, request.ExpectedRevision, cancellationToken));
     }
 
     private static IResult Map(AiPlaygroundDocumentResult result) => result.Outcome switch

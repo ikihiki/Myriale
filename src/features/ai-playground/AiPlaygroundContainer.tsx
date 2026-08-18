@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { toAppChromeAccount } from '../../account/accountPresentation';
@@ -20,11 +20,22 @@ export function AiPlaygroundContainer({ api }: { api?: AdminAiApi }) {
   const accountSession = useAccountSession();
   const adminAiApi = useMemo(() => api ?? createFetchAdminAiApi(), [api]);
   const [reloadKey, setReloadKey] = useState(0);
+  const revisionRef = useRef<number | null>(null);
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const query = useQuery({
-    queryKey: ['admin-ai-playground-profiles', reloadKey],
-    queryFn: () => adminAiApi.listProfiles(),
+    queryKey: ['admin-ai-playground', reloadKey],
+    queryFn: async () => {
+      const [profiles, playground] = await Promise.all([
+        adminAiApi.listProfiles(),
+        adminAiApi.getPlaygroundDocument(),
+      ]);
+      return { profiles, playground };
+    },
   });
-  const availableProfiles = (query.data ?? []).filter(
+  useEffect(() => {
+    revisionRef.current = query.data?.playground?.revision ?? null;
+  }, [query.data?.playground?.revision]);
+  const availableProfiles = (query.data?.profiles ?? []).filter(
     (profile) => profile.enabled && profile.credentialConfigured,
   );
   const profiles: AiPlaygroundProfile[] = availableProfiles.map(
@@ -102,6 +113,51 @@ export function AiPlaygroundContainer({ api }: { api?: AdminAiApi }) {
     }
   };
 
+  const save: AiPlaygroundActions['save'] = async (document) => {
+    const previous = saveQueueRef.current;
+    let release: () => void = () => undefined;
+    saveQueueRef.current = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    try {
+      const snapshot = await adminAiApi.savePlaygroundDocument(
+        document,
+        revisionRef.current,
+      );
+      revisionRef.current = snapshot.revision;
+      return { ok: true, message: 'PlaygroundをDBへ保存しました。' };
+    } catch (caught) {
+      const error = caught as AdminAiApiError;
+      if (error.status === 401 || error.status === 403) {
+        if (error.status === 401) accountSession.clearUser();
+        return {
+          ok: false,
+          message:
+            error.status === 401
+              ? 'ログインの有効期限が切れたため保存できませんでした。'
+              : 'Playgroundを保存する権限がありません。',
+          action: error.status === 401 ? 'login' : undefined,
+        };
+      }
+      if (error.status === 409) {
+        setReloadKey((value) => value + 1);
+        return {
+          ok: false,
+          message:
+            '別の画面でPlaygroundが更新されています。再読み込みして内容を確認してください。',
+          action: 'reload',
+        };
+      }
+      return {
+        ok: false,
+        message: error.message ?? 'PlaygroundをDBへ保存できませんでした。',
+      };
+    } finally {
+      release();
+    }
+  };
+
   const state = query.isPending
     ? { status: 'loading' as const }
     : query.isError
@@ -119,6 +175,8 @@ export function AiPlaygroundContainer({ api }: { api?: AdminAiApi }) {
             availableProfiles.find((profile) => profile.active)?.id ??
             availableProfiles[0]?.id ??
             null,
+        document: query.data.playground?.document ?? null,
+        documentRevision: query.data.playground?.revision ?? null,
       };
   return (
     <AiPlaygroundPresentation
@@ -126,6 +184,7 @@ export function AiPlaygroundContainer({ api }: { api?: AdminAiApi }) {
       state={state}
       actions={{
         generate,
+        save,
         retry: () => setReloadKey((value) => value + 1),
         logout: async () => {
           await accountSession.api.logout();

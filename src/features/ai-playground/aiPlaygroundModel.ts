@@ -1,5 +1,6 @@
 import type {
   AiConversationTestResult,
+  AiPlaygroundDocument,
   AiPlaygroundGenerationOverrides,
   AiPlaygroundMessage,
   AiPlaygroundRole,
@@ -20,6 +21,8 @@ export type AiPlaygroundState =
     status: 'ready';
     profiles: AiPlaygroundProfile[];
     defaultProfileId: string | null;
+    document: AiPlaygroundDocument | null;
+    documentRevision: number | null;
   };
 export type AiPlaygroundCommandResult<T = undefined> = {
   ok: boolean;
@@ -48,6 +51,7 @@ export type AiPlaygroundActions = {
     messages: AiPlaygroundMessage[],
     generationOverrides: AiPlaygroundGenerationOverrides,
   ) => Promise<AiPlaygroundCommandResult<AiPlaygroundGenerationResult>>;
+  save: (document: AiPlaygroundDocument) => Promise<AiPlaygroundCommandResult>;
   retry: () => void;
   logout: () => void | Promise<void>;
 };

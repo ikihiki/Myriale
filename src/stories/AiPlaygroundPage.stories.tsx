@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, userEvent, within } from '@storybook/test';
+import { expect, userEvent, waitFor, within } from '@storybook/test';
 import { MyrialeApp } from '../app/MyrialeApp';
 import { createDemoDb } from '../app/demoData';
 import {
@@ -46,6 +46,11 @@ export const ManageIndependentConversations: Story = {
           canvas.getByRole('main', { name: 'AI Conversation Playground' }),
         ).toBeVisible();
         await renameActiveConversation(canvas, '天文台');
+        await waitFor(() =>
+          expect(
+            canvas.getByTestId('ai-playground-save-status'),
+          ).toHaveTextContent('DBへ保存済み'),
+        );
         await userEvent.click(
           canvas.getByRole('button', { name: '次のassistant応答を生成' }),
         );

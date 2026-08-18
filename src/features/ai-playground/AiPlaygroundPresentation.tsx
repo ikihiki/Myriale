@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AppChromeAccount } from '../../account/accountPresentation';
 import type {
+  AiPlaygroundDocument,
   AiPlaygroundGenerationOverrides,
   AiPlaygroundRole,
 } from '../../account/api/adminAiApi';
@@ -68,11 +69,12 @@ function toOptionalNumber(value: string) {
 }
 
 export function AiPlaygroundPresentation({ account, state, actions }: Props) {
-  const nextMessageId = useRef(1);
-  const nextResponseId = useRef(1);
-  const nextConversationId = useRef(2);
-  const createMessageId = () => `message-${nextMessageId.current++}`;
-  const createResponseId = () => `response-${nextResponseId.current++}`;
+  const nextLocalId = useRef(1);
+  const nextConversationNumber = useRef(2);
+  const createId = (prefix: string) =>
+    `${prefix}-${globalThis.crypto?.randomUUID?.() ?? nextLocalId.current++}`;
+  const createMessageId = () => createId('message');
+  const createResponseId = () => createId('response');
   const createMessages = (
     items: { role: AiPlaygroundRole; content: string }[],
   ) => items.map((item) => ({ ...item, id: createMessageId() }));
@@ -89,6 +91,12 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
   ]);
   const [selectedConversationId, setSelectedConversationId] =
     useState('conversation-1');
+  const hydratedDocumentRevision = useRef<number | null>();
+  const lastSavedDocument = useRef('');
+  const [hydrated, setHydrated] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<
+    'loading' | 'saving' | 'saved' | 'error'
+  >('loading');
   const [workingConversationIds, setWorkingConversationIds] = useState<
     Set<string>
   >(() => new Set());
@@ -170,6 +178,50 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
     }));
   const setSelectedResponseId = (responseId: string | null) =>
     updateActiveConversation({ selectedResponseId: responseId });
+
+  useEffect(() => {
+    if (
+      !ready ||
+      (hydrated &&
+        hydratedDocumentRevision.current === ready.documentRevision)
+    )
+      return;
+    hydratedDocumentRevision.current = ready.documentRevision;
+    if (ready.document) {
+      const document = structuredClone(ready.document);
+      setConversations(
+        document.conversations as AiPlaygroundConversationWorkspace[],
+      );
+      setSelectedConversationId(document.selectedConversationId);
+      lastSavedDocument.current = JSON.stringify(document);
+      setSaveStatus('saved');
+    }
+    setHydrated(true);
+  }, [hydrated, ready]);
+
+  useEffect(() => {
+    if (!ready || !hydrated) return;
+    const document: AiPlaygroundDocument = {
+      conversations,
+      selectedConversationId,
+    };
+    const serialized = JSON.stringify(document);
+    if (serialized === lastSavedDocument.current) return;
+    setSaveStatus('saving');
+    const timeout = window.setTimeout(() => {
+      void actions.save(document).then((result) => {
+        if (result.ok) {
+          lastSavedDocument.current = serialized;
+          setSaveStatus('saved');
+          return;
+        }
+        setSaveStatus('error');
+        setNotice(result.message);
+        setNoticeTone('danger');
+      });
+    }, 700);
+    return () => window.clearTimeout(timeout);
+  }, [actions, conversations, hydrated, ready, selectedConversationId]);
 
   useEffect(() => {
     if (!ready?.profiles.length) return;
@@ -320,9 +372,9 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
   };
 
   const createConversation = () => {
-    const number = nextConversationId.current++;
+    const number = nextConversationNumber.current++;
     const conversation = createPlaygroundConversation({
-      id: `conversation-${number}`,
+      id: createId('conversation'),
       title: `Conversation ${number}`,
       profileId: ready?.defaultProfileId ?? ready?.profiles[0]?.id ?? null,
       messages: createMessages(starter),
@@ -336,9 +388,8 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
     setNoticeTone('success');
   };
   const duplicateConversation = () => {
-    const number = nextConversationId.current++;
     const conversation = duplicatePlaygroundConversation(activeConversation, {
-      id: `conversation-${number}`,
+      id: createId('conversation'),
       title: `${activeConversation.title} copy`,
       createMessageId,
       createResponseId,
@@ -384,14 +435,14 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
         >
           <header className="grid gap-3 border-b border-[#17151f]/15 pb-5">
             <p className="kicker m-0 text-[#5c4f8f]">
-              Ephemeral admin workspace
+              Persistent admin workspace
             </p>
             <Label as="h1" textRole="sectionEditorial" className="m-0">
               AI Conversation Playground
             </Label>
             <p className="m-0 max-w-4xl leading-7 text-myr-ink-subtle">
               system / user / assistant
-              の履歴をブラウザ内だけで組み立てます。生成した応答は、明示的に追加するまで会話履歴を変更しません。
+              の履歴を組み立て、会話・設定・生成応答をDBへ自動保存します。生成した応答は、明示的に追加するまで会話履歴を変更しません。
             </p>
             <Notice
               tone={noticeTone}
@@ -442,6 +493,23 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                         </Label>
                         <Badge tone="neutral">{conversations.length}</Badge>
                       </div>
+                      <p
+                        className={`m-0 mt-2 text-xs font-bold ${
+                          saveStatus === 'error'
+                            ? 'text-red-700'
+                            : 'text-[#5c4f8f]'
+                        }`}
+                        data-testid="ai-playground-save-status"
+                        aria-live="polite"
+                      >
+                        {saveStatus === 'loading'
+                          ? 'DBから読み込み中…'
+                          : saveStatus === 'saving'
+                            ? 'DBへ保存中…'
+                            : saveStatus === 'saved'
+                              ? 'DBへ保存済み'
+                              : 'DBへ保存できませんでした'}
+                      </p>
                       <p className="m-0 mt-1 text-xs leading-5 text-myr-ink-subtle">
                         独立したリクエストとして会話・実行設定・生成応答を切り替えます。
                       </p>
@@ -887,7 +955,7 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                       >
                         {responses.length}件の応答
                       </span>{' '}
-                      · ブラウザを離れると破棄されます。
+                      · 会話ワークスペースと一緒にDBへ保存されます。
                     </p>
                   </div>
                   <Button

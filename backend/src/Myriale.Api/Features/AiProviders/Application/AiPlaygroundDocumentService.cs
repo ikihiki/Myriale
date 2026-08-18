@@ -19,7 +19,7 @@ public sealed record AiPlaygroundDocumentResult(
 
 public sealed class AiPlaygroundDocumentService(ApplicationDbContext dbContext)
 {
-    public async Task<AiPlaygroundDocumentResult> GetAsync(string ownerAccountId, CancellationToken cancellationToken)
+    public async Task<AiPlaygroundDocumentResult> GetAsync(AccountId ownerAccountId, CancellationToken cancellationToken)
     {
         var stored = await dbContext.AiPlaygroundDocuments
             .AsNoTracking()
@@ -30,7 +30,7 @@ public sealed class AiPlaygroundDocumentService(ApplicationDbContext dbContext)
     }
 
     public async Task<AiPlaygroundDocumentResult> PutAsync(
-        string ownerAccountId,
+        AccountId ownerAccountId,
         JsonElement document,
         long? expectedRevision,
         CancellationToken cancellationToken)

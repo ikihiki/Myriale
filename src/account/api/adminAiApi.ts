@@ -13,6 +13,26 @@ export type AiPlaygroundRole = 'system' | 'user' | 'assistant';
 export type AiPlaygroundMessage = { role: AiPlaygroundRole; content: string };
 export type AiPlaygroundGenerationOverrides = { temperature?: number | null; topP?: number | null; maximumOutputTokens?: number | null; seed?: number | null; retryAttempts?: number | null };
 export type AiConversationTestResult = { message: AiPlaygroundMessage & { role: 'assistant' }; provider: string; model: string; responseId?: string | null; inputTokens?: number | null; outputTokens?: number | null; latencyMilliseconds: number; attemptCount: number; finishReason?: string | null; requestId?: string | null };
+export type AiPlaygroundStoredMessage = AiPlaygroundMessage & { id: string };
+export type AiPlaygroundStoredGeneration = { temperature: string; topP: string; maximumOutputTokens: string; seed: string; retryAttempts: string };
+export type AiPlaygroundStoredResponse = {
+  id: string;
+  number: number;
+  profile: { id: string; displayName: string; model: string };
+  message: AiPlaygroundMessage & { role: 'assistant' };
+  metadata: Omit<AiConversationTestResult, 'message'>;
+};
+export type AiPlaygroundStoredConversation = {
+  id: string;
+  title: string;
+  messages: AiPlaygroundStoredMessage[];
+  profileId: string | null;
+  generation: AiPlaygroundStoredGeneration;
+  responses: AiPlaygroundStoredResponse[];
+  selectedResponseId: string | null;
+};
+export type AiPlaygroundDocument = { conversations: AiPlaygroundStoredConversation[]; selectedConversationId: string };
+export type AiPlaygroundDocumentSnapshot = { document: AiPlaygroundDocument; revision: number; updatedAt: string };
 export type AdminAiApiError = Error & { status?: number; errors?: Record<string, string[]> };
 export type ProfileInput = { id: string; displayName: string; baseUrl: string; model: string; systemPrompt: string; credentialId: string; enabled: boolean };
 
@@ -30,6 +50,8 @@ export type AdminAiApi = {
   testConnection: (profile: AdminAiProfile) => Promise<void>;
   testPrompt: (profile: AdminAiProfile, prompt: string) => Promise<AiPromptTestResult>;
   testConversation: (profile: AdminAiProfile, messages: AiPlaygroundMessage[], generationOverrides: AiPlaygroundGenerationOverrides) => Promise<AiConversationTestResult>;
+  getPlaygroundDocument: () => Promise<AiPlaygroundDocumentSnapshot | null>;
+  savePlaygroundDocument: (document: AiPlaygroundDocument, expectedRevision: number | null) => Promise<AiPlaygroundDocumentSnapshot>;
 };
 
 export function getAdminAiApiBaseUrl() {
@@ -60,6 +82,15 @@ export function createFetchAdminAiApi(baseUrl = getAdminAiApiBaseUrl()): AdminAi
     testConnection: (profile) => request(`/ai-profiles/${encodeURIComponent(profile.id)}/connection-tests`, { method: 'POST', body: JSON.stringify({ expectedProfileRevision: profile.revision, expectedCredentialRevision: profile.credentialRevision }) }),
     testPrompt: (profile, prompt) => request(`/ai-profiles/${encodeURIComponent(profile.id)}/prompt-tests`, { method: 'POST', body: JSON.stringify({ prompt, expectedProfileRevision: profile.revision, expectedCredentialRevision: profile.credentialRevision }) }),
     testConversation: (profile, messages, generationOverrides) => request(`/ai-profiles/${encodeURIComponent(profile.id)}/conversation-tests`, { method: 'POST', body: JSON.stringify({ messages, generationOverrides, expectedProfileRevision: profile.revision, expectedCredentialRevision: profile.credentialRevision }) }),
+    async getPlaygroundDocument() {
+      try {
+        return await request<AiPlaygroundDocumentSnapshot>('/ai-playground');
+      } catch (caught) {
+        if ((caught as AdminAiApiError).status === 404) return null;
+        throw caught;
+      }
+    },
+    savePlaygroundDocument: (document, expectedRevision) => request('/ai-playground', { method: 'PUT', body: JSON.stringify({ document, expectedRevision }) }),
   };
 }
 
@@ -69,6 +100,7 @@ export function createDemoAdminAiApi(): AdminAiApi {
     { id: 'runpod', displayName: 'Runpod Serverless', adapter: 'openai-compatible', baseUrl: 'https://api.runpod.ai/v2/demo/openai/v1', model: 'Qwen/Qwen3-8B', systemPrompt: '日本語の情景描写を重視する。', credentialId: 'runpod', enabled: true, source: 'database', revision: 1, active: false, credentialSource: 'database', credentialConfigured: true, credentialRevision: 1, validationStatus: 'untested', lastValidatedAt: null },
   ];
   let credentials: AdminAiCredential[] = [{ id: 'runpod', displayName: 'Runpod', maskedSecret: '••••••••demo', source: 'database', revision: 1, updatedAt: new Date().toISOString(), referencedProfileCount: 1 }];
+  let playgroundDocument: AiPlaygroundDocumentSnapshot | null = null;
   const find = (id: string) => { const profile = profiles.find((item) => item.id === id); if (!profile) throw demoError('Profileが見つかりません。', 404); return profile; };
   return {
     async listProfiles() { return structuredClone(profiles); },
@@ -84,6 +116,12 @@ export function createDemoAdminAiApi(): AdminAiApi {
     async testConnection(profile) { const p = find(profile.id); if (p.revision !== profile.revision || p.credentialRevision !== profile.credentialRevision) throw demoError('再読み込みしてください。', 409); p.validationStatus = 'valid'; p.lastValidatedAt = new Date().toISOString(); },
     async testPrompt(profile, prompt) { find(profile.id); return { provider: profile.id, model: profile.model, response: `テスト応答: ${prompt.trim()}`, inputTokens: Math.max(1, Math.ceil(prompt.length / 4)), outputTokens: 12, latencyMilliseconds: 184, finishReason: 'stop' }; },
     async testConversation(profile, messages) { find(profile.id); const last = messages.at(-1)?.content ?? ''; return { message: { role: 'assistant', content: `テスト応答: ${last.trim()}` }, provider: profile.id, model: profile.model, responseId: 'demo-response', inputTokens: Math.max(1, Math.ceil(messages.reduce((total, message) => total + message.content.length, 0) / 4)), outputTokens: 12, latencyMilliseconds: 184, attemptCount: 1, finishReason: 'stop', requestId: 'demo-request' }; },
+    async getPlaygroundDocument() { return structuredClone(playgroundDocument); },
+    async savePlaygroundDocument(document, expectedRevision) {
+      if (expectedRevision !== (playgroundDocument?.revision ?? null)) throw demoError('Playgroundが更新されています。', 409);
+      playgroundDocument = { document: structuredClone(document), revision: (playgroundDocument?.revision ?? 0) + 1, updatedAt: new Date().toISOString() };
+      return structuredClone(playgroundDocument);
+    },
   };
 }
 

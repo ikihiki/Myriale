@@ -65,3 +65,38 @@ describe('AdminAiApi conversation test contract', () => {
     expect(JSON.stringify(body)).not.toContain(profile.credentialId);
   });
 });
+
+describe('AdminAiApi Playground persistence contract', () => {
+  it('persists and reloads the complete document with revision fencing', async () => {
+    const api = createDemoAdminAiApi();
+    expect(await api.getPlaygroundDocument()).toBeNull();
+    const document = {
+      selectedConversationId: 'conversation-1',
+      conversations: [
+        {
+          id: 'conversation-1',
+          title: '天文台',
+          profileId: 'openai',
+          messages: [
+            { id: 'message-1', role: 'user' as const, content: '扉を開ける' },
+          ],
+          generation: {
+            temperature: '0.7',
+            topP: '',
+            maximumOutputTokens: '800',
+            seed: '',
+            retryAttempts: '0',
+          },
+          responses: [],
+          selectedResponseId: null,
+        },
+      ],
+    };
+    const created = await api.savePlaygroundDocument(document, null);
+    expect(created.revision).toBe(1);
+    expect((await api.getPlaygroundDocument())?.document).toEqual(document);
+    await expect(api.savePlaygroundDocument(document, null)).rejects.toMatchObject({
+      status: 409,
+    });
+  });
+});

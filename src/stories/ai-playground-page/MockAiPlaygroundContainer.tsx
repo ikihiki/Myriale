@@ -56,8 +56,18 @@ export function MockAiPlaygroundContainer({
         status: 'ready',
         profiles: aiPlaygroundProfiles,
         defaultProfileId: aiPlaygroundProfiles[0].id,
+        document: null,
+        documentRevision: null,
       }}
-      actions={{ generate, retry: () => undefined, logout: () => undefined }}
+      actions={{
+        generate,
+        save: async () => ({
+          ok: true,
+          message: 'PlaygroundをDBへ保存しました。',
+        }),
+        retry: () => undefined,
+        logout: () => undefined,
+      }}
     />
   );
 }

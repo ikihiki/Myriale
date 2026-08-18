@@ -5,8 +5,7 @@ namespace Myriale.Api.Features.AiProviders.Domain;
 public sealed class AiPlaygroundDocument
 {
     [Key]
-    [MaxLength(450)]
-    public string OwnerAccountId { get; private set; } = string.Empty;
+    public AccountId OwnerAccountId { get; private set; }
 
     public string DocumentJson { get; private set; } = string.Empty;
     public long Revision { get; private set; }
@@ -15,7 +14,7 @@ public sealed class AiPlaygroundDocument
 
     private AiPlaygroundDocument() { }
 
-    public static AiPlaygroundDocument Create(string ownerAccountId, string documentJson, DateTimeOffset now) => new()
+    public static AiPlaygroundDocument Create(AccountId ownerAccountId, string documentJson, DateTimeOffset now) => new()
     {
         OwnerAccountId = ownerAccountId,
         DocumentJson = documentJson,
