@@ -13,6 +13,39 @@ export type AiPlaygroundRole = 'system' | 'user' | 'assistant';
 export type AiPlaygroundMessage = { role: AiPlaygroundRole; content: string };
 export type AiPlaygroundGenerationOverrides = { temperature?: number | null; topP?: number | null; maximumOutputTokens?: number | null; seed?: number | null; retryAttempts?: number | null };
 export type AiConversationTestResult = { message: AiPlaygroundMessage & { role: 'assistant' }; provider: string; model: string; responseId?: string | null; inputTokens?: number | null; outputTokens?: number | null; latencyMilliseconds: number; attemptCount: number; finishReason?: string | null; requestId?: string | null };
+export type AiSessionChatWireMessage = {
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content?: string | null;
+  toolCallId?: string | null;
+  toolCalls?: Array<{ id: string; name: string; argumentsJson: string }> | null;
+};
+export type AiRuleToolPreview = {
+  toolCallId: string;
+  selectionCode: string;
+  arguments: unknown;
+  status: string;
+  errorCode?: string | null;
+  objectCode?: string | null;
+  actionCode?: string | null;
+  appliedEffects?: unknown[] | null;
+  postState?: unknown | null;
+  facts?: string[] | null;
+  events?: unknown[] | null;
+  narrativeHints?: string[] | null;
+  forbiddenNarrativeFacts?: string[] | null;
+  completionIntent?: boolean | null;
+  extensionRequested?: boolean | null;
+};
+export type AiSessionChatTestResult = {
+  message: AiSessionChatWireMessage & { role: 'assistant' };
+  metadata: Omit<AiConversationTestResult, 'message' | 'requestId'> & {
+    providerRounds: number;
+    toolCallCount: number;
+  };
+  systemMarkdown: string;
+  sentMessages: AiSessionChatWireMessage[];
+  toolPreviews: AiRuleToolPreview[];
+};
 export type AiPlaygroundStoredMessage = AiPlaygroundMessage & { id: string };
 export type AiPlaygroundStoredGeneration = { temperature: string; topP: string; maximumOutputTokens: string; seed: string; retryAttempts: string };
 export type AiPlaygroundStoredResponse = {
@@ -21,10 +54,17 @@ export type AiPlaygroundStoredResponse = {
   profile: { id: string; displayName: string; model: string };
   message: AiPlaygroundMessage & { role: 'assistant' };
   metadata: Omit<AiConversationTestResult, 'message'>;
+  sentMessages?: AiSessionChatWireMessage[];
+  systemMarkdown?: string;
+  toolPreviews?: AiRuleToolPreview[];
 };
 export type AiPlaygroundStoredConversation = {
   id: string;
   title: string;
+  mode: 'free-chat' | 'session-tool-chat';
+  sessionId: string | null;
+  currentUserMessage: string;
+  maxToolRounds: string;
   messages: AiPlaygroundStoredMessage[];
   profileId: string | null;
   generation: AiPlaygroundStoredGeneration;
@@ -50,6 +90,7 @@ export type AdminAiApi = {
   testConnection: (profile: AdminAiProfile) => Promise<void>;
   testPrompt: (profile: AdminAiProfile, prompt: string) => Promise<AiPromptTestResult>;
   testConversation: (profile: AdminAiProfile, messages: AiPlaygroundMessage[], generationOverrides: AiPlaygroundGenerationOverrides) => Promise<AiConversationTestResult>;
+  testSessionChat: (profile: AdminAiProfile, input: { sessionId: string; currentUserMessage: string; generationOverrides: AiPlaygroundGenerationOverrides; maxToolRounds: number }) => Promise<AiSessionChatTestResult>;
   getPlaygroundDocument: () => Promise<AiPlaygroundDocumentSnapshot | null>;
   savePlaygroundDocument: (document: AiPlaygroundDocument, expectedRevision: number | null) => Promise<AiPlaygroundDocumentSnapshot>;
 };
@@ -82,6 +123,7 @@ export function createFetchAdminAiApi(baseUrl = getAdminAiApiBaseUrl()): AdminAi
     testConnection: (profile) => request(`/ai-profiles/${encodeURIComponent(profile.id)}/connection-tests`, { method: 'POST', body: JSON.stringify({ expectedProfileRevision: profile.revision, expectedCredentialRevision: profile.credentialRevision }) }),
     testPrompt: (profile, prompt) => request(`/ai-profiles/${encodeURIComponent(profile.id)}/prompt-tests`, { method: 'POST', body: JSON.stringify({ prompt, expectedProfileRevision: profile.revision, expectedCredentialRevision: profile.credentialRevision }) }),
     testConversation: (profile, messages, generationOverrides) => request(`/ai-profiles/${encodeURIComponent(profile.id)}/conversation-tests`, { method: 'POST', body: JSON.stringify({ messages, generationOverrides, expectedProfileRevision: profile.revision, expectedCredentialRevision: profile.credentialRevision }) }),
+    testSessionChat: (profile, input) => request(`/ai-profiles/${encodeURIComponent(profile.id)}/session-chat-tests`, { method: 'POST', body: JSON.stringify({ sessionId: input.sessionId, currentUserMessage: input.currentUserMessage, generationOverrides: input.generationOverrides, maxToolRounds: input.maxToolRounds, expectedProfileRevision: profile.revision, expectedCredentialRevision: profile.credentialRevision }) }),
     async getPlaygroundDocument() {
       try {
         return await request<AiPlaygroundDocumentSnapshot>('/ai-playground');
@@ -116,6 +158,32 @@ export function createDemoAdminAiApi(): AdminAiApi {
     async testConnection(profile) { const p = find(profile.id); if (p.revision !== profile.revision || p.credentialRevision !== profile.credentialRevision) throw demoError('再読み込みしてください。', 409); p.validationStatus = 'valid'; p.lastValidatedAt = new Date().toISOString(); },
     async testPrompt(profile, prompt) { find(profile.id); return { provider: profile.id, model: profile.model, response: `テスト応答: ${prompt.trim()}`, inputTokens: Math.max(1, Math.ceil(prompt.length / 4)), outputTokens: 12, latencyMilliseconds: 184, finishReason: 'stop' }; },
     async testConversation(profile, messages) { find(profile.id); const last = messages.at(-1)?.content ?? ''; return { message: { role: 'assistant', content: `テスト応答: ${last.trim()}` }, provider: profile.id, model: profile.model, responseId: 'demo-response', inputTokens: Math.max(1, Math.ceil(messages.reduce((total, message) => total + message.content.length, 0) / 4)), outputTokens: 12, latencyMilliseconds: 184, attemptCount: 1, finishReason: 'stop', requestId: 'demo-request' }; },
+    async testSessionChat(profile, input) {
+      find(profile.id);
+      const systemMarkdown = '# Scenario context\n\nDemo session context.\n\n## Rule tools\n\nCall `preview_rule_action` before describing state changes.';
+      const messages: AiPlaygroundMessage[] = [
+        { role: 'system', content: systemMarkdown },
+        { role: 'user', content: input.currentUserMessage },
+      ];
+      return {
+        message: { role: 'assistant', content: `ルール確認後のテスト応答: ${input.currentUserMessage.trim()}` },
+        metadata: {
+          provider: profile.id,
+          model: profile.model,
+          responseId: 'demo-session-chat-response',
+          inputTokens: 48,
+          outputTokens: 24,
+          latencyMilliseconds: 240,
+          attemptCount: 1,
+          finishReason: 'stop',
+          providerRounds: 1,
+          toolCallCount: 0,
+        },
+        systemMarkdown,
+        sentMessages: messages,
+        toolPreviews: [],
+      };
+    },
     async getPlaygroundDocument() { return structuredClone(playgroundDocument); },
     async savePlaygroundDocument(document, expectedRevision) {
       if (expectedRevision !== (playgroundDocument?.revision ?? null)) throw demoError('Playgroundが更新されています。', 409);

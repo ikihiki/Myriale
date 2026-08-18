@@ -30,6 +30,7 @@ import {
   deletePlaygroundResponse,
   duplicatePlaygroundConversation,
   exportConversation,
+  normalizePlaygroundDocument,
   parseConversationImport,
   responsePreview,
   toRequestMessages,
@@ -188,7 +189,9 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
       return;
     hydratedDocumentRevision.current = ready.documentRevision;
     if (ready.document) {
-      const document = structuredClone(ready.document);
+      const document = normalizePlaygroundDocument(
+        structuredClone(ready.document),
+      );
       setConversations(
         document.conversations as AiPlaygroundConversationWorkspace[],
       );
@@ -294,8 +297,20 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
     }
   };
   const generate = async () => {
-    if (messages.length === 0 || hasBlankMessage) {
+    if (
+      activeConversation.mode === 'free-chat' &&
+      (messages.length === 0 || hasBlankMessage)
+    ) {
       setNotice('空でないmessageを1件以上用意してください。');
+      setNoticeTone('danger');
+      return;
+    }
+    if (
+      activeConversation.mode === 'session-tool-chat' &&
+      (!activeConversation.sessionId ||
+        !activeConversation.currentUserMessage.trim())
+    ) {
+      setNotice('Sessionと今回のuser messageを指定してください。');
       setNoticeTone('danger');
       return;
     }
@@ -310,11 +325,20 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
       new Set(current).add(targetConversationId),
     );
     try {
-      const result = await actions.generate(
-        targetProfile.id,
-        toRequestMessages(messages),
-        generationOverrides,
-      );
+      const result =
+        activeConversation.mode === 'session-tool-chat'
+          ? await actions.generateSessionChat(
+            targetProfile.id,
+            activeConversation.sessionId!,
+            activeConversation.currentUserMessage,
+            generationOverrides,
+            Number(activeConversation.maxToolRounds) || 2,
+          )
+          : await actions.generate(
+            targetProfile.id,
+            toRequestMessages(messages),
+            generationOverrides,
+          );
       setNotice(result.message);
       setNoticeTone(result.ok ? 'success' : 'danger');
       if (result.ok && result.value) {
@@ -334,6 +358,9 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
             },
             message: result.value!.message,
             metadata: result.value!.metadata,
+            sentMessages: result.value!.sentMessages,
+            systemMarkdown: result.value!.systemMarkdown,
+            toolPreviews: result.value!.toolPreviews,
           };
           return {
             ...current,
@@ -613,10 +640,18 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                         Conversation context
                       </Label>
                       <p className="m-0 text-sm text-myr-ink-subtle">
-                        番号とrailがAPIへ送信される順序を表します。
+                        {activeConversation.mode === 'free-chat'
+                          ? '番号とrailがAPIへ送信される順序を表します。'
+                          : 'このモードでは、サーバーがsystem Markdownと直近20会話を本番Sessionから構築します。'}
                       </p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div
+                      className={`flex flex-wrap gap-2 ${
+                        activeConversation.mode === 'session-tool-chat'
+                          ? 'hidden'
+                          : ''
+                      }`}
+                    >
                       <Button
                         size="sm"
                         variant="secondary"
@@ -633,7 +668,13 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                       </Button>
                     </div>
                   </div>
-                  <ol className="relative m-0 grid list-none gap-4 p-0 before:absolute before:top-6 before:bottom-6 before:left-[1.05rem] before:w-px before:bg-[#5c4f8f]/35">
+                  <ol
+                    className={`relative m-0 list-none gap-4 p-0 before:absolute before:top-6 before:bottom-6 before:left-[1.05rem] before:w-px before:bg-[#5c4f8f]/35 ${
+                      activeConversation.mode === 'session-tool-chat'
+                        ? 'hidden'
+                        : 'grid'
+                    }`}
+                  >
                     {messages.map((message, index) => (
                       <li
                         key={message.id}
@@ -722,13 +763,18 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                       </li>
                     ))}
                   </ol>
-                  {messages.length === 0 && (
+                  {activeConversation.mode === 'free-chat' &&
+                    messages.length === 0 && (
                     <div className="rounded-xl border border-dashed border-[#17151f]/25 p-8 text-center text-myr-ink-subtle">
                       会話履歴は空です。messageを追加するかJSONをimportしてください。
                     </div>
                   )}
                   <div
-                    className="flex flex-wrap gap-2"
+                    className={`flex flex-wrap gap-2 ${
+                      activeConversation.mode === 'session-tool-chat'
+                        ? 'hidden'
+                        : ''
+                    }`}
                     aria-label="message追加"
                   >
                     <Button
@@ -750,7 +796,13 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                       + assistant
                     </Button>
                   </div>
-                  <details className="rounded-xl border border-[#17151f]/15 bg-white/60 p-4">
+                  <details
+                    className={`rounded-xl border border-[#17151f]/15 bg-white/60 p-4 ${
+                      activeConversation.mode === 'session-tool-chat'
+                        ? 'hidden'
+                        : ''
+                    }`}
+                  >
                     <summary className="cursor-pointer font-bold">
                       JSON import / export
                     </summary>
@@ -805,6 +857,105 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                     >
                       Run settings
                     </Label>
+                    <fieldset className="grid min-w-0 gap-2">
+                      <legend className="font-bold">Request mode</legend>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          size="sm"
+                          variant={
+                            activeConversation.mode === 'free-chat'
+                              ? 'primary'
+                              : 'secondary'
+                          }
+                          aria-pressed={activeConversation.mode === 'free-chat'}
+                          onClick={() =>
+                            updateActiveConversation({ mode: 'free-chat' })
+                          }
+                        >
+                          自由chat
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={
+                            activeConversation.mode === 'session-tool-chat'
+                              ? 'primary'
+                              : 'secondary'
+                          }
+                          aria-pressed={
+                            activeConversation.mode === 'session-tool-chat'
+                          }
+                          onClick={() =>
+                            updateActiveConversation({
+                              mode: 'session-tool-chat',
+                              sessionId:
+                                activeConversation.sessionId ??
+                                ready.sessions[0]?.id ??
+                                null,
+                            })
+                          }
+                        >
+                          Session + tools
+                        </Button>
+                      </div>
+                    </fieldset>
+                    {activeConversation.mode === 'session-tool-chat' && (
+                      <div className="grid min-w-0 gap-3 rounded-xl border border-[#5c4f8f]/25 bg-[#5c4f8f]/5 p-3">
+                        <p className="m-0 text-xs leading-5 text-myr-ink-subtle">
+                          サーバーが本番Sessionからsystem Markdownと直近20会話を組み立て、rule engineをread-only toolとして実行します。
+                        </p>
+                        <label className="grid min-w-0 gap-1 text-sm font-bold">
+                          Source Session
+                          <select
+                            aria-label="Source Session"
+                            className="min-w-0 max-w-full rounded-xl border border-[#17151f]/20 bg-white px-3 py-2"
+                            value={activeConversation.sessionId ?? ''}
+                            onChange={(event) =>
+                              updateActiveConversation({
+                                sessionId: event.target.value,
+                              })
+                            }
+                          >
+                            <option value="" disabled>
+                              Sessionを選択
+                            </option>
+                            {ready.sessions.map((session) => (
+                              <option key={session.id} value={session.id}>
+                                {session.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="grid min-w-0 gap-1 text-sm font-bold">
+                          今回のuser message
+                          <Textarea
+                            aria-label="Session chat user message"
+                            className="!min-h-24"
+                            value={activeConversation.currentUserMessage}
+                            onChange={(event) =>
+                              updateActiveConversation({
+                                currentUserMessage: event.target.value,
+                              })
+                            }
+                            placeholder="例: 西の扉を開ける"
+                          />
+                        </label>
+                        <label className="grid min-w-0 gap-1 text-sm font-bold">
+                          Max tool rounds
+                          <Input
+                            aria-label="Maximum tool rounds"
+                            type="number"
+                            min="1"
+                            max="3"
+                            value={activeConversation.maxToolRounds}
+                            onChange={(event) =>
+                              updateActiveConversation({
+                                maxToolRounds: event.target.value,
+                              })
+                            }
+                          />
+                        </label>
+                      </div>
+                    )}
                     <label className="grid min-w-0 gap-2 font-bold">
                       AI Profile
                       <select
@@ -923,8 +1074,10 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                       disabled={
                         working ||
                         !selectedProfile ||
-                        messages.length === 0 ||
-                        hasBlankMessage
+                        (activeConversation.mode === 'free-chat'
+                          ? messages.length === 0 || hasBlankMessage
+                          : !activeConversation.sessionId ||
+                            !activeConversation.currentUserMessage.trim())
                       }
                       onClick={() => void generate()}
                     >
@@ -1060,6 +1213,80 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                             選択した応答を会話へ追加
                           </Button>
                         </div>
+                        {(selectedResponse.systemMarkdown ||
+                          (selectedResponse.toolPreviews?.length ?? 0) > 0) && (
+                          <details className="rounded-xl border border-[#5c4f8f]/20 bg-[#5c4f8f]/5 p-4">
+                            <summary className="cursor-pointer font-bold">
+                              Session chat payload / rule tool previews
+                            </summary>
+                            {(selectedResponse.sentMessages?.length ?? 0) > 0 && (
+                              <div className="mt-4 grid gap-2">
+                                <strong>
+                                  Sent chat messages ({selectedResponse.sentMessages!.length})
+                                </strong>
+                                <ol className="m-0 grid list-none gap-2 p-0">
+                                  {selectedResponse.sentMessages!.map(
+                                    (message, index) => (
+                                      <li
+                                        key={`${index}-${message.role}`}
+                                        className="grid min-w-0 gap-1 rounded-lg border border-[#17151f]/15 bg-white/75 p-3"
+                                      >
+                                        <Badge
+                                          tone={
+                                            message.role === 'tool'
+                                              ? 'neutral'
+                                              : roleTone[message.role]
+                                          }
+                                        >
+                                          {message.role.toUpperCase()}
+                                        </Badge>
+                                        <pre className="m-0 max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs leading-5">
+                                          {message.content}
+                                        </pre>
+                                      </li>
+                                    ),
+                                  )}
+                                </ol>
+                              </div>
+                            )}
+                            {selectedResponse.systemMarkdown && (
+                              <div className="mt-4 grid gap-2">
+                                <strong>System Markdown</strong>
+                                <pre className="m-0 max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-white/75 p-3 text-xs leading-5">
+                                  {selectedResponse.systemMarkdown}
+                                </pre>
+                              </div>
+                            )}
+                            {(selectedResponse.toolPreviews?.length ?? 0) > 0 && (
+                              <div className="mt-4 grid gap-3">
+                                <strong>
+                                  Rule tool previews ({selectedResponse.toolPreviews!.length})
+                                </strong>
+                                {selectedResponse.toolPreviews!.map((preview) => (
+                                  <article
+                                    key={preview.toolCallId}
+                                    className="grid min-w-0 gap-2 rounded-lg border border-[#17151f]/15 bg-white/75 p-3"
+                                  >
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <Badge tone="info">TOOL</Badge>
+                                      <strong className="break-all font-mono text-sm">
+                                        {preview.selectionCode}
+                                      </strong>
+                                      {preview.extensionRequested && (
+                                        <Badge tone="warning">
+                                          extension required
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <pre className="m-0 max-h-64 overflow-auto whitespace-pre-wrap break-all text-xs leading-5">
+                                      {JSON.stringify(preview, null, 2)}
+                                    </pre>
+                                  </article>
+                                ))}
+                              </div>
+                            )}
+                          </details>
+                        )}
                         <div className="whitespace-pre-wrap break-words rounded-xl bg-[#17151f]/5 p-4 leading-7">
                           {selectedResponse.message.content}
                         </div>

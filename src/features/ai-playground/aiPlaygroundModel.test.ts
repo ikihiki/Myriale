@@ -58,6 +58,10 @@ describe('aiPlaygroundModel', () => {
     const conversation = (id: string): AiPlaygroundConversationWorkspace => ({
       id,
       title: id,
+      mode: 'free-chat',
+      sessionId: null,
+      currentUserMessage: '',
+      maxToolRounds: '2',
       messages: [],
       profileId: null,
       generation: {
@@ -100,6 +104,10 @@ describe('aiPlaygroundModel', () => {
     const source: AiPlaygroundConversationWorkspace = {
       id: 'source',
       title: 'Source',
+      mode: 'session-tool-chat',
+      sessionId: 'SES-1',
+      currentUserMessage: 'open the door',
+      maxToolRounds: '2',
       messages: [{ id: 'message-source', role: 'user', content: 'hello' }],
       profileId: 'profile',
       generation: {

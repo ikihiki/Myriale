@@ -64,6 +64,46 @@ describe('AdminAiApi conversation test contract', () => {
     expect(JSON.stringify(body)).not.toContain(profile.baseUrl);
     expect(JSON.stringify(body)).not.toContain(profile.credentialId);
   });
+
+  it('posts a session chat tool experiment with revision fences', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          message: { role: 'assistant', content: 'answer' },
+          metadata: {
+            provider: 'provider',
+            model: 'model',
+            latencyMilliseconds: 12,
+            attemptCount: 1,
+            providerRounds: 1,
+            toolCallCount: 0,
+          },
+          systemMarkdown: '# Context',
+          sentMessages: [],
+          toolPreviews: [],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+    const api = createFetchAdminAiApi('/api/admin');
+    const profile = (await createDemoAdminAiApi().listProfiles())[0];
+    await api.testSessionChat(profile, {
+      sessionId: 'SES-1',
+      currentUserMessage: '西の扉を開ける',
+      generationOverrides: { temperature: 0.3 },
+      maxToolRounds: 2,
+    });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`/api/admin/ai-profiles/${profile.id}/session-chat-tests`);
+    expect(JSON.parse(String(init?.body))).toEqual({
+      sessionId: 'SES-1',
+      currentUserMessage: '西の扉を開ける',
+      generationOverrides: { temperature: 0.3 },
+      maxToolRounds: 2,
+      expectedProfileRevision: profile.revision,
+      expectedCredentialRevision: profile.credentialRevision,
+    });
+  });
 });
 
 describe('AdminAiApi Playground persistence contract', () => {
@@ -76,6 +116,10 @@ describe('AdminAiApi Playground persistence contract', () => {
         {
           id: 'conversation-1',
           title: '天文台',
+          mode: 'free-chat' as const,
+          sessionId: null,
+          currentUserMessage: '',
+          maxToolRounds: '2',
           profileId: 'openai',
           messages: [
             { id: 'message-1', role: 'user' as const, content: '扉を開ける' },

@@ -171,6 +171,41 @@ export const ManageIndependentConversations: Story = {
   },
 };
 
+export const SessionChatWithRuleTools: Story = {
+  name: '本番Sessionをchat形式とrule tool previewで検証する',
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement);
+    await step('Session由来のchat + toolsモードを選ぶ', async () => {
+      await userEvent.click(
+        canvas.getByRole('button', { name: 'Session + tools' }),
+      );
+      await expect(canvas.getByLabelText('Source Session')).toHaveValue(
+        'SES-STORY-1',
+      );
+      await userEvent.type(
+        canvas.getByLabelText('Session chat user message'),
+        '西の扉を開ける',
+      );
+    });
+    await step('system Markdownと直近chatを使ってtool previewを実行する', async () => {
+      await userEvent.click(
+        canvas.getByRole('button', { name: '次のassistant応答を生成' }),
+      );
+      await expect(
+        canvas.getByTestId('ai-playground-response-detail'),
+      ).toHaveTextContent('西の扉のルールを確認しました。');
+      await userEvent.click(
+        canvas.getByText('Session chat payload / rule tool previews'),
+      );
+      await expect(canvas.getByText('Sent chat messages (4)')).toBeVisible();
+      await expect(canvas.getByText('System Markdown')).toBeVisible();
+      await expect(
+        canvas.getByText('object:west-door/open'),
+      ).toBeVisible();
+    });
+  },
+};
+
 export const ResponseSelectionAndClearing: Story = {
   name: '会話内で応答の選択・個別削除・全消去を管理する',
   play: async ({ canvasElement, step }) => {

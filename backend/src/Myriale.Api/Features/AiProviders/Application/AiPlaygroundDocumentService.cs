@@ -153,6 +153,16 @@ internal static class AiPlaygroundDocumentValidator
             if (!conversationIds.Add(conversationId)) return $"{path}.id must be unique.";
             selectedConversationExists |= conversationId == selectedConversationId;
             if (!TryRequiredString(conversation, "title", 500, out _, out error, path)) return error;
+            if (conversation.TryGetProperty("mode", out var mode)
+                && (mode.ValueKind != JsonValueKind.String
+                    || mode.GetString() is not ("free-chat" or "session-tool-chat")))
+                return $"{path}.mode is not accepted.";
+            if (conversation.TryGetProperty("sessionId", out _)
+                && !ValidateNullableString(conversation, "sessionId", 200, path, out error)) return error;
+            if (conversation.TryGetProperty("currentUserMessage", out _)
+                && !TryString(conversation, "currentUserMessage", 100_000, allowEmpty: true, out _, out error, path)) return error;
+            if (conversation.TryGetProperty("maxToolRounds", out _)
+                && !TryString(conversation, "maxToolRounds", 8, allowEmpty: true, out _, out error, path)) return error;
             if (!ValidateNullableString(conversation, "profileId", 200, path, out error)) return error;
             if (!ValidateMessages(conversation, path, out error)) return error;
             if (!ValidateGeneration(conversation, path, out error)) return error;

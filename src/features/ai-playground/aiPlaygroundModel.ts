@@ -4,6 +4,8 @@ import type {
   AiPlaygroundGenerationOverrides,
   AiPlaygroundMessage,
   AiPlaygroundRole,
+  AiRuleToolPreview,
+  AiSessionChatWireMessage,
 } from '../../account/api/adminAiApi';
 
 export type AiPlaygroundProfile = {
@@ -23,7 +25,13 @@ export type AiPlaygroundState =
     defaultProfileId: string | null;
     document: AiPlaygroundDocument | null;
     documentRevision: number | null;
+    sessions: AiPlaygroundSessionOption[];
   };
+export type AiPlaygroundSessionOption = {
+  id: string;
+  label: string;
+  status: string;
+};
 export type AiPlaygroundCommandResult<T = undefined> = {
   ok: boolean;
   message: string;
@@ -33,6 +41,9 @@ export type AiPlaygroundCommandResult<T = undefined> = {
 export type AiPlaygroundGenerationResult = {
   message: AiPlaygroundMessage & { role: 'assistant' };
   metadata: AiPlaygroundRunMetadata;
+  sentMessages?: AiSessionChatWireMessage[];
+  systemMarkdown?: string;
+  toolPreviews?: AiRuleToolPreview[];
 };
 export type AiPlaygroundResponseEntry = {
   id: string;
@@ -40,6 +51,9 @@ export type AiPlaygroundResponseEntry = {
   profile: Pick<AiPlaygroundProfile, 'id' | 'displayName' | 'model'>;
   message: AiPlaygroundGenerationResult['message'];
   metadata: AiPlaygroundRunMetadata;
+  sentMessages?: AiSessionChatWireMessage[];
+  systemMarkdown?: string;
+  toolPreviews?: AiRuleToolPreview[];
 };
 export type AiPlaygroundResponseSelection = {
   responses: AiPlaygroundResponseEntry[];
@@ -50,6 +64,13 @@ export type AiPlaygroundActions = {
     profileId: string,
     messages: AiPlaygroundMessage[],
     generationOverrides: AiPlaygroundGenerationOverrides,
+  ) => Promise<AiPlaygroundCommandResult<AiPlaygroundGenerationResult>>;
+  generateSessionChat: (
+    profileId: string,
+    sessionId: string,
+    currentUserMessage: string,
+    generationOverrides: AiPlaygroundGenerationOverrides,
+    maxToolRounds: number,
   ) => Promise<AiPlaygroundCommandResult<AiPlaygroundGenerationResult>>;
   save: (document: AiPlaygroundDocument) => Promise<AiPlaygroundCommandResult>;
   retry: () => void;
@@ -66,6 +87,10 @@ export type AiPlaygroundGenerationDraft = {
 export type AiPlaygroundConversationWorkspace = {
   id: string;
   title: string;
+  mode: 'free-chat' | 'session-tool-chat';
+  sessionId: string | null;
+  currentUserMessage: string;
+  maxToolRounds: string;
   messages: EditableAiPlaygroundMessage[];
   profileId: string | null;
   generation: AiPlaygroundGenerationDraft;
@@ -79,6 +104,21 @@ export type AiPlaygroundConversationSelection = {
 
 const roles: AiPlaygroundRole[] = ['system', 'user', 'assistant'];
 
+export function normalizePlaygroundDocument(
+  document: AiPlaygroundDocument,
+): AiPlaygroundDocument {
+  return {
+    ...document,
+    conversations: document.conversations.map((conversation) => ({
+      ...conversation,
+      mode: conversation.mode ?? 'free-chat',
+      sessionId: conversation.sessionId ?? null,
+      currentUserMessage: conversation.currentUserMessage ?? '',
+      maxToolRounds: conversation.maxToolRounds ?? '2',
+    })),
+  };
+}
+
 export function createPlaygroundConversation(input: {
   id: string;
   title: string;
@@ -88,6 +128,10 @@ export function createPlaygroundConversation(input: {
 }): AiPlaygroundConversationWorkspace {
   return {
     ...input,
+    mode: 'free-chat',
+    sessionId: null,
+    currentUserMessage: '',
+    maxToolRounds: '2',
     messages: input.messages.map((message) => ({ ...message })),
     generation: { ...input.generation },
     responses: [],
@@ -114,6 +158,8 @@ export function duplicatePlaygroundConversation(
       profile: { ...response.profile },
       message: { ...response.message },
       metadata: { ...response.metadata },
+      sentMessages: response.sentMessages?.map((message) => ({ ...message })),
+      toolPreviews: response.toolPreviews?.map((preview) => ({ ...preview })),
     };
   });
   return {

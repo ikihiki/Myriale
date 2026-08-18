@@ -8,6 +8,7 @@ import {
   type AdminAiApiError,
 } from '../../account/api/adminAiApi';
 import { useAccountSession } from '../../account/hooks/useAccountSession';
+import { fetchSessionList } from '../session-list/sessionListApi';
 import { AiPlaygroundPresentation } from './AiPlaygroundPresentation';
 import type {
   AiPlaygroundActions,
@@ -25,11 +26,12 @@ export function AiPlaygroundContainer({ api }: { api?: AdminAiApi }) {
   const query = useQuery({
     queryKey: ['admin-ai-playground', reloadKey],
     queryFn: async () => {
-      const [profiles, playground] = await Promise.all([
+      const [profiles, playground, sessions] = await Promise.all([
         adminAiApi.listProfiles(),
         adminAiApi.getPlaygroundDocument(),
+        fetchSessionList(true),
       ]);
-      return { profiles, playground };
+      return { profiles, playground, sessions };
     },
   });
   useEffect(() => {
@@ -113,6 +115,79 @@ export function AiPlaygroundContainer({ api }: { api?: AdminAiApi }) {
     }
   };
 
+  const generateSessionChat: AiPlaygroundActions['generateSessionChat'] = async (
+    profileId,
+    sessionId,
+    currentUserMessage,
+    generationOverrides,
+    maxToolRounds,
+  ) => {
+    const profile = availableProfiles.find((item) => item.id === profileId);
+    if (!profile)
+      return {
+        ok: false,
+        message: '有効なCredential設定済みAI Profileを選択してください。',
+      };
+    try {
+      const response = await adminAiApi.testSessionChat(profile, {
+        sessionId,
+        currentUserMessage,
+        generationOverrides,
+        maxToolRounds,
+      });
+      return {
+        ok: true,
+        message: `本番Session由来のchatで応答を生成しました。Rule tool preview: ${response.toolPreviews.length}件。`,
+        value: {
+          message: {
+            role: 'assistant',
+            content: response.message.content ?? '',
+          },
+          metadata: {
+            provider: response.metadata.provider,
+            model: response.metadata.model,
+            responseId: response.metadata.responseId,
+            inputTokens: response.metadata.inputTokens,
+            outputTokens: response.metadata.outputTokens,
+            latencyMilliseconds: response.metadata.latencyMilliseconds,
+            attemptCount: response.metadata.attemptCount,
+            finishReason: response.metadata.finishReason,
+            requestId: undefined,
+          },
+          sentMessages: response.sentMessages,
+          systemMarkdown: response.systemMarkdown,
+          toolPreviews: response.toolPreviews,
+        },
+      };
+    } catch (caught) {
+      const error = caught as AdminAiApiError;
+      if (error.status === 401 || error.status === 403) {
+        if (error.status === 401) accountSession.clearUser();
+        return {
+          ok: false,
+          message:
+            error.status === 401
+              ? 'ログインの有効期限が切れました。再ログインしてください。'
+              : 'このSessionを使ったPlayground実行権限がありません。',
+          action: error.status === 401 ? 'login' : undefined,
+        };
+      }
+      if (error.status === 409) {
+        setReloadKey((value) => value + 1);
+        return {
+          ok: false,
+          message:
+            'AI Profile、Credential、またはSessionが更新されました。再読み込み後に確認してください。',
+          action: 'reload',
+        };
+      }
+      return {
+        ok: false,
+        message: error.message ?? 'Session chat tool実験を実行できませんでした。',
+      };
+    }
+  };
+
   const save: AiPlaygroundActions['save'] = async (document) => {
     const previous = saveQueueRef.current;
     let release: () => void = () => undefined;
@@ -177,6 +252,11 @@ export function AiPlaygroundContainer({ api }: { api?: AdminAiApi }) {
             null,
         document: query.data.playground?.document ?? null,
         documentRevision: query.data.playground?.revision ?? null,
+        sessions: query.data.sessions.map((session) => ({
+          id: session.id,
+          label: `${session.scenarioTitle} · ${session.selectedHero} · ${session.turnCount} turns`,
+          status: session.status,
+        })),
       };
   return (
     <AiPlaygroundPresentation
@@ -184,6 +264,7 @@ export function AiPlaygroundContainer({ api }: { api?: AdminAiApi }) {
       state={state}
       actions={{
         generate,
+        generateSessionChat,
         save,
         retry: () => setReloadKey((value) => value + 1),
         logout: async () => {
