@@ -3,7 +3,7 @@ import type {
   AiPlaygroundGenerationOverrides,
   AiPlaygroundMessage,
   AiPlaygroundRole,
-} from "../../account/api/adminAiApi";
+} from '../../account/api/adminAiApi';
 
 export type AiPlaygroundProfile = {
   id: string;
@@ -12,30 +12,30 @@ export type AiPlaygroundProfile = {
   revision: number;
   credentialRevision: number;
 };
-export type AiPlaygroundRunMetadata = Omit<AiConversationTestResult, "message">;
+export type AiPlaygroundRunMetadata = Omit<AiConversationTestResult, 'message'>;
 export type AiPlaygroundState =
-  | { status: "loading" }
-  | { status: "error"; message: string }
+  | { status: 'loading' }
+  | { status: 'error'; message: string }
   | {
-      status: "ready";
-      profiles: AiPlaygroundProfile[];
-      defaultProfileId: string | null;
-    };
+    status: 'ready';
+    profiles: AiPlaygroundProfile[];
+    defaultProfileId: string | null;
+  };
 export type AiPlaygroundCommandResult<T = undefined> = {
   ok: boolean;
   message: string;
   value?: T;
-  action?: "login" | "reload";
+  action?: 'login' | 'reload';
 };
 export type AiPlaygroundGenerationResult = {
-  message: AiPlaygroundMessage & { role: "assistant" };
+  message: AiPlaygroundMessage & { role: 'assistant' };
   metadata: AiPlaygroundRunMetadata;
 };
 export type AiPlaygroundResponseEntry = {
   id: string;
   number: number;
-  profile: Pick<AiPlaygroundProfile, "id" | "displayName" | "model">;
-  message: AiPlaygroundGenerationResult["message"];
+  profile: Pick<AiPlaygroundProfile, 'id' | 'displayName' | 'model'>;
+  message: AiPlaygroundGenerationResult['message'];
   metadata: AiPlaygroundRunMetadata;
 };
 export type AiPlaygroundResponseSelection = {
@@ -73,7 +73,7 @@ export type AiPlaygroundConversationSelection = {
   selectedConversationId: string;
 };
 
-const roles: AiPlaygroundRole[] = ["system", "user", "assistant"];
+const roles: AiPlaygroundRole[] = ['system', 'user', 'assistant'];
 
 export function createPlaygroundConversation(input: {
   id: string;
@@ -153,7 +153,7 @@ export function deletePlaygroundConversation(
 }
 
 export function responsePreview(content: string, maximumLength = 72) {
-  const normalized = content.replace(/\s+/g, " ").trim();
+  const normalized = content.replace(/\s+/g, ' ').trim();
   return normalized.length > maximumLength
     ? `${normalized.slice(0, maximumLength - 1)}…`
     : normalized;
@@ -190,34 +190,34 @@ export function parseConversationImport(
   } catch {
     return {
       ok: false,
-      message: "JSONを解析できません。現在の会話履歴は変更されていません。",
+      message: 'JSONを解析できません。現在の会話履歴は変更されていません。',
     };
   }
   if (!Array.isArray(value) || value.length === 0)
     return {
       ok: false,
       message:
-        "role/contentを持つ1件以上のmessage配列を指定してください。現在の会話履歴は変更されていません。",
+        'role/contentを持つ1件以上のmessage配列を指定してください。現在の会話履歴は変更されていません。',
     };
   const messages: AiPlaygroundMessage[] = [];
   for (const item of value) {
-    if (!item || typeof item !== "object")
+    if (!item || typeof item !== 'object')
       return {
         ok: false,
         message:
-          "各messageはrole/contentを持つobjectにしてください。現在の会話履歴は変更されていません。",
+          '各messageはrole/contentを持つobjectにしてください。現在の会話履歴は変更されていません。',
       };
     const { role, content } = item as Record<string, unknown>;
     if (
-      typeof role !== "string" ||
+      typeof role !== 'string' ||
       !roles.includes(role as AiPlaygroundRole) ||
-      typeof content !== "string" ||
+      typeof content !== 'string' ||
       !content.trim()
     )
       return {
         ok: false,
         message:
-          "roleはsystem/user/assistant、contentは空でない文字列にしてください。現在の会話履歴は変更されていません。",
+          'roleはsystem/user/assistant、contentは空でない文字列にしてください。現在の会話履歴は変更されていません。',
       };
     messages.push({ role: role as AiPlaygroundRole, content });
   }
@@ -229,7 +229,7 @@ export function parseConversationImport(
 }
 
 export function exportConversation(
-  messages: Pick<AiPlaygroundMessage, "role" | "content">[],
+  messages: Pick<AiPlaygroundMessage, 'role' | 'content'>[],
 ) {
   return JSON.stringify(
     messages.map(({ role, content }) => ({ role, content })),

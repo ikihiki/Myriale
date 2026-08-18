@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { AppChromeAccount } from "../../account/accountPresentation";
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { AppChromeAccount } from '../../account/accountPresentation';
 import type {
   AiPlaygroundGenerationOverrides,
   AiPlaygroundRole,
-} from "../../account/api/adminAiApi";
+} from '../../account/api/adminAiApi';
 import {
   Badge,
   Button,
@@ -14,15 +14,15 @@ import {
   PageShell,
   Panel,
   Textarea,
-} from "../../components/ui";
-import { AppChrome } from "../../shared/AppChrome";
+} from '../../components/ui';
+import { AppChrome } from '../../shared/AppChrome';
 import type {
   AiPlaygroundActions,
   AiPlaygroundConversationWorkspace,
   AiPlaygroundResponseEntry,
   AiPlaygroundState,
   EditableAiPlaygroundMessage,
-} from "./aiPlaygroundModel";
+} from './aiPlaygroundModel';
 import {
   createPlaygroundConversation,
   deletePlaygroundConversation,
@@ -32,7 +32,7 @@ import {
   parseConversationImport,
   responsePreview,
   toRequestMessages,
-} from "./aiPlaygroundModel";
+} from './aiPlaygroundModel';
 
 type Props = {
   account: AppChromeAccount | null;
@@ -40,31 +40,31 @@ type Props = {
   actions: AiPlaygroundActions;
 };
 const roleTone = {
-  system: "info",
-  user: "warning",
-  assistant: "success",
+  system: 'info',
+  user: 'warning',
+  assistant: 'success',
 } as const;
 const starter = [
   {
-    role: "system" as const,
+    role: 'system' as const,
     content:
-      "あなたは架空世界の案内役です。簡潔に、情景が伝わるように答えてください。",
+      'あなたは架空世界の案内役です。簡潔に、情景が伝わるように答えてください。',
   },
   {
-    role: "user" as const,
-    content: "古い天文台の扉を開けます。中の様子を教えてください。",
+    role: 'user' as const,
+    content: '古い天文台の扉を開けます。中の様子を教えてください。',
   },
 ];
 const defaultGeneration = {
-  temperature: "0.7",
-  topP: "",
-  maximumOutputTokens: "800",
-  seed: "",
-  retryAttempts: "0",
+  temperature: '0.7',
+  topP: '',
+  maximumOutputTokens: '800',
+  seed: '',
+  retryAttempts: '0',
 };
 
 function toOptionalNumber(value: string) {
-  return value.trim() === "" ? null : Number(value);
+  return value.trim() === '' ? null : Number(value);
 }
 
 export function AiPlaygroundPresentation({ account, state, actions }: Props) {
@@ -80,28 +80,28 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
     AiPlaygroundConversationWorkspace[]
   >(() => [
     createPlaygroundConversation({
-      id: "conversation-1",
-      title: "Conversation 1",
+      id: 'conversation-1',
+      title: 'Conversation 1',
       profileId: null,
       messages: createMessages(starter),
       generation: defaultGeneration,
     }),
   ]);
   const [selectedConversationId, setSelectedConversationId] =
-    useState("conversation-1");
+    useState('conversation-1');
   const [workingConversationIds, setWorkingConversationIds] = useState<
     Set<string>
   >(() => new Set());
   const [notice, setNotice] = useState(
-    "会話ワークスペースごとに履歴・Profile・設定・応答を独立して管理します。",
+    '会話ワークスペースごとに履歴・Profile・設定・応答を独立して管理します。',
   );
-  const [noticeTone, setNoticeTone] = useState<"info" | "danger" | "success">(
-    "info",
+  const [noticeTone, setNoticeTone] = useState<'info' | 'danger' | 'success'>(
+    'info',
   );
-  const [importText, setImportText] = useState("");
-  const [exportText, setExportText] = useState("");
+  const [importText, setImportText] = useState('');
+  const [exportText, setExportText] = useState('');
 
-  const ready = state.status === "ready" ? state : null;
+  const ready = state.status === 'ready' ? state : null;
   const activeConversation =
     conversations.find(
       (conversation) => conversation.id === selectedConversationId,
@@ -111,13 +111,13 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
     update:
       | Partial<AiPlaygroundConversationWorkspace>
       | ((
-          current: AiPlaygroundConversationWorkspace,
-        ) => AiPlaygroundConversationWorkspace),
+        current: AiPlaygroundConversationWorkspace,
+      ) => AiPlaygroundConversationWorkspace),
   ) =>
     setConversations((current) =>
       current.map((conversation) =>
         conversation.id === conversationId
-          ? typeof update === "function"
+          ? typeof update === 'function'
             ? update(conversation)
             : { ...conversation, ...update }
           : conversation,
@@ -127,8 +127,8 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
     update:
       | Partial<AiPlaygroundConversationWorkspace>
       | ((
-          current: AiPlaygroundConversationWorkspace,
-        ) => AiPlaygroundConversationWorkspace),
+        current: AiPlaygroundConversationWorkspace,
+      ) => AiPlaygroundConversationWorkspace),
   ) => updateConversation(activeConversation.id, update);
   const messages = activeConversation.messages;
   const generation = activeConversation.generation;
@@ -138,25 +138,25 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
     update:
       | EditableAiPlaygroundMessage[]
       | ((
-          current: EditableAiPlaygroundMessage[],
-        ) => EditableAiPlaygroundMessage[]),
+        current: EditableAiPlaygroundMessage[],
+      ) => EditableAiPlaygroundMessage[]),
   ) =>
     updateActiveConversation((current) => ({
       ...current,
       messages:
-        typeof update === "function" ? update(current.messages) : update,
+        typeof update === 'function' ? update(current.messages) : update,
     }));
   const setGeneration = (
     update:
-      | AiPlaygroundConversationWorkspace["generation"]
+      | AiPlaygroundConversationWorkspace['generation']
       | ((
-          current: AiPlaygroundConversationWorkspace["generation"],
-        ) => AiPlaygroundConversationWorkspace["generation"]),
+        current: AiPlaygroundConversationWorkspace['generation'],
+      ) => AiPlaygroundConversationWorkspace['generation']),
   ) =>
     updateActiveConversation((current) => ({
       ...current,
       generation:
-        typeof update === "function" ? update(current.generation) : update,
+        typeof update === 'function' ? update(current.generation) : update,
     }));
   const setResponses = (
     update:
@@ -166,7 +166,7 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
     updateActiveConversation((current) => ({
       ...current,
       responses:
-        typeof update === "function" ? update(current.responses) : update,
+        typeof update === 'function' ? update(current.responses) : update,
     }));
   const setSelectedResponseId = (responseId: string | null) =>
     updateActiveConversation({ selectedResponseId: responseId });
@@ -205,11 +205,11 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
   const addMessage = (role: AiPlaygroundRole) =>
     setMessages((current) => [
       ...current,
-      ...createMessages([{ role, content: "" }]),
+      ...createMessages([{ role, content: '' }]),
     ]);
   const updateMessage = (
     id: string,
-    update: Partial<Pick<EditableAiPlaygroundMessage, "role" | "content">>,
+    update: Partial<Pick<EditableAiPlaygroundMessage, 'role' | 'content'>>,
   ) =>
     setMessages((current) =>
       current.map((message) =>
@@ -227,14 +227,14 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
   const importMessages = () => {
     const result = parseConversationImport(importText);
     setNotice(result.message);
-    setNoticeTone(result.ok ? "success" : "danger");
+    setNoticeTone(result.ok ? 'success' : 'danger');
     if (result.ok && result.value) setMessages(createMessages(result.value));
   };
   const exportMessages = async () => {
     const value = exportConversation(messages);
     setExportText(value);
-    setNotice("role/contentだけをJSONへ書き出しました。");
-    setNoticeTone("success");
+    setNotice('role/contentだけをJSONへ書き出しました。');
+    setNoticeTone('success');
     try {
       await navigator.clipboard?.writeText(value);
     } catch {
@@ -243,13 +243,13 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
   };
   const generate = async () => {
     if (messages.length === 0 || hasBlankMessage) {
-      setNotice("空でないmessageを1件以上用意してください。");
-      setNoticeTone("danger");
+      setNotice('空でないmessageを1件以上用意してください。');
+      setNoticeTone('danger');
       return;
     }
     if (!selectedProfile) {
-      setNotice("実行可能なAI Profileがありません。");
-      setNoticeTone("danger");
+      setNotice('実行可能なAI Profileがありません。');
+      setNoticeTone('danger');
       return;
     }
     const targetConversationId = activeConversation.id;
@@ -264,7 +264,7 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
         generationOverrides,
       );
       setNotice(result.message);
-      setNoticeTone(result.ok ? "success" : "danger");
+      setNoticeTone(result.ok ? 'success' : 'danger');
       if (result.ok && result.value) {
         updateConversation(targetConversationId, (current) => {
           const number =
@@ -305,7 +305,7 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
       ...createMessages([selectedResponse.message]),
     ]);
     setNotice(`応答 ${selectedResponse.number} を会話履歴へ追加しました。`);
-    setNoticeTone("success");
+    setNoticeTone('success');
   };
   const deleteResponse = (responseId: string) => {
     const selection = deletePlaygroundResponse(
@@ -315,8 +315,8 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
     );
     setResponses(selection.responses);
     setSelectedResponseId(selection.selectedResponseId);
-    setNotice("応答を削除しました。");
-    setNoticeTone("success");
+    setNotice('応答を削除しました。');
+    setNoticeTone('success');
   };
 
   const createConversation = () => {
@@ -330,10 +330,10 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
     });
     setConversations((current) => [...current, conversation]);
     setSelectedConversationId(conversation.id);
-    setImportText("");
-    setExportText("");
+    setImportText('');
+    setExportText('');
     setNotice(`${conversation.title} を作成しました。`);
-    setNoticeTone("success");
+    setNoticeTone('success');
   };
   const duplicateConversation = () => {
     const number = nextConversationId.current++;
@@ -345,10 +345,10 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
     });
     setConversations((current) => [...current, conversation]);
     setSelectedConversationId(conversation.id);
-    setImportText("");
-    setExportText("");
+    setImportText('');
+    setExportText('');
     setNotice(`${activeConversation.title} を複製しました。`);
-    setNoticeTone("success");
+    setNoticeTone('success');
   };
   const removeConversation = (conversationId: string) => {
     const selection = deletePlaygroundConversation(
@@ -359,19 +359,19 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
     if (selection.conversations === conversations) return;
     setConversations(selection.conversations);
     setSelectedConversationId(selection.selectedConversationId);
-    setImportText("");
-    setExportText("");
-    setNotice("会話ワークスペースを削除しました。");
-    setNoticeTone("success");
+    setImportText('');
+    setExportText('');
+    setNotice('会話ワークスペースを削除しました。');
+    setNoticeTone('success');
   };
 
   return (
     <AppChrome
       section="operations"
       breadcrumbs={[
-        { label: "Myriale", to: "home" },
-        { label: "運用", to: "adminAiProviders" },
-        { label: "AI Playground" },
+        { label: 'Myriale', to: 'home' },
+        { label: '運用', to: 'adminAiProviders' },
+        { label: 'AI Playground' },
       ]}
       account={account}
       onLogout={actions.logout}
@@ -395,17 +395,17 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
             </p>
             <Notice
               tone={noticeTone}
-              role={noticeTone === "danger" ? "alert" : "status"}
+              role={noticeTone === 'danger' ? 'alert' : 'status'}
               data-testid="ai-playground-notice"
             >
               {notice}
             </Notice>
           </header>
 
-          {state.status === "loading" && (
+          {state.status === 'loading' && (
             <Notice tone="info">AI Profileを読み込んでいます。</Notice>
           )}
-          {state.status === "error" && (
+          {state.status === 'error' && (
             <Panel className="grid gap-3">
               <Notice tone="danger" role="alert">
                 {state.message}
@@ -459,8 +459,8 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                         key={conversation.id}
                         className={`grid min-w-0 gap-3 rounded-xl border p-3 ${
                           selected
-                            ? "border-[#5c4f8f] bg-[#5c4f8f]/10"
-                            : "border-[#17151f]/15 bg-white/70"
+                            ? 'border-[#5c4f8f] bg-[#5c4f8f]/10'
+                            : 'border-[#17151f]/15 bg-white/70'
                         }`}
                       >
                         <button
@@ -469,13 +469,13 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                           aria-pressed={selected}
                           onClick={() => {
                             setSelectedConversationId(conversation.id);
-                            setImportText("");
-                            setExportText("");
+                            setImportText('');
+                            setExportText('');
                           }}
                           className="grid min-w-0 gap-2 rounded-lg p-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5c4f8f]"
                         >
                           <span className="flex min-w-0 items-center gap-2">
-                            <Badge tone={selected ? "info" : "neutral"}>
+                            <Badge tone={selected ? 'info' : 'neutral'}>
                               {conversation.messages.length} messages
                             </Badge>
                             <span className="truncate text-xs text-myr-ink-subtle">
@@ -489,7 +489,7 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                             {ready.profiles.find(
                               (profile) =>
                                 profile.id === conversation.profileId,
-                            )?.model ?? "Profile未選択"}
+                            )?.model ?? 'Profile未選択'}
                           </span>
                         </button>
                         {selected && (
@@ -657,19 +657,19 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                   >
                     <Button
                       variant="secondary"
-                      onClick={() => addMessage("system")}
+                      onClick={() => addMessage('system')}
                     >
                       + system
                     </Button>
                     <Button
                       variant="secondary"
-                      onClick={() => addMessage("user")}
+                      onClick={() => addMessage('user')}
                     >
                       + user
                     </Button>
                     <Button
                       variant="secondary"
-                      onClick={() => addMessage("assistant")}
+                      onClick={() => addMessage('assistant')}
                     >
                       + assistant
                     </Button>
@@ -734,7 +734,7 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                       <select
                         aria-label="AI Profile"
                         className="min-w-0 max-w-full rounded-xl border border-[#17151f]/20 bg-white px-3 py-2"
-                        value={activeConversation.profileId ?? ""}
+                        value={activeConversation.profileId ?? ''}
                         onChange={(event) =>
                           updateActiveConversation({
                             profileId: event.target.value,
@@ -852,7 +852,7 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                       }
                       onClick={() => void generate()}
                     >
-                      {working ? "生成中…" : "次のassistant応答を生成"}
+                      {working ? '生成中…' : '次のassistant応答を生成'}
                     </Button>
                   </Panel>
                 </aside>
@@ -878,7 +878,7 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                         aria-live="polite"
                       >
                         {responses.length}件の応答
-                      </span>{" "}
+                      </span>{' '}
                       · ブラウザを離れると破棄されます。
                     </p>
                   </div>
@@ -889,8 +889,8 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                     onClick={() => {
                       setResponses([]);
                       setSelectedResponseId(null);
-                      setNotice("すべての応答を消去しました。");
-                      setNoticeTone("success");
+                      setNotice('すべての応答を消去しました。');
+                      setNoticeTone('success');
                     }}
                   >
                     応答をすべて消去
@@ -911,7 +911,7 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                         return (
                           <li
                             key={response.id}
-                            className={`grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-xl border p-2 ${selected ? "border-[#5c4f8f] bg-[#5c4f8f]/10" : "border-[#17151f]/15 bg-white/70"}`}
+                            className={`grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-xl border p-2 ${selected ? 'border-[#5c4f8f] bg-[#5c4f8f]/10' : 'border-[#17151f]/15 bg-white/70'}`}
                           >
                             <button
                               type="button"
@@ -921,7 +921,7 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                               className="grid min-w-0 gap-1 rounded-lg p-2 text-left hover:bg-white/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5c4f8f]"
                             >
                               <span className="flex min-w-0 items-center gap-2">
-                                <Badge tone={selected ? "info" : "neutral"}>
+                                <Badge tone={selected ? 'info' : 'neutral'}>
                                   #{response.number}
                                 </Badge>
                                 <strong className="min-w-0 truncate">
@@ -938,9 +938,9 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                                 {responsePreview(response.message.content)}
                               </span>
                               <span className="text-xs text-myr-ink-subtle">
-                                {response.metadata.latencyMilliseconds} ms ·{" "}
-                                {response.metadata.inputTokens ?? "—"} in /{" "}
-                                {response.metadata.outputTokens ?? "—"} out
+                                {response.metadata.latencyMilliseconds} ms ·{' '}
+                                {response.metadata.inputTokens ?? '—'} in /{' '}
+                                {response.metadata.outputTokens ?? '—'} out
                               </span>
                             </button>
                             <Button
@@ -992,13 +992,13 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                             Provider / model
                           </dt>
                           <dd className="m-0 min-w-0 break-all text-right font-bold">
-                            {selectedResponse.metadata.provider} /{" "}
+                            {selectedResponse.metadata.provider} /{' '}
                             {selectedResponse.metadata.model}
                           </dd>
                           <dt className="text-myr-ink-subtle">Tokens</dt>
                           <dd className="m-0 text-right">
-                            {selectedResponse.metadata.inputTokens ?? "—"} in /{" "}
-                            {selectedResponse.metadata.outputTokens ?? "—"} out
+                            {selectedResponse.metadata.inputTokens ?? '—'} in /{' '}
+                            {selectedResponse.metadata.outputTokens ?? '—'} out
                           </dd>
                           <dt className="text-myr-ink-subtle">Latency</dt>
                           <dd className="m-0 text-right">
@@ -1008,16 +1008,16 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                             Attempt / finish
                           </dt>
                           <dd className="m-0 text-right">
-                            {selectedResponse.metadata.attemptCount} /{" "}
-                            {selectedResponse.metadata.finishReason ?? "—"}
+                            {selectedResponse.metadata.attemptCount} /{' '}
+                            {selectedResponse.metadata.finishReason ?? '—'}
                           </dd>
                           <dt className="text-myr-ink-subtle">Response ID</dt>
                           <dd className="m-0 min-w-0 break-all text-right font-mono text-xs">
-                            {selectedResponse.metadata.responseId ?? "—"}
+                            {selectedResponse.metadata.responseId ?? '—'}
                           </dd>
                           <dt className="text-myr-ink-subtle">Request ID</dt>
                           <dd className="m-0 min-w-0 break-all text-right font-mono text-xs">
-                            {selectedResponse.metadata.requestId ?? "—"}
+                            {selectedResponse.metadata.requestId ?? '—'}
                           </dd>
                         </dl>
                       </article>
