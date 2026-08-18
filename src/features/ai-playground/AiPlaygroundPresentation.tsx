@@ -420,108 +420,116 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
             </Panel>
           )}
           {ready && (
-            <div className="grid gap-6">
-              <Panel
-                as="section"
-                className="grid min-w-0 gap-4"
-                aria-label="Conversations"
+            <div className="grid min-w-0 items-start gap-6 lg:grid-cols-[17rem_minmax(0,1fr)] xl:grid-cols-[19rem_minmax(0,1fr)]">
+              <aside
+                className="min-w-0 lg:row-span-2 lg:sticky lg:top-28"
+                aria-label="Conversations sidebar"
               >
-                <div className="flex flex-wrap items-end justify-between gap-3">
-                  <div>
-                    <Label
-                      as="h2"
-                      textRole="sectionEditorial"
-                      className="m-0 !text-3xl"
-                    >
-                      Conversations
-                    </Label>
-                    <p className="m-0 text-sm text-myr-ink-subtle">
-                      独立したリクエストとして会話・実行設定・生成応答を切り替えます。
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="secondary" onClick={createConversation}>
-                      新しい会話
-                    </Button>
-                    <Button variant="secondary" onClick={duplicateConversation}>
-                      現在の会話を複製
-                    </Button>
-                  </div>
-                </div>
-                <ol
-                  className="m-0 grid list-none gap-3 p-0 sm:grid-cols-2 xl:grid-cols-3"
-                  aria-label="会話ワークスペース一覧"
+                <Panel
+                  as="section"
+                  className="grid min-w-0 gap-4 lg:max-h-[calc(100vh-8rem)] lg:grid-rows-[auto_auto_minmax(0,1fr)]"
+                  aria-label="Conversations"
                 >
-                  {conversations.map((conversation) => {
-                    const selected = conversation.id === activeConversation.id;
-                    return (
-                      <li
-                        key={conversation.id}
-                        className={`grid min-w-0 gap-3 rounded-xl border p-3 ${
-                          selected
-                            ? 'border-[#5c4f8f] bg-[#5c4f8f]/10'
-                            : 'border-[#17151f]/15 bg-white/70'
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          aria-label={`${conversation.title}を選択`}
-                          aria-pressed={selected}
-                          onClick={() => {
-                            setSelectedConversationId(conversation.id);
-                            setImportText('');
-                            setExportText('');
-                          }}
-                          className="grid min-w-0 gap-2 rounded-lg p-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5c4f8f]"
+                  <div className="grid gap-3 border-b border-[#17151f]/15 pb-3">
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <Label
+                          as="h2"
+                          textRole="sectionEditorial"
+                          className="m-0 !text-2xl"
                         >
-                          <span className="flex min-w-0 items-center gap-2">
-                            <Badge tone={selected ? 'info' : 'neutral'}>
-                              {conversation.messages.length} messages
-                            </Badge>
-                            <span className="truncate text-xs text-myr-ink-subtle">
-                              {conversation.responses.length} responses
+                          Conversations
+                        </Label>
+                        <Badge tone="neutral">{conversations.length}</Badge>
+                      </div>
+                      <p className="m-0 mt-1 text-xs leading-5 text-myr-ink-subtle">
+                        独立したリクエストとして会話・実行設定・生成応答を切り替えます。
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
+                      <Button variant="secondary" onClick={createConversation}>
+                        新しい会話
+                      </Button>
+                      <Button variant="secondary" onClick={duplicateConversation}>
+                        現在の会話を複製
+                      </Button>
+                    </div>
+                  </div>
+                  <ol
+                    className="m-0 grid max-h-80 list-none content-start gap-2 overflow-y-auto p-0 pr-1 lg:max-h-none"
+                    aria-label="会話ワークスペース一覧"
+                  >
+                    {conversations.map((conversation) => {
+                      const selected = conversation.id === activeConversation.id;
+                      return (
+                        <li
+                          key={conversation.id}
+                          className={`relative grid min-w-0 gap-3 overflow-hidden rounded-xl border p-3 transition-colors before:absolute before:inset-y-0 before:left-0 before:w-1 ${
+                            selected
+                              ? 'border-[#5c4f8f] bg-[#5c4f8f]/10 before:bg-[#5c4f8f]'
+                              : 'border-[#17151f]/15 bg-white/70 before:bg-transparent'
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            aria-label={`${conversation.title}を選択`}
+                            aria-pressed={selected}
+                            onClick={() => {
+                              setSelectedConversationId(conversation.id);
+                              setImportText('');
+                              setExportText('');
+                            }}
+                            className="grid min-w-0 gap-2 rounded-lg p-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5c4f8f]"
+                          >
+                            <span className="flex min-w-0 items-center gap-2">
+                              <Badge tone={selected ? 'info' : 'neutral'}>
+                                {conversation.messages.length} messages
+                              </Badge>
+                              <span className="truncate text-xs text-myr-ink-subtle">
+                                {conversation.responses.length} responses
+                              </span>
                             </span>
-                          </span>
-                          <strong className="truncate">
-                            {conversation.title}
-                          </strong>
-                          <span className="truncate font-mono text-xs text-myr-ink-subtle">
-                            {ready.profiles.find(
-                              (profile) =>
-                                profile.id === conversation.profileId,
-                            )?.model ?? 'Profile未選択'}
-                          </span>
-                        </button>
-                        {selected && (
-                          <label className="grid min-w-0 gap-1 text-xs font-bold">
-                            会話名
-                            <Input
-                              aria-label="選択中の会話名"
-                              value={conversation.title}
-                              onChange={(event) =>
-                                updateActiveConversation({
-                                  title: event.target.value,
-                                })
-                              }
-                            />
-                          </label>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          disabled={conversations.length === 1}
-                          aria-label={`${conversation.title}を削除`}
-                          onClick={() => removeConversation(conversation.id)}
-                        >
-                          会話を削除
-                        </Button>
-                      </li>
-                    );
-                  })}
-                </ol>
-              </Panel>
+                            <strong className="truncate">
+                              {conversation.title}
+                            </strong>
+                            <span className="truncate text-xs text-myr-ink-subtle">
+                              {ready.profiles.find(
+                                (profile) =>
+                                  profile.id === conversation.profileId,
+                              )?.displayName ?? 'Profile未選択'}
+                            </span>
+                          </button>
+                          {selected && (
+                            <label className="grid min-w-0 gap-1 text-xs font-bold">
+                              会話名
+                              <Input
+                                aria-label="選択中の会話名"
+                                value={conversation.title}
+                                onChange={(event) =>
+                                  updateActiveConversation({
+                                    title: event.target.value,
+                                  })
+                                }
+                              />
+                            </label>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            disabled={conversations.length === 1}
+                            aria-label={`${conversation.title}を削除`}
+                            onClick={() => removeConversation(conversation.id)}
+                          >
+                            会話を削除
+                          </Button>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </Panel>
+              </aside>
 
-              <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_21rem]">
+              <div className="grid min-w-0 items-start gap-6 lg:col-start-2 xl:grid-cols-[minmax(0,1fr)_21rem]">
                 <Panel
                   as="section"
                   className="grid min-w-0 gap-5"
@@ -860,7 +868,7 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
 
               <Panel
                 as="section"
-                className="grid min-w-0 gap-5"
+                className="grid min-w-0 gap-5 lg:col-start-2"
                 aria-label="生成した応答"
               >
                 <div className="flex flex-wrap items-end justify-between gap-3">
