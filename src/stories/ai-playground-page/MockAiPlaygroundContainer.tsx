@@ -10,7 +10,7 @@ export function MockAiPlaygroundContainer({ scenario = 'success' }: { scenario?:
   const attempts = useRef(0);
   const generate: AiPlaygroundActions['generate'] = async () => {
     attempts.current += 1;
-    if (scenario === 'provider-error-once' && attempts.current === 1) return { ok: false, message: 'Providerが一時的に利用できません。会話履歴を保持したまま再試行できます。' };
+    if (scenario === 'provider-error-once' && attempts.current === 2) return { ok: false, message: 'Providerが一時的に利用できません。会話履歴と生成済み応答を保持したまま再試行できます。' };
     if (scenario === 'revision-conflict') return { ok: false, message: 'AI ProfileまたはCredentialが更新されました。最新情報を再読み込みしたため、内容を確認して再実行してください。', action: 'reload' };
     const profileId = selectedProfileId as keyof typeof aiPlaygroundResponses;
     return { ok: true, message: '次のassistant応答を生成しました。', value: { message: { role: 'assistant', content: aiPlaygroundResponses[profileId] }, metadata: metadataFor(profileId) } };

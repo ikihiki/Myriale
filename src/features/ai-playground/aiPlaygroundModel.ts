@@ -8,7 +8,14 @@ export type AiPlaygroundState =
   | { status: 'ready'; profiles: AiPlaygroundProfile[]; selectedProfileId: string | null };
 export type AiPlaygroundCommandResult<T = undefined> = { ok: boolean; message: string; value?: T; action?: 'login' | 'reload' };
 export type AiPlaygroundGenerationResult = { message: AiPlaygroundMessage & { role: 'assistant' }; metadata: AiPlaygroundRunMetadata };
-export type AiPlaygroundRunRecord = AiPlaygroundGenerationResult & { id: string; sequence: number };
+export type AiPlaygroundResponseEntry = {
+  id: string;
+  number: number;
+  profile: Pick<AiPlaygroundProfile, 'id' | 'displayName' | 'model'>;
+  message: AiPlaygroundGenerationResult['message'];
+  metadata: AiPlaygroundRunMetadata;
+};
+export type AiPlaygroundResponseSelection = { responses: AiPlaygroundResponseEntry[]; selectedResponseId: string | null };
 export type AiPlaygroundActions = {
   selectProfile: (profileId: string) => void;
   generate: (messages: AiPlaygroundMessage[], generationOverrides: AiPlaygroundGenerationOverrides) => Promise<AiPlaygroundCommandResult<AiPlaygroundGenerationResult>>;
@@ -18,6 +25,19 @@ export type AiPlaygroundActions = {
 export type EditableAiPlaygroundMessage = AiPlaygroundMessage & { id: string };
 
 const roles: AiPlaygroundRole[] = ['system', 'user', 'assistant'];
+
+export function responsePreview(content: string, maximumLength = 72) {
+  const normalized = content.replace(/\s+/g, ' ').trim();
+  return normalized.length > maximumLength ? `${normalized.slice(0, maximumLength - 1)}…` : normalized;
+}
+
+export function deletePlaygroundResponse(responses: AiPlaygroundResponseEntry[], selectedResponseId: string | null, responseId: string): AiPlaygroundResponseSelection {
+  const removedIndex = responses.findIndex((response) => response.id === responseId);
+  if (removedIndex < 0) return { responses, selectedResponseId };
+  const nextResponses = responses.filter((response) => response.id !== responseId);
+  if (selectedResponseId !== responseId) return { responses: nextResponses, selectedResponseId };
+  return { responses: nextResponses, selectedResponseId: nextResponses[Math.min(removedIndex, nextResponses.length - 1)]?.id ?? null };
+}
 
 export function parseConversationImport(input: string): AiPlaygroundCommandResult<AiPlaygroundMessage[]> {
   let value: unknown;
