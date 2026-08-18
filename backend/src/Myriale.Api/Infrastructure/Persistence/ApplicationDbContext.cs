@@ -18,6 +18,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<AiProviderProfile> AiProviderProfiles => Set<AiProviderProfile>();
     public DbSet<AiProviderProfileValidation> AiProviderProfileValidations => Set<AiProviderProfileValidation>();
     public DbSet<AiProviderRuntimeSettings> AiProviderRuntimeSettings => Set<AiProviderRuntimeSettings>();
+    public DbSet<AiPlaygroundDocument> AiPlaygroundDocuments => Set<AiPlaygroundDocument>();
     public DbSet<ModulePackage> ModulePackages => Set<ModulePackage>();
     public DbSet<ScenarioProgressionNode> ScenarioProgressionNodes => Set<ScenarioProgressionNode>();
     public DbSet<ScenarioProgressionTransition> ScenarioProgressionTransitions => Set<ScenarioProgressionTransition>();

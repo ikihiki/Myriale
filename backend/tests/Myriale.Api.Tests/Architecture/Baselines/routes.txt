@@ -4,6 +4,7 @@ DELETE /api/admin/ai-credentials/{id} | name=- | auth=AiAdministration | cors=My
 DELETE /api/admin/ai-profiles/{id} | name=- | auth=AiAdministration | cors=MyrialeFrontend
 GET /api/account/me | name=GetCurrentAccount | auth=authenticated | cors=MyrialeFrontend
 GET /api/admin/ai-credentials/ | name=- | auth=AiAdministration | cors=MyrialeFrontend
+GET /api/admin/ai-playground/ | name=- | auth=AiAdministration | cors=MyrialeFrontend
 GET /api/admin/ai-profiles/ | name=- | auth=AiAdministration | cors=MyrialeFrontend
 GET /api/admin/modules/ | name=ListModulePackages | auth=ModuleAdministration | cors=MyrialeFrontend
 GET /api/admin/modules/{digest} | name=GetModulePackage | auth=ModuleAdministration | cors=MyrialeFrontend
@@ -71,6 +72,7 @@ POST /api/sessions/{sessionId}/inputs | name=AcceptSessionInput | auth=authentic
 POST /api/sessions/{sessionId}/memory/lorebook | name=- | auth=authenticated | cors=MyrialeFrontend
 PUT /api/account/profile | name=UpdateAccountProfile | auth=authenticated | cors=MyrialeFrontend
 PUT /api/admin/ai-credentials/{id} | name=- | auth=AiAdministration | cors=MyrialeFrontend
+PUT /api/admin/ai-playground/ | name=- | auth=AiAdministration | cors=MyrialeFrontend
 PUT /api/admin/ai-profiles/active | name=- | auth=AiAdministration | cors=MyrialeFrontend
 PUT /api/admin/ai-profiles/{id} | name=- | auth=AiAdministration | cors=MyrialeFrontend
 PUT /api/scenarios/{scenarioId} | name=UpdateScenario | auth=authenticated | cors=MyrialeFrontend
