@@ -42,6 +42,7 @@ POST /api/admin/ai-profiles/{id}/conversation-tests | name=- | auth=AiAdministra
 POST /api/admin/ai-profiles/{id}/disable | name=- | auth=AiAdministration | cors=MyrialeFrontend
 POST /api/admin/ai-profiles/{id}/enable | name=- | auth=AiAdministration | cors=MyrialeFrontend
 POST /api/admin/ai-profiles/{id}/prompt-tests | name=- | auth=AiAdministration | cors=MyrialeFrontend
+POST /api/admin/ai-profiles/{id}/session-chat-tests | name=- | auth=AiAdministration | cors=MyrialeFrontend
 POST /api/admin/modules/install | name=InstallModulePackage | auth=ModuleAdministration | cors=MyrialeFrontend
 POST /api/admin/modules/rescan | name=RescanModulePackages | auth=ModuleAdministration | cors=MyrialeFrontend
 POST /api/admin/modules/{digest}/disable | name=DisableModulePackage | auth=ModuleAdministration | cors=MyrialeFrontend

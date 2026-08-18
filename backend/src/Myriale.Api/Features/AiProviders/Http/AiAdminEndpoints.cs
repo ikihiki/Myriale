@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Myriale.Api.Features.AiProviders.Application;
 
 namespace Myriale.Api.Features.AiProviders.Http;
@@ -16,6 +17,7 @@ public static class AiAdminEndpoints
         profiles.MapPut("/active", ActivateAsync);
         profiles.MapPost("/{id}/connection-tests", ConnectionTestAsync);
         profiles.MapPost("/{id}/conversation-tests", ConversationTestAsync);
+        profiles.MapPost("/{id}/session-chat-tests", SessionChatTestAsync);
         profiles.MapPost("/{id}/prompt-tests", PromptTestAsync);
 
         var credentials = routes.MapGroup("/api/admin/ai-credentials").WithTags("Admin AI Credentials").RequireCors("MyrialeFrontend").RequireAuthorization("AiAdministration");
@@ -92,6 +94,43 @@ public static class AiAdminEndpoints
             _ => StatusCodes.Status503ServiceUnavailable,
         };
         return Results.Json(new AiConversationTestErrorResponse(code, "The AI provider could not complete the conversation request.", result.Retryable, result.RequestId), statusCode: status);
+    }
+
+    private static async Task<IResult> SessionChatTestAsync(
+        AiProviderProfileId id,
+        AiSessionChatTestRequest request,
+        ClaimsPrincipal principal,
+        AiSessionChatTestService service,
+        CancellationToken ct)
+    {
+        var owner = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (owner is null) return Results.Unauthorized();
+        var result = await service.ExecuteAsync(new AccountId(owner), id, request, ct);
+        return result.Outcome switch
+        {
+            AiSessionChatTestOutcome.Success => Results.Ok(result.Value),
+            AiSessionChatTestOutcome.NotFound => Results.NotFound(Error("The session or AI profile was not found.")),
+            AiSessionChatTestOutcome.ValidationFailed => Results.BadRequest(Error(result.ErrorCode)),
+            AiSessionChatTestOutcome.Conflict => Results.Conflict(Error("Profile or credential revision changed.")),
+            AiSessionChatTestOutcome.CredentialMissing => Results.Conflict(Error("Credential is not configured.")),
+            AiSessionChatTestOutcome.ProviderFailure => ProviderFailure(result),
+            _ => Results.Problem(statusCode: StatusCodes.Status500InternalServerError),
+        };
+    }
+
+    private static IResult ProviderFailure(AiSessionChatTestResult result)
+    {
+        var code = result.ErrorCode ?? AiProviderErrorCodes.ProviderUnavailable;
+        var status = code switch
+        {
+            AiProviderErrorCodes.RateLimited => StatusCodes.Status429TooManyRequests,
+            AiProviderErrorCodes.Timeout => StatusCodes.Status504GatewayTimeout,
+            AiProviderErrorCodes.ContentRejected or AiProviderErrorCodes.InvalidCredential or AiProviderErrorCodes.ModelNotFound => StatusCodes.Status422UnprocessableEntity,
+            AiProviderErrorCodes.SchemaFailure => StatusCodes.Status502BadGateway,
+            _ => StatusCodes.Status503ServiceUnavailable,
+        };
+        return Results.Json(new AiConversationTestErrorResponse(code,
+            "The AI provider could not complete the session chat test.", result.Retryable, result.RequestId), statusCode: status);
     }
 
     private static async Task<IResult> PromptTestAsync(AiProviderProfileId id, AiPromptTestRequest request, AiProviderTestUseCases useCases, CancellationToken ct) =>
