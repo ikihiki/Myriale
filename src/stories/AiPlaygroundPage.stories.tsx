@@ -172,22 +172,32 @@ export const ManageIndependentConversations: Story = {
 };
 
 export const SessionChatWithRuleTools: Story = {
-  name: '本番Sessionをchat形式とrule tool previewで検証する',
+  name: 'Session Turnのリクエストをインポートしてrule tool previewを検証する',
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await step('Session由来のchat + toolsモードを選ぶ', async () => {
-      await userEvent.click(
-        canvas.getByRole('button', { name: 'Session + tools' }),
-      );
-      await expect(canvas.getByLabelText('Source Session')).toHaveValue(
+    await step('SessionとTurnを選び、リクエストを編集可能なmessage列へ取り込む', async () => {
+      await userEvent.selectOptions(
+        canvas.getByLabelText('Import source Session'),
         'SES-STORY-1',
       );
-      await userEvent.type(
-        canvas.getByLabelText('Session chat user message'),
+      await waitFor(() =>
+        expect(canvas.getByLabelText('Import source Turn')).toHaveValue(
+          'TURN-STORY-12',
+        ),
+      );
+      await userEvent.click(
+        canvas.getByRole('button', { name: 'Turnのリクエストをインポート' }),
+      );
+      await expect(
+        (canvas.getByLabelText('1番目のmessage content') as HTMLTextAreaElement)
+          .value,
+      ).toContain('# Scenario');
+      await expect(canvas.getByLabelText('4番目のmessage content')).toHaveValue(
         '西の扉を開ける',
       );
+      await userEvent.type(canvas.getByLabelText('4番目のmessage content'), '。静かに');
     });
-    await step('system Markdownと直近chatを使ってtool previewを実行する', async () => {
+    await step('編集したchatを使ってread-only tool previewを実行する', async () => {
       await userEvent.click(
         canvas.getByRole('button', { name: '次のassistant応答を生成' }),
       );

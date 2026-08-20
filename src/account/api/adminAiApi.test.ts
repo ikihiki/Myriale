@@ -89,7 +89,7 @@ describe('AdminAiApi conversation test contract', () => {
     const profile = (await createDemoAdminAiApi().listProfiles())[0];
     await api.testSessionChat(profile, {
       sessionId: 'SES-1',
-      currentUserMessage: '西の扉を開ける',
+      messages: [{ role: 'user', content: '西の扉を開ける' }],
       generationOverrides: { temperature: 0.3 },
       maxToolRounds: 2,
     });
@@ -97,7 +97,7 @@ describe('AdminAiApi conversation test contract', () => {
     expect(url).toBe(`/api/admin/ai-profiles/${profile.id}/session-chat-tests`);
     expect(JSON.parse(String(init?.body))).toEqual({
       sessionId: 'SES-1',
-      currentUserMessage: '西の扉を開ける',
+      messages: [{ role: 'user', content: '西の扉を開ける' }],
       generationOverrides: { temperature: 0.3 },
       maxToolRounds: 2,
       expectedProfileRevision: profile.revision,
@@ -116,9 +116,9 @@ describe('AdminAiApi Playground persistence contract', () => {
         {
           id: 'conversation-1',
           title: '天文台',
-          mode: 'free-chat' as const,
-          sessionId: null,
-          currentUserMessage: '',
+          sourceSessionId: null,
+          sourceTurnId: null,
+          sourceTurnPosition: null,
           maxToolRounds: '2',
           profileId: 'openai',
           messages: [

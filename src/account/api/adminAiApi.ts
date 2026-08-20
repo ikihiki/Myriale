@@ -36,6 +36,13 @@ export type AiRuleToolPreview = {
   completionIntent?: boolean | null;
   extensionRequested?: boolean | null;
 };
+export type AiSessionChatImportResult = {
+  sessionId: string;
+  turnId: string;
+  turnPosition: number;
+  systemMarkdown: string;
+  messages: AiPlaygroundMessage[];
+};
 export type AiSessionChatTestResult = {
   message: AiSessionChatWireMessage & { role: 'assistant' };
   metadata: Omit<AiConversationTestResult, 'message' | 'requestId'> & {
@@ -61,9 +68,9 @@ export type AiPlaygroundStoredResponse = {
 export type AiPlaygroundStoredConversation = {
   id: string;
   title: string;
-  mode: 'free-chat' | 'session-tool-chat';
-  sessionId: string | null;
-  currentUserMessage: string;
+  sourceSessionId: string | null;
+  sourceTurnId: string | null;
+  sourceTurnPosition: number | null;
   maxToolRounds: string;
   messages: AiPlaygroundStoredMessage[];
   profileId: string | null;
@@ -90,7 +97,8 @@ export type AdminAiApi = {
   testConnection: (profile: AdminAiProfile) => Promise<void>;
   testPrompt: (profile: AdminAiProfile, prompt: string) => Promise<AiPromptTestResult>;
   testConversation: (profile: AdminAiProfile, messages: AiPlaygroundMessage[], generationOverrides: AiPlaygroundGenerationOverrides) => Promise<AiConversationTestResult>;
-  testSessionChat: (profile: AdminAiProfile, input: { sessionId: string; currentUserMessage: string; generationOverrides: AiPlaygroundGenerationOverrides; maxToolRounds: number }) => Promise<AiSessionChatTestResult>;
+  importSessionTurn: (profile: AdminAiProfile, input: { sessionId: string; turnId: string }) => Promise<AiSessionChatImportResult>;
+  testSessionChat: (profile: AdminAiProfile, input: { sessionId: string; messages: AiPlaygroundMessage[]; generationOverrides: AiPlaygroundGenerationOverrides; maxToolRounds: number }) => Promise<AiSessionChatTestResult>;
   getPlaygroundDocument: () => Promise<AiPlaygroundDocumentSnapshot | null>;
   savePlaygroundDocument: (document: AiPlaygroundDocument, expectedRevision: number | null) => Promise<AiPlaygroundDocumentSnapshot>;
 };
@@ -123,7 +131,8 @@ export function createFetchAdminAiApi(baseUrl = getAdminAiApiBaseUrl()): AdminAi
     testConnection: (profile) => request(`/ai-profiles/${encodeURIComponent(profile.id)}/connection-tests`, { method: 'POST', body: JSON.stringify({ expectedProfileRevision: profile.revision, expectedCredentialRevision: profile.credentialRevision }) }),
     testPrompt: (profile, prompt) => request(`/ai-profiles/${encodeURIComponent(profile.id)}/prompt-tests`, { method: 'POST', body: JSON.stringify({ prompt, expectedProfileRevision: profile.revision, expectedCredentialRevision: profile.credentialRevision }) }),
     testConversation: (profile, messages, generationOverrides) => request(`/ai-profiles/${encodeURIComponent(profile.id)}/conversation-tests`, { method: 'POST', body: JSON.stringify({ messages, generationOverrides, expectedProfileRevision: profile.revision, expectedCredentialRevision: profile.credentialRevision }) }),
-    testSessionChat: (profile, input) => request(`/ai-profiles/${encodeURIComponent(profile.id)}/session-chat-tests`, { method: 'POST', body: JSON.stringify({ sessionId: input.sessionId, currentUserMessage: input.currentUserMessage, generationOverrides: input.generationOverrides, maxToolRounds: input.maxToolRounds, expectedProfileRevision: profile.revision, expectedCredentialRevision: profile.credentialRevision }) }),
+    importSessionTurn: (profile, input) => request(`/ai-profiles/${encodeURIComponent(profile.id)}/session-chat-imports`, { method: 'POST', body: JSON.stringify({ sessionId: input.sessionId, turnId: input.turnId, expectedProfileRevision: profile.revision, expectedCredentialRevision: profile.credentialRevision }) }),
+    testSessionChat: (profile, input) => request(`/ai-profiles/${encodeURIComponent(profile.id)}/session-chat-tests`, { method: 'POST', body: JSON.stringify({ sessionId: input.sessionId, messages: input.messages, generationOverrides: input.generationOverrides, maxToolRounds: input.maxToolRounds, expectedProfileRevision: profile.revision, expectedCredentialRevision: profile.credentialRevision }) }),
     async getPlaygroundDocument() {
       try {
         return await request<AiPlaygroundDocumentSnapshot>('/ai-playground');
@@ -158,15 +167,27 @@ export function createDemoAdminAiApi(): AdminAiApi {
     async testConnection(profile) { const p = find(profile.id); if (p.revision !== profile.revision || p.credentialRevision !== profile.credentialRevision) throw demoError('再読み込みしてください。', 409); p.validationStatus = 'valid'; p.lastValidatedAt = new Date().toISOString(); },
     async testPrompt(profile, prompt) { find(profile.id); return { provider: profile.id, model: profile.model, response: `テスト応答: ${prompt.trim()}`, inputTokens: Math.max(1, Math.ceil(prompt.length / 4)), outputTokens: 12, latencyMilliseconds: 184, finishReason: 'stop' }; },
     async testConversation(profile, messages) { find(profile.id); const last = messages.at(-1)?.content ?? ''; return { message: { role: 'assistant', content: `テスト応答: ${last.trim()}` }, provider: profile.id, model: profile.model, responseId: 'demo-response', inputTokens: Math.max(1, Math.ceil(messages.reduce((total, message) => total + message.content.length, 0) / 4)), outputTokens: 12, latencyMilliseconds: 184, attemptCount: 1, finishReason: 'stop', requestId: 'demo-request' }; },
-    async testSessionChat(profile, input) {
+    async importSessionTurn(profile, input) {
       find(profile.id);
       const systemMarkdown = '# Scenario context\n\nDemo session context.\n\n## Rule tools\n\nCall `preview_rule_action` before describing state changes.';
-      const messages: AiPlaygroundMessage[] = [
-        { role: 'system', content: systemMarkdown },
-        { role: 'user', content: input.currentUserMessage },
-      ];
       return {
-        message: { role: 'assistant', content: `ルール確認後のテスト応答: ${input.currentUserMessage.trim()}` },
+        sessionId: input.sessionId,
+        turnId: input.turnId,
+        turnPosition: 12,
+        systemMarkdown,
+        messages: [
+          { role: 'system', content: systemMarkdown },
+          { role: 'assistant', content: '扉には星形の鍵穴があります。' },
+          { role: 'user', content: '西の扉を開ける' },
+        ],
+      };
+    },
+    async testSessionChat(profile, input) {
+      find(profile.id);
+      const systemMarkdown = input.messages.find((message) => message.role === 'system')?.content ?? '';
+      const lastUserMessage = [...input.messages].reverse().find((message) => message.role === 'user')?.content ?? '';
+      return {
+        message: { role: 'assistant', content: `ルール確認後のテスト応答: ${lastUserMessage.trim()}` },
         metadata: {
           provider: profile.id,
           model: profile.model,
@@ -180,7 +201,7 @@ export function createDemoAdminAiApi(): AdminAiApi {
           toolCallCount: 0,
         },
         systemMarkdown,
-        sentMessages: messages,
+        sentMessages: input.messages,
         toolPreviews: [],
       };
     },

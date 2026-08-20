@@ -32,6 +32,17 @@ export type AiPlaygroundSessionOption = {
   label: string;
   status: string;
 };
+export type AiPlaygroundTurnOption = {
+  id: string;
+  position: number;
+  label: string;
+};
+export type AiPlaygroundSessionImportResult = {
+  sessionId: string;
+  turnId: string;
+  turnPosition: number;
+  messages: AiPlaygroundMessage[];
+};
 export type AiPlaygroundCommandResult<T = undefined> = {
   ok: boolean;
   message: string;
@@ -65,10 +76,18 @@ export type AiPlaygroundActions = {
     messages: AiPlaygroundMessage[],
     generationOverrides: AiPlaygroundGenerationOverrides,
   ) => Promise<AiPlaygroundCommandResult<AiPlaygroundGenerationResult>>;
+  loadSessionTurns: (
+    sessionId: string,
+  ) => Promise<AiPlaygroundCommandResult<AiPlaygroundTurnOption[]>>;
+  importSessionTurn: (
+    profileId: string,
+    sessionId: string,
+    turnId: string,
+  ) => Promise<AiPlaygroundCommandResult<AiPlaygroundSessionImportResult>>;
   generateSessionChat: (
     profileId: string,
     sessionId: string,
-    currentUserMessage: string,
+    messages: AiPlaygroundMessage[],
     generationOverrides: AiPlaygroundGenerationOverrides,
     maxToolRounds: number,
   ) => Promise<AiPlaygroundCommandResult<AiPlaygroundGenerationResult>>;
@@ -87,9 +106,9 @@ export type AiPlaygroundGenerationDraft = {
 export type AiPlaygroundConversationWorkspace = {
   id: string;
   title: string;
-  mode: 'free-chat' | 'session-tool-chat';
-  sessionId: string | null;
-  currentUserMessage: string;
+  sourceSessionId: string | null;
+  sourceTurnId: string | null;
+  sourceTurnPosition: number | null;
   maxToolRounds: string;
   messages: EditableAiPlaygroundMessage[];
   profileId: string | null;
@@ -109,13 +128,28 @@ export function normalizePlaygroundDocument(
 ): AiPlaygroundDocument {
   return {
     ...document,
-    conversations: document.conversations.map((conversation) => ({
-      ...conversation,
-      mode: conversation.mode ?? 'free-chat',
-      sessionId: conversation.sessionId ?? null,
-      currentUserMessage: conversation.currentUserMessage ?? '',
-      maxToolRounds: conversation.maxToolRounds ?? '2',
-    })),
+    conversations: document.conversations.map((conversation) => {
+      const legacy = conversation as typeof conversation & {
+        mode?: string;
+        sessionId?: string | null;
+      };
+      const sourceTurnId = conversation.sourceTurnId ?? null;
+      return {
+        id: conversation.id,
+        title: conversation.title,
+        sourceSessionId: sourceTurnId
+          ? (conversation.sourceSessionId ?? legacy.sessionId ?? null)
+          : null,
+        sourceTurnId,
+        sourceTurnPosition: conversation.sourceTurnPosition ?? null,
+        maxToolRounds: conversation.maxToolRounds ?? '2',
+        messages: conversation.messages,
+        profileId: conversation.profileId,
+        generation: conversation.generation,
+        responses: conversation.responses,
+        selectedResponseId: conversation.selectedResponseId,
+      };
+    }),
   };
 }
 
@@ -128,9 +162,9 @@ export function createPlaygroundConversation(input: {
 }): AiPlaygroundConversationWorkspace {
   return {
     ...input,
-    mode: 'free-chat',
-    sessionId: null,
-    currentUserMessage: '',
+    sourceSessionId: null,
+    sourceTurnId: null,
+    sourceTurnPosition: null,
     maxToolRounds: '2',
     messages: input.messages.map((message) => ({ ...message })),
     generation: { ...input.generation },

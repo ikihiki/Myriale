@@ -44,14 +44,42 @@ export function MockAiPlaygroundContainer({
       },
     };
   };
+  const loadSessionTurns: AiPlaygroundActions['loadSessionTurns'] = async () => ({
+    ok: true,
+    message: '1件のインポート可能なTurnを読み込みました。',
+    value: [{ id: 'TURN-STORY-12', position: 12, label: 'Turn 12 · 西の扉を開ける' }],
+  });
+  const importSessionTurn: AiPlaygroundActions['importSessionTurn'] = async (
+    _profileId,
+    sessionId,
+    turnId,
+  ) => {
+    const systemMarkdown =
+      '# Scenario\n\n星喰いの図書館\n\n## Current location\n\n古い天文台\n\n## Rule tools\n\n状態変更を描写する前に `preview_rule_action` を呼び出す。';
+    return {
+      ok: true,
+      message: 'Turn 12 のリクエストを会話へインポートしました。',
+      value: {
+        sessionId,
+        turnId,
+        turnPosition: 12,
+        messages: [
+          { role: 'system', content: systemMarkdown },
+          { role: 'user', content: '西の扉を調べる' },
+          { role: 'assistant', content: '扉には星形の鍵穴があります。' },
+          { role: 'user', content: '西の扉を開ける' },
+        ],
+      },
+    };
+  };
   const generateSessionChat: AiPlaygroundActions['generateSessionChat'] = async (
     profileId,
     _sessionId,
-    currentUserMessage,
+    messages,
   ) => {
     const profile = aiPlaygroundProfiles.find((item) => item.id === profileId)!;
-    const systemMarkdown =
-      '# Scenario\n\n星喰いの図書館\n\n## Current location\n\n古い天文台\n\n## Rule tools\n\n状態変更を描写する前に `preview_rule_action` を呼び出す。';
+    const systemMarkdown = messages.find((message) => message.role === 'system')?.content ?? '';
+    const currentUserMessage = [...messages].reverse().find((message) => message.role === 'user')?.content ?? '';
     return {
       ok: true,
       message: '本番Session由来のchatで応答を生成しました。Rule tool preview: 1件。',
@@ -61,12 +89,7 @@ export function MockAiPlaygroundContainer({
           content: `西の扉のルールを確認しました。${currentUserMessage}`,
         },
         metadata: metadataFor(profileId as keyof typeof aiPlaygroundResponses),
-        sentMessages: [
-          { role: 'system', content: systemMarkdown },
-          { role: 'user', content: '西の扉を調べる' },
-          { role: 'assistant', content: '扉には星形の鍵穴があります。' },
-          { role: 'user', content: currentUserMessage },
-        ],
+        sentMessages: messages,
         systemMarkdown,
         toolPreviews: [
           {
@@ -112,6 +135,8 @@ export function MockAiPlaygroundContainer({
       }}
       actions={{
         generate,
+        loadSessionTurns,
+        importSessionTurn,
         generateSessionChat,
         save: async () => ({
           ok: true,

@@ -22,6 +22,7 @@ import type {
   AiPlaygroundConversationWorkspace,
   AiPlaygroundResponseEntry,
   AiPlaygroundState,
+  AiPlaygroundTurnOption,
   EditableAiPlaygroundMessage,
 } from './aiPlaygroundModel';
 import {
@@ -107,6 +108,11 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
   const [noticeTone, setNoticeTone] = useState<'info' | 'danger' | 'success'>(
     'info',
   );
+  const [turnImportSessionId, setTurnImportSessionId] = useState('');
+  const [turnImportTurnId, setTurnImportTurnId] = useState('');
+  const [turnOptions, setTurnOptions] = useState<AiPlaygroundTurnOption[]>([]);
+  const [loadingTurns, setLoadingTurns] = useState(false);
+  const [importingTurn, setImportingTurn] = useState(false);
   const [importText, setImportText] = useState('');
   const [exportText, setExportText] = useState('');
 
@@ -296,21 +302,53 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
       /* Textarea remains available for manual copy. */
     }
   };
-  const generate = async () => {
-    if (
-      activeConversation.mode === 'free-chat' &&
-      (messages.length === 0 || hasBlankMessage)
-    ) {
-      setNotice('空でないmessageを1件以上用意してください。');
+  const selectTurnImportSession = async (sessionId: string) => {
+    setTurnImportSessionId(sessionId);
+    setTurnImportTurnId('');
+    setTurnOptions([]);
+    if (!sessionId) return;
+    setLoadingTurns(true);
+    const result = await actions.loadSessionTurns(sessionId);
+    setLoadingTurns(false);
+    setNotice(result.message);
+    setNoticeTone(result.ok ? 'info' : 'danger');
+    if (result.ok && result.value) {
+      setTurnOptions(result.value);
+      setTurnImportTurnId(result.value[0]?.id ?? '');
+    }
+  };
+  const importSessionTurn = async () => {
+    if (!selectedProfile || !turnImportSessionId || !turnImportTurnId) {
+      setNotice('AI Profile、Session、Turnを選択してください。');
       setNoticeTone('danger');
       return;
     }
-    if (
-      activeConversation.mode === 'session-tool-chat' &&
-      (!activeConversation.sessionId ||
-        !activeConversation.currentUserMessage.trim())
-    ) {
-      setNotice('Sessionと今回のuser messageを指定してください。');
+    setImportingTurn(true);
+    try {
+      const result = await actions.importSessionTurn(
+        selectedProfile.id,
+        turnImportSessionId,
+        turnImportTurnId,
+      );
+      setNotice(result.message);
+      setNoticeTone(result.ok ? 'success' : 'danger');
+      if (result.ok && result.value) {
+        updateActiveConversation({
+          sourceSessionId: result.value.sessionId,
+          sourceTurnId: result.value.turnId,
+          sourceTurnPosition: result.value.turnPosition,
+          messages: createMessages(result.value.messages),
+          responses: [],
+          selectedResponseId: null,
+        });
+      }
+    } finally {
+      setImportingTurn(false);
+    }
+  };
+  const generate = async () => {
+    if (messages.length === 0 || hasBlankMessage) {
+      setNotice('空でないmessageを1件以上用意してください。');
       setNoticeTone('danger');
       return;
     }
@@ -326,11 +364,11 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
     );
     try {
       const result =
-        activeConversation.mode === 'session-tool-chat'
+        activeConversation.sourceSessionId && activeConversation.sourceTurnId
           ? await actions.generateSessionChat(
             targetProfile.id,
-            activeConversation.sessionId!,
-            activeConversation.currentUserMessage,
+            activeConversation.sourceSessionId,
+            toRequestMessages(messages),
             generationOverrides,
             Number(activeConversation.maxToolRounds) || 2,
           )
@@ -640,18 +678,10 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                         Conversation context
                       </Label>
                       <p className="m-0 text-sm text-myr-ink-subtle">
-                        {activeConversation.mode === 'free-chat'
-                          ? '番号とrailがAPIへ送信される順序を表します。'
-                          : 'このモードでは、サーバーがsystem Markdownと直近20会話を本番Sessionから構築します。'}
+                        番号とrailがAPIへ送信される順序を表します。Session Turnからインポートした後もすべて編集できます。
                       </p>
                     </div>
-                    <div
-                      className={`flex flex-wrap gap-2 ${
-                        activeConversation.mode === 'session-tool-chat'
-                          ? 'hidden'
-                          : ''
-                      }`}
-                    >
+                    <div className="flex flex-wrap gap-2">
                       <Button
                         size="sm"
                         variant="secondary"
@@ -669,11 +699,7 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                     </div>
                   </div>
                   <ol
-                    className={`relative m-0 list-none gap-4 p-0 before:absolute before:top-6 before:bottom-6 before:left-[1.05rem] before:w-px before:bg-[#5c4f8f]/35 ${
-                      activeConversation.mode === 'session-tool-chat'
-                        ? 'hidden'
-                        : 'grid'
-                    }`}
+                    className="relative m-0 grid list-none gap-4 p-0 before:absolute before:top-6 before:bottom-6 before:left-[1.05rem] before:w-px before:bg-[#5c4f8f]/35"
                   >
                     {messages.map((message, index) => (
                       <li
@@ -763,20 +789,12 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                       </li>
                     ))}
                   </ol>
-                  {activeConversation.mode === 'free-chat' &&
-                    messages.length === 0 && (
+                  {messages.length === 0 && (
                     <div className="rounded-xl border border-dashed border-[#17151f]/25 p-8 text-center text-myr-ink-subtle">
                       会話履歴は空です。messageを追加するかJSONをimportしてください。
                     </div>
                   )}
-                  <div
-                    className={`flex flex-wrap gap-2 ${
-                      activeConversation.mode === 'session-tool-chat'
-                        ? 'hidden'
-                        : ''
-                    }`}
-                    aria-label="message追加"
-                  >
+                  <div className="flex flex-wrap gap-2" aria-label="message追加">
                     <Button
                       variant="secondary"
                       onClick={() => addMessage('system')}
@@ -796,13 +814,7 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                       + assistant
                     </Button>
                   </div>
-                  <details
-                    className={`rounded-xl border border-[#17151f]/15 bg-white/60 p-4 ${
-                      activeConversation.mode === 'session-tool-chat'
-                        ? 'hidden'
-                        : ''
-                    }`}
-                  >
+                  <details className="rounded-xl border border-[#17151f]/15 bg-white/60 p-4">
                     <summary className="cursor-pointer font-bold">
                       JSON import / export
                     </summary>
@@ -857,105 +869,80 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                     >
                       Run settings
                     </Label>
-                    <fieldset className="grid min-w-0 gap-2">
-                      <legend className="font-bold">Request mode</legend>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button
-                          size="sm"
-                          variant={
-                            activeConversation.mode === 'free-chat'
-                              ? 'primary'
-                              : 'secondary'
-                          }
-                          aria-pressed={activeConversation.mode === 'free-chat'}
-                          onClick={() =>
-                            updateActiveConversation({ mode: 'free-chat' })
-                          }
-                        >
-                          自由chat
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={
-                            activeConversation.mode === 'session-tool-chat'
-                              ? 'primary'
-                              : 'secondary'
-                          }
-                          aria-pressed={
-                            activeConversation.mode === 'session-tool-chat'
-                          }
-                          onClick={() =>
-                            updateActiveConversation({
-                              mode: 'session-tool-chat',
-                              sessionId:
-                                activeConversation.sessionId ??
-                                ready.sessions[0]?.id ??
-                                null,
-                            })
-                          }
-                        >
-                          Session + tools
-                        </Button>
-                      </div>
-                    </fieldset>
-                    {activeConversation.mode === 'session-tool-chat' && (
-                      <div className="grid min-w-0 gap-3 rounded-xl border border-[#5c4f8f]/25 bg-[#5c4f8f]/5 p-3">
-                        <p className="m-0 text-xs leading-5 text-myr-ink-subtle">
-                          サーバーが本番Sessionからsystem Markdownと直近20会話を組み立て、rule engineをread-only toolとして実行します。
+                    <div className="grid min-w-0 gap-3 rounded-xl border border-[#5c4f8f]/25 bg-[#5c4f8f]/5 p-3">
+                      <div>
+                        <strong className="text-sm">Session Turnからリクエストをインポート</strong>
+                        <p className="m-0 mt-1 text-xs leading-5 text-myr-ink-subtle">
+                          選択したTurnの直前までの会話、対象のplayer input、現在のSession contextをmessage列へ取り込みます。インポート後はすべて編集できます。
                         </p>
-                        <label className="grid min-w-0 gap-1 text-sm font-bold">
-                          Source Session
-                          <select
-                            aria-label="Source Session"
-                            className="min-w-0 max-w-full rounded-xl border border-[#17151f]/20 bg-white px-3 py-2"
-                            value={activeConversation.sessionId ?? ''}
-                            onChange={(event) =>
-                              updateActiveConversation({
-                                sessionId: event.target.value,
-                              })
-                            }
-                          >
-                            <option value="" disabled>
-                              Sessionを選択
-                            </option>
-                            {ready.sessions.map((session) => (
-                              <option key={session.id} value={session.id}>
-                                {session.label}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className="grid min-w-0 gap-1 text-sm font-bold">
-                          今回のuser message
-                          <Textarea
-                            aria-label="Session chat user message"
-                            className="!min-h-24"
-                            value={activeConversation.currentUserMessage}
-                            onChange={(event) =>
-                              updateActiveConversation({
-                                currentUserMessage: event.target.value,
-                              })
-                            }
-                            placeholder="例: 西の扉を開ける"
-                          />
-                        </label>
-                        <label className="grid min-w-0 gap-1 text-sm font-bold">
-                          Max tool rounds
-                          <Input
-                            aria-label="Maximum tool rounds"
-                            type="number"
-                            min="1"
-                            max="3"
-                            value={activeConversation.maxToolRounds}
-                            onChange={(event) =>
-                              updateActiveConversation({
-                                maxToolRounds: event.target.value,
-                              })
-                            }
-                          />
-                        </label>
                       </div>
-                    )}
+                      <label className="grid min-w-0 gap-1 text-sm font-bold">
+                        Source Session
+                        <select
+                          aria-label="Import source Session"
+                          className="min-w-0 max-w-full rounded-xl border border-[#17151f]/20 bg-white px-3 py-2"
+                          value={turnImportSessionId}
+                          onChange={(event) => void selectTurnImportSession(event.target.value)}
+                        >
+                          <option value="">Sessionを選択</option>
+                          {ready.sessions.map((session) => (
+                            <option key={session.id} value={session.id}>
+                              {session.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="grid min-w-0 gap-1 text-sm font-bold">
+                        Source Turn
+                        <select
+                          aria-label="Import source Turn"
+                          className="min-w-0 max-w-full rounded-xl border border-[#17151f]/20 bg-white px-3 py-2"
+                          value={turnImportTurnId}
+                          disabled={!turnImportSessionId || loadingTurns}
+                          onChange={(event) => setTurnImportTurnId(event.target.value)}
+                        >
+                          <option value="">{loadingTurns ? 'Turnを読み込み中…' : 'Turnを選択'}</option>
+                          {turnOptions.map((turn) => (
+                            <option key={turn.id} value={turn.id}>
+                              {turn.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={!selectedProfile || !turnImportSessionId || !turnImportTurnId || importingTurn}
+                        onClick={() => void importSessionTurn()}
+                      >
+                        {importingTurn ? 'インポート中…' : 'Turnのリクエストをインポート'}
+                      </Button>
+                      {activeConversation.sourceSessionId && activeConversation.sourceTurnId && (
+                        <div className="grid gap-2 border-t border-[#5c4f8f]/20 pt-3 text-xs">
+                          <p className="m-0 break-all">
+                            <strong>Tool context:</strong> Turn {activeConversation.sourceTurnPosition ?? '—'} · {activeConversation.sourceSessionId}
+                          </p>
+                          <label className="grid min-w-0 gap-1 font-bold">
+                            Max tool rounds
+                            <Input
+                              aria-label="Maximum tool rounds"
+                              type="number"
+                              min="0"
+                              max="5"
+                              value={activeConversation.maxToolRounds}
+                              onChange={(event) => updateActiveConversation({ maxToolRounds: event.target.value })}
+                            />
+                          </label>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => updateActiveConversation({ sourceSessionId: null, sourceTurnId: null, sourceTurnPosition: null })}
+                          >
+                            Rule tool contextを解除
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                     <label className="grid min-w-0 gap-2 font-bold">
                       AI Profile
                       <select
@@ -1074,10 +1061,8 @@ export function AiPlaygroundPresentation({ account, state, actions }: Props) {
                       disabled={
                         working ||
                         !selectedProfile ||
-                        (activeConversation.mode === 'free-chat'
-                          ? messages.length === 0 || hasBlankMessage
-                          : !activeConversation.sessionId ||
-                            !activeConversation.currentUserMessage.trim())
+                        messages.length === 0 ||
+                        hasBlankMessage
                       }
                       onClick={() => void generate()}
                     >

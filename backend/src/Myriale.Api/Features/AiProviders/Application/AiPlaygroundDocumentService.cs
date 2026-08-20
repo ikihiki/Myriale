@@ -161,6 +161,16 @@ internal static class AiPlaygroundDocumentValidator
                 && !ValidateNullableString(conversation, "sessionId", 200, path, out error)) return error;
             if (conversation.TryGetProperty("currentUserMessage", out _)
                 && !TryString(conversation, "currentUserMessage", 100_000, allowEmpty: true, out _, out error, path)) return error;
+            if (conversation.TryGetProperty("sourceSessionId", out _)
+                && !ValidateNullableString(conversation, "sourceSessionId", 200, path, out error)) return error;
+            if (conversation.TryGetProperty("sourceTurnId", out _)
+                && !ValidateNullableString(conversation, "sourceTurnId", 200, path, out error)) return error;
+            if (conversation.TryGetProperty("sourceTurnPosition", out var sourceTurnPosition)
+                && sourceTurnPosition.ValueKind is not (JsonValueKind.Null or JsonValueKind.Number))
+                return $"{path}.sourceTurnPosition must be an integer or null.";
+            if (sourceTurnPosition.ValueKind == JsonValueKind.Number
+                && (!sourceTurnPosition.TryGetInt32(out var position) || position < 1))
+                return $"{path}.sourceTurnPosition must be a positive integer or null.";
             if (conversation.TryGetProperty("maxToolRounds", out _)
                 && !TryString(conversation, "maxToolRounds", 8, allowEmpty: true, out _, out error, path)) return error;
             if (!ValidateNullableString(conversation, "profileId", 200, path, out error)) return error;

@@ -9,6 +9,7 @@ import {
 } from '../../account/api/adminAiApi';
 import { useAccountSession } from '../../account/hooks/useAccountSession';
 import { fetchSessionList } from '../session-list/sessionListApi';
+import { getSession } from '../session-play/sessionPlayApi';
 import { AiPlaygroundPresentation } from './AiPlaygroundPresentation';
 import type {
   AiPlaygroundActions,
@@ -115,10 +116,78 @@ export function AiPlaygroundContainer({ api }: { api?: AdminAiApi }) {
     }
   };
 
+  const loadSessionTurns: AiPlaygroundActions['loadSessionTurns'] = async (sessionId) => {
+    try {
+      const session = await getSession(sessionId);
+      const turns = session.turns
+        .filter((turn) => turn.kind === 'narrative' && Boolean(turn.narrative?.playerInputId))
+        .sort((left, right) => right.position - left.position)
+        .map((turn) => ({
+          id: turn.id,
+          position: turn.position,
+          label: `Turn ${turn.position} · ${turn.narrative?.playerInput?.trim() || turn.narrative?.heading || 'player input'}`,
+        }));
+      return {
+        ok: true,
+        message: `${turns.length}件のインポート可能なTurnを読み込みました。`,
+        value: turns,
+      };
+    } catch (caught) {
+      return {
+        ok: false,
+        message: caught instanceof Error ? caught.message : 'Session Turnを読み込めませんでした。',
+      };
+    }
+  };
+
+  const importSessionTurn: AiPlaygroundActions['importSessionTurn'] = async (
+    profileId,
+    sessionId,
+    turnId,
+  ) => {
+    const profile = availableProfiles.find((item) => item.id === profileId);
+    if (!profile)
+      return {
+        ok: false,
+        message: '有効なCredential設定済みAI Profileを選択してください。',
+      };
+    try {
+      const response = await adminAiApi.importSessionTurn(profile, { sessionId, turnId });
+      return {
+        ok: true,
+        message: `Turn ${response.turnPosition} のリクエストを会話へインポートしました。`,
+        value: {
+          sessionId: response.sessionId,
+          turnId: response.turnId,
+          turnPosition: response.turnPosition,
+          messages: response.messages,
+        },
+      };
+    } catch (caught) {
+      const error = caught as AdminAiApiError;
+      if (error.status === 401 || error.status === 403) {
+        if (error.status === 401) accountSession.clearUser();
+        return {
+          ok: false,
+          message: error.status === 401
+            ? 'ログインの有効期限が切れました。再ログインしてください。'
+            : 'このSession Turnをインポートする権限がありません。',
+          action: error.status === 401 ? 'login' : undefined,
+        };
+      }
+      if (error.status === 409) setReloadKey((value) => value + 1);
+      return {
+        ok: false,
+        message: error.message ?? 'Session Turnのリクエストをインポートできませんでした。',
+        action: error.status === 409 ? 'reload' : undefined,
+      };
+    }
+  };
+
   const generateSessionChat: AiPlaygroundActions['generateSessionChat'] = async (
     profileId,
     sessionId,
-    currentUserMessage,
+    messages,
     generationOverrides,
     maxToolRounds,
   ) => {
@@ -131,7 +200,7 @@ export function AiPlaygroundContainer({ api }: { api?: AdminAiApi }) {
     try {
       const response = await adminAiApi.testSessionChat(profile, {
         sessionId,
-        currentUserMessage,
+        messages,
         generationOverrides,
         maxToolRounds,
       });
@@ -264,6 +333,8 @@ export function AiPlaygroundContainer({ api }: { api?: AdminAiApi }) {
       state={state}
       actions={{
         generate,
+        loadSessionTurns,
+        importSessionTurn,
         generateSessionChat,
         save,
         retry: () => setReloadKey((value) => value + 1),
