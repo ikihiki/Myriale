@@ -14,6 +14,11 @@ public sealed record AiSessionChatTestResult(
     bool Retryable = false,
     string? RequestId = null);
 
+public sealed record AiSessionChatImportResult(
+    AiSessionChatTestOutcome Outcome,
+    AiSessionChatImportResponse? Value = null,
+    string? ErrorCode = null);
+
 public sealed class AiSessionChatTestService(
     ApplicationDbContext db,
     IAiProfileCatalog catalog,
@@ -25,6 +30,9 @@ public sealed class AiSessionChatTestService(
     IScenarioRuleResolutionService resolutionService)
 {
     private const int HistoryTurnLimit = 20;
+    private const int MaxMessageCount = 100;
+    private const int MaxMessageCharacters = 10_000;
+    private const int MaxMessagePayloadCharacters = 50_000;
     private const int MaxToolRoundsLimit = 5;
     private const int MaxToolCalls = 8;
     private const int MaxToolCallsPerRound = 4;
@@ -34,6 +42,66 @@ public sealed class AiSessionChatTestService(
         PropertyNameCaseInsensitive = false,
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
     };
+
+    public async Task<AiSessionChatImportResult> ImportAsync(
+        AccountId ownerId,
+        AiProviderProfileId profileId,
+        AiSessionChatImportRequest request,
+        CancellationToken cancellationToken)
+    {
+        var selectedTurn = await db.SessionTurns.AsNoTracking()
+            .Include(item => item.Session)
+            .Include(item => item.PlayerInput)
+            .SingleOrDefaultAsync(item => item.Id == request.TurnId && item.SessionId == request.SessionId, cancellationToken);
+        if (selectedTurn is null || selectedTurn.Session.OwnerId != ownerId)
+            return new(AiSessionChatTestOutcome.NotFound, ErrorCode: "session_turn_not_found");
+        if (selectedTurn.Kind != SessionTurnKind.Narrative
+            || selectedTurn.DialogueTurnType != SessionTurnType.ActionResult
+            || selectedTurn.PlayerInput is null
+            || string.IsNullOrWhiteSpace(selectedTurn.PlayerInput.Text))
+            return new(AiSessionChatTestOutcome.ValidationFailed, ErrorCode: "session_turn_not_importable");
+
+        AiProfileDescriptor profile;
+        try { profile = await catalog.ResolveAsync(profileId, cancellationToken); }
+        catch (AiProviderException) { return new(AiSessionChatTestOutcome.NotFound, ErrorCode: "profile_not_found"); }
+        if (!profile.Enabled || !profile.Selectable)
+            return new(AiSessionChatTestOutcome.NotFound, ErrorCode: "profile_not_found");
+        var credential = await credentials.ResolveAsync(profile.CredentialId, cancellationToken);
+        if (credential is null)
+            return new(AiSessionChatTestOutcome.CredentialMissing, ErrorCode: "credential_missing");
+        if (profile.Revision != request.ExpectedProfileRevision || credential.Revision != request.ExpectedCredentialRevision)
+            return new(AiSessionChatTestOutcome.Conflict, ErrorCode: "profile_or_credential_revision_changed");
+
+        ScenarioRuleWorldSnapshot world;
+        try { world = await worldQuery.LoadAsync(request.SessionId, cancellationToken); }
+        catch (InvalidOperationException) { return new(AiSessionChatTestOutcome.NotFound, ErrorCode: "session_not_found"); }
+        if (world.OwnerId != ownerId)
+            return new(AiSessionChatTestOutcome.NotFound, ErrorCode: "session_not_found");
+        var snapshot = actionEnumerator.Enumerate(world, $"PLAYGROUND-{Guid.NewGuid():N}".ToUpperInvariant());
+        var selections = SelectionMap(snapshot);
+        var systemMarkdown = BuildSystemMarkdown(world, snapshot, profile.SystemPrompt, selections);
+
+        var turns = await db.SessionTurns.AsNoTracking().Include(item => item.PlayerInput)
+            .Where(item => item.SessionId == request.SessionId
+                && item.Kind == SessionTurnKind.Narrative
+                && item.Position <= selectedTurn.Position)
+            .OrderByDescending(item => item.Position)
+            .Take(HistoryTurnLimit)
+            .ToListAsync(cancellationToken);
+        turns.Reverse();
+        var messages = new List<AiSessionChatEditableMessageResponse> { new("system", systemMarkdown) };
+        foreach (var turn in turns)
+        {
+            if (turn.PlayerInput is { Text.Length: > 0 } input)
+                messages.Add(new("user", input.Text));
+            if (turn.Id != selectedTurn.Id && !string.IsNullOrWhiteSpace(turn.NarrativeBody))
+                messages.Add(new("assistant", turn.NarrativeBody));
+        }
+        if (!await FenceMatchesAsync(profile, credential, cancellationToken))
+            return new(AiSessionChatTestOutcome.Conflict, ErrorCode: "profile_or_credential_revision_changed");
+        return new(AiSessionChatTestOutcome.Success,
+            new(request.SessionId, request.TurnId, selectedTurn.Position, messages, systemMarkdown));
+    }
 
     public async Task<AiSessionChatTestResult> ExecuteAsync(
         AccountId ownerId,
@@ -63,9 +131,7 @@ public sealed class AiSessionChatTestService(
         var snapshot = actionEnumerator.Enumerate(world, $"PLAYGROUND-{Guid.NewGuid():N}".ToUpperInvariant());
         var selections = SelectionMap(snapshot);
         var systemMarkdown = BuildSystemMarkdown(world, snapshot, profile.SystemPrompt, selections);
-        var messages = await LoadHistoryAsync(request.SessionId, systemMarkdown, request.CurrentUserMessage, cancellationToken);
-        if (messages.Sum(message => message.Content?.Length ?? 0) > MaxPayloadCharacters)
-            return Invalid("payload_too_large");
+        var messages = request.Messages.Select(message => new AiPlaygroundChatMessage(message!.Role, message.Content)).ToList();
         var overrides = request.GenerationOverrides is null ? null : new AiGenerationOverrides(
             Temperature: request.GenerationOverrides.Temperature,
             TopP: request.GenerationOverrides.TopP,
@@ -184,23 +250,6 @@ public sealed class AiSessionChatTestService(
         return (audit, JsonSerializer.Serialize(new { status = "invalid", authoritative = true, errorCode = code }));
     }
 
-    private async Task<List<AiPlaygroundChatMessage>> LoadHistoryAsync(
-        SessionId sessionId, string systemMarkdown, string? currentUserMessage, CancellationToken cancellationToken)
-    {
-        var turns = await db.SessionTurns.AsNoTracking().Include(item => item.PlayerInput)
-            .Where(item => item.SessionId == sessionId && item.Kind == SessionTurnKind.Narrative)
-            .OrderByDescending(item => item.Position).Take(HistoryTurnLimit).ToListAsync(cancellationToken);
-        turns.Reverse();
-        var messages = new List<AiPlaygroundChatMessage> { new("system", systemMarkdown) };
-        foreach (var turn in turns)
-        {
-            if (turn.PlayerInput is { Text.Length: > 0 } input) messages.Add(new("user", input.Text));
-            if (!string.IsNullOrWhiteSpace(turn.NarrativeBody)) messages.Add(new("assistant", turn.NarrativeBody));
-        }
-        if (!string.IsNullOrWhiteSpace(currentUserMessage)) messages.Add(new("user", currentUserMessage.Trim()));
-        return messages;
-    }
-
     private async Task<bool> FenceMatchesAsync(AiProfileDescriptor profile, ResolvedAiCredential credential, CancellationToken cancellationToken)
     {
         try
@@ -229,7 +278,7 @@ public sealed class AiSessionChatTestService(
     {
         var builder = new StringBuilder();
         builder.AppendLine("# Narrative instructions");
-        builder.AppendLine("Continue the scenario as an interactive narrative. Treat all scenario data below as authoritative server context.");
+        builder.AppendLine("Continue the scenario as an interactive narrative. The scenario data below is the current authoritative Session context, not a historical reconstruction of the selected turn.");
         builder.AppendLine("Before describing any state-changing result, call `preview_rule_action`. The tool output is authoritative; never claim a change rejected by the tool.");
         builder.AppendLine("Do not invent actions, private state, committed effects, or extension results. Ask for clarification or use a non-changing system action when appropriate.");
         if (!string.IsNullOrWhiteSpace(profileInstructions)) builder.AppendLine().AppendLine("## Profile instructions").AppendLine(profileInstructions.Trim());
@@ -320,8 +369,19 @@ public sealed class AiSessionChatTestService(
 
     private static string? Validate(AiSessionChatTestRequest request)
     {
+        if (request.Messages is null || request.Messages.Count == 0) return "messages_required";
+        if (request.Messages.Count > MaxMessageCount) return "message_count_exceeded";
+        var totalCharacters = 0;
+        foreach (var message in request.Messages)
+        {
+            if (message is null || message.Role is not ("system" or "user" or "assistant"))
+                return "message_role_invalid";
+            if (string.IsNullOrWhiteSpace(message.Content)) return "message_content_required";
+            if (message.Content.Length > MaxMessageCharacters) return "message_content_too_large";
+            totalCharacters += message.Content.Length;
+            if (totalCharacters > MaxMessagePayloadCharacters) return "messages_payload_too_large";
+        }
         if (request.MaxToolRounds is < 0 or > MaxToolRoundsLimit) return "max_tool_rounds_invalid";
-        if (request.CurrentUserMessage is { Length: > 4000 }) return "current_user_message_too_large";
         var options = request.GenerationOverrides;
         if (options?.Temperature is < 0 or > 2) return "temperature_invalid";
         if (options?.TopP is <= 0 or > 1) return "top_p_invalid";

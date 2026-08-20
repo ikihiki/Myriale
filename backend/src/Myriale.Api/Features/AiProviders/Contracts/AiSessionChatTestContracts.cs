@@ -2,13 +2,29 @@ using System.Text.Json;
 
 namespace Myriale.Api.Features.AiProviders.Contracts;
 
+public sealed record AiSessionChatMessageRequest(string Role, string Content);
+public sealed record AiSessionChatEditableMessageResponse(string Role, string Content);
+
 public sealed record AiSessionChatTestRequest(
     SessionId SessionId,
-    string? CurrentUserMessage,
+    IReadOnlyList<AiSessionChatMessageRequest?> Messages,
     AiConversationGenerationOverridesRequest? GenerationOverrides,
     long ExpectedProfileRevision,
     long ExpectedCredentialRevision,
     int MaxToolRounds = 2);
+
+public sealed record AiSessionChatImportRequest(
+    SessionId SessionId,
+    SessionTurnId TurnId,
+    long ExpectedProfileRevision,
+    long ExpectedCredentialRevision);
+
+public sealed record AiSessionChatImportResponse(
+    SessionId SessionId,
+    SessionTurnId TurnId,
+    int TurnPosition,
+    IReadOnlyList<AiSessionChatEditableMessageResponse> Messages,
+    string SystemMarkdown);
 
 public sealed record AiSessionChatMessageResponse(
     string Role,

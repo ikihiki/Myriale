@@ -51,34 +51,34 @@ public sealed class AiSessionChatTestEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task ToolLoopBuildsMarkdownUsesChronologicalHistoryAndDoesNotMutateSessionState()
+    public async Task ToolLoopUsesEditableMessagesAndDoesNotMutateSessionState()
     {
         using var client = CreateClient();
         await LoginAsync(client, AccountSeedData.DefaultEmail, AccountSeedData.DefaultPassword);
-        using var created = await client.PostAsJsonAsync("/api/sessions", new
-        {
-            scenarioId = "SCN-STAR-LIBRARY",
-            requestId = $"session-chat-{Guid.NewGuid():N}",
-        });
-        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
+        var sessionId = await CreateSessionAsync(client, "editable-messages");
         var before = await ReadPersistedSessionSnapshotAsync(sessionId);
+        var editableMessages = new object[]
+        {
+            new { role = "system", content = "Edited system instructions." },
+            new { role = "user", content = "Earlier player request." },
+            new { role = "assistant", content = "Edited prior narrative." },
+            new { role = "user", content = "端末を起動する" },
+        };
 
         using var response = await client.PostAsJsonAsync("/api/admin/ai-profiles/runpod-recommended/session-chat-tests",
-            Request(sessionId, "端末を起動する"));
+            Request(sessionId, messages: editableMessages));
         var body = await response.Content.ReadAsStringAsync();
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var json = JsonSerializer.Deserialize<JsonElement>(body);
         Assert.Equal("Preview complete.", json.GetProperty("message").GetProperty("content").GetString());
         Assert.Contains("# Narrative instructions", json.GetProperty("systemMarkdown").GetString(), StringComparison.Ordinal);
+        Assert.Contains("current authoritative Session context", json.GetProperty("systemMarkdown").GetString(), StringComparison.Ordinal);
         Assert.Contains("# Available actions", json.GetProperty("systemMarkdown").GetString(), StringComparison.Ordinal);
-        Assert.Contains("tool output is authoritative", json.GetProperty("systemMarkdown").GetString(), StringComparison.OrdinalIgnoreCase);
+        var firstRequest = transport.Requests[0].Messages.Take(4).ToArray();
+        Assert.Equal(new[] { "system", "user", "assistant", "user" }, firstRequest.Select(message => message.Role));
+        Assert.Equal(new[] { "Edited system instructions.", "Earlier player request.", "Edited prior narrative.", "端末を起動する" },
+            firstRequest.Select(message => message.Content));
         var sent = json.GetProperty("sentMessages").EnumerateArray().ToArray();
-        Assert.Equal("system", sent[0].GetProperty("role").GetString());
-        var currentUser = Assert.Single(sent.Where(message => message.GetProperty("role").GetString() == "user"
-            && message.GetProperty("content").GetString() == "端末を起動する"));
-        Assert.Equal("端末を起動する", currentUser.GetProperty("content").GetString());
-        Assert.Contains(sent.Skip(1), message => message.GetProperty("role").GetString() == "assistant");
         Assert.Equal("tool", sent[^1].GetProperty("role").GetString());
         var preview = Assert.Single(json.GetProperty("toolPreviews").EnumerateArray().ToArray());
         Assert.Equal("valid", preview.GetProperty("status").GetString());
@@ -89,46 +89,77 @@ public sealed class AiSessionChatTestEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task HistoryUsesLatestTwentyNarrativeTurnsInChronologicalOrder()
+    public async Task ImportUsesLatestTwentyNarrativeTurnsInOrderAndExcludesSelectedAssistant()
     {
-        transport.Mode = ToolLoopMode.FinalOnly;
         using var client = CreateClient();
         await LoginAsync(client, AccountSeedData.DefaultEmail, AccountSeedData.DefaultPassword);
         var sessionId = await CreateSessionAsync(client, "history-window");
+        var selectedTurnId = await AddNarrativeHistoryAsync(sessionId, 21);
+
+        using var response = await client.PostAsJsonAsync("/api/admin/ai-profiles/runpod-recommended/session-chat-imports",
+            ImportRequest(sessionId, selectedTurnId));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(sessionId, json.GetProperty("sessionId").GetString());
+        Assert.Equal(selectedTurnId, json.GetProperty("turnId").GetString());
+        Assert.Equal(22, json.GetProperty("turnPosition").GetInt32());
+        Assert.Contains("current authoritative Session context", json.GetProperty("systemMarkdown").GetString(), StringComparison.Ordinal);
+        var messages = json.GetProperty("messages").EnumerateArray().ToArray();
+        Assert.Equal(40, messages.Length);
+        Assert.Equal("system", messages[0].GetProperty("role").GetString());
+        Assert.Equal("input-2", messages[1].GetProperty("content").GetString());
+        Assert.Equal("history-2", messages[2].GetProperty("content").GetString());
+        Assert.Equal("input-21", messages[^1].GetProperty("content").GetString());
+        Assert.DoesNotContain(messages, message => message.GetProperty("content").GetString() is "input-1" or "history-1" or "history-21");
+    }
+
+    [Fact]
+    public async Task ImportRejectsMissingAndNonActionResultTurns()
+    {
+        using var client = CreateClient();
+        await LoginAsync(client, AccountSeedData.DefaultEmail, AccountSeedData.DefaultPassword);
+        var sessionId = await CreateSessionAsync(client, "invalid-import");
+        SessionTurnId openingTurnId;
         await using (var scope = factory.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var session = await db.Sessions.SingleAsync(item => item.Id == new SessionId(sessionId));
-            var previous = session.HeadTurnId;
-            for (var index = 1; index <= 21; index++)
-            {
-                var id = new SessionTurnId($"TRN-PLAYGROUND-{index:D2}");
-                db.SessionTurns.Add(new SessionTurn
-                {
-                    Id = id,
-                    SessionId = session.Id,
-                    Position = index + 1,
-                    PreviousTurnId = previous,
-                    Kind = SessionTurnKind.Narrative,
-                    DialogueSchemaVersion = "test.v1",
-                    DialogueTurnType = SessionTurnType.ActionResult,
-                    NarrativeBody = $"history-{index}",
-                    SourceSessionRevision = session.Revision,
-                    CreatedAt = DateTimeOffset.UtcNow.AddMinutes(index),
-                });
-                previous = id;
-            }
-            await db.SaveChangesAsync();
+            openingTurnId = (await db.Sessions.AsNoTracking().SingleAsync(item => item.Id == new SessionId(sessionId))).HeadTurnId
+                ?? throw new InvalidOperationException("Created session must have an opening turn.");
         }
 
-        using var response = await client.PostAsJsonAsync("/api/admin/ai-profiles/runpod-recommended/session-chat-tests", Request(sessionId));
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-        var sent = json.GetProperty("sentMessages").EnumerateArray().ToArray();
-        Assert.Equal(21, sent.Length);
-        Assert.Equal("history-2", sent[1].GetProperty("content").GetString());
-        Assert.Equal("history-21", sent[^1].GetProperty("content").GetString());
-        Assert.DoesNotContain(sent, message => message.GetProperty("content").GetString() == "history-1");
+        using var missing = await client.PostAsJsonAsync("/api/admin/ai-profiles/runpod-recommended/session-chat-imports",
+            ImportRequest(sessionId, "TRN-MISSING"));
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+
+        using var invalid = await client.PostAsJsonAsync("/api/admin/ai-profiles/runpod-recommended/session-chat-imports",
+            ImportRequest(sessionId, openingTurnId.AsPrimitive()));
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        Assert.Contains("session_turn_not_importable", await invalid.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ExecutionValidatesEditableMessageShapeAndLimits()
+    {
+        using var client = CreateClient();
+        await LoginAsync(client, AccountSeedData.DefaultEmail, AccountSeedData.DefaultPassword);
+        var sessionId = await CreateSessionAsync(client, "message-validation");
+        var cases = new (object Request, string Code)[]
+        {
+            (Request(sessionId, messages: []), "messages_required"),
+            (Request(sessionId, messages: [new { role = "tool", content = "no" }]), "message_role_invalid"),
+            (Request(sessionId, messages: [new { role = "user", content = "   " }]), "message_content_required"),
+            (Request(sessionId, messages: [new { role = "user", content = new string('x', 10_001) }]), "message_content_too_large"),
+            (Request(sessionId, messages: Enumerable.Range(0, 101).Select(index => (object)new { role = "user", content = $"m-{index}" }).ToArray()), "message_count_exceeded"),
+            (Request(sessionId, messages: Enumerable.Range(0, 6).Select(_ => (object)new { role = "user", content = new string('x', 10_000) }).ToArray()), "messages_payload_too_large"),
+        };
+
+        foreach (var item in cases)
+        {
+            using var response = await client.PostAsJsonAsync("/api/admin/ai-profiles/runpod-recommended/session-chat-tests", item.Request);
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Contains(item.Code, await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        }
+        Assert.Empty(transport.Requests);
     }
 
     [Fact]
@@ -202,6 +233,7 @@ public sealed class AiSessionChatTestEndpointTests : IDisposable
             requestId = $"owner-isolation-{Guid.NewGuid():N}",
         });
         var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString()!;
+        var selectedTurnId = await AddNarrativeHistoryAsync(sessionId, 1);
 
         using var other = CreateClient();
         var email = $"other-admin-{Guid.NewGuid():N}@example.test";
@@ -210,6 +242,9 @@ public sealed class AiSessionChatTestEndpointTests : IDisposable
         await LoginAsync(other, email, "letters1");
         using var response = await other.PostAsJsonAsync("/api/admin/ai-profiles/runpod-recommended/session-chat-tests", Request(sessionId));
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        using var import = await other.PostAsJsonAsync("/api/admin/ai-profiles/runpod-recommended/session-chat-imports",
+            ImportRequest(sessionId, selectedTurnId));
+        Assert.Equal(HttpStatusCode.NotFound, import.StatusCode);
     }
 
     private async Task<string> ReadPersistedSessionSnapshotAsync(string sessionId)
@@ -223,15 +258,48 @@ public sealed class AiSessionChatTestEndpointTests : IDisposable
         return JsonSerializer.Serialize(new { session.Revision, session.CurrentLocationId, session.Status, states });
     }
 
-    private static object Request(string sessionId, string? currentUserMessage = null, int maxToolRounds = 2,
-        long expectedProfileRevision = 0, long expectedCredentialRevision = 0) => new
+    private static object Request(string sessionId, int maxToolRounds = 2,
+        long expectedProfileRevision = 0, long expectedCredentialRevision = 0, object[]? messages = null) => new
     {
         sessionId,
-        currentUserMessage,
+        messages = messages ?? [new { role = "user", content = "Continue." }],
         expectedProfileRevision,
         expectedCredentialRevision,
         maxToolRounds,
     };
+
+    private static object ImportRequest(string sessionId, string turnId,
+        long expectedProfileRevision = 0, long expectedCredentialRevision = 0) => new
+    {
+        sessionId,
+        turnId,
+        expectedProfileRevision,
+        expectedCredentialRevision,
+    };
+
+    private async Task<string> AddNarrativeHistoryAsync(string sessionId, int count)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var session = await db.Sessions.SingleAsync(item => item.Id == new SessionId(sessionId));
+        var previous = session.HeadTurnId;
+        SessionTurnId? selected = null;
+        for (var index = 1; index <= count; index++)
+        {
+            var inputId = new SessionPlayerInputId($"INP-PLAYGROUND-{index:D2}");
+            var turnId = new SessionTurnId($"TRN-PLAYGROUND-{index:D2}");
+            db.SessionPlayerInputs.Add(SessionPlayerInput.Accept(inputId, session.Id, $"input-{index}", $"input-{index}",
+                SessionInputInteractionType.Dialogue, new string((char)('a' + index % 26), 64), previous,
+                session.Revision, session.OwnerId, null, DateTimeOffset.UtcNow.AddMinutes(index)));
+            db.SessionTurns.Add(SessionTurn.CreateScenarioNarrative(turnId, session.Id, index + 1, previous, inputId,
+                "test.v1", null, null, null, $"history-{index}", null, session.Revision,
+                SessionTurnAiMetadata.None, DateTimeOffset.UtcNow.AddMinutes(index).AddSeconds(1)));
+            previous = turnId;
+            selected = turnId;
+        }
+        await db.SaveChangesAsync();
+        return selected?.AsPrimitive() ?? throw new InvalidOperationException("At least one history turn is required.");
+    }
 
     private async Task<string> CreateSessionAsync(HttpClient client, string requestId)
     {
