@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import { createBrowserHistory, createMemoryHistory, createRouter } from '@tanstack/react-router';
 import { createFetchAccountApi, type AccountApi } from './account/api/accountApi';
 import { ScenarioRegistrationContainer } from './features/scenario-registration/ScenarioRegistrationContainer';
+import { AiPlaygroundContainer } from './features/ai-playground/AiPlaygroundContainer';
 import { EditScenarioContainer } from './features/scenario-editor/EditScenarioContainer';
 import { ScenarioAiEvaluationContainer } from './features/scenario-ai-evaluation/ScenarioAiEvaluationContainer';
 import { ScenarioListContainer } from './features/session-start/ScenarioListContainer';
@@ -13,6 +14,7 @@ import { routeTree } from './routeTree.gen';
 export type AppRouterContext = {
   showDebugPanel: boolean;
   accountApi: AccountApi;
+  aiPlaygroundContainer: ComponentType;
   scenarioListContainer: ComponentType;
   scenarioRegistrationContainer: ComponentType;
   scenarioAiEvaluationContainer: ComponentType<{ scenarioId: string }>;
@@ -29,6 +31,7 @@ export function createAppRouter({
   historyMode = 'memory',
   showDebugPanel = true,
   accountApi = createFetchAccountApi(),
+  aiPlaygroundContainer = AiPlaygroundContainer,
   scenarioListContainer = ScenarioListContainer,
   scenarioRegistrationContainer = ScenarioRegistrationContainer,
   scenarioAiEvaluationContainer = ScenarioAiEvaluationContainer,
@@ -41,6 +44,7 @@ export function createAppRouter({
   historyMode?: AppHistoryMode;
   showDebugPanel?: boolean;
   accountApi?: AccountApi;
+  aiPlaygroundContainer?: ComponentType;
   scenarioListContainer?: ComponentType;
   scenarioRegistrationContainer?: ComponentType;
   scenarioAiEvaluationContainer?: ComponentType<{ scenarioId: string }>;
@@ -56,7 +60,7 @@ export function createAppRouter({
   return createRouter({
     routeTree,
     history,
-    context: { showDebugPanel, accountApi, scenarioListContainer, scenarioRegistrationContainer, editScenarioContainer, scenarioAiEvaluationContainer, sessionContainer, turnInspectionContainer, startSessionContainer },
+    context: { showDebugPanel, accountApi, aiPlaygroundContainer, scenarioListContainer, scenarioRegistrationContainer, editScenarioContainer, scenarioAiEvaluationContainer, sessionContainer, turnInspectionContainer, startSessionContainer },
     defaultPreload: 'intent',
   });
 }

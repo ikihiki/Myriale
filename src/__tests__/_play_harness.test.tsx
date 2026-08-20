@@ -8,6 +8,7 @@ import * as appChromeStories from '../stories/AppChrome.stories';
 import * as sessionListStories from '../stories/SessionListPage.stories';
 import * as scenarioRegistrationStories from '../stories/ScenarioRegistrationPage.stories';
 import * as scenarioAiEvaluationStories from '../stories/ScenarioAiEvaluationPage.stories';
+import * as aiPlaygroundStories from '../stories/AiPlaygroundPage.stories';
 import * as editScenarioStories from '../stories/EditScenarioPage.stories';
 import * as programDrivenStories from '../stories/SessionPage.program-driven.stories';
 import * as sessionTurnStories from '../stories/SessionTurn.stories';
@@ -30,6 +31,7 @@ const composedAppChrome = composeStories(appChromeStories);
 const composedSessionList = composeStories(sessionListStories);
 const composedScenarioRegistration = composeStories(scenarioRegistrationStories);
 const composedScenarioAiEvaluation = composeStories(scenarioAiEvaluationStories);
+const composedAiPlayground = composeStories(aiPlaygroundStories);
 const composedEditScenario = composeStories(editScenarioStories);
 const composedProgramDriven = composeStories(programDrivenStories);
 const composedSessionTurn = composeStories(sessionTurnStories);
@@ -143,6 +145,17 @@ describe('play: ScenarioRegistrationPage stories', () => {
 
 describe('play: Scenario AI Corpus evaluation stories', () => {
   for (const [name, Story] of Object.entries(composedScenarioAiEvaluation)) {
+    it(name, async () => {
+      const { container } = render(<Story />);
+      await waitFor(() => expect(container.firstElementChild).not.toBeNull());
+      if (Story.play) await Story.play({ canvasElement: container });
+      expect(container).toBeTruthy();
+    });
+  }
+});
+
+describe('play: AI Conversation Playground stories', () => {
+  for (const [name, Story] of Object.entries(composedAiPlayground)) {
     it(name, async () => {
       const { container } = render(<Story />);
       await waitFor(() => expect(container.firstElementChild).not.toBeNull());

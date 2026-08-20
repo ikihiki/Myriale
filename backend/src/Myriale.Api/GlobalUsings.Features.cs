@@ -82,6 +82,7 @@ global using Myriale.Api.Infrastructure.Observability;
 global using Myriale.Api.Infrastructure.Composition.Sessions;
 global using Myriale.Api.Infrastructure.Composition.ModuleExecutions;
 global using Myriale.Api.Infrastructure.Composition.ProgressionRuntime;
+global using Myriale.Api.Infrastructure.Composition.AiProviders;
 global using Myriale.Api.Infrastructure.Composition.Scenarios;
 global using Myriale.Api.Infrastructure.Composition.SessionExecutions;
 global using Myriale.Api.Infrastructure.Composition.SessionMemory;

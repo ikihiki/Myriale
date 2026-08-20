@@ -111,7 +111,23 @@ describe('TanStack app routing', () => {
     await router.load();
 
     expect(router.state.location.pathname).toBe('/admin');
-    expect(router.state.matches[router.state.matches.length - 1]?.routeId).toBe('/admin');
+    expect(router.state.matches[router.state.matches.length - 1]?.routeId).toBe('/admin/');
+  });
+
+  it('matches the authenticated AI conversation playground route', async () => {
+    const router = createAppRouter({ initialUrl: '/admin/ai-playground' });
+    await router.load();
+    expect(router.state.location.pathname).toBe('/admin/ai-playground');
+    expect(router.state.matches.at(-1)?.routeId).toBe('/admin/ai-playground');
+  });
+
+  it('redirects anonymous AI playground access to login with the exact return URL', async () => {
+    const accountApi = createDemoAccountApi();
+    await accountApi.logout();
+    const router = createAppRouter({ initialUrl: '/admin/ai-playground', accountApi });
+    await router.load();
+    expect(router.state.location.pathname).toBe('/account/login');
+    expect(router.state.location.search).toEqual({ redirect: '/admin/ai-playground' });
   });
 
   it('redirects an anonymous home request to login', async () => {
@@ -152,6 +168,7 @@ describe('TanStack app routing', () => {
     expect(appPathForStoryKey('playSession')).toBe('/sessions');
     expect(appPathForStoryKey('sessionList')).toBe('/sessions');
     expect(appPathForStoryKey('adminAiProviders')).toBe('/admin');
+    expect(appPathForStoryKey('aiPlayground')).toBe('/admin/ai-playground');
     expect(appPathForStoryKey('scenarioEdit', { scenarioId: 'SCN-AWAKENING-LAB' })).toBe('/scenarios/SCN-AWAKENING-LAB/edit');
     expect(appHrefForStoryKey('startSession', { query: { scenarioId: 'SCN-001' } })).toBe('/sessions/start?scenarioId=SCN-001');
   });

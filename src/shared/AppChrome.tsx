@@ -66,6 +66,7 @@ const sections: Section[] = [
     links: [
       { label: 'ユーザー管理', to: 'adminUsers', hint: '一覧・停止・サポート' },
       { label: 'AI Provider管理', to: 'adminAiProviders', hint: '文章AI/挿絵AIの接続設定' },
+      { label: 'AI Playground', to: 'aiPlayground', hint: '架空の会話履歴で次の応答を検証' },
       { label: '監査ログ', to: 'auditLog', hint: '重要操作の記録' },
     ],
   },
@@ -77,6 +78,7 @@ const accountLinks: NavLink[] = [
   { label: 'データ書き出し', to: 'exportData' },
   { label: '運用コンソール', to: 'adminUsers' },
   { label: 'AI Provider管理', to: 'adminAiProviders' },
+  { label: 'AI Playground', to: 'aiPlayground' },
   { label: '退会', to: 'withdraw' },
 ];
 

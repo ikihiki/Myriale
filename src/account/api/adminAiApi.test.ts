@@ -45,3 +45,102 @@ describe('AdminAiApi split profile and credential contracts', () => {
     expect(runpod.validationStatus).toBe('untested');
   });
 });
+
+import { afterEach, vi } from 'vitest';
+import { createFetchAdminAiApi } from './adminAiApi';
+
+afterEach(() => vi.restoreAllMocks());
+
+describe('AdminAiApi conversation test contract', () => {
+  it('posts ordered messages, generation overrides, and revision fences without profile secrets', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ message: { role: 'assistant', content: 'answer' }, provider: 'provider', model: 'model', latencyMilliseconds: 12, attemptCount: 1 }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    const api = createFetchAdminAiApi('/api/admin');
+    const profile = (await createDemoAdminAiApi().listProfiles())[0];
+    await api.testConversation(profile, [{ role: 'system', content: 'rules' }, { role: 'user', content: 'question' }], { temperature: 0.4, maximumOutputTokens: 300 });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`/api/admin/ai-profiles/${profile.id}/conversation-tests`);
+    const body = JSON.parse(String(init?.body));
+    expect(body).toEqual({ messages: [{ role: 'system', content: 'rules' }, { role: 'user', content: 'question' }], generationOverrides: { temperature: 0.4, maximumOutputTokens: 300 }, expectedProfileRevision: profile.revision, expectedCredentialRevision: profile.credentialRevision });
+    expect(JSON.stringify(body)).not.toContain(profile.baseUrl);
+    expect(JSON.stringify(body)).not.toContain(profile.credentialId);
+  });
+
+  it('posts a session chat tool experiment with revision fences', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          message: { role: 'assistant', content: 'answer' },
+          metadata: {
+            provider: 'provider',
+            model: 'model',
+            latencyMilliseconds: 12,
+            attemptCount: 1,
+            providerRounds: 1,
+            toolCallCount: 0,
+          },
+          systemMarkdown: '# Context',
+          sentMessages: [],
+          toolPreviews: [],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+    const api = createFetchAdminAiApi('/api/admin');
+    const profile = (await createDemoAdminAiApi().listProfiles())[0];
+    await api.testSessionChat(profile, {
+      sessionId: 'SES-1',
+      messages: [{ role: 'user', content: '西の扉を開ける' }],
+      generationOverrides: { temperature: 0.3 },
+      maxToolRounds: 2,
+    });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`/api/admin/ai-profiles/${profile.id}/session-chat-tests`);
+    expect(JSON.parse(String(init?.body))).toEqual({
+      sessionId: 'SES-1',
+      messages: [{ role: 'user', content: '西の扉を開ける' }],
+      generationOverrides: { temperature: 0.3 },
+      maxToolRounds: 2,
+      expectedProfileRevision: profile.revision,
+      expectedCredentialRevision: profile.credentialRevision,
+    });
+  });
+});
+
+describe('AdminAiApi Playground persistence contract', () => {
+  it('persists and reloads the complete document with revision fencing', async () => {
+    const api = createDemoAdminAiApi();
+    expect(await api.getPlaygroundDocument()).toBeNull();
+    const document = {
+      selectedConversationId: 'conversation-1',
+      conversations: [
+        {
+          id: 'conversation-1',
+          title: '天文台',
+          sourceSessionId: null,
+          sourceTurnId: null,
+          sourceTurnPosition: null,
+          maxToolRounds: '2',
+          profileId: 'openai',
+          messages: [
+            { id: 'message-1', role: 'user' as const, content: '扉を開ける' },
+          ],
+          generation: {
+            temperature: '0.7',
+            topP: '',
+            maximumOutputTokens: '800',
+            seed: '',
+            retryAttempts: '0',
+          },
+          responses: [],
+          selectedResponseId: null,
+        },
+      ],
+    };
+    const created = await api.savePlaygroundDocument(document, null);
+    expect(created.revision).toBe(1);
+    expect((await api.getPlaygroundDocument())?.document).toEqual(document);
+    await expect(api.savePlaygroundDocument(document, null)).rejects.toMatchObject({
+      status: 409,
+    });
+  });
+});

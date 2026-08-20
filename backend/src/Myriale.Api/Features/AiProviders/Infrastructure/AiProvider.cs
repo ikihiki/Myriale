@@ -54,7 +54,7 @@ public sealed class OpenAiCompatibleTextProvider(
     IOptions<AiProviderOptions> configuredOptions,
     IAiProfileCatalog catalog,
     ActiveAiProviderQueryService selection,
-    ILogger<OpenAiCompatibleTextProvider> logger) : IAiTextService
+    ILogger<OpenAiCompatibleTextProvider> logger) : IAiTextService, IAiConversationService
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -73,7 +73,8 @@ public sealed class OpenAiCompatibleTextProvider(
         var credential = await credentials.ResolveAsync(profile.CredentialId, cancellationToken);
         if (credential is null)
             throw new AiProviderException(AiProviderErrorCodes.InvalidCredential, "AI Provider credentialが設定されていません。", false);
-        return await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile, request.GenerationOverrides), credential.Secret, ApplyProfileSystemPrompt(request, profile.SystemPrompt), cancellationToken);
+        var response = await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile, request.GenerationOverrides), credential.Secret, ToWire(ApplyProfileSystemPrompt(request, profile.SystemPrompt)), cancellationToken);
+        return new(response.Text, response.Metadata);
     }
 
     public async Task<AiTextResponse> GenerateForProviderAsync(AiProviderProfileId provider, string credential, AiTextRequest request, CancellationToken cancellationToken)
@@ -81,7 +82,33 @@ public sealed class OpenAiCompatibleTextProvider(
         var profile = await catalog.ResolveAsync(provider, cancellationToken);
         if (string.IsNullOrWhiteSpace(credential))
             throw new AiProviderException(AiProviderErrorCodes.InvalidCredential, "AI Provider credentialが設定されていません。", false);
-        return await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile, request.GenerationOverrides), credential, ApplyProfileSystemPrompt(request, profile.SystemPrompt), cancellationToken);
+        var response = await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile, request.GenerationOverrides), credential, ToWire(ApplyProfileSystemPrompt(request, profile.SystemPrompt)), cancellationToken);
+        return new(response.Text, response.Metadata);
+    }
+
+    public async Task<AiConversationResponse> GenerateForProfileAsync(AiProviderProfileId profileId, AiConversationRequest request, CancellationToken cancellationToken)
+    {
+        var profile = await catalog.ResolveAsync(profileId, cancellationToken);
+        var credential = await credentials.ResolveAsync(profile.CredentialId, cancellationToken);
+        if (credential is null)
+            throw new AiProviderException(AiProviderErrorCodes.InvalidCredential, "AI Provider credentialが設定されていません。", false);
+        return await GenerateConversationAsync(profile, credential.Secret, request, cancellationToken);
+    }
+
+    public async Task<AiConversationResponse> GenerateForProviderAsync(AiProviderProfileId provider, string credential, AiConversationRequest request, CancellationToken cancellationToken)
+    {
+        var profile = await catalog.ResolveAsync(provider, cancellationToken);
+        if (string.IsNullOrWhiteSpace(credential))
+            throw new AiProviderException(AiProviderErrorCodes.InvalidCredential, "AI Provider credentialが設定されていません。", false);
+        return await GenerateConversationAsync(profile, credential, request, cancellationToken);
+    }
+
+    private async Task<AiConversationResponse> GenerateConversationAsync(AiProfileDescriptor profile, string credential, AiConversationRequest request, CancellationToken cancellationToken)
+    {
+        var prepared = ApplyProfileSystemPrompt(request, profile.SystemPrompt);
+        var response = await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile, request.GenerationOverrides), credential,
+            new(prepared.Messages, prepared.GenerationOverrides, null, null), cancellationToken);
+        return new(response.Text, response.Metadata);
     }
 
     public async Task TestConnectionAsync(AiProviderProfileId provider, string credential, CancellationToken cancellationToken)
@@ -94,7 +121,7 @@ public sealed class OpenAiCompatibleTextProvider(
                 new ChatMessage(ChatRole.User, "Return {\"ok\":true}.")
             ],
             ChatResponseFormat.ForJsonSchema(schema.RootElement, "myriale_connection_test"));
-        await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile, probe.GenerationOverrides), credential, probe, cancellationToken);
+        await SendWithRetryAsync(profile.Id, ResolveProfileOptions(configuredOptions.Value, profile, probe.GenerationOverrides), credential, ToWire(probe), cancellationToken);
     }
 
     private static AiTextRequest ApplyProfileSystemPrompt(AiTextRequest request, string systemPrompt)
@@ -110,7 +137,26 @@ public sealed class OpenAiCompatibleTextProvider(
         return new AiTextRequest(messages, request.ResponseFormat, request.GenerationOverrides);
     }
 
-    private async Task<AiTextResponse> SendWithRetryAsync(AiProviderProfileId provider, AiProviderRequestOptions options, string credential, AiTextRequest request, CancellationToken cancellationToken)
+    private static AiConversationRequest ApplyProfileSystemPrompt(AiConversationRequest request, string systemPrompt)
+    {
+        if (string.IsNullOrWhiteSpace(systemPrompt)) return request;
+        var messages = request.Messages.ToList();
+        var firstSystem = messages.FindIndex(message => message.Role == ChatRole.System);
+        var additional = $"\n\nAI profile additional instructions:\n{systemPrompt.Trim()}";
+        if (firstSystem >= 0)
+            messages[firstSystem] = new ChatMessage(ChatRole.System, messages[firstSystem].Text + additional);
+        else
+            messages.Insert(0, new ChatMessage(ChatRole.System, systemPrompt.Trim()));
+        return new(messages, request.GenerationOverrides);
+    }
+
+    private static AiWireRequest ToWire(AiTextRequest request) =>
+        new(request.Messages, request.GenerationOverrides, request.ResponseFormat.SchemaName, request.ResponseFormat.Schema?.GetRawText());
+
+    private sealed record AiWireRequest(IReadOnlyList<ChatMessage> Messages, AiGenerationOverrides? GenerationOverrides, string? SchemaName, string? SchemaJson);
+    private sealed record AiWireResponse(string Text, AiGenerationMetadata Metadata);
+
+    private async Task<AiWireResponse> SendWithRetryAsync(AiProviderProfileId provider, AiProviderRequestOptions options, string credential, AiWireRequest request, CancellationToken cancellationToken)
     {
         AiProviderException? last = null;
         for (var attempt = 1; attempt <= Math.Max(1, options.MaxAttempts); attempt++)
@@ -126,7 +172,7 @@ public sealed class OpenAiCompatibleTextProvider(
                     "AI Provider request attempt failed and will be retried. Provider={Provider} Model={Model} Schema={SchemaName} Attempt={Attempt} MaxAttempts={MaxAttempts} ErrorCode={ErrorCode} RetryDelayMilliseconds={RetryDelayMilliseconds}",
                     provider.AsPrimitive(),
                     options.Model,
-                    request.ResponseFormat.SchemaName,
+                    request.SchemaName ?? "free_text",
                     attempt,
                     options.MaxAttempts,
                     exception.Code,
@@ -137,7 +183,7 @@ public sealed class OpenAiCompatibleTextProvider(
         throw last ?? new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "AI Provider request failed.", true);
     }
 
-    private async Task<AiTextResponse> SendAsync(AiProviderProfileId provider, AiProviderRequestOptions options, string credential, AiTextRequest input, int attempt, CancellationToken cancellationToken)
+    private async Task<AiWireResponse> SendAsync(AiProviderProfileId provider, AiProviderRequestOptions options, string credential, AiWireRequest input, int attempt, CancellationToken cancellationToken)
     {
         var client = clients.CreateClient("OpenAiCompatible");
         var endpoint = new Uri(new Uri(ResolveBaseUrl(options.BaseUrl)), "chat/completions");
@@ -149,20 +195,22 @@ public sealed class OpenAiCompatibleTextProvider(
             ["messages"] = input.Messages.Select(message => new { role = message.Role.Value, content = message.Text }),
             ["temperature"] = options.Temperature,
             ["max_tokens"] = options.MaxOutputTokens,
-            // Microsoft.Extensions.AI owns the provider-neutral messages and response format. This adapter owns
-            // the final OpenAI-compatible wire shape so OpenAI and Runpod vLLM receive the same strict contract.
-            ["response_format"] = new
+        };
+        if (input.SchemaName is not null)
+        {
+            // Structured callers retain the existing strict JSON-schema contract. Free-text conversations omit response_format.
+            payload["response_format"] = new
             {
                 type = "json_schema",
                 json_schema = new
                 {
-                    name = input.ResponseFormat.SchemaName,
+                    name = input.SchemaName,
                     strict = true,
-                    schema = JsonNode.Parse(input.ResponseFormat.Schema?.GetRawText()
+                    schema = JsonNode.Parse(input.SchemaJson
                         ?? throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "Structured output schema is required.", false))
                 }
-            }
-        };
+            };
+        }
         if (options.TopP is { } topP) payload["top_p"] = topP;
         if (options.RepetitionPenalty is { } repetitionPenalty) payload["repetition_penalty"] = repetitionPenalty;
         if (options.Seed is { } seed) payload["seed"] = seed;
@@ -186,7 +234,7 @@ public sealed class OpenAiCompatibleTextProvider(
                 stopwatch.Stop();
                 logger.LogWarning(
                     "AI Provider returned an unsuccessful response. Provider={Provider} Model={Model} Schema={SchemaName} Endpoint={Endpoint} Attempt={Attempt} StatusCode={StatusCode} ReasonPhrase={ReasonPhrase} ProviderRequestId={ProviderRequestId} ErrorCode={ErrorCode} ResponseBody={ResponseBody}",
-                    provider.AsPrimitive(), options.Model, input.ResponseFormat.SchemaName, endpoint.GetLeftPart(UriPartial.Path), attempt,
+                    provider.AsPrimitive(), options.Model, input.SchemaName ?? "free_text", endpoint.GetLeftPart(UriPartial.Path), attempt,
                     (int)response.StatusCode, response.ReasonPhrase, providerRequestId, providerException.Code, providerException.ProviderResponseExcerpt);
                 throw WithMetadata(providerException, FailureMetadata(provider, options, input, attempt, stopwatch.ElapsedMilliseconds, providerRequestId));
             }
@@ -214,7 +262,7 @@ public sealed class OpenAiCompatibleTextProvider(
                 throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "AI Provider returned empty structured output.", false,
                     receivedResult: responseBody, metadata: metadata);
             SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider.AsPrimitive(), options.Model, "succeeded"));
-            return new AiTextResponse(textResult, metadata);
+            return new AiWireResponse(textResult, metadata);
         }
         catch (AiProviderException exception)
         {
@@ -226,7 +274,7 @@ public sealed class OpenAiCompatibleTextProvider(
             stopwatch.Stop();
             logger.LogWarning(exception,
                 "AI Provider request timed out. Provider={Provider} Model={Model} Schema={SchemaName} Endpoint={Endpoint} Attempt={Attempt} TimeoutSeconds={TimeoutSeconds}",
-                provider, options.Model, input.ResponseFormat.SchemaName, endpoint.GetLeftPart(UriPartial.Path), attempt, options.TimeoutSeconds);
+                provider, options.Model, input.SchemaName ?? "free_text", endpoint.GetLeftPart(UriPartial.Path), attempt, options.TimeoutSeconds);
             SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider.AsPrimitive(), options.Model, "failed", AiProviderErrorCodes.Timeout));
             throw new AiProviderException(AiProviderErrorCodes.Timeout, "AI Provider request timed out.", true, null, exception,
                 receivedResult: responseBody, metadata: FailureMetadata(provider, options, input, attempt, stopwatch.ElapsedMilliseconds, providerRequestId));
@@ -236,7 +284,7 @@ public sealed class OpenAiCompatibleTextProvider(
             stopwatch.Stop();
             logger.LogWarning(exception,
                 "AI Provider transport failed. Provider={Provider} Model={Model} Schema={SchemaName} Endpoint={Endpoint} Attempt={Attempt} HttpRequestError={HttpRequestError} StatusCode={StatusCode}",
-                provider, options.Model, input.ResponseFormat.SchemaName, endpoint.GetLeftPart(UriPartial.Path), attempt, exception.HttpRequestError, exception.StatusCode is null ? null : (int)exception.StatusCode);
+                provider, options.Model, input.SchemaName ?? "free_text", endpoint.GetLeftPart(UriPartial.Path), attempt, exception.HttpRequestError, exception.StatusCode is null ? null : (int)exception.StatusCode);
             SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider.AsPrimitive(), options.Model, "failed", AiProviderErrorCodes.ProviderUnavailable));
             throw new AiProviderException(AiProviderErrorCodes.ProviderUnavailable, "AI Provider is unavailable.", true, null, exception,
                 receivedResult: responseBody, metadata: FailureMetadata(provider, options, input, attempt, stopwatch.ElapsedMilliseconds, providerRequestId));
@@ -246,7 +294,7 @@ public sealed class OpenAiCompatibleTextProvider(
             stopwatch.Stop();
             logger.LogWarning(exception,
                 "AI Provider response envelope was invalid. Provider={Provider} Model={Model} Schema={SchemaName} Endpoint={Endpoint} Attempt={Attempt} ExceptionType={ExceptionType}",
-                provider, options.Model, input.ResponseFormat.SchemaName, endpoint.GetLeftPart(UriPartial.Path), attempt, exception.GetType().Name);
+                provider, options.Model, input.SchemaName ?? "free_text", endpoint.GetLeftPart(UriPartial.Path), attempt, exception.GetType().Name);
             SessionExecutionTelemetry.ProviderRequests.Add(1, SessionExecutionTelemetry.ProviderTags(provider.AsPrimitive(), options.Model, "failed", AiProviderErrorCodes.SchemaFailure));
             throw new AiProviderException(AiProviderErrorCodes.SchemaFailure, "AI Provider returned an invalid response envelope.", false, null, exception,
                 receivedResult: responseBody, metadata: FailureMetadata(provider, options, input, attempt, stopwatch.ElapsedMilliseconds, providerRequestId));
@@ -254,7 +302,7 @@ public sealed class OpenAiCompatibleTextProvider(
     }
 
     private static AiGenerationMetadata FailureMetadata(AiProviderProfileId provider, AiProviderRequestOptions options,
-        AiTextRequest input, int attempt, long latencyMilliseconds, string? responseId) =>
+        AiWireRequest input, int attempt, long latencyMilliseconds, string? responseId) =>
         new(provider, options.Model, responseId, null, null, latencyMilliseconds, attempt, null, input.GenerationOverrides);
 
     private static AiProviderException WithMetadata(AiProviderException exception, AiGenerationMetadata metadata) => new(

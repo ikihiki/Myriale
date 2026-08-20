@@ -12,6 +12,7 @@ export type MyrialeAppProps = {
   initialDb?: AppDb;
   showDebugPanel?: boolean;
   historyMode?: AppHistoryMode;
+  aiPlaygroundContainer?: ComponentType;
   scenarioListContainer?: ComponentType;
   scenarioRegistrationContainer?: ComponentType;
   scenarioAiEvaluationContainer?: ComponentType<{ scenarioId: string }>;
@@ -27,6 +28,7 @@ export function MyrialeApp({
   initialDb,
   showDebugPanel = true,
   historyMode = 'memory',
+  aiPlaygroundContainer,
   scenarioListContainer,
   scenarioRegistrationContainer,
   scenarioAiEvaluationContainer,
@@ -37,8 +39,8 @@ export function MyrialeApp({
 }: MyrialeAppProps) {
   const resolvedAccountApi = useMemo(() => accountApi ?? createFetchAccountApi(), [accountApi]);
   const router = useMemo(
-    () => createAppRouter({ initialUrl, historyMode, showDebugPanel, accountApi: resolvedAccountApi, scenarioListContainer, scenarioRegistrationContainer, editScenarioContainer, scenarioAiEvaluationContainer, sessionContainer, turnInspectionContainer, startSessionContainer }),
-    [editScenarioContainer, historyMode, initialUrl, resolvedAccountApi, scenarioAiEvaluationContainer, scenarioListContainer, scenarioRegistrationContainer, sessionContainer, showDebugPanel, startSessionContainer, turnInspectionContainer],
+    () => createAppRouter({ initialUrl, historyMode, showDebugPanel, accountApi: resolvedAccountApi, aiPlaygroundContainer, scenarioListContainer, scenarioRegistrationContainer, editScenarioContainer, scenarioAiEvaluationContainer, sessionContainer, turnInspectionContainer, startSessionContainer }),
+    [aiPlaygroundContainer, editScenarioContainer, historyMode, initialUrl, resolvedAccountApi, scenarioAiEvaluationContainer, scenarioListContainer, scenarioRegistrationContainer, sessionContainer, showDebugPanel, startSessionContainer, turnInspectionContainer],
   );
   const queryClient = useMemo(() => createMyrialeQueryClient(), []);
 

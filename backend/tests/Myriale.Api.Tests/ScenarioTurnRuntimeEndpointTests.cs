@@ -42,8 +42,9 @@ public sealed class ScenarioTurnRuntimeEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, profilesResponse.StatusCode);
         var profilesBody = await profilesResponse.Content.ReadAsStringAsync();
         var profilesJson = JsonSerializer.Deserialize<JsonElement>(profilesBody);
-        Assert.Equal(2, profilesJson.GetProperty("profiles").GetArrayLength());
+        Assert.Equal(3, profilesJson.GetProperty("profiles").GetArrayLength());
         Assert.Contains("推奨（Deckard 40B AWQ）", profilesBody, StringComparison.Ordinal);
+        Assert.Contains("LLM（Deckard 40B GGUF）", profilesBody, StringComparison.Ordinal);
         Assert.DoesNotContain("api.runpod.ai", profilesBody, StringComparison.Ordinal);
         Assert.DoesNotContain("Model", profilesBody, StringComparison.OrdinalIgnoreCase);
 

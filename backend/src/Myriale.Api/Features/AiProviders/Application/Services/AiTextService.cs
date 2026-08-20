@@ -70,6 +70,21 @@ public sealed record AiGenerationMetadata(
 public sealed record AiTextResponse(string Text, AiGenerationMetadata Metadata);
 
 [CrossSliceContract]
+public sealed record AiConversationRequest(
+    IReadOnlyList<ChatMessage> Messages,
+    AiGenerationOverrides? GenerationOverrides = null);
+
+[CrossSliceContract]
+public sealed record AiConversationResponse(string Text, AiGenerationMetadata Metadata);
+
+[CrossSliceContract]
+public interface IAiConversationService
+{
+    Task<AiConversationResponse> GenerateForProfileAsync(AiProviderProfileId profileId, AiConversationRequest request, CancellationToken cancellationToken);
+    Task<AiConversationResponse> GenerateForProviderAsync(AiProviderProfileId provider, string credential, AiConversationRequest request, CancellationToken cancellationToken);
+}
+
+[CrossSliceContract]
 public interface IAiTextService
 {
     Task<AiTextResponse> GenerateAsync(AiTextRequest request, CancellationToken cancellationToken);
